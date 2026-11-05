@@ -29,6 +29,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("Unterminated object on line 1 column 1"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((1, 1), (1, 2)),
             ]],
@@ -54,6 +57,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_name(
                     "comments are not allowed in JSON (RFC 8259): only a file read as json with comments has them",
                 ),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((1, 4), (1, 8)),
             ]],

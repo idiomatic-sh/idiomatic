@@ -204,8 +204,18 @@ impl<'a> SourceOrderVisitor<'a> for Gather {
         } else {
             (Offset(node.start().to_u32()), Offset(node.end().to_u32()))
         };
+        // Ruff represents these pairs with one constructor and an explicit flag.
+        // The language vocabulary preserves the distinct Python statement kinds.
+        let kind = match node {
+            AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
+                Kind::Node(Node::AsyncFunctionDef)
+            }
+            AnyNodeRef::StmtFor(statement) if statement.is_async => Kind::Node(Node::AsyncFor),
+            AnyNodeRef::StmtWith(statement) if statement.is_async => Kind::Node(Node::AsyncWith),
+            _ => self.kind_of_node(node.kind()),
+        };
         self.open.push(Walked {
-            kind: kind_bits(self.kind_of_node(node.kind())),
+            kind: kind_bits(kind),
             leaf: Leafness::Node,
             start,
             end,
@@ -279,7 +289,12 @@ fn token(kind: Kind, start: Offset, end: Offset) -> Walked {
 /// The library's tree of `text`, with its tokens and the white space between them.
 #[must_use]
 pub(crate) fn walked(text: &str) -> Walked {
-    let options = ParseOptions::from(Mode::Module).with_target_version(PythonVersion::latest());
+    walked_with(text, PythonVersion::latest())
+}
+
+/// Reference callback configured to the same target as the fixture parser.
+pub(crate) fn walked_with(text: &str, version: PythonVersion) -> Walked {
+    let options = ParseOptions::from(Mode::Module).with_target_version(version);
     let parsed = parse_unchecked(text, options);
     let length = Offset(u32::try_from(text.len()).unwrap_or(u32::MAX));
     let mut gather = Gather {

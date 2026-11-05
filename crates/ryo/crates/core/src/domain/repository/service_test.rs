@@ -2,10 +2,10 @@
 
 use super::service::{by_path, configuration, paths_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::rules::types::RuleParameters;
-use crate::domain::rules::types::RuleSpec;
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::runs::types::RuleId;
 
@@ -28,28 +28,34 @@ type Failure = ();
 
 fn entry(path: &str, size: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(size),
         modified: Nanoseconds(0),
     }
 }
 
-fn files() -> Vec<CorpusEntry> {
+fn files() -> Vec<CorpusInput> {
     vec![entry("c", 3), entry("a", 1), entry("b", 2)]
+        .into_iter()
+        .map(CorpusInput::Available)
+        .collect()
 }
 
 fn rule(id: &str, query: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
+        observations: Vec::new(),
         spelled: RuleParameters("".into()),
         include: Vec::new(),
         exclude: Vec::new(),
     }
 }
 
-fn files_in_order() -> Vec<CorpusEntry> {
+fn files_in_order() -> Vec<CorpusInput> {
     let mut files = files();
     by_path(&mut files);
     files
@@ -60,6 +66,9 @@ fn subject(scenario: Input) -> Value {
         Scenario::SortedByPath => {
             let mut sorted = [0; 3];
             for (slot, file) in sorted.iter_mut().zip(files_in_order()) {
+                let CorpusInput::Available(file) = file else {
+                    panic!("fixture requires observed metadata");
+                };
                 *slot = i64::try_from(file.size.0).unwrap_or(i64::MAX);
             }
             sorted
@@ -112,4 +121,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+#[test]
+fn explicit_source_selection_identity_is_exact_and_framed() {
+    use ryo_values::domain::descriptions::types::LanguageName;
+    let encode = super::service::source_selection_identity;
+    let python = LanguageName("python".into());
+    let other = LanguageName("python-other".into());
+    assert_eq!(encode(Some(&python)), encode(Some(&python)));
+    assert_ne!(encode(None), encode(Some(&python)));
+    assert_ne!(encode(Some(&python)), encode(Some(&other)));
+    assert_ne!(encode(None), encode(Some(&LanguageName("".into()))));
 }

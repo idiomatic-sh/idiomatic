@@ -50,6 +50,12 @@ impl Linter {
             cache,
         ))
     }
+    /// Select execution explicitly; the same choice controls runtime and persisted identity.
+    #[must_use]
+    pub fn with_execution(mut self, execution: super::types::ExecutionOptions) -> Self {
+        self.set_execution(execution);
+        self
+    }
 }
 
 /// `linter lint` over `linter`: checks rules over a repository, as `lint` does, with no setup of its own.
@@ -57,16 +63,19 @@ impl Linter {
 /// # Errors
 ///
 /// As `lint`.
-pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, LintError> {
+pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport, LintError> {
+    schemas::project_context(&mut request)?;
     let engine = linter.engine();
     let connections = super::connections::connect(&engine.cache, engine)?;
     let reading = super::composition::build_reading(&request);
     let budget = schemas::budget(engine.memory);
-    let core: CoreRequest = schemas::request(request)?;
+    let mut core: CoreRequest = schemas::request(request)?;
     let opened = super::composition::build_open(budget)
         .open(OpenRequest {
             root: core.session.root.clone(),
             repository: core.session.repository,
+            search_scope: core.session.search_scope.clone(),
+            given_inventory: core.session.given_inventory.clone(),
         })
         .map_err(schemas::open_error)?
         .session;
@@ -75,11 +84,9 @@ pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, Li
         root: opened.root.clone(),
         budget,
     };
+    core.session = opened;
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
-        .lint(CoreRequest {
-            session: opened,
-            ..core
-        })
+        .lint(core)
         .map_err(schemas::error)?;
     schemas::report(rows, report)
 }
@@ -94,4 +101,10 @@ impl From<Workers> for WorkerPool {
             super::composition::build_workers(asked),
         )
     }
+}
+
+/// Fingerprint dependency bytes using the same opaque content identity as lint reports.
+#[must_use]
+pub fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
+    super::composition::dependency_fingerprint(bytes)
 }

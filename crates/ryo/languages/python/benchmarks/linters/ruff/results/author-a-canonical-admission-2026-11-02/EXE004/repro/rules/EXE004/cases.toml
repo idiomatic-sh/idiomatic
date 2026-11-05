@@ -1,0 +1,125 @@
+[[cases]]
+name = "spaces"
+comparison = "full"
+files = { "case.py" = "   #!/usr/bin/python3\npass\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 3 }]
+
+[[cases]]
+name = "tab"
+comparison = "full"
+files = { "case.py" = "\t#!/usr/bin/python3\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 1 }]
+
+[[cases]]
+name = "newline"
+comparison = "full"
+files = { "case.py" = "\n#!/usr/bin/python3\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 1 }]
+
+[[cases]]
+name = "mixed"
+comparison = "full"
+files = { "case.py" = " \t\f\r\n\t#!/usr/bin/env python\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "first-line"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/python3\npass\n" }
+expected = []
+
+[[cases]]
+name = "after-comment"
+comparison = "full"
+files = { "case.py" = "# comment\n#!/usr/bin/python3\n" }
+expected = []
+
+[[cases]]
+name = "after-code"
+comparison = "full"
+files = { "case.py" = "x = 1\n#!/usr/bin/python3\n" }
+expected = []
+
+[[cases]]
+name = "second-shebang"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/python3\n#!/bin/sh\n" }
+expected = []
+
+[[cases]]
+name = "hash-only"
+comparison = "full"
+files = { "case.py" = "  #!/not/python\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 2 }]
+
+[[cases]]
+name = "not-shebang"
+comparison = "full"
+files = { "case.py" = "  # !/usr/bin/python3\n" }
+expected = []
+
+[[cases]]
+name = "string-text"
+comparison = "full"
+files = { "case.py" = "text = \"#!/usr/bin/python3\"\n" }
+expected = []
+
+[[cases]]
+name = "noqa-same-line"
+comparison = "full"
+files = { "case.py" = "  #!/usr/bin/python3  # noqa: EXE004\n" }
+expected = []
+
+[[cases]]
+name = "noqa-next-line"
+comparison = "full"
+files = { "case.py" = "\n#!/usr/bin/python3  # noqa: EXE004\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 1 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: EXE004\n  #!/usr/bin/python3\n" }
+expected = []
+
+[[cases]]
+name = "crlf"
+comparison = "full"
+files = { "case.py" = "\r\n  #!/usr/bin/python3\r\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "" }
+expected = []
+
+[[cases]]
+name = "bom"
+comparison = "full"
+files = { "case.py" = "﻿#!/usr/bin/python3\n" }
+expected = []
+
+[[cases]]
+name = "tagged-EXE004_1.py"
+comparison = "full"
+files = { "case.py" = "    #!/usr/bin/python\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "tagged-EXE004_2.py"
+comparison = "full"
+files = { "case.py" = "print(\"  #!/usr/bin/python\")\n# shebang outside of comments should be ignored\n" }
+expected = []
+
+[[cases]]
+name = "tagged-EXE004_3.py"
+comparison = "full"
+files = { "case.py" = "\npass  #!/usr/bin/env python\n" }
+expected = []
+
+[[cases]]
+name = "tagged-EXE004_4.py"
+comparison = "full"
+files = { "case.py" = "\n    #!/usr/bin/env python\n" }
+expected = [{ rule = "EXE004", file = "case.py", start = 0, end = 5 }]

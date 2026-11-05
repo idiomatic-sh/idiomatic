@@ -17,6 +17,7 @@ ryo::reads! {
     DefinesItem => languages::Defines, model(Declarations) |tree, model, at, symbols| {
         kinds: [
             Kind::Node(Node::FunctionDef),
+            Kind::Node(Node::AsyncFunctionDef),
             Kind::Node(Node::ClassDef),
             Kind::Node(Node::Alias),
             Kind::Node(Node::Name),

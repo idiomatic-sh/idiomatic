@@ -1,0 +1,113 @@
+{
+  "schema": "up031-process-evidence/v1",
+  "reference": {
+    "version": "0.16.5",
+    "aarch64_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "x86_64_sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32"
+  },
+  "producers": {
+    "aarch64": {
+      "shared_source": "00caaf88",
+      "bench_sha256": "e25a469c3dc03e9d2d1aa1e94776529a7d853cddc15f9db0f27ad1f80afb7769"
+    },
+    "x86_64": {
+      "compute_ref": "22f29647",
+      "bench_sha256": "d3c323fc0763bb618164b4adb262fd1964486f41bfd53a884789da8039996284",
+      "capture_ci": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41603640516"
+    }
+  },
+  "observations_per_case_per_target": {
+    "aarch64": 2,
+    "x86_64": 2
+  },
+  "targets": {
+    "py310": {
+      "profile_sha256": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e",
+      "cases_sha256": "bc362e0394512c8d3931e0c95f8434d609cce881936ebdd8cc2f906906fd64fd",
+      "previous_mixed_scope_cases_sha256": "8395f1328cea6b66f995a4b08fc7af7eccd6df56d2cf28a37bae5e7d2b4cba76"
+    },
+    "py37": {
+      "profile_sha256": "c3e3982ae19ee053d2cfa349b0c2c58cdaff12a6f0bad7c3f781e05d42cfb903",
+      "cases_sha256": "66484459bf919b809a20fc0205d51329893cf4653c803d7a716bd372cec87547",
+      "previous_mixed_scope_cases_sha256": "9dab884a10ef43ed7d06f06f2277894bef998543371e1fc2cb81ccacd1762b83"
+    }
+  },
+  "source_and_expected_arrays_preserved": 43,
+  "replay": "Current all43Full ARM strict+offline passed on bothtargets; historicalx86 mixedscope strict+offline passed, kept distinct; finalcombinedfull413 x86 will exercise strengthenedsource.",
+  "strict_arm_archive_sha256": "d14d3b1838efe35b04449ef457e2d59c0dff818af07e758e3a9596f68215efdb",
+  "historical_comparison_scope": {
+    "cases": 43,
+    "rule": 41,
+    "full": 2,
+    "note": "Original ARM and x86 receipts preserve this declaredscope; never relabeled as allFull"
+  },
+  "current_comparison_scope": {
+    "cases": 43,
+    "rule": 0,
+    "full": 43,
+    "source_and_expected_unchanged": true
+  },
+  "historical_arm_mixed_scope": {
+    "py310": {
+      "receipt_sha256": "f6127e339caa5f3bb8a12441dd6817dbb135a420774dc6f786b0141879734ca1",
+      "offline_audit_sha256": "81e05301951d70f3737ae7a8504afe891c3d65ce000e79e568612737525fc208",
+      "case_count": 43,
+      "raw_exact": 41,
+      "documented_discrepancies": 2,
+      "contract_only": 0
+    },
+    "py37": {
+      "receipt_sha256": "533ae1818ba69ec27bb54ecce0b52eeba8cc62632ba6086f2164b36df5fc7d21",
+      "offline_audit_sha256": "81e05301951d70f3737ae7a8504afe891c3d65ce000e79e568612737525fc208",
+      "case_count": 43,
+      "raw_exact": 41,
+      "documented_discrepancies": 2,
+      "contract_only": 0
+    }
+  },
+  "strict_arm_all_full": {
+    "py310": {
+      "receipt_sha256": "24714a8f3960630a1844fd580880fb87481614b76dff570e3cb5fbcb4873d4b6",
+      "audit_sha256": "81e05301951d70f3737ae7a8504afe891c3d65ce000e79e568612737525fc208",
+      "case_count": 43,
+      "raw_exact": 41,
+      "documented_process": 2,
+      "contract_only": 0,
+      "comparison_scope": "all43Full"
+    },
+    "py37": {
+      "receipt_sha256": "9621711f51f86ad2e9d55f33867cfee3abdcdc045aa16c8ebcfd7ef391d7bc7c",
+      "audit_sha256": "81e05301951d70f3737ae7a8504afe891c3d65ce000e79e568612737525fc208",
+      "case_count": 43,
+      "raw_exact": 41,
+      "documented_process": 2,
+      "contract_only": 0,
+      "comparison_scope": "all43Full"
+    }
+  },
+  "strict_x86_historical_mixed_scope": {
+    "py310": {
+      "receipt_sha256": "a57d08e22e60b2b79d7742f8f83776b315a9453cadb6de4f1b1e162fca0bf44a",
+      "audit_sha256": "81e05301951d70f3737ae7a8504afe891c3d65ce000e79e568612737525fc208",
+      "case_count": 43,
+      "raw_exact": 41,
+      "documented_process": 2,
+      "contract_only": 0,
+      "comparison_scope": "41Rule+2Full"
+    },
+    "py37": {
+      "receipt_sha256": "7a259fc961f48c6264e967357bb00f583ee7249db4a69a4f5eaf0feb7396eb2f",
+      "audit_sha256": "81e05301951d70f3737ae7a8504afe891c3d65ce000e79e568612737525fc208",
+      "case_count": 43,
+      "raw_exact": 41,
+      "documented_process": 2,
+      "contract_only": 0,
+      "comparison_scope": "41Rule+2Full"
+    }
+  },
+  "archives": {
+    "arm-strict-receipts.tar.gz": "d14d3b1838efe35b04449ef457e2d59c0dff818af07e758e3a9596f68215efdb",
+    "arm-all-full-strict-receipts.tar.gz": "8878dceb5476b725adc253b0a3480ab28c0d5a91918456000dae703c4316ff00",
+    "x86-mixed-scope-strict-receipts.tar.gz": "c7eadf70cfc23e2b9d493735132b54766a8fac81cb7ae214528371278ecfbad7"
+  }
+}

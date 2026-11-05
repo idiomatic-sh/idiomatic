@@ -1,0 +1,3 @@
+from __future__ import annotations
+import builtins
+def f[len]()->int(len(value)): ...

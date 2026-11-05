@@ -1,0 +1,3528 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "results": [
+    {
+      "target": "py37",
+      "name": "upstream-full-0",
+      "files_sha256": {
+        "UP036_0.py": "3a0951f7a90fe768569f83fed040bc30f0d1e251f3bc30b1a6b0d7bacd18aea0"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 15,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 85,
+          "end": 109
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 204,
+          "end": 228
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 281,
+          "end": 305
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 363,
+          "end": 387
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 440,
+          "end": 464
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 575,
+          "end": 599
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 653,
+          "end": 677
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 741,
+          "end": 765
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 803,
+          "end": 826
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 885,
+          "end": 908
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 966,
+          "end": 989
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1048,
+          "end": 1072
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1208,
+          "end": 1232
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1362,
+          "end": 1386
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1437,
+          "end": 1461
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1622,
+          "end": 1645
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1710,
+          "end": 1733
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1761,
+          "end": 1784
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1821,
+          "end": 1847
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2045,
+          "end": 2071
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2253,
+          "end": 2277
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2444,
+          "end": 2469
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2501,
+          "end": 2526
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2552,
+          "end": 2577
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2622,
+          "end": 2647
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2692,
+          "end": 2717
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2756,
+          "end": 2781
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2979,
+          "end": 2987
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3029,
+          "end": 3041
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3084,
+          "end": 3096
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3279,
+          "end": 3308
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3331,
+          "end": 3360
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3487,
+          "end": 3511
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3641,
+          "end": 3665
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3688,
+          "end": 3712
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3735,
+          "end": 3758
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3781,
+          "end": 3805
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3828,
+          "end": 3851
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3874,
+          "end": 3898
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3921,
+          "end": 3945
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3968,
+          "end": 3991
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 4014,
+          "end": 4038
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 4061,
+          "end": 4084
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "upstream-full-1",
+      "files_sha256": {
+        "UP036_1.py": "6824fad18a3f84f78b2b2663bc4510d4aa9c2d30177a14459d68f530484a46cb"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 15,
+          "end": 36
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 60,
+          "end": 83
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 107,
+          "end": 131
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 155,
+          "end": 176
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 200,
+          "end": 223
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 247,
+          "end": 271
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 325,
+          "end": 344
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 392,
+          "end": 416
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 478,
+          "end": 501
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 563,
+          "end": 586
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 650,
+          "end": 673
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 720,
+          "end": 744
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 827,
+          "end": 850
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "upstream-full-2",
+      "files_sha256": {
+        "UP036_2.py": "fd6bff9ecac54afe2036c2ab2ea15d11a640a4747e2c8df26c454b98c19291ae"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 44,
+          "end": 69
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 97,
+          "end": 118
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 146,
+          "end": 171
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 199,
+          "end": 220
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 248,
+          "end": 272
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 300,
+          "end": 325
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 353,
+          "end": 379
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 407,
+          "end": 433
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 448,
+          "end": 472
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 500,
+          "end": 524
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 543,
+          "end": 567
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 603,
+          "end": 626
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "upstream-full-3",
+      "files_sha256": {
+        "UP036_3.py": "87d01dcc9ed83c12e80ca8797cda4c3c8bd1f455b983111efe0595f4c10e6eea"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 26,
+          "end": 50
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 265,
+          "end": 289
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 519,
+          "end": 543
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "upstream-full-4",
+      "files_sha256": {
+        "UP036_4.py": "640b302b46078ab41ea15198154e499df845079aba23d559f00dd57b5e7ba8d1"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 28,
+          "end": 53
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 157,
+          "end": 182
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 285,
+          "end": 310
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 470,
+          "end": 495
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 559,
+          "end": 584
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 678,
+          "end": 703
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 829,
+          "end": 854
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 980,
+          "end": 1005
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "upstream-full-5",
+      "files_sha256": {
+        "UP036_5.py": "f1c40f7ca69e1df0ac48dcebb2236bdb1765f0cda1c9b48b94593e724f23d413"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 640,
+          "end": 655
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1084,
+          "end": 1111
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1153,
+          "end": 1179
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1221,
+          "end": 1248
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1290,
+          "end": 1316
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1358,
+          "end": 1385
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "tuple-older",
+      "files_sha256": {
+        "case.py": "ebd7678d586297c2bd9185034ecd6c3d6679ea278c83efce6dd4f3af5d8b3f04"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 49,
+          "end": 75
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 85,
+          "end": 110
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 120,
+          "end": 146
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "tuple-at-default",
+      "files_sha256": {
+        "case.py": "9c8b44231a0816bf8587f9c10fad319d3d90a6f8f47a2dcc74f196314e2cefcb"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "tuple-future",
+      "files_sha256": {
+        "case.py": "d1785d4f0176243465b0f5a60d0afd34115c9ccc5aa64da09de3b571c9ef99cf"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "tuple-micro-zero",
+      "files_sha256": {
+        "case.py": "8a2ea548a2912aaf11edf70e2f7f0f6ac6c00a60cc23bfb756e8ed2a4c12a05c"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "tuple-micro-positive",
+      "files_sha256": {
+        "case.py": "e8115f2727899dc836137e570fd5e556663d1d2b4306c7a779cdf1cfa75ef782"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "tuple-major-only",
+      "files_sha256": {
+        "case.py": "66f48e1fd31007c4f971e2402c8334324eedf73d6970a59205a44e6d4bcfd153"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 37
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 47,
+          "end": 71
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 81,
+          "end": 104
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 114,
+          "end": 138
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "tuple-empty-tuple",
+      "files_sha256": {
+        "case.py": "b73a78162f0e373c183e4fe9a3f50e1b3dd2842283d0e4844ceb12b0cda4181b"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "major-operators",
+      "files_sha256": {
+        "case.py": "b84d6511bd3fc08a0658dbf70eaed6576109e542ec1f4e4a34977127bcaf6519"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 50,
+          "end": 77
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 87,
+          "end": 113
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 123,
+          "end": 150
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 160,
+          "end": 187
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 197,
+          "end": 224
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 234,
+          "end": 260
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 270,
+          "end": 297
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 307,
+          "end": 333
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 343,
+          "end": 370
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 380,
+          "end": 407
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 417,
+          "end": 444
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "major-index-operators",
+      "files_sha256": {
+        "case.py": "6c1b01950b898579ffff61d353f6630e9c5ecc13112326efa991783e138bcc02"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 37
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 47,
+          "end": 71
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 81,
+          "end": 104
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 114,
+          "end": 138
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 148,
+          "end": 172
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 182,
+          "end": 206
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 216,
+          "end": 239
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 249,
+          "end": 273
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 283,
+          "end": 306
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 316,
+          "end": 340
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 350,
+          "end": 374
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 384,
+          "end": 408
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "version-slices",
+      "files_sha256": {
+        "case.py": "02deabf9e7c5cb707af130936891a4c19e908cdf31044eece35131e5f6b53655"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "module-alias",
+      "files_sha256": {
+        "case.py": "bd804326d7d7d1d58a1a9d3dc10a88b09c82db6323a8e0a13a0e10696ac8a65b"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "from-alias",
+      "files_sha256": {
+        "case.py": "813c2510f5565cc10f73ab1876c125af032cc52588c0657681689ee61b85fc52"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "module-shadow",
+      "files_sha256": {
+        "case.py": "9c807488b4b1df73d28d23ca4b1eb2fd30596c1d6d116c46fd860a33e2ac32c6"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "parameter-shadow",
+      "files_sha256": {
+        "case.py": "98fa3c1986fee45c83d41f4277887ab46dbec30a84ed3059f8fbfb8affde0eb2"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "from-shadow",
+      "files_sha256": {
+        "case.py": "2279269abf4d4232864468ef74495facd29db39e24e40e480a1dc1d2ba83e952"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "unrelated-module",
+      "files_sha256": {
+        "case.py": "1f0117056f06b4f49e0cb5af1c8cb6c96ff63a59c39989cfbdf8b8c87f37824f"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "not-an-if",
+      "files_sha256": {
+        "case.py": "f3a25db4474e11b17c3dcc71a9b365743796520f11778fd245856735ab8b8f5e"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "reversed",
+      "files_sha256": {
+        "case.py": "5c7b84e58d4e701d39cba15c9532d6a34ad6e2558522772776ecbd85648bdacf"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "chained",
+      "files_sha256": {
+        "case.py": "9f1f698e3864e66a2b39c18b681721fc8b4c7d1436403fbdeca5dabbd3e7dedb"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "boolean-test",
+      "files_sha256": {
+        "case.py": "4726be54b7a991f6d67db3e8e2e2e39b3400f0589d4cc9e9e158dd4f4fc16791"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "elif",
+      "files_sha256": {
+        "case.py": "7366c919c3c5b9a278de5215b489b5f9ab5263af9af86c7d56bb8e1f6f1c58c2"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "invalid-components",
+      "files_sha256": {
+        "case.py": "a9991d9c6978cf254857a9f1beb2a569567a2cbce81460cd0aab8244586aac4c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 33,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 68,
+          "end": 76
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 105,
+          "end": 117
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 153,
+          "end": 156
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "valid-u8-boundary",
+      "files_sha256": {
+        "case.py": "5f201bdc28575ba5b203bb589379e1ef7200519ec6882a347afea3b4eb408523"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 127,
+          "end": 155
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "noninteger-tuple",
+      "files_sha256": {
+        "case.py": "97ef1c506df8f6a3b40531654929b39ba9d416bc053a04a0f4ab909b04fd610d"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "literal-normalization",
+      "files_sha256": {
+        "case.py": "538b07b6c8499b2585a7cd08b93fd6afdbc5864e0319907f64ea5d47f833f8e9"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "stub",
+      "files_sha256": {
+        "case.pyi": "f057a28058ca8166950600084e48794837f3a8f7a4cf161f1d168d598b68ca94"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "noqa",
+      "files_sha256": {
+        "case.py": "a7a1313fab686aed0a9411cc5f132bafd8ff295ee65a5d5e0f99246aa5eb54a5"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "file-noqa",
+      "files_sha256": {
+        "case.py": "e92405632594577b9abb1567e4d1c0cb2a5ff9421b4b65076c3f24b2c49056ce"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "other-noqa",
+      "files_sha256": {
+        "case.py": "5ae3c5435bfa0afde96dcf3a67fede7dde054319fe0383089ef66261a7c3395e"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "utf8-offset",
+      "files_sha256": {
+        "case.py": "6e143bd5d1ae2dbdaa59e011dfba020d631f6e421ea60c6d1b85d19180e3972c"
+      },
+      "reference": []
+    },
+    {
+      "target": "py37",
+      "name": "micro-varies",
+      "files_sha256": {
+        "case.py": "7b46d76706a01d36cf4dbc19e53fb1517e8b06a1b3a0ece530b185011b6cd09f"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "target": "py37",
+      "name": "two-file-node-isolation",
+      "files_sha256": {
+        "positive.py": "9eab7b05d9e245fdb8f8b3fcc028ac31c8afc039437011196c67d96171bd2d9a",
+        "negative.py": "441b28fef303eceaec85c86e137bee000177fce0b18261986364abaab83a14e9"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "positive.py",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "upstream-full-0",
+      "files_sha256": {
+        "UP036_0.py": "3a0951f7a90fe768569f83fed040bc30f0d1e251f3bc30b1a6b0d7bacd18aea0"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 15,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 85,
+          "end": 109
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 204,
+          "end": 228
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 281,
+          "end": 305
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 363,
+          "end": 387
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 440,
+          "end": 464
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 575,
+          "end": 599
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 653,
+          "end": 677
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 741,
+          "end": 765
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 803,
+          "end": 826
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 885,
+          "end": 908
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 966,
+          "end": 989
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1048,
+          "end": 1072
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1208,
+          "end": 1232
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1362,
+          "end": 1386
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1437,
+          "end": 1461
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1622,
+          "end": 1645
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1710,
+          "end": 1733
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1761,
+          "end": 1784
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1821,
+          "end": 1847
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2045,
+          "end": 2071
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2253,
+          "end": 2277
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2444,
+          "end": 2469
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2501,
+          "end": 2526
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2552,
+          "end": 2577
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2622,
+          "end": 2647
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2692,
+          "end": 2717
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2756,
+          "end": 2781
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2979,
+          "end": 2987
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3029,
+          "end": 3041
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3084,
+          "end": 3096
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3279,
+          "end": 3308
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3331,
+          "end": 3360
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3487,
+          "end": 3511
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3641,
+          "end": 3665
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3688,
+          "end": 3712
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3735,
+          "end": 3758
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3781,
+          "end": 3805
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3828,
+          "end": 3851
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3874,
+          "end": 3898
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3921,
+          "end": 3945
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3968,
+          "end": 3991
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 4014,
+          "end": 4038
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 4061,
+          "end": 4084
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "upstream-full-1",
+      "files_sha256": {
+        "UP036_1.py": "6824fad18a3f84f78b2b2663bc4510d4aa9c2d30177a14459d68f530484a46cb"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 15,
+          "end": 36
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 60,
+          "end": 83
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 107,
+          "end": 131
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 155,
+          "end": 176
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 200,
+          "end": 223
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 247,
+          "end": 271
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 325,
+          "end": 344
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 392,
+          "end": 416
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 478,
+          "end": 501
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 563,
+          "end": 586
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 650,
+          "end": 673
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 720,
+          "end": 744
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 827,
+          "end": 850
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "upstream-full-2",
+      "files_sha256": {
+        "UP036_2.py": "fd6bff9ecac54afe2036c2ab2ea15d11a640a4747e2c8df26c454b98c19291ae"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 44,
+          "end": 69
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 97,
+          "end": 118
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 146,
+          "end": 171
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 199,
+          "end": 220
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 248,
+          "end": 272
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 300,
+          "end": 325
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 353,
+          "end": 379
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 407,
+          "end": 433
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 448,
+          "end": 472
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 500,
+          "end": 524
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 543,
+          "end": 567
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 603,
+          "end": 626
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "upstream-full-3",
+      "files_sha256": {
+        "UP036_3.py": "87d01dcc9ed83c12e80ca8797cda4c3c8bd1f455b983111efe0595f4c10e6eea"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 26,
+          "end": 50
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 265,
+          "end": 289
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 519,
+          "end": 543
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "upstream-full-4",
+      "files_sha256": {
+        "UP036_4.py": "640b302b46078ab41ea15198154e499df845079aba23d559f00dd57b5e7ba8d1"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 28,
+          "end": 53
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 157,
+          "end": 182
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 285,
+          "end": 310
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 470,
+          "end": 495
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 559,
+          "end": 584
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 678,
+          "end": 703
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 829,
+          "end": 854
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 980,
+          "end": 1005
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "upstream-full-5",
+      "files_sha256": {
+        "UP036_5.py": "f1c40f7ca69e1df0ac48dcebb2236bdb1765f0cda1c9b48b94593e724f23d413"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 15,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 181,
+          "end": 206
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 640,
+          "end": 655
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1084,
+          "end": 1111
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1153,
+          "end": 1179
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1221,
+          "end": 1248
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1290,
+          "end": 1316
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1358,
+          "end": 1385
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "tuple-older",
+      "files_sha256": {
+        "case.py": "ebd7678d586297c2bd9185034ecd6c3d6679ea278c83efce6dd4f3af5d8b3f04"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 49,
+          "end": 75
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 85,
+          "end": 110
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 120,
+          "end": 146
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "tuple-at-default",
+      "files_sha256": {
+        "case.py": "9c8b44231a0816bf8587f9c10fad319d3d90a6f8f47a2dcc74f196314e2cefcb"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 123,
+          "end": 150
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "tuple-future",
+      "files_sha256": {
+        "case.py": "d1785d4f0176243465b0f5a60d0afd34115c9ccc5aa64da09de3b571c9ef99cf"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "tuple-micro-zero",
+      "files_sha256": {
+        "case.py": "8a2ea548a2912aaf11edf70e2f7f0f6ac6c00a60cc23bfb756e8ed2a4c12a05c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 43
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 132,
+          "end": 162
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "tuple-micro-positive",
+      "files_sha256": {
+        "case.py": "e8115f2727899dc836137e570fd5e556663d1d2b4306c7a779cdf1cfa75ef782"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "tuple-major-only",
+      "files_sha256": {
+        "case.py": "66f48e1fd31007c4f971e2402c8334324eedf73d6970a59205a44e6d4bcfd153"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 37
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 47,
+          "end": 71
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 81,
+          "end": 104
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 114,
+          "end": 138
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "tuple-empty-tuple",
+      "files_sha256": {
+        "case.py": "b73a78162f0e373c183e4fe9a3f50e1b3dd2842283d0e4844ceb12b0cda4181b"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "major-operators",
+      "files_sha256": {
+        "case.py": "b84d6511bd3fc08a0658dbf70eaed6576109e542ec1f4e4a34977127bcaf6519"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 50,
+          "end": 77
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 87,
+          "end": 113
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 123,
+          "end": 150
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 160,
+          "end": 187
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 197,
+          "end": 224
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 234,
+          "end": 260
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 270,
+          "end": 297
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 307,
+          "end": 333
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 343,
+          "end": 370
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 380,
+          "end": 407
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 417,
+          "end": 444
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "major-index-operators",
+      "files_sha256": {
+        "case.py": "6c1b01950b898579ffff61d353f6630e9c5ecc13112326efa991783e138bcc02"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 37
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 47,
+          "end": 71
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 81,
+          "end": 104
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 114,
+          "end": 138
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 148,
+          "end": 172
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 182,
+          "end": 206
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 216,
+          "end": 239
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 249,
+          "end": 273
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 283,
+          "end": 306
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 316,
+          "end": 340
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 350,
+          "end": 374
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 384,
+          "end": 408
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "version-slices",
+      "files_sha256": {
+        "case.py": "02deabf9e7c5cb707af130936891a4c19e908cdf31044eece35131e5f6b53655"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 44
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 54,
+          "end": 88
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "module-alias",
+      "files_sha256": {
+        "case.py": "bd804326d7d7d1d58a1a9d3dc10a88b09c82db6323a8e0a13a0e10696ac8a65b"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 24,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "from-alias",
+      "files_sha256": {
+        "case.py": "813c2510f5565cc10f73ab1876c125af032cc52588c0657681689ee61b85fc52"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 37,
+          "end": 47
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "module-shadow",
+      "files_sha256": {
+        "case.py": "9c807488b4b1df73d28d23ca4b1eb2fd30596c1d6d116c46fd860a33e2ac32c6"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "parameter-shadow",
+      "files_sha256": {
+        "case.py": "98fa3c1986fee45c83d41f4277887ab46dbec30a84ed3059f8fbfb8affde0eb2"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "from-shadow",
+      "files_sha256": {
+        "case.py": "2279269abf4d4232864468ef74495facd29db39e24e40e480a1dc1d2ba83e952"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "unrelated-module",
+      "files_sha256": {
+        "case.py": "1f0117056f06b4f49e0cb5af1c8cb6c96ff63a59c39989cfbdf8b8c87f37824f"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "not-an-if",
+      "files_sha256": {
+        "case.py": "f3a25db4474e11b17c3dcc71a9b365743796520f11778fd245856735ab8b8f5e"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "reversed",
+      "files_sha256": {
+        "case.py": "5c7b84e58d4e701d39cba15c9532d6a34ad6e2558522772776ecbd85648bdacf"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "chained",
+      "files_sha256": {
+        "case.py": "9f1f698e3864e66a2b39c18b681721fc8b4c7d1436403fbdeca5dabbd3e7dedb"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "boolean-test",
+      "files_sha256": {
+        "case.py": "4726be54b7a991f6d67db3e8e2e2e39b3400f0589d4cc9e9e158dd4f4fc16791"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "elif",
+      "files_sha256": {
+        "case.py": "7366c919c3c5b9a278de5215b489b5f9ab5263af9af86c7d56bb8e1f6f1c58c2"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 33,
+          "end": 58
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 70,
+          "end": 97
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "invalid-components",
+      "files_sha256": {
+        "case.py": "a9991d9c6978cf254857a9f1beb2a569567a2cbce81460cd0aab8244586aac4c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 33,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 68,
+          "end": 76
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 105,
+          "end": 117
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 153,
+          "end": 156
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "valid-u8-boundary",
+      "files_sha256": {
+        "case.py": "5f201bdc28575ba5b203bb589379e1ef7200519ec6882a347afea3b4eb408523"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 127,
+          "end": 155
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "noninteger-tuple",
+      "files_sha256": {
+        "case.py": "97ef1c506df8f6a3b40531654929b39ba9d416bc053a04a0f4ab909b04fd610d"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "literal-normalization",
+      "files_sha256": {
+        "case.py": "538b07b6c8499b2585a7cd08b93fd6afdbc5864e0319907f64ea5d47f833f8e9"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 51
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "stub",
+      "files_sha256": {
+        "case.pyi": "f057a28058ca8166950600084e48794837f3a8f7a4cf161f1d168d598b68ca94"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.pyi",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "noqa",
+      "files_sha256": {
+        "case.py": "a7a1313fab686aed0a9411cc5f132bafd8ff295ee65a5d5e0f99246aa5eb54a5"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "file-noqa",
+      "files_sha256": {
+        "case.py": "e92405632594577b9abb1567e4d1c0cb2a5ff9421b4b65076c3f24b2c49056ce"
+      },
+      "reference": []
+    },
+    {
+      "target": "py310",
+      "name": "other-noqa",
+      "files_sha256": {
+        "case.py": "5ae3c5435bfa0afde96dcf3a67fede7dde054319fe0383089ef66261a7c3395e"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "utf8-offset",
+      "files_sha256": {
+        "case.py": "6e143bd5d1ae2dbdaa59e011dfba020d631f6e421ea60c6d1b85d19180e3972c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 27,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "micro-varies",
+      "files_sha256": {
+        "case.py": "7b46d76706a01d36cf4dbc19e53fb1517e8b06a1b3a0ece530b185011b6cd09f"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "target": "py310",
+      "name": "two-file-node-isolation",
+      "files_sha256": {
+        "positive.py": "9eab7b05d9e245fdb8f8b3fcc028ac31c8afc039437011196c67d96171bd2d9a",
+        "negative.py": "441b28fef303eceaec85c86e137bee000177fce0b18261986364abaab83a14e9"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "positive.py",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "upstream-full-0",
+      "files_sha256": {
+        "UP036_0.py": "3a0951f7a90fe768569f83fed040bc30f0d1e251f3bc30b1a6b0d7bacd18aea0"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 15,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 85,
+          "end": 109
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 204,
+          "end": 228
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 281,
+          "end": 305
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 363,
+          "end": 387
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 440,
+          "end": 464
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 575,
+          "end": 599
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 653,
+          "end": 677
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 741,
+          "end": 765
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 803,
+          "end": 826
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 885,
+          "end": 908
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 966,
+          "end": 989
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1048,
+          "end": 1072
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1208,
+          "end": 1232
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1362,
+          "end": 1386
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1437,
+          "end": 1461
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1622,
+          "end": 1645
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1710,
+          "end": 1733
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1761,
+          "end": 1784
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 1821,
+          "end": 1847
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2045,
+          "end": 2071
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2253,
+          "end": 2277
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2444,
+          "end": 2469
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2501,
+          "end": 2526
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2552,
+          "end": 2577
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2622,
+          "end": 2647
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2692,
+          "end": 2717
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2756,
+          "end": 2781
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2813,
+          "end": 2838
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 2979,
+          "end": 2987
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3029,
+          "end": 3041
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3084,
+          "end": 3096
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3167,
+          "end": 3193
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3279,
+          "end": 3308
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3331,
+          "end": 3360
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3487,
+          "end": 3511
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3641,
+          "end": 3665
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3688,
+          "end": 3712
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3735,
+          "end": 3758
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3781,
+          "end": 3805
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3828,
+          "end": 3851
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3874,
+          "end": 3898
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3921,
+          "end": 3945
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 3968,
+          "end": 3991
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 4014,
+          "end": 4038
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_0.py",
+          "start": 4061,
+          "end": 4084
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "upstream-full-1",
+      "files_sha256": {
+        "UP036_1.py": "6824fad18a3f84f78b2b2663bc4510d4aa9c2d30177a14459d68f530484a46cb"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 15,
+          "end": 36
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 60,
+          "end": 83
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 107,
+          "end": 131
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 155,
+          "end": 176
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 200,
+          "end": 223
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 247,
+          "end": 271
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 325,
+          "end": 344
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 392,
+          "end": 416
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 478,
+          "end": 501
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 563,
+          "end": 586
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 650,
+          "end": 673
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 720,
+          "end": 744
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_1.py",
+          "start": 827,
+          "end": 850
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "upstream-full-2",
+      "files_sha256": {
+        "UP036_2.py": "fd6bff9ecac54afe2036c2ab2ea15d11a640a4747e2c8df26c454b98c19291ae"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 44,
+          "end": 69
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 97,
+          "end": 118
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 146,
+          "end": 171
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 199,
+          "end": 220
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 248,
+          "end": 272
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 300,
+          "end": 325
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 353,
+          "end": 379
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 407,
+          "end": 433
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 448,
+          "end": 472
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 500,
+          "end": 524
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 543,
+          "end": 567
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_2.py",
+          "start": 603,
+          "end": 626
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "upstream-full-3",
+      "files_sha256": {
+        "UP036_3.py": "87d01dcc9ed83c12e80ca8797cda4c3c8bd1f455b983111efe0595f4c10e6eea"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 26,
+          "end": 50
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 265,
+          "end": 289
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_3.py",
+          "start": 519,
+          "end": 543
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "upstream-full-4",
+      "files_sha256": {
+        "UP036_4.py": "640b302b46078ab41ea15198154e499df845079aba23d559f00dd57b5e7ba8d1"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 28,
+          "end": 53
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 157,
+          "end": 182
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 285,
+          "end": 310
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 470,
+          "end": 495
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 559,
+          "end": 584
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 678,
+          "end": 703
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 829,
+          "end": 854
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_4.py",
+          "start": 980,
+          "end": 1005
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "upstream-full-5",
+      "files_sha256": {
+        "UP036_5.py": "f1c40f7ca69e1df0ac48dcebb2236bdb1765f0cda1c9b48b94593e724f23d413"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 15,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 181,
+          "end": 206
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 430,
+          "end": 459
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 477,
+          "end": 507
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 525,
+          "end": 555
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 573,
+          "end": 602
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 640,
+          "end": 655
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1084,
+          "end": 1111
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1153,
+          "end": 1179
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1221,
+          "end": 1248
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1290,
+          "end": 1316
+        },
+        {
+          "rule": "UP036",
+          "file": "UP036_5.py",
+          "start": 1358,
+          "end": 1385
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-older",
+      "files_sha256": {
+        "case.py": "ebd7678d586297c2bd9185034ecd6c3d6679ea278c83efce6dd4f3af5d8b3f04"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 49,
+          "end": 75
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 85,
+          "end": 110
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 120,
+          "end": 146
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-at-default",
+      "files_sha256": {
+        "case.py": "9c8b44231a0816bf8587f9c10fad319d3d90a6f8f47a2dcc74f196314e2cefcb"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 50,
+          "end": 77
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 87,
+          "end": 113
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 123,
+          "end": 150
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-future",
+      "files_sha256": {
+        "case.py": "d1785d4f0176243465b0f5a60d0afd34115c9ccc5aa64da09de3b571c9ef99cf"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 123,
+          "end": 150
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-micro-zero",
+      "files_sha256": {
+        "case.py": "8a2ea548a2912aaf11edf70e2f7f0f6ac6c00a60cc23bfb756e8ed2a4c12a05c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 43
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 53,
+          "end": 83
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 93,
+          "end": 122
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 132,
+          "end": 162
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-micro-positive",
+      "files_sha256": {
+        "case.py": "e8115f2727899dc836137e570fd5e556663d1d2b4306c7a779cdf1cfa75ef782"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 43
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 53,
+          "end": 83
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 93,
+          "end": 122
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 132,
+          "end": 162
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-major-only",
+      "files_sha256": {
+        "case.py": "66f48e1fd31007c4f971e2402c8334324eedf73d6970a59205a44e6d4bcfd153"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 37
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 47,
+          "end": 71
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 81,
+          "end": 104
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 114,
+          "end": 138
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "tuple-empty-tuple",
+      "files_sha256": {
+        "case.py": "b73a78162f0e373c183e4fe9a3f50e1b3dd2842283d0e4844ceb12b0cda4181b"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "major-operators",
+      "files_sha256": {
+        "case.py": "b84d6511bd3fc08a0658dbf70eaed6576109e542ec1f4e4a34977127bcaf6519"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 40
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 50,
+          "end": 77
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 87,
+          "end": 113
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 123,
+          "end": 150
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 160,
+          "end": 187
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 197,
+          "end": 224
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 234,
+          "end": 260
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 270,
+          "end": 297
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 307,
+          "end": 333
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 343,
+          "end": 370
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 380,
+          "end": 407
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 417,
+          "end": 444
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "major-index-operators",
+      "files_sha256": {
+        "case.py": "6c1b01950b898579ffff61d353f6630e9c5ecc13112326efa991783e138bcc02"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 37
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 47,
+          "end": 71
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 81,
+          "end": 104
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 114,
+          "end": 138
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 148,
+          "end": 172
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 182,
+          "end": 206
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 216,
+          "end": 239
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 249,
+          "end": 273
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 283,
+          "end": 306
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 316,
+          "end": 340
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 350,
+          "end": 374
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 384,
+          "end": 408
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "version-slices",
+      "files_sha256": {
+        "case.py": "02deabf9e7c5cb707af130936891a4c19e908cdf31044eece35131e5f6b53655"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 44
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 54,
+          "end": 88
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "module-alias",
+      "files_sha256": {
+        "case.py": "bd804326d7d7d1d58a1a9d3dc10a88b09c82db6323a8e0a13a0e10696ac8a65b"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 24,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "from-alias",
+      "files_sha256": {
+        "case.py": "813c2510f5565cc10f73ab1876c125af032cc52588c0657681689ee61b85fc52"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 37,
+          "end": 47
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "module-shadow",
+      "files_sha256": {
+        "case.py": "9c807488b4b1df73d28d23ca4b1eb2fd30596c1d6d116c46fd860a33e2ac32c6"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "parameter-shadow",
+      "files_sha256": {
+        "case.py": "98fa3c1986fee45c83d41f4277887ab46dbec30a84ed3059f8fbfb8affde0eb2"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "from-shadow",
+      "files_sha256": {
+        "case.py": "2279269abf4d4232864468ef74495facd29db39e24e40e480a1dc1d2ba83e952"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "unrelated-module",
+      "files_sha256": {
+        "case.py": "1f0117056f06b4f49e0cb5af1c8cb6c96ff63a59c39989cfbdf8b8c87f37824f"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "not-an-if",
+      "files_sha256": {
+        "case.py": "f3a25db4474e11b17c3dcc71a9b365743796520f11778fd245856735ab8b8f5e"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "reversed",
+      "files_sha256": {
+        "case.py": "5c7b84e58d4e701d39cba15c9532d6a34ad6e2558522772776ecbd85648bdacf"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "chained",
+      "files_sha256": {
+        "case.py": "9f1f698e3864e66a2b39c18b681721fc8b4c7d1436403fbdeca5dabbd3e7dedb"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "boolean-test",
+      "files_sha256": {
+        "case.py": "4726be54b7a991f6d67db3e8e2e2e39b3400f0589d4cc9e9e158dd4f4fc16791"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "elif",
+      "files_sha256": {
+        "case.py": "7366c919c3c5b9a278de5215b489b5f9ab5263af9af86c7d56bb8e1f6f1c58c2"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 33,
+          "end": 58
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 70,
+          "end": 97
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "invalid-components",
+      "files_sha256": {
+        "case.py": "a9991d9c6978cf254857a9f1beb2a569567a2cbce81460cd0aab8244586aac4c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 33,
+          "end": 39
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 68,
+          "end": 76
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 105,
+          "end": 117
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 153,
+          "end": 156
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "valid-u8-boundary",
+      "files_sha256": {
+        "case.py": "5f201bdc28575ba5b203bb589379e1ef7200519ec6882a347afea3b4eb408523"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 86,
+          "end": 117
+        },
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 127,
+          "end": 155
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "noninteger-tuple",
+      "files_sha256": {
+        "case.py": "97ef1c506df8f6a3b40531654929b39ba9d416bc053a04a0f4ab909b04fd610d"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "literal-normalization",
+      "files_sha256": {
+        "case.py": "538b07b6c8499b2585a7cd08b93fd6afdbc5864e0319907f64ea5d47f833f8e9"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 51
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "stub",
+      "files_sha256": {
+        "case.pyi": "f057a28058ca8166950600084e48794837f3a8f7a4cf161f1d168d598b68ca94"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.pyi",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "noqa",
+      "files_sha256": {
+        "case.py": "a7a1313fab686aed0a9411cc5f132bafd8ff295ee65a5d5e0f99246aa5eb54a5"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "file-noqa",
+      "files_sha256": {
+        "case.py": "e92405632594577b9abb1567e4d1c0cb2a5ff9421b4b65076c3f24b2c49056ce"
+      },
+      "reference": []
+    },
+    {
+      "target": "py313",
+      "name": "other-noqa",
+      "files_sha256": {
+        "case.py": "5ae3c5435bfa0afde96dcf3a67fede7dde054319fe0383089ef66261a7c3395e"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "utf8-offset",
+      "files_sha256": {
+        "case.py": "6e143bd5d1ae2dbdaa59e011dfba020d631f6e421ea60c6d1b85d19180e3972c"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 27,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "micro-varies",
+      "files_sha256": {
+        "case.py": "7b46d76706a01d36cf4dbc19e53fb1517e8b06a1b3a0ece530b185011b6cd09f"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "case.py",
+          "start": 14,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "target": "py313",
+      "name": "two-file-node-isolation",
+      "files_sha256": {
+        "positive.py": "9eab7b05d9e245fdb8f8b3fcc028ac31c8afc039437011196c67d96171bd2d9a",
+        "negative.py": "441b28fef303eceaec85c86e137bee000177fce0b18261986364abaab83a14e9"
+      },
+      "reference": [
+        {
+          "rule": "UP036",
+          "file": "positive.py",
+          "start": 14,
+          "end": 39
+        }
+      ]
+    }
+  ]
+}

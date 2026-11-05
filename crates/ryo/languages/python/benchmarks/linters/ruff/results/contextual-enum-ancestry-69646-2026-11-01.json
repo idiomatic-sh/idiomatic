@@ -1,0 +1,53 @@
+{
+  "worker": {
+    "path": "/tmp/contextual-closure-worker-20261101/worker/ruff-69646f014b0ba864db888ad2c7d085bd47ad66cc9651ff9ff3bf1b56fea6cf1d",
+    "sha256": "69646f014b0ba864db888ad2c7d085bd47ad66cc9651ff9ff3bf1b56fea6cf1d"
+  },
+  "rules": {
+    "B019": {
+      "cases": 92,
+      "records": 184,
+      "all_complete": true,
+      "unknown_or_unread_pairs": 0,
+      "original_cases_preserved": 61,
+      "query_sha256": "f6a8da69c96fb14bb36be4f0262d08af34aebf401d7256fc8fe0a73a38e5ec01",
+      "canonical_cases_sha256": "71f1d3bb7b098d61ebf43d321aaf1ab706ff902df94cf8e7a5da552bb9e4165d"
+    },
+    "RUF049": {
+      "cases": 86,
+      "records": 172,
+      "all_complete": true,
+      "unknown_or_unread_pairs": 0,
+      "original_cases_preserved": 55,
+      "query_sha256": "bdd0add9fe8b6ba88e91066a60e79c5313d8d85c29f99d1f511d9ffb19d751ba",
+      "canonical_cases_sha256": "aadc898f8a336e635ac565f101d718a36dba347c40e862ed2e791d84c9da615a"
+    }
+  },
+  "scope": "Isolated canonical single-rule profiles only; target py310; no whole-corpus run.",
+  "profiles": {
+    "B019": {
+      "cases": 92,
+      "records": 184,
+      "all_complete": true,
+      "unknown_or_unread_pairs": 0,
+      "original_cases_preserved": 61,
+      "query_sha256": "f6a8da69c96fb14bb36be4f0262d08af34aebf401d7256fc8fe0a73a38e5ec01",
+      "canonical_cases_sha256": "71f1d3bb7b098d61ebf43d321aaf1ab706ff902df94cf8e7a5da552bb9e4165d",
+      "result_records_sha256": "b2afbba7810f0073087b5ad984254840893052fff965334ec2155c96257493bc",
+      "stdout": "92 cases passed against both contestants",
+      "stderr_empty": true
+    },
+    "RUF049": {
+      "cases": 86,
+      "records": 172,
+      "all_complete": true,
+      "unknown_or_unread_pairs": 0,
+      "original_cases_preserved": 55,
+      "query_sha256": "bdd0add9fe8b6ba88e91066a60e79c5313d8d85c29f99d1f511d9ffb19d751ba",
+      "canonical_cases_sha256": "aadc898f8a336e635ac565f101d718a36dba347c40e862ed2e791d84c9da615a",
+      "result_records_sha256": "27d42477df922a2acf04c04dfdd31e30f8cbd9c09b27ddc400fcb5012a8b62f1",
+      "stdout": "86 cases passed against both contestants",
+      "stderr_empty": true
+    }
+  }
+}

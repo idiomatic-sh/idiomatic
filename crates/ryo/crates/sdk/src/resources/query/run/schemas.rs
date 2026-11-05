@@ -6,7 +6,6 @@ use ryo_core::inbound::use_cases::lint::types::{
 };
 
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::records::types::Cell as RowCell;
 use ryo_values::domain::records::types::RowTotal;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
@@ -59,11 +58,16 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
             session: Session {
                 repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
                 root: RootPath(root),
+                search_scope: Default::default(),
+                given_inventory: Default::default(),
             },
             files: Vec::new(),
+            source_language: None,
             rules: vec![Rule {
+                observations: Vec::new(),
                 id: ryo_values::domain::runs::types::RuleId(QUERY_ID.into()),
-                query: QueryText(request.query.to_string().into()),
+                query: request.query.into_bundle(),
+                applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
                 parameters: Vec::new(),
                 include: Vec::new(),
                 exclude: Vec::new(),
@@ -114,6 +118,8 @@ impl From<RunReportSchema> for RunReport {
 impl From<RunErrorSchema> for RunError {
     fn from(schema: RunErrorSchema) -> Self {
         match schema.0 {
+            CoreError::ObservationBindings { reason } => Self::Query { reason },
+            CoreError::ObservationExecution { reason } => Self::Evaluate { reason },
             CoreError::Query { error, .. } => Self::Query {
                 reason: error.to_string(),
             },
@@ -121,10 +127,15 @@ impl From<RunErrorSchema> for RunError {
             CoreError::MissingParameter { .. } => Self::Query {
                 reason: "the query has no value for a parameter it declares".to_owned(),
             },
-            CoreError::Rule { reason, .. } => Self::Evaluate { reason },
+            CoreError::Rule { reason, .. } | CoreError::Execution { reason } => {
+                Self::Evaluate { reason }
+            }
             CoreError::Corpus { reason } => Self::Corpus { reason },
             CoreError::Facts { reason } => Self::Facts { reason },
             CoreError::Language { reason } => Self::Language { reason },
+            error @ CoreError::SourceLanguage { .. } => Self::Language {
+                reason: error.to_string(),
+            },
             // A language that wrote what its file cannot hold, a store that a run keeping none never reads, and the id the query
             // is given, which is never blank nor another's, are faults of the languages or of ryo: the language is what is told.
             error @ (CoreError::Provider { .. }

@@ -86,7 +86,7 @@ pub(crate) fn file(
     files
         .iter()
         .position(|file| file.0 == path.0)
-        .and_then(|place| u32::try_from(place).ok()) // ignore: idiomatic.arch/no-ok-on-result - a place past 2^32 files has no file number: the file is not one the rows can name
+        .and_then(|place| u32::try_from(place).ok()) // a place past 2^32 files has no file number: the file is not one the rows can name
         .map(languages::FileId)
 }
 
@@ -286,7 +286,7 @@ pub(crate) fn ownership(
         .filter_map(|(index, path)| {
             let package = owner(packages, RepositoryPath(&path.0))?;
             Some(languages::FilePackageRow {
-                path: languages::FileId(u32::try_from(index).ok()?), // ignore: idiomatic.arch/no-ok-on-result - a place past 2^32 files has no file number: the file is not one the rows can name
+                path: languages::FileId(u32::try_from(index).ok()?), // a place past 2^32 files has no file number: the file is not one the rows can name
                 package: file(files, &package.manifest)?,
             })
         })

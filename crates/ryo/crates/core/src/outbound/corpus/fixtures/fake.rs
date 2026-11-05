@@ -3,7 +3,10 @@
 use super::super::errors::CorpusError;
 use super::super::interface::CorpusPort;
 use crate::outbound::corpus::types::{Inventory, PathStat};
-use ryo_values::domain::files::types::{CorpusEntry, CorpusFile, FileBytes, FileSize, Nanoseconds};
+use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
+};
 
 /// What the core's tests stand in for `corpus` with: it lists the files it was given, fails when told to, and cannot read a file
 /// whose path contains `unstable` twice alike. The files it holds outside the listing are read and stat'ed by their paths alone.
@@ -46,10 +49,12 @@ impl CorpusPort for CorpusFake {
             self.files
                 .iter()
                 .map(|file| CorpusEntry {
+                    executable: file.executable,
                     path: file.path.clone(),
                     size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                     modified: written(&file.bytes.0),
                 })
+                .map(CorpusInput::Available)
                 .collect(),
         ))
     }
@@ -85,11 +90,32 @@ impl CorpusPort for CorpusFake {
             .chain(&self.outside)
             .find(|file| file.path == *path)
             .map(|file| CorpusEntry {
+                executable: file.executable,
                 path: file.path.clone(),
                 size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                 modified: written(&file.bytes.0),
             })
             .map_or(PathStat::Missing, PathStat::Found))
+    }
+
+    fn observe_entry(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> EntryObservation {
+        let state = if self
+            .files
+            .iter()
+            .chain(&self.outside)
+            .any(|file| file.path == *path)
+        {
+            EntryState::File
+        } else {
+            EntryState::Missing
+        };
+        EntryObservation {
+            path: path.clone(),
+            state,
+        }
     }
 }
 

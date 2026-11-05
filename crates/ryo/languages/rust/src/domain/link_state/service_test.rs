@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use super::service::located_of;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::conditions::types::PlatformCondition;
-use crate::domain::packages::types::{Dependency, Membership, Packages};
+use crate::domain::packages::types::{Dependency, WorkspacePackageMembership, Packages};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::targets::types::BindingName;
 use crate::domain::targets::types::PackageName;
@@ -21,7 +21,7 @@ type Failure = ();
 
 fn declared() -> Packages {
     Packages {
-        members: vec![Membership {
+        members: vec![WorkspacePackageMembership {
             workspace: RepoPath("Cargo.toml".into()),
             package: RepoPath("a/Cargo.toml".into()),
         }],

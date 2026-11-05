@@ -8,9 +8,10 @@ use super::types::{
     ManifestInput, ManifestItem, ManifestName, ManifestReader, ProjectEngine, ProjectRequest,
     Resolved,
 };
-use crate::domain::answers::types::{AbsenceCause, Answer, Support};
-use crate::domain::relations::types::{Relation, RowWriter};
+use crate::domain::answers::types::{Answer, Support};
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{Relation, RowWriter};
 
 /// What the reading of the manifests is made of, generated from the catalog's one list.
 macro_rules! manifest_readings {
@@ -51,7 +52,7 @@ macro_rules! manifest_readings {
     };
 }
 
-crate::each_relation!(manifest_readings);
+ryo_relations::each_relation!(manifest_readings);
 
 /// Reads the manifests of the project and writes the rows of the wanted manifest relations into `out`.
 /// Answers the bytes the run keeps for the next one, the manifests the language refused and the files it read beyond them.
@@ -78,6 +79,7 @@ where
         refused: resolved.refused,
         unlisted: resolved.unlisted,
         consulted: resolved.consulted,
+        observed_entries: resolved.observed_entries,
         derived: (),
     })
 }
@@ -92,8 +94,6 @@ where
 }
 
 /// For `impl ProjectUseCase`: answers every manifest relation as not in the language, for the test doubles of this crate only.
-#[macro_export]
-#[doc(hidden)]
 macro_rules! absent_manifests {
     (
         syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
@@ -105,10 +105,10 @@ macro_rules! absent_manifests {
                 &self,
             ) -> $crate::domain::answers::types::Support<
                 $crate::inbound::use_cases::project::types::ManifestReader<
-                    $crate::domain::relations::collections::relations::$manifest_module::item::$manifest_variant,
+                    ::ryo_relations::domain::relations::collections::relations::$manifest_module::item::$manifest_variant,
                 >,
             > {
-                $crate::domain::answers::service::absent($crate::domain::answers::types::AbsenceCause::NoManifests)
+                $crate::domain::answers::service::absent(::ryo_relations::domain::answers::types::AbsenceCause::NoManifests)
             }
         )*
     };
@@ -116,6 +116,20 @@ macro_rules! absent_manifests {
 
 /// Every `ProjectUseCase` is a `ProjectEngine`: the engine reads it through the contract's own drive.
 impl<P: ProjectUseCase> ProjectEngine for P {
+    fn primary_role(
+        &self,
+        path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole {
+        ProjectUseCase::primary_role(self, path)
+    }
+
+    fn project_entries(
+        &self,
+        request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath> {
+        ProjectUseCase::project_entries(self, request)
+    }
+
     fn manifest_names(&self) -> &'static [ManifestName] {
         ProjectUseCase::manifests(self)
     }

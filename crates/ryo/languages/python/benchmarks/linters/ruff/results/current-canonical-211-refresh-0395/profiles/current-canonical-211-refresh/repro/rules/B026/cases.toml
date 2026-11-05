@@ -1,0 +1,107 @@
+[[cases]]
+name = "after-keyword"
+comparison = "full"
+files = { "case.py" = "call(key=1, *args)\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 12, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "before-keyword"
+comparison = "full"
+files = { "case.py" = "call(*args, key=1)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 10 }]
+
+[[cases]]
+name = "two-starred"
+comparison = "full"
+files = { "case.py" = "call(*args, key=1, *more)\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 19, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 24 }]
+
+[[cases]]
+name = "only-starred"
+comparison = "full"
+files = { "case.py" = "call(*args)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 10 }]
+
+[[cases]]
+name = "multiple-keywords"
+comparison = "full"
+files = { "case.py" = "call(a=1, b=2, *args)\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 15, "end" = 20 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 20 }]
+
+[[cases]]
+name = "double-star"
+comparison = "full"
+files = { "case.py" = "call(key=1, **kwargs)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 20 }]
+
+[[cases]]
+name = "method"
+comparison = "full"
+files = { "case.py" = "obj.call(key=1, *args)\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 16, "end" = 21 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }, { "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 21 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "call(key=1, *args) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "call(key=1, *args) # noqa: B026\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "call(key=1, *args) # noqa: F401\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 12, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\ncall(key=1, *args)\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B026]\ncall(key=1, *args)\n\n# ruff: enable[B026]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 39 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B026]\n# ruff: enable[B026]\ncall(key=1, *args)\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 55, "end" = 60 }, { "rule" = "F821", "file" = "case.py", "start" = 43, "end" = 47 }, { "rule" = "F821", "file" = "case.py", "start" = 56, "end" = 60 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B026]\ncall(key=1, *args)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 39 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\ncall(key=1, *args)\n" }
+expected = [{ "rule" = "B026", "file" = "case.py", "start" = 34, "end" = 39 }, { "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 39 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[B026]\ncall(key=1, *args)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 26, "end" = 30 }, { "rule" = "F821", "file" = "case.py", "start" = 39, "end" = 43 }]
+
+[[cases]]
+name = "redirected-range-code-RUF004"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[RUF004]\ncall(key=1, *args)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 24, "end" = 28 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 41 }]
+
+[[cases]]
+name = "redirected-file-noqa-code-RUF004"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RUF004\ncall(key=1, *args)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 34, "end" = 38 }]

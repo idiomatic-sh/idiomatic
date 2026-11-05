@@ -1,0 +1,211 @@
+{
+  "reference": "Ruff 0.16.5; pinned official linux x86_64 executable",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "invocation": {
+    "check": true,
+    "isolated": true,
+    "no_cache": true,
+    "target_version": "py310",
+    "output_format": "json",
+    "selected_rules": [
+      "F602"
+    ]
+  },
+  "cases": [
+    {
+      "rule": "F602",
+      "name": "earlier-nonadjacent-name-key",
+      "case_source_sha256": "f8981348d308a4624ee5a793ec5b321534275fdf0f9ab654300d9eedcfd543c3",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 20,
+          "end": 24,
+          "ruff_location": {
+            "column": 21,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 25,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F602",
+      "name": "repeated-name-key",
+      "case_source_sha256": "c5dc551cbdf79ccc996320487c579030ef5d3fedfbfc261e11abb4ca2f304a3b",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 10,
+          "end": 14,
+          "ruff_location": {
+            "column": 11,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 15,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F602",
+      "name": "different-name-keys",
+      "case_source_sha256": "c11a2affc72301a6e0a8fd09954eb219d1c7129fb90279835b4086fc84864085",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F602",
+      "name": "name-with-tuple-key",
+      "case_source_sha256": "810868fa6a7b5dc9a8e29bdef3e57ebe62a2fd21e30f9e9ebf1ac4027f40b115",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 22,
+          "end": 26,
+          "ruff_location": {
+            "column": 23,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 27,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F602",
+      "name": "walrus-keys-are-not-name-keys",
+      "case_source_sha256": "ba3cafe5b4996dd169fbc66fe728cdf8293786c2154eadca728c47ee24c55c56",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F602",
+      "name": "attribute-keys",
+      "case_source_sha256": "a041a52c51627669e545f7c37b001cda5b4d027a670b14980a16a03fc6c39e0c",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F602",
+      "name": "calls-are-not-name-keys",
+      "case_source_sha256": "796e60c518187df95203ea9645bc5bc0c8e7379cc5e80a1492d151ae0ee1c338",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F602",
+      "name": "normalized-name-key",
+      "case_source_sha256": "dd0fe90097a412fac0fc757b41bccf4032fd44925d3cf5557200018b4bc1ca96",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 9,
+          "end": 10,
+          "ruff_location": {
+            "column": 8,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 9,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F602",
+      "name": "triple-repeated-name-key",
+      "case_source_sha256": "4aa92a18937a270965d0999031156f6ae37b02b6a182780919b67ec99c42160f",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 10,
+          "end": 14,
+          "ruff_location": {
+            "column": 11,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 15,
+            "row": 1
+          }
+        },
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 19,
+          "end": 23,
+          "ruff_location": {
+            "column": 20,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 24,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F602",
+      "name": "same-name-separate-dictionaries",
+      "case_source_sha256": "95566f5f66ef74bc530577fa7a15c69f6918a0538688a77f9ce2260681640c29",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F602",
+      "name": "case-sensitive-name-keys",
+      "case_source_sha256": "6351630973438701bee84f5cb0089fc15c0e79507b15537c38e451f806bd6aa3",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F602",
+      "name": "repeated-alias-key",
+      "case_source_sha256": "3d37fdca6df6c946e31a2f26535ea280696bdd5ea5eed51504fd0356eb47aae6",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F602",
+          "file": "case.py",
+          "start": 45,
+          "end": 50,
+          "ruff_location": {
+            "column": 12,
+            "row": 2
+          },
+          "ruff_end_location": {
+            "column": 17,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F602",
+      "name": "noqa-suppression",
+      "case_source_sha256": "90a3fd4954736f42be2dd6d1c30a975e151d0697369620b0ed33f76b4b492df5",
+      "comparison": "full",
+      "expected": []
+    }
+  ]
+}

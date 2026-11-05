@@ -1,16 +1,17 @@
 //! The `symbols` service's cases, on values alone.
 
 use super::service::{
-    bytes_of, derived_of, find_or_add_hashed, intern, intern_derived, name_count, name_made_across,
-    name_of, place_of, text_of,
+    bytes_of, derived_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived,
+    name_count, name_made_across, name_of, place_of, query_intern_derived, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::{
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::{QuerySymbols, SymbolStorage, Symbols, SymbolsEngine};
+use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{Symbols, SymbolsEngine};
-use crate::domain::terms::types::NameText;
+use ryo_relations::domain::terms::service::term_symbol;
+use ryo_relations::domain::terms::types::{DeclarationKind, NameText};
 
 /// A scenario: what a row asks of the service.
 type Input = fn() -> usize;
@@ -65,6 +66,54 @@ fn a_derived_name_is_kept_beside_the_names_of_the_file() -> usize {
     )
 }
 
+/// Query values may alias a source symbol or a prior derived comment, but cannot
+/// move the source boundary or reinterpret the comment's derived offsets.
+fn query_interning_keeps_source_and_comment_origins() -> usize {
+    let source = ByteSlice(b"main # noqa: W605\n");
+    let mut symbols = Symbols::default();
+    let source_name = intern(&mut symbols, source, Offset(0), Offset(4));
+    let comment = intern_derived(&mut symbols, source, NameText(" noqa: W605"));
+    let (alias, comment_alias, captured) = {
+        let mut query = QuerySymbols::from(&mut symbols);
+        (
+            query_intern_derived(&mut query, source, NameText("main")),
+            query_intern_derived(&mut query, source, NameText(" noqa: W605")),
+            query_intern_derived(&mut query, source, NameText("new")),
+        )
+    };
+    let mut arena = Bytes::default();
+    let mut places = Vec::new();
+    let placed_source = name_of(
+        &symbols,
+        source,
+        source_name,
+        FileId(1),
+        WorkerNumber(2),
+        &mut arena,
+        &mut places,
+    );
+    let source_origin = placed_source
+        .and_then(|name| place_of(name, &places, &symbols))
+        .is_some_and(|place| {
+            place.origin == Origin::Source && place.start == Offset(0) && place.end == Offset(4)
+        });
+    usize::from(
+        alias == source_name
+            && comment_alias == comment
+            && captured != comment
+            && source_origin
+            && text_of(&symbols, source, comment).map(|text| text.0) == Some(" noqa: W605")
+            && text_of(&symbols, source, captured).map(|text| text.0) == Some("new")
+            && symbols.as_ref().storage
+                == [
+                    SymbolStorage::Source,
+                    SymbolStorage::Derived,
+                    SymbolStorage::Derived,
+                ]
+            && name_count(&symbols) == Count(3),
+    )
+}
+
 fn a_name_leaves_its_file_as_a_place_and_a_made_name_as_a_copy() -> usize {
     let mut symbols = Symbols::default();
     let read = intern(&mut symbols, SOURCE, Offset(0), Offset(4));
@@ -107,35 +156,280 @@ fn a_name_leaves_its_file_as_a_place_and_a_made_name_as_a_copy() -> usize {
 
 /// Two texts that hash alike, in one file, stay two names: a hit on the hash is the name only when its text is the text.
 fn two_texts_of_one_hash_in_one_file_are_two_symbols() -> usize {
-    let mut symbols = SymbolsEngine {
-        sources: Count(2),
-        ..SymbolsEngine::default()
-    };
+    let mut symbols = SymbolsEngine::default();
     let source = ByteSlice(b"leftright");
     let hash = TextHash(7);
-    let left = find_or_add_hashed(&mut symbols, source, ByteSlice(b"left"), hash, |_| Span {
-        start: Offset(0),
-        end: Offset(4),
-    });
-    let right = find_or_add_hashed(&mut symbols, source, ByteSlice(b"right"), hash, |_| Span {
-        start: Offset(4),
-        end: Offset(9),
-    });
-    let left_again = find_or_add_hashed(&mut symbols, source, ByteSlice(b"left"), hash, |_| Span {
-        start: Offset(0),
-        end: Offset(4),
-    });
+    let left = find_or_add_hashed(
+        &mut symbols,
+        source,
+        ByteSlice(b"left"),
+        hash,
+        SymbolStorage::Source,
+        |_| Span {
+            start: Offset(0),
+            end: Offset(4),
+        },
+    );
+    let right = find_or_add_hashed(
+        &mut symbols,
+        source,
+        ByteSlice(b"right"),
+        hash,
+        SymbolStorage::Source,
+        |_| Span {
+            start: Offset(4),
+            end: Offset(9),
+        },
+    );
+    let left_again = find_or_add_hashed(
+        &mut symbols,
+        source,
+        ByteSlice(b"left"),
+        hash,
+        SymbolStorage::Source,
+        |_| Span {
+            start: Offset(0),
+            end: Offset(4),
+        },
+    );
+    let unchanged = left != right
+        && left == left_again
+        && symbols.start.len() == 2
+        && bytes_of(&symbols, source, left) == Some(ByteSlice(b"left"))
+        && bytes_of(&symbols, source, right) == Some(ByteSlice(b"right"));
+    let symbols = Symbols::from(symbols);
     usize::from(
-        left != right
-            && left == left_again
-            && symbols.start.len() == 2
-            && bytes_of(&symbols, source, left) == Some(ByteSlice(b"left"))
-            && bytes_of(&symbols, source, right) == Some(ByteSlice(b"right")),
+        unchanged
+            && find_hashed(&symbols, source, ByteSlice(b"left"), hash) == Some(left)
+            && find_hashed(&symbols, source, ByteSlice(b"right"), hash) == Some(right)
+            && find_hashed(&symbols, source, ByteSlice(b"other"), hash).is_none()
+            && name_count(&symbols) == Count(2),
+    )
+}
+
+/// Lookup reads both source and derived names without interning or changing their identities.
+fn lookup_of_source_and_derived_names_does_not_add_a_name() -> usize {
+    let mut symbols = Symbols::default();
+    let source_name = intern(&mut symbols, SOURCE, Offset(0), Offset(4));
+    let derived_name = intern_derived(&mut symbols, SOURCE, NameText("src/lib"));
+    let before_names = name_count(&symbols);
+    let before_derived_bytes = derived_of(&symbols).0.len();
+    let found_source = find_hashed(
+        &symbols,
+        SOURCE,
+        ByteSlice(b"main"),
+        hash_of(ByteSlice(b"main")),
+    );
+    let found_derived = find_hashed(
+        &symbols,
+        SOURCE,
+        ByteSlice(b"src/lib"),
+        hash_of(ByteSlice(b"src/lib")),
+    );
+    let missing = find_hashed(
+        &symbols,
+        SOURCE,
+        ByteSlice(b"missing"),
+        hash_of(ByteSlice(b"missing")),
+    );
+    usize::from(
+        found_source == Some(source_name)
+            && found_derived == Some(derived_name)
+            && missing.is_none()
+            && name_count(&symbols) == before_names
+            && derived_of(&symbols).0.len() == before_derived_bytes,
+    )
+}
+
+/// File names stay distinct from closed terms with the same text; the term alias is not in the name index.
+fn lookup_of_term_text_returns_only_the_file_symbol() -> usize {
+    let mut symbols = Symbols::default();
+    let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
+    let closed = term_symbol(DeclarationKind::Class);
+    let before_names = name_count(&symbols);
+    let found = find_hashed(
+        &symbols,
+        ByteSlice(b""),
+        ByteSlice(b"class"),
+        hash_of(ByteSlice(b"class")),
+    );
+    usize::from(
+        dynamic != closed
+            && found == Some(dynamic)
+            && text_of(&symbols, ByteSlice(b""), closed).map(|text| text.0) == Some("class")
+            && name_count(&symbols) == before_names,
     )
 }
 
 /// The rows of this part's cases.
+/// Late source admission must not reinterpret an existing derived symbol's offsets.
+fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
+    let source = ByteSlice(b"x.Z");
+    let mut symbols = Symbols::default();
+    let derived = intern_derived(&mut symbols, source, NameText("x.A"));
+    let original = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(text_of(&symbols, source, derived), Some(NameText("x.A")));
+    assert_eq!(text_of(&symbols, source, original), Some(NameText("x.Z")));
+    assert_eq!(
+        find_hashed(
+            &symbols,
+            source,
+            ByteSlice(b"x.A"),
+            hash_of(ByteSlice(b"x.A"))
+        ),
+        Some(derived)
+    );
+    assert_eq!(
+        find_hashed(
+            &symbols,
+            source,
+            ByteSlice(b"x.Z"),
+            hash_of(ByteSlice(b"x.Z"))
+        ),
+        Some(original)
+    );
+    let mut arena = Bytes::default();
+    let mut places = Vec::new();
+    let retained = name_of(
+        &symbols,
+        source,
+        derived,
+        FileId(0),
+        WorkerNumber(0),
+        &mut arena,
+        &mut places,
+    )
+    .expect("derived name remains retainable");
+    let retained_hash = retained.hash;
+    assert_eq!(retained_hash, hash_of(ByteSlice(b"x.A")));
+    assert_eq!(arena.0, b"x.A");
+    assert_eq!(
+        place_of(retained, &places, &symbols)
+            .expect("retained place")
+            .origin,
+        Origin::Derived(WorkerNumber(0))
+    );
+    let retained_source = name_of(
+        &symbols,
+        source,
+        original,
+        FileId(0),
+        WorkerNumber(0),
+        &mut arena,
+        &mut places,
+    )
+    .expect("source remains retainable");
+    let retained_source_hash = retained_source.hash;
+    assert_eq!(retained_source_hash, hash_of(ByteSlice(b"x.Z")));
+    assert_eq!(
+        place_of(retained_source, &places, &symbols)
+            .expect("source place")
+            .origin,
+        Origin::Source
+    );
+    assert_eq!(arena.0, b"x.A", "source retention does not copy bytes");
+    1
+}
+
+/// Finding a derived name from source bytes must retain that symbol's original storage.
+fn a_source_alias_does_not_reclassify_existing_derived_storage() -> usize {
+    let source = ByteSlice(b"x.A");
+    let mut symbols = Symbols::default();
+    let prefix = intern_derived(&mut symbols, source, NameText("prefix"));
+    let derived = intern_derived(&mut symbols, source, NameText("x.A"));
+    let alias = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(alias, derived);
+    assert_eq!(text_of(&symbols, source, prefix), Some(NameText("prefix")));
+    assert_eq!(text_of(&symbols, source, derived), Some(NameText("x.A")));
+    assert_eq!(name_count(&symbols), Count(2));
+    1
+}
+
+/// Composed names and reused pools obey the same storage identity as ordinary lookup.
+fn interleaved_names_compose_and_clear_without_changing_storage() -> usize {
+    use super::service::{begin_name, clear_symbols, end_name, push_name};
+    let source = ByteSlice(b"x.Z");
+    let mut symbols = Symbols::default();
+    let derived = intern_derived(&mut symbols, source, NameText("x.A"));
+    let original = intern(&mut symbols, source, Offset(0), Offset(3));
+    let start = begin_name(&symbols);
+    push_name(&mut symbols, source, derived);
+    push_name(&mut symbols, source, original);
+    let composed = end_name(&mut symbols, source, start);
+    assert_eq!(
+        text_of(&symbols, source, composed),
+        Some(NameText("x.Ax.Z"))
+    );
+    assert_eq!(
+        intern_derived(&mut symbols, source, NameText("x.Ax.Z")),
+        composed
+    );
+    clear_symbols(&mut symbols);
+    assert_eq!(name_count(&symbols), Count(0));
+    let original = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(text_of(&symbols, source, original), Some(NameText("x.Z")));
+    assert!(derived_of(&symbols).0.is_empty());
+    1
+}
+
+/// Cross-file names may refer only to bytes actually owned by the cross-file pool.
+fn cross_file_names_require_derived_storage() -> usize {
+    let source = ByteSlice(b"x.A x.Z");
+    let mut symbols = Symbols::default();
+    let from_source = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(name_made_across(&symbols, from_source), None);
+    let forged = ryo_relations::domain::relations::types::Name {
+        hash: hash_of(ByteSlice(b"x.A")),
+        place: ryo_relations::domain::relations::types::PlaceNumber(
+            ryo_relations::domain::relations::types::CROSS_PLACE | from_source.0,
+        ),
+    };
+    assert_eq!(place_of(forged, &[], &symbols), None);
+    let from_derived = intern_derived(&mut symbols, source, NameText("x.Z"));
+    let retained =
+        name_made_across(&symbols, from_derived).expect("derived names can leave the pool");
+    let alias = intern(&mut symbols, source, Offset(4), Offset(7));
+    assert_eq!(alias, from_derived);
+    assert_eq!(name_made_across(&symbols, alias), Some(retained));
+    let place = place_of(retained, &[], &symbols).expect("cross-file derived place");
+    assert_eq!(place.origin, Origin::Derived(CROSS_FILE));
+    let start = usize::try_from(place.start.0).expect("fixture offset");
+    let end = usize::try_from(place.end.0).expect("fixture offset");
+    assert_eq!(&derived_of(&symbols).0[start..end], b"x.Z");
+    1
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("cross_file_names_require_derived_storage"),
+        word: Word::Succeeds,
+        input: || cross_file_names_require_derived_storage,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("interleaved_source_and_derived_names_keep_text_and_retention"),
+        word: Word::Succeeds,
+        input: || interleaved_source_and_derived_names_keep_text_and_retention,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_source_alias_does_not_reclassify_existing_derived_storage"),
+        word: Word::Succeeds,
+        input: || a_source_alias_does_not_reclassify_existing_derived_storage,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("interleaved_names_compose_and_clear_without_changing_storage"),
+        word: Word::Succeeds,
+        input: || interleaved_names_compose_and_clear_without_changing_storage,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("query_interning_keeps_source_and_comment_origins"),
+        word: Word::Succeeds,
+        input: || query_interning_keeps_source_and_comment_origins,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("a_name_made_after_the_files_were_read_keeps_its_text_where_it_was_made"),
         word: Word::Succeeds,
@@ -166,6 +460,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || two_texts_of_one_hash_in_one_file_are_two_symbols,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("lookup_of_source_and_derived_names_does_not_add_a_name"),
+        word: Word::Succeeds,
+        input: || lookup_of_source_and_derived_names_does_not_add_a_name,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("lookup_of_term_text_returns_only_the_file_symbol"),
+        word: Word::Succeeds,
+        input: || lookup_of_term_text_returns_only_the_file_symbol,
+        expect: Expect::Value(1),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -175,4 +481,37 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn transported_places_require_the_same_live_symbol_generation() {
+    use super::service::{
+        clear_symbols, query_has_transport_generation, query_places_mut, transport_permit,
+    };
+    use ryo_relations::domain::relations::types::NamePlace;
+
+    let mut first = Symbols::default();
+    let mut second = Symbols::default();
+    let key = transport_permit(&mut first);
+    {
+        let mut query = QuerySymbols::from(&mut second);
+        assert!(!query_has_transport_generation(&query, &key));
+        assert!(query_places_mut(&mut query, &key).is_err());
+    }
+    {
+        let mut query = QuerySymbols::from(&mut first);
+        assert!(query_has_transport_generation(&query, &key));
+        let places = query_places_mut(&mut query, &key).expect("exact live pool");
+        places.push(NamePlace {
+            origin: Origin::Derived(WorkerNumber(0)),
+            file: FileId(0),
+            start: Offset(0),
+            end: Offset(1),
+        });
+        assert_eq!(places.len(), 1);
+    }
+    clear_symbols(&mut first);
+    let mut query = QuerySymbols::from(&mut first);
+    assert!(!query_has_transport_generation(&query, &key));
+    assert!(query_places_mut(&mut query, &key).is_err());
 }

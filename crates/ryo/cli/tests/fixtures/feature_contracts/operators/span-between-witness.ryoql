@@ -1,0 +1,6 @@
+let edges = select parent, child, file from "syntax-child";
+let locations = select id, span, "start-byte" as begin, "end-byte" as finish, file from "source-location";
+let child_bounds = select l.parent as parent, l.child as id, l.file as file, r.span as child_span, r.begin as begin, r.finish as child_finish from edges as l join locations as r on l.child = r.id and l.file = r.file;
+let bounds = select l.id as id, l.file as file, l.child_span as child_span, r.span as parent_span, l.begin as begin, r.finish as finish from child_bounds as l join locations as r on l.parent = r.id and l.file = r.file where l.child_finish < r.finish;
+let composed = span-between(from=bounds, start="child_span", end="parent_span", output="span");
+emit composed subject file key(id, begin, finish, span);

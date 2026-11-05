@@ -3,19 +3,20 @@
 
 use super::constants::TWO_LANGUAGES_UNLISTED;
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::service::all;
-use ryo_language::domain::relations::types::RowWriter;
-use ryo_language::domain::relations::types::{Bytes, Relation};
+use ryo_language::domain::semantics::interface::SemanticSession;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::types::ProjectRequest;
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::{Bytes, Relation};
 
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort;
@@ -27,6 +28,36 @@ use crate::outbound::language::types::{
 };
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
+
+/// Give one language only the notes it wrote, with the same host scope and engine observations.
+fn project_request(input: &ProjectInput<'_>, number: usize) -> ProjectRequest {
+    ProjectRequest {
+        root: input.root.clone(),
+        repository: input.repository,
+        search_scope: input.search_scope.clone(),
+        given_inventory: input.given_inventory.clone(),
+        observed_entries: input.observed_entries.clone(),
+        manifests: input.manifests.to_vec(),
+        files: input
+            .files
+            .iter()
+            .map(|each| ryo_values::domain::files::service::input_path(each).clone())
+            .collect(),
+        notes: input
+            .notes
+            .0
+            .iter()
+            .map(|each| match each {
+                Some(FileNotes {
+                    language: written_by,
+                    notes,
+                }) if written_by.0 == number => Bytes(notes.0.clone()),
+                Some(_) | None => Bytes::default(),
+            })
+            .collect(),
+        wanted: input.wanted.to_vec(),
+    }
+}
 
 /// The `use_case` language adapter.
 #[derive(Debug)]
@@ -47,6 +78,30 @@ impl LanguageUseCaseAdapter {
     pub(crate) fn with(mut self, language: LanguageHandles) -> Self {
         self.languages.push(language);
         self
+    }
+}
+
+fn parse_request(file: FileToRead<'_>) -> ParseRequest<'_> {
+    ParseRequest {
+        path: SourcePath(&file.path.0),
+        file: file.file,
+        bytes: ByteSlice(&file.bytes.0),
+        fields: match file.roles {
+            RoleWriting::Wanted => {
+                ryo_language::inbound::use_cases::parse::types::FieldRequest::Wanted
+            }
+            RoleWriting::Unwanted => {
+                ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted
+            }
+        },
+        notes: match file.notes {
+            NoteWriting::Wanted => {
+                ryo_language::inbound::use_cases::parse::types::NoteRequest::Wanted
+            }
+            NoteWriting::Unwanted => {
+                ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted
+            }
+        },
     }
 }
 
@@ -136,27 +191,43 @@ impl LanguagePort for LanguageUseCaseAdapter {
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
     ) -> FileReading {
-        let request = ParseRequest {
-            path: SourcePath(&file.path.0),
-            file: file.file,
-            bytes: ByteSlice(&file.bytes.0),
-            fields: match file.roles {
-                RoleWriting::Wanted => {
-                    ryo_language::inbound::use_cases::parse::types::FieldRequest::Wanted
-                }
-                RoleWriting::Unwanted => {
-                    ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted
-                }
-            },
-            notes: match file.notes {
-                NoteWriting::Wanted => {
-                    ryo_language::inbound::use_cases::parse::types::NoteRequest::Wanted
-                }
-                NoteWriting::Unwanted => {
-                    ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted
-                }
-            },
-        };
+        let request = parse_request(file);
+        if let Some(selected) = file.source_language {
+            let mut matches = self
+                .languages
+                .iter()
+                .enumerate()
+                .filter(|(_, language)| language.name == *selected);
+            let Some((number, language)) = matches.next() else {
+                return FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}` is not linked", selected.0).into(),
+                ));
+            };
+            if matches.next().is_some() {
+                return FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}` is ambiguous", selected.0).into(),
+                ));
+            }
+            if language
+                .project
+                .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                == ryo_language::domain::files::types::PrimaryFileRole::Configuration
+            {
+                return FileReading::Manifest;
+            }
+            return match language.parse.read_file_explicit(
+                request,
+                table,
+                symbols,
+                file.wanted,
+                out,
+            ) {
+                Ok(()) => FileReading::Read(LanguageNumber(number)),
+                Err(error) => FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}`: {error}", selected.0).into(),
+                )),
+            };
+        }
         let mut failure: Option<ReadFailure> = None;
         for (number, language) in self.languages.iter().enumerate() {
             if language.parse.recognition(&request)
@@ -175,7 +246,12 @@ impl LanguagePort for LanguageUseCaseAdapter {
         }
         failure.map_or_else(
             || {
-                if self.reads_manifest(file.path) == ManifestReading::Read {
+                if self.languages.iter().any(|language| {
+                    language
+                        .project
+                        .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                        == ryo_language::domain::files::types::PrimaryFileRole::Configuration
+                }) {
                     FileReading::Manifest
                 } else {
                     FileReading::Unsupported
@@ -183,6 +259,31 @@ impl LanguagePort for LanguageUseCaseAdapter {
             },
             FileReading::Failed,
         )
+    }
+
+    fn begin_semantics(
+        &self,
+        language: LanguageNumber,
+        file: FileToRead<'_>,
+        tree: &Elements,
+    ) -> Option<Box<dyn SemanticSession>> {
+        self.languages
+            .get(language.0)
+            .and_then(|handle| handle.parse.begin_semantics(&parse_request(file), tree))
+    }
+
+    fn project_entries(&self, input: &ProjectInput<'_>) -> Vec<FilePath> {
+        let mut entries = Vec::new();
+        for (number, language) in self.languages.iter().enumerate() {
+            entries.extend(
+                language
+                    .project
+                    .project_entries(&project_request(input, number)),
+            );
+        }
+        entries.sort();
+        entries.dedup();
+        entries
     }
 
     fn project(
@@ -195,32 +296,23 @@ impl LanguagePort for LanguageUseCaseAdapter {
         let mut unlisted = Vec::new();
         let mut consulted = Vec::new();
         for (number, language) in self.languages.iter().enumerate() {
-            let request = ProjectRequest {
-                root: input.root.clone(),
-                repository: input.repository,
-                manifests: input.manifests.to_vec(),
-                files: input.files.iter().map(|each| each.path.clone()).collect(),
-                notes: input
-                    .notes
-                    .0
-                    .iter()
-                    .map(|each| match each {
-                        // A language reads only the notes it wrote.
-                        Some(FileNotes {
-                            language: written_by,
-                            notes,
-                        }) if written_by.0 == number => Bytes(notes.0.clone()),
-                        Some(_) | None => Bytes::default(),
-                    })
-                    .collect(),
-                wanted: input.wanted.to_vec(),
-            };
+            let request = project_request(input, number);
             let bytes = language
                 .project
                 .project(&request, symbols, out)
                 .map_err(|error| LanguageError::Manifest {
                     reason: error.to_string(),
                 })?;
+            if bytes.observed_entries.as_slice()
+                != ryo_language::domain::project_context::service::entries(
+                    &request.observed_entries,
+                )
+            {
+                return Err(LanguageError::Manifest {
+                    reason: "project observation receipt differs from the engine's batch"
+                        .to_owned(),
+                });
+            }
             consulted.extend(bytes.consulted);
             // The numbers after the files the run lists are one language's to give: two would number different manifests alike. Two
             // languages that read the same manifests name the same ones in the same order, which is one numbering.
@@ -247,6 +339,9 @@ impl LanguagePort for LanguageUseCaseAdapter {
             refused,
             unlisted,
             consulted,
+            observed_entries: ryo_language::domain::project_context::service::receipt(
+                input.observed_entries,
+            ),
         })
     }
 }

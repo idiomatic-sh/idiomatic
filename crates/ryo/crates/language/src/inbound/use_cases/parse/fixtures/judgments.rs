@@ -4,18 +4,18 @@ use super::super::service::absence as parse_absence;
 use super::super::types::ParseEngine;
 use super::expected::{Cell, Fixtures, Unfilled, Unshown};
 use super::findings::Findings;
-use crate::domain::answers::service::vocabulary_of;
-use crate::domain::answers::types::AbsenceCause;
-use crate::domain::relations::constants::{LOWERED, RAISED};
-use crate::domain::relations::service::{
+use ryo_relations::domain::relations::service::vocabulary_of;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
+use ryo_relations::domain::relations::service::{
     all, class_of, column_name, columns, folder_of, kind, provenance_of,
 };
-use crate::domain::relations::types::CellKind;
-use crate::domain::relations::types::Class;
-use crate::domain::relations::types::Provenance;
-use crate::domain::relations::types::Relation;
-use crate::domain::terms::service::words_of;
-use crate::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Class;
+use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::terms::service::words_of;
+use ryo_relations::domain::terms::types::Vocabulary;
 use crate::inbound::use_cases::project::types::ProjectEngine;
 
 /// The reasons a language may give for a relation of each class, which is all the engine can tell without knowing the language: the
@@ -40,7 +40,9 @@ pub(super) fn reasons_of(class: Class) -> &'static [AbsenceCause] {
             AbsenceCause::NotADocument,
             AbsenceCause::NotYetRead,
         ],
-        Class::Literal => &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead],
+        Class::Literal | Class::Lexical => {
+            &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead]
+        }
         Class::Manifest => &[AbsenceCause::NoManifests, AbsenceCause::NotYetRead],
     }
 }
@@ -57,9 +59,12 @@ pub(super) fn judge_classes(
         let absence = match class {
             Class::Manifest => language.absence_of(relation),
             Class::Engine => None,
-            Class::Structure | Class::Code | Class::Keyed | Class::Literal | Class::Document => {
-                parse_absence(parse, relation)
-            }
+            Class::Structure
+            | Class::Code
+            | Class::Keyed
+            | Class::Literal
+            | Class::Lexical
+            | Class::Document => parse_absence(parse, relation),
         };
         if let Some(reason) = absence
             && !reasons_of(class).contains(&reason)
@@ -154,6 +159,7 @@ pub(super) fn judge_reasons(
 pub(super) fn judge_unknowns(
     parse: &dyn ParseEngine,
     expected: &Fixtures,
+    semantic_reasons: &[ryo_relations::domain::terms::types::UnknownReason],
     findings: &mut Findings,
 ) {
     let declared: Vec<&str> = parse
@@ -190,10 +196,10 @@ pub(super) fn judge_unknowns(
                 .iter()
                 .flat_map(|each| each.rows.iter().map(|(_, row)| row)),
         );
-    let used: Vec<&String> = rows
+    let mut used: Vec<&str> = rows
         .flatten()
         .filter_map(|cell| match cell {
-            Cell::Unknown(reason) => Some(reason),
+            Cell::Unknown(reason) => Some(reason.as_str()),
             Cell::Node(_)
             | Cell::Name(_)
             | Cell::File(_)
@@ -203,15 +209,20 @@ pub(super) fn judge_unknowns(
             | Cell::Flag(_) => None,
         })
         .collect();
+    for reason in semantic_reasons {
+        if let Some(name) = parse.unknown_reasons().iter().find(|name| name.reason == *reason) {
+            used.push(name.text.0);
+        }
+    }
     for name in &declared {
-        if !used.iter().any(|reason| reason.as_str() == *name) {
+        if !used.contains(name) {
             findings.0.push(format!(
                 "unknown reason `{name}` has no fixture: state a row whose value is `unknown(\"{name}\")`"
             ));
         }
     }
     for reason in used {
-        if !declared.contains(&reason.as_str()) {
+        if !declared.contains(&reason) {
             findings.0.push(format!(
                 "a fixture row has the unknown reason `{reason}`, which the language does not declare (`unknown_reasons`)"
             ));
@@ -233,7 +244,7 @@ fn filled(cell: &Cell) -> bool {
 
 /// What the cells of one column of the fixtures do not show: each word of a closed set none holds, `true` or `false` of a flag none
 /// holds, or, for any other column, a value when none is filled.
-fn unshown(column: crate::domain::relations::types::Column, cells: &[&Cell]) -> Vec<Unshown> {
+fn unshown(column: ryo_relations::domain::relations::types::Column, cells: &[&Cell]) -> Vec<Unshown> {
     if let Vocabulary::Closed(block) = vocabulary_of(column) {
         return words_of(block)
             .into_iter()

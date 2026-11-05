@@ -1,5 +1,5 @@
-description = "A pipeline that keeps files across runs proves, in a lifecycle case of its use case's tests, that many runs in a row leave a bounded number of files."
-why = "A store, a cache or a log that keeps files from run to run grows until a disk fills or a repository carries megabytes of history, and nothing in a single run shows it: the operation log that appends a snapshot beside every operation once it holds 64 files grows by about 42 KB of history a run. Whether a writer stays bounded is decided only by running it many times, so the proof is a lifecycle case of the pipeline's own `use_case_test.rs`, beside its cold, unchanged and edited runs (`many_runs_in_a_row_leave_a_bounded_number_of_files`), and this rule holds that the case is there. Read in the use case the `pipeline` spec places: its `use_case_test.rs` is reported when no string literal in it names a case with `bounded` in it. What the case asserts is the case's: the rule sees that it is there, not that it is right."
+description = "Legacy case-name marker; retired from the pipeline spec because it cannot prove bounded retention."
+why = "This historical rule only searches for a string literal containing `bounded`. Such a name can accompany an unbounded writer, so the rule is no longer applied by the pipeline spec and must not be used as behavioral evidence. The product's repeated real-store lifecycle test measures retained files and bytes, and its deliberately accumulating control must fail that same bound."
 
 query = '''
 let tests = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{use_case_test.rs,**/use_case_test.rs}");
@@ -11,8 +11,8 @@ emit missing subject "file" key("file");
 
 [diagnostic]
 primary = "file"
-message = "this pipeline keeps files across runs, and no lifecycle case shows many runs leave a bounded number"
-help = "Add a lifecycle case that runs the use case many times in a row over the same project (`many_runs_in_a_row_leave_a_bounded_number_of_files`): runs that change nothing leave the count of files they found, and runs that change something stay under a fixed bound. Then make the writer pass it: replace what it keeps, or delete what a snapshot covers, in the same run."
+message = "legacy naming marker: no string literal containing bounded was found"
+help = "This rule cannot certify bounded retention. Run a repeated real-store lifecycle test that measures retained files and bytes, including unchanged and edited inputs and a deliberately accumulating negative control."
 
 [given]
 include = ['**']
@@ -39,8 +39,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 then.findings = [{ path = 'src/inbound/use_cases/up/use_case_test.rs' }]
 
 [[scenarios]]
-id = 'a-pipeline-proved-bounded'
-scenario = 'A pipeline whose lifecycle cases run it forty times in a row and hold the files it leaves to a bound is not reported.'
+id = 'a-named-stub-is-not-proof'
+scenario = 'A string containing bounded produces no finding even when it is only a stub; this is why the rule is retired from the pipeline spec.'
 given.files.'src/inbound/use_cases/lint/use_case_test.rs' = '''
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

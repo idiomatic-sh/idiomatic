@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the trees of the sources the domain's tests read, written out in full, one arm for each: splitting them would split the one table `SOURCES` is the list of
+// the trees of the sources the domain's tests read, written out in full, one arm for each: splitting them would split the one table `SOURCES` is the list of
 //! The trees of the sources the tests of the domain read, written by hand in the language's kinds, so those tests depend on no parser.
 //! The adapter of the port is held to them: its test makes the table of each source and compares it element by element.
 

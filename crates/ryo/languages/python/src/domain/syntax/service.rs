@@ -121,7 +121,7 @@ pub(crate) fn written<'a>(tree: &Tree<'a>, at: Position) -> Text<'a> {
         tree.source
             .0
             .get(start..end)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
             .unwrap_or_default(),
     )
 }
@@ -151,7 +151,19 @@ pub(crate) fn name_token(tree: &Tree<'_>, at: Position) -> Option<Position> {
 /// The name the identifier or name expression at `at` writes, as a name.
 #[must_use]
 pub(crate) fn name_of(tree: &Tree<'_>, at: Position) -> Option<languages::Symbol> {
-    name_token(tree, at).map(|token| languages::text_at(tree.elements, token))
+    let token = name_token(tree, at)?;
+    let owner = parent(tree, token);
+    if languages::property_at(
+        tree.elements,
+        owner,
+        super::constants::NORMALIZED_IDENTIFIER,
+    )
+    .is_some()
+    {
+        Some(languages::text_at(tree.elements, owner))
+    } else {
+        Some(languages::text_at(tree.elements, token))
+    }
 }
 
 /// The place of the `number`-th thing the parser reported about the file, as a node id of the file: a report is known by its number.
@@ -248,4 +260,28 @@ pub(crate) fn standing(tree: &Tree<'_>, at: Position) -> Standing {
     } else {
         Standing::Own
     }
+}
+
+/// A semantic identifier's canonical spelling; raw syntax tokens retain the original spelling.
+#[must_use]
+pub(crate) fn identifier_text<'a>(tree: &'a Tree<'a>, at: Position) -> Text<'a> {
+    languages::property_at(tree.elements, at, super::constants::NORMALIZED_IDENTIFIER)
+        .map_or_else(|| written(tree, at), |name| Text(name.0))
+}
+
+/// All lexical identifier fields and name expressions in a complete source tree.
+pub(crate) fn identifiers<'a>(tree: &'a Tree<'a>) -> Option<impl Iterator<Item = Position> + 'a> {
+    if languages::has_incomplete_syntax(tree.elements) {
+        return None;
+    }
+    Some(
+        (0..languages::end_of(tree.elements).0)
+            .map(Position)
+            .filter(|at| {
+                matches!(
+                    kind(tree, *at),
+                    Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier)
+                ) && name_token(tree, *at).is_some()
+            }),
+    )
 }

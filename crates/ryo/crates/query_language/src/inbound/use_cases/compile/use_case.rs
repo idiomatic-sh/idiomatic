@@ -6,12 +6,11 @@ use super::errors::CompileError;
 use super::interface::CompileUseCase;
 use super::service::{invalid, unresolved};
 use super::types::{CompileReport, CompileRequest};
-use crate::domain::assembling::service::lower;
-use crate::domain::validation::service::validate;
+use crate::domain::assembling::service::lower_with_observations;
+use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
-use ryo_values::domain::program::types::QueryView;
 
 /// `compile`, over the syntax and the catalog it calls.
 pub struct CompileUseCaseImpl {
@@ -39,27 +38,63 @@ impl CompileUseCaseImpl {
 
 impl CompileUseCase for CompileUseCaseImpl {
     fn compile(&self, request: CompileRequest) -> Result<CompileReport, CompileError> {
-        let program =
-            self.syntax
-                .read(QueryView(&request.text.0))
-                .map_err(|error| match error {
-                    SyntaxError::Unreadable { span, message } => {
-                        CompileError::Syntax { span, message }
-                    }
-                })?;
+        let parsed = self
+            .syntax
+            .read_bundle(&request.text)
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => CompileError::Syntax { span, message },
+                SyntaxError::Located { origin, message } => CompileError::Located {
+                    error: Box::new(CompileError::Syntax {
+                        span: origin.span,
+                        message,
+                    }),
+                    origin,
+                },
+            })?;
+        let program = crate::domain::linking::service::link_with_observations(
+            &request.text,
+            parsed.root,
+            &parsed.fragments,
+            &request.observations,
+        )
+        .map_err(|error| {
+            let span = error.origin.span;
+            CompileError::Located {
+                origin: error.origin,
+                error: Box::new(CompileError::Invalid {
+                    span,
+                    message: error.message,
+                }),
+            }
+        })?;
         let relations = self
             .catalog
             .relations()
             .map_err(|error| CompileError::Catalog {
                 reason: error.to_string(),
             })?;
+        crate::domain::observation_inputs::service::validate_inputs(
+            &relations.0,
+            &request.hosted,
+            &request.observations,
+        )
+        .map_err(|error| CompileError::ObservationInputs {
+            message: error.to_string(),
+        })?;
         let names: Vec<_> = request
             .hosted
             .iter()
             .map(|each| each.name.clone())
             .collect();
-        validate(&program, &relations.0, &names).map_err(invalid)?;
-        let plan = lower(&program, &relations.0, &request.hosted).map_err(unresolved)?;
+        validate_with_observations(&program, &relations.0, &names, &request.observations)
+            .map_err(invalid)?;
+        let plan = lower_with_observations(
+            &program,
+            &relations.0,
+            &request.hosted,
+            &request.observations,
+        )
+        .map_err(unresolved)?;
         Ok(CompileReport { plan })
     }
 }

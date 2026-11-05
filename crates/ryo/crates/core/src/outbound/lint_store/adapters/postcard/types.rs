@@ -49,6 +49,14 @@ pub(super) struct TableOfContents {
 pub(super) struct OpenedStore {
     /// The file.
     pub file: std::fs::File,
+    /// The immutable snapshot length observed when this file was opened.
+    pub length: SectionLength,
     /// The bytes of its table of contents.
     pub contents: SectionBytes,
 }
+
+/// Private IO behavior over the run's temporary spool.
+pub(super) mod spool;
+
+/// Compact framing and bounded payload copying for rebuilt buckets.
+pub(super) mod frames;

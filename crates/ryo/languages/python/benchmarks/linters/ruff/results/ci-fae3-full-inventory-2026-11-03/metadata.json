@@ -1,0 +1,20 @@
+{
+  "schema": "ruff-ci-artifact/v1",
+  "run_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41590760770",
+  "job_id": 125766709104,
+  "artifact_id": 13210149416,
+  "head_sha": "fae3a75d14b895a52f2f88eef01f236026297bb6",
+  "summary_sha256": "5c012dd59e099cfa46af4369417212dd91b8a32885ae98f34544d00a22e70ea6",
+  "registration_sha256": "0c31d913e2dd415499788e51bc4ffda8c2220fc1475fb7af3ea6921feedb6963",
+  "raw_archive_sha256": "491f91edbe2b2e780a02b55d79c0162a4e81aa3697f76135930352c13a76a14c",
+  "worker_sha256": "8ea08c5e83049787ac63816c3afe992427c6b7fb99a687b82d746ef4ac2acae1",
+  "inventory_sha256": "d7907baa630941108d2ec0189b5fc2a5de0c6bc5db8635d5ebb4437f3441d143",
+  "counts": {
+    "FAIL": 13,
+    "PASS": 400
+  },
+  "archive_scope": "all 413 profile result/stdout/stderr/cases receipts, summary, registration, worker and runner seals; staged repro inputs remain in GitHub artifact and source commit",
+  "n999_invalid_local_gate_sha256": "45c03611e4491ed717b8d6b6cf9edcfba736faa061ffe4327f8d0972fa2c9e44",
+  "n999_verified_local_gate_sha256": "c77c9b3d6f37c96919bc6587c76c3004ce10c24d83ce54cc8e3e610fb5afd128",
+  "registration_archive_sha256": "b22e964840a3496947852e65e65ea255afd0638cff0d2f230606f8e722df55e9"
+}

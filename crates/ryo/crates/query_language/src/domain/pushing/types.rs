@@ -12,7 +12,7 @@ pub(crate) struct FilterDepth(pub usize);
 
 /// How many columns come before the ones being counted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Skipped(pub usize);
+pub(crate) struct ColumnPrefixLength(pub usize);
 
 /// What the elements of a lookup are already filtered by.
 #[derive(Clone, Copy, Debug, PartialEq)]

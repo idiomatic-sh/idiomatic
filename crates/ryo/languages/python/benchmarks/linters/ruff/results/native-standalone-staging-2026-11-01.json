@@ -1,0 +1,17 @@
+{
+  "schema": "native-standalone-staging-check/v1",
+  "native_rules": 104,
+  "unchanged_cases": 2211,
+  "runtime_cases_executed": 0,
+  "runtime_status": "pending",
+  "focused_guard_status": "passed",
+  "full_helper_selftest_status": "passed",
+  "descriptor_sha256": "1675bf32801ed879dd8202f7f14d8966056a34fc31a89382d4503052777fefe3",
+  "helper_sha256": "c84bbff4e7df78b6dc73fdad2c1cfa93769b716228b5027161081c969d3359ca",
+  "focused_stdout_sha256": "ab67032965aa08b3380542a821adfcd1afaefe3167abd4b4ae59ee530bc899b1",
+  "full_selftest_stdout_sha256": "9d174ed0ee4e11af8b7f37eee98a0151c965d8d66f857a9e7bdb59f1cff09621",
+  "full_selftest_stderr_sha256": "94ab79a480217f0a61ee613390e0732bb10ba43d6becd0cb3a9c4232b2e5c650",
+  "source_patch_sha256": "6385a013c45ad91c830abdccf74d9a74e9c52bdd5bcc556c906879623b61d769",
+  "historical_standalone_proof_invented": false,
+  "combined_cohort_changed": false
+}

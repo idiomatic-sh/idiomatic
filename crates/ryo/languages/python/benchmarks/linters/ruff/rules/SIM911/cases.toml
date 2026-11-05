@@ -1,0 +1,47 @@
+[[cases]]
+name = "dict-literal"
+comparison = "full"
+files = { "case.py" = "data = {}\nzip(data.keys(), data.values())\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 10, end = 41 }]
+
+[[cases]]
+name = "dict-with-content"
+comparison = "full"
+files = { "case.py" = "data = {\"a\": 1}\nzip(data.keys(), data.values())\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 16, end = 47 }]
+
+[[cases]]
+name = "strict-keyword"
+comparison = "full"
+files = { "case.py" = "data = {}\nzip(data.keys(), data.values(), strict=True)\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 10, end = 54 }]
+
+[[cases]]
+name = "different-receiver"
+comparison = "full"
+files = { "case.py" = "left = {}\nright = {}\nzip(left.keys(), right.values())\n" }
+expected = []
+
+[[cases]]
+name = "non-dict"
+comparison = "full"
+files = { "case.py" = "values = []\nzip(values.keys(), values.values())\n" }
+expected = []
+
+[[cases]]
+name = "wrong-method-order"
+comparison = "full"
+files = { "case.py" = "data = {}\nzip(data.values(), data.keys())\n" }
+expected = []
+
+[[cases]]
+name = "nonbuiltin-zip"
+comparison = "full"
+files = { "case.py" = "def zip(*args):\n    pass\ndata = {}\nzip(data.keys(), data.values())\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "data = {}\nzip(data.keys(), data.values())  # noqa: SIM911\n" }
+expected = []

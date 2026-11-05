@@ -1,0 +1,42 @@
+{
+  "status": "source-smoke-only",
+  "admission_status": "pending strict canonical-source staging and actual invocation sealer",
+  "rule": "FLY002",
+  "settings": {
+    "defaults": [
+      "FLY002"
+    ],
+    "parser_configuration": "python-target=3.10",
+    "project_context_mode": "isolated",
+    "rule_applicability": {
+      "FLY002": "accepted-syntax"
+    },
+    "flags": {}
+  },
+  "worker_sha256": "755bda55137ed839ba49b41e3fbcfb874be337e55e0a10c05f148572c52ccb9c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "upstream_tag": "0.16.5",
+  "upstream_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "case_count": 38,
+  "complete_pairs": 38,
+  "complete_records": 76,
+  "exact_native_source_smoke_count": 38,
+  "unknown_or_unread": 0,
+  "query_sha256": "29cead3b561808ffba072caffa80271c5e2a941ee58b548c82cdaedde05f514b",
+  "cases_sha256": "71199bba61133f07cb774d15ad069a06764d5e3e52116cec2d404b8512102659",
+  "authored_profile_sha256": "06eafecc1642fd32b9b146c847e8b18b94bf18e0a82f7276ea2521ec3f7cf056",
+  "smoke_staged_profile_sha256": "1ca39c3cec09f12cdd3b38df9df14d1e6ca741197625d9dc13b2908f0af81759",
+  "query_modules": {
+    "python/ruff/suppress": "fragments/suppress.ryoql",
+    "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+  },
+  "module_sha256": {
+    "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+  },
+  "raw_differences": [],
+  "validation": "Existing canonical_run_ryo_settings/check_run_ryo_settings/complete_run_ryo_report and write_staged_profile/copy_modules were reused. Full canonical-source binding and authoritative admission were not performed.",
+  "limits": [
+    "This is source smoke, not admitted parity and not a full413 claim."
+  ]
+}

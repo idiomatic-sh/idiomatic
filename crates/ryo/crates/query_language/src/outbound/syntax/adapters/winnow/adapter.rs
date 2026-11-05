@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the winnow adapter is the RyoQL grammar: one small parser fn for each thing the language has, from a word to the whole program (30 fns, none long); splitting them across files would scatter one grammar.
+// the winnow adapter is the RyoQL grammar: one small parser fn for each thing the language has, from a word to the whole program (30 fns, none long); splitting them across files would scatter one grammar.
 //! The syntax port, implemented with winnow: RyoQL text is read by small parsers, one for each
 //! thing the language has, from the smallest (a word, a string) up to the whole program.
 
@@ -11,16 +11,18 @@ use winnow::token::{take_till, take_while};
 use super::constants::{GRAMMAR, Keyword, Mark, expectation, keyword_text, mark_text};
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
 use ryo_values::domain::program::types::{
     Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call,
-    ColumnName, ColumnReference, Columns, Condition, Expression, Filter, Join, JoinKey, Joining,
-    LetStep, OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView,
-    Renaming, Select, SelectColumn, SourceReference, StepName, TypeName, WordText, WrittenApplied,
-    WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenOperand, WrittenParameter,
+    ColumnName, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput,
+    FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep,
+    OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView,
+    RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference,
+    StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction,
+    WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter,
     WrittenRelation, WrittenTest,
 };
 
@@ -33,31 +35,85 @@ type Input<'i> = LocatingSlice<&'i str>;
 
 /// One line of a program, before the lines are put together.
 pub(super) enum ProgramLine {
+    /// An import declaration.
+    Import(ImportDeclaration),
     /// A `param` line: a parameter the program is given.
     Parameter(ParameterDeclaration),
     /// A `let` line: a step that makes rows.
     Step(LetStep),
+    /// A separately named semantic output.
+    Observe(WrittenObservation),
     /// The `emit` line: the step whose rows are the findings.
     Emit(WrittenEmit),
 }
 
+/// One fragment module line before the module document is assembled.
+pub(super) enum FragmentLine {
+    /// A module dependency declaration.
+    Import(ImportDeclaration),
+    /// A declared relation input.
+    Input(FragmentInput),
+    /// A scalar parameter declaration.
+    Parameter(ParameterDeclaration),
+    /// The module output signature and its source span.
+    Output(RelationSignature, QuerySpan),
+    /// A module-local step definition.
+    Step(LetStep),
+    /// The returned module step.
+    Return(FragmentReturn),
+}
+
 impl SyntaxPort for SyntaxWinnowAdapter {
     fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError> {
-        program.parse(LocatingSlice::new(text.0)).map_err(|error| {
-            // What winnow said, or what the language expects when it said nothing.
-            let said = error.inner().to_string();
-            SyntaxError::Unreadable {
-                span: QuerySpan {
-                    start: ByteOffset(error.offset()),
-                    end: ByteOffset(error.offset()),
+        program
+            .parse(LocatingSlice::new(text.0))
+            .map_err(|error| unreadable(&error))
+    }
+
+    fn read_bundle(
+        &self,
+        bundle: &ryo_values::domain::program::types::QueryBundle,
+    ) -> Result<ryo_values::domain::program::types::ParsedQueryBundle, SyntaxError> {
+        use ryo_values::domain::program::types::{ParsedQueryBundle, QueryOrigin};
+        let root_id = bundle.root.id.clone();
+        let root = self
+            .read(QueryView(&bundle.root.text))
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => SyntaxError::Located {
+                    origin: QueryOrigin {
+                        source_id: root_id.clone(),
+                        span,
+                        trace: Vec::new(),
+                    },
+                    message,
                 },
-                message: if said.is_empty() {
-                    expectation().to_owned()
-                } else {
-                    said
-                },
-            }
-        })
+                SyntaxError::Located { .. } => error,
+            })?;
+        let mut fragments = std::collections::BTreeMap::new();
+        for (source_id, source) in bundle.modules.iter() {
+            let fragment = fragment_program
+                .parse(LocatingSlice::new(&source.text))
+                .map_err(|error| {
+                    let said = error.inner().to_string();
+                    SyntaxError::Located {
+                        origin: QueryOrigin {
+                            source_id: source_id.clone(),
+                            span: QuerySpan {
+                                start: ByteOffset(error.offset()),
+                                end: ByteOffset(error.offset()),
+                            },
+                            trace: Vec::new(),
+                        },
+                        message: if said.is_empty() {
+                            expectation().to_owned()
+                        } else {
+                            said
+                        },
+                    }
+                })?;
+            let _previous_fragment = fragments.insert(source_id.clone(), fragment);
+        }
+        Ok(ParsedQueryBundle { root, fragments })
     }
 
     fn grammar(&self) -> Grammar {
@@ -74,19 +130,41 @@ impl SyntaxPort for SyntaxWinnowAdapter {
     }
 }
 
+/// Converts a parser failure into a source span and user-facing message.
+fn unreadable(
+    error: &winnow::error::ParseError<Input<'_>, winnow::error::ContextError>,
+) -> SyntaxError {
+    let said = error.inner().to_string();
+    SyntaxError::Unreadable {
+        span: QuerySpan {
+            start: ByteOffset(error.offset()),
+            end: ByteOffset(error.offset()),
+        },
+        message: if said.is_empty() {
+            expectation().to_owned()
+        } else {
+            said
+        },
+    }
+}
+
 /// The whole text: lines until the end, put together as parameters, steps and the one `emit`.
 pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
     let mut parameters = Vec::new();
+    let mut imports = Vec::new();
     let mut steps = Vec::new();
     let mut emit = None;
+    let mut observations = Vec::new();
     loop {
         multispace0.void().parse_next(input)?;
         if opt(eof).parse_next(input)?.is_some() {
             break;
         }
         match line.parse_next(input)? {
+            ProgramLine::Import(import) => imports.push(import),
             ProgramLine::Parameter(parameter) => parameters.push(parameter),
             ProgramLine::Step(step) => steps.push(step),
+            ProgramLine::Observe(output) => observations.push(output),
             ProgramLine::Emit(found) => {
                 if emit.replace(found).is_some() {
                     return Err(winnow::error::ErrMode::Cut(
@@ -97,25 +175,288 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
         }
     }
     match emit {
-        Some(emit) => Ok(Program {
-            parameters,
-            steps,
-            emit,
-        }),
+        Some(mut emit) => {
+            assign_step_identities(&mut steps, &mut emit.step);
+            for output in &mut observations {
+                output.step.1 = steps
+                    .iter()
+                    .rev()
+                    .find(|step| step.name.0 == output.step.0)
+                    .and_then(|step| step.name.1);
+            }
+            Ok(Program {
+                linked: false,
+                imports,
+                origins: Vec::new(),
+                fragment_contracts: Vec::new(),
+                step_origins: std::collections::BTreeMap::new(),
+                observations,
+                emit_origin: None,
+                parameters,
+                steps,
+                emit,
+            })
+        }
         None => Err(winnow::error::ErrMode::Cut(
             winnow::error::ContextError::new(),
         )),
     }
 }
 
+/// A fragment module document: signature, steps and the one returned step.
+pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentProgram> {
+    let mut imports = Vec::new();
+    let mut inputs = Vec::new();
+    let mut parameters = Vec::new();
+    let mut output = None;
+    let mut output_span = None;
+    let mut steps = Vec::new();
+    let mut result = None;
+    loop {
+        multispace0.void().parse_next(input)?;
+        if opt(eof).parse_next(input)?.is_some() {
+            break;
+        }
+        match fragment_line.parse_next(input)? {
+            FragmentLine::Import(value) => imports.push(value),
+            FragmentLine::Input(value) => inputs.push(value),
+            FragmentLine::Parameter(value) => parameters.push(value),
+            FragmentLine::Output(value, span) => {
+                if output.replace(value).is_some() || output_span.replace(span).is_some() {
+                    return Err(winnow::error::ErrMode::Cut(
+                        winnow::error::ContextError::new(),
+                    ));
+                }
+            }
+            FragmentLine::Step(value) => steps.push(value),
+            FragmentLine::Return(value) => {
+                if result.replace(value).is_some() {
+                    return Err(winnow::error::ErrMode::Cut(
+                        winnow::error::ContextError::new(),
+                    ));
+                }
+            }
+        }
+    }
+    match (output, output_span, result) {
+        (Some(output), Some(output_span), Some(mut result)) => {
+            assign_step_identities(&mut steps, &mut result.step);
+            Ok(FragmentProgram {
+                imports,
+                inputs,
+                parameters,
+                output,
+                output_span,
+                steps,
+                result,
+            })
+        }
+        _ => Err(winnow::error::ErrMode::Cut(
+            winnow::error::ContextError::new(),
+        )),
+    }
+}
+
+/// Gives each definition a source-local identity and binds preceding-step references to that
+/// identity. Unknown and forward references remain unresolved for validation.
+/// Assigns each local step an identity and resolves only preceding local references.
+fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
+    for (place, step) in steps.iter_mut().enumerate() {
+        step.name.1 = Some(StepIdentity(u64::try_from(place).unwrap_or(u64::MAX)));
+    }
+    for place in 0..steps.len() {
+        let (preceding, current) = steps.split_at_mut(place);
+        if let Some(step) = current.first_mut() {
+            match &mut step.expression {
+                Expression::Select(select) => {
+                    resolve_source_step(&mut select.from, preceding);
+                    if let Joining::Joined(join) = &mut select.join {
+                        resolve_source_step(&mut join.source, preceding);
+                    }
+                }
+                Expression::Call(_) => {}
+            }
+        }
+    }
+    result.1 = steps
+        .iter()
+        .rev()
+        .find(|candidate| candidate.name.0 == result.0)
+        .and_then(|candidate| candidate.name.1);
+}
+
+/// Resolves a step source only when an earlier definition with that name exists.
+fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
+    if let SourceReference::Step(reference) = &mut source.reference {
+        reference.1 = preceding
+            .iter()
+            .rev()
+            .find(|candidate| candidate.name.0 == reference.0)
+            .and_then(|candidate| candidate.name.1);
+    }
+}
+
+/// Parses one import, signature, declaration, step, or return line in a module.
+pub(super) fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
+    alt((
+        import_line.map(FragmentLine::Import),
+        fragment_input_line.map(FragmentLine::Input),
+        parameter_line.map(FragmentLine::Parameter),
+        fragment_output_line.map(|(signature, span)| FragmentLine::Output(signature, span)),
+        step_line.map(FragmentLine::Step),
+        fragment_return_line.map(FragmentLine::Return),
+    ))
+    .parse_next(input)
+}
+
+/// `input candidates: relation<id: node, file: file, span: span>;`.
+pub(super) fn fragment_input_line(input: &mut Input<'_>) -> ModalResult<FragmentInput> {
+    let ((name, relation), span) = delimited(
+        (keyword(Keyword::Input), multispace1),
+        (
+            terminated(word, (multispace0, ':', multispace0)),
+            relation_signature,
+        ),
+        (multispace0, ';'),
+    )
+    .with_span()
+    .parse_next(input)?;
+    Ok(FragmentInput {
+        name: WrittenName(Box::from(name.0)),
+        relation,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
+/// `output relation<id: node, file: file, span: span>;`.
+pub(super) fn fragment_output_line(
+    input: &mut Input<'_>,
+) -> ModalResult<(RelationSignature, QuerySpan)> {
+    delimited(
+        (keyword(Keyword::Output), multispace1),
+        relation_signature,
+        (multispace0, ';'),
+    )
+    .with_span()
+    .map(|(signature, span)| {
+        (
+            signature,
+            QuerySpan {
+                start: ByteOffset(span.start),
+                end: ByteOffset(span.end),
+            },
+        )
+    })
+    .parse_next(input)
+}
+
+/// Parses an ordered relation signature with byte spans for each declared column.
+pub(super) fn relation_signature(input: &mut Input<'_>) -> ModalResult<RelationSignature> {
+    let (columns, span) = delimited(
+        (keyword(Keyword::Relation), multispace0, '<', multispace0),
+        separated(
+            1..,
+            (terminated(word, (multispace0, ':', multispace0)), word)
+                .with_span()
+                .map(|((name, kind), span)| SignatureColumn {
+                    name: ColumnName(Box::from(name.0)),
+                    kind: TypeName(Box::from(kind.0)),
+                    span: QuerySpan {
+                        start: ByteOffset(span.start),
+                        end: ByteOffset(span.end),
+                    },
+                }),
+            (multispace0, ',', multispace0),
+        ),
+        (multispace0, '>'),
+    )
+    .with_span()
+    .parse_next(input)?;
+    Ok(RelationSignature {
+        columns,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
+/// `return step;`.
+pub(super) fn fragment_return_line(input: &mut Input<'_>) -> ModalResult<FragmentReturn> {
+    let (step, span) = delimited(
+        (keyword(Keyword::Return), multispace1),
+        word.map(|name| StepName(Box::from(name.0), None)),
+        (multispace0, ';'),
+    )
+    .with_span()
+    .parse_next(input)?;
+    Ok(FragmentReturn {
+        step,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
 /// One line of a program: a parameter declaration, a `let` step or an `emit`.
 pub(super) fn line(input: &mut Input<'_>) -> ModalResult<ProgramLine> {
     alt((
+        import_line.map(ProgramLine::Import),
         parameter_line.map(ProgramLine::Parameter),
         step_line.map(ProgramLine::Step),
+        observe_line.map(ProgramLine::Observe),
         emit_line.map(ProgramLine::Emit),
     ))
     .parse_next(input)
+}
+
+/// `observe matched as "usage";`: a semantic output that never becomes a diagnostic by itself.
+pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservation> {
+    let ((step, name), span) = delimited(
+        (keyword(Keyword::Observe), multispace1),
+        (
+            terminated(word, (multispace1, keyword(Keyword::As), multispace1)),
+            name_or_string,
+        ),
+        (multispace0, ';'),
+    )
+    .with_span()
+    .parse_next(input)?;
+    Ok(WrittenObservation {
+        step: StepName(step.0.into(), None),
+        name: ryo_values::domain::observations::types::ObservationName(name.0.into()),
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+        origin: None,
+    })
+}
+
+/// `import suppress from "shared/suppress";`.
+pub(super) fn import_line(input: &mut Input<'_>) -> ModalResult<ImportDeclaration> {
+    let ((alias, module), span) = delimited(
+        (keyword(Keyword::Import), multispace1),
+        (
+            terminated(word, (multispace1, keyword(Keyword::From), multispace1)),
+            string,
+        ),
+        (multispace0, ';'),
+    )
+    .with_span()
+    .parse_next(input)?;
+    Ok(ImportDeclaration {
+        alias: WrittenName(Box::from(alias.0)),
+        module: WrittenLiteral(module.0),
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
 }
 
 /// `param max-lines: integer;`.
@@ -153,7 +494,7 @@ pub(super) fn step_line(input: &mut Input<'_>) -> ModalResult<LetStep> {
     .with_span()
     .parse_next(input)?;
     Ok(LetStep {
-        name: StepName(Box::from(name.0)),
+        name: StepName(Box::from(name.0), None),
         expression,
         span: QuerySpan {
             start: ByteOffset(span.start),
@@ -188,7 +529,7 @@ pub(super) fn emit_line(input: &mut Input<'_>) -> ModalResult<WrittenEmit> {
     .parse_next(input)?;
     let key: Vec<ColumnName> = key;
     Ok(WrittenEmit {
-        step: StepName(Box::from(step.0)),
+        step: StepName(Box::from(step.0), None),
         subject,
         key,
         span: QuerySpan {
@@ -246,7 +587,7 @@ pub(super) fn source(input: &mut Input<'_>) -> ModalResult<QuerySource> {
     let ((reference, alias), span) = (
         alt((
             string.map(|name| SourceReference::Relation(WrittenRelation(name.0))),
-            word.map(|name| SourceReference::Step(StepName(Box::from(name.0)))),
+            word.map(|name| SourceReference::Step(StepName(Box::from(name.0), None))),
         )),
         opt(preceded(
             (multispace1, keyword(Keyword::As), multispace1),
@@ -345,6 +686,8 @@ pub(super) fn filter(input: &mut Input<'_>) -> ModalResult<Filter> {
     alt((
         glob_filter,
         float_text_filter,
+        numeric_filter,
+        integer_successor_filter,
         affix_filter,
         comparison_filter,
     ))
@@ -356,7 +699,9 @@ pub(super) fn affix_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
     let ((test, left, right), span) = (
         terminated(
             alt((
+                keyword(Keyword::NaturalLt).value(WrittenTest::NaturalLessThan),
                 keyword(Keyword::StartsWith).value(WrittenTest::StartsWith),
+                keyword(Keyword::Matches).value(WrittenTest::Matches),
                 keyword(Keyword::EndsWith).value(WrittenTest::EndsWith),
             )),
             (multispace0, '(', multispace0),
@@ -396,6 +741,55 @@ pub(super) fn float_text_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
     Ok(Filter {
         left,
         test: WrittenTest::FloatTextGreaterThanOrEqual,
+        right,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
+/// `numeric_gte(left, right)`.
+pub(super) fn numeric_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
+    let ((left, right), span) = (
+        preceded(
+            (keyword(Keyword::NumericGte), multispace0, '(', multispace0),
+            terminated(operand, (multispace0, ',', multispace0)),
+        ),
+        terminated(operand, (multispace0, ')')),
+    )
+        .with_span()
+        .parse_next(input)?;
+    Ok(Filter {
+        left,
+        test: WrittenTest::NumericGreaterThanOrEqual,
+        right,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
+/// `integer_successor(left, right)`.
+pub(super) fn integer_successor_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
+    let ((left, right), span) = (
+        preceded(
+            (
+                keyword(Keyword::IntegerSuccessor),
+                multispace0,
+                '(',
+                multispace0,
+            ),
+            terminated(operand, (multispace0, ',', multispace0)),
+        ),
+        terminated(operand, (multispace0, ')')),
+    )
+        .with_span()
+        .parse_next(input)?;
+    Ok(Filter {
+        left,
+        test: WrittenTest::IntegerSuccessor,
         right,
         span: QuerySpan {
             start: ByteOffset(span.start),
@@ -490,6 +884,7 @@ pub(super) fn function(input: &mut Input<'_>) -> ModalResult<WrittenApplied> {
                 keyword(Keyword::Camel).value(WrittenFunction::Camel),
                 keyword(Keyword::Snake).value(WrittenFunction::Snake),
                 keyword(Keyword::Kebab).value(WrittenFunction::Kebab),
+                keyword(Keyword::Lower).value(WrittenFunction::Lower),
             )),
             (multispace0, '(', multispace0),
         ),

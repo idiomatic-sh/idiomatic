@@ -1,0 +1,13 @@
+{
+  "base_source": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "contended_initial_cold_excluded": true,
+  "corpus_manifest_sha256": "3b4cf4257dda9174d5340e282fd15b995f013f6358d803ac380c71bc27b9feaa",
+  "django_summary_sha256": "22ea6caee099482f4ff3ca8e6791c149194a0c9f78e9217b014e1ff6af025393",
+  "driver_recipe_sha256": "21ebb30c86058eb48c37592df34a70d331d62a4adde2fe11009118ac55a925dd",
+  "gate": "core526 + capability11 PASS; final domain Fable PASS; fanout/terminal ownership and performance acceptance open",
+  "graph_source": "fef20a0123ca59ab74a09cfa014501c40ba722cd",
+  "profile": "frozen Python target 3.10, 310 rules, 2875 Django files, one Rayon thread",
+  "rust_summary_sha256": "ebbce2af95194828a1b431a291b388f2d44662ff2c330c75dc85dc2f6f774786",
+  "schema": "owner-graph-matched-evidence/v1",
+  "single_pair_only": true
+}

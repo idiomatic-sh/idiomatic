@@ -1,0 +1,1019 @@
+{
+  "version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "executable": "/home/vscode/.local/share/uv/python/cpython-3.10.19-linux-aarch64-gnu/bin/python3",
+  "interpreter_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "probe_sha256": "be66902f76a2393fa1fa66c73874f29dd55c33f1fe5c32d79b5cb5206561c94b",
+  "inputs_sha256": "03b70f97d609a567d76fcebaefa84bfd6fe8e835eced357dc6f5d2b3e11493d0",
+  "typing_source_sha256": "ec7b7f73fc92827c78a7d2aff90cffe070530cad6c693460165c26f76d195f41",
+  "typing_io_doc": "Generic base class for TextIO and BinaryIO.\n\nThis is an abstract, generic version of the return of open().\n\nNOTE: This does not distinguish between the different possible\nclasses (text vs. binary, read vs. write vs. read/write,\nappend-only, unbuffered).  The TextIO and BinaryIO subclasses\nbelow capture the distinctions between text vs. binary, which is\npervasive in the interface; however we currently do not offer a\nway to track the other distinctions in the type system.",
+  "dont_inherit": true,
+  "target_configuration": "python-target=3.10",
+  "scope": "35exact authored sources, grouped only by identical framed source hash; imports/definitions/receiver initialization only; no corpus loop consumers executed; conditional unknown receives one explicit nonIO counterexample; interface annotations are static rule policy, not runtime guarantees",
+  "rows": [
+    {
+      "cases": [
+        "initializer-3"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in os.open(\"x\", 0).readlines():\n    pass\n",
+      "source_sha256": "aa57c6d6d1051be3ca58da4102c85d95d0ab0c0296dcc0200a78a79a531e19e7",
+      "framed_source_sha256": "196aad6fc87062fdf94914caf0b6a6547dc536d7a1d6a7df3086ff720a138f1c",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.int",
+          "is_io_base": false,
+          "is_function_object": false,
+          "has_readlines": false,
+          "has_iter": false
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.int",
+          "is_io_base": false,
+          "is_function_object": false,
+          "has_readlines": false,
+          "has_iter": false
+        }
+      ]
+    },
+    {
+      "cases": [
+        "assigned-initializer-3"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = os.open(\"x\", 0)\nfor line in f.readlines():\n    pass\n",
+      "source_sha256": "566882742a1d24c9a48fa70e50cd54f0fb3134f377f77653d82bceca416e5dcc",
+      "framed_source_sha256": "eadefbae9ffc011a4a087c4fbb62dfb6fac0cc53ff287675e0b259ee62ffcdeb",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.int",
+          "is_io_base": false,
+          "is_function_object": false,
+          "has_readlines": false,
+          "has_iter": false
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.int",
+          "is_io_base": false,
+          "is_function_object": false,
+          "has_readlines": false,
+          "has_iter": false
+        }
+      ]
+    },
+    {
+      "cases": [
+        "initializer-7"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in PurePath(\"x\").open().readlines():\n    pass\n",
+      "source_sha256": "cb5168664bb8383e0a2339d19e9cd179a027d5e2b8d9e35286e733c8a82831fa",
+      "framed_source_sha256": "2dd6a5021e92e50d849f4342d7be4dc90a4e5c7798ff6a31ba9eabeea33417df",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "assigned-initializer-7"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = PurePath(\"x\").open()\nfor line in f.readlines():\n    pass\n",
+      "source_sha256": "2151d3b50570927e79a609f9e60c8a97f06c010444bf5bed061630abf030d12b",
+      "framed_source_sha256": "763f52cf529aa581d30f2e9ffe21a05c749482e6255d66927156d77d06760785",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "initializer-8"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in PurePosixPath(\"x\").open().readlines():\n    pass\n",
+      "source_sha256": "e9567d5fbc16efb03067265923596c97e61648caaad5e2a44f739498aef7ca0b",
+      "framed_source_sha256": "108e5e1ea06c78728aeba82061df08bb793963e74668ec5d34d77a7398cc408d",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "assigned-initializer-8"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = PurePosixPath(\"x\").open()\nfor line in f.readlines():\n    pass\n",
+      "source_sha256": "2b17e2825be1377e0a56d933cb6517a118f3d0e1ee41de6a63fa1f5b3608e37b",
+      "framed_source_sha256": "697cf28cd515735a7ac4f0cdf939dfdca419d1b38e25520a9f58a018bf7ac1c9",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PurePosixPath' object has no attribute 'open'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "initializer-9"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in PureWindowsPath(\"x\").open().readlines():\n    pass\n",
+      "source_sha256": "d9b7eeea080d6fc7122398fb67e7c08c9883d313932ab8bc2d74b11edf17eea8",
+      "framed_source_sha256": "65ca810fac34b55b9658f56ff0ed4f12612c4869435c694a3cb226a23318a9a4",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PureWindowsPath' object has no attribute 'open'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PureWindowsPath' object has no attribute 'open'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "assigned-initializer-9"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = PureWindowsPath(\"x\").open()\nfor line in f.readlines():\n    pass\n",
+      "source_sha256": "dd5468ec34990b14f7f45f61f2029fccdd2e32d369e1eca315e421d31e560c0a",
+      "framed_source_sha256": "96f0e9b3d1a3538aaac0232609d6a51933f0b756199aec65c1db3ba99dd6f511",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PureWindowsPath' object has no attribute 'open'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "'PureWindowsPath' object has no attribute 'open'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "initializer-10"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in io.StringIO().readlines():\n    pass\n",
+      "source_sha256": "34caf07449beca87fb3b05071b73b8e28baf0dd8e3020a27a2ddae2bd399a3e4",
+      "framed_source_sha256": "1c825777f4baead630fbe5a8ba34561953a311e84b2539749acf8be8cc7860fe",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "assigned-initializer-10"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = io.StringIO()\nfor line in f.readlines():\n    pass\n",
+      "source_sha256": "a91422c497baf1c3fcfd4ad07084f7942f64e24d11d8f755fededb75da72d26e",
+      "framed_source_sha256": "1523c9b9eefc174e1b4500d6ddd5a815b7648cc2425acf049caf06664347960e",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "initializer-11"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in io.BytesIO().readlines():\n    pass\n",
+      "source_sha256": "fc34280088aafd07360e8bf20b8f440d5b4425ff75ce938720ae80706f826794",
+      "framed_source_sha256": "9a7b90b450c72dcd08aa9e2a2c5e0b834cf08173650a791bc61e9e69e88f4695",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.BytesIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.BytesIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "assigned-initializer-11"
+      ],
+      "source": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = io.BytesIO()\nfor line in f.readlines():\n    pass\n",
+      "source_sha256": "43cbd64fc9a3807ccf34ef49e7b5c8efd95842ac99afcb0c2aada29e6c44302f",
+      "framed_source_sha256": "77be8e9ef08d30c5355e0a7590e406860dd4ae97e10156f931e350c9f1245cb8",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.BytesIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.BytesIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-11"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: os.Path):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "4bac8d3d80405bd8203e242876986b4925384c9d6ce0f13675dc2d54c9810461",
+      "framed_source_sha256": "70ac9b9b1dbd5d95fa88ce8e76a3426431a6c8518a4cec8c253e2e6eccde5c72",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "module 'os' has no attribute 'Path'"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "AttributeError",
+            "message": "module 'os' has no attribute 'Path'"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-12"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: os.PathLike):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "e99a3c33108ea9c1fdd70fe59999413b369d19f28fbd1aabd3ce66e764fe1300",
+      "framed_source_sha256": "67e92223c85bdf560a8bfc085b49bedd388c8d235a729f652f76a83bcfddfa54",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'os.PathLike'>",
+          "annotation_origin_module": "os",
+          "annotation_origin_name": "PathLike",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'os.PathLike'>",
+          "annotation_origin_module": "os",
+          "annotation_origin_name": "PathLike",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-13"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.Path):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "25332545ad62b8c4a9a4b4f720eb0b59506848b73fad97bfaba45d0eb17c68ac",
+      "framed_source_sha256": "f0bdbf9aaa25d7e65ee2c37fc7c30ab16724681fb88144735d183b86255da3a7",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.Path'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "Path",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.Path'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "Path",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-14"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.PurePath):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "b82909b9adc0f95eb7176301e014a41caeeb5170281796337879592f70ce1d68",
+      "framed_source_sha256": "90111605974e0a5a8774add690a91f5130a6e7799e308c07058027b232c50e16",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.PurePath'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "PurePath",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.PurePath'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "PurePath",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-15"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.PurePosixPath):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "93c0aa6284480d30bfd185bfef0aa1c2330f9566e1d96353c0068447fed43c93",
+      "framed_source_sha256": "8112f172905ed2e9d97ac90cd5e579850c7301ce5b1c200631e50d1682ccbaa6",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.PurePosixPath'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "PurePosixPath",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.PurePosixPath'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "PurePosixPath",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-16"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.PureWindowsPath):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "e8dee915930864eca44665cf7564d5159c9a17e294f9c696e47dc8253e686061",
+      "framed_source_sha256": "bfff73687852fd4bcacd77bc607d5b6293f6c093757d08f2e654cf3ddb36fbc8",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.PureWindowsPath'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "PureWindowsPath",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'pathlib.PureWindowsPath'>",
+          "annotation_origin_module": "pathlib",
+          "annotation_origin_name": "PureWindowsPath",
+          "nominal_standard_io_annotation": false,
+          "annotation_has_readlines": false,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-20"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: typing.IO[str]):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "eb87fcdf1e68ca0cec41d55dd129d154b046b60fb5832f3278b2072e6494efae",
+      "framed_source_sha256": "584b3e5bb6a8fc4fa054b76dfc2b6629913c7203cbaa13f065ae68a70c04c83a",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "typing.IO[str]",
+          "annotation_origin_module": "typing",
+          "annotation_origin_name": "IO",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "typing.IO[str]",
+          "annotation_origin_module": "typing",
+          "annotation_origin_name": "IO",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "annotation-22"
+      ],
+      "source": "import io, os, pathlib, typing, codecs\ndef f(fp: \"typing.TextIO\"):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "1369d2ecaedd4927002f7efe6343699bb8a7d65256e997038bc97193cee437b6",
+      "framed_source_sha256": "f30baaca355a387941e5b58880adc58a50487f96c5112cbd1b8839d5040bb65e",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'typing.TextIO'>",
+          "annotation_origin_module": "typing",
+          "annotation_origin_name": "TextIO",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'typing.TextIO'>",
+          "annotation_origin_module": "typing",
+          "annotation_origin_name": "TextIO",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "binding-8"
+      ],
+      "source": "import typing\ndef fp()->typing.TextIO: pass\nfor line in fp.readlines():\n    pass\n",
+      "source_sha256": "7a4da8aed2a38f9b1b17a6410f6170a49f25185f3daee9ded1e1fe14ec0b424d",
+      "framed_source_sha256": "66d68b599e3167d16cf8d3d2ea26f8d97b36a4f2a701eb943236f8f6ac17b317",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.function",
+          "is_io_base": false,
+          "is_function_object": true,
+          "has_readlines": false,
+          "has_iter": false
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.function",
+          "is_io_base": false,
+          "is_function_object": true,
+          "has_readlines": false,
+          "has_iter": false
+        }
+      ]
+    },
+    {
+      "cases": [
+        "cached-namespace-1",
+        "uncertain-io-known-last-is-not-a-type-proof"
+      ],
+      "source": "if cond:\n    fp=unknown\nelse:\n    fp=open(\"x\")\nfor line in fp.readlines():\n    pass\n",
+      "source_sha256": "3cb6cb34ee97e4df553f97304740a0840d900378958d0af95c868b8295f6efaa",
+      "framed_source_sha256": "9debc322ede5d3838d1ebdc92cbd4cbf4903d20831c2f27b553aabd2b8a220a9",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.TextIOWrapper",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "__main__.DivergentReader",
+          "is_io_base": false,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "via_readlines": [
+            "method-result\n"
+          ],
+          "via_iteration": [
+            "iterator-result\n"
+          ],
+          "readlines_matches_iteration": false
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-function-object-is-not-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    return io.StringIO(\"line\\n\")\nfor line in factory.readlines():\n    pass\n",
+      "source_sha256": "2edc0f5e6ccdb1cd4c67ec3bd50d064637f50bc94e53e650e288b4fa8c009040",
+      "framed_source_sha256": "2c4ee505e52c26ca67ee1ca86d1d4d22afde0d57918929668a783971979ba66d",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.function",
+          "is_io_base": false,
+          "is_function_object": true,
+          "has_readlines": false,
+          "has_iter": false
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "builtins.function",
+          "is_io_base": false,
+          "is_function_object": true,
+          "has_readlines": false,
+          "has_iter": false
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-direct-function-call-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    return io.StringIO(\"line\\n\")\nfor line in factory().readlines():\n    pass\n",
+      "source_sha256": "fb563aaeb648ce3552637504bf7da16e09987c2e5f464a2310f4cced0edbbf8d",
+      "framed_source_sha256": "879adfad74176aba0c84dda2f0318613fbe0566d1a4edb8efb19b8e7f81027c6",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-assigned-function-call-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    return io.StringIO(\"line\\n\")\nfp=factory()\nfor line in fp.readlines():\n    pass\n",
+      "source_sha256": "c737bdf0cab32c54b2e988ba628088caf61c20f2c9c92e933b4a33d897977b6d",
+      "framed_source_sha256": "01bb2ddc44df9457b135fad37e8a8d4885ddee75e291001fa5261b0f5025e8dc",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-aliased-function-call-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    return io.StringIO(\"line\\n\")\nalias=factory\nfor line in alias().readlines():\n    pass\n",
+      "source_sha256": "21da11e699de6047745ab2eeca53fc144f9589853e05e84b4df3957fea90cfdc",
+      "framed_source_sha256": "96f9ea5222989c5660561c5c1d0ad1f9b82d1857fcfcd39a7c43ddb9519d63ec",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-transitive-aliased-call-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    return io.StringIO(\"line\\n\")\nalias=factory\nother=alias\nfor line in other().readlines():\n    pass\n",
+      "source_sha256": "62cea977c2d08290d001a8940fbf0c3141795cd16ef4e1a60e5895e16722544a",
+      "framed_source_sha256": "a094ae1fbdf996cf0b582fad2bea5578f96081bf51848327f7c3b3cb34bdbe98",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-generic-IO-parameter"
+      ],
+      "source": "import typing\ndef f(fp:typing.IO[str]):\n    for line in fp.readlines():\n        pass\n",
+      "source_sha256": "f20273ca48c0fac1297d5e1315461ffa56f6d01270559e7c645182c044832cf8",
+      "framed_source_sha256": "57f60ed0d186d4acde998d6f22024f532a1d372466a618096662ec054d397c38",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "typing.IO[str]",
+          "annotation_origin_module": "typing",
+          "annotation_origin_name": "IO",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "typing.IO[str]",
+          "annotation_origin_module": "typing",
+          "annotation_origin_name": "IO",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": false,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-generic-IO-return-call"
+      ],
+      "source": "import io, typing\ndef factory()->typing.IO[str]:\n    return io.StringIO(\"a\\n\")\nfor line in factory().readlines():\n    pass\n",
+      "source_sha256": "f35cbe22a658622a00a0b917903bdfb67122a718d894230eb9ceba4df9fae65c",
+      "framed_source_sha256": "8105b490c4552f0001e5acbdfb0a4114eb198e4afbc5567fb49e0ff38a75ecf6",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-alias-retains-callable-after-original-rebound"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    return io.StringIO(\"a\\n\")\nalias=factory\nfactory=unknown\nfor line in alias().readlines():\n    pass\n",
+      "source_sha256": "d1759711ceb56fbd2bfdaf38a87a63f848ab45f1713ad54628879677d5672ec7",
+      "framed_source_sha256": "b6ff5b9c887ca2b400dc1a41dcc1cbb8ebae605cbeb549639b3a42395d2fa66e",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "eager-annotation-cannot-acquire-later-import"
+      ],
+      "source": "def use(fp: Handle):\n    for line in fp.readlines():\n        pass\nfrom io import TextIOBase as Handle\n",
+      "source_sha256": "6b6ecf93812111de987bb4772f4427c171807e7d7873d6790f6e46b1d9fe8314",
+      "framed_source_sha256": "64a2185f4a56932666eccdde5ddecdba42eb6e383f928693a33a830332e49d08",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "NameError",
+            "message": "name 'Handle' is not defined"
+          }
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "error": {
+            "type": "NameError",
+            "message": "name 'Handle' is not defined"
+          }
+        }
+      ]
+    },
+    {
+      "cases": [
+        "explicit-forward-string-annotation-later-import"
+      ],
+      "source": "def use(fp: \"Handle\"):\n    for line in fp.readlines():\n        pass\nfrom io import TextIOBase as Handle\n",
+      "source_sha256": "09dfb49a2077d79e0bb143a6e9bcaa8166da6a25fc460742ec91b53151f123f1",
+      "framed_source_sha256": "64edb6c7433984235bd03a0fd1d3960af6ec7c4af2634a1ccda47f7f41a1cf19",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'io.TextIOBase'>",
+          "annotation_origin_module": "io",
+          "annotation_origin_name": "TextIOBase",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": true,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "resolved_annotation": "<class 'io.TextIOBase'>",
+          "annotation_origin_module": "io",
+          "annotation_origin_name": "TextIOBase",
+          "nominal_standard_io_annotation": true,
+          "annotation_has_readlines": true,
+          "annotation_has_iter": true,
+          "interpretation": "Resolved declared interface only: Python annotations do not enforce runtime argument values."
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-nested-generator-does-not-change-factory-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    def nested():\n        yield \"inner\"\n    return io.StringIO(\"line\\n\")\nfor line in factory().readlines():\n    pass\n",
+      "source_sha256": "7cb02a16665988e3b3c7d5f9f295ba50adfc2f68b2d04a5f6f43ea280915867e",
+      "framed_source_sha256": "0566c614cd9893f0ddb418128fc767f775d442384cf02b10a673418dff1ce788",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    },
+    {
+      "cases": [
+        "independent-nested-generator-lambda-does-not-change-factory-result"
+      ],
+      "source": "import io\ndef factory()->io.TextIOBase:\n    nested = lambda: (yield \"inner\")\n    return io.StringIO(\"line\\n\")\nfor line in factory().readlines():\n    pass\n",
+      "source_sha256": "a602fcc49cf4ddce468edf756103085839d96ab51d7e08650c5454a443bac693",
+      "framed_source_sha256": "8c52aa71559c18b3778017ae0232137c1545ddf055f9015bdc6068dc1400d22e",
+      "scenarios": [
+        {
+          "cond": false,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        },
+        {
+          "cond": true,
+          "unknown_input": "DivergentReader:readlines and iteration intentionally differ",
+          "receiver_type": "_io.StringIO",
+          "is_io_base": true,
+          "is_function_object": false,
+          "has_readlines": true,
+          "has_iter": true,
+          "readlines_matches_iteration": true
+        }
+      ]
+    }
+  ]
+}

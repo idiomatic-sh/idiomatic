@@ -1,0 +1,10 @@
+import suppress from "python/ruff/suppress";
+let events = select occurrence, name, scope, phase, kind, ordinal, file from "binding-event";
+let prior_uses = select occurrence as id, name, phase, ordinal, file from events where kind = "read" or kind = "bind" or kind = "annotation" or kind = "delete";
+let globals = select name, phase, ordinal as declaration_order, file from events where kind = "global";
+let prior_uses_before_global = select l.id as id, l.file as file from prior_uses as l join globals as r on l.name = r.name and l.phase = r.phase and l.file = r.file where l.ordinal < r.declaration_order;
+let nodes = select id, file, span from "semantic-syntax";
+let reportable = select l.id as id, l.file as file, r.span as span from prior_uses_before_global as l join nodes as r on l.id = r.id and l.file = r.file;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLE0118(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLE0118)(?:,|$)");
+emit violations subject file key(id);

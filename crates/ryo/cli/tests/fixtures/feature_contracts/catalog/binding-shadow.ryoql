@@ -1,0 +1,2 @@
+let witness = select * from "binding-shadow";
+emit witness subject file key(binding, previous, scope, phase);

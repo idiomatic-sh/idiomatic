@@ -1,0 +1,365 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "59b9c8b647436676494b702b9892e2c03932a107b6d85c8b284e0b8310a6193b",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/annotation-origins.ryoql": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "fragments/boolean-test-context.ryoql": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/checker-namespace-events.ryoql": "7a268dd1ef24bd6589889cd46c15b35ae2b2f90f31fa678452b08cd01fc10ce3",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/class-bases.ryoql": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424",
+    "fragments/conditional-guards.ryoql": "fd83fa7007ae3ee3c1bb069e18064b06e95eac0c011ede7828c543f5ed7e6ebe",
+    "fragments/dataclass-decorators.ryoql": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+    "fragments/deferred-class-origins.ryoql": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c",
+    "fragments/deferred-read-events.ryoql": "c14a2ae37ebe042492956e83931cd13ab742b6bbcba1d0b1e67b752cbe382f24",
+    "fragments/deferred-read-resolutions.ryoql": "3c29d708f1763cebaa4e17b3803af2bc4eec614514978820abd2773fc561e9ca",
+    "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+    "fragments/eager-before-future.ryoql": "c6aeb8a561e1957e2341000601156edb529cfcb00491a28fb9c405ea9085aec1",
+    "fragments/enum-bases.ryoql": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/immutable-annotation.ryoql": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+    "fragments/immutable-annotations.ryoql": "acc17b77923b62bd9e5e4ae1df308b73a8a08179a880895e73f6ea2148934a5c",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/literal-members.ryoql": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237",
+    "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+    "fragments/lookup-read-events.ryoql": "7e2c8011f7c7810db6033a8bf74c9650c20b342aa4399ae33060bfc233c48412",
+    "fragments/lookup-symbol-events.ryoql": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "fragments/metaclass.ryoql": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a",
+    "fragments/modernization-symbols.ryoql": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "fragments/nonlocal-bindings.ryoql": "b9daa7c34cd274c2018dc621f4d141eab6548fb8dadde25ab053d5132041a609",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/python-evaluation-regions.ryoql": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "fragments/qualified-origins.ryoql": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5",
+    "fragments/repeated-characters.ryoql": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
+    "fragments/simple-stub-defaults.ryoql": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
+    "fragments/statement-equal.ryoql": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-unmapped.ryoql": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "fragments/typing-match-at-visit.ryoql": "385018e3c0553ab31e8bd3a82332afb30b078073b1fc9c6983ed9c993d3ab2aa",
+    "fragments/union-members.ryoql": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6",
+    "fragments/unpack-symbols.ryoql": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
+    "fragments/version-checks.ryoql": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771",
+    "fragments/without-effect.ryoql": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7",
+    "rules/C401/cases.toml": "44ba9854ffe00e68c39b8f1c4f4cc16b0f692622ef6837a2ec8ff378a650fef5",
+    "rules/C401/query.ryoql": "b4a7178118005ac5ea314a773edb1f5808fed18183091e121c99fdc2ae7f6e5c"
+  },
+  "declared": {
+    "profile_name": "native-C401",
+    "rule_id": "C401",
+    "selected_rules": [
+      "C401"
+    ],
+    "profile_file": "benchmark.toml",
+    "candidate_file": "rules/C401/query.ryoql",
+    "query_sha256": "b4a7178118005ac5ea314a773edb1f5808fed18183091e121c99fdc2ae7f6e5c",
+    "cases_file": "rules/C401/cases.toml",
+    "cases_sha256": "44ba9854ffe00e68c39b8f1c4f4cc16b0f692622ef6837a2ec8ff378a650fef5",
+    "case_count": 17,
+    "case_names": [
+      "direct",
+      "assignment",
+      "parenthesized-function",
+      "shadowed",
+      "rebound",
+      "qualified",
+      "imported-same-name",
+      "imported-alias",
+      "starred-argument",
+      "empty",
+      "noqa",
+      "range",
+      "extra-positional",
+      "keyword",
+      "unpacked-keyword",
+      "filtered",
+      "list-not-generator"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "C401"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "C401": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "C401",
+      "name": "assignment",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b3b3359ba26552fec0a1c415cd3dedab8270afd767a444051420ffdd5a3bd863",
+      "source_sha256": "5bb14d9a413d44e7e6216c64541c68a56643588e6b2e1ef1a4b88f0f5f508617",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "C401",
+          "file": "case.py",
+          "start": 9,
+          "end": 31
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "direct",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "3ddb8c10bec9563d9ddae65072935693740c68bcb691ce3caf96467d3e844b8e",
+      "source_sha256": "2c7673140c7f2fefa2038236e135c0e72ec41a67161b5826f099478975ab7a31",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "C401",
+          "file": "case.py",
+          "start": 0,
+          "end": 22
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "empty",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b0307a6f37fc213ebfaaf9fbda5a4d32cf9a861b914bf6f19304ca9a0b7c2678",
+      "source_sha256": "9668c168eef891d9819a7fa0e372650e512dae60bdd8f182ac62e4bb83d4c657",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "extra-positional",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "144a0fe5773b01546ca2aaaf610b15f8d03abbdf06fe4e3d3b5eeadee44f16b0",
+      "source_sha256": "8fac97363263ff15b51db2267f339c496dc1e3564dcaab5513f439bf05e3e375",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "filtered",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ec8f334fee728fe791476e9e26054d92550abb64e05f4a0ebde9b403bb6bb461",
+      "source_sha256": "05e15778738a1b94f2dc7411ad6275f68f26ef378b8364e578aae3a1e4709de4",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "C401",
+          "file": "case.py",
+          "start": 0,
+          "end": 36
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "imported-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "99d54d00d7c8fa3b545b15e67d8125338bf488b5e1077bc95d21ac8ebac9b244",
+      "source_sha256": "f519b40f86c3104c0ef735ed29dbea60b601ce9b848e4c435891d987f35ec614",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "imported-same-name",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e07ef29a8f5df9929024e504a997c8e242948f454960db79422b7bf3f38848eb",
+      "source_sha256": "56b74c449e6f298a414082866e4acf5bdd94df8392bd6eba2e914dd154a5b758",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "67c714898a55276338d09660e92c3634b3a9ee603bc4bbd07a627bd999674756",
+      "source_sha256": "4c03419685a62694baff3a4aaae359c2ddefcd051689b4a4a7bf7479cfd3ddfc",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "list-not-generator",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1b71061e87287f44258f0888569c453ba4cc7622fb2dc04cd6adf42eb37a0917",
+      "source_sha256": "d06e47d3c750bc072fb67de0b78477cf4dd9474056979a9c436d8f8093588183",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7f4638c9082221947324182f59edd7ec738527d3a36537c23eb846d9fb3a5a5d",
+      "source_sha256": "7483817ca06fa3eb9a78c92761a6a0259ddae6635c1bbc025b1f50168b1c824d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "parenthesized-function",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "bed05b1528d094a488714cb712f555b12a631d266eaac74255ec088b370bc514",
+      "source_sha256": "d2c76a848ee32bccbac62fbd6a5019c360227342e382f417f9828605c02ce0a0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "C401",
+          "file": "case.py",
+          "start": 0,
+          "end": 24
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "qualified",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9ee824e9bf25cf10fee2056bc04e13e5a3f445568c42d1d575f0403fb755285b",
+      "source_sha256": "3297f543f3d7e542447cb3615d4cd17a4ed286d24fbc373289fc38ff84ec959b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "range",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "888663a14082c9192134cf5db3329d7b96a627d4bb79eedabc0c62598338fe4e",
+      "source_sha256": "d5d5971b8f2771690086719cca38f34588a81b81272795fb3637f3b1559fec38",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "rebound",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9d6b6bbd3cd33b5c2576b6c950d7adc08a9655a0399af91698aa2887cce4c5a9",
+      "source_sha256": "43243ed597ca84ae0a5beb6be4b8b79be8f44142e837767ea4ad17ccc6d7f653",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "shadowed",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "62a3d34546212f8d4a7d1e659bd7821ba54706bfc20506196f0aebdf84a33a9b",
+      "source_sha256": "47737fbc3ff840773d462026a0ad983560ec96ce508f5c14012fc4f0ddc8cfdb",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "starred-argument",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d363042db348a6c2a7251a55b13a544671231430040d9f5246c7a76c7bed7c1f",
+      "source_sha256": "120a37c1a0b08bf5a4b66e9ab74cb944dfa5b1923884967ad077702165243a95",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "C401",
+      "name": "unpacked-keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2ddf5d4d190a6915a2b477cb0f23cd817dff73279f868d23a058c9f9f73faf8e",
+      "source_sha256": "2d0e6552d66844fe429cc18393ce7a2d31df179402607a938205724329d51d6a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    }
+  ]
+}

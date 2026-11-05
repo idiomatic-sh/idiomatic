@@ -1,0 +1,95 @@
+[[cases]]
+name = "single"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError,):\n    pass\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 21, "end" = 34 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError, TypeError):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ():\n    pass\n" }
+expected = [{ "rule" = "B029", "file" = "case.py", "start" = 14, "end" = 33 }]
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (*errors,):\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 29 }]
+
+[[cases]]
+name = "group"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept* (ValueError,):\n    pass\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 22, "end" = 35 }, { "rule" = "invalid-syntax", "file" = "case.py", "start" = 20, "end" = 21 }]
+
+[[cases]]
+name = "bare"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\n" }
+expected = [{ "rule" = "E722", "file" = "case.py", "start" = 14, "end" = 20 }, { "rule" = "S110", "file" = "case.py", "start" = 14, "end" = 30 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError,) as error:\n    pass\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 21, "end" = 34 }, { "rule" = "F841", "file" = "case.py", "start" = 38, "end" = 43 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError,): # noqa\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError,): # noqa: B013\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError,): # noqa: F401\n    pass\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 21, "end" = 34 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\ntry:\n    pass\nexcept (ValueError,):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B013]\ntry:\n    pass\nexcept (ValueError,):\n    pass\n\n# ruff: enable[B013]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B013]\n# ruff: enable[B013]\ntry:\n    pass\nexcept (ValueError,):\n    pass\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 64, "end" = 77 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B013]\ntry:\n    pass\nexcept (ValueError,):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\ntry:\n    pass\nexcept (ValueError,):\n    pass\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 43, "end" = 56 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[B013]\ntry:\n    pass\nexcept (ValueError,):\n    pass\n" }
+expected = []

@@ -1,0 +1,251 @@
+{
+  "alias": {
+    "files": {
+      "case.py": "self.assertEquals(1, 2)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 0,
+        "end": 17
+      }
+    ]
+  },
+  "modern": {
+    "files": {
+      "case.py": "self.assertEqual(1, 2)\n"
+    },
+    "expected": []
+  },
+  "other-object": {
+    "files": {
+      "case.py": "other.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "nested-base": {
+    "files": {
+      "case.py": "other.self.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "inner-attribute": {
+    "files": {
+      "case.py": "value = self.assertEquals.__name__\n"
+    },
+    "expected": []
+  },
+  "reference": {
+    "files": {
+      "case.py": "value = self.failUnlessRaises\n"
+    },
+    "expected": []
+  },
+  "parenthesized": {
+    "files": {
+      "case.py": "(self).assertEquals(1, 2)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 0,
+        "end": 19
+      }
+    ]
+  },
+  "unknown-alias": {
+    "files": {
+      "case.py": "self.assertWhatever(1, 2)\n"
+    },
+    "expected": []
+  },
+  "noqa": {
+    "files": {
+      "case.py": "self.assertEquals(1, 2) # noqa\n"
+    },
+    "expected": []
+  },
+  "code-noqa": {
+    "files": {
+      "case.py": "self.assertEquals(1, 2) # noqa: UP005\n"
+    },
+    "expected": []
+  },
+  "other-code": {
+    "files": {
+      "case.py": "self.assertEquals(1, 2) # noqa: F401\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 0,
+        "end": 17
+      }
+    ]
+  },
+  "file-noqa": {
+    "files": {
+      "case.py": "# ruff: noqa\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "shared-block-suppressed": {
+    "files": {
+      "case.py": "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n\n# ruff: enable[UP005]\n"
+    },
+    "expected": []
+  },
+  "shared-block-reenabled": {
+    "files": {
+      "case.py": "# ruff: disable[UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 45,
+        "end": 62
+      }
+    ]
+  },
+  "shared-block-unmatched-disable": {
+    "files": {
+      "case.py": "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "shared-block-wrong-code": {
+    "files": {
+      "case.py": "# ruff: disable[E501]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 22,
+        "end": 39
+      }
+    ]
+  },
+  "shared-file-ignore": {
+    "files": {
+      "case.py": "# ruff: file-ignore[UP005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "redirected-range-code-U005": {
+    "files": {
+      "case.py": "# ruff: disable[U005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "redirected-file-noqa-code-U005": {
+    "files": {
+      "case.py": "# ruff: noqa: U005\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "pairing-alias-to-canonical": {
+    "files": {
+      "case.py": "# ruff: disable[U005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "pairing-canonical-to-alias": {
+    "files": {
+      "case.py": "# ruff: disable[UP005]\n# ruff: enable[U005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "pairing-duplicate-aliases": {
+    "files": {
+      "case.py": "# ruff: disable[U005,UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "pairing-alias-reordered": {
+    "files": {
+      "case.py": "# ruff: disable[U005,E722]\n# ruff: enable[E722,U005]\nself.assertEquals(1, 2)\n"
+    },
+    "expected": []
+  },
+  "nfkc-method": {
+    "files": {
+      "case.py": "self.ａｓｓｅｒｔＥｑｕａｌｓ(a, b)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 0,
+        "end": 41
+      }
+    ]
+  },
+  "nfkc-receiver": {
+    "files": {
+      "case.py": "ｓｅｌｆ.assertEquals(a, b)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 0,
+        "end": 25
+      }
+    ]
+  },
+  "nfkc-other-receiver": {
+    "files": {
+      "case.py": "other.ａｓｓｅｒｔＥｑｕａｌｓ(a, b)\n"
+    },
+    "expected": []
+  },
+  "reference-self": {
+    "files": {
+      "case.py": "value = self.assertEquals\n"
+    },
+    "expected": []
+  },
+  "reference-two": {
+    "files": {
+      "case.py": "self.failUnlessRaises\n"
+    },
+    "expected": []
+  },
+  "method-call": {
+    "files": {
+      "case.py": "self.assertAlmostEquals(1, 1)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 0,
+        "end": 23
+      }
+    ]
+  },
+  "not-self": {
+    "files": {
+      "case.py": "case.assertEquals(1, 1)\n"
+    },
+    "expected": []
+  },
+  "Unicode-offset": {
+    "files": {
+      "case.py": "é = 1\nself.assertEquals(1, 1)\n"
+    },
+    "expected": [
+      {
+        "rule": "UP005",
+        "file": "case.py",
+        "start": 7,
+        "end": 24
+      }
+    ]
+  }
+}

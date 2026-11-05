@@ -125,7 +125,10 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
     ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase::compile(
         &compiler,
         ryo_query_language::inbound::use_cases::compile::types::CompileRequest {
-            text: CoreQueryText(query.into()),
+            observations: Vec::new(),
+            text: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
+                query.into(),
+            )),
             hosted: Vec::new(),
         },
     )
@@ -242,7 +245,7 @@ pub(crate) static COUNTING: std::sync::atomic::AtomicBool =
 pub(crate) fn lint_with(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
 ) -> Result<(Vec<Vec<String>>, Vec<String>), String> {
     let (rows, report) = lint_report(root, rules, store, lint_store)?;
@@ -264,7 +267,7 @@ pub(crate) fn lint_with(
 pub(crate) fn lint_report(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
 ) -> Result<
     (
@@ -285,7 +288,7 @@ pub(crate) fn lint_report(
 pub(crate) fn lint_report_hosted(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
@@ -315,7 +318,7 @@ pub(crate) fn lint_report_hosted(
 pub(crate) fn lint_report_with_languages(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
@@ -353,8 +356,9 @@ pub(crate) fn lint_report_with_languages(
             Arc::new(language::factory::use_case(handles));
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
-        let analysis_digest: Arc<dyn digest::interface::DigestPort> =
-            Arc::new(digest::factory::blake3());
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(digest::factory::blake3());
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -364,7 +368,7 @@ pub(crate) fn lint_report_with_languages(
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            )),
+            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             store,
             Arc::clone(&analysis_language),
@@ -377,6 +381,12 @@ pub(crate) fn lint_report_with_languages(
                 )),
             )),
             Arc::clone(&analysis_memory),
+            Arc::new(ryo_core::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            )),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
                 ryo_values::domain::runs::types::WorkersAsked(0),
             ))),
@@ -397,9 +407,12 @@ pub(crate) fn lint_report_with_languages(
         use_case
     };
     let request = LintRequest {
+        source_language: None,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted,
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
         },
@@ -416,8 +429,12 @@ pub(crate) fn lint_report_with_languages(
 /// The rule of a recording, as ryo is asked to run it.
 pub(crate) fn rule_of(each: &Recording) -> Rule {
     Rule {
+        observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(each.name.as_str().into()),
-        query: CoreQueryText(each.query.as_str().into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
+            each.query.as_str().into(),
+        )),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: each.parameters.clone(),
         include: each
             .include
@@ -466,10 +483,10 @@ pub(crate) fn finding_texts(
         Some(Cell::File(each) | Cell::Text(each)) => each.to_string(),
         Some(Cell::Number(number)) => number.0.to_string(),
         Some(Cell::Span(span))
-            if ryo_language::domain::relations::service::location(*span)
-                == ryo_language::domain::relations::types::Locatedness::Absent =>
+            if ryo_relations::domain::relations::service::location(*span)
+                == ryo_relations::domain::relations::types::Locatedness::Absent =>
         {
-            ryo_language::domain::relations::constants::UNLOCATED.to_owned()
+            ryo_relations::domain::relations::constants::UNLOCATED.to_owned()
         }
         Some(Cell::Span(span)) => format!("{}..{}", span.start.0, span.end.0),
         None => String::new(),

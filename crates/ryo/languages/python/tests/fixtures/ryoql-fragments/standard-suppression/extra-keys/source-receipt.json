@@ -1,0 +1,30 @@
+{
+  "scope": "SIM220/SIM221 extra-key adapters only, independent from142proof",
+  "helper_sha256": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80",
+  "rows": [
+    {
+      "rule": "SIM220",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM220/candidate.ryoql",
+      "before_sha256": "d20a7922e970cabadd52da52e51be6e2bc4783a6bc9319f711a9e46e13b85a9a",
+      "after_sha256": "e88a05c109dcb9239335a93bac98a6544f25cda91672061bb44ba9198b4f6f1c",
+      "preserved_prelude_sha256": "a67f26646de94df0180263b527f89b7add9cb7a2f73a6f6479bab6385d4d734e",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*SIM220(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:SIM220)(?:,|$)\"",
+      "emit": "emit violations subject file key(id, unary, negated_name, positive_name);",
+      "identity": "id, matching original suppression antijoins",
+      "adapter": "Antijoin original full rows against hidden IDs; never join visible IDs to original rows."
+    },
+    {
+      "rule": "SIM221",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/candidate.ryoql",
+      "before_sha256": "cbe5e3a540bf15c22ed651972655ed23972fd2dbef81c218c515d17da9c1b8b4",
+      "after_sha256": "5c05dd881374346506eef76414d93e2c3bdc0f6b0de2b9d86743846983e8de0e",
+      "preserved_prelude_sha256": "9ffb43b28fcb8ec915c1f41bfc31049861c66be51647161419690b850675cb97",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*SIM221(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:SIM221)(?:,|$)\"",
+      "emit": "emit violations subject file key(id, unary, negated_name, positive_name);",
+      "identity": "id, matching original suppression antijoins",
+      "adapter": "Antijoin original full rows against hidden IDs; never join visible IDs to original rows."
+    }
+  ]
+}

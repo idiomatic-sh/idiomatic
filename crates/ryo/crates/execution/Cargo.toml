@@ -1,0 +1,60 @@
+[package]
+name = "idiomatic-sh-ryo-execution"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Ryo executable-program ownership, admission and invocation lifecycle"
+autobenches = false
+
+[lib]
+name = "ryo_execution"
+
+[dependencies]
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+thiserror.workspace = true
+ignore.workspace = true
+rayon.workspace = true
+memchr.workspace = true
+num-bigint.workspace = true
+serde.workspace = true
+blake3.workspace = true
+hashbrown.workspace = true
+heck.workspace = true
+rustc-hash.workspace = true
+sysinfo.workspace = true
+tracing.workspace = true
+unicode-width.workspace = true
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.2" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2" }
+dhat = { workspace = true, optional = true }
+postcard.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
+cargo_metadata.workspace = true
+cucumber.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[features]
+fixtures = ["ryo_values/fixtures"]
+diagnostic-row-progress = []
+
+[lints]
+workspace = true
+
+[[test]]
+name = "boundary_contract"
+path = "tests/test.rs"

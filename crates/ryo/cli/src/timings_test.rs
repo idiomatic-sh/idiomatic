@@ -182,7 +182,10 @@ fn a_query_run_reports_rows_of_ryo_itself() {
     let tree = super::TimingsTree::default();
     let subscriber = tracing_subscriber::registry().with(tree.clone());
     let request = LintRequest {
+        source_language: None,
         session: ryo_values::domain::runs::types::Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: ryo_language::inbound::use_cases::project::types::RootPath(
                 "tests/fixtures/sample".into(),
@@ -190,10 +193,14 @@ fn a_query_run_reports_rows_of_ryo_itself() {
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("1".into()),
-            query: ryo_values::domain::plan_parts::types::QueryText(
-                "let f = select * from \"function\"; emit f subject file key(span);".into(),
+            query: ryo_values::domain::program::types::QueryBundle::from(
+                ryo_values::domain::plan_parts::types::QueryText(
+                    "let f = select * from \"function\"; emit f subject file key(span);".into(),
+                ),
             ),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

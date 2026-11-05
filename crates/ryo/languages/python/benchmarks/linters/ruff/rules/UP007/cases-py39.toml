@@ -1,0 +1,23 @@
+[[cases]]
+name = "py39-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[int]\n" }
+expected = []
+
+[[cases]]
+name = "py39-future-annotation"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Union\nx: Union[int]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 63, end = 73 }]
+
+[[cases]]
+name = "py39-future-runtime"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Union\nx = Union[int]\n" }
+expected = []
+
+[[cases]]
+name = "py39-quoted-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[\"Later\"]\n" }
+expected = []

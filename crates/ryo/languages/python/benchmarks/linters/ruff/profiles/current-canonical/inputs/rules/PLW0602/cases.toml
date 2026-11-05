@@ -1,0 +1,24 @@
+[[cases]]
+name = "global-without-assignment"
+files = { "case.py" = "def f():\n    global X\n" }
+expected = [{ rule = "PLW0602", file = "case.py", start = 20, end = 21 }]
+
+[[cases]]
+name = "global-read-without-assignment"
+files = { "case.py" = "def f():\n    global X\n    print(X)\n" }
+expected = [{ rule = "PLW0602", file = "case.py", start = 20, end = 21 }]
+
+[[cases]]
+name = "assignment-after-global"
+files = { "case.py" = "def f():\n    global X\n    X = 1\n" }
+expected = []
+
+[[cases]]
+name = "delete-reference-is-not-an-all-load-global"
+files = { "case.py" = "def f():\n    global X\n    del X\n" }
+expected = []
+
+[[cases]]
+name = "global-declaration-is-suppressed-by-code-specific-noqa"
+files = { "case.py" = "def f():\n    global X  # noqa: PLW0602\n" }
+expected = []

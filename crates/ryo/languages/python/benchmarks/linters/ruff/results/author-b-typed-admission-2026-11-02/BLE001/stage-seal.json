@@ -1,0 +1,2405 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "97133b816ec5baacc8e97152d2fd65cc845e61406ebfe958ad969c1196dffe0e",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "rules/BLE001/cases.toml": "356706b974a6d0b10197ba65dddead4912cd9a434557b5dc70f52f9a0a77de11",
+    "rules/BLE001/query.ryoql": "487f898f208c872cfe884754ac5008822592e1411ae2c3baca23c2d9a5b85bdf"
+  },
+  "declared": {
+    "profile_name": "native-BLE001",
+    "rule_id": "BLE001",
+    "selected_rules": [
+      "BLE001"
+    ],
+    "profile_file": "profiles/BLE001/benchmark.toml",
+    "candidate_file": "rules/BLE001/query.ryoql",
+    "query_sha256": "487f898f208c872cfe884754ac5008822592e1411ae2c3baca23c2d9a5b85bdf",
+    "cases_file": "rules/BLE001/cases.toml",
+    "cases_sha256": "356706b974a6d0b10197ba65dddead4912cd9a434557b5dc70f52f9a0a77de11",
+    "case_count": 119,
+    "case_names": [
+      "builtin-exception",
+      "builtin-baseexception",
+      "narrow-exception",
+      "bare-except",
+      "module-builtin",
+      "module-builtin-alias",
+      "builtin-import-alias",
+      "module-shadow",
+      "foreign-import-shadow",
+      "value-alias-is-not-a-qualified-builtin",
+      "parameter-shadow",
+      "first-member-of-nested-tuples",
+      "one-diagnostic-for-repeated-broad-members",
+      "type-call-is-not-tuple-descent",
+      "type-subscript-is-not-tuple-descent",
+      "arbitrary-exception-attribute",
+      "normalized-unicode-builtin",
+      "two-independent-handlers",
+      "bare-reraise",
+      "named-reraise",
+      "named-reraise-from-none",
+      "chained-reraise-cause",
+      "conditional-reraise",
+      "loop-reraise",
+      "with-reraise",
+      "match-reraise",
+      "unrelated-raise",
+      "wrong-cause",
+      "wrapped-exception-is-not-direct-reraise",
+      "exception-attribute-is-not-direct-reraise",
+      "nested-try-does-not-reraise-outer",
+      "nested-finally-does-not-reraise-outer",
+      "nested-function-does-not-reraise-outer",
+      "nested-class-does-not-reraise-outer",
+      "logging-module",
+      "logging-module-alias",
+      "logging-direct-import-alias",
+      "logging-direct-error-enabled",
+      "flask-current-app",
+      "inline-getlogger",
+      "inline-logger-constructor",
+      "exception-method-does-not-require-exc-info",
+      "local-spelling-policy-unresolved",
+      "local-spelling-policy-attribute",
+      "local-spelling-policy-uppercase",
+      "local-spelling-policy-rebound",
+      "local-spelling-policy-unicode-normalized",
+      "logging-without-trace",
+      "direct-logging-without-trace",
+      "ordinary-exception-method",
+      "imported-foreign-logger",
+      "foreign-import-named-logging",
+      "foreign-dotted-logger",
+      "unproven-factory-receiver",
+      "assigned-call-is-not-expression-statement",
+      "nested-call-is-not-expression-statement",
+      "bool-call-is-not-expression-statement",
+      "condition-call-is-not-expression-statement",
+      "nested-try-logging-does-not-exempt",
+      "nested-function-logging-does-not-exempt",
+      "nested-class-logging-does-not-exempt",
+      "kwargs-do-not-prove-exc-info",
+      "enabled-debug",
+      "enabled-info",
+      "enabled-warn",
+      "enabled-warning",
+      "enabled-error",
+      "enabled-critical",
+      "enabled-log",
+      "false-exc-info-false",
+      "false-exc-info-none",
+      "false-exc-info-integer-zero",
+      "false-exc-info-hex-zero",
+      "false-exc-info-underscore-zero",
+      "false-exc-info-float-zero",
+      "false-exc-info-exponent-zero",
+      "false-exc-info-complex-zero",
+      "false-exc-info-empty-string",
+      "false-exc-info-empty-concatenated-string",
+      "false-exc-info-empty-bytes",
+      "false-exc-info-empty-list",
+      "false-exc-info-empty-tuple",
+      "false-exc-info-empty-dict",
+      "false-exc-info-empty-builtin-list",
+      "false-exc-info-empty-builtin-frozenset",
+      "false-exc-info-recursive-empty-constructors",
+      "false-exc-info-empty-iterable-argument",
+      "false-exc-info-empty-dict-iterable",
+      "false-exc-info-empty-fstring",
+      "false-exc-info-empty-fstring-interpolation",
+      "false-exc-info-nested-empty-fstring",
+      "enabled-exc-info-true",
+      "enabled-exc-info-nonzero",
+      "enabled-exc-info-nonempty-string",
+      "enabled-exc-info-decoded-nul",
+      "enabled-exc-info-nonempty-list",
+      "enabled-exc-info-unknown-name",
+      "enabled-exc-info-boolop-is-unknown",
+      "enabled-exc-info-unaryop-is-unknown",
+      "enabled-exc-info-noniterable-constructor-argument",
+      "enabled-exc-info-false-constructor-argument",
+      "enabled-exc-info-none-constructor-argument",
+      "enabled-exc-info-empty-generator-is-unknown",
+      "enabled-exc-info-starred-empty-is-unknown",
+      "enabled-exc-info-unpacked-dict-is-unknown",
+      "enabled-exc-info-qualified-constructor-is-unknown",
+      "enabled-exc-info-fstring-conversion-is-unknown",
+      "enabled-exc-info-fstring-spec-is-unknown",
+      "enabled-exc-info-fstring-debug-is-not-empty",
+      "enabled-exc-info-fstring-bytes-is-not-empty",
+      "enabled-exc-info-fstring-literal-piece",
+      "explicitly-imported-list-is-not-builtin-binding",
+      "shadowed-list-does-not-prove-false",
+      "normalized-exc-info-name",
+      "inline-noqa",
+      "unrelated-noqa",
+      "file-noqa",
+      "body-noqa-does-not-hide-type",
+      "upstream-pinned-BLE.py"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "BLE001"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "BLE001": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "profile_sha256": "075a8cac104b38de78a1e727192298cb1ac0e03e89deeadae400a0d282c8cec5",
+    "source_settings": {
+      "defaults": [
+        "BLE001"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "BLE001": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "module_registry": {
+      "python/ruff/builtin-match-at-visit": "fragments/builtin-match-at-visit.ryoql",
+      "python/ruff/suppress": "fragments/suppress.ryoql",
+      "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+      "python/ruff/type-match-at-check": "fragments/type-match-at-check.ryoql"
+    },
+    "module_sha256": {
+      "python/ruff/builtin-match-at-visit": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+      "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b"
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "BLE001",
+      "name": "arbitrary-exception-attribute",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ee5ef7565e9b5c7da5c29eab2f16bed193ab5a32cda3516a5bf7b98f68bfc904",
+      "source_sha256": "979eda11b60cbaa128f3281eba1fc8c2fb3126f11a564e2a4c98045a6e030f36",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "assigned-call-is-not-expression-statement",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "961ae9523a14c00c58b2e157c26c5c44689052ca4cc726381ff2a0fa800d72af",
+      "source_sha256": "bcde6354f8e884b0d381ae1d1d04650b7f56df25f8006b18080c0e1fc84b8e0f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "bare-except",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e71777de01e513c7aa7435e11bb5aa14df1e35275d3ec82c93a41543570ac306",
+      "source_sha256": "da251fb30eb1a5ae9ae6684907c22ac662a1849761a8dc3f11c3474d5323563e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "bare-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "781e9dc8040fc45cacfa0ebc0c7e37c84bf5671a429ae85778694834965d24de",
+      "source_sha256": "229e8beae65b6a9bc151b1ea207015a9801a64961da591f65acfdaf81e1888e6",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "body-noqa-does-not-hide-type",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "136a004c0da692b83db8e88d8bc419c8f19b2dc04d5cac31a57fb8d752411b5d",
+      "source_sha256": "18eace40e04052e98c85536f5d94cdfcaf20a8a3b33f676630b1533db41b1ca5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "bool-call-is-not-expression-statement",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8df1f58bedcb91f99d2b34607df81ec1dac5d131f8bba6acd1e84a2db1514cbf",
+      "source_sha256": "ad510a36ba1d9ea2bff0a96b26940ed119fbfb9a8443cc65a82b6d9bc3df4d3d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "builtin-baseexception",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d855521998b6f47f703e8e596a56d06c88ead8652ed6a6c7a73984039c622d41",
+      "source_sha256": "15604dc5ed3f5f38f18870f22e0791acdb992fd1cb193e5bcfa77846b218def1",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 36
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "builtin-exception",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "da25c05aa21c5b90c1f0c01125ee783e6eb5d41ff956d6b8e7bb14856a6c5634",
+      "source_sha256": "911bc02fbfe326cbb06fa8d64fdf6103ffd653033d79669cd4e40f58582f22d2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "builtin-import-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a1a2c2947dc108220ab1316cbc084ee2773dbcf8d48d1fe74a4ba9b73f7838ae",
+      "source_sha256": "3a7f3565cfabbe8b61c1347d410a51c2953fe9a28687abb618919d83af3f4fc6",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 66,
+          "end": 74
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "chained-reraise-cause",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e6f0662de109fc398ed9c9f315a7488a0a355a05877a32e000b12e0355093f1c",
+      "source_sha256": "cd2f09801f01b3401a3536e49d75b936dea2510d02a823fbe34ea65e379618e9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "condition-call-is-not-expression-statement",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "88b29f38b77759937ff995e84c3a5ad5fefef04d434774dbabb006b9b0ea9e78",
+      "source_sha256": "8b3e61a985209ad7b0aa9fe18dce757c6200a0bb54d57c0ebac901f25747bea3",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "conditional-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "3c2d260deff2f2a021c0d3b3550884eb2e5d01f6684f49199b26e357926d0af0",
+      "source_sha256": "6d559717ec38c77e4d736d5cc88406a8c9a71bf5a955bd64c50e214868b971a2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "direct-logging-without-trace",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1ed808264e89f9c581635b6884ca7c9d62bfac84d7a14700faa9b0c84206f714",
+      "source_sha256": "64e0758ba94933e9c738d97b80960545a56ccaaaa1f9892dd8232dff641925e2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 59,
+          "end": 68
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-critical",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "848db828c3c6a8968ce0247c3e785cb7494593d0c78b14b59f8092aed47525d9",
+      "source_sha256": "fbf5264966727379ffaf6f3117a24cf83fae4736736f19864dd99e03a68e1103",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-debug",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f922eb82789ea48d2dbf3e527103beb64ddca1dd3996e16d0559d00547624ef6",
+      "source_sha256": "7c16726381dbe233d96db302e0aee3a2f0729bedf2fc5cf678d793af8fa4470f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-error",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d8a7d7fa6d89fb9fef1e9ef222feae88e678a85055a054d8eb1d0e6c9dd11143",
+      "source_sha256": "98259ec3870faa5cb4ba4ce4a33f8d22577a928d416178e64a5911cafab473eb",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-boolop-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2e3b5055a770a4a791894d0ae8995ef5ea8385391813780a94e2c0ec0f35f5de",
+      "source_sha256": "a5f4ccef54d830adb582e61d3b1f7cd59fd1940ae953916a01b226f3e76e28dd",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-decoded-nul",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1e812747d0e0623cf6fd6d7ac6900bd567dba1746737fd8751e703a3242868c6",
+      "source_sha256": "261fbfd0cbda4a463f13148a108c8193ad7aeb5f471d0bfc429ef193e675cd7a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-empty-generator-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4f35a59cdd79e7212733df1db38aa344b742db7beb9d4ada1998357d0617f9f6",
+      "source_sha256": "91fd04106eeede50927037a574de5c9548dd78fe8b9a4a568510e3d2ed43ec52",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-false-constructor-argument",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "50db5b5422f01e20d1216ecde7d94717cc85e9b02e7ad609297ce0360e073f7c",
+      "source_sha256": "86f917e4764a944677ac7539ccb42c4bef90407689dcfacdb2fb021abc6d8def",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-fstring-bytes-is-not-empty",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4969536fe86c08cd5f880da47880acc67d0df4f4e007d4fc7dfdd2363e5b396f",
+      "source_sha256": "ec110863413b90510ebb9b3e6f41c95efc2e923b73a86f988ef805f106c5a926",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-fstring-conversion-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ad4bc4e3a03e277025dfe7d99533720f5c6aba6f7557450a82ff74f23605649b",
+      "source_sha256": "7a3ae3d4ae66b38bd279f88023462320ee11b551c163864b899743cd8b73ced8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-fstring-debug-is-not-empty",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c7b066e8c1127355a0fe34f0fd5f824d74ad3e2666b85f0d0ed21c6a8bfed7a9",
+      "source_sha256": "c874257e0c7eca63c9018100ac6a7ed255dd7e889015a72f4cf0e58bcd9f7656",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-fstring-literal-piece",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7f947fe07fb3b15f0c76ffbaa1f25c7ac8f9d589e26cb28f857acd8746265204",
+      "source_sha256": "6ae19c95ab254df0b2699df6c565cebb1b70ecfaba93be1bb8b7780a8a82f658",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-fstring-spec-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "12201647eee9a884bb6ff14b5e920b41ac0f5af50082dd279d4bce468ad20d38",
+      "source_sha256": "cbe0a7990c5c06b775b3ae7f8248d6784894031b650979c79c04007b33ae0fbd",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-none-constructor-argument",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7b8655d985e090af39b821b279b92661173a33ef446599cd9ac5a5eff1ebaf92",
+      "source_sha256": "2f5c9eb00a59ead817d95f924788829eb1151716ffba4db52f73f8cc34147a37",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-nonempty-list",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4d3ab8234af29123c97e49037556f71f5fbe687b544a67ddf197424e98b9b3e1",
+      "source_sha256": "fc081209bdcba6b2c91adb8b7c89c40b50edfab53cdb3e25af8464b6465dc9a7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-nonempty-string",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "028eb6519478303ea34c725b5793118516ce1734a8779c5fb741802910922238",
+      "source_sha256": "61778beb86e5f366f8ff89496680801507e46905c68ad850d8994af20b44fe13",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-noniterable-constructor-argument",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "88bce468cb7391608bf9ef2fcd33926bce2660991ee8fd40ba02e47f94e3008f",
+      "source_sha256": "d527d96525ee78f3f100330cff03c6cc3eeb428c0f6df996bda1ad0fcf8de824",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-nonzero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "41d29826b642d59fa3dd10230ded1a842faed6a3f54e6fa9a8b295bd33d53bdb",
+      "source_sha256": "8f075b338e70adb13f87910c17944538bfaac156fc6b1e46d4ba17be8655f354",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-qualified-constructor-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "069f37e502e1656ac578e66a9e03efc5e694be8d45987480368d87806d9b1fcf",
+      "source_sha256": "0bfda78c0e6a7fb9c77bdfcebec9f8ce654193b732d648ebbaa1dbd872bd3a14",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-starred-empty-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f137f0dbde25e8c964eeecbc0a03d229479ffac1707da13bd9b0888e7d96f695",
+      "source_sha256": "3bb1f43d62035b257a20c7715a7a2ac135c067bb8bf73799d1c9dde188c6cfc2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-true",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2121f2026497e7b5f7e1eece7edf8978165a426e56dbcf7c83ada8a314e601e1",
+      "source_sha256": "11bba0a9b392c0b49fab068564c1ed07a375d81f343d3ad4ca7838967b439ba9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-unaryop-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "39a460325f371f5d9a7f6ea8b9d109010be58de5c9b38c0118cb42a6c04681f8",
+      "source_sha256": "dddaeddd9824037d135ea702bbeb22df5fc171f197fd50550fba1b1405eb71f6",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-unknown-name",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d022dc646410f09d7cf6e6c8c267676183eab8e0b6212c4fb740ccc27b0cadf7",
+      "source_sha256": "065b2694f61354a2988f41e22fdde1f2a4af340110df4316778b19d34a7cab04",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-exc-info-unpacked-dict-is-unknown",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "884738541e2300dcf33d2daa566554ab02725797717d45c696edbfbdfe955e0f",
+      "source_sha256": "9e5d8857c97d61bf5d8643dba098b2edf8ccea01a3011ef6b9d906cf47610203",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-info",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ea7578e6dd32f6e0dffdbfe6df88174c69227859e72e199a4f9942bf7ca6ade6",
+      "source_sha256": "b0dc431bbfb947c36d8d2f7338c23594b5c93bf8d8f8167a5811c1a3c7c5c52f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-log",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4908be9d59f6ea400197a15add303799bf66a1457192e3cdd5d887729b7474ac",
+      "source_sha256": "e2ec37fb5c2758b1c071596661152526b3a362b52ffc68e7ccb963c79a034c25",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-warn",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e32798ba4c8ec1dbdfc056071aa465a56e46c4ca46785540d9da2c678319d438",
+      "source_sha256": "2ba0b53e4299de7344400b1f7300e317ba2c62b044e63201d300f9dc75e981fb",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "enabled-warning",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f6e67d052f146bcb882f0475e6d0593f6be2e3634d97af1cd8a729f1f738e7fd",
+      "source_sha256": "5aa17bc4766693bda690e152aa355664a6ae953f91f10dec72bce01ad097c689",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "exception-attribute-is-not-direct-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "46b151ae039d81dc767e81eed48817f08868e105b3cbe5d5401d178c58f806c5",
+      "source_sha256": "a847b726e677cb437132eaaed374708e62d94aeb9c0764234a1feead8afa2e45",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "exception-method-does-not-require-exc-info",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a18702220b162f0a1f0d0c9eb864a4c150110772a53df9fd82888e4668b7a629",
+      "source_sha256": "eda9ff56aa38d1103cdfd91bffb2e62ae12e446b5b6a54fe70d7afefb6f9a9cd",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "explicitly-imported-list-is-not-builtin-binding",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ad689b203411d5f48b3eddf55e967da82af62d854ea5ffa6e3ba33eeb7879607",
+      "source_sha256": "15edf9870383c370611ba843a5e4ab26ec3c249c463c4a83aab7c34fe8b89346",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-complex-zero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "029858670d44cf2dcb7e6dfa03de9f8f594252cc662d9867a849d15b6a6cea41",
+      "source_sha256": "492619a908a69d357168b48376f8182afcdfc842659dec08e27a914a7b694164",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-builtin-frozenset",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "022310ecb0da4d347715363e43add1d7a6ab3fe7e833050f159a22c5392ff680",
+      "source_sha256": "e62fc34d2414ac0c611a19a69eee96daa5e7471c8c84799f46885c2aaa4b7d28",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-builtin-list",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "05713c0ded105bc1b71ac17e444b635dd36f255ea16a6b18d622488dfc4facb0",
+      "source_sha256": "1cd5cf41ee5ca534aba0f1b8d45c82c0236b4f79b09b80efb63ecef15f695a12",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-bytes",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "690b524b0fce845afa280b9a147fca1519d08056b6b0b74d64c7a31010e0af84",
+      "source_sha256": "2f86da4143d0c9ff0d63a1f9e134315c9111c698e674b731af8f87b473f1f29b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-concatenated-string",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "cffb5258a075879868248cb80d99a64cb93c0f0a2d756ace5270bd23e0c1369d",
+      "source_sha256": "619b2509003d7b59f7565c06939e706614505b2d570e149d434a032fcce34561",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-dict",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "89cab34095598ad316dab0936a8070cd6a86f78bbf0dc9cee06ce8c6a2c0d937",
+      "source_sha256": "eb1d181f0026127c010cfbe0ca31714d11e9ddd61742c34041e07914dbe4057c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-dict-iterable",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "dea80ea71033eacea0050b567bde27ba4cebc2f46e5a095f9a16ec7fdc74b249",
+      "source_sha256": "d2d4826e9c69577ec86a18f837e26606b9219e28f2f174abbaf8bae775d49b0e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-fstring",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "306c861858d63a694ad9ba2e672043c1cc8d4ff62b1454960047c5b8d287c1f8",
+      "source_sha256": "dd1091e942dba67066425b3f093abb3c5dbdc53aa2f139c61a4a1aea6dd546a6",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-fstring-interpolation",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7551d5257acfd16fd2efea6bcfc6c68366a20e2bd279da0b1e5b45e9dcc685c2",
+      "source_sha256": "8b58f773e60488a966796b042669aaa0a987dc61c4a268be8a973b48ad14d1df",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-iterable-argument",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9797bbbe95af840c9444fd5227e577fa112b5a24c0259045fb00583a448fa62d",
+      "source_sha256": "56b9bab99b1c970208dbd5740114560e0aa3cb7533e87cc99d587e75bb94399a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-list",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "749d49e282e2157a9627c326d41219218aa5dc9e7b2051edf9ceb1a4e97968a0",
+      "source_sha256": "74a2cc183a939cf912c832f31b128c80f6c3ac222acbb69b14b0a27ba94fee7e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-string",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ff093a6af75d30edc564e3fffd1bdc88df7a34cbefc8bd2f6318c15e7a5c2741",
+      "source_sha256": "5c41a84f5ce7d869645b53753cb3f3332c185595833fa40e8fec102ed73eeb83",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-empty-tuple",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4aa02bbfc0ca72e6a0aeca18162e5dabd289a904600b1cf83876fbdba4ace26b",
+      "source_sha256": "15197118136dfe992ccd4b2422252f9c4f30394f39bf1492e255edb88abfe888",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-exponent-zero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "bc1943eac38e4b51828d14089b2de781fb1da43103ab6de4690dc8174fa71b37",
+      "source_sha256": "2a611a0b7d7f1bdc7a3e1e38cde0b76579296530c2e0c64c64598ae5ec948b93",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-false",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "3f8c7534b5ba4d18743ccd374b3b73ce11fa4c8196f267a67bb3b70c11eb0eeb",
+      "source_sha256": "30c3d649428bd7b7dac9ed9aab2774380ed78086e63e49ba3bedf407da503a7f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-float-zero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "574f48788e54dd7ae97738ef146eeae60e198a4ce94d3a46759dfc4e02d56cf2",
+      "source_sha256": "da3e435b7136bfdc25ec432b0a5f61c7dac4fd1b619e47011aedf8d7673fe327",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-hex-zero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4e02672234756075250e3b98d51db67ea293f2921dcfb33fc019798823fad667",
+      "source_sha256": "60e165651265852fcfca120b68e742b76383aaff45451d5a4086ebb63099a39a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-integer-zero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f7e86eea7cf5ec5ae743d232aa660d6d3c6a82768094d458c40163e4c1b4c599",
+      "source_sha256": "888700e9bac9a7c45ac0618a4a61ab175e4a422a82062f3679b07097a1b5abcf",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-nested-empty-fstring",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f94dd148d26df9c8e12cda07d4f267801afdd5e48d712fc7d9cf08764e8665a4",
+      "source_sha256": "5cf44d246ade97a51b04ebc143ecc61df2e88ceba353c319296470b37c38fb65",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-none",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2eb606d4deb49fcc2f1f07d8bb22760b0dc33f66ef998d9734f207899cbff8ed",
+      "source_sha256": "2e7844c1c979c684c2ffd0edb207ba00141374ae86f008baab52b9923b538dd4",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-recursive-empty-constructors",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9d7dd0a9e76e81d47c007519cff469033a7a5c255c5679f0126b8fb01c919c1a",
+      "source_sha256": "979cbb6c7e98a1772c0b0712df46ea681109ffadb4bc058aa033627332e8239d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "false-exc-info-underscore-zero",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "86bf8364b8fdc6e7dc0e651f224558b9ba0b861e0305f8963fb07a31b28cdc67",
+      "source_sha256": "fb06b6c2309f8b4b3fc9d6b8333facb17fc3ac3e0fe1ddd15581c53414bd1074",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "file-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "bf00756d0871a31ba1bc69b6c387b6d61cd19f8ebdce5249f84a01f9ddc4edb5",
+      "source_sha256": "1c5509c2ae698a675ca2a7ebe05293040bc5acf1a874d651e9829979bb2c1f1a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "first-member-of-nested-tuples",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c7bebb90f6f6664a9af5559f7934256c7bda119ba8e4e92799a1e2534ed4287d",
+      "source_sha256": "dc85a3e9158b17d75b6048faa4192d6609839bb9422530598bd9e83cf35e9d15",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 46,
+          "end": 59
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "flask-current-app",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "426a2e65cd2705ce82dd160e31fa4ce9aefc9eb7cc530e76c6f10bf92bec2f4f",
+      "source_sha256": "85eb3b39de41483332f60b21ce5ade5c434d6da6deb6859705920f1478c862c7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "foreign-dotted-logger",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "fbe8afd98a9a794f160e2cafd3c5dbff370c94456e0035fbc338535ff19ae5fb",
+      "source_sha256": "ebcd873814f84f47d49bbf5eda8d3f97015cc052274ee62da27e5cc3c648152b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 40,
+          "end": 49
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "foreign-import-named-logging",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "886c54557625ab3faa48d674264a8866e83cf85a76ace1003e239f7d2d4da42f",
+      "source_sha256": "0293bbb313e3143e7620809ecd7f5c8c4d0ad3bf2abf3bef0d75e78c315d2b46",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 51,
+          "end": 60
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "foreign-import-shadow",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "33d9ecb7d3f158e71b266e04150e4a2dc863e9377911b5578d9ef62f40c55f1f",
+      "source_sha256": "c77cb054da26214fc83fdac057f8e838d7dba880e047bbdfa3d3ca23e76a640c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "imported-foreign-logger",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "3c0a5b2812bbb2db45cf417ff5396becef8bbff1181ea1caf097c171173fab16",
+      "source_sha256": "830be64b8c554f182c9e65ac2fc19d7148abbc0b5cea876aa2ffd6be5b2a3ded",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 52,
+          "end": 61
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "inline-getlogger",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "564091bc7219248b303b1f43b83ebe43b5d301b77370adb06e2d96515c47d0fa",
+      "source_sha256": "8c368f908dbc040b75dd798b87a9e0fba5f93daa1648001f57cd8c1014e16d99",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "inline-logger-constructor",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e77a443231105c2e383afec239c8e0efd7a8c4592b31fc457bf14d65c5a8a253",
+      "source_sha256": "43176f8a909366ca44d0ecee14d1a4d1e7aac3daec7508e97e459a36d6b10158",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "inline-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6e25f3be5c55d8e7541af3c47ff43e06579ede9648f17497db11a6f797efc1e8",
+      "source_sha256": "e6c3db1e74372f01420fd5ee2565d04da6603dc0b6c4dc8e1eb8bdc0aee11c3e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "kwargs-do-not-prove-exc-info",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8019aa91797b7e96534fad3b6adfd92568f712993f1aa05033f2494a1c2d7535",
+      "source_sha256": "1d83ac90eb50d38589479890fe06b06648c8d7ae88b7b624b6937168ff3aa08e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "local-spelling-policy-attribute",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "fb197e6b3faace38fd40a17d73ddb770a7bbdc7355f75be5da0319d8e0ef7103",
+      "source_sha256": "80de0f246c6f79ad0ee01238d499dfb473fa589c7537355331f7dde95b758767",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "local-spelling-policy-rebound",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "865ec3c2bc0ef89b6db98c1d42f7904da1bc6b81b9bc790c0cfb62dd0e7f6539",
+      "source_sha256": "67609cb093ca0979d28cd0bfc4c9bea454da03c201b148791a3f36c92dcfd44f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "local-spelling-policy-unicode-normalized",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "41390ff97ca223c8ae7b264d742e9972e450c021bb8649c9129c05d999b24d45",
+      "source_sha256": "f0fd30dd2e65e6a9022f4b3ae8eb16ecca545a8543087ab9196824d2627b886c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "local-spelling-policy-unresolved",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5b435205400fec6996461cd4edd0f9209f589ad82bf2c0e901d3b99deafb38b4",
+      "source_sha256": "e0212eecb551f6cd90a8a6e394af18fc946b8bf0de532acfa8cdf6a73f0c0ccf",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "local-spelling-policy-uppercase",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a875f9fcfd6cc85b2e8fdd0c8c93754e7b4249bd77298d09da34b05270f92166",
+      "source_sha256": "ee380472c5dbdf093180d95ae22fb9ad558d961d5a43ac741bf2b1f84bcfbb09",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "logging-direct-error-enabled",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "621f7403c1eb6eca69f65fe72fc3040744b5d32799df85b782f1e563542515d0",
+      "source_sha256": "a2272d748e5650177856882f64e9fdc566423e58b32fed9c12f2ab217186ca28",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "logging-direct-import-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a23087b17d86a3d38a5993d03a1a7959cd103cf6eced13280bd32b02aa46f4d7",
+      "source_sha256": "031e0c159ded6fd6997fc59999adeec43dd242cea377d6e1fad5cdd0dea8288d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "logging-module",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b6d706538508adf58cb721b8b30619d37906e86bdbf6e9844d59812ae1204602",
+      "source_sha256": "25ac5fced62155212f0b3e456b78e65f66c9c75a4ad5fe8d5d12921ecb1b3c8f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "logging-module-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "bbaac5556143cd8147f6e24353f9f7605c369a4bc1ccd35c580821d23faa6d67",
+      "source_sha256": "5fbbf6eb09962d92b1062fa3192b37bb57b18c665e59850c9498ecd505bbd0f8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "logging-without-trace",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "84380538c309b328e00c4a3274cb359ac70d8eced2c32b9a3624043ea6ec1439",
+      "source_sha256": "7ef40e9f4469a3730d262b80796e0ed49b87fb751c19f8629459008dd02cd64e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "loop-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "976b80ecfbf8c54470e1896ca5bec80bc930e11d3b944c3a72e0bf02efd272ab",
+      "source_sha256": "749ba05e6e9e3d5da5b0e21564bbefbfa8af94ba8cfe0e54be5c7039ce0de327",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "match-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ad6fd3030e2091d78e234b45ddb423409413afb543d86576ed9dd2bf9a8b0e86",
+      "source_sha256": "ad00bcee86459e7e4f7eb7101cb884d39956ab727df66c7e2621484ce987f503",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "module-builtin",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "120304e0a03df10f3f3f0a83881446232ee0e4c9588a0239b82a731265c5514e",
+      "source_sha256": "4f59d9e6187de8f6ccb736ae2a45f806b8258eb33c076ffc0238af3231a49759",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 39,
+          "end": 57
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "module-builtin-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "777f5134ab39b511703c533e9bb43ab77ad7158b6be28216581e9a9a5e350535",
+      "source_sha256": "3bf71837c8c30b3d5888288d1a4f7a2ee0b4388abf9a7dd58457ebd4c388ffa9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 44,
+          "end": 59
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "module-shadow",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f906e43962b30afe4b53a4ea551377b95f30de807d2f4b2ed7afed2b320c67c4",
+      "source_sha256": "aee9556871dc11e47f736226150efdffa6d3b00f25cd36cebc8e4f8274d6385d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "named-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "710e0b5b7983660ba442bab452220f9071e51fb8ef8a728bce0d9f5499fceb12",
+      "source_sha256": "3f81097ec198db491546a18711f9f0518f3170ff3509bde00844a46c072ff59b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "named-reraise-from-none",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "65d5b6c7fa0305fd07e4b4519cb3de7fb9bc5aedf45215d3a7ed3cac9393d51a",
+      "source_sha256": "64b79af283401e9903d2ec25b5e10b717bdf16bbbe5d3d48bb6c115517ed5c68",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "narrow-exception",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "937e9c59ea0b64fde2bd1e5b4bc52dff1123a2154a4b20d65ce9b0ca0936b9bc",
+      "source_sha256": "47abfa74b38a6c12b74d48b5b018d3f156bec50d953f8420e9a1715ae62937ca",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-call-is-not-expression-statement",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7fd8b9190ca45db57365d91f7eef2af693cf6c6b989a3e110cbf7ee923f45d93",
+      "source_sha256": "518215167d9b14bb7f6d346aafc9473fe1f0239f739b345d8410d43edac1e38f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-class-does-not-reraise-outer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ca51ed158277ea147608974d4f2765adb3ac81c59d8f6d9260fcf9c099be6229",
+      "source_sha256": "969613db3e0603fbf745e0302f251d44dab49459d1dbb4c1ad25a2fe33ad617d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-class-logging-does-not-exempt",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f37669c26b75a226c86bfade6265dd754ea4250bb4b489433f0e8b8e739922c3",
+      "source_sha256": "5e6cb0c78d6212a6d2b5894f56f792cc8c19049b126bc2850b597355e15ea0d9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-finally-does-not-reraise-outer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "21aa441cf3db37f285daed42384371d218384c49c7c3a0989111ae9ab6f01f51",
+      "source_sha256": "b1e8295ffb2c756282cea30c88936ae9314f513d7db605c89f80263b8bac88b7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-function-does-not-reraise-outer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "abbbee40565618de53d980cb65fb703e3eb5078aaae18ca54cfebbec174abefd",
+      "source_sha256": "e27431fcd174e70fa3cd7e7494cea0598f1a12d6b3ee5ac6cb0e50632dc8e57d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-function-logging-does-not-exempt",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e6accca144be0330c71ea8762acf1da27b0ac621dc59606f186eca86b30560ae",
+      "source_sha256": "60eb5d4b69849b464dd352f19f7bf8c0e325a0c31ddc3e5f42fa8dfaf5687a89",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-try-does-not-reraise-outer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f278a525f896726093fcc94a2f5f6f9145e5f04689c2c43c4840f7c8b414ac98",
+      "source_sha256": "04ed17e78c320e260b31183afabe1a36a35e62b250441ed4b3de0edc89f4a7a7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "nested-try-logging-does-not-exempt",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1a9742303072df5467a262ec4ab0c64eb4b0558b6184c41ba7a6d62488b69666",
+      "source_sha256": "dd8d54593876035b1c3fefd345465a1602f505d459b94bb5403d8a812ccda73c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 38,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "normalized-exc-info-name",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "27c11ebdc282883d7edea42b88df3c44f76d88ecc569deb448475abfbbe33c54",
+      "source_sha256": "b44534d8f5b0f5fbd7290e1bde0e860f81f08665d5db67ea4ec65a03402e9477",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "normalized-unicode-builtin",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "833411a2c7f7b82ac30b59685a8e587814ebb76b288dee8de109bc4a793f89ad",
+      "source_sha256": "9d3dc014d8a073595e543ed2b200aa446b98e09bb76bddcf087be8b2965e16f1",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 34
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "one-diagnostic-for-repeated-broad-members",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d0f7ec8b162cb841b1353d5d263a4a4cbd3930545a585a06dc751df6c324d4c6",
+      "source_sha256": "6e6b498be00dbbde890e9389ee5996f1b9d669dc5aac0fba1f8ec4c7b9a0e441",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 24,
+          "end": 33
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "ordinary-exception-method",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "336700db913538174bd2c8f084d56217f6cb14ab371939e5c55ed51f6acfe02a",
+      "source_sha256": "c93c51cc7b522d5ab2b7f1ae3ca234de7fbbe29cb6fdd808bcb73f43455ba25d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "parameter-shadow",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d06449e9ae5f93304bca3b8d642f3892f795a98c40fd630e691e96048722a683",
+      "source_sha256": "5ae5c7976e357331c431a793ae9a901f0c7544aa222863a9736246e248fc5afa",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "shadowed-list-does-not-prove-false",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d814402c7227631d1887ad3a14cd1622d09f4df9758736bd726d5e3c20a36c42",
+      "source_sha256": "5265700704501f095f141e226521bf7f07f1b4d665acb7c7c4949991ab38ae32",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "two-independent-handlers",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0b07dfd8117cb36ff0c93623b32b5406a32b76e7284fafef80d158e3d89df4bc",
+      "source_sha256": "a520e4bb5e8dfa655d1d562d7444af5165a37a6add26a96a414780c48859aabc",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        },
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 50,
+          "end": 63
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "type-call-is-not-tuple-descent",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e89492097728ea742e251101dd8840b2eee16fc51493e9018499e55f1adb5e9a",
+      "source_sha256": "4334b53de255ac23e758917ca5a6abec359ed15acc54c52a8296c22febfe9d60",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "type-subscript-is-not-tuple-descent",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1624497010cbb86cf113abe4d1b0d4a750dde8c639182849209f83f586296f80",
+      "source_sha256": "893f7f57697b54e947200b1cb29b246f06a01a942b58a63f5217be493d4e4aa2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "unproven-factory-receiver",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "82498ceced423540cf61d6596b9ca602f8fb7229441ce885a1f362b4034b61b6",
+      "source_sha256": "b25d0309a38a438d7f98bf50392f1191595fbb95f404c4689577daf6f7c84ae2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "unrelated-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a4f69428f5ce4f1982518089060aef633c6c929803da3112f179267e4665eb80",
+      "source_sha256": "a8f9386c6081e08ad516452383d9f613a75153d93d9e508d9fbbb81f3519d25a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "unrelated-raise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7d19890cef16ee752f9f31bf3267913224f46976f3f6d0bceb290f56ab44e35c",
+      "source_sha256": "687daf69c9b334decf687a22152ac2c74f4e18c42535db3535b9f1f7ed2b2e70",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "upstream-pinned-BLE.py",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "dddacaa119c4054752ff9397e2046f10ba0bcdc187fd60e97cb4e835d4ae6767",
+      "source_sha256": "5631feb9406e4c8eb7b093fb12d304a417a761a52fcaa94a8d3903f6e7c050d2",
+      "files": [
+        "BLE.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 250,
+          "end": 263
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 297,
+          "end": 306
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 418,
+          "end": 427
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 470,
+          "end": 483
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 581,
+          "end": 590
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 624,
+          "end": 633
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 661,
+          "end": 674
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 723,
+          "end": 732
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 792,
+          "end": 801
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 877,
+          "end": 886
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 1158,
+          "end": 1167
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 1219,
+          "end": 1228
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 1296,
+          "end": 1305
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 1372,
+          "end": 1381
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 1436,
+          "end": 1445
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 1516,
+          "end": 1525
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2101,
+          "end": 2110
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2146,
+          "end": 2155
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2214,
+          "end": 2223
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2270,
+          "end": 2279
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2323,
+          "end": 2336
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2393,
+          "end": 2406
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2441,
+          "end": 2450
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2500,
+          "end": 2513
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2581,
+          "end": 2590
+        },
+        {
+          "rule": "BLE001",
+          "file": "BLE.py",
+          "start": 2662,
+          "end": 2675
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "value-alias-is-not-a-qualified-builtin",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "09cb06543cf728fb06fd3a05b2fb0e55288a0b16e1758c3130fe1c51b93cd2fc",
+      "source_sha256": "4a576469a2bbc9d27b4687f73c99c2d5a434d4ecb661d2cffe4bc9a5282a943a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "with-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5ac8bacc6c12537e8c1042d87d447d4e637673de7ec3d6953dd62da6e92c9b69",
+      "source_sha256": "7d1f2b94131569badbb473621707e3ef01b6c0926e14e66673ef855e5a3f1ed2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "wrapped-exception-is-not-direct-reraise",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2be57fa33aaad30ffc51ad53d14cf5e5692c199da8e05273b03c3e12d6e1cf97",
+      "source_sha256": "843fbecea1be98db88a74c7f17b633949edddde70272d84be5b69dcd4f48d74f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "BLE001",
+      "name": "wrong-cause",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ba5d7eb18710c7958e2b389db369d8c4fbe70804a9b0f024e213144d088b1bce",
+      "source_sha256": "5988c06168b59bb919def9937c4279b5326bbb518e897490c8ad25653258b870",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "BLE001",
+          "file": "case.py",
+          "start": 23,
+          "end": 32
+        }
+      ],
+      "reference_discrepancy": null
+    }
+  ]
+}

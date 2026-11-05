@@ -15,14 +15,21 @@ use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::TableKey;
 use crate::domain::plan_parts::types::Test;
+use crate::domain::program::types::QueryOrigin;
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plan {
+    /// Ordered schemas of explicit bound inputs; source IDs remain stable through request pruning.
+    pub observation_inputs: Vec<crate::domain::observations::types::BoundObservationInput>,
     /// The `param` lines.
     pub parameters: Vec<PlanParameter>,
     /// The steps, each reading only the relations and the steps before it.
     pub steps: Vec<PlanStep>,
+    /// Source origins indexed by diagnostic-only comparison IDs.
+    pub comparison_origins: Vec<QueryOrigin>,
+    /// Explicit named roots; request linking removes undemanded observation-only work.
+    pub observations: Vec<crate::domain::observations::types::PlanObservation>,
     /// The `emit` line.
     pub emit: Emit,
     /// What the per-file steps hand to the cross-file steps: the relations and the per-file steps
@@ -121,6 +128,8 @@ pub enum Operation {
         filter: Vec<Comparison>,
         /// The columns of the right input the keys and the answer name, in order; none named means all of them.
         view: Vec<ColumnIndex>,
+        /// Source-keyed closure demand; the right input is physical edges when present.
+        reach: Option<crate::domain::plan_parts::types::ReachLookup>,
     },
     /// Rows in either input.
     Union {
@@ -191,6 +200,34 @@ pub enum Operation {
         /// The parameter holding the sets, in order.
         sets: ParameterId,
     },
+    /// Append text after literal replacement of every regex match.
+    Replace {
+        /// Input rows.
+        from: Input,
+        /// Text column to transform.
+        text: ColumnIndex,
+        /// Constant regular expression.
+        pattern: crate::domain::plan_parts::types::LiteralText,
+        /// Constant literal replacement text.
+        replacement: crate::domain::plan_parts::types::LiteralText,
+    },
+    /// Consume the earliest later right row for each ordered left row in an equal-key group.
+    OrderedMatch {
+        /// Left rows.
+        left: Input,
+        /// Right rows.
+        right: Input,
+        /// Left equality keys.
+        left_on: Vec<ColumnIndex>,
+        /// Right equality keys.
+        right_on: Vec<ColumnIndex>,
+        /// Unique numeric order within each left group.
+        left_order: ColumnIndex,
+        /// Unique numeric order within each right group.
+        right_order: ColumnIndex,
+        /// Explicit output projection.
+        output: Vec<JoinColumn>,
+    },
     /// Split a text column into words, one row for each.
     Words {
         /// What it splits.
@@ -228,10 +265,33 @@ pub enum Operation {
     Closure {
         /// The edges.
         edges: Input,
+        /// Independent graph partitions, in output order; empty means one graph.
+        keys: Vec<ColumnIndex>,
         /// The source column.
         source: ColumnIndex,
         /// The destination column.
         destination: ColumnIndex,
+    },
+    /// Ordered depth-first edge visits for each distinct partition/root.
+    OrderedDfs {
+        /// Root input.
+        from: Input,
+        /// Edge input.
+        edges: Input,
+        /// Root entity column.
+        root: ColumnIndex,
+        /// Source entity column of edges.
+        source: ColumnIndex,
+        /// Destination entity column of edges.
+        destination: ColumnIndex,
+        /// Numeric outgoing-edge order column.
+        order: ColumnIndex,
+        /// Edge identity column, preserved on each visit.
+        edge: ColumnIndex,
+        /// Partition columns of roots, in output order.
+        root_keys: Vec<ColumnIndex>,
+        /// Matching partition columns of edges.
+        edge_keys: Vec<ColumnIndex>,
     },
     /// One row for each entity that reaches itself.
     Cycles {
@@ -254,11 +314,87 @@ pub enum Operation {
         /// The relation, by its place among the ones declared.
         relation: HostedNumber,
     },
+    /// Append a span from the first input's start to the second input's end.
+    SpanBetween {
+        /// Input rows in one file.
+        from: Input,
+        /// Span supplying the start offset.
+        start: ColumnIndex,
+        /// Span supplying the end offset.
+        end: ColumnIndex,
+    },
+    /// Emit each regular-expression occurrence in a physical source span.
+    SourceMatches {
+        /// Per-file input rows.
+        from: Input,
+        /// Physical source span to search.
+        span: ColumnIndex,
+        /// Optional one-based line of the input span's first byte.
+        base_line: Option<ColumnIndex>,
+        /// Authored regular expression.
+        pattern: crate::domain::plan_parts::types::LiteralText,
+        /// Optional required named capture; a nonparticipating capture emits no row.
+        capture: Option<crate::domain::plan_parts::types::LiteralText>,
+        /// Append the captured physical text as a source-backed Symbol.
+        capture_text: bool,
+        /// Append the captured start line after any whole-match line output.
+        capture_line: bool,
+    },
+    /// Render candidate syntax in a declared embedding role on demand.
+    RenderSyntax {
+        /// Per-file candidate rows.
+        from: Input,
+        /// The node whose syntax is needed.
+        node: ColumnIndex,
+        /// The role in which the node will be embedded.
+        context: ryo_language::domain::semantics::types::RenderContext,
+    },
+    /// Keep rows whose rendered candidate fits the source's physical line width.
+    FitsRendered {
+        /// Per-file candidate rows.
+        from: Input,
+        /// Ordered rendered text columns.
+        texts: Vec<ColumnIndex>,
+        /// Literal text before, between and after columns; exactly one more than `texts`.
+        literals: Vec<crate::domain::plan_parts::types::LiteralText>,
+        /// Original physical statement span.
+        span: ColumnIndex,
+        /// Maximum physical display columns.
+        max_line: i64,
+        /// Physical tab stop width.
+        tab_width: u32,
+    },
+    /// Append checked byte offsets of an existing physical source span.
+    SpanBounds {
+        /// Per-file input rows.
+        from: Input,
+        /// Span whose endpoints are projected.
+        span: ColumnIndex,
+    },
 }
 
-/// The kinds of operation the language has, one variant each.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum OperationKind {
+/// Keep the feature catalog's variants generated from the same declaration as
+/// the kind itself. Adding a kind cannot silently omit it from `ALL`.
+macro_rules! operation_kinds {
+    ($( $(#[$meta:meta])* $variant:ident, )+) => {
+        /// The kinds of operation the language has, one variant each.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub enum OperationKind {
+            $( $(#[$meta])* $variant, )+
+        }
+
+        impl OperationKind {
+            /// Every declared operation kind, in its stable catalog order.
+            pub const ALL: &'static [Self] = &[ $( Self::$variant, )+ ];
+        }
+    };
+}
+
+operation_kinds! {
+    /// Literal regular-expression replacement.
+    Replace,
+    /// Ordered consumption of right rows.
+    OrderedMatch,
     /// `select`.
     Select,
     /// `project`.
@@ -295,6 +431,18 @@ pub enum OperationKind {
     Rows,
     /// The rows of a relation the host declared.
     Hosted,
+    /// `span-between`.
+    SpanBetween,
+    /// `source-matches`.
+    SourceMatches,
+    /// Candidate-driven semantic syntax rendering.
+    RenderSyntax,
+    /// Physical display-width admission for rendered text.
+    FitsRendered,
+    /// `span-bounds`.
+    SpanBounds,
+    /// Ordered depth-first edge visits.
+    OrderedDfs,
 }
 
 /// Something of the language a query uses, which a run must be shown to exercise.
@@ -307,7 +455,7 @@ pub enum Feature {
     /// A direction of an `axis`.
     Direction(Direction),
     /// A relation a step reads.
-    Relation(ryo_language::domain::relations::types::Relation),
+    Relation(ryo_relations::domain::relations::types::Relation),
 }
 
 /// What the query emits.
@@ -323,23 +471,14 @@ pub struct Emit {
     pub headings: Vec<Heading>,
 }
 
-/// What an operation reads: up to three inputs, as many as the operation names.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Inputs {
-    /// The inputs in the order the operator reads them; the places past `used` repeat the first.
-    pub list: [Input; 3],
-    /// How many of them the operation names.
-    pub used: InputCount,
-}
-
-/// How many inputs an operation reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InputCount(pub usize);
-
 /// The operators of the engine, one variant each, in the order the documentation lists them: the `select` sugar and every call a
 /// query can use.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum QueryOperator {
+    /// Literal regular-expression replacement.
+    Replace,
+    /// Ordered consumption of right rows.
+    OrderedMatch,
     /// `select ... from ... where ...`.
     Select,
     /// `project(from, columns)`.
@@ -374,4 +513,16 @@ pub enum QueryOperator {
     Closure,
     /// `cycles(edges, source, destination)`.
     Cycles,
+    /// `span-between(from, start, end, output)`.
+    SpanBetween,
+    /// `source-matches(from, span, pattern, output)`.
+    SourceMatches,
+    /// `render-syntax(from, node, context, output)`.
+    RenderSyntax,
+    /// `fits-rendered(from, text, span, max-line, tab-width)`.
+    FitsRendered,
+    /// `span-bounds(from, span, start-output, end-output)`.
+    SpanBounds,
+    /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.
+    OrderedDfs,
 }

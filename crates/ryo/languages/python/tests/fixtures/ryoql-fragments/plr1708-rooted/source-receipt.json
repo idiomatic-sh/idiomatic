@@ -1,0 +1,13 @@
+{
+  "scope": "PLR1708existingcomputedfilteredwalk_edges only; noarbitrarypartitionedhostedgraphsclaim",
+  "rows": [
+    {
+      "rule": "PLR1708",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLR1708/candidate.ryoql",
+      "before_sha256": "b03ed93dd8a93694e59a3a37737bd380713b942cac54a924d4c5a139db0baa3d",
+      "after_sha256": "d9baa3d1bbb52e8025deb022ac86cc03ab0c634c37dff29400058aaa9a8daba3",
+      "file_contract": "EveryNodeId stores itsFileId high32bits; semantic_child parent/child and embeddededges file-local. Axisplan remainsperfile onNodeid; allfilepayload/downstreamkeys retained.",
+      "edge_filters": "physical_walk_edges and walk_edges clauses byte-unchanged; no native raw-tree substitution"
+    }
+  ]
+}

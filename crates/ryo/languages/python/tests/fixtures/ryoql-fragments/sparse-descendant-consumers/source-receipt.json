@@ -1,0 +1,19 @@
+{
+  "scope": "C419 await-expression membership and B023 three sparse subtree memberships only; directrootsretained",
+  "rows": [
+    {
+      "rule": "C419",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/C419/query.ryoql",
+      "before_sha256": "42e4b6d6233dbf9c014d38a39aeb997bbbd4a1900f3436c4aadcbba89f6e0a59",
+      "after_sha256": "faceed18f8b0a78ba34450455170bf6ee176134c540a78b7f86eff4ed6ee61d9",
+      "downstream_order": "Alltraversalconsumers use deduplicated join/antijoinmembership; retainoriginalrootrows andpayloads. Neverclaim breadth order equals sortedentityclosure order."
+    },
+    {
+      "rule": "B023",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/B023/candidate.ryoql",
+      "before_sha256": "d2a5380cb0f1295c0496573abd1a193e64ef1baf080aca07ad59965d95a8821a",
+      "after_sha256": "81b455498667fe4aed8a9874d72225a056355766a5bd53bea701dc23f52bbbd6",
+      "downstream_order": "Alltraversalconsumers use deduplicated join/antijoinmembership; retainoriginalrootrows andpayloads. Neverclaim breadth order equals sortedentityclosure order."
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+let witness = select * from "implicit-symbol";
+emit witness subject file key(scope, name, kind);

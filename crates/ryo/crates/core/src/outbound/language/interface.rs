@@ -3,14 +3,16 @@
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::Relation;
-use ryo_language::domain::relations::types::RowWriter;
+use ryo_language::domain::semantics::interface::SemanticSession;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::RowWriter;
 
 use super::errors::LanguageError;
 use super::types::{FileReading, FileToRead, ManifestReading, ProjectAnswer, ProjectInput};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::descriptions::types::KindVocabularies;
+use ryo_values::domain::stored_facts::types::LanguageNumber;
 
 /// What every `language` adapter implements.
 pub trait LanguagePort: Send + Sync {
@@ -46,6 +48,23 @@ pub trait LanguagePort: Send + Sync {
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
     ) -> FileReading;
+
+    /// Begin the provider's owned semantic session for a successfully parsed file.
+    /// Providers without this capability leave semantic demand explicitly unsupported.
+    fn begin_semantics(
+        &self,
+        _language: LanguageNumber,
+        _file: FileToRead<'_>,
+        _tree: &Elements,
+    ) -> Option<Box<dyn SemanticSession>> {
+        None
+    }
+
+    /// Candidate project entries the linked languages need for the requested relations; no IO is performed.
+    fn project_entries(
+        &self,
+        input: &ProjectInput<'_>,
+    ) -> Vec<ryo_language::domain::files::types::FilePath>;
 
     /// Reads the manifests with every linked language, writing into `out`.
     ///

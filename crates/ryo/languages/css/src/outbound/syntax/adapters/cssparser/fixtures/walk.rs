@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the walk is the library's rule parsers' receiver and the standard's names for its tokens, written apart from the adapter on purpose (library-walk-is-its-own): the second implementation is the proof, and a split would be a file no adapter template places
+// the walk is the library's rule parsers' receiver and the standard's names for its tokens, written apart from the adapter on purpose (library-walk-is-its-own): the second implementation is the proof, and a split would be a file no adapter template places
 //! The standard's tree of a file, built from `cssparser`'s own reading and apart from the adapter: what the shape rail holds the
 //! adapter's tree to. Every token, function and simple block comes from the library's tokenizer and nested blocks, every rule and
 //! declaration from its parsers' callbacks; each is nested in the smallest of the others that holds it. The kinds are named here by

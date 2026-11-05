@@ -1,0 +1,2159 @@
+{
+  "reference_version": "0.16.5",
+  "reference_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "command": [
+    "ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "$STATE",
+    "--select",
+    "$RULE",
+    "--target-version",
+    "$TARGET",
+    "--",
+    "$FILES"
+  ],
+  "environment": {
+    "RAYON_NUM_THREADS": "1"
+  },
+  "saved_draft_manifest_sha256": "43f2587a8c9af3674237fcc9f1d309f189431a58c299356ff77d46e94da621a0",
+  "cases": [
+    {
+      "rule": "FA100",
+      "name": "upstream-edge_case.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "edge_case.py",
+          "start": 57,
+          "end": 61
+        },
+        {
+          "rule": "FA100",
+          "file": "edge_case.py",
+          "start": 89,
+          "end": 95
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "edge_case.py",
+          "start": 57,
+          "end": 61
+        },
+        {
+          "rule": "FA100",
+          "file": "edge_case.py",
+          "start": 89,
+          "end": 95
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "f7d35934ad82f32c8255964b190d0fdebcf5fca33b2ba8441645edfdd87d4b27",
+      "files": [
+        "edge_case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-edge_case.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "f7d35934ad82f32c8255964b190d0fdebcf5fca33b2ba8441645edfdd87d4b27",
+      "files": [
+        "edge_case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-from_typing_import.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "from_typing_import.py",
+          "start": 58,
+          "end": 62
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "from_typing_import.py",
+          "start": 58,
+          "end": 62
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "cd4457c8f27b280cf39d0f0f8cfa8277f4e353e441ea6d15df1407916814e799",
+      "files": [
+        "from_typing_import.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-from_typing_import.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "cd4457c8f27b280cf39d0f0f8cfa8277f4e353e441ea6d15df1407916814e799",
+      "files": [
+        "from_typing_import.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-from_typing_import_many.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "from_typing_import_many.py",
+          "start": 92,
+          "end": 96
+        },
+        {
+          "rule": "FA100",
+          "file": "from_typing_import_many.py",
+          "start": 97,
+          "end": 105
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "from_typing_import_many.py",
+          "start": 92,
+          "end": 96
+        },
+        {
+          "rule": "FA100",
+          "file": "from_typing_import_many.py",
+          "start": 97,
+          "end": 105
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "8e9a53a72381f4c4e6e0861d4a8b47ef1b1f6c12ae0f28eff58507fa7f852ab4",
+      "files": [
+        "from_typing_import_many.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-from_typing_import_many.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "8e9a53a72381f4c4e6e0861d4a8b47ef1b1f6c12ae0f28eff58507fa7f852ab4",
+      "files": [
+        "from_typing_import_many.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-import_typing.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "import_typing.py",
+          "start": 48,
+          "end": 59
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "import_typing.py",
+          "start": 48,
+          "end": 59
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "459a4ac4081fc5e241babff1b8d48ee36dd416e1b8fb855bd91e8c855837f945",
+      "files": [
+        "import_typing.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-import_typing.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "459a4ac4081fc5e241babff1b8d48ee36dd416e1b8fb855bd91e8c855837f945",
+      "files": [
+        "import_typing.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-import_typing_as.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "import_typing_as.py",
+          "start": 53,
+          "end": 59
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "import_typing_as.py",
+          "start": 53,
+          "end": 59
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "fc564fd1a6c181fdc5a914b47a748f8392675c8cc8eb0e97666ba1e238234c4c",
+      "files": [
+        "import_typing_as.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-import_typing_as.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "fc564fd1a6c181fdc5a914b47a748f8392675c8cc8eb0e97666ba1e238234c4c",
+      "files": [
+        "import_typing_as.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-no_future_import_uses_lowercase.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "c2f0307792d0a3603b903b23c9fbdcc770c7562d10d20a35a5ea1e067c903727",
+      "files": [
+        "no_future_import_uses_lowercase.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-no_future_import_uses_lowercase.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "c2f0307792d0a3603b903b23c9fbdcc770c7562d10d20a35a5ea1e067c903727",
+      "files": [
+        "no_future_import_uses_lowercase.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-no_future_import_uses_union.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d0bc91b1a93c2abc076bf688be23b285d494b4f508f4c630a59d0e8ef37f6ceb",
+      "files": [
+        "no_future_import_uses_union.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-no_future_import_uses_union.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d0bc91b1a93c2abc076bf688be23b285d494b4f508f4c630a59d0e8ef37f6ceb",
+      "files": [
+        "no_future_import_uses_union.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-no_future_import_uses_union_inner.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d78b3afdad2bf2568242cfe19200e59a2433bbb2a365cbd8265a6e492f723ebf",
+      "files": [
+        "no_future_import_uses_union_inner.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-no_future_import_uses_union_inner.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d78b3afdad2bf2568242cfe19200e59a2433bbb2a365cbd8265a6e492f723ebf",
+      "files": [
+        "no_future_import_uses_union_inner.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_no_types.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "448aabf6f26d4c917eb924f6a14ec99dda0b48a4ab9ed0b7881d9caf1ee732ba",
+      "files": [
+        "ok_no_types.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_no_types.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "448aabf6f26d4c917eb924f6a14ec99dda0b48a4ab9ed0b7881d9caf1ee732ba",
+      "files": [
+        "ok_no_types.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_non_simplifiable_types.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "e39c6d01e3de9a0ce96205da30844d42989e24e8ffa4bb3fd9a22cbc084a3815",
+      "files": [
+        "ok_non_simplifiable_types.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_non_simplifiable_types.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "e39c6d01e3de9a0ce96205da30844d42989e24e8ffa4bb3fd9a22cbc084a3815",
+      "files": [
+        "ok_non_simplifiable_types.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_uses_future.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "3f8de2e5f383d880fec0a567c659924ea9339126a768296b4e17f3309d537912",
+      "files": [
+        "ok_uses_future.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_uses_future.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "3f8de2e5f383d880fec0a567c659924ea9339126a768296b4e17f3309d537912",
+      "files": [
+        "ok_uses_future.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_variable_name.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "56aeee9662da80520423fd6725ae2ddbd8682dbf54bb1c6791c5da48d4d7632f",
+      "files": [
+        "ok_variable_name.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "upstream-ok_variable_name.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "56aeee9662da80520423fd6725ae2ddbd8682dbf54bb1c6791c5da48d4d7632f",
+      "files": [
+        "ok_variable_name.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "old-list",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 27,
+          "end": 31
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 27,
+          "end": 31
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "8fff79d4487b20c9d2e9453c09251a176880efacdca3f9f88a6fb05962ff57ff",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "old-list",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "8fff79d4487b20c9d2e9453c09251a176880efacdca3f9f88a6fb05962ff57ff",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "old-optional",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 31,
+          "end": 39
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 31,
+          "end": 39
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "e09f8fba6c7633f871d78d1b5de2dea50b51fcbf35529272b04aa2abebeba463",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "old-optional",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "e09f8fba6c7633f871d78d1b5de2dea50b51fcbf35529272b04aa2abebeba463",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "old-union",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 28,
+          "end": 33
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 28,
+          "end": 33
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "edba7f2dcafac7693d28091748e5260ee0b70fa7fb1a3c5186edf8fb92b31026",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "old-union",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "edba7f2dcafac7693d28091748e5260ee0b70fa7fb1a3c5186edf8fb92b31026",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "ordinary-value",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "b5a43ba9cfd4c42732f09bb6f80899c1644cc9b4738e6f5e11ee35712fe3a7d9",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "ordinary-value",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "b5a43ba9cfd4c42732f09bb6f80899c1644cc9b4738e6f5e11ee35712fe3a7d9",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "future-import",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "ad838bcdc3522f5e421a77e9e510be455e3d813f32a5234847125924a7db0e2d",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "future-import",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "ad838bcdc3522f5e421a77e9e510be455e3d813f32a5234847125924a7db0e2d",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "local-annotation",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 40,
+          "end": 44
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 40,
+          "end": 44
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "cd8bd578b4699b9fcc7b529259e02e59a6508dc7a36361efa72a149a46d4f451",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "local-annotation",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "cd8bd578b4699b9fcc7b529259e02e59a6508dc7a36361efa72a149a46d4f451",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "runtime-quoted-optional",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "deb5f0c8a1d379bf937f3f0734d7c7d5c68dc3f9c8d04b7e36942d81c9a223c2",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "runtime-quoted-optional",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "deb5f0c8a1d379bf937f3f0734d7c7d5c68dc3f9c8d04b7e36942d81c9a223c2",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "local-quoted-optional",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 44,
+          "end": 52
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 44,
+          "end": 52
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "62a26325277da6f3b3503c21e1f371613a6323ef05b2eb8a0f2f57b0c9bcb772",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "local-quoted-optional",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "62a26325277da6f3b3503c21e1f371613a6323ef05b2eb8a0f2f57b0c9bcb772",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "already-modern",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d279b15e71c849dca598cea0a74a6f84b731e3e8d87e6700634daf8581a9a818",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "already-modern",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d279b15e71c849dca598cea0a74a6f84b731e3e8d87e6700634daf8581a9a818",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "nonmapped-typing",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "cf521120fd33769b16f71246d3b62ff15656671790c83971bf664a41b5453987",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "nonmapped-typing",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "cf521120fd33769b16f71246d3b62ff15656671790c83971bf664a41b5453987",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "shadowed-symbol",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "146ce5dfef4c3fdc90cfb6cc391c6f8952ae08df527cdffd49d4eb62dad81c60",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "shadowed-symbol",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "146ce5dfef4c3fdc90cfb6cc391c6f8952ae08df527cdffd49d4eb62dad81c60",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "union-star",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 34,
+          "end": 40
+        }
+      ],
+      "findings": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 34,
+          "end": 40
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "b8733cbaa9151a61a687cc78ea15fce5638ad9510a52fe82a05597769822c120",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "union-star",
+      "target": "py310",
+      "expected": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 34,
+          "end": 40
+        }
+      ],
+      "findings": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 34,
+          "end": 40
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "b8733cbaa9151a61a687cc78ea15fce5638ad9510a52fe82a05597769822c120",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "stub-context",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "01ffc8af045f799c70f2d0829ad855925b40fe4d4de6ebb5b0f9401e07c420f1",
+      "files": [
+        "case.pyi"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "stub-context",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "01ffc8af045f799c70f2d0829ad855925b40fe4d4de6ebb5b0f9401e07c420f1",
+      "files": [
+        "case.pyi"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "suppressed",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "cc0cb59b77d822c3f3117439ad8fe3155871a83d75d0497e30b00038c066ec38",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "suppressed",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "cc0cb59b77d822c3f3117439ad8fe3155871a83d75d0497e30b00038c066ec38",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "unrelated-noqa",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 27,
+          "end": 31
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA100",
+          "file": "case.py",
+          "start": 27,
+          "end": 31
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "f6c64532cebca46830882c6f4c9f9b4d2075ceffcd100c5e379620b16e42e3f7",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA100",
+      "name": "unrelated-noqa",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "f6c64532cebca46830882c6f4c9f9b4d2075ceffcd100c5e379620b16e42e3f7",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_lowercase.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_lowercase.py",
+          "start": 89,
+          "end": 103
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_lowercase.py",
+          "start": 89,
+          "end": 103
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "c2f0307792d0a3603b903b23c9fbdcc770c7562d10d20a35a5ea1e067c903727",
+      "files": [
+        "no_future_import_uses_lowercase.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_lowercase.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "c2f0307792d0a3603b903b23c9fbdcc770c7562d10d20a35a5ea1e067c903727",
+      "files": [
+        "no_future_import_uses_lowercase.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_preview_generics.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 600,
+          "end": 619
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 631,
+          "end": 648
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 668,
+          "end": 690
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 716,
+          "end": 749
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 769,
+          "end": 802
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 821,
+          "end": 845
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 862,
+          "end": 892
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 915,
+          "end": 953
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 982,
+          "end": 1025
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1048,
+          "end": 1070
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1089,
+          "end": 1119
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1141,
+          "end": 1169
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1186,
+          "end": 1202
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1220,
+          "end": 1240
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1261,
+          "end": 1277
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1299,
+          "end": 1323
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1343,
+          "end": 1365
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1386,
+          "end": 1401
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1420,
+          "end": 1433
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1453,
+          "end": 1480
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1505,
+          "end": 1537
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1554,
+          "end": 1576
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1597,
+          "end": 1629
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1650,
+          "end": 1688
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1707,
+          "end": 1730
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1746,
+          "end": 1766
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1789,
+          "end": 1829
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1846,
+          "end": 1860
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1877,
+          "end": 1902
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1924,
+          "end": 1942
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1964,
+          "end": 1982
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2005,
+          "end": 2030
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2046,
+          "end": 2059
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2075,
+          "end": 2088
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2105,
+          "end": 2131
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2149,
+          "end": 2164
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2181,
+          "end": 2195
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2213,
+          "end": 2228
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2248,
+          "end": 2268
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2283,
+          "end": 2291
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2310,
+          "end": 2325
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2340,
+          "end": 2357
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2380,
+          "end": 2404
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2420,
+          "end": 2433
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2457,
+          "end": 2477
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2496,
+          "end": 2511
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2531,
+          "end": 2552
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2569,
+          "end": 2582
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2600,
+          "end": 2619
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2638,
+          "end": 2653
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 600,
+          "end": 619
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 631,
+          "end": 648
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 668,
+          "end": 690
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 716,
+          "end": 749
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 769,
+          "end": 802
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 821,
+          "end": 845
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 862,
+          "end": 892
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 915,
+          "end": 953
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 982,
+          "end": 1025
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1048,
+          "end": 1070
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1089,
+          "end": 1119
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1141,
+          "end": 1169
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1186,
+          "end": 1202
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1220,
+          "end": 1240
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1261,
+          "end": 1277
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1299,
+          "end": 1323
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1343,
+          "end": 1365
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1386,
+          "end": 1401
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1420,
+          "end": 1433
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1453,
+          "end": 1480
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1505,
+          "end": 1537
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1554,
+          "end": 1576
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1597,
+          "end": 1629
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1650,
+          "end": 1688
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1707,
+          "end": 1730
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1746,
+          "end": 1766
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1789,
+          "end": 1829
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1846,
+          "end": 1860
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1877,
+          "end": 1902
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1924,
+          "end": 1942
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 1964,
+          "end": 1982
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2005,
+          "end": 2030
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2046,
+          "end": 2059
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2075,
+          "end": 2088
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2105,
+          "end": 2131
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2149,
+          "end": 2164
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2181,
+          "end": 2195
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2213,
+          "end": 2228
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2248,
+          "end": 2268
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2283,
+          "end": 2291
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2310,
+          "end": 2325
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2340,
+          "end": 2357
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2380,
+          "end": 2404
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2420,
+          "end": 2433
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2457,
+          "end": 2477
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2496,
+          "end": 2511
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2531,
+          "end": 2552
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2569,
+          "end": 2582
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2600,
+          "end": 2619
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_preview_generics.py",
+          "start": 2638,
+          "end": 2653
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "ff53bd8f11a918af4c42f7854814a28e93db3b50d2d8f304fcf291a4e2c7bbad",
+      "files": [
+        "no_future_import_uses_preview_generics.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_preview_generics.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "ff53bd8f11a918af4c42f7854814a28e93db3b50d2d8f304fcf291a4e2c7bbad",
+      "files": [
+        "no_future_import_uses_preview_generics.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_union.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union.py",
+          "start": 96,
+          "end": 110
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union.py",
+          "start": 96,
+          "end": 117
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union.py",
+          "start": 96,
+          "end": 110
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union.py",
+          "start": 96,
+          "end": 117
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "d0bc91b1a93c2abc076bf688be23b285d494b4f508f4c630a59d0e8ef37f6ceb",
+      "files": [
+        "no_future_import_uses_union.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_union.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d0bc91b1a93c2abc076bf688be23b285d494b4f508f4c630a59d0e8ef37f6ceb",
+      "files": [
+        "no_future_import_uses_union.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_union_inner.py",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union_inner.py",
+          "start": 96,
+          "end": 117
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union_inner.py",
+          "start": 101,
+          "end": 111
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union_inner.py",
+          "start": 96,
+          "end": 117
+        },
+        {
+          "rule": "FA102",
+          "file": "no_future_import_uses_union_inner.py",
+          "start": 101,
+          "end": 111
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "d78b3afdad2bf2568242cfe19200e59a2433bbb2a365cbd8265a6e492f723ebf",
+      "files": [
+        "no_future_import_uses_union_inner.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-no_future_import_uses_union_inner.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d78b3afdad2bf2568242cfe19200e59a2433bbb2a365cbd8265a6e492f723ebf",
+      "files": [
+        "no_future_import_uses_union_inner.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-ok_no_types.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "448aabf6f26d4c917eb924f6a14ec99dda0b48a4ab9ed0b7881d9caf1ee732ba",
+      "files": [
+        "ok_no_types.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-ok_no_types.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "448aabf6f26d4c917eb924f6a14ec99dda0b48a4ab9ed0b7881d9caf1ee732ba",
+      "files": [
+        "ok_no_types.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-ok_uses_future.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "3f8de2e5f383d880fec0a567c659924ea9339126a768296b4e17f3309d537912",
+      "files": [
+        "ok_uses_future.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-ok_uses_future.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "3f8de2e5f383d880fec0a567c659924ea9339126a768296b4e17f3309d537912",
+      "files": [
+        "ok_uses_future.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-ok_quoted_type.py",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "0409792bb51c195021e167d010b124c6b718567e7131db9485917f5ee1394b27",
+      "files": [
+        "ok_quoted_type.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "upstream-ok_quoted_type.py",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "0409792bb51c195021e167d010b124c6b718567e7131db9485917f5ee1394b27",
+      "files": [
+        "ok_quoted_type.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "eager-generic",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 3,
+          "end": 12
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 3,
+          "end": 12
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "d279b15e71c849dca598cea0a74a6f84b731e3e8d87e6700634daf8581a9a818",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "eager-generic",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "d279b15e71c849dca598cea0a74a6f84b731e3e8d87e6700634daf8581a9a818",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "local-generic",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "df5447bed76f2748e92000206ee90c6462cc7d28567bc0a79e70c6a454e96db3",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "local-generic",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "df5447bed76f2748e92000206ee90c6462cc7d28567bc0a79e70c6a454e96db3",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "eager-union",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 3,
+          "end": 12
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 3,
+          "end": 12
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "70d15cb1e88af2be1bc9507ad1cc465299c2decbb1783a554254adf13ad19ae7",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "eager-union",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "70d15cb1e88af2be1bc9507ad1cc465299c2decbb1783a554254adf13ad19ae7",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "local-union",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "2b471445a7632164f1e26bab15e2e803e96ca56bc24f52dfa4428f468a7daefa",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "local-union",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "2b471445a7632164f1e26bab15e2e803e96ca56bc24f52dfa4428f468a7daefa",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "future-generic",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "bb6666fddb412d4ce919f448c17b61e7f71e5b21692bb0fb257879e0ee82457b",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "future-generic",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "bb6666fddb412d4ce919f448c17b61e7f71e5b21692bb0fb257879e0ee82457b",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "future-union",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "5d44fad29aa4e9799f88ba3d5df0fbbef69aa8537f176b9a90a21e2e2d29151e",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "future-union",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "5d44fad29aa4e9799f88ba3d5df0fbbef69aa8537f176b9a90a21e2e2d29151e",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "quoted-union",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "9e789bc11313fa46a5ef8693aa3db17e1bb332d7ddeebeb6906acd1e56f42a52",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "quoted-union",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "9e789bc11313fa46a5ef8693aa3db17e1bb332d7ddeebeb6906acd1e56f42a52",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "ordinary-value",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "375ff10ef17bdb66cc5fa6ae16fb7d0f1085974f6c956ed0863b59f5377a3d0a",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "ordinary-value",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "375ff10ef17bdb66cc5fa6ae16fb7d0f1085974f6c956ed0863b59f5377a3d0a",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "typing-alias",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "8fff79d4487b20c9d2e9453c09251a176880efacdca3f9f88a6fb05962ff57ff",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "typing-alias",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "8fff79d4487b20c9d2e9453c09251a176880efacdca3f9f88a6fb05962ff57ff",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "runtime-generic-type",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "50a18e19e0a68d14aa5ae7eb866d9482c643f2223d15dd39a00daddf0a879d4c",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "runtime-generic-type",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "50a18e19e0a68d14aa5ae7eb866d9482c643f2223d15dd39a00daddf0a879d4c",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "standard-module",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 16,
+          "end": 32
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 16,
+          "end": 32
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "6dad27a537dcc06f4561362f3ef6b3ec534f353b0311401d1e506b8dbcf4a7ed",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "standard-module",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "6dad27a537dcc06f4561362f3ef6b3ec534f353b0311401d1e506b8dbcf4a7ed",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "signature",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 9,
+          "end": 18
+        },
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 23,
+          "end": 33
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 9,
+          "end": 18
+        },
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 23,
+          "end": 33
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "2194fa6e6d8cdc8c6432bc591c6885ef8d63f25b30df88776635ce78b80bc284",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "signature",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "2194fa6e6d8cdc8c6432bc591c6885ef8d63f25b30df88776635ce78b80bc284",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "stub-context",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "3d1b98b9d6bf56974d43ad49deb6b0bd8d76db54e93031207cf1b157a08d385c",
+      "files": [
+        "case.pyi"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "stub-context",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "3d1b98b9d6bf56974d43ad49deb6b0bd8d76db54e93031207cf1b157a08d385c",
+      "files": [
+        "case.pyi"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "suppressed",
+      "target": "py37",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "ff71d7af45f52f8ac33e71e688293f7037d3eab057778cb821992e283abf7194",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "suppressed",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "ff71d7af45f52f8ac33e71e688293f7037d3eab057778cb821992e283abf7194",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "unrelated-noqa",
+      "target": "py37",
+      "expected": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 3,
+          "end": 12
+        }
+      ],
+      "findings": [
+        {
+          "rule": "FA102",
+          "file": "case.py",
+          "start": 3,
+          "end": 12
+        }
+      ],
+      "returncode": 1,
+      "source_sha256": "c6a63038e330a9f7207ae98b7446ae1953c64bc92a12b34d00b83982c72b0cb3",
+      "files": [
+        "case.py"
+      ]
+    },
+    {
+      "rule": "FA102",
+      "name": "unrelated-noqa",
+      "target": "py310",
+      "expected": [],
+      "findings": [],
+      "returncode": 0,
+      "source_sha256": "c6a63038e330a9f7207ae98b7446ae1953c64bc92a12b34d00b83982c72b0cb3",
+      "files": [
+        "case.py"
+      ]
+    }
+  ],
+  "mismatches": [],
+  "scope": "All49 recovered cases executed under both explicitpy37 and defaultpy310. Every source and upstream fixture retained. Starred union argument invalid-syntax is now an explicit full-report expectation, not hidden by rule filtering. No RyoQL parser/typechecker or candidate replay was run."
+}

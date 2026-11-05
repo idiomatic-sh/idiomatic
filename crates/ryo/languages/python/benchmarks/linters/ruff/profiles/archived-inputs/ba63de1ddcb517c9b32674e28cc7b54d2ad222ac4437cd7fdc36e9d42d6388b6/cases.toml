@@ -1,0 +1,124 @@
+[[cases]]
+name = "aliased-module"
+files = { "case.py" = "import xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 7, end = 35 }]
+
+[[cases]]
+name = "module-without-alias"
+files = { "case.py" = "import xml.etree.cElementTree\n" }
+expected = []
+
+[[cases]]
+name = "aliased-member"
+files = { "case.py" = "from xml.etree import cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 22, end = 40 }]
+
+[[cases]]
+name = "member-without-alias"
+files = { "case.py" = "from xml.etree import cElementTree\n" }
+expected = []
+
+[[cases]]
+name = "from-module"
+files = { "case.py" = "from xml.etree.cElementTree import XML\n" }
+expected = [{ file = "case.py", start = 0, end = 38 }]
+
+[[cases]]
+name = "wildcard"
+files = { "case.py" = "from xml.etree.cElementTree import *\n" }
+expected = [{ file = "case.py", start = 0, end = 36 }]
+
+[[cases]]
+name = "relative"
+files = { "case.py" = "from .xml.etree.cElementTree import XML\n" }
+expected = []
+
+[[cases]]
+name = "different-module"
+files = { "case.py" = "from xml.etree.ElementTree import XML\n" }
+expected = []
+
+[[cases]]
+name = "multiple"
+files = { "case.py" = "from xml.etree.cElementTree import XML, parse\n" }
+expected = [{ file = "case.py", start = 0, end = 45 }]
+
+[[cases]]
+name = "multiple-imports"
+files = { "case.py" = "import os, xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 11, end = 39 }]
+
+[[cases]]
+name = "different-submodule"
+files = { "case.py" = "import xml.etree.cElementTree.XML as XML\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "def f():\n    from xml.etree.cElementTree import XML\n" }
+expected = [{ file = "case.py", start = 13, end = 51 }]
+
+[[cases]]
+name = "stub"
+files = { "case.pyi" = "import xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.pyi", start = 7, end = 35 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import xml.etree.cElementTree as ET # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "import xml.etree.cElementTree as ET # noqa: UP023\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "import xml.etree.cElementTree as ET # noqa: F401\n" }
+expected = [{ file = "case.py", start = 7, end = 35 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nimport xml.etree.cElementTree as ET\n" }
+expected = []
+
+[[cases]]
+name = "continued-import-noqa"
+files = { "case.py" = "from xml.etree import cElementTree \\\n    as ET  # noqa: UP023\n" }
+expected = []
+
+[[cases]]
+name = "continued-import-before-token-noqa"
+files = { "case.py" = "from xml.etree \\\n import cElementTree \\\n    as ET  # noqa: UP023\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[UP023]\nimport xml.etree.cElementTree as ET\n\n# ruff: enable[UP023]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[UP023]\n# ruff: enable[UP023]\nimport xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 52, end = 80 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[UP023]\nimport xml.etree.cElementTree as ET\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nimport xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 29, end = 57 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[UP023]\nimport xml.etree.cElementTree as ET\n" }
+expected = []
+
+[[cases]]
+name = "continuation-bare-cr"
+files = { "case.py" = "from xml.etree import cElementTree \\\r as ET # noqa: UP023\r" }
+expected = []

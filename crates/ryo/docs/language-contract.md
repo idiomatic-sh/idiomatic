@@ -111,7 +111,7 @@ The tree is one template followed over and over, so that it is simple to guess a
 
 ```text
 languages/<lang>/
-  Cargo.toml  tastemaker.toml  README.md  benches/performance.rs   (the bench is always there, placed at count 1: the corpus is the workload)
+  Cargo.toml  tastemaker.toml  README.md  benchmarks/provider/bench.rs   (the bench is always there, placed at count 1: the corpus is the workload)
   src/
     lib.rs (link!)  cases.rs
     inbound/contracts/{parse,project}/contract.rs

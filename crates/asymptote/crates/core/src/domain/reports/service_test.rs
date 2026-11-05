@@ -165,6 +165,7 @@ fn report(status: Status) -> Report {
     Report {
         head: Head::Detached,
         scanned: vec![Scanned {
+            failure_output: crate::domain::reports::types::FailureOutput::Unavailable,
             run: Run {
                 tool: ToolId("t".into()),
                 status,

@@ -1,0 +1,41 @@
+[[cases]]
+name = "star-width-dict"
+comparison = "full"
+files = { "case.py" = "\"%*s\" % {\"width\": 4}\n" }
+expected = [{ rule = "F508", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "star-width-precision-dict"
+comparison = "full"
+files = { "case.py" = "\"%*.*s\" % {\"width\": 4}\n" }
+expected = [{ rule = "F508", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "star-width-tuple"
+comparison = "full"
+files = { "case.py" = "\"%*s\" % (4, \"x\")\n" }
+expected = []
+
+[[cases]]
+name = "fixed-width-dict"
+comparison = "full"
+files = { "case.py" = "\"%4s\" % {\"name\": \"x\"}\n" }
+expected = []
+
+[[cases]]
+name = "mapping-width-dict"
+comparison = "full"
+files = { "case.py" = "\"%(name)*s\" % {\"name\": \"x\"}\n" }
+expected = [{ rule = "F508", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "escaped-percent-dict"
+comparison = "full"
+files = { "case.py" = "\"%%\" % {\"name\": \"x\"}\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-format"
+comparison = "full"
+files = { "case.py" = "format_value % {\"name\": \"x\"}\n" }
+expected = []

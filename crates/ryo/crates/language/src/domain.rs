@@ -8,12 +8,11 @@ pub mod elements;
 pub mod expansions;
 pub mod files;
 pub mod kind_index;
-#[macro_use]
-pub mod kinds;
+pub mod location;
+pub mod project_context;
 pub mod reasons;
-pub mod relations;
+pub mod semantics;
 pub mod symbols;
 pub mod targets;
-pub mod terms;
 pub mod trees;
 pub mod words;

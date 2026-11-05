@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one arm for each kind of TypeScript-ESTree node, each naming the property that holds the child: the table of the properties is the proof, and splitting it would split that table
+// one arm for each kind of TypeScript-ESTree node, each naming the property that holds the child: the table of the properties is the proof, and splitting it would split that table
 //! The `fields` service: free functions named by verb that say the role of an element under its parent. The tree is TypeScript-ESTree's,
 //! and the role of a child is the property of its parent that holds it (`@typescript-eslint/visitor-keys`). The parser's visitor reports
 //! no property, so a role is read from the kinds of the parent and the child, from where the child stands among the nodes beside it, and,
@@ -48,7 +48,7 @@ fn spelled<'a>(tree: &Tree<'a>, at: Position) -> languages::NameText<'a> {
         tree.source
             .0
             .get(from..to)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
             .unwrap_or_default(),
     )
 }

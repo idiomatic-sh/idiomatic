@@ -1,0 +1,40 @@
+{
+  "command": [
+    "/tmp/owner-perf-bench-f09b-20261103/ruff-worker",
+    "diagnostic-ryo",
+    "--request-file",
+    "/tmp/owner-django-candidate-routes-20261103/request.json",
+    "python-target=3.10",
+    "/tmp/owner-django-candidate-routes-20261103/events.jsonl"
+  ],
+  "coverage": {
+    "evaluated": 890943,
+    "selected": 891250,
+    "skipped": 307,
+    "unknown_or_unread": 0
+  },
+  "diagnostic_only": true,
+  "diagnostics": 2327,
+  "env": {
+    "RAYON_NUM_THREADS": "1",
+    "RYO_DIAGNOSTIC_EXECUTION": "1",
+    "RYO_DIAGNOSTIC_RESOURCE_ROUTES": "1",
+    "RYO_DIAGNOSTIC_STEPS": "0",
+    "RYO_FILE_DAG_EXECUTION": "1",
+    "RYO_FILE_PROGRAM_GRAPH": "0"
+  },
+  "events_bytes": 17913391401,
+  "events_sha256": "b03be17661963162ead2e68b250bbce5974e63de5d9e59799cc00148174c7137",
+  "exit_code": 0,
+  "report_equal_frozen": true,
+  "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+  "request_sha256": "576fe241ddfcec713946da4b9b498c7b510b799e9f3dbff6846973879dbfe8c8",
+  "schema": "owner-django-routes/v1",
+  "script_sha256": "a5bb277a267d87b7c0591ea0fe0460580dfb67a7907861a4f2fd965002f96ddc",
+  "source_commit": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "source_manifest_sha256": "3b4cf4257dda9174d5340e282fd15b995f013f6358d803ac380c71bc27b9feaa",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "f796e0a039c3dc1298cb8cf995bca2fdfa5cc37006d246d6aeb5a5f2cbd83d4d",
+  "wall_seconds_diagnostic": 358.91857864800113,
+  "worker_sha256": "aaace83ca21a1726a0f5ea7a25f88c10466f4c8fc82b36488ee76d1b88bda207"
+}

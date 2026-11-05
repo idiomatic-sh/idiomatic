@@ -1,26 +1,29 @@
 //! The `ordering` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::{CellKind, FileId, Offset, Span, Value as Cell};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Offset, Span, Value as Cell};
+use ryo_values::domain::files::types::SourceView;
 
 use super::service::{append, offer, sort_findings};
 use super::types::{Ordered, Turn};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use crate::domain::finish::types::{ColumnNumber, FileLine, LineStarts, RuleNumber};
 use crate::domain::render::service::{end_row, key_count, lent_row, render_rows, row_cells};
 use crate::domain::render::types::{
     FindingRule, KeyCount, RenderInput, Rendered, RowLayout, RowLimit, RowNumber, RowOrder, Shown,
 };
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
+use ryo_values::domain::rows::service::push_row;
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber,
+};
+
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::records::service::keep;
@@ -355,3 +358,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

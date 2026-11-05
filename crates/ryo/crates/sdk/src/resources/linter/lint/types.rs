@@ -1,14 +1,17 @@
 //! The types of `linter lint`: what a caller states and what comes back. They are the SDK's own: nothing of the core is in them.
 
+/// Edge-observed POSIX executable-bit knowledge, independent of file content.
+pub use ryo_values::domain::files::types::ExecutablePermission;
+
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use ryo_core::outbound::language::interface::LanguagePort;
-use ryo_core::outbound::matching::interface::MatchingPort;
-use ryo_core::outbound::query_language::interface::QueryLanguagePort;
 use ryo_core::outbound::scheduler::{interface::SchedulerPort, types::WorkerCount};
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, Slot};
@@ -22,7 +25,7 @@ use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleId(Box<str>);
 
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-text - the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
+// the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
 impl RuleId {
     /// A rule id of `text`, which the core holds or a schema has checked: what the sibling schemas build, never a caller.
     pub(super) const fn from_text(text: Box<str>) -> Self {
@@ -46,7 +49,7 @@ impl AsRef<str> for RuleId {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Glob(Box<str>);
 
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-text - the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
+// the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
 impl Glob {
     /// A glob of `text`, which a schema has checked: what the sibling schemas build, never a caller.
     pub(super) const fn from_text(text: Box<str>) -> Self {
@@ -95,7 +98,10 @@ pub(crate) enum Reading {
     /// From the disk, walked or as listed, with the files given beside it.
     Disk(CorpusListing, Vec<CorpusFile>),
     /// Only the files given as text.
-    Memory(Vec<CorpusFile>),
+    Memory(
+        Vec<CorpusFile>,
+        ryo_language::domain::project_context::types::GivenProjectInventory,
+    ),
 }
 
 /// Where a run keeps what it leaves for the next. The repository is never written to unless the caller names it.
@@ -108,16 +114,38 @@ pub enum Cache {
     At(PathBuf),
 }
 
+/// Whether a rule runs on every admitted file or only explicitly accepted syntax.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum RuleApplicability {
+    /// Run regardless of parser acceptance.
+    #[default]
+    Always,
+    /// Run only when the language provider accepted the file's syntax.
+    AcceptedSyntax,
+}
+
+/// Why the linter explicitly skipped a rule for one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SkipReason {
+    /// The language provider explicitly rejected the file's syntax.
+    SyntaxRejected,
+}
+
 /// One rule: a query whose rows are violations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rule {
+    /// Explicit producer outputs bound to local query input names.
+    pub observations: Vec<ObservationBinding>,
     /// The RyoQL text.
     pub query: RyoQlQuery,
+    /// Whether the rule runs on every parse or only files whose syntax the provider accepted.
+    pub applicability: RuleApplicability,
     /// What the query's parameters are bound to, by name.
     pub parameters: BTreeMap<ParameterName, ParameterValue>,
     /// The files the rule governs; none means every file.
     pub include: Vec<Glob>,
-    /// The files it does not govern.
+    /// Files excluded from diagnostic emission. Explicitly demanded observation roots
+    /// still compute independently; unavailable or incompatible inputs remain unknown.
     pub exclude: Vec<Glob>,
 }
 
@@ -137,6 +165,8 @@ pub struct Linter(LinterLintEngine);
 /// What every run over one linter shares: the directories the linked languages skip, the language port over them, the
 /// compiler of queries, the matching, the plans compiled so far, the build that runs and where runs that keep nothing spill.
 pub(crate) struct LinterLintEngine {
+    /// Explicit execution choices bound by the edge.
+    pub execution: ExecutionOptions,
     /// The directories every walk skips.
     pub skipped: ryo_core::outbound::corpus::types::SkippedDirectories,
     /// The linked languages, behind the language port.
@@ -146,7 +176,7 @@ pub(crate) struct LinterLintEngine {
     /// The matching every run checks its globs with: a set made once is not made again.
     pub matching: Arc<dyn MatchingPort>,
     /// The plans compiled so far, by rule id.
-    pub plans: ryo_core::inbound::use_cases::lint::types::CompiledPlans,
+    pub plans: ryo_execution::inbound::use_cases::execution::types::CompiledPlans,
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on.
@@ -160,6 +190,11 @@ pub(crate) struct LinterLintEngine {
 }
 
 impl Linter {
+    /// Update composition-owned execution options for the public builder entry.
+    pub(super) fn set_execution(&mut self, execution: ExecutionOptions) {
+        self.0.execution = execution;
+    }
+
     /// The linter over `engine`, which its sibling entry builds, never a caller.
     pub(super) const fn over(engine: LinterLintEngine) -> Self {
         Self(engine)
@@ -181,8 +216,14 @@ impl std::fmt::Debug for Linter {
 /// The rules to check in a repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
+    /// Explicit provider for these sources; none preserves ordinary path recognition.
+    pub source_language: Option<crate::domain::language::types::LanguageName>,
     /// The repository's root directory.
     pub root: PathBuf,
+    /// Explicit ordered import roots; undeclared scope keeps project membership unknown.
+    pub project_search_scope: ProjectSearchScope,
+    /// Separate host entry inventory for Given corpus requests.
+    pub given_project_inventory: GivenProjectInventory,
     /// The rules, by the id their findings carry.
     pub rules: BTreeMap<RuleId, Rule>,
     /// Only findings in these files are reported; none means every file.
@@ -207,6 +248,52 @@ pub enum Corpus {
     Given(Vec<CaseSource>),
 }
 
+/// Explicit host authority for project import roots; an empty declared list is meaningful.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum ProjectSearchScope {
+    /// No roots were declared, so local membership cannot be proved absent.
+    #[default]
+    Undeclared,
+    /// Repository-relative search roots, in the order the host uses them.
+    Declared(Vec<RelativePath>),
+}
+
+/// How much of a Given project's search scope the host inventoried.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProjectInventoryCompleteness {
+    /// An entry omitted from the inventory remains unknown.
+    #[default]
+    Partial,
+    /// Omitted entries within the declared scope are absent.
+    CompleteWithinDeclaredScope,
+}
+
+/// One host-observed candidate entry, separate from source text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectEntryObservation {
+    /// Repository-relative candidate path.
+    pub path: RelativePath,
+    /// Its observed kind.
+    pub state: ProjectEntryState,
+}
+
+/// Entry kinds available to a Given project's namespace lookup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectEntryState {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+/// Explicit Given inventory and its absence authority; no disk probing is implied.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GivenProjectInventory {
+    pub entries: Vec<ProjectEntryObservation>,
+    pub completeness: ProjectInventoryCompleteness,
+}
+
 /// The place of a row among the rows of a relation the host declares, from one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RowNumber(pub usize);
@@ -218,6 +305,8 @@ pub struct SourceText(pub Box<str>);
 /// A file given as text, for the run to read instead of the disk.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CaseSource {
+    /// Explicit edge observation; unknown preserves text-only input semantics.
+    pub executable: ExecutablePermission,
     /// The file, relative to the root.
     pub path: RelativePath,
     /// What it holds.
@@ -310,12 +399,49 @@ pub enum Port {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct LintReport {
+    /// Required project lookups, reported also when the project was reused from cache.
+    pub dependencies: Vec<ProjectDependency>,
     /// Every violation found.
     pub findings: Vec<Finding>,
     /// The files no linked language read, with why.
     pub unread: Vec<Unread>,
     /// What the rules could not decide.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped because a file's syntax was rejected.
+    pub skipped: Vec<Skipped>,
+}
+
+/// An opaque project dependency content fingerprint. Use `dependency_fingerprint` to compare bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DependencyFingerprint(pub [u8; 16]);
+
+/// One file the project examined, whether present or absent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectDependency {
+    /// Path from the run root, possibly containing `../`.
+    pub path: RelativePath,
+    /// The observed bytes' fingerprint, or an explicitly missing file.
+    pub state: ProjectDependencyState,
+}
+
+/// State of a required project lookup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectDependencyState {
+    /// Content fingerprint supplied by the engine's digest adapter.
+    Present(DependencyFingerprint),
+    /// The path was examined and no file was present.
+    Missing,
+}
+
+/// A rule the engine did not run for a file because its applicability condition was not met.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Skipped {
+    /// The rule.
+    pub rule: RuleId,
+    /// The file.
+    pub path: RelativePath,
+    /// Why the rule was skipped.
+    pub reason: SkipReason,
 }
 
 /// A relation the host declares beside ryo's own: the name a rule writes, the columns its rows have, and the rows.
@@ -389,4 +515,46 @@ pub struct ParameterCell {
     pub key: ParameterText,
     /// The text.
     pub value: ParameterText,
+}
+
+/// Whether the common file DAG may retain optional completed node results.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NodeResultReuse {
+    /// Required live consumer leases remain; optional completed node retention is disabled.
+    #[default]
+    Disabled,
+    /// Admit optional completed node results under the existing bounded policy.
+    Enabled,
+}
+
+/// Physical execution choices selected at the caller edge.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ExecutionOptions {
+    /// Optional node result retention; does not select a different executor.
+    pub node_result_reuse: NodeResultReuse,
+    /// Enable eligible column kernels.
+    pub column_kernel: bool,
+}
+
+/// An explicit named input supplied as the distinct set union of selected producer outputs.
+/// Adding an empty producer never changes multiplicity; zero producers produce the declared empty set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObservationBinding {
+    /// Local query source name; execution scope is inferred from actual producer plans.
+    pub name: crate::domain::observation::types::ObservationBindingName,
+    /// Required ordered column schema.
+    pub columns: Vec<crate::domain::observation::types::ObservationColumn>,
+    /// Selected producer declarations; no executable query is inferred from diagnostics.
+    pub producers: Vec<ObservationProducer>,
+}
+/// A selected producer's explicit output, or an explicit unavailable executable.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObservationProducer {
+    /// Read the named output of the selected rule's actual query.
+    Output {
+        rule: RuleId,
+        output: crate::domain::observation::types::ObservationName,
+    },
+    /// The selection contains the rule but no query is registered.
+    NoQuery { rule: RuleId },
 }

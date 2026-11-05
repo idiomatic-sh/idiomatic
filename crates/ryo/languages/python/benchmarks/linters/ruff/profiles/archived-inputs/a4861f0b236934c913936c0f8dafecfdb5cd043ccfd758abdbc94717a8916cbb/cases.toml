@@ -1,0 +1,39 @@
+[[cases]]
+name = "unused-private-typevar"
+files = { "case.pyi" = "from typing import TypeVar\n_Private = TypeVar(\"_Private\")\n" }
+expected = [{ file = "case.pyi", start = 27, end = 35 }]
+
+[[cases]]
+name = "used-private-typevar-control"
+files = { "case.pyi" = "from typing import TypeVar\n_Private = TypeVar(\"_Private\")\ndef f(value: _Private) -> _Private: ...\n" }
+expected = []
+
+[[cases]]
+name = "public-typevar-control"
+files = { "case.pyi" = "from typing import TypeVar\nPublic = TypeVar(\"Public\")\n" }
+expected = []
+
+[[cases]]
+name = "python-file-positive"
+files = { "case.py" = "from typing import TypeVar\n_Private = TypeVar(\"_Private\")\n" }
+expected = [{ file = "case.py", start = 27, end = 35 }]
+
+[[cases]]
+name = "unused-private-paramspec"
+files = { "case.pyi" = "from typing import ParamSpec\n_P = ParamSpec(\"P\")\n" }
+expected = [{ file = "case.pyi", start = 29, end = 31 }]
+
+[[cases]]
+name = "unused-private-typevartuple"
+files = { "case.pyi" = "from typing import TypeVarTuple\n_Ts = TypeVarTuple(\"Ts\")\n" }
+expected = [{ file = "case.pyi", start = 32, end = 35 }]
+
+[[cases]]
+name = "aliased-typevar"
+files = { "case.pyi" = "from typing import TypeVar as TV\n_T = TV(\"T\")\n" }
+expected = [{ file = "case.pyi", start = 33, end = 35 }]
+
+[[cases]]
+name = "suppressed-private-typevar"
+files = { "case.pyi" = "from typing import TypeVar\n_Private = TypeVar(\"_Private\")  # noqa: PYI018\n" }
+expected = []

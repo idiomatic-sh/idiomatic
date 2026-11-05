@@ -1,14 +1,14 @@
 //! The `project` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 
 use super::service::{reads_any, reads_project, with_consulted};
 use super::types::PlanReads;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::storing::types::MadeAgain;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digit.
 #[derive(Clone, Copy)]
@@ -30,6 +30,8 @@ type Failure = ();
 
 fn plan(frontier: Vec<PlanInput>, reads: &[Relation]) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: reads
             .iter()
@@ -48,6 +50,7 @@ fn plan(frontier: Vec<PlanInput>, reads: &[Relation]) -> Plan {
             headings: Vec::new(),
         },
         frontier,
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -69,7 +72,12 @@ fn subject(scenario: Input) -> Value {
             yes(reads_project(&manifests())) * 10 + yes(reads_project(&files()))
         }
         Scenario::ReadsAny => {
-            yes(reads_any(&[files(), manifests()])) * 10 + yes(reads_any(&[files(), files()]))
+            yes(reads_any(
+                &ryo_values::domain::run_metadata::service::from_plans(&[files(), manifests()]),
+            )) * 10
+                + yes(reads_any(
+                    &ryo_values::domain::run_metadata::service::from_plans(&[files(), files()]),
+                ))
         }
         Scenario::WithConsulted => {
             let project = [PlacedRule(1), PlacedRule(3)];
@@ -120,4 +128,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+#[test]
+fn primary_manifest_failure_marks_only_project_facts_unknown_and_keeps_its_context() {
+    let partials = super::service::unread_manifest_partials(
+        &[
+            Relation::PackageDependency,
+            Relation::Function,
+            Relation::FilesystemReadFailure,
+        ],
+        &ryo_language::domain::files::types::FilePath("pkg/Cargo.toml".into()),
+        "read denied",
+    );
+    assert_eq!(partials.len(), 1);
+    assert_eq!(partials[0].relation, Relation::PackageDependency);
+    assert_eq!(
+        partials[0].at, None,
+        "project incompleteness is not an error on an unrelated primary source"
+    );
+    assert!(partials[0].cause.0.contains("pkg/Cargo.toml"));
+    assert!(partials[0].cause.0.contains("read denied"));
 }

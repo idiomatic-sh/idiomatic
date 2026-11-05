@@ -1,0 +1,155 @@
+[[cases]]
+name = "getattr-valid"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"name\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 28 }]
+
+[[cases]]
+name = "getattr-default"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"name\", None)\n" }
+expected = []
+
+[[cases]]
+name = "getattr-keyword-default"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"name\", default=None)\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 42 }]
+
+[[cases]]
+name = "getattr-nested"
+comparison = "full"
+files = { "case.py" = "value = getattr(make(), \"name\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 31 }]
+
+[[cases]]
+name = "getattr-parenthesized"
+comparison = "full"
+files = { "case.py" = "value = getattr((obj), \"name\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 30 }]
+
+[[cases]]
+name = "getattr-extra-positional"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"name\", None, extra)\n" }
+expected = []
+
+[[cases]]
+name = "getattr-invalid-space"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"not a name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-keyword"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"class\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-private"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"__secret\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-dunder"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"__secret__\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 34 }]
+
+[[cases]]
+name = "getattr-unicode"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"\u03c0\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 26 }]
+
+[[cases]]
+name = "getattr-trailing-private"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"__secret_\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-empty-dunder"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"__\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 26 }]
+
+[[cases]]
+name = "getattr-soft-keyword"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"match\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 29 }]
+
+[[cases]]
+name = "getattr-named-arg-only"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, name=\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-method"
+comparison = "full"
+files = { "case.py" = "value = obj.getattr(obj, \"name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-starred-args"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, *args)\n" }
+expected = []
+
+[[cases]]
+name = "getattr-nfkc"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"\uff58\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 27 }]
+
+[[cases]]
+name = "getattr-bytes"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, b\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-fstring"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, f\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-concat"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"na\" \"me\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 8, end = 31 }]
+
+[[cases]]
+name = "getattr-starred-object"
+comparison = "full"
+files = { "case.py" = "value = getattr(*args, \"name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "def getattr(*args): pass\nvalue = getattr(obj, \"name\")\n" }
+expected = []
+
+[[cases]]
+name = "getattr-builtin-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import getattr as attr\nvalue = attr(obj, \"name\")\n" }
+expected = [{ rule = "B009", file = "case.py", start = 45, end = 62 }]
+
+[[cases]]
+name = "getattr-noqa"
+comparison = "full"
+files = { "case.py" = "value = getattr(obj, \"name\")  # noqa: B009\n" }
+expected = []
+
+[[cases]]
+name = "getattr-file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: B009\nvalue = getattr(obj, \"name\")\n" }
+expected = []

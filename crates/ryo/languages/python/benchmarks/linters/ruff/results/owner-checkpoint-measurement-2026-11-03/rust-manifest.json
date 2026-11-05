@@ -1,0 +1,21 @@
+{
+  "schema": "owner-rust-original-benchmark/v1",
+  "source_commits": {
+    "base": "69a402d8df9d8864b51094c256a165883816aeb2",
+    "candidate": "f09b48b3a924e20b36987f74fd6100dbbc84cd66"
+  },
+  "binary_sha256": {
+    "base": "bb2bd5aee2baa572f85edcabf8c2ba81a47736e9a1113fd5c23d195336b1af32",
+    "candidate": "501cb97d91c925c0096478fe490b979595fc0fb952f3b6948cac0e01c4ce416d"
+  },
+  "recordings_sha256": "5fe89988fbf1fabeb5829aa5528b4a9dfc3109ba9e7e94b8d8cee400305703cf",
+  "recordings_checked": 244,
+  "command": [
+    "--bench",
+    "--rounds",
+    "1"
+  ],
+  "binary_features": "default",
+  "script_sha256": "13d248ba4795cd893610434bca149886ef5a70c1bf05f012910c5ba494a5c4d9",
+  "started_utc": "2026-11-03T07:41:09.901014+00:00"
+}

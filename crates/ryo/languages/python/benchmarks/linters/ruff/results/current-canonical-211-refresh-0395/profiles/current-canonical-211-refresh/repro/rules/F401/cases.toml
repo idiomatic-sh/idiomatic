@@ -1,0 +1,131 @@
+[[cases]]
+name = "unused-import"
+comparison = "full"
+files = { "case.py" = "import os\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 9 }]
+
+[[cases]]
+name = "used-import"
+comparison = "full"
+files = { "case.py" = "import os\nprint(os.name)\n" }
+expected = []
+
+[[cases]]
+name = "async-function-local-import"
+comparison = "full"
+files = { "case.py" = "async def f():\n    import os\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 26, "end" = 28 }]
+
+[[cases]]
+name = "sync-function-local-import-control"
+comparison = "full"
+files = { "case.py" = "def f():\n    import os\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 20, "end" = 22 }]
+
+[[cases]]
+name = "parameter-shadow-does-not-use-import"
+comparison = "full"
+files = { "case.py" = "import os\ndef f(os):\n    return os.name\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 9 }, { "rule" = "F811", "file" = "case.py", "start" = 16, "end" = 18 }]
+
+[[cases]]
+name = "explicit-reexport"
+comparison = "full"
+files = { "case.py" = "from os import path as path\n" }
+expected = [{ "rule" = "PLC0414", "file" = "case.py", "start" = 15, "end" = 27 }]
+
+[[cases]]
+name = "all-export"
+comparison = "full"
+files = { "case.py" = "import os\n__all__ = [\"os\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotation-use"
+comparison = "full"
+files = { "case.py" = "from typing import Any\ndef f(x: Any):\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "overwritten-import-read"
+comparison = "full"
+files = { "case.py" = "import os\nos = 1\nprint(os)\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 10, "end" = 12 }]
+
+[[cases]]
+name = "deleted-import"
+comparison = "full"
+files = { "case.py" = "import os\ndel os\n" }
+expected = []
+
+[[cases]]
+name = "deferred-closure-before-import"
+comparison = "full"
+files = { "case.py" = "def f():\n    return os.name\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "quoted-annotation-use"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(x: \"Path\"):\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "normalized-alias-used"
+comparison = "full"
+files = { "case.py" = "import os as ｏｓ\nprint(os.name)\n" }
+expected = [{ "rule" = "PLC0414", "file" = "case.py", "start" = 7, "end" = 19 }]
+
+[[cases]]
+name = "normalized-redundant-alias-is-reexport"
+comparison = "full"
+files = { "case.py" = "import os as ｏｓ\n" }
+expected = [{ "rule" = "PLC0414", "file" = "case.py", "start" = 7, "end" = 19 }]
+
+[[cases]]
+name = "stub-explicit-reexport"
+comparison = "full"
+files = { "case.pyi" = "from os import path as path\n" }
+expected = []
+
+[[cases]]
+name = "noqa-unused-import"
+comparison = "full"
+files = { "case.py" = "import os  # noqa: F401\n" }
+expected = []
+
+[[cases]]
+name = "normalized-distinct-unused-alias"
+comparison = "full"
+files = { "case.py" = "import os as ｘ\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 13, "end" = 16 }]
+
+[[cases]]
+name = "file-ruff-noqa-unused-import"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F401\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "parent-line-noqa-multiline-import"
+comparison = "full"
+files = { "case.py" = "from os import (  # noqa: F401\n    path,\n)\n" }
+expected = []
+
+[[cases]]
+name = "dotted-import-without-alias"
+comparison = "full"
+files = { "case.py" = "import os.path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 14 }]
+
+[[cases]]
+name = "conditional-import-delete-prevents-final-unused-report"
+comparison = "full"
+files = { "case.py" = "if flag:\n    import os\nelse:\n    del os\nimport os\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 7 }]
+
+[[cases]]
+name = "plain-delete-before-reimport-keeps-final-unused"
+comparison = "full"
+files = { "case.py" = "import os\ndel os\nimport os\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 24, "end" = 26 }]

@@ -1,0 +1,54 @@
+[[cases]]
+name = "wrong-major-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == (3, 10):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 45 }]
+
+[[cases]]
+name = "hex-major-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:0x1] == (3, 10):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 47 }]
+
+[[cases]]
+name = "lower-bound-is-not-tuple-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[0:1] == (3, 10):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "wrong-major-minor-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:2] == (3,):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 42 }]
+
+[[cases]]
+name = "correct-major-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == (3,):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "import sys\nif sys.version_info[:1] == (3, 10):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "empty-tuple-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == ():\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 40 }]
+
+[[cases]]
+name = "binary-two-underscore-wrong-length"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0b1_0] == (3,):\n    pass\n" }
+expected = [{ file = "example.pyi", start = 14, end = 46 }]
+
+[[cases]]
+name = "binary-two-prefix-and-digit-separators"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0b_1_0] == (3, 10):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "hex-two-underscore-wrong-length"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0x0_2] == (3,):\n    pass\n" }
+expected = [{ file = "example.pyi", start = 14, end = 46 }]
+
+[[cases]]
+name = "octal-two-underscore-correct-length"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0o0_2] == (3, 10):\n    pass\n" }
+expected = []

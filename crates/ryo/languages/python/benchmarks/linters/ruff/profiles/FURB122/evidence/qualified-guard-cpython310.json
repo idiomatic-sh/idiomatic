@@ -1,0 +1,85 @@
+{
+  "interpreter_version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "cases": {
+    "io-annotation-3": {
+      "source_sha256": "85bb61aec2c632ef4fa00e49bce7bbc7b21b0b6fcd01fce9e5cde693a93917a7"
+    },
+    "outer-runtime-history-3": {
+      "source_sha256": "78557b963eb3be32e08c3a72f72fa9d1cce0a1b94da4c5fcdd11bcf6e954175c"
+    },
+    "runtime-builtin-0-1": {
+      "source_sha256": "e0b9013a4b19f02dfa8199a2669c97a6cef825c4efaf48c83f4c7be6b5eca3c7"
+    },
+    "runtime-shadow-history-4": {
+      "source_sha256": "0d14122e538099d068dffdeeeadccd0c33fb1941f13ceb012c014b762e3784a3"
+    },
+    "runtime-shadow-history-5": {
+      "source_sha256": "8732786a253dc587ebf98cee79e74b29e445afe8786cbc3583b46d0cdd659949"
+    },
+    "runtime-shadow-history-6": {
+      "source_sha256": "8be9d58f65b482abba7f6040e956b0eb0a4d8d995885a020f396f1e577e32b8d"
+    },
+    "imported-type-checking-false": {
+      "source_sha256": "4416181d889cdcc451605b892bce2484f5beb41cb436999898da611d7f9c2895"
+    },
+    "imported-typing-attribute-false": {
+      "source_sha256": "a5c68492c1b2a36d1c1f172c0e9211dd4d3ce0959a46732ccf7b35a3cc8adc48"
+    },
+    "rebound-type-checking-true": {
+      "source_sha256": "f6306aef0721951492c1c7ad99b23fcb19f2bb339ed066d3b3b270a066fbe074"
+    },
+    "rebound-typing-attribute-true": {
+      "source_sha256": "6dd09707ea863d78d790ff475a35b3012c3361c12f5fd00ef5936c28bb981979"
+    }
+  },
+  "generic_io": {
+    "origin_is_typing_IO": true,
+    "interface_has_writelines": true,
+    "framed_exact_loop_output": "ab"
+  },
+  "deleted_outer_builtin": {
+    "function_list_is_local": true,
+    "deleted_module_list_restores_builtin": true
+  },
+  "conditional": {
+    "bare_name": {
+      "status": "NameError",
+      "message": "name 'TYPE_CHECKING' is not defined"
+    },
+    "bare_name_with_else": {
+      "status": "NameError",
+      "message": "name 'TYPE_CHECKING' is not defined"
+    },
+    "unknown_attribute_false": {
+      "status": "ok",
+      "x": "z",
+      "written": "z"
+    },
+    "unknown_attribute_true": {
+      "status": "ok",
+      "x": "z",
+      "written": "z"
+    },
+    "imported_direct_empty_rows": {
+      "status": "ok",
+      "x": "<unbound>",
+      "written": ""
+    },
+    "imported_attribute_empty_rows": {
+      "status": "ok",
+      "x": "<unbound>",
+      "written": ""
+    },
+    "rebound_direct_empty_rows": {
+      "status": "ok",
+      "x": 0,
+      "written": ""
+    },
+    "rebound_attribute_empty_rows": {
+      "status": "ok",
+      "x": 0,
+      "written": ""
+    }
+  },
+  "limits": "Exact authored sources run with framed rows and open; these observations do not prove universal rewrite equivalence."
+}

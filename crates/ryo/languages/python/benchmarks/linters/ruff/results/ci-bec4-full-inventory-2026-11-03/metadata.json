@@ -1,0 +1,25 @@
+{
+  "artifact_id": 13230938418,
+  "artifact_name": "ruff-all-defaults-1",
+  "artifact_zip_sha256": "9e0ff79385a4fef589dc7510d33e72ad883a344f122e0da6e89ccc06eea9cc12",
+  "counts": {
+    "FAIL": 6,
+    "PASS": 407
+  },
+  "job_id": 125914901161,
+  "new_pass_rules": [
+    "EXE001",
+    "EXE002"
+  ],
+  "pinned_reference_sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+  "prior_run_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41622346356",
+  "raw_receipts_sha256": "c8c00b6038f8813a5c9b457646fc14caeca65c8a9a80870774cfaac353870a85",
+  "registration_sha256": "6ea35c7d286c20d10772701646871d2a62bef95b5b938d618df509c959ab618a",
+  "regressed_pass_rules": [],
+  "run_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41635290943",
+  "schema": "source-bound-ci-inventory/v1",
+  "source_head": "bec4bb1cb2eb455d651639de7b323a17f1c4f281",
+  "status": "complete",
+  "summary_sha256": "3e669e19a85eceeb6833c2dab896744b52590942c62c6d108554d8aa7fc7c680",
+  "worker_sha256": "7450619a87af97a1f01328b150cffa115ef83370937142e6f98f769836618051"
+}

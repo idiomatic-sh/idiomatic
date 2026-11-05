@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the contract is one check run in order over the samples, and its steps (rows, flow, determinism) share the reads and the sink they run against.
+// the contract is one check run in order over the samples, and its steps (rows, flow, determinism) share the reads and the sink they run against.
 //! What every implementation of the `parse` use case's trait must pass.
 
 #![expect(
@@ -17,11 +17,13 @@ use super::super::service::{absence, build, read as read_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
-use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use crate::domain::relations::types::Provenance;
-use crate::domain::relations::types::{Bits, FileId, Missing, Relation, RelationDeclaring, Rows};
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
+use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::types::{
+    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
+};
 
 /// A writer that keeps nothing: the contract looks at what the language answers, not at what it wrote.
 #[derive(Default, Clone, Copy, Debug)]
@@ -81,6 +83,8 @@ pub struct Collect {
     pub partials: Vec<(Relation, String, Missing)>,
     /// The relations said to be partly read in one file of the run, each with the file and its cause.
     pub partials_at: Vec<(Relation, FileId, String)>,
+    /// Reusable cause buffers after clear, so the collector adds no warmed allocations.
+    pub cause_buffers: Vec<String>,
 }
 
 impl Collect {
@@ -88,7 +92,18 @@ impl Collect {
     pub fn clear(&mut self) {
         self.relations.clear();
         self.words.clear();
-        self.partials.clear();
+        self.cause_buffers
+            .extend(self.partials.drain(..).map(|(_, cause, _)| cause));
+        self.cause_buffers
+            .extend(self.partials_at.drain(..).map(|(_, _, cause)| cause));
+    }
+
+    /// Reuses a cause buffer retained from the previous file.
+    fn cause(&mut self, text: &str) -> String {
+        let mut buffer = self.cause_buffers.pop().unwrap_or_default();
+        buffer.clear();
+        buffer.push_str(text);
+        buffer
     }
 
     /// How many rows were written of `relation`.
@@ -127,29 +142,31 @@ macro_rules! writers {
         $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )*
     ) => {
         $( $(
-            impl Rows<$crate::domain::relations::collections::relations::$module::item::$row> for Discard {
-                fn write(&mut self, _row: $crate::domain::relations::collections::relations::$module::item::$row) {}
+            impl Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row> for Discard {
+                fn write(&mut self, _row: ryo_relations::domain::relations::collections::relations::$module::item::$row) {}
 
-                fn partial(&mut self, _cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {}
+                fn partial(&mut self, _cause: ryo_relations::domain::relations::types::ReportText<'_>, _missing: Missing) {}
 
-                fn partial_at(&mut self, _file: $crate::domain::relations::types::FileId, _cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {}
+                fn partial_at(&mut self, _file: ryo_relations::domain::relations::types::FileId, _cause: ryo_relations::domain::relations::types::ReportText<'_>, _missing: Missing) {}
             }
 
-            impl Rows<$crate::domain::relations::collections::relations::$module::item::$row> for Collect {
-                fn write(&mut self, row: $crate::domain::relations::collections::relations::$module::item::$row) {
-                    let words = <$crate::domain::relations::collections::relations::$module::item::$variant as RelationsItem>::words(row);
+            impl Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row> for Collect {
+                fn write(&mut self, row: ryo_relations::domain::relations::collections::relations::$module::item::$row) {
+                    let words = <ryo_relations::domain::relations::collections::relations::$module::item::$variant as RelationsItem>::words(row);
                     self.keep(Relation::$variant, words.as_ref());
                 }
 
-                fn partial(&mut self, cause: $crate::domain::relations::types::ReportText<'_>, missing: Missing) {
+                fn partial(&mut self, cause: ryo_relations::domain::relations::types::ReportText<'_>, missing: Missing) {
                     if !self.partials.iter().any(|(relation, each, how)| *relation == Relation::$variant && each == cause.0 && *how == missing) {
-                        self.partials.push((Relation::$variant, cause.0.to_owned(), missing));
+                        let cause = self.cause(cause.0);
+                        self.partials.push((Relation::$variant, cause, missing));
                     }
                 }
 
-                fn partial_at(&mut self, file: $crate::domain::relations::types::FileId, cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {
+                fn partial_at(&mut self, file: ryo_relations::domain::relations::types::FileId, cause: ryo_relations::domain::relations::types::ReportText<'_>, _missing: Missing) {
                     if !self.partials_at.iter().any(|(relation, at, each)| *relation == Relation::$variant && *at == file && each == cause.0) {
-                        self.partials_at.push((Relation::$variant, file, cause.0.to_owned()));
+                        let cause = self.cause(cause.0);
+                        self.partials_at.push((Relation::$variant, file, cause));
                     }
                 }
             }
@@ -157,7 +174,7 @@ macro_rules! writers {
     };
 }
 
-crate::each_relation!(writers);
+ryo_relations::each_relation!(writers);
 
 /// What a sample row of the contract does with the samples.
 #[derive(Clone, Copy, Debug)]
@@ -187,7 +204,7 @@ const SAMPLE_ROWS: &[Case<Scenario, bool, ParseError>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("empty_file_gives_zero_rows_and_is_complete"),
+        name: CaseName("empty_file_has_only_supported_root_rows_and_is_complete"),
         word: Word::Succeeds,
         input: || Scenario::Empty,
         expect: Expect::Value(true),
@@ -214,6 +231,8 @@ fn read(
     wanted: &[Relation],
 ) -> Result<Collect, ParseError> {
     let mut out = Collect::default();
+    let mut symbols = Symbols::default();
+    let mut elements = Elements::default();
     read_file(
         subject,
         ParseRequest {
@@ -221,14 +240,203 @@ fn read(
             file: FileId(0),
             bytes,
             notes: NoteRequest::Unwanted,
-            fields: FieldRequest::Unwanted,
+            fields: if wanted.contains(&Relation::SemanticChild) {
+                FieldRequest::Wanted
+            } else {
+                FieldRequest::Unwanted
+            },
         },
-        &mut Elements::default(),
-        &mut Symbols::default(),
+        &mut elements,
+        &mut symbols,
         wanted,
         &mut out,
     )?;
+    assert!(
+        embedded_roots_valid(&elements),
+        "an embedded expression root must be a node attached directly to its source carrier"
+    );
+    if wanted.contains(&Relation::SemanticSyntax) {
+        assert!(
+            semantic_spans_valid(
+                &out,
+                bytes.0.len(),
+                wanted.contains(&Relation::SourceLocation),
+                |id| positions(&elements).any(|position| {
+                    ryo_relations::domain::relations::service::node_id(FileId(0), position).0 == id
+                        && crate::domain::elements::service::flags_at(&elements, position).0
+                            & ryo_relations::domain::relations::constants::IMPLIED.0
+                            != 0
+                })
+            ),
+            "semantic occurrences must retain bounded physical spans and matching source coordinates"
+        );
+    }
+    if wanted.contains(&Relation::SemanticSyntax)
+        && wanted.contains(&Relation::SyntaxTree)
+        && wanted.contains(&Relation::SemanticChild)
+        && wanted.contains(&Relation::SyntaxChild)
+        && crate::domain::expansions::service::embedded_expressions(&elements)
+            .next()
+            .is_none()
+    {
+        assert!(
+            projection_preserves_native(&out),
+            "without embedded expressions the semantic view must preserve every native row and edge exactly"
+        );
+        let mut fields: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| {
+                (relation == Relation::SyntaxChild)
+                    .then(|| row.get(3).copied())
+                    .flatten()
+            })
+            .collect();
+        fields.sort_unstable();
+        fields.dedup();
+        assert!(
+            fields
+                .into_iter()
+                .all(|field| filtered_projection_valid(&out, field)),
+            "native and semantic child field predicates must select the same edges"
+        );
+    }
+    assert!(
+        shape_representatives_valid(&out),
+        "expression shape classes must name real representative occurrences in the same file"
+    );
+    for (relation, row) in out.rows() {
+        if relation == Relation::Identifier {
+            assert!(
+                identifier_valid(&row, &symbols, bytes),
+                "identifier must expose a known nonempty canonical name at a nonempty original byte span"
+            );
+        }
+        if relation == Relation::QualifiedName {
+            assert!(
+                qualified_name_valid(&row, &symbols, bytes),
+                "qualified-name must distinguish proven paths, unknown identities and builtin availability"
+            );
+        }
+    }
     Ok(out)
+}
+
+/// Without embedded expressions, projection must not add, omit, or alter native syntax.
+fn projection_preserves_native(out: &Collect) -> bool {
+    [
+        (Relation::SyntaxTree, Relation::SemanticSyntax),
+        (Relation::SyntaxChild, Relation::SemanticChild),
+    ]
+    .into_iter()
+    .all(|(native, semantic)| {
+        let mut original: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| (relation == native).then_some(row))
+            .collect();
+        let mut projected: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| (relation == semantic).then_some(row))
+            .collect();
+        original.sort();
+        projected.sort();
+        original == projected
+    })
+}
+
+/// Compare the consumer-visible result of a field equality predicate, not only row counts.
+fn filtered_projection_valid(out: &Collect, field: u64) -> bool {
+    let select = |wanted| {
+        let mut selected: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| {
+                (relation == wanted && row.get(3) == Some(&field)).then_some(row)
+            })
+            .collect();
+        selected.sort();
+        selected
+    };
+    select(Relation::SyntaxChild) == select(Relation::SemanticChild)
+}
+
+/// Logical token lengths cannot replace physical source offsets, even after decoding.
+fn semantic_spans_valid(
+    out: &Collect,
+    length: usize,
+    coordinates: bool,
+    implied: impl Fn(u64) -> bool,
+) -> bool {
+    let rows = out.rows();
+    rows.iter()
+        .filter(|(relation, _)| *relation == Relation::SemanticSyntax)
+        .all(|(_, row)| {
+            let [id, _, _, _, span] = row.as_slice() else {
+                return false;
+            };
+            let start = span >> 32_u32;
+            let end = span & u64::from(u32::MAX);
+            if start == u64::from(u32::MAX) && end == 0 {
+                return implied(*id)
+                    && !rows.iter().any(|(relation, coordinate)| {
+                        *relation == Relation::SourceLocation && coordinate.first() == Some(id)
+                    });
+            }
+            start <= end
+                && end <= u64::try_from(length).unwrap_or(u64::MAX)
+                && (!coordinates
+                    || rows.iter().any(|(relation, coordinate)| {
+                        *relation == Relation::SourceLocation
+                            && coordinate.first() == Some(id)
+                            && coordinate.get(2) == Some(span)
+                    }))
+        })
+}
+
+/// A normalized identifier remains a known spelling and an actual, nonempty source occurrence.
+fn identifier_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bool {
+    let [_, name, _, span] = row else {
+        return false;
+    };
+    let Ok(name) = u32::try_from(*name) else {
+        return false;
+    };
+    let start = span >> 32_u32;
+    let end = span & u64::from(u32::MAX);
+    crate::domain::symbols::service::text_of(
+        symbols,
+        source,
+        ryo_relations::domain::terms::types::Symbol(name),
+    )
+    .is_some_and(|name| !name.0.is_empty())
+        && start < end
+        && end <= u64::try_from(source.0.len()).unwrap_or(u64::MAX)
+}
+
+/// Every provider must distinguish a proven lexical path from an unknown value and explicit builtin availability.
+fn qualified_name_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bool {
+    use crate::domain::symbols::service::text_of;
+    use ryo_relations::domain::terms::{service::unknown_reason, types::Symbol};
+    let [_, path, provenance, major, minor, _, _] = row else {
+        return false;
+    };
+    let (Ok(path), Ok(provenance)) = (u32::try_from(*path), u32::try_from(*provenance)) else {
+        return false;
+    };
+    let path = Symbol(path);
+    let named = text_of(symbols, source, path).is_some_and(|name| !name.0.is_empty());
+    match text_of(symbols, source, Symbol(provenance)).map(|text| text.0) {
+        Some("builtin") => {
+            named && *major > 0 && i64::try_from(*major).is_ok() && i64::try_from(*minor).is_ok()
+        }
+        Some("import") => named && *major == 0 && *minor == 0,
+        Some("local" | "unresolved" | "ambiguous") => {
+            unknown_reason(path).is_some() && *major == 0 && *minor == 0
+        }
+        _ => false,
+    }
 }
 
 /// Runs the sample rows against one implementation.
@@ -266,13 +474,33 @@ fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
             Ok(all()
                 .iter()
                 .filter(|relation| is_declaring(**relation) == RelationDeclaring::Declares)
-                // An empty file still has its module, which is a scope: the one row it gives.
+                // An empty file still has its module scope and lexical root interval when read.
                 .all(|relation| {
-                    out.count(*relation)
-                        == usize::from(
-                            *relation == Relation::Scope
-                                && subject.absence_of(Relation::Scope).is_none(),
-                        )
+                    let count = out.count(*relation);
+                    if subject.absence_of(*relation).is_some() {
+                        return count == 0;
+                    }
+                    if matches!(*relation, Relation::Scope | Relation::IndentRegion) {
+                        return count == 1;
+                    }
+                    // Compiler features describe module configuration even without source constructs.
+                    if *relation == Relation::CompilerFeature {
+                        return out.rows().iter().all(|(feature_relation, row)| {
+                            *feature_relation != Relation::CompilerFeature
+                                || (row.len() == columns(Relation::CompilerFeature).len()
+                                    && row.first().is_some_and(|file| *file == 0)
+                                    && row.get(2).is_some_and(|flag| *flag <= 1))
+                        });
+                    }
+                    // Versioned implicit-symbol rows describe the environment catalog, not source text.
+                    if *relation == Relation::ImplicitSymbol {
+                        return out.rows().iter().all(|(catalog_relation, row)| {
+                            *catalog_relation != Relation::ImplicitSymbol
+                                || (row.len() == columns(Relation::ImplicitSymbol).len()
+                                    && row.get(3).is_some_and(|major| *major > 0))
+                        });
+                    }
+                    count == 0
                 }))
         }
         Scenario::Broken => {
@@ -438,4 +666,52 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
         rows_on(subject, &rotated, 10),
         "the files read in another order by ten workers give different rows"
     );
+}
+
+#[cfg(test)]
+#[path = "contract_test.rs"]
+mod tests;
+
+/// Unknown or cross-file class sentinels cannot silently compare equal as structural identities.
+fn shape_representatives_valid(out: &Collect) -> bool {
+    use ryo_relations::domain::relations::{service::node_file, types::NodeId};
+    let representatives: std::collections::BTreeSet<_> = out
+        .rows()
+        .into_iter()
+        .filter_map(|(relation, row)| {
+            if relation != Relation::ExpressionShape {
+                return None;
+            }
+            let [id, shape, file, _] = row.as_slice() else {
+                return None;
+            };
+            (*id == *shape).then_some((*file, *shape))
+        })
+        .collect();
+    out.rows()
+        .into_iter()
+        .filter(|(relation, _)| *relation == Relation::ExpressionShape)
+        .all(|(_, row)| {
+            let [id, shape, file, _] = row.as_slice() else {
+                return false;
+            };
+            let Ok(file) = u32::try_from(*file) else {
+                return false;
+            };
+            node_file(NodeId(*id)) == FileId(file)
+                && node_file(NodeId(*shape)) == FileId(file)
+                && representatives.contains(&(u64::from(file), *shape))
+        })
+}
+
+/// Token trivia cannot masquerade as the root of an independently parsed expression.
+fn embedded_roots_valid(elements: &Elements) -> bool {
+    use crate::domain::elements::service::{flags_at, parent_at};
+    crate::domain::expansions::service::embedded_expressions(elements).all(|embedded| {
+        embedded.root < embedded.end
+            && flags_at(elements, embedded.root).0
+                & ryo_relations::domain::relations::constants::TOKEN.0
+                == 0
+            && parent_at(elements, embedded.root) == embedded.host
+    })
 }

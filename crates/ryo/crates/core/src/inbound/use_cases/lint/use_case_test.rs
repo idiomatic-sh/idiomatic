@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
+// the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
 use crate::outbound::rows;
@@ -28,8 +28,8 @@ use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::Relation;
 use ryo_language::inbound::use_cases::project::types::RootPath;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
@@ -47,6 +47,7 @@ use ryo_values::domain::stores::types::{FindingMade, Stored};
 
 /// What a row gives the use case: the ports it calls, the rules and the files linted.
 struct Given {
+    outside_executable: ryo_values::domain::files::types::ExecutablePermission,
     files: Vec<(&'static str, &'static str)>,
     /// Files on the disk the corpus does not list, such as those above the root.
     outside: Vec<(&'static str, &'static str)>,
@@ -102,14 +103,12 @@ enum Scenario {
     ManyRuns,
     /// Lints a rule, then the rule of the same id with another query, over plans one session shares.
     ChangedQueryKeepsOnePlan,
-    /// Lints under new rule ids again and again, over plans one session shares, until more ids were named than the plans it keeps.
-    ChangedIdsKeepOnePlan,
+    /// Changes a directly imported module with the real compiler and checks changed findings.
+    ChangedFragmentPlan,
+    /// Changes only a nested query module and checks both plan and persisted-result invalidation.
+    ChangedNestedModule,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
     InterleavedRuns,
-    /// One request that names more rules than the cap of the plans a session keeps.
-    OneRequestOverTheCap,
-    /// A session over the cap drops the plan kept longest, one at a time.
-    EvictionIsOneAtATime,
     /// Lints with the host's relation, counting how many times the language was asked to read the manifests.
     Projects,
     /// Lints and reads the line and the character the first finding is at.
@@ -165,6 +164,7 @@ fn plan_with_name(name: &str) -> Plan {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
+        origin: None,
     };
     let mut plan = QueryLanguageFake::selecting().plan;
     if let Some(PlanStep {
@@ -225,6 +225,7 @@ fn host_placed() -> HostRelation {
 /// Every function of `a.rs` and `b.rs` is a violation, `notes.txt` is read by no language.
 fn violations() -> Given {
     Given {
+        outside_executable: Default::default(),
         files: SOURCES.to_vec(),
         outside: Vec::new(),
         corpus_fails: false,
@@ -259,9 +260,12 @@ struct World {
 fn request(given: &Given) -> LintRequest {
     let globs = |texts: &[&str]| texts.iter().map(|glob| Glob((*glob).into())).collect();
     LintRequest {
+        source_language: None,
         answer: given.answer,
         hosted: given.hosted.clone(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(given.root.into()),
         },
@@ -275,13 +279,17 @@ fn request(given: &Given) -> LintRequest {
             .iter()
             .enumerate()
             .map(|(place, query)| Rule {
+                observations: Vec::new(),
                 id: RuleId(
                     given
                         .ids
                         .get(place)
                         .map_or_else(|| place.to_string().into(), |id| (*id).into()),
                 ),
-                query: QueryText((*query).into()),
+                query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                    (*query).into(),
+                )),
+                applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
                 parameters: Vec::new(),
                 include: globs(&given.include),
                 exclude: globs(&given.exclude),
@@ -290,14 +298,149 @@ fn request(given: &Given) -> LintRequest {
     }
 }
 
+#[test]
+fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change() {
+    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
+
+    let files = vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")];
+    let store = Arc::new(LintStoreFake::default());
+    let mut given = Given {
+        files: files.clone(),
+        store: Arc::clone(&store),
+        ..violations()
+    };
+    given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let mut asked = request(&given);
+    asked.rules[0].applicability = RuleApplicability::AcceptedSyntax;
+    let first_world = world(given);
+
+    let first = first_world
+        .use_case
+        .lint(asked.clone())
+        .expect("first lint");
+    assert_eq!(first.unknowns, []);
+    assert_eq!(first.skipped.len(), 1);
+    assert_eq!(first.skipped[0].path, FilePath("b.rs".into()));
+    assert_eq!(first.skipped[0].reason, SkipReason::SyntaxRejected);
+    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
+    let first_rows = first_world
+        .collected
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .rows
+        .clone();
+    assert_eq!(
+        first_rows.len(),
+        1,
+        "the rejected file does not run the rule"
+    );
+
+    let warm = first_world.use_case.lint(asked.clone()).expect("warm lint");
+    assert_eq!(warm.skipped, first.skipped, "the stored skip is replayed");
+    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
+
+    let edited = vec![("a.rs", "fn changed() {}"), files[1]];
+    let mut edited_given = Given {
+        files: edited,
+        store: Arc::clone(&store),
+        ..violations()
+    };
+    edited_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let edited_world = world(edited_given);
+    let edited_report = edited_world
+        .use_case
+        .lint(asked.clone())
+        .expect("edited lint");
+    assert_eq!(edited_report.skipped, first.skipped);
+    assert_eq!(edited_world.language.parses.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        edited_world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows
+            .len(),
+        1,
+        "the edited accepted file is evaluated and the rejected file stays skipped"
+    );
+
+    asked.rules[0].applicability = RuleApplicability::Always;
+    let mut policy_given = Given {
+        files,
+        store,
+        ..violations()
+    };
+    policy_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let policy_world = world(policy_given);
+    let policy_report = policy_world
+        .use_case
+        .lint(asked)
+        .expect("always-applicable lint");
+    assert!(policy_report.skipped.is_empty());
+    assert_eq!(
+        policy_world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows
+            .len(),
+        2,
+        "changing the rule policy invalidates the retained skip"
+    );
+}
+
 /// The use case over the fakes `given` stands for.
-fn world(mut given: Given) -> World {
+fn world(given: Given) -> World {
+    world_with_kernel(given, false)
+}
+
+/// Construct either physical backend over the same fake store and query identity.
+fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
     let scheduler = Arc::new(std::mem::take(&mut given.scheduler));
-    scheduled_world(given, scheduler, WorkerCount(1))
+    let query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    > = Arc::<QueryLanguageFake>::clone(&given.query);
+    scheduled_world_with_query_kernel(
+        given,
+        scheduler,
+        WorkerCount(1),
+        query_language,
+        column_kernel,
+    )
 }
 
 /// The same fixture over an explicitly injected production scheduler.
 fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: WorkerCount) -> World {
+    let query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    > = Arc::<QueryLanguageFake>::clone(&given.query);
+    scheduled_world_with_query(given, scheduler, workers, query_language)
+}
+
+/// The same test world with an explicitly supplied query compiler.
+fn scheduled_world_with_query(
+    given: Given,
+    scheduler: Arc<dyn SchedulerPort>,
+    workers: WorkerCount,
+    query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    >,
+) -> World {
+    scheduled_world_with_query_kernel(given, scheduler, workers, query_language, false)
+}
+
+fn scheduled_world_with_query_kernel(
+    given: Given,
+    scheduler: Arc<dyn SchedulerPort>,
+    workers: WorkerCount,
+    query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    >,
+    column_kernel: bool,
+) -> World {
     let collected = rows::types::Collector::default();
     let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
     let ports: Arc<dyn RowsPort> = if given.ends == Ends::Well {
@@ -311,11 +454,20 @@ fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: Wor
     let language = Arc::new(given.language);
     let reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let corpus_file = |(path, text): &(&str, &str)| CorpusFile {
+        executable: Default::default(),
         path: FilePath((*path).into()),
         bytes: FileBytes(text.as_bytes().to_vec()),
     };
     let files = given.files.iter().map(corpus_file);
-    let outside = given.outside.iter().map(corpus_file).collect();
+    let outside = given
+        .outside
+        .iter()
+        .map(corpus_file)
+        .map(|mut file| {
+            file.executable = given.outside_executable;
+            file
+        })
+        .collect();
     let use_case = {
         let analysis_corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort> =
             Arc::new(CorpusFake {
@@ -328,22 +480,30 @@ fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: Wor
             Arc::<LanguageFake>::clone(&language);
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(given.memory);
-        let analysis_digest: Arc<dyn crate::outbound::digest::interface::DigestPort> =
-            Arc::new(DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
                 Arc::clone(&analysis_language),
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
-            ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus)),
+            )
+            .with_column_kernel(column_kernel),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(given.facts),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
-            Arc::<QueryLanguageFake>::clone(&given.query),
+            query_language,
             Arc::clone(&analysis_memory),
+            Arc::new(crate::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            )),
             scheduler,
             workers,
             ports,
@@ -362,8 +522,12 @@ fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: Wor
 
 /// One lint over what `given` stands for.
 fn lint(given: Given) -> Lint {
+    lint_with_kernel(given, false)
+}
+
+fn lint_with_kernel(given: Given, column_kernel: bool) -> Lint {
     let asked = request(&given);
-    let world = world(given);
+    let world = world_with_kernel(given, column_kernel);
     let report = world.use_case.lint(asked);
     Lint {
         report: report.map(|answer| answer.unread.len()),
@@ -456,13 +620,50 @@ fn again(
     rule: &'static str,
     store: &Arc<LintStoreFake>,
 ) -> Lint {
-    lint(Given {
-        files: files.to_vec(),
-        store: Arc::clone(store),
-        root,
-        rules: vec![rule],
-        ..violations()
-    })
+    again_with_kernel(files, root, rule, store, false)
+}
+
+fn again_with_kernel(
+    files: &[(&'static str, &'static str)],
+    root: &'static str,
+    rule: &'static str,
+    store: &Arc<LintStoreFake>,
+    column_kernel: bool,
+) -> Lint {
+    lint_with_kernel(
+        Given {
+            files: files.to_vec(),
+            store: Arc::clone(store),
+            root,
+            rules: vec![rule],
+            ..violations()
+        },
+        column_kernel,
+    )
+}
+
+/// A same-binary backend switch invalidates retained findings in both directions.
+#[test]
+fn column_kernel_strategy_is_part_of_stored_rule_identity() {
+    let store = Arc::new(LintStoreFake::default());
+    let run = |kernel| again_with_kernel(&SOURCES, "root", "a rule", &store, kernel);
+    let first = run(false);
+    let candidate = run(true);
+    let switched_back = run(false);
+    let warm = run(false);
+    assert_eq!(first.parses, 3);
+    assert_eq!(
+        candidate.parses, 3,
+        "candidate must not replay baseline records"
+    );
+    assert_eq!(
+        switched_back.parses, 3,
+        "baseline must not replay candidate records"
+    );
+    assert_eq!(warm.parses, 0, "same strategy still reuses exact records");
+    assert_eq!(first.rows, candidate.rows);
+    assert_eq!(first.rows, switched_back.rows);
+    assert_eq!(first.rows, warm.rows);
 }
 
 /// The rows of this part's cases.
@@ -657,20 +858,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName(
-            "one_request_naming_more_rules_than_the_cap_keeps_no_more_plans_than_the_cap",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::OneRequestOverTheCap,
-        expect: Expect::Value((1, 0)),
-    },
-    Case {
-        name: CaseName("a_session_over_the_cap_drops_the_plan_kept_longest_and_no_other"),
-        word: Word::Succeeds,
-        input: || Scenario::EvictionIsOneAtATime,
-        expect: Expect::Value((1, 0)),
-    },
-    Case {
         name: CaseName("compiles_each_rule_once_per_session"),
         word: Word::Succeeds,
         input: || Scenario::CompilesPerSession,
@@ -709,15 +896,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName("a_rule_keeps_one_plan_whatever_queries_it_had"),
+        name: CaseName("a_changed_query_recompiles_once_and_then_reuses_the_plan"),
         word: Word::Succeeds,
         input: || Scenario::ChangedQueryKeepsOnePlan,
         expect: Expect::Value((1, 0)),
     },
     Case {
-        name: CaseName("rules_of_earlier_runs_do_not_stay_in_the_plans_a_session_keeps"),
+        name: CaseName("a_changed_fragment_replaces_the_retained_compiled_plan"),
         word: Word::Succeeds,
-        input: || Scenario::ChangedIdsKeepOnePlan,
+        input: || Scenario::ChangedFragmentPlan,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("editing_a_nested_query_module_invalidates_plan_and_persisted_results"),
+        word: Word::Succeeds,
+        input: || Scenario::ChangedNestedModule,
         expect: Expect::Value((1, 0)),
     },
     Case {
@@ -781,6 +974,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             Scenario::Lint(|| Given {
                 query: Arc::new(QueryLanguageFake::comparing_a_kind()),
                 ..violations()
+            })
+        },
+        expect: Expect::Refusal(|error| selects(matches!(error, LintError::UnknownKind { .. }))),
+    },
+    Case {
+        name: CaseName("an_unknown_semantic_kind_is_refused_before_a_file_is_read"),
+        word: Word::Refuses,
+        input: || {
+            Scenario::Lint(|| {
+                let mut query = QueryLanguageFake::comparing_a_kind();
+                for step in &mut query.plan.steps {
+                    if let Operation::Select { from, .. } = &mut step.operation {
+                        *from = PlanInput::Relation(Relation::SemanticSyntax);
+                    }
+                }
+                Given {
+                    query: Arc::new(query),
+                    ..violations()
+                }
             })
         },
         expect: Expect::Refusal(|error| selects(matches!(error, LintError::UnknownKind { .. }))),
@@ -1276,6 +1488,38 @@ fn consulted(between: Between) -> Result<Value, Failure> {
     Ok((read_again, usize::from(fed_again > 0)))
 }
 
+#[test]
+fn project_entry_observations_invalidate_persisted_absence_and_presence() {
+    let store = Arc::new(LintStoreFake::default());
+    let entry = ("../pkg.py", "package = 1");
+    let given = |outside: Vec<(&'static str, &'static str)>| Given {
+        files: vec![
+            SOURCES[0],
+            SOURCES[1],
+            ("project.manifest.fake", "members = 1"),
+        ],
+        outside,
+        store: Arc::clone(&store),
+        root: "root",
+        query: Arc::new(reading_the_project()),
+        language: LanguageFake {
+            project_entry_paths: vec![FilePath(entry.0.into())],
+            ..LanguageFake::default()
+        },
+        ..violations()
+    };
+    for (outside, expected_project_reads) in [
+        (Vec::new(), 1),
+        (Vec::new(), 0),
+        (vec![entry], 1),
+        (vec![entry], 0),
+        (Vec::new(), 1),
+    ] {
+        let (project_reads, _fed) = counted_lint(given(outside)).expect("lint");
+        assert_eq!(project_reads, expected_project_reads);
+    }
+}
+
 /// A file that cannot be read stays unread, for the same reason, on the warm run.
 fn unreadable_again() -> Result<Value, Failure> {
     let store = Arc::new(LintStoreFake::default());
@@ -1312,92 +1556,131 @@ fn compiles_per_session() -> Result<Value, Failure> {
     ))
 }
 
-/// Lints one query under new ids, a run at a time, until more ids were named than the cap: answers whether the session kept
-/// some plans and no more than the cap.
-fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
-    const PER_RUN: usize = 1024;
-    let given = || Given {
-        files: vec![SOURCES[0]],
-        rules: vec!["one"; PER_RUN],
+/// The same root and outer module use a new nested-module body: both caches must observe it.
+fn changed_nested_module() -> Result<Value, Failure> {
+    let bundle = |revision: &str| {
+        use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
+        let projection = if revision == "first" {
+            "id"
+        } else {
+            "id as \"id\""
+        };
+        query_bundle(
+            document_source(
+                source_id("root").unwrap(),
+                "import outer from \"outer\"; let found = outer(); emit found subject id key(id);",
+            ),
+            [
+                document_source(
+                    source_id("outer").unwrap(),
+                    "import nested from \"nested\"; output relation<id: node>; let found = nested(); return found;",
+                ),
+                document_source(
+                    source_id("nested").unwrap(),
+                    format!("output relation<id: node>; let found = select {projection} from \"syntax-tree\"; return found;").into_boxed_str(),
+                ),
+            ],
+        )
+        .unwrap()
+    };
+    let given = violations();
+    let mut first = request(&given);
+    first.rules[0].query = bundle("first");
+    let mut second = request(&given);
+    second.rules[0].query = bundle("second");
+    let world = world(given);
+    let _first_report = world.use_case.lint(first)?;
+    let after_first = world.language.parses.load(Ordering::SeqCst);
+    let _second_report = world.use_case.lint(second)?;
+    let parsed_again = world.language.parses.load(Ordering::SeqCst) > after_first;
+    let compiled_twice = world.query.calls.load(Ordering::SeqCst) == 2;
+    Ok((usize::from(parsed_again && compiled_twice), 0))
+}
+
+/// A module-only predicate edit changes actual findings through a retained real compiler plan.
+fn changed_fragment_plan() -> Result<Value, Failure> {
+    use crate::outbound::query_language::factory;
+    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
+    use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+
+    let make_bundle = |prefix: &str| {
+        let module = format!(
+            "input files: relation<path: file>;\noutput relation<path: file>;\nlet selected = select path from files where starts_with(path, \"{prefix}\");\nreturn selected;"
+        );
+        ryo_values::domain::program::service::query_bundle(
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("root").unwrap(),
+                "import choose from \"query/filter\"; let files = select path from \"filesystem.file\"; let result = choose(files=files); emit result subject \"path\" key(\"path\");",
+            ),
+            [ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query/filter").unwrap(),
+                module.into_boxed_str(),
+            )],
+        )
+        .unwrap()
+    };
+    let given = Given {
+        files: vec![("alpha.txt", "alpha"), ("beta.txt", "beta")],
         ..violations()
     };
-    let plans = super::types::CompiledPlans::default();
-    let use_case = world(given()).use_case.compiling_into(plans.clone());
-    let runs = super::constants::COMPILED_PLANS / PER_RUN + 2;
-    let mut most = 0;
-    for run in 0..runs {
-        let mut asked = request(&given());
-        for (place, rule) in asked.rules.iter_mut().enumerate() {
-            rule.id = RuleId(format!("{run}-{place}").into());
-        }
-        let _run = use_case.lint(asked)?;
-        let kept = plans
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .plans
-            .len();
-        most = most.max(kept);
-    }
+    let mut first = request(&given);
+    first.rules[0].query = make_bundle("alpha");
+    let mut second = request(&given);
+    second.rules[0].query = make_bundle("beta");
+    let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
+    let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
+    let compile = Arc::new(
+        ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
+            syntax(),
+            catalog(),
+        ),
+    );
+    let typecheck = Arc::new(
+        ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
+            syntax(),
+            catalog(),
+        ),
+    );
+    let query_language: Arc<dyn QueryLanguagePort> =
+        Arc::new(factory::use_case(compile, typecheck));
+    let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
+    let mut world = scheduled_world_with_query(given, scheduler, WorkerCount(1), query_language);
+    let plans = CompiledPlans::default();
+    world.use_case = world.use_case.compiling_into(plans.clone());
+
+    let _first_report = world.use_case.lint(first)?;
+    let first_paths = collected_file_paths(&world);
+    let _second_report = world.use_case.lint(second.clone())?;
+    let second_paths = collected_file_paths(&world);
+    let _retained_report = world.use_case.lint(second)?;
+    let retained_paths = collected_file_paths(&world);
     Ok((
-        usize::from(most > 0 && most <= super::constants::COMPILED_PLANS),
+        usize::from(
+            first_paths == std::collections::BTreeSet::from(["alpha.txt".to_owned()])
+                && second_paths == std::collections::BTreeSet::from(["beta.txt".to_owned()])
+                && retained_paths == second_paths,
+        ),
         0,
     ))
 }
 
-/// Lints a rule under `count` ids named `{tag}-{place}` in one request over the plans one session shares.
-fn lint_under_ids(use_case: &LintUseCaseImpl, tag: &str, count: usize) -> Result<(), Failure> {
-    let mut asked = request(&Given {
-        files: vec![SOURCES[0]],
-        rules: vec!["one"; count],
-        ..violations()
-    });
-    for (place, rule) in asked.rules.iter_mut().enumerate() {
-        rule.id = RuleId(format!("{tag}-{place}").into());
-    }
-    let _run = use_case.lint(asked)?;
-    Ok(())
-}
-
-/// Lints one request that names more rules than the cap: answers 1 when the plans kept are no more than the cap.
-fn one_request_over_the_cap() -> Result<Value, Failure> {
-    let plans = super::types::CompiledPlans::default();
-    let use_case = world(violations()).use_case.compiling_into(plans.clone());
-    lint_under_ids(&use_case, "big", super::constants::COMPILED_PLANS + 1)?;
-    lint_under_ids(&use_case, "bigger", super::constants::COMPILED_PLANS * 2)?;
-    let kept = plans
-        .0
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .plans
-        .len();
-    Ok((usize::from(kept == super::constants::COMPILED_PLANS), 0))
-}
-
-/// Fills the plans of a session to the cap, then lints one rule more: answers 1 when only the plan kept longest was dropped and the
-/// plans of the runs before it all stayed.
-fn eviction_drops_one_plan_at_a_time() -> Result<Value, Failure> {
-    let plans = super::types::CompiledPlans::default();
-    let use_case = world(violations()).use_case.compiling_into(plans.clone());
-    let cap = super::constants::COMPILED_PLANS;
-    lint_under_ids(&use_case, "old", cap / 2)?;
-    lint_under_ids(&use_case, "newer", cap - cap / 2)?;
-    lint_under_ids(&use_case, "latest", 1)?;
-    let kept = plans
-        .0
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let named = |tag: &str, place: usize| {
-        kept.plans
-            .contains_key(&RuleId(format!("{tag}-{place}").into()))
-    };
-    let only_the_oldest_went = kept.plans.len() == cap
-        && !named("old", 0)
-        && named("old", 1)
-        && named("newer", 0)
-        && named("newer", cap - cap / 2 - 1)
-        && named("latest", 0);
-    Ok((usize::from(only_the_oldest_went), 0))
+/// Takes the file subjects written by one lint run and clears the shared collector.
+fn collected_file_paths(world: &World) -> std::collections::BTreeSet<String> {
+    let rows = std::mem::take(
+        &mut world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows,
+    );
+    rows.iter()
+        .flat_map(|row| row.0.iter())
+        .filter_map(|cell| match cell {
+            Some(ryo_values::domain::records::types::Cell::File(path)) => Some(path.to_string()),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Lints rule `a`, then rule `b`, then each again, over plans one session shares: answers how many times a rule was compiled.
@@ -1463,22 +1746,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 ..violations()
             };
             let (first, second) = (request(&rule("one")), request(&rule("two")));
-            let plans = super::types::CompiledPlans::default();
-            let use_case = world(rule("one")).use_case.compiling_into(plans.clone());
-            let _first = use_case.lint(first)?;
-            let _second = use_case.lint(second)?;
-            let kept = plans
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .plans
-                .len();
-            Ok((kept, 0))
+            let world = world(rule("one"));
+            let _first = world.use_case.lint(first)?;
+            let _second = world.use_case.lint(second.clone())?;
+            let _cached_second = world.use_case.lint(second)?;
+            Ok((
+                usize::from(world.query.calls.load(Ordering::SeqCst) == 2),
+                0,
+            ))
         }
-        Scenario::ChangedIdsKeepOnePlan => changed_ids_keep_one_plan(),
+        Scenario::ChangedFragmentPlan => changed_fragment_plan(),
+        Scenario::ChangedNestedModule => changed_nested_module(),
         Scenario::InterleavedRuns => interleaved_runs(),
-        Scenario::OneRequestOverTheCap => one_request_over_the_cap(),
-        Scenario::EvictionIsOneAtATime => eviction_drops_one_plan_at_a_time(),
         Scenario::ManyRuns => many_runs(),
         Scenario::CompilesPerRule => {
             let made = lint(Given {
@@ -1499,8 +1778,9 @@ fn succeeds() {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn crate::outbound::digest::interface::DigestPort> =
-            Arc::new(DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -1508,13 +1788,19 @@ fn succeeds() {
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus)),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(FactsFake::default()),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
             Arc::new(QueryLanguageFake::selecting()),
             Arc::clone(&analysis_memory),
+            Arc::new(crate::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),
             Arc::new(rows::factory::collect(rows::types::Collector::default())),
@@ -1533,4 +1819,112 @@ fn refuses() {
 #[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence() {
+    use ryo_language::inbound::use_cases::project::types::Repository;
+    let store = Arc::new(LintStoreFake::default());
+    let invoke = |root: &'static str, repository, project| {
+        let given = Given {
+            root,
+            store: Arc::clone(&store),
+            files: vec![SOURCES[0], SOURCES[1]],
+            outside: vec![("../context.fake", "content")],
+            query: Arc::new(if project {
+                reading_the_project()
+            } else {
+                QueryLanguageFake::counting_across_files()
+            }),
+            language: LanguageFake {
+                consulted: if project {
+                    vec![
+                        FilePath("../context.fake".into()),
+                        FilePath("../absent.fake".into()),
+                    ]
+                } else {
+                    vec![]
+                },
+                ..LanguageFake::default()
+            },
+            ..violations()
+        };
+        let mut asked = request(&given);
+        asked.session.repository = repository;
+        let made = world(given);
+        let report = made.use_case.counting().lint(asked).expect("complete lint");
+        (made.language.projects.load(Ordering::SeqCst), report)
+    };
+    let (cold, cold_report) = invoke("root-a", Repository::Disk, true);
+    let (warm, warm_report) = invoke("root-a", Repository::Disk, true);
+    assert_eq!(
+        (cold, warm),
+        (1, 0),
+        "an unchanged project really reuses its kept rows"
+    );
+    assert_eq!(cold_report.dependencies, warm_report.dependencies);
+    assert_eq!(
+        warm_report.dependencies.len(),
+        2,
+        "present and missing dependencies survive reuse"
+    );
+    assert_eq!(
+        invoke("root-b", Repository::Disk, true).0,
+        1,
+        "another absolute root cannot reuse package context"
+    );
+    assert_eq!(
+        invoke("root-b", Repository::Given, true).0,
+        1,
+        "repository isolation is part of project resolution identity"
+    );
+    assert_eq!(invoke("root-b", Repository::Given, true).0, 0);
+    let _cold = invoke("root-a", Repository::Disk, false);
+    let (projects, nonproject) = invoke("root-b", Repository::Given, false);
+    assert_eq!(projects, 0);
+    assert_eq!(
+        nonproject
+            .work
+            .iter()
+            .flat_map(|rule| &rule.steps)
+            .map(|step| step.rows.0)
+            .sum::<u64>(),
+        0,
+        "nonproject cache identity is unchanged by root and mode"
+    );
+}
+
+#[test]
+fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
+    use ryo_values::domain::files::types::ExecutablePermission;
+    for before in [false, true] {
+        for changed in [false, true] {
+            let store = Arc::new(LintStoreFake::default());
+            let given = |executable| Given {
+                files: vec![
+                    SOURCES[0],
+                    SOURCES[1],
+                    ("project.manifest.fake", "members = 1"),
+                ],
+                outside: vec![("../config.fake", "target = 1")],
+                outside_executable: ExecutablePermission::Posix(executable),
+                store: Arc::clone(&store),
+                root: "root",
+                query: Arc::new(reading_the_project()),
+                language: LanguageFake {
+                    consulted: vec![FilePath("../config.fake".into())],
+                    ..LanguageFake::default()
+                },
+                ..violations()
+            };
+            assert_eq!(counted_lint(given(before)).unwrap().0, 1);
+            assert_eq!(
+                counted_lint(given(if changed { !before } else { before }))
+                    .unwrap()
+                    .0,
+                usize::from(changed),
+                "consulted metadata must invalidate even when source digest is equal"
+            );
+        }
+    }
 }

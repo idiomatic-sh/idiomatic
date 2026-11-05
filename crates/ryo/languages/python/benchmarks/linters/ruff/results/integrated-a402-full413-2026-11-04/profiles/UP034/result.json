@@ -1,0 +1,57 @@
+{
+  "rule_id": "UP034",
+  "status": "FAIL",
+  "reason": "verifier exited 1: candidate failed (1): rule `UP034`: a step reads a step that has not run\n\n",
+  "instance": {
+    "case_count": 19,
+    "cases_file": "rules/UP034/cases.toml",
+    "cases_sha256": "b16017a4cd99e24663de214a56c61784e196f08ef18c72450e734ac2ebd83abb",
+    "effective_settings": {
+      "defaults": [
+        "UP034"
+      ],
+      "flags": {},
+      "parser_configuration": "python-target=3.10",
+      "performance": {
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "joins": false,
+          "lifecycle_memory": false,
+          "prefixes": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "selection_detail": false,
+          "steps": false,
+          "subplans": false
+        },
+        "node_result_reuse": "disabled"
+      },
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "UP034": "always"
+      }
+    },
+    "evidence_source_root": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP034",
+    "module_sha256": {
+      "python/ruff/noqa-line-map": "01cd5685c5ec8d55dd0cd8ad2305feb6d9df6c36ff3620fe0e3635cd156d2b57",
+      "python/ruff/noqa-locations": "cb6b9a78c5427e9f04234a042464d6cb2ffef0ba03d8c5bb4628dffda386b1fa",
+      "python/ruff/suppress": "7fee9b679a8e63ee74a700a18ebc80972806afe9cae6f89b4e403332392478d5",
+      "python/ruff/suppress-directives": "e17f5ec3a4bb06e05744ca6389a5ee52b364af509302cb891e4732ff078e771c",
+      "python/ruff/suppress-matches": "423b4fdeb59232c0ffadb46b911d2bdda658ecde43f80bcd651d80c95ab5bb8e",
+      "python/ruff/suppression-edges": "db43e4fe36ae0d9b84ad1be89f306a102ed9e58c3168f2d96083070bfadc0d41"
+    },
+    "parser_configuration": "python-target=3.10",
+    "profile_sha256": "aac9adddfb70f02782ceb51e6fab2b1254c1b8c92a25bd1e55930fb554e8eff4",
+    "query_file": "rules/UP034/query.ryoql",
+    "query_sha256": "048167856d02a014d4e2a939b0447188c7b2b6feab008c55d890cb949803d3c2",
+    "settings_scope": "dedicated singleton profile (existing parser default contract)",
+    "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP034/benchmark.toml",
+    "settings_source_sha256": "c013fa2491ed9331848c7d1cda34b9c3299f1e4b1987bac29b15af6bcd089cc1"
+  },
+  "case_results_sha256": null,
+  "case_count": 0,
+  "raw_exact": 0,
+  "documented_discrepancies": 0,
+  "contract_only": 0
+}

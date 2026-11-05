@@ -7,10 +7,10 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
 use ryo_core::inbound::use_cases::open::interface::OpenUseCase;
 use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::BuildIdentity;
-use ryo_core::outbound::matching::interface::MatchingPort;
 use ryo_core::outbound::{
     corpus, digest, facts, language, lint_store, matching, memory, query_language, rows, scheduler,
 };
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing, FileBytes};
 
@@ -83,11 +83,12 @@ pub(crate) fn build_engine(
         ),
     );
     LinterLintEngine {
+        execution: Default::default(),
         skipped,
         language: Arc::new(language::factory::use_case(handles)),
         query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
         matching: Arc::new(matching::factory::globset()),
-        plans: ryo_core::inbound::use_cases::lint::types::CompiledPlans::default(),
+        plans: ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default(),
         scheduler: pool.of(),
         workers,
         build,
@@ -106,10 +107,11 @@ pub(crate) fn build(
     settings: LinterLintSettings,
 ) -> impl LintUseCase {
     let LinterLintSettings { root, budget } = settings;
-    let spill: Arc<dyn facts::interface::FactsPort> = match &connections.spill {
-        Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
-        Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
-    };
+    let spill: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort> =
+        match &connections.spill {
+            Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
+            Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
+        };
     let store: Arc<dyn LintStorePort> = match connections.store.clone() {
         Some(store) => Arc::new(lint_store::factory::postcard(store)),
         None => Arc::new(lint_store::factory::discard()),
@@ -140,29 +142,42 @@ pub(crate) fn build(
                 Reading::Disk(listing, beside) => {
                     Arc::new(corpus::factory::ignore(root, listing, beside, skipped))
                 }
-                Reading::Memory(files) => Arc::new(corpus::factory::memory(files)),
+                Reading::Memory(files, inventory) => {
+                    Arc::new(corpus::factory::memory(files, inventory))
+                }
             };
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
-            let analysis_digest: Arc<dyn digest::interface::DigestPort> =
-                Arc::new(digest::factory::blake3());
+            let analysis_digest: Arc<
+                dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            > = Arc::new(digest::factory::blake3());
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
                     Arc::clone(&analysis_corpus),
                     Arc::clone(&analysis_language),
                     Arc::clone(&analysis_digest),
                     Arc::clone(&analysis_memory),
-                ),
+                ).with_execution(ryo_values::domain::runs::types::ExecutionOptions {
+                    node_result_reuse: match engine.execution.node_result_reuse {
+                        super::types::NodeResultReuse::Disabled => ryo_values::domain::runs::types::NodeResultReuse::Disabled,
+                        super::types::NodeResultReuse::Enabled => ryo_values::domain::runs::types::NodeResultReuse::Enabled,
+                    },
+                    column_kernel: engine.execution.column_kernel,
+                }),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
-                )),
+                ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(
+                    std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()),
+                ))),
                 Arc::clone(&analysis_corpus),
                 spill,
                 analysis_language,
                 matching,
                 query,
                 analysis_memory,
+                Arc::new(ryo_core::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new())),
+std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
                 pool,
                 workers,
                 Arc::new(rows::factory::collect(collector)),
@@ -209,6 +224,7 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
         sources
             .iter()
             .map(|each| CorpusFile {
+                executable: each.executable,
                 path: FilePath(each.path.0.clone()),
                 bytes: FileBytes(each.text.0.as_bytes().to_vec()),
             })
@@ -225,7 +241,10 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
             let mut files = given(sources);
             files.retain(|file| beside.iter().all(|other| other.path != file.path));
             files.extend(beside);
-            Reading::Memory(files)
+            Reading::Memory(
+                files,
+                super::schemas::given_project_inventory(request.given_project_inventory.clone()),
+            )
         }
     }
 }
@@ -301,5 +320,12 @@ pub(crate) fn store_skip(
     Some(std::path::PathBuf::from(skip))
 }
 
+/// The dependency content identity using the digest adapter composed by the SDK.
+pub(crate) fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
+    use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort as _;
+    let digest = digest::factory::blake3()
+        .digest(ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes(bytes));
+    super::types::DependencyFingerprint(digest.0)
+}
 /// What joins the parts of a path the walk skips, on every platform.
 const SKIP_SEPARATOR: char = '/';

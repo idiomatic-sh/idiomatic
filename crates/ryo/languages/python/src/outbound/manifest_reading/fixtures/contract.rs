@@ -102,7 +102,14 @@ where
             path: FilePath((*path).into()),
             text: ManifestText((*written).into()),
         }));
-        build(all).declared(&own).map(|_| Answer::Read)
+        build(all)
+            .read(
+                &own,
+                crate::domain::manifest_validation::types::MetadataDemand::Projection,
+            )
+            .declaration
+            .expect("projection was requested")
+            .map(|_| Answer::Read)
     };
     let adapter = build(Vec::new());
     let subject = |ask: Ask| -> Result<Answer, Failure> {

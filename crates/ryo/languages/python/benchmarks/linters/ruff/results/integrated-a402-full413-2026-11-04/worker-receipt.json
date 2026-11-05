@@ -1,0 +1,80 @@
+{
+  "base": "a402537b63a0a96ffd4ff973be610642edf8c26a",
+  "head": "a402537b63a0a96ffd4ff973be610642edf8c26a",
+  "tree": "18e450748438c46178d6f59fdf2ce66563a4e13e",
+  "command": [
+    "cargo",
+    "bench",
+    "--target-dir",
+    "/workspaces/idiomatic-benchmark-guards/target",
+    "--no-run",
+    "--locked",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-python",
+    "--bench",
+    "ruff",
+    "--message-format=json"
+  ],
+  "started": "2026-11-04T13:59:52.941706+00:00",
+  "workspace_packages_refreshed": [
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/cli#idiomatic-sh-ryo@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/core#idiomatic-sh-ryo-core@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/derived#idiomatic-sh-ryo-derived@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/language#idiomatic-sh-ryo-language@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/relations#idiomatic-sh-ryo-relations@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/values#idiomatic-sh-ryo-values@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/operators#idiomatic-sh-ryo-operators@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/query_language#idiomatic-sh-ryo-query_language@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/css#idiomatic-sh-ryo-css@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/sdk#idiomatic-sh-ryo-sdk@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/go#idiomatic-sh-ryo-go@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/html#idiomatic-sh-ryo-html@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/javascript#idiomatic-sh-ryo-javascript@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/json#idiomatic-sh-ryo-json@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/markdown#idiomatic-sh-ryo-markdown@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/python#idiomatic-sh-ryo-python@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/crates/benchmark#idiomatic-sh-ryo-benchmark@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/rust#idiomatic-sh-ryo-rust@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/toml#idiomatic-sh-ryo-toml@0.1.2",
+    "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/typescript#idiomatic-sh-ryo-typescript@0.1.2"
+  ],
+  "exit_code": 0,
+  "worker": "/tmp/ruf100-sole-current-worker-20261104/ruff-f0e2a143d9eb685ae6bc3a311159c861e0081711bbd16b67069c4e3f4bb6367b",
+  "sha256": "f0e2a143d9eb685ae6bc3a311159c861e0081711bbd16b67069c4e3f4bb6367b",
+  "artifact": {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/python#idiomatic-sh-ryo-python@0.1.2",
+    "manifest_path": "/tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/python/Cargo.toml",
+    "target": {
+      "kind": [
+        "bench"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "ruff",
+      "src_path": "/tmp/ryo-ruf100-sole-integration-20261104/crates/ryo/languages/python/benchmarks/linters/ruff/bench.rs",
+      "edition": "2024",
+      "doc": false,
+      "doctest": false,
+      "test": false
+    },
+    "profile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": true
+    },
+    "features": [
+      "fixtures"
+    ],
+    "filenames": [
+      "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-acdcfc2503686f81"
+    ],
+    "executable": "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-acdcfc2503686f81",
+    "fresh": false
+  },
+  "finished": "2026-11-04T14:01:18.838298+00:00"
+}

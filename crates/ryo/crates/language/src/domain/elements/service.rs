@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the table builder and the readers of one element table are one vocabulary over the private `ElementsEngine` and `WrittenColumn` they reach through `AsRef`/`AsMut`, and nearly every function is a path the SDK hands languages (named in the product's tastemaker.toml); splitting would split the builder from what it builds and move SDK paths.
+// the table builder and the readers of one element table are one vocabulary over the private `ElementsEngine` and `WrittenColumn` they reach through `AsRef`/`AsMut`, and nearly every function is a path the SDK hands languages (named in the product's tastemaker.toml); splitting would split the builder from what it builds and move SDK paths.
 //! The `elements` service: free functions named by verb over a file's element table, with no IO
 //! and no ports. An element is a node or a token, a row of the table.
 
@@ -7,22 +7,25 @@ use crate::domain::symbols::types::ByteSlice;
 use super::constants::FOREIGN_POSITION;
 use super::types::Diagnostic;
 use crate::domain::elements::types::{
-    BuilderEngine, Children, DecodedProperty, ElementPlacement, Elements, ElementsEngine, KindSum,
-    Numbers, OpenNode, Parent, SourceOrder, TableBuilder, TableWriting,
+    BuilderEngine, Children, DecodedProperty, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase,
+    ElementPlacement, Elements, ElementsEngine, KindSum, Numbers, OpenNode, Parent, SourceOrder,
+    TableBuilder, TableWriting, TreeImpact,
 };
-use crate::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
-use crate::domain::relations::types::ReportText;
-use crate::domain::relations::types::{
+use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
+use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
+use ryo_relations::domain::relations::types::ReportText;
+use ryo_relations::domain::relations::types::{
     Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position, PropertyId,
 };
-use crate::domain::symbols::service::{clear_symbols, intern};
-use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::ChildOrdinal;
-use crate::domain::terms::types::NameText;
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::ChildOrdinal;
+use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::Symbol;
 
 /// Empties an element table, keeping its room for the next file.
 pub fn clear_elements(elements: &mut Elements) {
+    // Invalidate before touching the old population; stale models never survive a refill.
+    engine_mut(elements).model_preparation.ready = false;
     elements.kind.as_mut().values.clear();
     elements.flags.as_mut().values.clear();
     elements.start.as_mut().values.clear();
@@ -46,10 +49,16 @@ pub fn clear_elements(elements: &mut Elements) {
         *added = Count(0);
     }
     let engine = engine_mut(elements);
+    engine.line_starts.0.clear();
     engine.source_order = SourceOrder::Forward;
     engine.field_names.clear();
     engine.expanded.clear();
+    engine.embedded.clear();
     engine.decoded.clear();
+    #[cfg(test)]
+    {
+        engine.decoded_intern_visits = 0;
+    }
     engine.decoded_text.0.clear();
     engine.names.clear();
     engine.vocabulary = KindSum(0);
@@ -62,7 +71,29 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.diagnostics.to.clear();
     engine.diagnostics.start.clear();
     engine.diagnostics.end.clear();
+    engine.diagnostics.code.clear();
+    engine.diagnostics.phase.clear();
+    engine.diagnostics.impact.clear();
     engine.expanded_from = None;
+    engine.syntax_acceptance = super::types::SyntaxAcceptance::Undetermined;
+}
+
+/// Record whether the language parser accepted the current source.
+pub fn set_syntax_acceptance(
+    builder: &mut TableBuilder<'_>,
+    acceptance: super::types::SyntaxAcceptance,
+) {
+    builder_engine(builder)
+        .elements
+        .state
+        .as_mut()
+        .syntax_acceptance = acceptance;
+}
+
+/// The parser's acceptance decision, conservative for providers that did not supply one.
+#[must_use]
+pub fn syntax_acceptance(elements: &Elements) -> super::types::SyntaxAcceptance {
+    engine(elements).syntax_acceptance
 }
 
 /// What the engine keeps of `elements` beside its columns, to read.
@@ -80,6 +111,12 @@ pub(crate) fn builder_engine<'b, 'a>(
     builder: &'b mut TableBuilder<'a>,
 ) -> &'b mut BuilderEngine<'a> {
     builder.as_mut()
+}
+
+/// The identity of the next element the builder will append.
+#[must_use]
+pub fn builder_position(builder: &mut TableBuilder<'_>) -> Position {
+    end_of(builder_engine(builder).elements)
 }
 
 /// The position the next element takes: the table holds this many elements, those the language added for reading included.
@@ -267,6 +304,7 @@ pub fn discarding_builder<'a>(
         elements,
         symbols,
         source,
+        logical_source: None,
         writing: TableWriting::Discards,
     })
 }
@@ -306,7 +344,7 @@ pub fn token(builder: &mut TableBuilder<'_>, kind: KindBits, start: Offset, end:
     if builder.writing == TableWriting::Discards {
         return;
     }
-    let text = intern(builder.symbols, builder.source, start, end);
+    let text = token_name(builder, start, end);
     push(builder.elements, kind, TOKEN, start, end, text);
 }
 
@@ -323,7 +361,7 @@ pub fn decoded_token(
     if builder.writing == TableWriting::Discards {
         return;
     }
-    let text = intern(builder.symbols, builder.source, start, end);
+    let text = token_name(builder, start, end);
     let element = pushed(builder.elements, kind, TOKEN, start, end, text);
     let table = engine_mut(builder.elements);
     let texts = &mut table.decoded_text;
@@ -336,6 +374,23 @@ pub fn decoded_token(
         from,
         to,
     });
+}
+
+/// Logical embedded text must outlive the temporary parser buffer as a derived name.
+fn token_name(builder: &mut BuilderEngine<'_>, start: Offset, end: Offset) -> Symbol {
+    if let Some(source) = builder.logical_source {
+        let bytes = source
+            .0
+            .get(
+                usize::try_from(start.0).unwrap_or(usize::MAX)
+                    ..usize::try_from(end.0).unwrap_or(usize::MAX),
+            )
+            .unwrap_or_default();
+        let text = std::str::from_utf8(bytes).unwrap_or_default();
+        intern_derived(builder.symbols, builder.source, NameText(text))
+    } else {
+        intern(builder.symbols, builder.source, start, end)
+    }
 }
 
 /// The text the token at `at` stands for, when the language's library decoded it.
@@ -355,7 +410,7 @@ pub fn property_at(
     let found = table
         .decoded
         .binary_search_by_key(&(at, property), |each| (each.element, each.property))
-        .ok()?; // ignore: idiomatic.arch/no-ok-on-result - a binary search answers where a key it does not find would go: that is the key's absence, not a failure
+        .ok()?; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
     let each = table.decoded.get(found)?;
     table
         .decoded_text
@@ -364,13 +419,34 @@ pub fn property_at(
             usize::try_from(each.from.0).unwrap_or(usize::MAX)
                 ..usize::try_from(each.to.0).unwrap_or(usize::MAX),
         )
-        .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
+        .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
         .map(NameText)
 }
 
-/// Records what the parser reported, found between `start` and `end` of the file's bytes.
+/// Records an untyped parser diagnostic with conservative incomplete-tree defaults.
 pub fn diagnose(
     builder: &mut TableBuilder<'_>,
+    message: ReportText<'_>,
+    start: Offset,
+    end: Offset,
+) {
+    diagnose_with_metadata(
+        builder,
+        DiagnosticMetadata::new(
+            DiagnosticPhase::Parse,
+            TreeImpact::Incomplete,
+            DiagnosticCode::UNSPECIFIED,
+        ),
+        message,
+        start,
+        end,
+    );
+}
+
+/// Records a diagnostic with its producer stage, stable provider code, and semantic tree impact.
+pub fn diagnose_with_metadata(
+    builder: &mut TableBuilder<'_>,
+    metadata: DiagnosticMetadata,
     message: ReportText<'_>,
     start: Offset,
     end: Offset,
@@ -389,6 +465,9 @@ pub fn diagnose(
     ));
     diagnostics.start.push(start);
     diagnostics.end.push(end);
+    diagnostics.code.push(metadata.code);
+    diagnostics.phase.push(metadata.phase);
+    diagnostics.impact.push(metadata.impact);
 }
 
 /// The builder of the table of the file whose bytes are `source`; the table is cleared first.
@@ -413,6 +492,7 @@ pub fn table_builder<'a>(
         elements,
         symbols,
         source,
+        logical_source: None,
         writing: TableWriting::Writes,
     })
 }
@@ -490,10 +570,50 @@ pub fn diagnostics(elements: &Elements) -> impl Iterator<Item = Diagnostic<'_>> 
             ),
             start: found.start.get(number).copied().unwrap_or_default(),
             end: found.end.get(number).copied().unwrap_or_default(),
+            code: found
+                .code
+                .get(number)
+                .copied()
+                .unwrap_or(DiagnosticCode::UNSPECIFIED),
+            phase: found
+                .phase
+                .get(number)
+                .copied()
+                .unwrap_or(DiagnosticPhase::Parse),
+            impact: found
+                .impact
+                .get(number)
+                .copied()
+                .unwrap_or(TreeImpact::Incomplete),
         })
 }
 
-/// How many things the parser reported about the file.
+/// Whether any diagnostic indicates missing or recovered syntax.
+#[must_use]
+pub fn has_incomplete_syntax(elements: &Elements) -> bool {
+    let diagnostics = &engine(elements).diagnostics;
+    diagnostics.from.iter().enumerate().any(|(index, _)| {
+        diagnostics
+            .impact
+            .get(index)
+            .is_none_or(|impact| *impact != TreeImpact::Preserved)
+    })
+}
+
+/// Whether lexical facts may be incomplete because tokenization failed or stopped early.
+/// Missing impact metadata remains conservative: older providers do not certify lexical completeness.
+#[must_use]
+pub fn has_incomplete_lexical_stream(elements: &Elements) -> bool {
+    let diagnostics = &engine(elements).diagnostics;
+    diagnostics.from.iter().enumerate().any(|(index, _)| {
+        diagnostics
+            .impact
+            .get(index)
+            .is_none_or(|impact| *impact == TreeImpact::Incomplete)
+    })
+}
+
+/// How many parse and validation diagnostics the provider reported about the file.
 #[must_use]
 pub fn diagnostic_count(elements: &Elements) -> Count {
     Count(engine(elements).diagnostics.from.len())
@@ -553,7 +673,7 @@ pub fn field_at(elements: &Elements, at: Position) -> FieldId {
 /// The name of the role of the element at `at`, as the name the language gave the role in this file; no symbol for a role it did not name.
 #[must_use]
 pub fn field_name_at(elements: &Elements, at: Position) -> Symbol {
-    engine(elements) // ignore: idiomatic.arch/no-unwrap-or-on-lookup - a file names only the roles it writes: a role it did not name has no symbol, as the doc says
+    engine(elements) // a file names only the roles it writes: a role it did not name has no symbol, as the doc says
         .field_names
         .get(usize::from(field_at(elements, at).0))
         .copied()
@@ -566,15 +686,34 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
     if flags_at(elements, at).0 & IMPLIED.0 != 0 {
         return ElementOrigin::Implied;
     }
+    if let Some(embedded) = embedded_source_at(elements, at) {
+        return ElementOrigin::Embedded {
+            host: embedded.host,
+        };
+    }
     let expanded = &engine(elements).expanded;
     expanded
         .binary_search_by(|each| each.element.cmp(&at))
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a binary search answers where an element it does not find would go: that is the element's absence, not a failure
+        .ok() // a binary search answers where an element it does not find would go: that is the element's absence, not a failure
         .and_then(|found| expanded.get(found))
         .map_or(ElementOrigin::File, |mark| ElementOrigin::Expansion {
             call_site: mark.call_site,
             expansion: mark.expansion,
         })
+}
+
+/// The source carrier of one appended occurrence. Native syntax has no carrier.
+#[must_use]
+pub fn embedded_source_at(
+    elements: &Elements,
+    at: Position,
+) -> Option<ryo_relations::domain::relations::types::EmbeddedSource> {
+    let sources = &engine(elements).embedded;
+    let next = sources.partition_point(|source| source.root <= at);
+    next.checked_sub(1)
+        .and_then(|index| sources.get(index))
+        .filter(|source| at < source.end)
+        .copied()
 }
 
 /// Opens a node the parser created without a source location.
@@ -600,24 +739,45 @@ pub fn enter_implied_node(builder: &mut TableBuilder<'_>, kind: KindBits) {
 /// Records a scalar parser property on the open node. Key zero is its published decoded value.
 /// Replacing a key replaces its value; properties do not add elements or source ranges.
 pub fn node_property(builder: &mut TableBuilder<'_>, property: PropertyId, value: NameText<'_>) {
+    // Formatting a borrowed string into retained memory cannot fail.
+    let written = node_property_fmt(builder, property, format_args!("{}", value.0));
+    debug_assert!(
+        written.is_ok(),
+        "a borrowed string formats into retained storage without failure"
+    );
+}
+
+/// Format scalar parser metadata directly into retained storage, without a temporary string.
+/// A formatter failure leaves both the property and its stored bytes unchanged.
+///
+/// # Errors
+/// Returns the error of a supplied formatter; the storage writer itself is infallible.
+pub fn node_property_fmt(
+    builder: &mut TableBuilder<'_>,
+    property: PropertyId,
+    value: std::fmt::Arguments<'_>,
+) -> std::fmt::Result {
+    use std::fmt::Write as _;
     let builder = builder_engine(builder);
     if builder.writing == TableWriting::Discards {
-        return;
+        return Ok(());
     }
     let table = engine_mut(builder.elements);
     let Some(open) = table.open.last() else {
-        return;
+        return Ok(());
     };
     let element = open.position;
     let texts = &mut table.decoded_text.0;
-    let from = Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX));
-    texts.extend_from_slice(value.0.as_bytes());
-    let to = Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX));
+    let checkpoint = texts.len();
+    if let Err(error) = super::types::PropertyText(texts).write_fmt(value) {
+        texts.truncate(checkpoint);
+        return Err(error);
+    }
     let record = DecodedProperty {
         element,
         property,
-        from,
-        to,
+        from: Offset(u32::try_from(checkpoint).unwrap_or(u32::MAX)),
+        to: Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX)),
     };
     let records = &mut table.decoded;
     match records.binary_search_by_key(&(element, property), |each| (each.element, each.property)) {
@@ -628,6 +788,7 @@ pub fn node_property(builder: &mut TableBuilder<'_>, property: PropertyId, value
         }
         Err(at) => records.insert(at, record),
     }
+    Ok(())
 }
 
 /// Whether tree preorder can be searched by monotonically increasing source starts.

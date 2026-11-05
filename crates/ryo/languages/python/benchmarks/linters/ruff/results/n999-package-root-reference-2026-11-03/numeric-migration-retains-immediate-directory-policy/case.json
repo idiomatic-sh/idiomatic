@@ -1,0 +1,19 @@
+{
+  "name": "numeric-migration-retains-immediate-directory-policy",
+  "comparison": "full",
+  "files": {
+    "BadRoot/migrations/0001_initial.py": ""
+  },
+  "context": {
+    "logical-root": "inventory",
+    "auxiliary-files": {
+      "inventory/BadRoot/__init__.py": "",
+      "inventory/BadRoot/migrations/__init__.py": ""
+    },
+    "missing": [
+      "__init__.py",
+      "inventory/__init__.py"
+    ]
+  },
+  "expected": []
+}

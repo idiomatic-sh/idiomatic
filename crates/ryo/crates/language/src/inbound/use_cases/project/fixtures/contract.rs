@@ -5,10 +5,10 @@ use super::super::interface::ProjectUseCase;
 use super::super::service::project;
 use super::super::types::{ProjectRequest, RootPath};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::service::{all, class_of};
-use crate::domain::relations::types::{Class, Relation};
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Collect;
+use ryo_relations::domain::relations::service::{all, class_of};
+use ryo_relations::domain::relations::types::{Class, Relation};
 
 /// What a row of the contract is given: nothing, a repository without manifests.
 type Input = ();
@@ -45,6 +45,9 @@ pub fn check(subject: &impl ProjectUseCase) {
         project(
             subject,
             &ProjectRequest {
+                search_scope: Default::default(),
+                given_inventory: Default::default(),
+                observed_entries: Default::default(),
                 repository: crate::inbound::use_cases::project::types::Repository::Disk,
                 root: RootPath(Box::default()),
                 manifests: Vec::new(),

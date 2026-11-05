@@ -18,7 +18,7 @@ pub(crate) enum HierarchyColumn {
 pub(crate) fn heading(heading: HierarchyColumn) -> &'static str {
     match heading {
         HierarchyColumn::Id => "id",
-        HierarchyColumn::Parent => ryo_language::domain::relations::constants::PARENT,
+        HierarchyColumn::Parent => ryo_relations::domain::relations::constants::PARENT,
         HierarchyColumn::Child => "child",
         HierarchyColumn::Related => "related",
     }

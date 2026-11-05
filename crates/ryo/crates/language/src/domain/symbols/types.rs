@@ -1,10 +1,12 @@
-// ignore: idiomatic.arch/public-fields - Symbols is the engine's table of one file's names, handed to every language: its one field is a private, crate-private `SymbolsEngine` the crate reaches through `AsRef`/`AsMut`, so a language reads and writes names only through the SDK's functions and cannot corrupt the index; a public field would hand it the table's invariants.
+// Symbols is the engine's table of one file's names, handed to every language: its one field is a private, crate-private `SymbolsEngine` the crate reaches through `AsRef`/`AsMut`, so a language reads and writes names only through the SDK's functions and cannot corrupt the index; a public field would hand it the table's invariants.
 //! The types of the `symbols` concept: the names of a file and what readers note while reading it.
 
 use hashbrown::HashTable;
 
-use crate::domain::relations::types::{Bytes, Count, NameNote, NamePlace, Offset, TextHash, Words};
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::types::{
+    Bytes, NameNote, NamePlace, Offset, TextHash, Words,
+};
+use ryo_relations::domain::terms::types::Symbol;
 
 /// What readers keep between the visits of one file, so that a row which depends on elements
 /// visited after it is written once the file is read: values indexed by the number of a name, and
@@ -24,11 +26,61 @@ pub(crate) struct Notes {
 #[derive(Debug, Default)]
 pub struct Symbols(SymbolsEngine);
 
+/// The symbols a query operator may read and the derived names it may add. The
+/// source-name boundary belongs to language fact readers, not query operators.
+/// This borrow has no mutable access to `Symbols` and cannot call `intern`.
+#[derive(Debug)]
+pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
+
+/// Engine-held authority to admit transported name places into exactly one
+/// live symbol generation. A query only receives QuerySymbols, never this key.
+///
+/// ```compile_fail
+/// use ryo_language::domain::symbols::types::TransportPermit;
+/// let forged = TransportPermit(std::sync::Arc::new(()));
+/// ```
+///
+/// ```compile_fail
+/// use ryo_language::domain::symbols::{service::transport_permit, types::{QuerySymbols, Symbols}};
+/// let mut symbols = Symbols::default();
+/// let query = QuerySymbols::from(&mut symbols);
+/// let stolen = transport_permit(query.as_ref());
+/// ```
+#[derive(Debug)]
+pub struct TransportPermit(pub(super) std::sync::Arc<()>);
+
+/// A frame belongs to another symbol pool or a generation already cleared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TransportRefusal;
+
+impl<'a> From<&'a mut Symbols> for QuerySymbols<'a> {
+    fn from(symbols: &'a mut Symbols) -> Self {
+        Self(symbols)
+    }
+}
+
+impl AsRef<Symbols> for QuerySymbols<'_> {
+    fn as_ref(&self) -> &Symbols {
+        &*self.0
+    }
+}
+
+/// The immutable byte owner of one interned symbol, independent of insertion order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SymbolStorage {
+    /// Offsets refer to the file's source bytes.
+    Source,
+    /// Offsets refer to the symbol pool's derived bytes.
+    Derived,
+}
+
 /// The names of one file as the engine keeps them: where each is, its hash, the index that finds it, the derived text, the notes, the
 /// vocabulary and the places of the names that left their file.
 #[derive(Debug, Default)]
 pub(crate) struct SymbolsEngine {
-    /// Where each name starts: in the file's bytes, or in `derived` from `sources` on.
+    /// Changes on clear, so a transport key cannot outlive a file generation.
+    pub transport_generation: std::sync::Arc<()>,
+    /// Where each name starts, interpreted using its corresponding storage owner.
     pub start: Vec<Offset>,
     /// Where each name ends.
     pub end: Vec<Offset>,
@@ -36,8 +88,8 @@ pub(crate) struct SymbolsEngine {
     pub hash: Vec<TextHash>,
     /// The symbols by the hash of their text, so a name is found without a string key.
     pub index: HashTable<Symbol>,
-    /// How many of the symbols are in the file's bytes; the ones after them are derived.
-    pub sources: Count,
+    /// The byte owner for each symbol; source and derived names may be interleaved.
+    pub storage: Vec<SymbolStorage>,
     /// The text of the derived names.
     pub derived: Bytes,
     /// What readers noted while reading the file.

@@ -9,9 +9,9 @@ use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::reasons::types::ToolMessage;
-use crate::domain::relations::types::Count;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
+use ryo_relations::domain::relations::types::Count;
 
 /// A language without manifest relations whose tools cannot run at all.
 struct Broken;
@@ -23,13 +23,30 @@ impl ProjectUseCase for Broken {
         &[]
     }
 
+    fn primary_role(
+        &self,
+        _path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole {
+        crate::domain::files::service::primary_role_from_manifests(
+            _path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath> {
+        Vec::new()
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
         Err(ProjectError::Manifest {
             reason: ToolMessage("the tool could not run".into()),
         })
     }
 
-    crate::each_relation!(crate::absent_manifests);
+    ryo_relations::each_relation!(absent_manifests);
 }
 
 /// What a row of the cases is given.
@@ -68,6 +85,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let request = ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: crate::inbound::use_cases::project::types::Repository::Disk,
         root: RootPath(".".into()),
         manifests: Vec::new(),

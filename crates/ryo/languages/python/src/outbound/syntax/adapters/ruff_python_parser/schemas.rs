@@ -1,10 +1,11 @@
+// the one `_ =>` arm of this adapter is in `decoded_of`, a match over the library's hundred-odd node kinds whose answer is the text the library decoded, `Option<Decoded>`, not a domain enum: only two kinds carry such text, so a kind the library gains has none until it is named, and naming each of the others would be a hundred arms that all say None
 //! The library's kinds mapped onto the language's, the standards' names: every node kind of `ruff_python_ast` onto the `CPython` `ast`
 //! kind it stands for, or onto the closed list of the extras the standard lacks; every token kind of its lexer onto the name of
 //! Python's `token` module, a keyword being a `NAME`. Both matches have no wildcard arm, so a kind the library gains is a compile
 //! error until it is mapped. Where ruff's tree is not the standard's:
 //!
-//! - one kind for two of the standard's: `async def`, `async for`, `async with` and `except*` are `FunctionDef`, `For`, `With` and
-//!   `Try` with their keyword token, never `AsyncFunctionDef`, `AsyncFor`, `AsyncWith` or `TryStar`;
+//! - async statements share Ruff node types with their sync counterparts, with an `is_async` field; the adapter preserves that
+//!   distinction as `AsyncFunctionDef`, `AsyncFor` and `AsyncWith`. `except*` remains a `Try` with its keyword token;
 //! - six literal kinds of ruff (string, bytes, number, boolean, `None`, `...`) are the standard's one `Constant`, its token saying which;
 //! - an interpolation is a `FormattedValue` in an f-string and an `Interpolation` in a t-string: the adapter says which;
 //! - a literal part of an f-string or a t-string is a `Constant`, and its format spec a `JoinedStr`, as the standard has them;
@@ -15,8 +16,9 @@
 use ruff_python_ast::NodeKind as RuffNode;
 use ruff_python_ast::{StmtImportFrom, StmtTry};
 
+use super::constants::FUTURE_FEATURE_NOT_DEFINED;
 use super::constants::{
-    BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE,
+    BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE, UNREADABLE,
 };
 use ruff_python_ast::token::{TokenKind, Tokens};
 use ruff_text_size::{Ranged, TextRange};
@@ -26,7 +28,11 @@ use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
-use super::types::{ParserRefusal, Said, Strings};
+use super::types::{ByteIndex, Decoded, ParserRefusal, Readable, Said, Strings};
+use crate::outbound::syntax::types::SourceText;
+use ruff_python_ast::AnyNodeRef;
+use ryo::languages::{DiagnosticMetadata, DiagnosticPhase, Offset, TreeImpact};
+use std::borrow::Cow;
 
 /// A kind of node of the library's tree, and the kind of string an interpolation inside it is in.
 pub(super) struct NodeSchema {
@@ -275,6 +281,116 @@ pub(super) fn node_kind(kind: RuffNode, strings: Strings) -> Kind {
     Kind::from(NodeSchema { kind, strings })
 }
 
+/// The language's kind of a concrete node, retaining async statement variants Ruff stores in a flag.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive upstream node mapping prevents new AST variants from falling through"
+)]
+#[must_use]
+pub(super) fn concrete_node_kind(node: AnyNodeRef<'_>, strings: Strings) -> Kind {
+    match node {
+        AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
+            Kind::Node(Node::AsyncFunctionDef)
+        }
+        AnyNodeRef::StmtFor(statement) if statement.is_async => Kind::Node(Node::AsyncFor),
+        AnyNodeRef::StmtWith(statement) if statement.is_async => Kind::Node(Node::AsyncWith),
+        AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::StmtFor(_) | AnyNodeRef::StmtWith(_) => {
+            node_kind(node.kind(), strings)
+        }
+        AnyNodeRef::ModModule(_)
+        | AnyNodeRef::ModExpression(_)
+        | AnyNodeRef::StmtClassDef(_)
+        | AnyNodeRef::StmtReturn(_)
+        | AnyNodeRef::StmtDelete(_)
+        | AnyNodeRef::StmtTypeAlias(_)
+        | AnyNodeRef::StmtAssign(_)
+        | AnyNodeRef::StmtAugAssign(_)
+        | AnyNodeRef::StmtAnnAssign(_)
+        | AnyNodeRef::StmtWhile(_)
+        | AnyNodeRef::StmtIf(_)
+        | AnyNodeRef::StmtMatch(_)
+        | AnyNodeRef::StmtRaise(_)
+        | AnyNodeRef::StmtTry(_)
+        | AnyNodeRef::StmtAssert(_)
+        | AnyNodeRef::StmtImport(_)
+        | AnyNodeRef::StmtImportFrom(_)
+        | AnyNodeRef::StmtGlobal(_)
+        | AnyNodeRef::StmtNonlocal(_)
+        | AnyNodeRef::StmtExpr(_)
+        | AnyNodeRef::StmtPass(_)
+        | AnyNodeRef::StmtBreak(_)
+        | AnyNodeRef::StmtContinue(_)
+        | AnyNodeRef::StmtIpyEscapeCommand(_)
+        | AnyNodeRef::ExprBoolOp(_)
+        | AnyNodeRef::ExprNamed(_)
+        | AnyNodeRef::ExprBinOp(_)
+        | AnyNodeRef::ExprUnaryOp(_)
+        | AnyNodeRef::ExprLambda(_)
+        | AnyNodeRef::ExprIf(_)
+        | AnyNodeRef::ExprDict(_)
+        | AnyNodeRef::ExprSet(_)
+        | AnyNodeRef::ExprListComp(_)
+        | AnyNodeRef::ExprSetComp(_)
+        | AnyNodeRef::ExprDictComp(_)
+        | AnyNodeRef::ExprGenerator(_)
+        | AnyNodeRef::ExprAwait(_)
+        | AnyNodeRef::ExprYield(_)
+        | AnyNodeRef::ExprYieldFrom(_)
+        | AnyNodeRef::ExprCompare(_)
+        | AnyNodeRef::ExprCall(_)
+        | AnyNodeRef::ExprFString(_)
+        | AnyNodeRef::ExprTString(_)
+        | AnyNodeRef::ExprStringLiteral(_)
+        | AnyNodeRef::ExprBytesLiteral(_)
+        | AnyNodeRef::ExprNumberLiteral(_)
+        | AnyNodeRef::ExprBooleanLiteral(_)
+        | AnyNodeRef::ExprNoneLiteral(_)
+        | AnyNodeRef::ExprEllipsisLiteral(_)
+        | AnyNodeRef::ExprAttribute(_)
+        | AnyNodeRef::ExprSubscript(_)
+        | AnyNodeRef::ExprStarred(_)
+        | AnyNodeRef::ExprName(_)
+        | AnyNodeRef::ExprList(_)
+        | AnyNodeRef::ExprTuple(_)
+        | AnyNodeRef::ExprSlice(_)
+        | AnyNodeRef::ExprIpyEscapeCommand(_)
+        | AnyNodeRef::ExceptHandlerExceptHandler(_)
+        | AnyNodeRef::InterpolatedElement(_)
+        | AnyNodeRef::InterpolatedStringLiteralElement(_)
+        | AnyNodeRef::PatternMatchValue(_)
+        | AnyNodeRef::PatternMatchSingleton(_)
+        | AnyNodeRef::PatternMatchSequence(_)
+        | AnyNodeRef::PatternMatchMapping(_)
+        | AnyNodeRef::PatternMatchClass(_)
+        | AnyNodeRef::PatternMatchStar(_)
+        | AnyNodeRef::PatternMatchAs(_)
+        | AnyNodeRef::PatternMatchOr(_)
+        | AnyNodeRef::TypeParamTypeVar(_)
+        | AnyNodeRef::TypeParamTypeVarTuple(_)
+        | AnyNodeRef::TypeParamParamSpec(_)
+        | AnyNodeRef::InterpolatedStringFormatSpec(_)
+        | AnyNodeRef::PatternArguments(_)
+        | AnyNodeRef::PatternKeyword(_)
+        | AnyNodeRef::Comprehension(_)
+        | AnyNodeRef::Arguments(_)
+        | AnyNodeRef::Parameters(_)
+        | AnyNodeRef::Parameter(_)
+        | AnyNodeRef::ParameterWithDefault(_)
+        | AnyNodeRef::Keyword(_)
+        | AnyNodeRef::Alias(_)
+        | AnyNodeRef::WithItem(_)
+        | AnyNodeRef::MatchCase(_)
+        | AnyNodeRef::Decorator(_)
+        | AnyNodeRef::ElifElseClause(_)
+        | AnyNodeRef::TypeParams(_)
+        | AnyNodeRef::FString(_)
+        | AnyNodeRef::TString(_)
+        | AnyNodeRef::StringLiteral(_)
+        | AnyNodeRef::BytesLiteral(_)
+        | AnyNodeRef::Identifier(_) => node_kind(node.kind(), strings),
+    }
+}
+
 /// The language's kind of a token of the library.
 #[must_use]
 pub(super) fn token_kind(kind: TokenKind) -> Kind {
@@ -337,6 +453,11 @@ pub(super) fn unknown_futures(
             ParserRefusal {
                 at: alias.name.range(),
                 said: Said(said),
+                metadata: DiagnosticMetadata::new(
+                    DiagnosticPhase::Validation,
+                    TreeImpact::Preserved,
+                    FUTURE_FEATURE_NOT_DEFINED,
+                ),
             }
         })
 }
@@ -344,3 +465,36 @@ pub(super) fn unknown_futures(
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// The text the library reads for `bytes`: the bytes themselves when they are UTF-8, or else each byte that is not part of a
+/// character replaced by one the lexer cannot read, so every offset is the file's.
+pub(super) fn readable(bytes: SourceText<'_>) -> Readable<'_> {
+    if let Ok(text) = std::str::from_utf8(bytes.0) {
+        return Readable(Cow::Borrowed(text));
+    }
+    let mut text = String::with_capacity(bytes.0.len());
+    for chunk in bytes.0.utf8_chunks() {
+        text.push_str(chunk.valid());
+        text.extend(chunk.invalid().iter().map(|_| UNREADABLE));
+    }
+    Readable(Cow::Owned(text))
+}
+
+/// The text the library decoded for the tokens of a node: a string's value, or the literal part of an f-string's or a t-string's. Only
+/// these two kinds of the library's nodes carry it; every other kind carries none.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only the nodes of a string's text carry what the library decoded; the other ninety-odd kinds carry nothing, and a kind the library gains carries nothing until it is named here"
+)]
+pub(super) fn decoded_of(node: AnyNodeRef<'_>) -> Option<Decoded<'_>> {
+    match node {
+        AnyNodeRef::StringLiteral(literal) => Some(Decoded(&literal.value)),
+        AnyNodeRef::InterpolatedStringLiteralElement(element) => Some(Decoded(&element.value)),
+        _ => None,
+    }
+}
+
+/// The offset of a byte index of the text.
+pub(super) fn offset(index: ByteIndex) -> Offset {
+    Offset(u32::try_from(index.0).unwrap_or(u32::MAX))
+}

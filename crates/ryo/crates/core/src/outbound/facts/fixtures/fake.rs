@@ -1,24 +1,27 @@
 //! The fake of the `facts` port: what the core's tests stand in for it with. It keeps its numbers in memory, and fails when told to.
 
-use ryo_language::domain::relations::collections::relations::function::item::{
+use ryo_relations::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,
 };
-use ryo_language::domain::relations::collections::relations::interface::RelationsItem as _;
-use ryo_language::domain::relations::types::{FileId, NodeId, Offset, Span};
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem as _;
+use ryo_relations::domain::relations::types::{FileId, NodeId, Offset, Span};
+use ryo_relations::domain::terms::types::Symbol;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
-use ryo_language::domain::relations::service::{all, columns, kinds};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::types::Relation;
 
-use super::super::errors::FactsError;
-use super::super::interface::{FactsFinish, FactsPort, FactsWorker};
-use super::super::types::{ColumnsMut, WordsToKeep};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::stored_facts::types::PackedWords;
-use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    BucketSource, ColumnsMut, KeptBucket, WordsToKeep,
+};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsFinish, FactsPort, FactsWorker,
+};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_values::domain::stored_facts::types::Bucket;
 
 /// What the core's tests stand in for `facts` with.
 #[derive(Debug, Default)]
@@ -68,10 +71,16 @@ struct FakeWorker {
     /// The columns of each relation, in the order of all relations.
     tables: Vec<Vec<FactColumn>>,
     /// The words kept in each bucket.
-    words: BTreeMap<Bucket, PackedWords>,
+    words: Mutex<BTreeMap<Bucket, KeptBucket>>,
 }
 
 impl FactsWorker for FakeWorker {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         counted(&self.calls, self.fails)?;
         Ok(self
@@ -96,13 +105,21 @@ impl FactsWorker for FakeWorker {
         })
     }
 
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         counted(&self.calls, self.fails)?;
-        self.words
-            .entry(bucket)
-            .or_default()
-            .0
-            .extend_from_slice(&words.0.0);
+        if words.words.0.is_empty() {
+            return Err(refusal());
+        }
+        let mut buckets = self.words.lock().map_err(|_| refusal())?;
+        let kept = buckets.entry(bucket).or_default();
+        let start = kept.words.0.0.len();
+        kept.words.0.0.extend_from_slice(&words.words.0);
+        kept.sources.push(BucketSource {
+            file: words.file,
+            start,
+            length: words.words.0.len(),
+            proof: words.proof.clone(),
+        });
         Ok(())
     }
 
@@ -116,21 +133,21 @@ impl FactsWorker for FakeWorker {
 
     fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         counted(&self.calls, self.fails)?;
-        Ok(Box::new(FakeFinish { kept: self.words }))
+        Ok(Box::new(FakeFinish {
+            kept: self.words.into_inner().map_err(|_| refusal())?,
+        }))
     }
 }
 
 /// What a fake worker finished with: its words in each bucket.
 struct FakeFinish {
     /// Its words, in each bucket.
-    kept: BTreeMap<Bucket, PackedWords>,
+    kept: BTreeMap<Bucket, KeptBucket>,
 }
 
 impl FactsFinish for FakeFinish {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        Ok(KeptWords(
-            self.kept.get(&bucket).cloned().unwrap_or_default(),
-        ))
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        Ok(self.kept.get(&bucket).cloned().unwrap_or_default())
     }
 }
 
@@ -141,10 +158,18 @@ struct Joined {
 }
 
 impl FactsFinish for Joined {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        let mut words = KeptWords::default();
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let mut words = KeptBucket::default();
         for part in &self.parts {
-            words.0.0.extend(part.kept(bucket)?.0.0);
+            let each = part.kept(bucket)?;
+            let offset = words.words.0.0.len();
+            words.words.0.0.extend(each.words.0.0);
+            words
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start += offset;
+                    source
+                }));
         }
         Ok(words)
     }
@@ -160,7 +185,7 @@ impl FactsPort for FactsFake {
                 .iter()
                 .map(|relation| vec![FactColumn::default(); columns(*relation).len()])
                 .collect(),
-            words: BTreeMap::new(),
+            words: Mutex::new(BTreeMap::new()),
         }))
     }
 

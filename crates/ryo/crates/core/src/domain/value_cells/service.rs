@@ -3,18 +3,18 @@
 
 use std::fmt::Write as _;
 
-use ryo_language::domain::relations::service::{node_file, node_position};
-use ryo_language::domain::relations::types::{Name, Origin, Value};
 use ryo_language::domain::symbols::service::{file_in, place_of, places_of, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::service::unknown_reason;
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::{Name, Origin, Value};
+use ryo_relations::domain::terms::service::unknown_reason;
+use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::{Cell, CellText, RowsTextAt, TextRange};
 
 use crate::domain::value_cells::constants::{UNKNOWN_NAMED, UNKNOWN_SHOWN};
 use crate::domain::value_cells::types::Scene;
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::records::types::RenderedText;
 
 /// The bytes of a name read from the file the scene is of; none for a name of another file.

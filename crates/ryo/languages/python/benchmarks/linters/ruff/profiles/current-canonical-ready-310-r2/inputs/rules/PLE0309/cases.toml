@@ -1,0 +1,113 @@
+[[cases]]
+name = "wrong-literal"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        return 'bad'\n" }
+expected = [{ rule = "PLE0309", file = "case.py", start = 48, end = 53 }]
+
+[[cases]]
+name = "right-literal"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        return 2\n" }
+expected = []
+
+[[cases]]
+name = "bare-return"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        return\n" }
+expected = [{ rule = "PLE0309", file = "case.py", start = 41, end = 47 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        return 1  # noqa: PLE0309\n" }
+expected = []
+
+[[cases]]
+name = "implicit-return-gap"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        if condition:\n            pass\n" }
+expected = [{ rule = "PLE0309", file = "case.py", start = 17, end = 25 }]
+
+[[cases]]
+name = "pass-only-no-diagnostic"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "try-handler-fallthrough-gap"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        try:\n            raise ValueError\n        except ValueError:\n            pass\n" }
+expected = [{ rule = "PLE0309", file = "case.py", start = 17, end = 25 }]
+
+[[cases]]
+name = "module-function-is-not-magic-method"
+comparison = "full"
+files = { "case.py" = "def __hash__(self):\n    return \"wrong\"\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-return-is-not-owned"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        def nested():\n            return \"wrong\"\n        return 1\n" }
+expected = []
+
+[[cases]]
+name = "nested-class-method-return-is-not-owned"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        class D:\n            def other(self):\n                return \"wrong\"\n        return 1\n" }
+expected = []
+
+[[cases]]
+name = "always-raise-is-exempt"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        raise NotImplementedError\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis-body-is-stub"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "docstring-body-is-stub"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        \"documentation only\"\n" }
+expected = []
+
+[[cases]]
+name = "conditional-bad-return"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        if flag:\n            return \"wrong\"\n" }
+expected = [{ "rule" = "PLE0309", "file" = "case.py", "start" = 69, "end" = 76 }]
+
+[[cases]]
+name = "conditional-good-return-keeps-implicit-path"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        if flag:\n            return 1\n" }
+expected = []
+
+[[cases]]
+name = "unknown-return-type-is-permitted"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        return unknown_value\n" }
+expected = []
+
+[[cases]]
+name = "try-except-all-raise-is-exempt"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        try:\n            raise ValueError\n        except ValueError:\n            raise RuntimeError\n" }
+expected = [{ "rule" = "PLE0309", "file" = "case.py", "start" = 17, "end" = 25 }]
+
+[[cases]]
+name = "try-return-bad-except-raise"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        try:\n            return \"wrong\"\n        except Exception:\n            raise RuntimeError\n" }
+expected = [{ "rule" = "PLE0309", "file" = "case.py", "start" = 65, "end" = 72 }]
+
+[[cases]]
+name = "conditional-union-return-is-rejected"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __hash__(self):\n        return 1 if flag else \"bad\"\n" }
+expected = [{ "rule" = "PLE0309", "file" = "case.py", "start" = 48, "end" = 68 }]

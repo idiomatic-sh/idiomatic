@@ -7,7 +7,9 @@ let imports = project(from="static-import", columns=["occurrence", "file", "span
 let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
 let mentions = union(left=imports, right=references);
 let clients = select * from mentions where glob_any(target, $libraries);
-emit clients subject "file" key("span");
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,adapter-writer,settings,schemas}");
+let outside = antijoin(left=clients, right=governed-roles, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");
 '''
 
 [params.libraries]
@@ -186,3 +188,24 @@ pub fn opens() {
 given.files.'src/lib.rs' = '''
 //! The crate.
 '''
+
+[[scenarios]]
+id = "governed-external-adapter-roles"
+scenario = "Only explicitly placed adapter roles gain boundary access; unplaced lookalikes and other roles remain rejected."
+given.include = ["**"]
+given.exclude = []
+given.files.'edge/adapter.rs' = 'use rusqlite::Connection;'
+given.files.'edge/schemas.rs' = 'use rusqlite::Connection;'
+given.files.'edge/writer.rs' = 'use rusqlite::Connection;'
+given.files.'domain/writer.rs' = 'use rusqlite::Connection;'
+given.files.'domain/adapter.rs' = 'use rusqlite::Connection;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+specs = [{ spec = "idiomatic.arch/adapter", include = ["edge"], params = { core = "foreign_core", port = "names" } }]
+'''
+then.only = ['idiomatic.arch/client-at-adapter', 'idiomatic.arch/client-at-adapter#unknown']
+then.findings = [
+  { path = 'domain/adapter.rs', line = 1 },
+  { path = 'domain/writer.rs', line = 1 },
+]

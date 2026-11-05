@@ -1,0 +1,18 @@
+import suppress from "python/ruff/suppress";
+import type_context from "python/ruff/type-definition-context";
+import builtin_match from "python/ruff/builtin-match-at-visit";
+import call_context from "python/ruff/call-checker-context";
+import rounded_arguments from "python/ruff/rounded-arguments";
+let nodes=select id,kind,file from "semantic-syntax";
+let calls=select id,file from nodes where kind="call";
+let checks=call_context(calls=calls);
+let builtin_round=builtin_match(checks=checks,builtin="builtins.round");
+let round_calls=select check as id,file from builtin_round;
+let arguments=rounded_arguments(calls=round_calls);
+let candidates=select call as id,file from arguments where (rounded_kind="integer-equivalent" or rounded_kind="integer-assignable") and (ndigits_kind="none" or ndigits_kind="integer-literal");
+let inputs=select id,file from candidates;
+let visited=type_context(expressions=inputs);
+let visited_candidates=select l.id as id,l.file as file from candidates as l join visited as r on l.id=r.id and l.file=r.file;
+let locations=select l.id as id,l.file as file,r.span as span,r."start-line" as line from visited_candidates as l join "source-location" as r on l.id=r.id and l.file=r.file;
+let violations=suppress(candidates=locations,inline-pattern="(?:^|[^A-Z0-9])RUF057(?:$|[^A-Z0-9])",range-pattern="(?:^|,)(?:RUF057)(?:,|$)");
+emit violations subject file key(id);

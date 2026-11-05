@@ -1,6 +1,6 @@
 //! The catalog port, implemented by the `language` crate's catalog of relations.
 
-use ryo_language::domain::relations::service::all;
+use ryo_relations::domain::relations::service::all;
 
 use crate::outbound::catalog::errors::CatalogError;
 use crate::outbound::catalog::interface::CatalogPort;

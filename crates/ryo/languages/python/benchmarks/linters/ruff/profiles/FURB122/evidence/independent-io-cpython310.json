@@ -1,0 +1,43 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "cases": [
+    {
+      "name": "io-binding-2",
+      "source_sha256": "a8794aae94f0691d59697bc15fadbd0da0fae1912c8b0bf4981c6094ccd3f8f8",
+      "receiver_type": "int",
+      "has_write": false,
+      "error": {
+        "type": "AttributeError",
+        "message": "'int' object has no attribute 'write'"
+      }
+    },
+    {
+      "name": "io-binding-4",
+      "source_sha256": "ff9c4b82e3bc02d565a8f392d8a5c8f13959050ed0dd57c6a83485347fab03d3",
+      "receiver_type": "StringIO",
+      "is_io_base": true,
+      "is_text_io_base": true,
+      "has_writelines": true,
+      "written": "z"
+    },
+    {
+      "name": "independent-nested-generator-does-not-change-factory-result",
+      "source_sha256": "8807fe094a01801cf191ff0b42cab5905936ac0280a0c5b6f58078e624080f65",
+      "receiver_type": "StringIO",
+      "is_io_base": true,
+      "is_text_io_base": true,
+      "has_writelines": true,
+      "written": "zine\n"
+    },
+    {
+      "name": "independent-nested-generator-lambda-does-not-change-factory-result",
+      "source_sha256": "e0267bf979193c06317bd00157200602cfffd610b5b1ab9d98de9185e5f810f3",
+      "receiver_type": "StringIO",
+      "is_io_base": true,
+      "is_text_io_base": true,
+      "has_writelines": true,
+      "written": "zine\n"
+    }
+  ],
+  "scope": "Exact source with only rows and temporary file environment framed. No claim about arbitrary custom IO implementations or universal fix equivalence."
+}

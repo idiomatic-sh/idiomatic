@@ -1,0 +1,216 @@
+//! Original column-chain coordinates are lowered once into executable regions.
+//! No authored plan, analysis graph, or physical layout survives this boundary.
+
+use crate::domain::{
+    column_kernel::types::Chain,
+    coverage::types::RuleIndex,
+    derived_views::types::ViewRequest,
+    executable_program::types::RegionId,
+    file_program::types::{NodeId, RequestGraph},
+};
+use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_values::domain::{
+    plan_parts::types::{Input, StepId},
+    plans::types::Operation,
+};
+use std::sync::Arc;
+
+#[derive(Clone, Debug)]
+struct OriginalColumn {
+    target: NodeId,
+    filter: NodeId,
+    join: NodeId,
+    left: NodeId,
+    chain: Chain,
+}
+
+/// Immutable original-coordinate candidates. The compiler uses these nodes as
+/// fusion fences, then drops this value after lowering them into regions.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ColumnCandidates {
+    candidates: Vec<OriginalColumn>,
+}
+
+/// The typed semantic shape required by the shared physical invocation.
+#[derive(Clone, Debug)]
+pub(crate) struct ColumnAlternative {
+    target: RegionId,
+    left: RegionId,
+    join: RegionId,
+    filter: RegionId,
+    chain: Chain,
+}
+
+impl ColumnAlternative {
+    pub(crate) fn target(&self) -> RegionId {
+        self.target
+    }
+
+    pub(crate) fn left(&self) -> RegionId {
+        self.left
+    }
+
+    pub(crate) fn join(&self) -> RegionId {
+        self.join
+    }
+
+    pub(crate) fn filter(&self) -> RegionId {
+        self.filter
+    }
+
+    pub(crate) fn chain(&self) -> &Chain {
+        &self.chain
+    }
+}
+
+fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeId> {
+    match graph.program_nodes.get(rule.0)?.get(step.0 as usize)? {
+        Ok(node) => Some(*node),
+        Err(_) => None,
+    }
+}
+
+/// Only unobserved, single-reader ancestors may be replaced by one physical instruction.
+pub(super) enum ReplacementUse {
+    Exclusive,
+    Observed,
+}
+impl ColumnCandidates {
+    /// Capture exact original identities before the transient graph is consumed.
+    /// Invalid or unmatched authored roots keep their ordinary compiled route.
+    pub(crate) fn capture(graph: &RequestGraph) -> Self {
+        let mut candidates = Vec::new();
+        for (at, node) in graph.nodes.iter().enumerate() {
+            for physical in &node.regions {
+                let Some(chain) = &physical.column else {
+                    continue;
+                };
+                let rule = RuleIndex(physical.rule);
+                let Some(target) = original(graph, rule, physical.step) else {
+                    continue;
+                };
+                if target != NodeId(at) {
+                    continue;
+                }
+                let plan = physical.plan.as_ref();
+                let Some(Operation::Project {
+                    from: Input::Step(filter_step),
+                    ..
+                }) = plan
+                    .steps
+                    .get(physical.step.0 as usize)
+                    .map(|step| &step.operation)
+                else {
+                    continue;
+                };
+                let Some(Operation::Select {
+                    from: Input::Step(join_step),
+                    ..
+                }) = plan
+                    .steps
+                    .get(filter_step.0 as usize)
+                    .map(|step| &step.operation)
+                else {
+                    continue;
+                };
+                let Some(Operation::Join {
+                    left: Input::Step(left_step),
+                    ..
+                }) = plan
+                    .steps
+                    .get(join_step.0 as usize)
+                    .map(|step| &step.operation)
+                else {
+                    continue;
+                };
+                if left_step.0 as usize != chain.left_step {
+                    continue;
+                }
+                let (Some(filter), Some(join), Some(left)) = (
+                    original(graph, rule, *filter_step),
+                    original(graph, rule, *join_step),
+                    original(graph, rule, *left_step),
+                ) else {
+                    continue;
+                };
+                if [target, filter, join, left].iter().any(|node| {
+                    graph
+                        .nodes
+                        .get(node.0)
+                        .is_none_or(|node| !node.schema_valid)
+                }) {
+                    continue;
+                }
+                let Some(join_node) = graph.nodes.get(join.0) else {
+                    continue;
+                };
+                let Some(equality) =
+                    join_node.contract.derived.slots[DerivedKind::Equality.ordinal()].as_ref()
+                else {
+                    continue;
+                };
+                let primary = &equality.primary;
+                if primary.len != 1
+                    || primary.inputs[0] != 1
+                    || primary.relations[0] != Some(chain.right)
+                    || primary.plan.kind != DerivedKind::Equality
+                    || !matches!(
+                        &primary.plan.request,
+                        ViewRequest::Equality { columns } if columns == &chain.right_on
+                    )
+                {
+                    continue;
+                }
+                let mut chain = chain.clone();
+                chain.index = Some(Arc::clone(&primary.plan));
+                candidates.push(OriginalColumn {
+                    target,
+                    filter,
+                    join,
+                    left,
+                    chain,
+                });
+            }
+        }
+        Self { candidates }
+    }
+
+    pub(super) fn retain_internal(&mut self, mut usage: impl FnMut(NodeId) -> ReplacementUse) {
+        self.candidates.retain(|candidate| {
+            [candidate.join, candidate.filter]
+                .into_iter()
+                .all(|node| matches!(usage(node), ReplacementUse::Exclusive))
+        });
+    }
+    /// Every original node in a candidate must remain a compiler boundary.
+    pub(crate) fn fences(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.candidates
+            .iter()
+            .flat_map(|each| [each.target, each.filter, each.join, each.left])
+    }
+
+    /// Replace original node coordinates with final executable region identities.
+    /// A missing mapping declines only this physical alternative before work.
+    pub(crate) fn lower(&self, regions: &[RegionId]) -> Vec<ColumnAlternative> {
+        self.candidates
+            .iter()
+            .filter_map(|each| {
+                let (Some(&target), Some(&left), Some(&join), Some(&filter)) = (
+                    regions.get(each.target.0),
+                    regions.get(each.left.0),
+                    regions.get(each.join.0),
+                    regions.get(each.filter.0),
+                ) else {
+                    return None;
+                };
+                Some(ColumnAlternative {
+                    target,
+                    left,
+                    join,
+                    filter,
+                    chain: each.chain.clone(),
+                })
+            })
+            .collect()
+    }
+}

@@ -1,0 +1,164 @@
+[
+  {
+    "target": "py37",
+    "arguments_normalized": [
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "$STATE/ruff",
+      "--select",
+      "UP036",
+      "--target-version",
+      "py37",
+      "--",
+      "case.py"
+    ],
+    "raw_findings": [
+      {
+        "cell": null,
+        "code": "UP036",
+        "end_location": {
+          "column": 28,
+          "row": 2
+        },
+        "filename": "/tmp/tmp5lkzunt2/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "branch = \"micro-three\"",
+              "end_location": {
+                "column": 27,
+                "row": 5
+              },
+              "location": {
+                "column": 1,
+                "row": 2
+              }
+            }
+          ],
+          "message": "Remove outdated version block"
+        },
+        "location": {
+          "column": 4,
+          "row": 2
+        },
+        "message": "Version block is outdated for minimum Python version",
+        "name": "outdated-version-block",
+        "noqa_row": 2,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/outdated-version-block"
+      }
+    ]
+  },
+  {
+    "target": "py310",
+    "arguments_normalized": [
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "$STATE/ruff",
+      "--select",
+      "UP036",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "raw_findings": [
+      {
+        "cell": null,
+        "code": "UP036",
+        "end_location": {
+          "column": 28,
+          "row": 2
+        },
+        "filename": "/tmp/tmp01lvznxc/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "branch = \"micro-three\"",
+              "end_location": {
+                "column": 27,
+                "row": 5
+              },
+              "location": {
+                "column": 1,
+                "row": 2
+              }
+            }
+          ],
+          "message": "Remove outdated version block"
+        },
+        "location": {
+          "column": 4,
+          "row": 2
+        },
+        "message": "Version block is outdated for minimum Python version",
+        "name": "outdated-version-block",
+        "noqa_row": 2,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/outdated-version-block"
+      }
+    ]
+  },
+  {
+    "target": "py313",
+    "arguments_normalized": [
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "$STATE/ruff",
+      "--select",
+      "UP036",
+      "--target-version",
+      "py313",
+      "--",
+      "case.py"
+    ],
+    "raw_findings": [
+      {
+        "cell": null,
+        "code": "UP036",
+        "end_location": {
+          "column": 28,
+          "row": 2
+        },
+        "filename": "/tmp/tmpsdjmqz7s/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "branch = \"micro-three\"",
+              "end_location": {
+                "column": 27,
+                "row": 5
+              },
+              "location": {
+                "column": 1,
+                "row": 2
+              }
+            }
+          ],
+          "message": "Remove outdated version block"
+        },
+        "location": {
+          "column": 4,
+          "row": 2
+        },
+        "message": "Version block is outdated for minimum Python version",
+        "name": "outdated-version-block",
+        "noqa_row": 2,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/outdated-version-block"
+      }
+    ]
+  }
+]

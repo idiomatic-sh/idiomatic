@@ -1,0 +1,154 @@
+[
+  {
+    "rule": "PLE0115",
+    "name": "each-nonlocal-declaration-retains-diagnostic-multiplicity",
+    "files": {
+      "case.py": "def f():\n    nonlocal value\n    nonlocal value\n    global value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0115",
+    "name": "each-nonlocal-declaration-retains-diagnostic-multiplicity-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0115",
+    "name": "global-then-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n    nonlocal value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0115",
+    "name": "global-then-nonlocal-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0115",
+    "name": "latest-global-declaration-is-reported",
+    "files": {
+      "case.py": "def f():\n    global value\n    global value\n    nonlocal value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0115",
+    "name": "latest-global-declaration-is-reported-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n    global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0115",
+    "name": "nonlocal-then-global",
+    "files": {
+      "case.py": "def f():\n    nonlocal value\n    global value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0115",
+    "name": "nonlocal-then-global-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0115",
+    "name": "noqa-suppresses-conflicting-declaration",
+    "files": {
+      "case.py": "def f():\n    global value  # noqa: PLE0115\n    nonlocal value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0115",
+    "name": "noqa-suppresses-conflicting-declaration-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value  # noqa: PLE0115\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0117",
+    "name": "crossrule-PLE0115-each-nonlocal-declaration-retains-diagnostic-multiplicity",
+    "files": {
+      "case.py": "def f():\n    nonlocal value\n    nonlocal value\n    global value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0117",
+    "name": "crossrule-PLE0115-each-nonlocal-declaration-retains-diagnostic-multiplicity-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0117",
+    "name": "crossrule-PLE0115-global-then-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n    nonlocal value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0117",
+    "name": "crossrule-PLE0115-global-then-nonlocal-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0117",
+    "name": "crossrule-PLE0115-noqa-suppresses-conflicting-declaration",
+    "files": {
+      "case.py": "def f():\n    global value  # noqa: PLE0115\n    nonlocal value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0117",
+    "name": "crossrule-PLE0115-noqa-suppresses-conflicting-declaration-without-nonlocal",
+    "files": {
+      "case.py": "def f():\n    global value  # noqa: PLE0115\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0117",
+    "name": "own-global-conflict-with-real-outer-binding",
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n"
+    },
+    "expected_compile": false
+  },
+  {
+    "rule": "PLE0117",
+    "name": "own-global-conflict-with-real-outer-binding-without-nonlocal",
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        global value\n"
+    },
+    "expected_compile": true
+  },
+  {
+    "rule": "PLE0117",
+    "name": "real-outer-binding-without-global",
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        nonlocal value\n"
+    },
+    "expected_compile": true
+  }
+]

@@ -29,7 +29,7 @@ pub(super) struct Held {
 
 /// What the adapter is reading: a header, whose key opens no key-value, or the entries below one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Reading {
+pub(super) enum TableReadPhase {
     /// A header, `[a.b]` or `[[a.b]]`.
     Header,
     /// Entries.

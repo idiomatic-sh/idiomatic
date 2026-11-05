@@ -28,7 +28,7 @@ pub fn check(adapter: &impl CatalogPort) {
     run(CASES, Word::Succeeds, |()| {
         let relations = adapter.relations()?;
         Ok(relations.0.iter().all(|relation| {
-            !ryo_language::domain::relations::service::columns(*relation).is_empty()
+            !ryo_relations::domain::relations::service::columns(*relation).is_empty()
         }))
     });
 }

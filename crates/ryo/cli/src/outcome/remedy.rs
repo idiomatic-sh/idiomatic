@@ -73,10 +73,12 @@ impl Remedy for ryo_core::inbound::use_cases::lint::errors::LintError {
         use ryo_core::inbound::use_cases::lint::errors::LintError;
         match self {
             LintError::Query { .. } | LintError::UnknownKind { .. } | LintError::MissingParameter { .. } => Next::Fix("correct the query text; `ryo query validate --text <query>` checks it without running it".to_owned()),
+            LintError::ObservationBindings { .. } => Next::Fix("correct the declared observation producer and output bindings".to_owned()),
+            LintError::ObservationExecution { .. } => Next::Report,
             LintError::Corpus { .. } => Next::Fix("give `--root` a directory that exists and can be read".to_owned()),
             LintError::Memory { .. } | LintError::TooLarge { .. } | LintError::MemoryBudgetExceeded { .. } => Next::Fix("raise `--memory-budget`, or run on a smaller repository".to_owned()),
             LintError::Rule { .. } => Next::Fix("correct the arguments of the operation the message names; `ryo operator describe <name>` shows them".to_owned()),
-            LintError::BlankRuleId | LintError::DuplicateRuleId { .. } | LintError::Store { .. } | LintError::Facts { .. } | LintError::Provider { .. } | LintError::Language { .. } | LintError::Scheduler { .. } => Next::Report,
+            LintError::Execution { .. } | LintError::SourceLanguage { .. } | LintError::BlankRuleId | LintError::DuplicateRuleId { .. } | LintError::Store { .. } | LintError::Facts { .. } | LintError::Provider { .. } | LintError::Language { .. } | LintError::Scheduler { .. } => Next::Report,
             LintError::Output { .. } | LintError::OutputClosed => Next::Fix("give the command a stdout that takes its answer, or pass `--quiet`".to_owned()),
         }
     }

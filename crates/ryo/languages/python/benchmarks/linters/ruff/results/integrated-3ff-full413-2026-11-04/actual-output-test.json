@@ -1,0 +1,11 @@
+{
+  "head": "3ffb75b32256efc474cc436bd7de451004e306c4",
+  "tree": "5a778e30cfca0d8d47b8cf153e1c1a222265da9b",
+  "tests_run": 1,
+  "passed": 1,
+  "failed": 0,
+  "exit_code": 0,
+  "test": "engine_test::i001_observation::i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory",
+  "log_sha256": "8032c3122dc1577c73090e61f312bb2f703f93d3109589a7aa580f549986db15",
+  "source_status": ""
+}

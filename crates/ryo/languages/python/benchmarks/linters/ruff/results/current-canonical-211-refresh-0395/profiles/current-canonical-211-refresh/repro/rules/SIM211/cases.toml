@@ -1,0 +1,101 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "value = False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 26 }, { "rule" = "SIM211", "file" = "case.py", "start" = 8, "end" = 36 }]
+
+[[cases]]
+name = "reverse"
+comparison = "full"
+files = { "case.py" = "value = True if condition else False\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 25 }, { "rule" = "SIM210", "file" = "case.py", "start" = 8, "end" = 36 }]
+
+[[cases]]
+name = "same"
+comparison = "full"
+files = { "case.py" = "value = False if condition else False\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 26 }]
+
+[[cases]]
+name = "number"
+comparison = "full"
+files = { "case.py" = "value = 0 if condition else 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 22 }]
+
+[[cases]]
+name = "comparison"
+comparison = "full"
+files = { "case.py" = "value = False if a == b else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 23 }, { "rule" = "SIM211", "file" = "case.py", "start" = 8, "end" = 33 }]
+
+[[cases]]
+name = "shadow-bool"
+comparison = "full"
+files = { "case.py" = "bool = replacement\nvalue = False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 36, "end" = 45 }, { "rule" = "SIM211", "file" = "case.py", "start" = 27, "end" = 55 }]
+
+[[cases]]
+name = "parentheses"
+comparison = "full"
+files = { "case.py" = "value = (False) if condition else (True)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 19, "end" = 28 }, { "rule" = "SIM211", "file" = "case.py", "start" = 8, "end" = 40 }]
+
+[[cases]]
+name = "nested"
+comparison = "full"
+files = { "case.py" = "def f():\n    return False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 29, "end" = 38 }, { "rule" = "SIM211", "file" = "case.py", "start" = 20, "end" = 48 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "value = False if condition else True # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "value = False if condition else True # noqa: SIM211\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 26 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "value = False if condition else True # noqa: F401\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 26 }, { "rule" = "SIM211", "file" = "case.py", "start" = 8, "end" = 36 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nvalue = False if condition else True\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM211]\nvalue = False if condition else True\n\n# ruff: enable[SIM211]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 41, "end" = 50 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM211]\n# ruff: enable[SIM211]\nvalue = False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 64, "end" = 73 }, { "rule" = "SIM211", "file" = "case.py", "start" = 55, "end" = 83 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM211]\nvalue = False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 41, "end" = 50 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 39, "end" = 48 }, { "rule" = "SIM211", "file" = "case.py", "start" = 30, "end" = 58 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[SIM211]\nvalue = False if condition else True\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 45, "end" = 54 }]

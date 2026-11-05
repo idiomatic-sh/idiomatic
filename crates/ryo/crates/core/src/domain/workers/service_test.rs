@@ -1,28 +1,29 @@
 //! The `workers` service's cases, on values alone.
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::WorkerNumber;
+use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::{
-    CorpusEntry, FileNumber, FileSize, Glob, Hits, Nanoseconds,
+    CorpusEntry, CorpusInput, FileNumber, FileSize, Glob, Hits, Nanoseconds,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 
-use super::service::{
+use crate::domain::visit::types::{Noting, RoleRead};
+use crate::domain::workers::service::{
     absorb, add_fed, checking, file_at, gathering, govern, governs_rule, order, size_at, tables_for,
 };
-use super::types::{Checking, FileOrder, FilesRead, FreshRecord, Tables, VisitSetting, WorkersMet};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::{PlanIdentity, PlanLayout, RowsFed, TreeSteps};
-use crate::domain::placement::service::decide;
-use crate::domain::placement::types::{Governing, Mask, PlacedScopes, RuleScope};
-use crate::domain::visit::types::{Noting, RoleRead};
-use crate::outbound::matching::fixtures::fake::MatchingFake;
-use crate::outbound::matching::interface::MatchingPort as _;
+use crate::domain::workers::types::VisitSetting;
+use crate::domain::workers::types::{
+    Checking, FileOrder, FilesRead, FreshRecord, Tables, WorkersMet,
+};
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Governing, Mask, PlacedScopes, RuleScope,
+};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::runs::types::MemoryBytes;
 
@@ -31,8 +32,8 @@ static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::St
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
 
 /// What the files of the last run handed, for a run that uses nothing of it.
-static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::StoredHanded> =
-    std::sync::LazyLock::new(ryo_values::domain::stores::types::StoredHanded::default);
+static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 
 /// No bucket of what the files handed, for a run that reads none.
 static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
@@ -84,11 +85,13 @@ fn yes(governing: Governing) -> u64 {
 /// A plan of this many steps, all of them the same.
 fn plan(steps: usize) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: std::iter::repeat_with(|| PlanStep {
             operation: Operation::Project {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(
-                    ryo_language::domain::relations::types::Relation::Function,
+                    ryo_relations::domain::relations::types::Relation::Function,
                 ),
                 columns: vec![ColumnIndex(0)],
                 distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
@@ -104,11 +107,13 @@ fn plan(steps: usize) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
 fn entry(path: &str, size: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(size),
         modified: Nanoseconds(0),
@@ -117,6 +122,7 @@ fn entry(path: &str, size: u64) -> CorpusEntry {
 
 fn record(path: &str) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(0),
         modified: Nanoseconds(0),
@@ -130,45 +136,57 @@ fn record(path: &str) -> Record {
 }
 
 fn tables(plans: &[Plan]) -> Tables {
-    tables_for(
-        WorkerNumber(0),
-        plans,
-        TreeSteps::Lowered,
-        Counting::DoesNotCount,
-    )
+    tables_for(WorkerNumber(0), &from_plans(plans))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let files = [entry("a.rs", 10), entry("b.rs", 20)];
+    let files = [entry("a.rs", 10), entry("b.rs", 20)].map(CorpusInput::Available);
     Ok(match scenario {
-        Scenario::TablesFor => count(tables(&[plan(2), plan(3)]).pool.steps.len()),
-        Scenario::FileAt => {
-            count(file_at(&files, FileOrder(1)).map_or(0, |each| each.path.0.len()))
+        Scenario::TablesFor => {
+            let worker = tables(&[plan(2), plan(3)]);
+            assert_eq!(
+                worker.fed.iter().map(Vec::len).collect::<Vec<_>>(),
+                [2, 3],
+                "worker counts are prepared for each actual plan step"
+            );
+            u64::from(
+                worker
+                    .fed
+                    .iter()
+                    .flatten()
+                    .all(|fed| *fed == RowsFed::default())
+                    && worker.partials.is_empty(),
+            )
         }
+        Scenario::FileAt => count(file_at(&files, FileOrder(1)).map_or(0, |each| {
+            ryo_values::domain::files::service::input_path(each).0.len()
+        })),
         Scenario::NoFileAt => u64::from(file_at(&files, FileOrder(5)).is_none()),
         Scenario::SizeAt => size_at(&files, FileOrder(1)).0,
         Scenario::NoSizeAt => size_at(&files, FileOrder(5)).0,
         Scenario::Govern(path) => {
-            let placement = decide(&[RuleScope {
+            let placement = MetadataUseCaseImpl.decide(&[RuleScope {
                 include: vec![Glob("**/*.rs".into())],
                 exclude: Vec::new(),
             }]);
             let globs = placement.globs.clone();
             let placed = PlacedScopes {
-                matcher: MatchingFake.compile(&globs).map_err(drop)?,
+                matcher: matcher(&globs).map_err(drop)?,
                 placement,
             };
             let setting = VisitSetting {
                 unknown: &[],
-                plans: &[],
-                bindings: &[],
+                metadata: &[],
+
                 wanted: &[],
                 paths: &[],
                 first_bucket: &[],
                 ids: &[],
+                applicability: &[],
+                applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                replaying: super::types::Replaying::Findings,
+                replaying: crate::domain::workers::types::Replaying::Findings,
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &NOTHING_WANTED,
@@ -190,21 +208,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             total.0[0] * 1000 + total.0[2] + u64::from(total.0[1] == u64::MAX)
         }
         Scenario::Gathering => {
-            let met = gathering(&[plan(1), plan(2)]);
+            let met = gathering(&from_plans(&[plan(1), plan(2)]));
             count(met.fed.iter().map(Vec::len).sum())
         }
         Scenario::Absorb => {
             let plans = [plan(1)];
             let mut worker = tables(&plans);
-            worker.pool.layouts = vec![PlanLayout {
-                plan: PlanIdentity(std::ptr::from_ref(&plans[0]).addr()),
-                ..PlanLayout::default()
-            }];
-            worker.pool.fed = vec![vec![RowsFed([1, 2, 3])]];
+            worker.fed = vec![vec![RowsFed([1, 2, 3])]];
             worker.reads = FilesRead(2);
             worker.arena = ArenaBytes(vec![7]);
-            let mut met = gathering(&plans);
-            absorb(&mut met, worker, &plans);
+            let mut met = gathering(&from_plans(&plans));
+            absorb(&mut met, worker);
             met.fed[0][0].0[2] * 100 + u64::from(met.read.0) * 10 + count(met.arenas.len())
         }
         Scenario::Order => {
@@ -235,10 +249,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_worker_starts_with_room_for_the_biggest_of_the_plans"),
+        name: CaseName("a_worker_prepares_metadata_without_retaining_rule_execution_rows"),
         word: Word::Succeeds,
         input: || Scenario::TablesFor,
-        expect: Expect::Value(3),
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("the_file_at_a_place_is_the_one_among_the_files_in_that_place"),
@@ -335,4 +349,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+use ryo_execution::inbound::use_cases::metadata::{
+    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
+};
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
+use ryo_values::domain::run_metadata::service::from_plans;
+
+fn matcher(
+    globs: &[ryo_values::domain::files::types::Glob],
+) -> Result<
+    ryo_values::domain::files::types::GlobsMatcher,
+    ryo_matching::inbound::use_cases::matching::errors::MatchingError,
+> {
+    let patterns: Vec<&str> = globs.iter().map(|glob| glob.0.as_ref()).collect();
+    let compiled = MatchingUseCaseImpl::new().compile_globs(&patterns)?;
+    Ok(ryo_values::domain::files::types::GlobsMatcher {
+        matches: std::sync::Arc::new(
+            move |path: ryo_values::domain::files::types::MatchCandidate<'_>,
+                  hits: &mut ryo_values::domain::files::types::Hits| {
+                MatchingUseCaseImpl::new().match_globs(
+                    &compiled,
+                    std::path::Path::new(path.0),
+                    &mut hits.0,
+                );
+            },
+        ),
+    })
 }

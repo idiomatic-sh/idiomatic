@@ -1,0 +1,15 @@
+input strings: relation<id: node, value: symbol, file: file>;
+output relation<id: node, before: symbol, unit: symbol, file: file>;
+let middle_parts = capture(from=strings, path="value", pattern="{*before}{*unit}{*after}", captures=["before", "unit", "after"]);
+let middle = select id, before, unit, file from middle_parts where matches(unit, "(?s)^.$");
+let first_parts = capture(from=strings, path="value", pattern="{*unit}{*after}", captures=["unit", "after"]);
+let first0 = select id, unit, file from first_parts where matches(unit, "(?s)^.$");
+let singleton = select id, value as unit, file from strings where matches(value, "(?s)^.$");
+let first1 = union(left=first0, right=singleton);
+let first2 = extend(from=first1, values={before: ""});
+let first = select id, before, unit, file from first2;
+let last_parts = capture(from=strings, path="value", pattern="{*before}{*unit}", captures=["before", "unit"]);
+let last = select id, before, unit, file from last_parts where matches(unit, "(?s)^.$");
+let edges = union(left=first, right=last);
+let units = union(left=middle, right=edges);
+return units;

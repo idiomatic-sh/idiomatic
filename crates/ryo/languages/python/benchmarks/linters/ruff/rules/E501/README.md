@@ -1,0 +1,1 @@
+Supporting cohort rule for RUF100, no shipped-default inventory credit. Uses existing Unicode/tab-aware rendered-width and source-span operators; no byte-length approximation or provider IO. Exact exception/span parity and full cohort fixtures remain pending runtime validation.

@@ -1,22 +1,27 @@
 //! What the schemas of this entry accept and refuse, one row of `CASES` for each input.
 
-use super::report;
+use super::{report, request};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::cell::types::{Cell as Typed, HostText, Slot};
 use crate::domain::file::types::RelativePath;
 use crate::resources::linter::lint::types::Glob;
 use crate::resources::linter::lint::types::Place;
 use crate::resources::linter::lint::types::RuleId;
+use crate::resources::linter::{Corpus, LintRequest, Rule, RuleApplicability, SkipReason};
 use ryo_core::inbound::use_cases::lint::types::LintReport as CoreReport;
 use ryo_core::outbound::rows::factory::collect;
 use ryo_core::outbound::rows::interface::RowsPort as _;
 use ryo_core::outbound::rows::types::LentCell;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::records::types::{Cell, CellText};
 
 /// A text and what it is offered as.
 #[derive(Clone, Copy, Debug)]
 enum Offered {
+    /// The public SDK policy, converted into a core request.
+    Policy(RuleApplicability),
+    /// A core skip reason, converted into the SDK report.
+    Skipped,
     Id(&'static str),
     Glob(&'static str),
     /// The typed cells of a finding the run wrote: rule, subject, how many key values and each, each column as its heading and its
@@ -36,6 +41,7 @@ type Failure = Refused;
 /// Which conversion refused.
 #[derive(Debug, PartialEq, Eq)]
 enum Refused {
+    Policy,
     Id,
     Glob,
     Row,
@@ -44,6 +50,24 @@ enum Refused {
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("sdk_always_policy_converts_to_core"),
+        word: Word::Succeeds,
+        input: || Offered::Policy(RuleApplicability::Always),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("sdk_accepted_syntax_policy_converts_to_core"),
+        word: Word::Succeeds,
+        input: || Offered::Policy(RuleApplicability::AcceptedSyntax),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("core_syntax_skip_reason_converts_to_sdk"),
+        word: Word::Succeeds,
+        input: || Offered::Skipped,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("a_rule_id_with_text_is_accepted"),
         word: Word::Succeeds,
@@ -150,9 +174,70 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// The SDK's public applicability value becomes exactly one core rule policy.
+fn converted_policy(applicability: RuleApplicability) -> Result<Value, Failure> {
+    let id = RuleId::try_from("policy").map_err(|_error| Refused::Policy)?;
+    let query =
+        crate::resources::query::RyoQlQuery::try_from("emit \"syntax-tree\" subject file key(id);");
+    let query = query.map_err(|_error| Refused::Policy)?;
+    let converted = request(LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
+        source_language: None,
+        root: std::path::PathBuf::from("."),
+        rules: [(
+            id,
+            Rule {
+                observations: Vec::new(),
+                query,
+                applicability,
+                parameters: std::collections::BTreeMap::new(),
+                include: Vec::new(),
+                exclude: Vec::new(),
+            },
+        )]
+        .into_iter()
+        .collect(),
+        files: Vec::new(),
+        hosted: Vec::new(),
+        corpus: Corpus::Given(Vec::new()),
+        beside: Vec::new(),
+    })
+    .map_err(|_error| Refused::Policy)?;
+    let expected = match applicability {
+        RuleApplicability::Always => ryo_values::domain::runs::types::RuleApplicability::Always,
+        RuleApplicability::AcceptedSyntax => {
+            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax
+        }
+    };
+    Ok(usize::from(
+        converted.rules.len() == 1 && converted.rules[0].applicability == expected,
+    ))
+}
+
+/// A core skip retains its identity and reason in SDK-owned values.
+fn converted_skip() -> Result<Value, Failure> {
+    let mut core = CoreReport::default();
+    core.skipped.push(ryo_values::domain::runs::types::Skipped {
+        rule: ryo_values::domain::runs::types::RuleId("policy".into()),
+        path: ryo_language::domain::files::types::FilePath("bad.py".into()),
+        reason: ryo_values::domain::runs::types::SkipReason::SyntaxRejected,
+    });
+    let converted = report(ryo_core::outbound::rows::types::Collector::default(), core)
+        .map_err(|_error| Refused::Policy)?;
+    Ok(usize::from(
+        converted.skipped.len() == 1
+            && converted.skipped[0].rule.as_ref() == "policy"
+            && converted.skipped[0].path == RelativePath("bad.py".into())
+            && converted.skipped[0].reason == SkipReason::SyntaxRejected,
+    ))
+}
+
 /// Converts one input through the schemas and answers how long the text the type holds is.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
+        Offered::Policy(applicability) => converted_policy(applicability),
+        Offered::Skipped => converted_skip(),
         Offered::Id(text) => RuleId::try_from(text)
             .map(|id| id.to_string().len())
             .map_err(|_refused| Refused::Id),
@@ -203,4 +288,68 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn explicit_source_language_is_preserved_at_sdk_request_boundary() {
+    let converted = request(LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
+        source_language: Some(crate::domain::language::types::LanguageName(
+            "selected-provider".into(),
+        )),
+        root: std::path::PathBuf::from("."),
+        rules: std::collections::BTreeMap::new(),
+        files: vec![],
+        hosted: vec![],
+        corpus: Corpus::Given(vec![]),
+        beside: vec![],
+    })
+    .expect("request conversion");
+    assert_eq!(
+        converted.source_language,
+        Some(ryo_values::domain::descriptions::types::LanguageName(
+            "selected-provider".into()
+        ))
+    );
+}
+
+#[test]
+fn project_paths_are_normalized_before_observation_or_rejected() {
+    use crate::resources::linter::lint::types::{
+        GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, ProjectSearchScope,
+    };
+    let mut request = LintRequest {
+        project_search_scope: ProjectSearchScope::Declared(vec![RelativePath("src//".into())]),
+        given_project_inventory: GivenProjectInventory {
+            entries: vec![ProjectEntryObservation {
+                path: RelativePath("src/./pkg.py".into()),
+                state: ProjectEntryState::File,
+            }],
+            ..Default::default()
+        },
+        source_language: None,
+        root: std::path::PathBuf::from("."),
+        rules: std::collections::BTreeMap::new(),
+        files: vec![],
+        hosted: vec![],
+        corpus: Corpus::Given(vec![]),
+        beside: vec![],
+    };
+    super::project_context(&mut request).expect("repository-relative paths");
+    assert_eq!(
+        request.project_search_scope,
+        ProjectSearchScope::Declared(vec![RelativePath("src".into())])
+    );
+    assert_eq!(
+        request.given_project_inventory.entries[0].path,
+        RelativePath("src/pkg.py".into())
+    );
+    for invalid in ["/outside", "../outside", "src/../outside", "C:\\outside"] {
+        let mut path = RelativePath(invalid.into());
+        assert!(matches!(
+            super::project_path(&mut path, true),
+            Err(super::LintError::ProjectPath { .. })
+        ));
+    }
 }

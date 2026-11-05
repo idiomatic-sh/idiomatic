@@ -1,9 +1,9 @@
 //! The `planning` service: a step is added to the plan under construction, and where it runs is
 //! decided: per file, or after the files.
 
-use ryo_language::domain::relations::service::provenance_of;
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Provenance;
 
 use crate::domain::lowering::types::{
     Builder, FileOrigin, LoweredStep, PlannedColumn, ScopedInput, StepLabel,
@@ -21,7 +21,13 @@ pub(crate) fn next_step<T>(items: &[T]) -> parts::StepId {
 /// What a step reads, in the order its operator reads its inputs.
 pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
     match operation {
-        plans::Operation::Select { from, .. }
+        plans::Operation::SpanBetween { from, .. }
+        | plans::Operation::SpanBounds { from, .. }
+        | plans::Operation::SourceMatches { from, .. }
+        | plans::Operation::RenderSyntax { from, .. }
+        | plans::Operation::FitsRendered { from, .. }
+        | plans::Operation::Replace { from, .. }
+        | plans::Operation::Select { from, .. }
         | plans::Operation::Project { from, .. }
         | plans::Operation::Extend { from, .. }
         | plans::Operation::GroupCount { from, .. }
@@ -29,11 +35,13 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
         | plans::Operation::Capture { from, .. }
         | plans::Operation::Rank { from, .. }
         | plans::Operation::Words { from, .. } => vec![*from],
-        plans::Operation::Join { left, right, .. }
+        plans::Operation::OrderedMatch { left, right, .. }
+        | plans::Operation::Join { left, right, .. }
         | plans::Operation::Union { left, right }
         | plans::Operation::Intersection { left, right }
         | plans::Operation::Difference { left, right }
         | plans::Operation::Antijoin { left, right, .. } => vec![*left, *right],
+        plans::Operation::OrderedDfs { from, edges, .. } => vec![*from, *edges],
         plans::Operation::Axis {
             from,
             edges,
@@ -96,7 +104,13 @@ pub(crate) fn scope_of(
         .get(1)
         .map_or(&[][..], |input| input.fields.as_slice());
     let per_file = match operation {
-        plans::Operation::Select { .. }
+        plans::Operation::SpanBetween { .. }
+        | plans::Operation::SpanBounds { .. }
+        | plans::Operation::SourceMatches { .. }
+        | plans::Operation::RenderSyntax { .. }
+        | plans::Operation::FitsRendered { .. }
+        | plans::Operation::Replace { .. }
+        | plans::Operation::Select { .. }
         | plans::Operation::Extend { .. }
         | plans::Operation::Capture { .. }
         | plans::Operation::Rank { .. }
@@ -104,7 +118,10 @@ pub(crate) fn scope_of(
         plans::Operation::Project { .. } => {
             keyed(out) == FileOrigin::Stated || keyed(first) == FileOrigin::Unstated
         }
-        plans::Operation::Join {
+        plans::Operation::OrderedMatch {
+            left_on, right_on, ..
+        }
+        | plans::Operation::Join {
             left_on, right_on, ..
         }
         | plans::Operation::Antijoin {
@@ -121,8 +138,24 @@ pub(crate) fn scope_of(
         plans::Operation::GroupCount { keys, .. } | plans::Operation::GroupDigest { keys, .. } => {
             keyed_on(first, keys) == FileOrigin::Stated
         }
+        plans::Operation::OrderedDfs {
+            root,
+            source,
+            root_keys,
+            edge_keys,
+            ..
+        } => {
+            (keyed_on(first, &[*root]) == FileOrigin::Stated
+                || keyed_on(first, root_keys) == FileOrigin::Stated)
+                && (keyed_on(second, &[*source]) == FileOrigin::Stated
+                    || keyed_on(second, edge_keys) == FileOrigin::Stated)
+        }
         plans::Operation::Axis { id, .. } => keyed_on(first, &[*id]) == FileOrigin::Stated,
-        plans::Operation::Closure { source, .. } | plans::Operation::Cycles { source, .. } => {
+        plans::Operation::Closure { source, keys, .. } => {
+            keyed_on(first, &[*source]) == FileOrigin::Stated
+                || keyed_on(first, keys) == FileOrigin::Stated
+        }
+        plans::Operation::Cycles { source, .. } => {
             keyed_on(first, &[*source]) == FileOrigin::Stated
         }
         // The host's rows are the same for every file, so they are made once, after the files.
@@ -144,7 +177,7 @@ pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
     {
         for input in inputs_of(&step.operation) {
             let handed_over = match input {
-                parts::Input::Relation(_) => true,
+                parts::Input::Relation(_) | parts::Input::BoundObservation(_) => true,
                 parts::Input::Step(id) => step_of(steps, id).scope == plans::StepScope::PerFile,
             };
             if handed_over && !frontier.contains(&input) {
@@ -167,6 +200,23 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
             },
             fields: relation_fields(relation),
         },
+        parts::Input::BoundObservation(id) => {
+            let bound = &builder.observation_inputs
+                [usize::try_from(id.0).expect(super::constants::VALID_BINDING_INDEX)];
+            ScopedInput {
+                scope: bound.scope,
+                fields: bound
+                    .columns
+                    .iter()
+                    .map(|column| PlannedColumn {
+                        name: syntax::ColumnName(column.name.0.clone()),
+                        kind: column.kind,
+                        unique: crate::domain::lowering::types::Uniqueness::Shared,
+                        words: ryo_relations::domain::terms::types::Vocabulary::Open,
+                    })
+                    .collect(),
+            }
+        }
         parts::Input::Step(id) => {
             let lowered = step_of(&builder.lowered, id);
             ScopedInput {

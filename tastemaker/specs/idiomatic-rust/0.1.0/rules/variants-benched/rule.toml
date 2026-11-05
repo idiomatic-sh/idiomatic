@@ -1,4 +1,4 @@
-description = "A hex whose `factory.rs` builds two or more adapters, a `recorded` one aside, has `benches/performance/<hex>/bench.rs` in its crate, and that workload names every one of those factory functions."
+description = "A hex whose `factory.rs` builds two or more adapters, a `recorded` one aside, has a colocated `benches/performance/<hex>/bench.rs` or `benchmarks/provider/performance/<hex>/bench.rs` in its crate, and that workload names every one of those factory functions."
 why = "Adapters are the variants of a port: when a hex has several, its crate's workload for that hex runs every one on the same inputs, back to back in one compiled bench, so the faster one is chosen by measurement and the slower deleted. A factory function is how an edge names an adapter, so a workload naming each one runs each one. `recorded` is the capture decorator over another adapter, not a variant. A function name counts as named when an identifier of the bench file spells it. A crate is a directory holding a `Cargo.toml`, and a factory belongs to the nearest one above it, so a nested crate owns its own hexes. A workload that exists but names a factory function nowhere is reported at the workload, for each function it misses."
 
 query = '''
@@ -49,17 +49,31 @@ let nested-bench = project(from=nested-bench-rows, columns=["file", "text", "cra
 let root-bench-rows = capture(from=identifiers, path="file", pattern="benches/performance/{workload}/bench.rs", captures=["workload"]);
 let root-bench-crates = extend(from=root-bench-rows, values={"crate": ""});
 let root-bench = project(from=root-bench-crates, columns=["file", "text", "crate", "workload"]);
-let bench-identifiers = union(left=nested-bench, right=root-bench);
+let nested-provider-bench-rows = capture(from=identifiers, path="file", pattern="{*crate}/benchmarks/provider/performance/{workload}/bench.rs", captures=["crate", "workload"]);
+let nested-provider-bench = project(from=nested-provider-bench-rows, columns=["file", "text", "crate", "workload"]);
+let root-provider-bench-rows = capture(from=identifiers, path="file", pattern="benchmarks/provider/performance/{workload}/bench.rs", captures=["workload"]);
+let root-provider-bench-crates = extend(from=root-provider-bench-rows, values={"crate": ""});
+let root-provider-bench = project(from=root-provider-bench-crates, columns=["file", "text", "crate", "workload"]);
+let old-bench-identifiers = union(left=nested-bench, right=root-bench);
+let provider-bench-identifiers = union(left=nested-provider-bench, right=root-provider-bench);
+let bench-identifiers = union(left=old-bench-identifiers, right=provider-bench-identifiers);
 let files = project(from=listed-files, columns=["file"]);
 let nested-bench-files = capture(from=files, path="file", pattern="{*crate}/benches/performance/{workload}/bench.rs", captures=["crate", "workload"]);
 let nested-benches = project(from=nested-bench-files, columns=["file", "crate", "workload"]);
 let root-bench-files = capture(from=files, path="file", pattern="benches/performance/{workload}/bench.rs", captures=["workload"]);
 let root-bench-file-crates = extend(from=root-bench-files, values={"crate": ""});
 let root-benches = project(from=root-bench-file-crates, columns=["file", "crate", "workload"]);
-let benches = union(left=nested-benches, right=root-benches);
+let nested-provider-bench-files = capture(from=files, path="file", pattern="{*crate}/benchmarks/provider/performance/{workload}/bench.rs", captures=["crate", "workload"]);
+let nested-provider-benches = project(from=nested-provider-bench-files, columns=["file", "crate", "workload"]);
+let root-provider-bench-files = capture(from=files, path="file", pattern="benchmarks/provider/performance/{workload}/bench.rs", captures=["workload"]);
+let root-provider-bench-file-crates = extend(from=root-provider-bench-files, values={"crate": ""});
+let root-provider-benches = project(from=root-provider-bench-file-crates, columns=["file", "crate", "workload"]);
+let old-benches = union(left=nested-benches, right=root-benches);
+let provider-benches = union(left=nested-provider-benches, right=root-provider-benches);
+let benches = union(left=old-benches, right=provider-benches);
 let unbenched-hexes = antijoin(left=several, right=benches, left-on=["crate", "hex"], right-on=["crate", "workload"]);
 let unbenched-rows = project(from=unbenched-hexes, columns=["file", "hex"]);
-let unbenched-labelled = extend(from=unbenched-rows, values={"problem": "builds several adapters, and its crate has no benches/performance/<hex>/bench.rs running them back to back"});
+let unbenched-labelled = extend(from=unbenched-rows, values={"problem": "builds several adapters, and its crate has no provider variant bench running them back to back"});
 let unbenched-named = extend(from=unbenched-labelled, values={"name": ""});
 let unbenched = project(from=unbenched-named, columns=["file", "hex", "problem", "name"]);
 let benched-hexes = select l."crate" as "crate", l."hex" as "hex", r."file" as "bench" from several as l join benches as r on l."crate" = r."crate" and l."hex" = r."workload";
@@ -74,7 +88,7 @@ emit findings subject "file" key("file", "hex", "name");
 [diagnostic]
 primary = "file"
 message = "the `{hex}` hex {problem}{name}"
-help = "Write benches/performance/<hex>/bench.rs with `#[divan::bench(args = Variant::ALL)]`, where each `Variant` builds its adapter through the hex's factory function, over the hex's fixture cases and the crate's captures; keep the winner in the command's composition and delete the others in the same change."
+help = "Write benches/performance/<hex>/bench.rs (or benchmarks/provider/performance/<hex>/bench.rs for a language provider) with `#[divan::bench(args = Variant::ALL)]`, where each `Variant` builds its adapter through the hex's factory function, over the hex's fixture cases and the crate's captures; keep the winner in the command's composition and delete the others in the same change."
 
 [given]
 include = ['**']
@@ -88,7 +102,7 @@ name = "fixture"
 version = "0.1.0"
 edition = "2024"
 '''
-given.files.'benches/performance/storage/bench.rs' = '''
+given.files.'benchmarks/provider/performance/storage/bench.rs' = '''
 #[derive(Clone, Copy, Debug)]
 enum Variant {
     Memory,

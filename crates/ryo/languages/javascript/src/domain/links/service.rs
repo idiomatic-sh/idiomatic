@@ -8,7 +8,7 @@ use ryo::languages::{self, FileId, FilePath};
 use super::constants::{
     CURRENT, EXTENSIONS, INDEX, PACKAGE_IMPORT, PARENT, ROOT, SEPARATOR, UNRESOLVED_CAUSE,
 };
-use super::types::{Candidate, Cause, FileIndex, ImportOutcome, Link, Linked, Unresolved};
+use super::types::{Candidate, Cause, FileIndex, ImportOutcome, JavaScriptImportLink, Linked, Unresolved};
 use crate::domain::fact_notes::types::{Note, Specifier};
 use crate::domain::packages::types::{Directory, RepositoryPath};
 
@@ -20,7 +20,7 @@ pub(crate) fn file_id(place: FileIndex) -> FileId {
 
 /// Where the import of a link is written.
 #[must_use]
-pub(crate) fn link_span(link: &Link) -> languages::Span {
+pub(crate) fn link_span(link: &JavaScriptImportLink) -> languages::Span {
     languages::Span {
         start: link.start,
         end: link.end,
@@ -148,7 +148,7 @@ pub(crate) fn linked(files: &[FilePath], notes: &[Option<Note>]) -> Linked {
         found.analyzed.push(source);
         for import in &note.imports {
             match outcome(files, RepositoryPath(&file.0), &import.specifier) {
-                ImportOutcome::File(target) if target != source => found.dependencies.push(Link {
+                ImportOutcome::File(target) if target != source => found.dependencies.push(JavaScriptImportLink {
                     source,
                     target,
                     start: import.start,

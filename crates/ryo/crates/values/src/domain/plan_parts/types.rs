@@ -1,6 +1,6 @@
 //! The types of the `plan_parts` concept: the numbers, text and comparisons a query plan is made of. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{Integer, Relation, Span};
+use ryo_relations::domain::relations::types::{Integer, Relation, Span};
 
 /// The text of a RyoQL query.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -61,12 +61,14 @@ pub enum FlagState {
 }
 
 /// What a step reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Input {
     /// A relation ryo owns.
     Relation(Relation),
     /// An earlier step.
     Step(StepId),
+    /// An explicit typed producer binding, resolved by the request graph rather than the relation catalog.
+    BoundObservation(crate::domain::observations::types::ObservationBindingId),
 }
 
 /// Which side of a join a column comes from.
@@ -108,6 +110,19 @@ pub struct JoinColumn {
     pub column: ColumnIndex,
 }
 
+/// Physical source-keyed lookup of a positive transitive closure, internal to a compiled join.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReachLookup {
+    /// Physical edge column holding the closure source.
+    pub source: ColumnIndex,
+    /// Physical edge column holding the closure destination.
+    pub destination: ColumnIndex,
+    /// Physical partition columns, in the original closure's argument order.
+    pub keys: Vec<ColumnIndex>,
+    /// Logical RHS output map over partition keys followed by source and destination.
+    pub columns: Vec<ColumnIndex>,
+}
+
 /// A relation the host declared, by its place among the ones declared with the request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HostedNumber(pub u32);
@@ -141,10 +156,19 @@ pub enum Test {
     StartsWith,
     /// `ends_with`.
     EndsWith,
+    /// `matches`: a regular expression searches the text.
+    Matches,
+    /// Canonical numeric text or whole numbers, compared without integer rounding.
+    NumericGreaterThanOrEqual,
+    /// `integer_successor(left, right)`: right is exactly left plus one; integers only.
+    IntegerSuccessor,
+    /// `natural_lt(left, right)`: case-sensitive natural text order; ASCII digit runs,
+    /// fraction-style zero prefixes, Unicode whitespace separators, no normalization.
+    NaturalLessThan,
 }
 
 /// One condition of a `select` step.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Comparison {
     /// How the sides compare.
     pub test: Test,
@@ -152,7 +176,13 @@ pub struct Comparison {
     pub left: Operand,
     /// The right side.
     pub right: Operand,
+    /// The optional index into the owning plan's source-origin table; diagnostic only.
+    pub origin: Option<ComparisonOriginId>,
 }
+
+/// A source-origin table index attached to a comparison for diagnostics; meaningful only with its owning plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComparisonOriginId(pub u32);
 
 /// One side of a comparison.
 #[derive(Clone, Debug, PartialEq)]
@@ -180,6 +210,8 @@ pub enum Function {
     Snake,
     /// `kebab`: `TodoLists` as `todo-lists`.
     Kebab,
+    /// `lower`: Unicode lowercase text, retaining punctuation and whitespace.
+    Lower,
 }
 
 /// A function and the operands it is applied to.
@@ -232,6 +264,8 @@ pub struct RefusedQuery {
     pub message: RefusalMessage,
     /// Where in the text; empty for a fault that is not in the text.
     pub span: Span,
+    /// The original query-module source and import/call path, when the refusal came from a fragment.
+    pub origin: Option<crate::domain::program::types::QueryOrigin>,
 }
 
 impl std::fmt::Display for RefusedQuery {
@@ -245,3 +279,16 @@ impl std::fmt::Display for RefusedQuery {
         }
     }
 }
+
+/// What an operation reads: up to three inputs, as many as the operation names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Inputs {
+    /// The inputs in the order the operator reads them; the places past `used` repeat the first.
+    pub list: [Input; 3],
+    /// How many of them the operation names.
+    pub used: InputCount,
+}
+
+/// How many inputs an operation reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InputCount(pub usize);

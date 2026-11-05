@@ -9,7 +9,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::lint_store::fixtures::fake::stored;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::Cell;
-use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
+use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 use ryo_values::domain::stores::types::{Stored, StoredFinding, StoredHanded, StoredWords};
 
 /// What a row offers the schemas.
@@ -90,7 +91,7 @@ fn handed_reads_back(stored: &Stored) -> bool {
             .collect();
         let Some(read) = bucket_bytes(&rows)
             .ok()
-            .and_then(|bytes| bucket_from(bucket, &bytes))
+            .and_then(|bytes| bucket_from(bucket, &bytes, &stored.handed.proofs))
         else {
             return false;
         };
@@ -107,7 +108,13 @@ fn handed_reads_back(stored: &Stored) -> bool {
 fn subject(offered: Input) -> Value {
     match offered {
         Offered::TheSameBuild => {
-            tables_of(&written(&stored(1))) == tables(stored(1)) && handed_reads_back(&stored(1))
+            let mut stored = stored(1);
+            stored.skipped = vec![Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("src/1/rejected.py".into()),
+                reason: SkipReason::SyntaxRejected,
+            }];
+            tables_of(&written(&stored)) == tables(stored.clone()) && handed_reads_back(&stored)
         }
         Offered::AnotherBuild => {
             let bytes = contents_bytes("b", &TableOfContents::default()).expect("written");
@@ -144,4 +151,109 @@ fn subject(offered: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |offered| Ok(subject(offered)));
+}
+
+#[test]
+fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
+    use ryo_values::domain::{
+        observations::{
+            service::{new_frontiers, set_frontier},
+            types::{
+                ObservationReadinessCount, ObservationReadinessLayout, ObservationReadinessSlot,
+                ObservationReason, ProducerReadiness,
+            },
+        },
+        stored_facts::types::Digest,
+        stores::types::{StoredFileNumber, StoredFrontierReadiness},
+    };
+    let mut handed = StoredHanded::default();
+    let mut root = new_frontiers(
+        ObservationReadinessLayout(Digest([7; 16])),
+        ObservationReadinessCount(5),
+    );
+    for (index, readiness) in [
+        ProducerReadiness::Complete,
+        ProducerReadiness::Unknown(ObservationReason("exact reason\tλ\0text".into())),
+        ProducerReadiness::Skipped,
+        ProducerReadiness::NoQuery,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        set_frontier(
+            &mut root,
+            ObservationReadinessSlot(u32::try_from(index).unwrap()),
+            readiness,
+        )
+        .unwrap();
+    }
+    handed.observations.push(StoredFrontierReadiness {
+        file: StoredFileNumber(0),
+        root: std::sync::Arc::new(root),
+    });
+    let bytes = rest_bytes(&handed).expect("current rest schema");
+    assert_eq!(rest_from(&bytes), Some(handed));
+    assert!(
+        rest_from(&bytes[..bytes.len() - 1]).is_none(),
+        "truncated readiness cannot become a complete empty source"
+    );
+}
+
+#[test]
+fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
+    use ryo_values::domain::{
+        records::types::{FrontierAffected, FrontierCoverage},
+        stored_facts::types::{Bucket, Digest},
+        stores::types::{StoredFileNumber, StoredFrontierProof},
+    };
+    let mut handed = StoredHanded::default();
+    let mut partial = crate::outbound::lint_store::fixtures::proof();
+    partial.rule = 7;
+    partial.input = 2;
+    partial.rule_digest = Digest([9; 16]);
+    partial.coverage = FrontierCoverage::Partial(vec![
+        FrontierAffected::CurrentFile,
+        FrontierAffected::Repository,
+    ]);
+    handed.proofs.push(StoredFrontierProof {
+        file: StoredFileNumber(3),
+        bucket: Bucket(11),
+        proof: partial.clone(),
+    });
+    handed.frontier.push(StoredWords {
+        file: StoredFileNumber(3),
+        bucket: Bucket(11),
+        proof: partial.clone(),
+        words: PackedWords(vec![2, 0, 0]),
+    });
+    let bytes = rest_bytes(&handed).expect("typed proof");
+    let mut restored = rest_from(&bytes).expect("versioned proof table");
+    let payload = bucket_bytes(&[&handed.frontier[0]]).expect("bucket bytes");
+    restored.frontier = bucket_from(Bucket(11), &payload, &restored.proofs)
+        .expect("exact source proof accompanies bucket bytes");
+    assert_eq!(restored, handed);
+    let read = ryo_values::domain::stores::service::read_handed(restored);
+    assert_eq!(read.frontier[0].proof, partial);
+    assert_eq!(read.frontier[0].file, StoredFileNumber(3));
+    assert_eq!(read.frontier[0].bucket, Bucket(11));
+
+    let mut wrong_root = handed.clone();
+    wrong_root.proofs[0].bucket = Bucket(12);
+    let wrong = rest_from(&rest_bytes(&wrong_root).unwrap()).unwrap();
+    assert!(bucket_from(Bucket(11), &payload, &wrong.proofs).is_none());
+
+    handed.proofs[0].proof.version = 0;
+    let old = rest_bytes(&handed).expect("old proof bytes");
+    assert!(
+        rest_from(&old).is_none(),
+        "old proof cannot become Complete"
+    );
+
+    let mut complete = StoredHanded::default();
+    complete.proofs.push(StoredFrontierProof {
+        file: StoredFileNumber(0),
+        bucket: Bucket(1),
+        proof: crate::outbound::lint_store::fixtures::proof(),
+    });
+    assert_eq!(rest_from(&rest_bytes(&complete).unwrap()), Some(complete));
 }

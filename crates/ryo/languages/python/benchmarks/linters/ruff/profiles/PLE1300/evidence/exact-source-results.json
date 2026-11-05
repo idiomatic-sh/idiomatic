@@ -1,0 +1,96 @@
+{
+  "version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "executable": "/home/vscode/.local/bin/python3.10",
+  "results": [
+    {
+      "name": "brace-custom-format-policy",
+      "file": "case.py",
+      "source_sha256": "14b52b801fe87e43fa272be291fe5d3638b522b143f84ee9c1545656fa9f02bf",
+      "error": null,
+      "message": null,
+      "expected_error": null,
+      "matches": true
+    },
+    {
+      "name": "unicode-decimal-width",
+      "file": "case.py",
+      "source_sha256": "e182a7cfe2f5ecd3c65e67745e5cf6c57c1965b18e687a0ba2d4214df512b2bf",
+      "error": null,
+      "message": null,
+      "expected_error": null,
+      "matches": true
+    },
+    {
+      "name": "unicode-decimal-precision",
+      "file": "case.py",
+      "source_sha256": "110127d57852a970d00aaa3f268d8f8598af42627d26f23623c0eea1fb76d5d3",
+      "error": null,
+      "message": null,
+      "expected_error": null,
+      "matches": true
+    },
+    {
+      "name": "custom-explicit-index",
+      "file": "case.py",
+      "source_sha256": "fef5d22125fb3405d1340aca9ec4f1d366fc0da46d368b7287cf7a42c67a2a80",
+      "error": null,
+      "message": null,
+      "expected_error": null,
+      "matches": true
+    },
+    {
+      "name": "custom-keyword",
+      "file": "case.py",
+      "source_sha256": "543b5a92ad02bdf1b5d86c3126c596cc875beeb280ddd74274a5125761eb92ad",
+      "error": null,
+      "message": null,
+      "expected_error": null,
+      "matches": true
+    },
+    {
+      "name": "custom-does-not-hide-second-invalid-field",
+      "file": "case.py",
+      "source_sha256": "55d5f4f082ed5b7d6de73867ab437a2d730465b3d675422e9a9db32cdcb85c10",
+      "error": "ValueError",
+      "message": "Unknown format code 'q' for object of type 'int'",
+      "expected_error": "ValueError",
+      "matches": true
+    },
+    {
+      "name": "custom-conversion-restores-standard-protocol",
+      "file": "case.py",
+      "source_sha256": "63d01b86ade3c16c061411cc184d74def7453072f8a5ef0163d6fdee4e24be65",
+      "error": "ValueError",
+      "message": "Unknown format code 'q' for object of type 'str'",
+      "expected_error": "ValueError",
+      "matches": true
+    },
+    {
+      "name": "custom-attribute-selector-is-not-instance-protocol",
+      "file": "case.py",
+      "source_sha256": "d8c5bc6d05e5bd72f1ec494b0399c3d3a94b3d6dd0141e221700262508548e6f",
+      "error": "ValueError",
+      "message": "Unknown format code 'q' for object of type 'int'",
+      "expected_error": "ValueError",
+      "matches": true
+    },
+    {
+      "name": "assigned-custom-instance",
+      "file": "case.py",
+      "source_sha256": "05ee9c6bd1cb5fa508ee09a0df4b6c7c8f1d544f7f8c023d3b1e6120cf882421",
+      "error": null,
+      "message": null,
+      "expected_error": null,
+      "matches": true
+    },
+    {
+      "name": "reassigned-custom-instance",
+      "file": "case.py",
+      "source_sha256": "5a49c02a4c1e636b25972ec40478e90ca11af490af3bd73548b0ae81673fa2ab",
+      "error": "ValueError",
+      "message": "Unknown format code 'q' for object of type 'int'",
+      "expected_error": "ValueError",
+      "matches": true
+    }
+  ]
+}

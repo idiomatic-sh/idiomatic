@@ -1,0 +1,41 @@
+{
+  "all_target_totals": {
+    "documented_discrepancies": 0,
+    "intended": 12,
+    "raw_exact": 12
+  },
+  "controls_sha256": "b537a4585c570fa11810233bb9112c8c52b8036156965be41b3b7c2ae4250c8f",
+  "default_case_results_sha256": {
+    "PLE0116": "59572557a9f74df56b242570db64a8070b863c3b029b9952841cd1f07872fd53"
+  },
+  "default_target_totals": {
+    "documented_discrepancies": 0,
+    "intended": 12,
+    "raw_exact": 12
+  },
+  "direct_negative_requirements": {
+    "PLE0116": [
+      "py310"
+    ]
+  },
+  "identity": {
+    "collector_sha256": "813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f"
+  },
+  "prior_summaries_sha256": {
+    "summary.json": "a3eae09e90dcb4a2d7a88bb7e76fddc9888b31648133838fcb1edee3b11e6f91"
+  },
+  "provenance_sha256": "aed66c4e291a25391f694cb59041a94c86f28618bd0649f470c2affe74387a29",
+  "raw_receipts_sha256": "2883adcbb605f9a8011edb8097411e32634bbac6ed06f03a13d9346dcfefeb34",
+  "requirements": {
+    "PLE0116": [
+      "py37"
+    ]
+  },
+  "rule_ids": [
+    "PLE0116"
+  ],
+  "schema": "benchmark-inventory-target-supplement/v1",
+  "summary_sha256": "e2158fb5b088988a77af4e911a2e0331c4a54f0fa92d3f1fbefde53d059d27fa"
+}

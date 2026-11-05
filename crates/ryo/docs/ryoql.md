@@ -21,11 +21,37 @@ A query is a list of statements, each ending in `;`, with exactly one `emit`:
 
 | Statement | Written | Does |
 | --- | --- | --- |
+| `import` | `import suppress from "python/ruff/suppress";` | Makes a named module available to calls in this query. |
 | `param` | `param max-lines: integer;` | Takes a value from outside the query: from the entry that places the rule in Tastemaker, or from the SDK caller. Used as `$max-lines`. |
 | `let` | `let found = <expression>;` | Names a step: a `select`, or a call of an operator. A later step reads it by name. |
 | `emit` | `emit found subject "file" key("span");` | Turns each row of a step into a finding: `subject` is the column naming the file, `key` the columns that place the finding in it. |
 
 A `param` has one of these types: `boolean`, `integer`, `string`, `path`, `glob`, `list<…>` and `set<…>` of those (as `set<string>`), and `list<table>`, read by the `rows` operator.
+
+## Reusable query fragments
+
+An SDK query may include named, immutable RyoQL modules. The root imports a module by its logical ID and calls the imported name like an operator:
+
+```text
+import suppress from "python/ruff/suppress";
+let violations = suppress(candidates=locations, inline-pattern="...E722...", range-pattern="...");
+emit violations subject "file" key("span");
+```
+
+A module declares relation inputs, scalar parameters, its output relation shape, and the step it returns:
+
+```text
+input candidates: relation<id: node, file: file, span: span, line: number, code: text>;
+param inline-pattern: string;
+param range-pattern: string;
+output relation<id: node, file: file, span: span>;
+let inline = select id, file, span from candidates where matches(code, $inline-pattern);
+let ranges = select id, file, span from candidates where matches(code, $range-pattern);
+let violations = union(left=inline, right=ranges);
+return violations;
+```
+
+Imports may be nested, but cycles, missing modules, duplicate argument names, and incompatible input or output shapes are rejected. Each call expands with its own step identities; local names in one invocation cannot capture names in another. Module IDs and exact source text are supplied in the SDK query bundle, not loaded by the compiler from disk.
 
 ## Expressions
 
@@ -52,6 +78,7 @@ A `where` holds comparisons joined with `and` and `or`; `and` binds tighter than
 | `in`, `not in` | `kind in $kinds` | the value is, or is not, in a `list<…>` or `set<…>` parameter |
 | `glob_any`, `not glob_any` | `glob_any(target, $forbidden)` | the text matches the glob, or any glob of a parameter, or none |
 | `starts_with`, `ends_with` | `ends_with(name, "Service")` | the first text starts, or ends, with the second |
+| `natural_lt` | `natural_lt(left, right)` | case-sensitive natural text ordering; ASCII digit runs, fraction-style zero padding, Unicode whitespace separators |
 | `float_text_gte` | `float_text_gte(text, $limit)` | the first text, read as a number, is at least the second |
 
 `in` and `not in` compare against a parameter; a list written in the query, as in `kind in ["class", "function"]`, is not RyoQL.
@@ -66,6 +93,8 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `snake` | `snake("TodoLists")` | `todo_lists` |
 | `kebab` | `kebab("TodoLists")` | `todo-lists` |
 
+`natural_lt` compares nonzero-leading ASCII digit runs by length, then digits, without integer limits (`"item2" < "item10"`). If either run starts with zero, it compares digit strings lexically, with a shorter equal prefix first (`"02" < "1"`, `"01" < "010"`). Unicode whitespace has no comparison weight but separates numeric runs: `"a1"` and `"a 1"` tie, while `"1 2" < "12"`. Other Unicode scalar values compare case-sensitively, without normalization or case folding; non-ASCII digits are ordinary characters. Equivalent streams tie and neither is naturally less. Ordinary `<` remains bytewise for text.
+
 ## Operators
 
 `select` is written as the expressions above show; every other operator is a call whose arguments are written `name=value`, a list in brackets and a step or a relation by its name:
@@ -75,6 +104,7 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `select` | `select … from … where …` | Keeps the rows for which every comparison is true. |
 | `project` | `from`, `columns` | Keeps the named columns and drops equal rows. |
 | `extend` | `from`, `values` | Appends number or flag columns, from numbers or parameters. |
+| `span-between` | `from`, `start`, `end`, `output` | Appends `[start.start, end.end)` from two span columns in per-file rows. |
 | `join` | `left`, `right`, `left-on`, `right-on`, `output` | Combines rows with equal keys; empty keys give every pair. |
 | `union` | `left`, `right` | The rows of either input, both of the same columns. |
 | `intersection` | `left`, `right` | The rows of both inputs. |
@@ -87,7 +117,8 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `rank` | `from`, `column`, `sets`, `output` | Appends the place of the first set of a `list<set<string>>` parameter that holds the text; a row no set holds is dropped. |
 | `axis` | `from`, `relation`, `direction`, `domain` | Walks a hierarchy, such as `syntax-child`, and appends the related entity. |
 | `rows` | `from`, `columns` | The rows of a `list<table>` parameter, one for each table. |
-| `closure` | `edges`, `source`, `destination` | The pairs one entity reaches from another, transitively. |
+| `ordered-dfs` | `from`, `root`, `edges`, `source`, `destination`, `order`, `edge`, `output`, optional `keys` | Independent ordered depth-first edge visits, with a zero-based ordinal per distinct key/root. |
+| `closure` | `edges`, `source`, `destination`, optional `keys` | Transitively reachable pairs within exact key partitions; keys precede the endpoint columns in output. |
 | `cycles` | `edges`, `source`, `destination` | One row for each entity that can reach itself, with the entity in both columns: two files that import each other give two rows, `a.js` and `b.js`. |
 
 ## Relations
@@ -180,3 +211,91 @@ let per-file = group-count(from=functions, keys=["file"], count="functions");
 let crowded = select * from per-file where functions > 20;
 emit crowded subject "file" key("file");
 ```
+
+## Literal replacement and ordered matching
+
+Python's optional `raw-format-segment` relation records one parser outcome per
+ordinary string token, retaining the enclosing expression, token identity and source
+order. Prefixes and quotes are excluded from the parser input; escapes and line
+endings remain unchanged. Each segment is parsed independently, including malformed
+and empty bodies. `raw-format-field` records conversions from successful segments
+with both segment-local and expression-wide order. A malformed segment contributes
+no fields, including any otherwise valid prefix. Unavailable source knowledge makes
+the relation partial and prevents precise flattened fields for the affected expression.
+These relations have independent demand and caching from decoded `format-parse`,
+`format-field` and brace-format relations.
+
+Python's optional `literal-expression-parse` relation records syntactic outcomes for
+original plain string expressions: `id`, `dialect`, `outcome`, `file`, and the full
+physical carrier `span`. The initial `python-string-annotation` dialect reports
+`parsed`, `malformed` (including empty strings), or `unavailable`. It follows the
+string-annotation grammar's representation-sensitive modes, retaining prefixes,
+quotes, escapes and implicit-concatenation boundaries. Unavailable logical source
+also makes the read partial. Bytes, f-strings and template strings are excluded.
+The relation is demanded and cached independently; it does not classify typing
+positions or publish new embedded syntax or names. Queries must supply their own
+context policy before using a positive parse outcome.
+
+`span-between(from=rows, start="literal_span", end="expression_span", output="diagnostic_span")`
+appends a typed span while retaining every column and repeated row. It uses the first
+span's start and the second span's end, including when the expression starts before
+the literal. Overlap, containment, gaps, empty spans and EOF offsets are valid. Offsets
+are bytes; no UTF-8 boundary restriction applies. Each located input must satisfy
+`start <= end <= source length`, and the composed start must not exceed its end.
+Invalid ranges fail execution. An absent input produces an absent output while the
+other located input is still validated. Construction requires per-file input, also
+inside an instantiated fragment; the result may subsequently cross the file frontier.
+The output name must be new.
+
+`replace(from=rows, text="label", pattern="\s+", replacement="", output="compact")`
+appends a text column after replacing every non-overlapping regex match in the input
+column. The pattern and replacement are constant text. Replacement text is literal:
+`$1` and backslashes have no substitution meaning. The same Unicode regex grammar
+as `matches` applies; invalid patterns fail compilation even for an empty input.
+Zero-width matches follow the regex engine's forward-progress rules. Input rows and
+columns are retained, including rows whose text has no match. The output column
+must have a new name, and the input column must hold text.
+
+`ordered-match` pairs rows within equal typed key groups. It visits each left row
+in ascending numeric order and consumes the earliest still-unmatched right row
+whose numeric order is strictly greater. Earlier or equal right rows are discarded;
+an unmatched right row never consumes a future left row. Unmatched left rows have
+no output; an `antijoin` can recover them. Input iteration order has no effect.
+Order values must be unique within each side and key group; duplicates are errors,
+including groups having no counterpart. Key lists must have equal lengths and
+matching types; an empty list means one group. Output names and explicit sources
+use the existing `join` map syntax, so same-named input columns are unambiguous:
+
+```text
+let pairs = ordered-match(left=requests, right=replies,
+    left-on=["channel"], right-on=["channel"],
+    left-order="sequence", right-order="sequence",
+    output={request: [left, "id"], reply: [right, "id"]});
+```
+
+For left orders `[2, 3]` and right orders `[1, 4, 5]`, the pairs are `(2, 4)` and
+`(3, 5)`. For left `[2, 6]` and right `[3, 4, 7]`, the pairs are `(2, 3)` and
+`(6, 7)`. These rules apply independently to each key group. Output row order is
+not a query contract, as with other relational operators.
+
+`closure(edges=edges, source="source", destination="destination", keys=["context", "file"])
+keeps each `(context, file)` graph independent. Keys retain their argument order
+and original types; endpoints retain their original names and types. Omitting
+`keys` or passing `keys=[]` preserves the two-column closure. Reachability uses
+one or more edges, so self-pairs require a real cycle or self-edge. Repeated key
+names and keys colliding with an endpoint name are rejected.
+
+`ordered-dfs(from=roots,root="root",edges=edges,source="source",destination="destination",order="position",edge="base",keys=["context","file"],output="visit")`
+walks each distinct partition/root independently. Keys are optional and default to
+one graph. Output columns are the keys in argument order, root, source,
+destination, edge identity, and the named numeric visit ordinal. Output names
+must be distinct; root/source/destination kinds and corresponding key kinds agree.
+
+Outgoing edges are visited in ascending numeric order. Equal orders within one
+partition/source are errors, including duplicate edge rows; parallel edges with
+different orders remain distinct visits. The root is marked seen first. Each edge
+is emitted before its destination is checked: unseen destinations recurse
+immediately, while seen destinations keep the edge visit without another
+expansion. Walks use iterative cursor frames and reusable adjacency storage.
+Ordinals start at zero per walk and overflow is an execution error. No physical
+row order is promised between walks; use the ordinal column to express policy.

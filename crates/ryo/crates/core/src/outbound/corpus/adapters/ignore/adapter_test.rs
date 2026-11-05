@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the one test file the adapter template places for the ignore adapter: its walk, stamp, listing and skip scenarios share one table and one subject, and a split would be a file no adapter template places
+// the one test file the adapter template places for the ignore adapter: its walk, stamp, listing and skip scenarios share one table and one subject, and a split would be a file no adapter template places
 //! The ignore adapter of the corpus port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::{CorpusIgnoreAdapter, agree};
@@ -106,6 +106,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             file.set_len(u64::from(u32::MAX) + 1)
                 .expect("a sparse file");
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath("big.bin".into()),
                 size: FileSize(u64::from(u32::MAX) + 1),
                 modified: Nanoseconds(0),
@@ -139,6 +140,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 RootPath(root.path().to_str().expect("a utf-8 path").into()),
                 CorpusListing::Walked,
                 vec![CorpusFile {
+                    executable: Default::default(),
                     path: FilePath("a.rs".into()),
                     bytes: FileBytes(b"fn given() {}".to_vec()),
                 }],
@@ -146,7 +148,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             );
             let entries = adapter.inventory()?.0;
             let mut bytes = FileBytes::default();
-            adapter.read(&entries[0], &mut bytes)?;
+            adapter.read(known_entry(&entries[0]), &mut bytes)?;
             Ok(usize::from(
                 entries.len() == 1 && bytes.0 == b"fn given() {}",
             ))
@@ -154,6 +156,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::MissingFile => {
             let root = tempfile::tempdir().expect("a temporary directory");
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath("gone.rs".into()),
                 size: FileSize(9),
                 modified: Nanoseconds(0),
@@ -170,6 +173,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let root = tempfile::tempdir().expect("a temporary directory");
             std::fs::write(root.path().join("a.rs"), "fn a() {}").expect("a file");
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath("a.rs".into()),
                 size: FileSize(9),
                 modified: Nanoseconds(0),
@@ -194,13 +198,18 @@ fn inventory() -> Result<Value, Failure> {
     let mut entries = walking(RootPath(root.path().to_str().expect("a utf-8 path").into()))
         .inventory()?
         .0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    entries.sort_by(|left, right| {
+        ryo_values::domain::files::service::input_path(left)
+            .cmp(ryo_values::domain::files::service::input_path(right))
+    });
     let found: Vec<(&str, u64)> = entries
         .iter()
-        .map(|entry| (&*entry.path.0, entry.size.0))
+        .map(|entry| (&*known_entry(entry).path.0, known_entry(entry).size.0))
         .collect();
     // A file the system dates carries the date, so an edit shows without a read.
-    let dated = entries.iter().all(|entry| entry.modified.0 > 0);
+    let dated = entries
+        .iter()
+        .all(|entry| known_entry(entry).modified.0 > 0);
     Ok(usize::from(
         found == [("a.rs", 9), ("b.rs", 9), ("sub/c.txt", 1)] && dated,
     ))
@@ -239,8 +248,14 @@ fn skipping(skipped: &[&str], expected: &[&str]) -> Result<Value, Failure> {
         SkippedDirectories(skipped.iter().map(|name| (*name).into()).collect()),
     );
     let mut entries = adapter.inventory()?.0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
-    let found: Vec<&str> = entries.iter().map(|entry| &*entry.path.0).collect();
+    entries.sort_by(|left, right| {
+        ryo_values::domain::files::service::input_path(left)
+            .cmp(ryo_values::domain::files::service::input_path(right))
+    });
+    let found: Vec<&str> = entries
+        .iter()
+        .map(|entry| &*ryo_values::domain::files::service::input_path(entry).0)
+        .collect();
     Ok(usize::from(found == expected))
 }
 
@@ -255,9 +270,9 @@ const WALKED: &str = "global-excludes-repository";
 fn global_excludes() -> Result<Value, Failure> {
     if let Some(repository) = std::env::args().find(|argument| argument.ends_with(WALKED)) {
         let entries = walking(RootPath(repository.into())).inventory()?.0;
-        return Ok(usize::from(
-            entries.iter().any(|entry| &*entry.path.0 == "kept.rs"),
-        ));
+        return Ok(usize::from(entries.iter().any(|entry| {
+            &*ryo_values::domain::files::service::input_path(entry).0 == "kept.rs"
+        })));
     }
     let scratch = tempfile::tempdir().expect("a temporary directory");
     let repository = scratch.path().join(WALKED);
@@ -296,18 +311,37 @@ fn listed() -> Result<Value, Failure> {
         RootPath(root.path().to_str().expect("a utf-8 path").into()),
         CorpusListing::Listed(vec![FilePath("a.rs".into()), FilePath("gone.rs".into())]),
         vec![CorpusFile {
+            executable: Default::default(),
             path: FilePath("given/b.rs".into()),
             bytes: FileBytes(b"fn b() {}".to_vec()),
         }],
         SkippedDirectories::default(),
     );
     let mut entries = adapter.inventory()?.0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    entries.sort_by(|left, right| {
+        ryo_values::domain::files::service::input_path(left)
+            .cmp(ryo_values::domain::files::service::input_path(right))
+    });
     let found: Vec<(&str, u64)> = entries
         .iter()
-        .map(|entry| (&*entry.path.0, entry.size.0))
+        .filter_map(|input| match input {
+            ryo_values::domain::files::types::CorpusInput::Available(entry) => {
+                Some((&*entry.path.0, entry.size.0))
+            }
+            _ => None,
+        })
         .collect();
-    Ok(usize::from(found == [("a.rs", 9), ("given/b.rs", 9)]))
+    let missing = entries
+        .iter()
+        .filter(|input| {
+            matches!(input,
+        ryo_values::domain::files::types::CorpusInput::Unreadable { path, reason }
+            if path.0.as_ref() == "gone.rs" && !reason.0.is_empty())
+        })
+        .count();
+    Ok(usize::from(
+        found == [("a.rs", 9), ("given/b.rs", 9)] && missing == 1 && entries.len() == 3,
+    ))
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -426,4 +460,52 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[cfg(unix)]
+#[test]
+fn inventory_and_stat_observe_each_posix_execute_bit_without_changing_bytes_or_mtime() {
+    use ryo_values::domain::files::types::ExecutablePermission;
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("case.py");
+    std::fs::write(&path, b"print(1)\n").unwrap();
+    let adapter = walking(RootPath(root.path().to_str().unwrap().into()));
+    let file = FilePath("case.py".into());
+    let crate::outbound::corpus::types::PathStat::Found(original) = adapter.stat(&file).unwrap()
+    else {
+        panic!("file is present");
+    };
+    for (mode, expected) in [
+        (0o644, false),
+        (0o744, true),
+        (0o654, true),
+        (0o645, true),
+        (0o644, false),
+    ] {
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
+        let crate::outbound::corpus::types::PathStat::Found(observed) =
+            adapter.stat(&file).unwrap()
+        else {
+            panic!("file remains present");
+        };
+        assert_eq!(observed.executable, ExecutablePermission::Posix(expected));
+        assert_eq!(observed.size, original.size);
+        assert_eq!(observed.modified, original.modified);
+        assert_eq!(
+            known_entry(&adapter.inventory().unwrap().0[0]).executable,
+            observed.executable
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"print(1)\n");
+    }
+}
+
+/// Tests that require physical metadata explicitly reject unavailable input fixtures.
+fn known_entry(
+    input: &ryo_values::domain::files::types::CorpusInput,
+) -> &ryo_values::domain::files::types::CorpusEntry {
+    let ryo_values::domain::files::types::CorpusInput::Available(entry) = input else {
+        panic!("this fixture requires observed file metadata");
+    };
+    entry
 }

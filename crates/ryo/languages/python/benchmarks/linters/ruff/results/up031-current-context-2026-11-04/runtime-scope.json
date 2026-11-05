@@ -1,0 +1,11 @@
+{
+  "worker_head": "b2a577c6f9b5a7f67475e8031c673470cbec5c76",
+  "worker_sha256": "10352b199348c456ac8b4d1a52ecfefc46655aef635812f662fe02de63ce7358",
+  "rule": "UP031",
+  "selected_result": "PASS",
+  "selected_case_count": 43,
+  "overall_exit": 1,
+  "overall_exit_reason": "412 unselected inventory rows deliberately are not full-inventory PASS",
+  "source_cases_sha256": "c3f3ce824cb354e252b000e2fbb35c89bd092feb3647b2924dfc5f72763d1227",
+  "scope": "Current derived-context archive validation, not new historical process observations."
+}

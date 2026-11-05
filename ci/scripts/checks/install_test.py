@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -18,7 +21,8 @@ sys.modules["install"] = install
 SPEC.loader.exec_module(install)
 
 # Commands the machine provides before any tool is installed.
-SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq"}
+# setup-python supplies the bare Python command used by the benchmark verifier.
+SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python"}
 
 
 def manifest(path: Path, tools: str) -> None:
@@ -189,3 +193,18 @@ def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_
     (tmp_path / "ryo").write_bytes(b"release")
     with pytest.raises(SystemExit):
         install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
+
+
+def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> None:
+    tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
+    command = next(tool["run"][-1] for tool in tools if "ryo-benchmark-collector --message-format=json" in tool["run"][-1])
+    expression = re.search(r"\| jq -r '([^']+)'", command).group(1)
+    assert 'test -x "$collector"' in command
+    collector = tmp_path / "collector"
+    collector.write_text("#!/bin/sh\nexit 0\n")
+    collector.chmod(0o755)
+    matching = {"reason": "compiler-artifact", "target": {"name": "ryo-benchmark-collector"}, "executable": str(collector)}
+    for records, accepted in (([matching], True), ([{**matching, "reason": "build-finished"}], False), ([{**matching, "target": {"name": "other"}}], False), ([matching, matching], False)):
+        selected = subprocess.run(["jq", "-r", expression], input="\n".join(json.dumps(record) for record in records), text=True, capture_output=True, check=True).stdout.strip()
+        # The shell passes this as one quoted path; multiple artifacts must not become one executable.
+        assert (bool(selected) and Path(selected).is_file() and os.access(selected, os.X_OK)) == accepted

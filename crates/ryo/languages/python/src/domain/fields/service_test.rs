@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one row for each role of the vocabulary, and the check that every role has one: the table is the proof, and splitting it would split that check
+// one row for each role of the vocabulary, and the check that every role has one: the table is the proof, and splitting it would split that check
 //! The `fields` service's cases: the role of an edge of the tree under its parent, one row for each role of the vocabulary, on source
 //! read through the parse. The roles are the fields of `Python.asdl`; the adapter's cases hold them to what `CPython`'s `ast.dump`
 //! prints for every pinned file.
@@ -929,7 +929,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(given: Input) -> Result<Value, Failure> {
-    let language = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let language = ParseContract::new(
+        crate::settings::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let (mut elements, mut symbols) = (
         languages::Elements::default(),
         languages::Symbols::default(),

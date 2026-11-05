@@ -47,6 +47,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             causes: &[],
         }),
     },
+    Case {
+        name: CaseName("comment_survives_target_syntax_error_with_complete_tokens"),
+        word: Word::Succeeds,
+        input: || "value = ur\"text\" # retained\n",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(14),
+                want_name(" retained"),
+                want_file(SHOWN),
+                want_span((1, 18), (1, 28)),
+                want_flag(false),
+            ]],
+            causes: &[],
+        }),
+    },
 ];
 
 fn subject(source: Input) -> Value {

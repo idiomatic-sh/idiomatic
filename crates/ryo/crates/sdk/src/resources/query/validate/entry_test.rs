@@ -50,6 +50,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
     validate(
         &Languages::default(),
         ValidateRequest {
+            observations: Vec::new(),
             query,
             hosted: vec![HostDeclaration {
                 name: HostRelationName("host.placed".into()),
@@ -77,4 +78,73 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn declared_observation_context_reaches_root_native_and_fragment_sources() {
+    use crate::domain::observation::types::ObservationKind;
+    use crate::domain::observation::types::{
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+    };
+    let declared = BoundObservationInput {
+        name: ObservationBindingName("published".into()),
+        columns: vec![ObservationColumn {
+            name: ObservationColumnName("path".into()),
+            kind: ObservationKind::File,
+        }],
+        scope: crate::domain::observation::types::ObservationScope::PerFile,
+    };
+    let module = crate::domain::query::types::QueryModuleSource::try_new(
+        "test/forward",
+        "input candidates: relation<path: file>; output relation<path: file>; let published = select path from candidates; return published;",
+    ).unwrap();
+    for (text, has_context, expected) in [
+        (
+            "let result = select path from published; emit result subject path key(path);",
+            true,
+            true,
+        ),
+        (
+            "let result = union(left=published, right=published); emit result subject path key(path);",
+            true,
+            true,
+        ),
+        (
+            "import forward from \"test/forward\"; let result = forward(candidates=published); emit result subject path key(path);",
+            true,
+            true,
+        ),
+        (
+            "let result = select path from published; emit result subject path key(path);",
+            false,
+            false,
+        ),
+        (
+            "import forward from \"test/forward\"; let result = forward(candidates=published); emit result subject path key(path);",
+            false,
+            false,
+        ),
+        (
+            "let published = select path from \"filesystem.file\"; emit published subject path key(path);",
+            true,
+            false,
+        ),
+    ] {
+        let modules =
+            crate::domain::query::types::QueryModuleCatalog::try_new([module.clone()]).unwrap();
+        let query = RyoQlQuery::with_modules("test/root", text, &modules).unwrap();
+        let result = validate(
+            &Languages::default(),
+            ValidateRequest {
+                query,
+                hosted: Vec::new(),
+                observations: if has_context {
+                    vec![declared.clone()]
+                } else {
+                    Vec::new()
+                },
+            },
+        );
+        assert_eq!(result.is_ok(), expected, "{text}: {result:?}");
+    }
 }

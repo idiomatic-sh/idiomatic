@@ -1,0 +1,33 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "flock",
+    "/workspaces/.cargo-build.lock",
+    "cargo",
+    "clippy",
+    "--locked",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-core",
+    "-p",
+    "idiomatic-sh-ryo-sdk",
+    "--all-targets",
+    "--all-features"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "runner_sha256": "6fd6b47bd5ccf056d5a8577ea11a6780e6af19a136bed1fe3f7a05901714e2ae",
+  "started_utc": "2026-11-01T16:11:09.339653+00:00",
+  "completed_utc": "2026-11-01T16:11:18.790332+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "bb1ec8a4aa1d2d7c5533af15dc2937030eb4e9e7c4859ad518d007ea18494293",
+  "head": "032aad9a9f5b2a963797557a6cb3dfe3694e5863",
+  "source_tree_sha256": "8f46e4c5053936978e6cdee175257745a449971965d0db1eb82faa36c17c1adf",
+  "raw_receipt_path": "/tmp/rule-compilation-core-sdk-clippy-2-20261101/result.json",
+  "raw_receipt_sha256": "11421676661ca9b29f0d39f512f5b88eefcee39f2c15ea7920ea4372946d72ec",
+  "source_file_count": 16289
+}

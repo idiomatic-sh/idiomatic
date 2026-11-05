@@ -3,7 +3,8 @@
 use super::errors::DescribeOperatorError;
 use super::interface::DescribeOperatorUseCase;
 use super::types::{DescribeOperatorReport, DescribeOperatorRequest};
-use crate::domain::operator::constants::{OPERATORS, describe};
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 /// `describe_operator`; the operators are the domain's own, so it calls no port.
 #[derive(Clone, Copy, Debug, Default)]
@@ -22,9 +23,10 @@ impl DescribeOperatorUseCase for DescribeOperatorUseCaseImpl {
         &self,
         request: DescribeOperatorRequest,
     ) -> Result<DescribeOperatorReport, DescribeOperatorError> {
-        OPERATORS
+        MetadataUseCaseImpl
+            .operators()
             .into_iter()
-            .map(describe)
+            .map(|operator| MetadataUseCaseImpl.describe(*operator))
             .find(|description| description.name == request.name)
             .map(|operator| DescribeOperatorReport { operator })
             .ok_or_else(|| DescribeOperatorError::UnknownOperator {

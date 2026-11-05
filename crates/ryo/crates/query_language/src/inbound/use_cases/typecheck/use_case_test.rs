@@ -1,5 +1,11 @@
 //! What the `typecheck` use case promises, against the fakes of the ports it calls.
 
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+};
+use ryo_values::domain::plans::types::StepScope;
 use std::sync::Arc;
 
 use super::errors::TypecheckError;
@@ -9,7 +15,7 @@ use super::use_case::TypecheckUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::program::types::{
     Alias, ByteOffset, ColumnName, Columns, Condition, Expression, Filter, Joining, LetStep,
@@ -33,11 +39,13 @@ struct Given {
     syntax: SyntaxFake,
     catalog: CatalogFake,
     text: &'static str,
+    observations: Vec<BoundObservationInput>,
+    hosted: Vec<HostedRelation>,
 }
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
-        name: StepName("functions".into()),
+        name: StepName("functions".into(), None),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -54,10 +62,17 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
 
 fn program_with(filters: Vec<Filter>) -> Program {
     Program {
+        linked: false,
+        imports: Vec::new(),
+        origins: Vec::new(),
+        fragment_contracts: Vec::new(),
+        step_origins: std::collections::BTreeMap::new(),
+        observations: Vec::new(),
+        emit_origin: None,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
-            step: StepName("functions".into()),
+            step: StepName("functions".into(), None),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: NOWHERE,
@@ -72,6 +87,8 @@ fn text_the_fake_reads() -> Given {
         },
         catalog: CatalogFake::default(),
         text: "emit",
+        observations: Vec::new(),
+        hosted: Vec::new(),
     }
 }
 
@@ -80,6 +97,8 @@ fn text_the_fake_refuses() -> Given {
         syntax: SyntaxFake::default(),
         catalog: CatalogFake::default(),
         text: "let a = ;",
+        observations: Vec::new(),
+        hosted: Vec::new(),
     }
 }
 
@@ -120,15 +139,135 @@ fn comparing_text_with_a_number() -> Given {
 
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
-    program.emit.step = StepName("later".into());
+    program.emit.step = StepName("later".into(), None);
     Given {
         syntax: SyntaxFake { program },
         ..text_the_fake_reads()
     }
 }
 
+/// An external schema supplied at the real inbound API, without supplying any facts.
+fn observed(name: &str, columns: &[&str]) -> BoundObservationInput {
+    BoundObservationInput {
+        name: ObservationBindingName(name.into()),
+        columns: columns
+            .iter()
+            .map(|name| ObservationColumn {
+                name: ObservationColumnName((*name).into()),
+                kind: CellKind::File,
+            })
+            .collect(),
+        scope: StepScope::PerFile,
+    }
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_distinct_observation_schema_is_admitted"),
+        word: Word::Succeeds,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("blank_observation_name_is_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed(" ", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("observation_cannot_shadow_catalog_relation"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("function", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("duplicate_observation_sources_are_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![
+                    observed("external", &["file"]),
+                    observed("external", &["file"]),
+                ],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("blank_observation_column_is_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &[" "])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("duplicate_observation_columns_are_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &["file", "file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("observation_cannot_shadow_hosted_relation"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &["file"])],
+                hosted: vec![HostedRelation {
+                    name: HostedName("external".into()),
+                    columns: vec![HostedColumn {
+                        name: ColumnLabel("file".into()),
+                        kind: CellKind::File,
+                    }],
+                }],
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+        }),
+    },
     Case {
         name: CaseName("valid_text_is_accepted"),
         word: Word::Succeeds,
@@ -145,27 +284,45 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("syntax_error_is_refused_with_its_span"),
         word: Word::Refuses,
         input: || text_the_fake_refuses,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Syntax { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::Located { origin, error }
+                if !origin.source_id.0.is_empty()
+                    && origin.trace.is_empty()
+                    && matches!(error.as_ref(), TypecheckError::Syntax { span, .. } if *span == origin.span)))
+        }),
     },
     Case {
         name: CaseName("unknown_relation_is_refused"),
         word: Word::Refuses,
         input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::UnknownRelation { .. }))
+            selects(
+                matches!(error, TypecheckError::UnknownRelation { .. })
+                    || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::UnknownRelation { .. })),
+            )
         }),
     },
     Case {
         name: CaseName("type_mismatch_is_refused"),
         word: Word::Refuses,
         input: || comparing_text_with_a_number,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Type { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, TypecheckError::Type { .. })
+                    || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Type { .. })),
+            )
+        }),
     },
     Case {
         name: CaseName("a_step_nobody_defined_is_refused_as_invalid"),
         word: Word::Refuses,
         input: || emitting_a_step_nobody_defined,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Invalid { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, TypecheckError::Invalid { .. })
+                    || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Invalid { .. })),
+            )
+        }),
     },
     Case {
         name: CaseName("fails_when_catalog_port_fails"),
@@ -180,8 +337,11 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let use_case = TypecheckUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     use_case
         .typecheck(TypecheckRequest {
-            text: QueryText(given.text.into()),
-            hosted: Vec::new(),
+            observations: given.observations,
+            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                given.text.into(),
+            )),
+            hosted: given.hosted,
         })
         .map(|report| report.relations.len())
 }

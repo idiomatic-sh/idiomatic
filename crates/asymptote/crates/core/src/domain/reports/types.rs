@@ -131,9 +131,32 @@ pub enum Keeping {
     Retained,
 }
 
+/// Full process text retained for diagnosis, never interpreted as findings.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DiagnosticText(pub Box<str>);
+
+/// Whether a failed completion's complete output was retained.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum FailureOutput {
+    /// No capture exists, including records written before output retention.
+    #[default]
+    Unavailable,
+    /// Both streams were observed; an empty stream is an observed empty value.
+    Captured {
+        /// Complete standard output, including output preceding a parser failure.
+        stdout: DiagnosticText,
+        /// Complete standard error, without the display tail's truncation.
+        stderr: DiagnosticText,
+        /// The execution command and input identity, or explicitly unstamped.
+        inputs: Stamped,
+    },
+}
+
 /// One tool's run, with what it reported and the stamp it ran under.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scanned {
+    /// Retained failure diagnostics; successful runs do not retain process streams.
+    pub failure_output: FailureOutput,
     /// The run.
     pub run: Run,
     /// What it reported.

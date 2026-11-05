@@ -1,0 +1,113 @@
+[[cases]]
+name = "number"
+comparison = "full"
+files = { "case.py" = "assert value, 42\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "RUF040", "file" = "case.py", "start" = 14, "end" = 16 }]
+
+[[cases]]
+name = "none"
+comparison = "full"
+files = { "case.py" = "assert value, None\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "RUF040", "file" = "case.py", "start" = 14, "end" = 18 }]
+
+[[cases]]
+name = "bytes"
+comparison = "full"
+files = { "case.py" = "assert value, b\"message\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "RUF040", "file" = "case.py", "start" = 14, "end" = 24 }]
+
+[[cases]]
+name = "bool"
+comparison = "full"
+files = { "case.py" = "assert value, False\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "RUF040", "file" = "case.py", "start" = 14, "end" = 19 }]
+
+[[cases]]
+name = "ellipsis"
+comparison = "full"
+files = { "case.py" = "assert value, ...\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "RUF040", "file" = "case.py", "start" = 14, "end" = 17 }]
+
+[[cases]]
+name = "str"
+comparison = "full"
+files = { "case.py" = "assert value, \"message\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "fstr"
+comparison = "full"
+files = { "case.py" = "assert value, f\"{message}\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 24 }]
+
+[[cases]]
+name = "negative"
+comparison = "full"
+files = { "case.py" = "assert value, -1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "name"
+comparison = "full"
+files = { "case.py" = "assert value, message\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 21 }]
+
+[[cases]]
+name = "missing"
+comparison = "full"
+files = { "case.py" = "assert value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "assert value, 42 # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "assert value, 42 # noqa: RUF040\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "assert value, 42 # noqa: F401\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "RUF040", "file" = "case.py", "start" = 14, "end" = 16 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nassert value, 42\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[RUF040]\nassert value, 42\n\n# ruff: enable[RUF040]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 31, "end" = 36 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[RUF040]\n# ruff: enable[RUF040]\nassert value, 42\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 54, "end" = 59 }, { "rule" = "RUF040", "file" = "case.py", "start" = 61, "end" = 63 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[RUF040]\nassert value, 42\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 31, "end" = 36 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nassert value, 42\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 29, "end" = 34 }, { "rule" = "RUF040", "file" = "case.py", "start" = 36, "end" = 38 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[RUF040]\nassert value, 42\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 40 }]

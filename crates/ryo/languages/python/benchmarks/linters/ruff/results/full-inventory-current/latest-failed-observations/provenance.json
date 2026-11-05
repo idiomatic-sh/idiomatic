@@ -1,0 +1,10 @@
+{
+  "status": "FAIL",
+  "rule": "N999",
+  "registered_cases": 47,
+  "intended_passed": 46,
+  "worker_sha256": "4c3825271775cabd1f72a71ac8d4af6353c3619ec4e9aff0f07d46ab72f9e9e1",
+  "case_results_sha256": "7f2909af833c08b5fc450afa998bf6a1a909f53d300bd19959810a0ad37928a1",
+  "reason": "nested dotted initializer package naming policy mismatch; explicit-language files now execute",
+  "previous_archive_unchanged_sha256": "773f6afd69f810c75d51b9153bd1ff42a0466ec70fea873035971f66fcbb22e0"
+}

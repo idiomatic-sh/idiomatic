@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one row for each shape of entry the item reads, each with its full rows: every key form and every kind of value, decoded
+// one row for each shape of entry the item reads, each with its full rows: every key form and every kind of value, decoded
 //! The `entry` item's cases, every row as its cells, and the collection's shared cases.
 
 use super::super::fixtures::contract::check;

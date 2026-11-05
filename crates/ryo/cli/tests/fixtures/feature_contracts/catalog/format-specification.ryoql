@@ -1,0 +1,2 @@
+let witness = select * from "format-specification";
+emit witness subject file key(id, ordinal, "source-kind");

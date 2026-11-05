@@ -1,0 +1,26 @@
+{
+  "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "cases": [
+    {
+      "name": "ruf010-future-module-annotation-late-walrus-builtins-seen",
+      "file": "case.py",
+      "source": "from __future__ import annotations\nimport builtins\nx:f\"{str(value)} {(str:=custom)}\"\n",
+      "expected_ruff": [
+        {
+          "rule": "RUF010",
+          "file": "case.py",
+          "start": 56,
+          "end": 66
+        }
+      ],
+      "python_accepted": false,
+      "error": {
+        "message": "named expression cannot be used within an annotation",
+        "line": 3,
+        "column": 20,
+        "end_line": 3,
+        "end_column": 31
+      }
+    }
+  ]
+}

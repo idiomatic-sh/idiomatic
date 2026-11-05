@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one row for each scenario of the project contract, each with its full rows
+// one row for each scenario of the project contract, each with its full rows
 //! What the `project` contract promises: the manifests of a repository become the rows of
 //! `package_dependency` and `workspace_member`, from what the files hold; no manifest, no rows;
 //! a manifest that cannot be read is refused and gives no row.
@@ -414,6 +414,9 @@ fn request_of(
     relation: languages::Relation,
 ) -> languages::ProjectRequest {
     languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: RootPath(".".into()),
         manifests: manifests.to_vec(),
@@ -640,6 +643,9 @@ fn consulted(around: Around) -> Result<&'static [&'static str], Failure> {
     let resolved = languages::contract::read_project(
         &contract,
         &languages::ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Default::default(),
             repository: languages::Repository::Disk,
             root: RootPath(above.path().join("repository").to_string_lossy().into()),
             manifests: vec![manifest("Cargo.toml", workspace)],
@@ -685,6 +691,9 @@ fn members_at(contract: &ProjectContract, root: &std::path::Path, member: &str) 
     let resolved = languages::contract::read_project(
         contract,
         &languages::ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Default::default(),
             repository: languages::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
             manifests: vec![manifest(

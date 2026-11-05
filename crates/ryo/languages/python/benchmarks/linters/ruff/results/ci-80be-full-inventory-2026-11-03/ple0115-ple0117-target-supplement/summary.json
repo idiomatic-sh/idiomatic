@@ -1,0 +1,90 @@
+{
+  "schema": "benchmark-inventory/v1",
+  "provider": "ruff",
+  "run_state": "complete",
+  "identity": {
+    "worker_sha256": "0c8585f02b5ea65162237296cd7ea48a2db11d84b00ae5479c205eb55e5f6874",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "counts": {
+    "PASS": 2,
+    "FAIL": 0
+  },
+  "rules": [
+    {
+      "rule_id": "PLE0115",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "query_file": "rules/PLE0115/query.ryoql",
+        "query_sha256": "f26782b23c54afca0a11bf68078d0cb734644667e4db727f7b03afe38fae2fb7",
+        "cases_file": "rules/PLE0115/cases.toml",
+        "cases_sha256": "760c143fec68849280f2d8aa93b49073fc555bb34e11296dd6bc76f45902bfdc",
+        "case_count": 7,
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0115/benchmark.toml",
+        "settings_scope": "dedicated singleton",
+        "parser_configuration": "python-target=3.10",
+        "settings_source_sha256": "1b718a5b16288f8ad52695108da2af375af7926678acb31c02201f2de5811556",
+        "profile_sha256": "1b718a5b16288f8ad52695108da2af375af7926678acb31c02201f2de5811556",
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "effective_settings": {
+          "defaults": [
+            "PLE0115"
+          ],
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "PLE0115": "accepted-syntax"
+          },
+          "flags": {}
+        }
+      },
+      "case_results_sha256": "c802d307d83a8527d66c198388e47ea583f1ffb30b0f4b79db03f7aa1116eda2",
+      "case_count": 7,
+      "raw_exact": 2,
+      "documented_discrepancies": 5,
+      "contract_only": 0
+    },
+    {
+      "rule_id": "PLE0117",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "query_file": "rules/PLE0117/query.ryoql",
+        "query_sha256": "7e0bd6f51c4bb69b3189f791772ac2d16008c11a80ba1079646104cd892920fa",
+        "cases_file": "rules/PLE0117/cases.toml",
+        "cases_sha256": "aa822b61ea8b22b030b27667a9ab9fabfa957e1dd2d4c79b8ee77c083df51b96",
+        "case_count": 26,
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0117/benchmark.toml",
+        "settings_scope": "dedicated singleton",
+        "parser_configuration": "python-target=3.10",
+        "settings_source_sha256": "aa830b1383bc15a96074878ac002f6e797367e81195facfb288375dacdc221ca",
+        "profile_sha256": "aa830b1383bc15a96074878ac002f6e797367e81195facfb288375dacdc221ca",
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "effective_settings": {
+          "defaults": [
+            "PLE0117"
+          ],
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "PLE0117": "accepted-syntax"
+          },
+          "flags": {}
+        }
+      },
+      "case_results_sha256": "5942e934864ec6854eacc96de3e70230813d87d231116d568ae9083e2161d4e6",
+      "case_count": 26,
+      "raw_exact": 22,
+      "documented_discrepancies": 4,
+      "contract_only": 0
+    }
+  ],
+  "receipt_origin": "Derived offline from preserved successful native verify-cases execution and its strict v2 records; not a collector invocation, combined413 replay, or re-verification of earlier proofs."
+}

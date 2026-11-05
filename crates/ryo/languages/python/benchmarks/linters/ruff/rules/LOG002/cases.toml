@@ -1,0 +1,94 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "import logging\nlogging.getLogger(__file__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 33, end = 41 }]
+
+[[cases]]
+name = "cached"
+files = { "case.py" = "import logging\nlogging.getLogger(__cached__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 33, end = 43 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "import logging\nlogging.getLogger(name=__file__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 38, end = 46 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import logging as log\nlog.getLogger(__file__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 36, end = 44 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from logging import getLogger\ngetLogger(__file__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 40, end = 48 }]
+
+[[cases]]
+name = "other-call"
+files = { "case.py" = "import logging\nlogging.info(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "other-name"
+files = { "case.py" = "import logging\nlogging.getLogger(filename=__file__)\n" }
+expected = []
+
+[[cases]]
+name = "string-value"
+files = { "case.py" = "import logging\nlogging.getLogger(\"__file__\")\n" }
+expected = []
+
+[[cases]]
+name = "rebound-module"
+files = { "case.py" = "import logging\n__file__ = \"other\"\nlogging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "parameter-shadow"
+files = { "case.py" = "import logging\ndef f(__file__):\n    logging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "local-before"
+files = { "case.py" = "import logging\ndef f():\n    __file__ = \"other\"\n    logging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "local-after"
+files = { "case.py" = "import logging\ndef f():\n    logging.getLogger(__file__)\n    __file__ = \"other\"\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 46, end = 54 }]
+
+[[cases]]
+name = "delete-module"
+files = { "case.py" = "import logging\n__file__ = \"other\"\ndel __file__\nlogging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import logging\nlogging.getLogger(__file__)  # noqa: LOG002\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+files = { "case.py" = "import logging\nlogging.getLogger(变量)\n" }
+expected = []
+
+[[cases]]
+name = "nfkc-special"
+files = { "case.py" = "import logging\nlogging.getLogger(__ｆｉｌｅ__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 33, end = 49 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa: LOG002\nimport logging\nlogging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+files = { "case.py" = "import logging\ndef f():\n    logging.getLogger(__file__)\n" }
+expected = [{ rule = "LOG002", file = "case.py", start = 46, end = 54 }]
+
+[[cases]]
+name = "class-shadow"
+files = { "case.py" = "import logging\nclass C:\n    __file__ = \"other\"\n    logging.getLogger(__file__)\n" }
+expected = []

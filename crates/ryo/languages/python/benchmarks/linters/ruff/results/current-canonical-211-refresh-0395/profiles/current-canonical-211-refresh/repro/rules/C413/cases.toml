@@ -1,0 +1,77 @@
+[[cases]]
+name = "list"
+comparison = "full"
+files = { "case.py" = "list(sorted(values))\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 0, "end" = 20 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }]
+
+[[cases]]
+name = "reversed"
+comparison = "full"
+files = { "case.py" = "reversed(sorted(values))\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 0, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 22 }]
+
+[[cases]]
+name = "inner-keyword"
+comparison = "full"
+files = { "case.py" = "list(sorted(values, key=key))\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 0, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 24, "end" = 27 }]
+
+[[cases]]
+name = "extra-outer"
+comparison = "full"
+files = { "case.py" = "list(sorted(values), extra)\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 0, "end" = 27 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 26 }]
+
+[[cases]]
+name = "outer-keywords"
+comparison = "full"
+files = { "case.py" = "list(sorted(values), extra=True)\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 0, "end" = 32 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.list(builtins.sorted(values))\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 16, "end" = 54 }, { "rule" = "F821", "file" = "case.py", "start" = 46, "end" = 52 }]
+
+[[cases]]
+name = "aliases"
+comparison = "full"
+files = { "case.py" = "from builtins import list as L, sorted as S\nL(S(values))\n" }
+expected = [{ "rule" = "C413", "file" = "case.py", "start" = 44, "end" = 56 }, { "rule" = "F821", "file" = "case.py", "start" = 48, "end" = 54 }]
+
+[[cases]]
+name = "shadowed-list"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    list(sorted(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 29, "end" = 35 }]
+
+[[cases]]
+name = "shadowed-sorted"
+comparison = "full"
+files = { "case.py" = "def f(sorted):\n    list(sorted(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 31, "end" = 37 }]
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "tuple(sorted(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "list(*sorted(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "keyword-only"
+comparison = "full"
+files = { "case.py" = "list(iterable=sorted(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 27 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "list(sorted(values)) # noqa: C413\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }]

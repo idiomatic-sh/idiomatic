@@ -22,6 +22,7 @@ pub fn expected() -> Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
         manifests: stated_manifests(),
+        semantic: Vec::new(),
         shape: Shape::Walk(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),

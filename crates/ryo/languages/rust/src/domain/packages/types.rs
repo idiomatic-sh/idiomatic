@@ -17,7 +17,7 @@ use crate::domain::workspaces::types::Reason;
 
 /// A package that belongs to a workspace, each by its manifest, relative to the repository root.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Membership {
+pub(crate) struct WorkspacePackageMembership {
     /// The workspace's manifest.
     pub workspace: RepoPath,
     /// The member package's manifest.
@@ -67,7 +67,7 @@ pub(crate) struct Refusal {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Packages {
     /// Each workspace with its members, in order.
-    pub members: Vec<Membership>,
+    pub members: Vec<WorkspacePackageMembership>,
     /// Each dependency on a package of the repository, in order.
     pub dependencies: Vec<Dependency>,
     /// The source file of every target Cargo declares for each package, by the directory of the package.

@@ -1,0 +1,41 @@
+{
+  "bootstrap_profile_sha256": "09ad86f3f64f7c1a714e2d6958f35341f0dc8d9ec8c398c337b23021e7edebf1",
+  "normalized_reference_settings": {
+    "arguments": [
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "$STATE/ruff",
+      "--select",
+      "RUF019",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "$ROOT",
+    "environment": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "parser_configuration": "python-target=3.10",
+    "project_context_mode": "Isolated"
+  },
+  "original_undeclared_namespace": "An explicit dictionary namespace is supplied only to independent execution of original undeclared RUF sources; no static type inference. Separate explicit-dict source controls retain this prerequisite.",
+  "pinned_reference": "Ruff0.16.5",
+  "pinned_reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "primary_basis": [
+    "https://docs.python.org/3.10/reference/expressions.html#lambda",
+    "https://docs.python.org/3.10/reference/compound_stmts.html#function-definitions"
+  ],
+  "reference_capture_scope": "Uncertified current-profile full capture; FURB historical annotations omitted only in scratch. All source/full expectations unchanged. Normal strict certificate replay remains required.",
+  "rule": "RUF019",
+  "runtime": {
+    "executable_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+    "independent_inputs_contain_expected_or_candidate_arrays": false,
+    "version": "CPython3.10.19"
+  },
+  "scope": "Creation-time lambda effects under documented built-in set/dictionary rule prerequisites. Diagnostic analysis difference; no universal rewrite-safety or arbitrary custom-protocol claim.",
+  "settings_sha256": "a3d8b1167bc66f79bc0675f76f468cba448469751db25754779b8edfe196e41f"
+}

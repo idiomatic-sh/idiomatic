@@ -1,0 +1,47 @@
+[[cases]]
+name = "unsupported-character"
+comparison = "full"
+files = { "case.py" = "\"%j\" % (1,)\n" }
+expected = [{ rule = "F509", file = "case.py", start = 0, end = 11 }]
+
+[[cases]]
+name = "unsupported-unicode-character"
+comparison = "full"
+files = { "case.py" = "\"%\u00e9\" % (1,)\n" }
+expected = [{ rule = "F509", file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "multiple-unsupported-characters"
+comparison = "full"
+files = { "case.py" = "\"%j %k\" % (1, 2)\n" }
+expected = [{ rule = "F509", file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "supported-string-conversion"
+comparison = "full"
+files = { "case.py" = "\"%s\" % \"value\"\n" }
+expected = []
+
+[[cases]]
+name = "supported-integer-conversion"
+comparison = "full"
+files = { "case.py" = "\"%d\" % 1\n" }
+expected = []
+
+[[cases]]
+name = "escaped-percent"
+comparison = "full"
+files = { "case.py" = "\"%%\" % ()\n" }
+expected = []
+
+[[cases]]
+name = "incomplete-percent-is-f501"
+comparison = "full"
+files = { "case.py" = "\"%\" % 1\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-format"
+comparison = "full"
+files = { "case.py" = "format_value % values\n" }
+expected = []

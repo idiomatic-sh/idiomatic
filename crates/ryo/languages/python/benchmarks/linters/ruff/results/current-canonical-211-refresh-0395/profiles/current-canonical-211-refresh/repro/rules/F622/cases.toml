@@ -1,0 +1,125 @@
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "(*first, *second) = values\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 0, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "list"
+comparison = "full"
+files = { "case.py" = "[*first, *second] = values\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 0, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "single"
+comparison = "full"
+files = { "case.py" = "first, *rest = values\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 15, "end" = 21 }]
+
+[[cases]]
+name = "rhs"
+comparison = "full"
+files = { "case.py" = "value = (*first, *second)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 24 }]
+
+[[cases]]
+name = "loop"
+comparison = "full"
+files = { "case.py" = "for (*first, *second) in values:\n    pass\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 4, "end" = 21 }, { "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 31 }]
+
+[[cases]]
+name = "list-comprehension"
+comparison = "full"
+files = { "case.py" = "value = [1 for (*first, *second) in values]\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 15, "end" = 32 }, { "rule" = "F821", "file" = "case.py", "start" = 36, "end" = 42 }]
+
+[[cases]]
+name = "with"
+comparison = "full"
+files = { "case.py" = "with manager() as (*first, *second):\n    pass\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 18, "end" = 35 }, { "rule" = "F821", "file" = "case.py", "start" = 5, "end" = 12 }]
+
+[[cases]]
+name = "nested"
+comparison = "full"
+files = { "case.py" = "first, (*second, *third) = values\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 7, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 33 }]
+
+[[cases]]
+name = "separate-containers"
+comparison = "full"
+files = { "case.py" = "(*first, second), (*third, fourth) = values\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 43 }]
+
+[[cases]]
+name = "subscript"
+comparison = "full"
+files = { "case.py" = "value[(*first, *second)] = replacement\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 38 }]
+
+[[cases]]
+name = "call"
+comparison = "full"
+files = { "case.py" = "function(*first, *second)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 24 }]
+
+[[cases]]
+name = "three-stars"
+comparison = "full"
+files = { "case.py" = "(*first, *second, *third) = values\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 0, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 34 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "(*first, *second) = values # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "(*first, *second) = values # noqa: F622\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "(*first, *second) = values # noqa: F401\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 0, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\n(*first, *second) = values\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F622]\n(*first, *second) = values\n\n# ruff: enable[F622]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 42, "end" = 48 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F622]\n# ruff: enable[F622]\n(*first, *second) = values\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 43, "end" = 60 }, { "rule" = "F821", "file" = "case.py", "start" = 63, "end" = 69 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F622]\n(*first, *second) = values\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 42, "end" = 48 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\n(*first, *second) = values\n" }
+expected = [{ "rule" = "F622", "file" = "case.py", "start" = 22, "end" = 39 }, { "rule" = "F821", "file" = "case.py", "start" = 42, "end" = 48 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[F622]\n(*first, *second) = values\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 46, "end" = 52 }]

@@ -14,6 +14,8 @@ crates.io version; until the first publish there is none, and the workspace at `
 
 from __future__ import annotations
 
+import difflib
+import hashlib
 import json
 import os
 import subprocess
@@ -23,7 +25,7 @@ import tomllib
 from pathlib import Path
 
 # The crates a product's SDK wraps: no type defined in one of them may be reachable from the SDK's public API.
-INTERNAL = ("ryo_core", "ryo_language", "ryo_values", "ryo_query_language")
+INTERNAL = ("ryo_core", "ryo_language", "ryo_relations", "ryo_values", "ryo_query_language")
 
 # The one trait implementation allowed to name an internal crate's type: `From<Language> for LanguageHandles`, which the command line and
 # the tests of the products compose the engine with. It is `doc(hidden)` and stays public because the SDK's composition and the
@@ -132,6 +134,10 @@ def check(directory: Path) -> None:
     """Holds the SDK of the product in `directory` to its recorded public API: no leak of an internal crate's type, the recorded
     listing, and no semver break against the baseline. Passes when the product names no SDK."""
     api = settings(directory / "Cargo.toml")
+    evidence = directory / "target/sdk-api"
+    # Only this check owns these names. Never publish a previous run's comparison after an earlier tool failure.
+    for name in ("actual.txt", "recorded.txt", "diff.txt", "metadata.json"):
+        (evidence / name).unlink(missing_ok=True)
     if not api:
         return
     root = toplevel(directory)
@@ -155,9 +161,42 @@ def check(directory: Path) -> None:
     listing = subprocess.run(
         ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout
-    recorded = (directory / api["listing"]).read_text()
+    recorded = (directory / api["listing"]).read_text(encoding="utf-8")
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "actual.txt").write_text(listing, encoding="utf-8", newline="\n")
+    (evidence / "recorded.txt").write_text(recorded, encoding="utf-8", newline="\n")
+    difference = "".join(
+        difflib.unified_diff(
+            recorded.splitlines(keepends=True),
+            listing.splitlines(keepends=True),
+            fromfile=api["listing"],
+            tofile="generated public API",
+        )
+    )
+    (evidence / "diff.txt").write_text(difference, encoding="utf-8", newline="\n")
+    (evidence / "metadata.json").write_text(
+        json.dumps(
+            {
+                "package": package,
+                "nightly": nightly,
+                "listing": api["listing"],
+                "comparison": "match" if listing == recorded else "mismatch",
+                "source_commit": os.environ.get("GITHUB_SHA"),
+                "run_id": os.environ.get("GITHUB_RUN_ID"),
+                "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+                "recorded_sha256": hashlib.sha256(recorded.encode("utf-8")).hexdigest(),
+                "actual_sha256": hashlib.sha256(listing.encode("utf-8")).hexdigest(),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     if listing != recorded:
-        raise RuntimeError(f"the SDK's public API is not the one recorded in {api['listing']}: record it with `cargo +{nightly} public-api -ss -p {package}` after the change is meant")
+        raise RuntimeError(
+            f"the SDK's public API is not the one recorded in {api['listing']}: record it with `cargo +{nightly} public-api -ss -p {package}` after the change is meant; comparison evidence: {evidence}"
+        )
     # The SDK's own manifest, from the workspace's metadata: semver-checks otherwise finds a package by name anywhere
     # beneath the directory, a fixture crate of the same name included.
     manifest = next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package)

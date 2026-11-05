@@ -163,7 +163,7 @@ pub(crate) enum Body {
 
 /// A path a file writes: every `use` target, and every outermost path of two segments or more.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - a written path as the module tree owns it; its look-alike is the notes' borrowed `WrittenNote`, which is converted to this once
+// a written path as the module tree owns it; its look-alike is the notes' borrowed `WrittenNote`, which is converted to this once
 pub(crate) struct Written {
     /// The segments, keywords as written and generic arguments left out; a glob ends in `*`.
     pub segments: Vec<Segment>,
@@ -183,7 +183,7 @@ pub(crate) struct Spelling(pub Box<str>);
 
 /// What one source file says about the modules of its crate.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - what a file says of its modules as the module tree owns it; its look-alike is the notes' borrowed `Note`, which is converted to this once
+// what a file says of its modules as the module tree owns it; its look-alike is the notes' borrowed `Note`, which is converted to this once
 pub(crate) struct Facts {
     /// Whether the file parses without errors.
     pub clean: Cleanliness,

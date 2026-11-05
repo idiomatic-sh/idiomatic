@@ -1,0 +1,11 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "results": [
+    {
+      "name": "lexical_vs_default_runtime_scope",
+      "source": "from __future__ import annotations\nLiteral=custom\ndef outer():\n from typing import Literal\n def f()->Literal[Literal[1]]: ...\n return f,locals()\n",
+      "assertion": "f,localns=outer(); default=typing.get_type_hints(f)[\"return\"]; explicit=typing.get_type_hints(f,localns=localns)[\"return\"]; assert default == list[list[1]]; assert explicit == typing.Literal[1]",
+      "passed": true
+    }
+  ]
+}

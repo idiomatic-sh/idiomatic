@@ -1,0 +1,281 @@
+{
+  "schema": "selected-admission-checkpoint/v1",
+  "overall_acceptance": false,
+  "measurement_kind": "ordinary-scoped",
+  "acceptance_scope": "frozen Django310 and two original Rust pairs; full413/all-language acceptance pending",
+  "engine_source_gate": {
+    "summary_sha256": "7c929f1550263e1a4a6f9f0f26cc1dfc7afb4bbd76c6d5319f488a1633f7d520",
+    "source_stable": true,
+    "core_tests_passed": 353,
+    "benchmark_tests_passed": 101,
+    "python_worker_sha256": "a47f39deb6f4a8f3a21ecd5c0ebec50a7d0a2cf6572bb7baa82cee9e3a1bffa2",
+    "rust_worker_sha256": "a46f51b41050e6ab4decc8fa478d1407c37e0b9d44d6ef2b4b36b15a27191abc"
+  },
+  "native": {
+    "current_source_declaration_queries": 124,
+    "current_source_declaration_cases": 3129,
+    "current_descriptor_sha256": "e29efd6cee1a469e9412eb987d29c99b08fbe24c6012b19def4b0e9c6aaa36ce",
+    "current_prepared_manifest_sha256": "9ba93222ced5c561278f196ec6078b979557edbebb5350d6ca107f50223bc718",
+    "execution_segments": [
+      {
+        "kind": "historical-declared-native118-a47",
+        "queries": 118,
+        "cases": 2795,
+        "run_sha256": "66b93aa34a3c67a8bb90ba3d1f8404d8ae2293e6cdfd12513fd8b5560c53e54e",
+        "source_manifest_sha256": "4ed37379dbe0909f973192f7f278f8893f0051ac76c7157dfdb64728a76c7bf5",
+        "source_descriptor_sha256": "2ebc9d3294933e7bbafe8b5eef22d967acc954ad2a59ade9d8c9816f21884662",
+        "archive": "native118-a47-execution.tar.gz",
+        "archive_sha256": "0b2443dda7ab5ca69166671e56b80e0fc2f5ce0eecb5f326cea9785db0b5be71"
+      },
+      {
+        "kind": "canonical-six-prepared-supplement-a47",
+        "queries": 6,
+        "cases": 334,
+        "run_sha256": "fff76148714247fc845b8fbaf832c22e767388c6bde41a752fa497d2f17cfe05",
+        "source_manifest_sha256": "9ba93222ced5c561278f196ec6078b979557edbebb5350d6ca107f50223bc718",
+        "native_stage_equivalence_sha256": "441cdbbe869fe7d7131b6fc1704e3b817d594eee607c770832c6ac2f04d4602e",
+        "archive": "new-six-a47-execution.tar.gz",
+        "archive_sha256": "4b40206370b8f93d559bc9500239113f77d92ffe642a9cc282b0a5e8105c55a9"
+      }
+    ],
+    "aggregated_separate_receipts": {
+      "complete_case_pairs": 3129,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 3099,
+      "raw_parity_mismatches": 30,
+      "documented_reference_discrepancies": 26,
+      "unexplained_mismatches": 4,
+      "intended_behavior_passes": 3129,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 3103,
+      "diagnostic_parity_mismatches": 26,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 3129,
+      "typed_candidate_execution_complete": 3129,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "raw_mismatch_classification": {
+      "documented_reference_diagnostic_differences": 26,
+      "UP025_reference_skip_metadata_unavailable_cases": [
+        "bytes-with-u",
+        "raw-ru",
+        "raw-u",
+        "uppercase-raw"
+      ],
+      "UP025_diagnostics_match_for_four": true
+    },
+    "full124_single_run_claim": false
+  },
+  "django": {
+    "summary_sha256": "dbb171770e29b87be1a7277f9b55488c69af58442fad6261e92145f4d30f1d89",
+    "profile_rules": 310,
+    "files": 2875,
+    "cross_worker_exact": true,
+    "cold_warm_exact": true,
+    "edited_retained_fresh_exact": true,
+    "cold_report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+    "edited_report_sha256": "1bddfa4556420e605c4fdcace52a60ab3d8dc9bc1f95efcd826491ae19361e07",
+    "rows": [
+      {
+        "variant": "pre-selected",
+        "phase": "cold",
+        "wall_seconds": 257.802904994,
+        "cpu_seconds": 257.461946,
+        "peak_rss_bytes": 2187272192,
+        "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+        "diagnostics": 2327,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "selected-columns",
+        "phase": "cold",
+        "wall_seconds": 248.044978196,
+        "cpu_seconds": 247.807228,
+        "peak_rss_bytes": 2192158720,
+        "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+        "diagnostics": 2327,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "pre-selected",
+        "phase": "warm",
+        "wall_seconds": 1.9912980340000002,
+        "cpu_seconds": 1.987076,
+        "peak_rss_bytes": 238067712,
+        "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+        "diagnostics": 2327,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "selected-columns",
+        "phase": "warm",
+        "wall_seconds": 2.033207698,
+        "cpu_seconds": 2.032565,
+        "peak_rss_bytes": 238051328,
+        "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+        "diagnostics": 2327,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "pre-selected",
+        "phase": "edit-retained",
+        "wall_seconds": 9.205783537,
+        "cpu_seconds": 9.17281,
+        "peak_rss_bytes": 1954865152,
+        "report_sha256": "1bddfa4556420e605c4fdcace52a60ab3d8dc9bc1f95efcd826491ae19361e07",
+        "diagnostics": 2328,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "selected-columns",
+        "phase": "edit-retained",
+        "wall_seconds": 8.491201989,
+        "cpu_seconds": 8.470119,
+        "peak_rss_bytes": 1955106816,
+        "report_sha256": "1bddfa4556420e605c4fdcace52a60ab3d8dc9bc1f95efcd826491ae19361e07",
+        "diagnostics": 2328,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "pre-selected",
+        "phase": "edit-fresh",
+        "wall_seconds": 257.675284943,
+        "cpu_seconds": 257.412346,
+        "peak_rss_bytes": 2214535168,
+        "report_sha256": "1bddfa4556420e605c4fdcace52a60ab3d8dc9bc1f95efcd826491ae19361e07",
+        "diagnostics": 2328,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      },
+      {
+        "variant": "selected-columns",
+        "phase": "edit-fresh",
+        "wall_seconds": 245.30756146,
+        "cpu_seconds": 245.11196,
+        "peak_rss_bytes": 2209341440,
+        "report_sha256": "1bddfa4556420e605c4fdcace52a60ab3d8dc9bc1f95efcd826491ae19361e07",
+        "diagnostics": 2328,
+        "coverage": {
+          "selected": 891250,
+          "evaluated": 890943,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        }
+      }
+    ]
+  },
+  "rust": {
+    "summary_sha256": "39f01f0da067ad835269d74185ddeb70e53dd47843465017324b4f778554394c",
+    "pinned_main_baseline_sha256": "77b2104c79e46087c8a7901edf9e872ff2c016b864d8858deddaa8c663611c6f",
+    "candidate_sha256": "a46f51b41050e6ab4decc8fa478d1407c37e0b9d44d6ef2b4b36b15a27191abc",
+    "samples": [
+      {
+        "pair": 0,
+        "variant": "base",
+        "cold": {
+          "wall_ms": 1078,
+          "cpu_ms": 6128,
+          "peak_mb": 640,
+          "rows": 16373
+        },
+        "edit": {
+          "wall_ms": 339,
+          "cpu_ms": 623,
+          "peak_mb": 394,
+          "rows": 16373
+        }
+      },
+      {
+        "pair": 0,
+        "variant": "candidate",
+        "cold": {
+          "wall_ms": 1197,
+          "cpu_ms": 6032,
+          "peak_mb": 512,
+          "rows": 16373
+        },
+        "edit": {
+          "wall_ms": 466,
+          "cpu_ms": 721,
+          "peak_mb": 356,
+          "rows": 16373
+        }
+      },
+      {
+        "pair": 1,
+        "variant": "candidate",
+        "cold": {
+          "wall_ms": 1250,
+          "cpu_ms": 6372,
+          "peak_mb": 510,
+          "rows": 16373
+        },
+        "edit": {
+          "wall_ms": 469,
+          "cpu_ms": 721,
+          "peak_mb": 361,
+          "rows": 16373
+        }
+      },
+      {
+        "pair": 1,
+        "variant": "base",
+        "cold": {
+          "wall_ms": 1023,
+          "cpu_ms": 5304,
+          "peak_mb": 651,
+          "rows": 16373
+        },
+        "edit": {
+          "wall_ms": 331,
+          "cpu_ms": 599,
+          "peak_mb": 399,
+          "rows": 16373
+        }
+      }
+    ],
+    "unchanged_1_15_cold_gate_passed": false,
+    "edit_regression_closed": false,
+    "full_output_parity_claim": false
+  },
+  "scope_limits": [
+    "Rust second cold pair breaches 1.15 wall and CPU and both edit pairs regress.",
+    "Django cold is hundreds of seconds; subsecond target unmet.",
+    "Full413 correctness, two additional Python corpora, all-language CI speed and warm-memory acceptance remain open."
+  ]
+}

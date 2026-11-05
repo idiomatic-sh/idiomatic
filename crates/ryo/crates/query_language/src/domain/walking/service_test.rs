@@ -1,6 +1,6 @@
 //! The `walking` service's cases, on plans written by hand.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::fuse_descents;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -45,18 +45,21 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             test: Test::Equal,
             left: Operand::Column(column(2)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+            origin: None,
         }
     } else {
         Comparison {
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("fn".into()))),
+            origin: None,
         }
     };
     let tokens = Comparison {
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+        origin: None,
     };
     let left = |at: u32| JoinColumn {
         side: Side::Left,
@@ -97,6 +100,8 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             output: vec![right(1), left(0), left(2), left(3)],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         per_file(Operation::Join {
             left: Reads::Step(StepId(2)),
@@ -106,6 +111,8 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             output: vec![left(1), left(2), left(3), right(0)],
             filter: vec![tokens.clone()],
             view: Vec::new(),
+
+            reach: None,
         }),
     ];
     let fused = fuse_descents(steps);

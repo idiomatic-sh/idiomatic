@@ -1,0 +1,27 @@
+{
+  "rule": "RUF028",
+  "source_pin": "Ruff0.16.5",
+  "source_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "upstream_fixture": {
+    "path": "crates/ruff_linter/resources/test/fixtures/ruff/RUF028.py",
+    "sha256": "6659b954e87f4324f6fde1e2d7fc7cd69a555f15f56fd3276963776da766f070"
+  },
+  "upstream_snapshot": {
+    "path": "crates/ruff_linter/src/rules/ruff/snapshots/ruff_linter__rules__ruff__tests__invalid-formatter-suppression-comment_RUF028.py.snap",
+    "sha256": "0c9683e56213bd0919d0266b702b5a5288a1efff7d015eb37448d5d0912a8ad8"
+  },
+  "pinned_fixture_findings": 11,
+  "case_count": 97,
+  "expected_diagnostic_count": 67,
+  "status": "Candidate replay complete; reference differences and admission pending.",
+  "candidate_replay": {
+    "worker_sha256": "8b09a4771af76452dfde69252c501f7a9a71e6eb8827503aafaf2b60bd68bedd",
+    "query_sha256": "c0d5401801661fc34f8fd50a98a387756c7cc309c56fa015fd112238ceef450b",
+    "candidate_cases_passed": 97,
+    "candidate_cases_total": 97,
+    "reference_cases_passed": 93,
+    "reference_cases_total": 97,
+    "raw_receipt": "/tmp/python-rule-replay-light-20261102/RUF028/run-8b09-v7",
+    "reference_differences_uncertified": true
+  }
+}

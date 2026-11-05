@@ -2,7 +2,7 @@
 //! store keeps of it, with no IO and no ports.
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::records::types::{Handed, HandedNotes};
+use ryo_values::domain::records::types::{Handed, HandedNotes, RecordWords};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{
     BucketsWanted, Stored, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes, StoredText,
@@ -23,13 +23,21 @@ pub(crate) fn rows_of_file<T>(
 /// What the file at `path` handed the steps that read across files when the store was kept but its words, which the store keeps
 /// where they are; nothing when the store has no row of it.
 #[must_use]
-pub(crate) fn handed_in(stored: &Stored, handed: &StoredHanded, path: &FilePath) -> Handed {
+pub(crate) fn handed_in<W>(
+    stored: &Stored,
+    handed: &ryo_values::domain::stores::types::HandedRows<W>,
+    path: &FilePath,
+) -> Handed {
     let Ok(place) = stored.files.binary_search_by(|file| file.path.cmp(path)) else {
         return Handed::default();
     };
     let file = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
     let covered = rows_of_file(&handed.covered, file, |each| each.file).first();
     Handed {
+        observations: match rows_of_file(&handed.observations, file, |each| each.file) {
+            [one] => Some(std::sync::Arc::clone(&one.root)),
+            _ => None, // missing/ambiguous readiness remains unavailable to demanded roots
+        },
         buckets: Vec::new(),
         text: rows_of_file(&handed.texts, file, |each| each.file)
             .first()
@@ -55,22 +63,54 @@ pub(crate) fn hand_into(
     file: StoredFileNumber,
     handed: Handed,
     rebuilt: &BucketsWanted,
+    staged: &mut Vec<ryo_values::domain::stores::types::StagedRow>,
 ) {
     let wanted = |bucket: Bucket| match rebuilt {
         BucketsWanted::All => true,
         BucketsWanted::These(buckets) => buckets.binary_search(&bucket).is_ok(),
     };
-    stored.frontier.extend(
-        handed
-            .buckets
-            .into_iter()
-            .filter(|each| wanted(each.bucket))
-            .map(|each| StoredWords {
+    for each in handed
+        .buckets
+        .into_iter()
+        .filter(|each| wanted(each.bucket))
+    {
+        let ordinal = u64::try_from(stored.frontier.len())
+            .ok()
+            .and_then(|inline| {
+                u64::try_from(staged.len())
+                    .ok()
+                    .and_then(|count| inline.checked_add(count))
+            })
+            .unwrap_or(u64::MAX);
+        stored
+            .proofs
+            .push(ryo_values::domain::stores::types::StoredFrontierProof {
                 file,
                 bucket: each.bucket,
-                words: each.words,
+                proof: each.proof.clone(),
+            });
+        match each.words {
+            RecordWords::Inline(words) => stored.frontier.push(StoredWords {
+                file,
+                bucket: each.bucket,
+                proof: each.proof,
+                words,
             }),
-    );
+            RecordWords::Staged(words) => {
+                staged.push(ryo_values::domain::stores::types::StagedRow {
+                    file,
+                    bucket: each.bucket,
+                    ordinal,
+                    words,
+                })
+            }
+        }
+    }
+    if let Some(root) = handed.observations {
+        stored
+            .observations
+            .push(ryo_values::domain::stores::types::StoredFrontierReadiness { file, root });
+    }
     if !handed.text.0.is_empty() {
         stored.texts.push(StoredText {
             file,

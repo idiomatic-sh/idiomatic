@@ -1,0 +1,102 @@
+
+[[cases]]
+name = "tagged-ruff-0-16-5"
+comparison = "full"
+files = { "case.py" = "# SIM102\nif a:\n    if b:\n        c\n\n# SIM102\nif a:\n    if b:\n        if c:\n            d\n\n# SIM102\nif a:\n    pass\nelif b:\n    if c:\n        d\n\n# SIM102\nif a:\n    # Unfixable due to placement of this comment.\n    if b:\n        c\n\n# SIM102\nif a:\n    if b:\n        # Fixable due to placement of this comment.\n        c\n\n# OK\nif a:\n    if b:\n        c\n    else:\n        d\n\n# OK\nif __name__ == \"__main__\":\n    if foo():\n        ...\n\n# OK\nif a:\n    d\n    if b:\n        c\n\nwhile x > 0:\n    # SIM102\n    if y > 0:\n        if z > 0:\n            \"\"\"this\nis valid\"\"\"\n\n            \"\"\"the indentation on\n            this line is significant\"\"\"\n\n            \"this is\" \\\n\"allowed too\"\n\n            (\"so is\"\n\"this for some reason\")\n\n\n# SIM102\nif x > 0:\n    if y > 0:\n        \"\"\"this\nis valid\"\"\"\n\n        \"\"\"the indentation on\n        this line is significant\"\"\"\n\n        \"this is\" \\\n\"allowed too\"\n\n        (\"so is\"\n\"this for some reason\")\n\nwhile x > 0:\n    # SIM102\n    if node.module:\n        if node.module == \"multiprocessing\" or node.module.startswith(\n            \"multiprocessing.\"\n        ):\n            print(\"Bad module!\")\n\n# SIM102 (auto-fixable)\nif node.module012345678:\n    if node.module == \"multiprocß9💣2ℝ\" or node.module.startswith(\n        \"multiprocessing.\"\n    ):\n        print(\"Bad module!\")\n\n# SIM102 (not auto-fixable)\nif node.module0123456789:\n    if node.module == \"multiprocß9💣2ℝ\" or node.module.startswith(\n        \"multiprocessing.\"\n    ):\n        print(\"Bad module!\")\n\n# SIM102\n# Regression test for https://github.com/apache/airflow/blob/145b16caaa43f0c42bffd97344df916c602cddde/airflow/configuration.py#L1161\nif a:\n    if b:\n        if c:\n            print(\"if\")\nelif d:\n    print(\"elif\")\n\n# OK\nif a:\n    if b:\n        print(\"foo\")\nelse:\n    print(\"bar\")\n\n# OK\nif a:\n    if b:\n        if c:\n            print(\"foo\")\n        else:\n            print(\"bar\")\nelse:\n    print(\"bar\")\n\n# OK\nif a:\n    # SIM 102\n    if b:\n        if c:\n            print(\"foo\")\nelse:\n    print(\"bar\")\n\n\n# OK\nif a:\n    if b:\n        if c:\n            print(\"foo\")\n        print(\"baz\")\nelse:\n    print(\"bar\")\n\n\n# OK\nif False:\n    if a:\n        pass\n\n\n# OK\nif True:\n    if a:\n        pass\n\n\n# SIM102\ndef f():\n    if a:\n        pass\n    elif b:\n        if c:\n            d\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 9, end = 24 }, { rule = "SIM102", file = "case.py", start = 45, end = 74 }, { rule = "SIM102", file = "case.py", start = 55, end = 74 }, { rule = "SIM102", file = "case.py", start = 114, end = 131 }, { rule = "SIM102", file = "case.py", start = 152, end = 217 }, { rule = "SIM102", file = "case.py", start = 238, end = 253 }, { rule = "SIM102", file = "case.py", start = 496, end = 523 }, { rule = "SIM102", file = "case.py", start = 727, end = 750 }, { rule = "SIM102", file = "case.py", start = 954, end = 1082 }, { rule = "SIM102", file = "case.py", start = 1141, end = 1271 }, { rule = "SIM102", file = "case.py", start = 1330, end = 1461 }, { rule = "SIM102", file = "case.py", start = 1644, end = 1663 }, { rule = "SIM102", file = "case.py", start = 1933, end = 1952 }, { rule = "SIM102", file = "case.py", start = 2233, end = 2254 }]
+
+[[cases]]
+name = "simple"
+comparison = "full"
+files = { "case.py" = "if x:\n if y:\n  work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "deep"
+comparison = "full"
+files = { "case.py" = "if x:\n if y:\n  if z:\n   work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 0, end = 20 }, { rule = "SIM102", file = "case.py", start = 7, end = 20 }]
+
+[[cases]]
+name = "outer-extra"
+comparison = "full"
+files = { "case.py" = "if x:\n work()\n if y:\n  work()\n" }
+expected = []
+
+[[cases]]
+name = "inner-extra"
+comparison = "full"
+files = { "case.py" = "if x:\n if y:\n  work()\n  more()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "inner-else"
+comparison = "full"
+files = { "case.py" = "if x:\n if y:\n  work()\n else:\n  more()\n" }
+expected = []
+
+[[cases]]
+name = "elif-last"
+comparison = "full"
+files = { "case.py" = "if x:\n pass\nelif y:\n if z:\n  work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 12, end = 26 }]
+
+[[cases]]
+name = "elif-root-body-extra-pinned"
+comparison = "full"
+files = { "case.py" = "if x:\n work()\n more()\nelif y:\n if z:\n  work()\n" }
+expected = []
+
+[[cases]]
+name = "else-final"
+comparison = "full"
+files = { "case.py" = "if x:\n if y:\n  work()\nelse:\n pass\n" }
+expected = []
+
+[[cases]]
+name = "true-parent"
+comparison = "full"
+files = { "case.py" = "if True:\n if x:\n  if y:\n   work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 10, end = 23 }]
+
+[[cases]]
+name = "main-parent"
+comparison = "full"
+files = { "case.py" = "if __name__ == \"__main__\":\n if x:\n  if y:\n   work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 28, end = 41 }]
+
+[[cases]]
+name = "main-ne-comparison"
+comparison = "full"
+files = { "case.py" = "if __name__ != \"__main__\":\n if x:\n  work()\n" }
+expected = []
+
+[[cases]]
+name = "tc-parent-suppression"
+comparison = "full"
+files = { "case.py" = "if TYPE_CHECKING:\n if x:\n  if y:\n   work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 19, end = 32 }]
+
+[[cases]]
+name = "sys-parent-suppression"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info:\n if x:\n  if y:\n   work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 33, end = 46 }]
+
+[[cases]]
+name = "lambda-colon"
+comparison = "full"
+files = { "case.py" = "if x:\n if (lambda:1)():\n  work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "noqa-opening"
+comparison = "full"
+files = { "case.py" = "if x: # noqa: SIM102\n if y:\n  work()\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-multiline"
+comparison = "full"
+files = { "case.py" = "if (\n x\n):\n if (\n y\n ):\n  work()\n" }
+expected = [{ rule = "SIM102", file = "case.py", start = 0, end = 23 }]

@@ -1,0 +1,125 @@
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.pyi" = "def function():\n    x = 1\n    return x\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "async"
+comparison = "full"
+files = { "case.pyi" = "async def function():\n    x = 1\n    return x\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 10, "end" = 18 }]
+
+[[cases]]
+name = "docstring"
+comparison = "full"
+files = { "case.pyi" = "def function():\n    \"doc\"\n    ...\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "single-block"
+comparison = "full"
+files = { "case.pyi" = "def function():\n    if ready:\n        x = 1\n        return x\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 23, "end" = 28 }, { "rule" = "PYI010", "file" = "case.pyi", "start" = 20, "end" = 60 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.pyi" = "def function(): ...\n" }
+expected = []
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    x: int\n    ...\n" }
+expected = [{ "rule" = "PYI013", "file" = "case.pyi", "start" = 24, "end" = 27 }]
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.pyi" = "def café():\n    x = 1\n    return x\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 9 }]
+
+[[cases]]
+name = "runtime"
+comparison = "full"
+files = { "case.py" = "def function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.pyi" = "def function(): # noqa\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.pyi" = "def function(): # noqa: PYI048\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.pyi" = "def function(): # noqa: F401\n    x = 1\n    return x\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.pyi" = "# ruff: noqa\ndef function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "decorated"
+comparison = "full"
+files = { "case.pyi" = "@decorate\ndef function():\n    pass\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 1, "end" = 9 }, { "rule" = "PYI048", "file" = "case.pyi", "start" = 14, "end" = 22 }]
+
+[[cases]]
+name = "multiline-header"
+comparison = "full"
+files = { "case.pyi" = "def function(\n    x: int,\n):\n    pass\n    pass\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "multiline-header-noqa"
+comparison = "full"
+files = { "case.pyi" = "def function(\n    x: int,\n): # noqa: PYI048\n    pass\n    pass\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "multiline-header-initial-noqa"
+comparison = "full"
+files = { "case.pyi" = "def function( # noqa: PYI048\n    x: int,\n):\n    pass\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI048]\ndef function():\n    x = 1\n    return x\n\n# ruff: enable[PYI048]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI048]\n# ruff: enable[PYI048]\ndef function():\n    x = 1\n    return x\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 51, "end" = 59 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI048]\ndef function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[E501]\ndef function():\n    x = 1\n    return x\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 26, "end" = 34 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.pyi" = "# ruff: file-ignore[PYI048]\ndef function():\n    x = 1\n    return x\n" }
+expected = []

@@ -1,0 +1,61 @@
+description = "A behavior-owning value keeps its implementation, module and proof together."
+why = "Optional value directories do not make any one value's proof optional."
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let bodies = capture(from=files, path="path", pattern="{*root}/types/{value}/value.rs", captures=["root", "value"]);
+let tests = capture(from=files, path="path", pattern="{*root}/types/{value}/value_test.rs", captures=["root", "value"]);
+let modules = capture(from=files, path="path", pattern="{*root}/types/{value}.rs", captures=["root", "value"]);
+let absent-proof = antijoin(left=bodies, right=tests, left-on=["root", "value"], right-on=["root", "value"]);
+let absent-module = antijoin(left=bodies, right=modules, left-on=["root", "value"], right-on=["root", "value"]);
+let absent-body = antijoin(left=modules, right=bodies, left-on=["root", "value"], right-on=["root", "value"]);
+let orphan-proof = antijoin(left=tests, right=bodies, left-on=["root", "value"], right-on=["root", "value"]);
+let first = union(left=absent-proof, right=absent-module);
+let second = union(left=absent-body, right=orphan-proof);
+let missing = union(left=first, right=second);
+emit missing subject "path" key("path");
+'''
+[diagnostic]
+primary = "path"
+message = "value module, implementation and proof must exist together"
+help = "Keep types/name.rs, types/name/value.rs and types/name/value_test.rs together."
+[given]
+include = ["**"]
+[[scenarios]]
+id = "complete"
+scenario = "All three value artifacts exist."
+given.files.'src/types/token.rs' = ''
+given.files.'src/types/token/value.rs' = ''
+given.files.'src/types/token/value_test.rs' = ''
+[[scenarios]]
+id = "missing-proof"
+scenario = "The implementation has no proof."
+given.files.'src/types/token.rs' = ''
+given.files.'src/types/token/value.rs' = ''
+then.findings = [{ path = 'src/types/token/value.rs' }]
+
+[[scenarios]]
+id = "missing-module"
+scenario = "An implementation and proof cannot silently omit their module."
+given.files.'src/types/token/value.rs' = ''
+given.files.'src/types/token/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token/value.rs' }]
+[[scenarios]]
+id = "missing-body"
+scenario = "A module and proof need their actual implementation."
+given.files.'src/types/token.rs' = ''
+given.files.'src/types/token/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token.rs' }, { path = 'src/types/token/value_test.rs' }]
+[[scenarios]]
+id = "orphan-proof"
+scenario = "A proof with no implementation is not a value."
+given.files.'src/types/token/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token/value_test.rs' }]
+[[scenarios]]
+id = "other-value-proof-does-not-count"
+scenario = "A different value's proof cannot satisfy the missing proof."
+given.files.'src/types/token.rs' = ''
+given.files.'src/types/token/value.rs' = ''
+given.files.'src/types/other.rs' = ''
+given.files.'src/types/other/value.rs' = ''
+given.files.'src/types/other/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token/value.rs' }]

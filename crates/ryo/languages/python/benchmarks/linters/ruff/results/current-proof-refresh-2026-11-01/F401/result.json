@@ -1,0 +1,41 @@
+{
+  "profile": "F401",
+  "command": [
+    "/tmp/compiler-feature-language-baseline-gate-5-20261101/worker/ruff-8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81",
+    "verify-cases",
+    "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "/tmp/six-current-v2-exact-registry-20261101/profiles/F401/repro"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "status": 0,
+  "process_status": 0,
+  "error": null,
+  "identities": {
+    "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81",
+    "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_receipt_sha256": "1c245deb1c40f7b6014d717777ff8b81ca475b3e51b6e5fc0949e4c27d0fe2b5",
+    "purpose": "fresh current-module native v2 proof; prior v1 remains immutable historical"
+  },
+  "staged_inputs": {
+    "benchmark.toml": "fd981523665258e239319074e5ba5f27fcea2071c2ce54787058c6c7d421e4ef",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "rules/F401/cases.toml": "1c27c3197317e4b1829b71143e0dd69be83f0d3207bb8e22e633089b1f0c0696",
+    "rules/F401/query.ryoql": "6349162b87c85926e698327931ed62f38491ae63897c59f1cd91e2543fd6f23e"
+  },
+  "stdout_file": "profiles/F401/stdout.bin",
+  "stderr_file": "profiles/F401/stderr.bin",
+  "reproduction_directory": "profiles/F401/repro",
+  "case_results_file": "profiles/F401/cases.jsonl",
+  "case_results_sha256": "4170f6997e33e1b2987b81200dde3f292d96da5ee8e647c25bfc495a3af6ae05",
+  "case_expectation_summary": {
+    "complete_case_pairs": 29,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 29,
+    "raw_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 29,
+    "intended_behavior_failures": 0
+  }
+}

@@ -1,37 +1,43 @@
-// ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 //! Bounded read, parse and per-file evaluation using injected ports.
+use ryo_execution::inbound::use_cases::execution::interface::{
+    ExecutionRequest, FileExecution, PreparedExecution,
+};
+use ryo_execution::inbound::use_cases::execution::types::{
+    ApplicabilityReason, ApplicabilityRefusal, CaptureContext, CaptureIntent, DiagnosticDelivery,
+    EmitDemand, FileInput, FileRuleIntent, ObservationDemand, RootOutcome, RuleDemand,
+    SourceLanguage, SourceRows,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+// this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
 use super::types::{FileVisit, Worker};
 use crate::domain::admission::errors::AdmissionError;
 use crate::domain::admission::service::{admit_elements, admit_view, limits_of};
 
 use crate::domain::budget::service::within;
-use crate::domain::coverage::service::partial_of;
-use crate::domain::coverage::types::{Recovery, RuleIndex};
+use ryo_execution::inbound::use_cases::metadata::interface::{Recovery, RuleIndex};
 
+use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::handing::service::rows_of_file;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::Remap;
-use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, evaluate_rule, prepare_frontier, settle as settle_file,
+    begin, engine_asked, failure_partials, prepare, read_failure_demanded, settle as settle_file,
     start_partials,
 };
-use crate::domain::reading::types::{EngineAsked, EngineRows};
+use crate::domain::reading::types::{EngineAsked, EngineRows, PrimaryFailureKind};
 use crate::domain::recording::service::{
     cover, finish_file, frontier_flat, hand_rest_again, interface_bytes, made_ran, moved_words,
     remap_to, replay,
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::shared_walk::service::walk;
-use crate::domain::shared_walk::types::Walking;
-use crate::domain::table_texts::types::SourceView;
-use crate::domain::table_words::service::pack_onto;
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::workers::types::{Replaying, Tables, VisitSetting};
-use ryo_language::domain::relations::types::Words;
+use crate::domain::workers::types::{Replaying, Tables};
+use ryo_relations::domain::relations::types::Words;
+use ryo_values::domain::files::types::SourceView;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::records::types::{
     GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
 };
@@ -39,6 +45,8 @@ use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::StoredFileNumber;
+use ryo_values::domain::table_words::service::pack_onto;
+use ryo_values::domain::table_words::types::WordSlice;
 
 use crate::domain::rules::service::governing;
 
@@ -46,16 +54,21 @@ use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};
 
 use crate::domain::workers::service::{checking, file_at, govern, governs_rule};
+use ryo_values::domain::runs::types::RuleNumber;
 
 use crate::domain::workers::types::{Checking, FileOrder};
+use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::PathStat;
-use crate::outbound::digest::interface::DigestPort;
-use crate::outbound::digest::types::{DigestBytes, DigestWords};
-use crate::outbound::facts::interface::FactsWorker;
-use crate::outbound::facts::types::WordsToKeep;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+use ryo_execution::inbound::use_cases::execution::types::digest::{DigestBytes, DigestWords};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
+use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
+use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
+use ryo_values::domain::files::service::input_path;
+use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::Unread;
-use ryo_values::domain::stored_facts::types::ReadInPart;
+use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
 
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::{FileReading, FileToRead, ProjectInput};
@@ -63,30 +76,52 @@ use crate::outbound::language::types::{FileReading, FileToRead, ProjectInput};
 use crate::outbound::memory::interface::MemoryPort;
 
 use crate::outbound::scheduler::types::JobNumber;
-use ryo_language::domain::elements::service::diagnostic_count;
+use ryo_language::domain::elements::service::{
+    has_incomplete_lexical_stream, has_incomplete_syntax, syntax_acceptance,
+};
+use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_language::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
-use ryo_language::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
-use ryo_language::domain::relations::types::Rows as _;
-use ryo_language::domain::relations::types::{FileId, Integer, Relation};
 use ryo_language::domain::symbols::service::clear_symbols;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
+use ryo_relations::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
+use ryo_relations::domain::relations::types::Rows as _;
+use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileNumber};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileBytes, FileNumber};
 use ryo_values::domain::stores::types::StoredFile;
 
 use ryo_values::domain::records::service::is_as_it_was;
 use ryo_values::domain::records::types::{FileOutcome, Freshness, Handed, Ran, Unreadable};
 
 use ryo_values::domain::runs::types::ManifestRefused;
+use ryo_values::domain::runs::types::RuleApplicability;
 
 use ryo_values::domain::stored_facts::types::{ArenaBase, Digest, LanguageNumber, ReadFailure};
-
+use std::borrow::Cow;
 use std::sync::Arc;
+use std::time::Instant;
+
+/// Whether the language read a complete tree or a recovery from missing syntax.
+pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
+    match reading {
+        FileReading::Read(_) if has_incomplete_syntax(elements) => {
+            if has_incomplete_lexical_stream(elements) {
+                Recovery::SyntaxErrors
+            } else {
+                Recovery::LexicallyCompleteSyntaxErrors
+            }
+        }
+        FileReading::Failed(_) => Recovery::Unparsed,
+        FileReading::Read(_) | FileReading::Manifest | FileReading::Unsupported => Recovery::Whole,
+    }
+}
 
 /// Analysis of one file or the project, with resources supplied by the composition.
 pub struct FileAnalysis {
+    /// One request's explicitly selected physical execution strategy.
+    execution: ryo_values::domain::runs::types::ExecutionOptions,
     /// Reads each file's bytes.
     corpus: Arc<dyn CorpusPort>,
     /// Parses a file into its syntax tree and rows, and names the languages linked.
@@ -104,7 +139,92 @@ impl std::fmt::Debug for FileAnalysis {
     }
 }
 
+impl Worker {
+    /// The application creates the worker's bounded request-metadata cache.
+    pub(crate) fn new(tables: Tables, facts: Box<dyn FactsWorker>) -> Self {
+        Self {
+            tables,
+            facts,
+            old_rows: None,
+            failure: None,
+        }
+    }
+}
+
 impl FileAnalysis {
+    /// Admit one exact linked-provider selection before parsing or retained-data reuse.
+    pub(crate) fn validate_source_language(
+        &self,
+        selected: Option<&ryo_values::domain::descriptions::types::LanguageName>,
+    ) -> Result<(), FileAnalysisError> {
+        if let Some(selected) = selected
+            && self
+                .language
+                .kind_vocabularies()
+                .0
+                .iter()
+                .filter(|vocabulary| vocabulary.language == *selected)
+                .count()
+                != 1
+        {
+            return Err(FileAnalysisError::SourceLanguage {
+                name: selected.0.to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// The parsed relations needed by rules that govern this path and whose applicability is met.
+    pub(super) fn active_wanted<'a>(
+        tables: &Tables,
+        setting: &'a VisitSetting<'_>,
+        acceptance: SyntaxAcceptance,
+    ) -> Cow<'a, [Relation]> {
+        if setting.metadata.is_empty() {
+            return Cow::Borrowed(setting.wanted);
+        }
+        // All rules are active for legacy plans, and complete metadata plus accepted syntax
+        // activates every policy. Keep the caller's relation slice in both cases.
+        if !setting.applicability_can_gate
+            || acceptance == SyntaxAcceptance::Accepted
+                && setting.applicability.len() == setting.metadata.len()
+        {
+            return Cow::Borrowed(setting.wanted);
+        }
+        let demanded = setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+        Cow::Owned(
+            setting
+                .wanted
+                .iter()
+                .copied()
+                .filter(|relation| {
+                    setting.metadata.iter().enumerate().any(|(place, _)| {
+                        demanded.get(place).copied().unwrap_or(false)
+                            && match setting.applicability.get(place).copied() {
+                                Some(RuleApplicability::Always) => true,
+                                Some(RuleApplicability::AcceptedSyntax) => {
+                                    acceptance == SyntaxAcceptance::Accepted
+                                }
+                                None => false,
+                            }
+                            && setting.needs.get(place).is_some_and(|needs| {
+                                needs.reads.iter().any(|read| read.relation == *relation)
+                            })
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    /// Whether this setting contains a policy that can change a file's active rules.
+    pub(super) fn may_gate_rules(setting: &VisitSetting<'_>, acceptance: SyntaxAcceptance) -> bool {
+        setting.applicability_can_gate
+            && !(acceptance == SyntaxAcceptance::Accepted
+                && setting.applicability.len() == setting.metadata.len())
+    }
+
     /// Bind the resources used by every analysis invocation.
     #[must_use]
     pub fn new(
@@ -114,11 +234,45 @@ impl FileAnalysis {
         memory: Arc<dyn MemoryPort>,
     ) -> Self {
         Self {
+            execution: Default::default(),
             corpus,
             language,
             digest,
             memory,
         }
+    }
+
+    /// Bind explicit strategy options at the application composition edge.
+    #[must_use]
+    pub fn with_execution(
+        mut self,
+        execution: ryo_values::domain::runs::types::ExecutionOptions,
+    ) -> Self {
+        self.execution = execution;
+        self
+    }
+
+    /// The same strategy controls execution and persisted result identity.
+    pub(crate) fn execution(&self) -> ryo_values::domain::runs::types::ExecutionOptions {
+        self.execution
+    }
+
+    /// Pass the strategy to each worker without consulting the environment per file.
+    pub(crate) fn kernel_strategy(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::KernelStrategy {
+        if self.execution.column_kernel {
+            ryo_execution::inbound::use_cases::execution::types::KernelStrategy::Column
+        } else {
+            ryo_execution::inbound::use_cases::execution::types::KernelStrategy::Existing
+        }
+    }
+
+    /// Inject the candidate in exact same-binary differential tests.
+    #[cfg(test)]
+    pub(crate) fn with_column_kernel(mut self, enabled: bool) -> Self {
+        self.execution.column_kernel = enabled;
+        self
     }
     /// Admits what the language `provider` wrote for the file `number`, against the file's length, its table and its number.
     fn admit(
@@ -147,95 +301,418 @@ impl FileAnalysis {
         Ok(())
     }
 
-    /// The rest of a visit of a file the language read: the per-file steps of the rules that govern it run on its rows, the words of
-    /// what leaves it wait in the buckets, and the rows are released.
-    fn read_file(
-        worker: &mut Worker,
-        visit: &FileVisit<'_>,
+    /// Removes rules whose declared syntax applicability is not met and records why each one was
+    /// skipped for this file. The skip is separate from relation partiality: it says the rule was
+    /// not applicable, not that its input was read incompletely.
+    pub(super) fn gate_rules(
+        tables: &mut Tables,
+        setting: &VisitSetting<'_>,
         file: FileId,
-    ) -> Result<(), FileAnalysisError> {
-        let (tables, facts) = (&mut worker.tables, &mut worker.facts);
-        // Every relation the rules read must be readable before their steps run, which read the rows again.
-        for relation in visit.setting.wanted {
-            if let Err(error) = facts.rows(*relation) {
-                return Err(error.into());
+        acceptance: SyntaxAcceptance,
+    ) -> Vec<bool> {
+        let demanded = setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+        let mut skipped = vec![false; setting.metadata.len()];
+        for (place, blocked) in skipped.iter_mut().enumerate() {
+            if !demanded.get(place).copied().unwrap_or(false) {
+                continue;
             }
-        }
-        // The steps of the rules that select from the elements are decided in one pass over them.
-        {
-            let Tables {
-                mask,
-                elements,
-                symbols,
-                bytes,
-                scratch,
-                shared,
-                pool,
-                ..
-            } = &mut *tables;
-            walk(
-                shared,
-                Walking {
-                    plans: visit.setting.plans,
-                    bindings: visit.setting.bindings,
-                    paths: visit.setting.paths,
-                    mask,
-                    file,
-                    elements,
-                    symbols,
-                    source: SourceView(&bytes.0),
-                    scratch,
-                    room: &mut pool.made,
-                    steps: pool.unlowered,
+            let applicability = setting.applicability.get(place).copied();
+            *blocked = match applicability {
+                Some(RuleApplicability::Always) => false,
+                Some(RuleApplicability::AcceptedSyntax) => acceptance != SyntaxAcceptance::Accepted,
+                None => true,
+            };
+            if !*blocked {
+                continue;
+            }
+            MetadataUseCaseImpl.unplace(
+                &mut tables.mask,
+                RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)),
+            );
+            let reason = match (applicability, acceptance) {
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
+                    let (Some(rule), Some(path)) = (
+                        setting.ids.get(place),
+                        setting
+                            .paths
+                            .get(usize::try_from(file.0).unwrap_or(usize::MAX)),
+                    ) else {
+                        continue;
+                    };
+                    tables
+                        .skipped
+                        .push(ryo_values::domain::runs::types::Skipped {
+                            rule: rule.clone(),
+                            path: path.clone(),
+                            reason: ryo_values::domain::runs::types::SkipReason::SyntaxRejected,
+                        });
+                    continue;
+                }
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Undetermined) => {
+                    "rule skipped: syntax acceptance undetermined"
+                }
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Accepted)
+                | (Some(RuleApplicability::Always), _) => continue,
+                (None, _) => "rule skipped: applicability metadata unavailable",
+            };
+            let Some(rule) = setting.ids.get(place) else {
+                continue;
+            };
+            let Some(path) = setting
+                .paths
+                .get(usize::try_from(file.0).unwrap_or(usize::MAX))
+            else {
+                continue;
+            };
+            tables.unknowns.push(
+                ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                    rule: rule.clone(),
+                    path: path.clone(),
+                    message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+                        reason.into(),
+                    ),
                 },
             );
         }
-        for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
-            if governs_rule(tables, rule) == Governing::DoesNotGovern {
+        skipped
+    }
+
+    /// The rest of a visit of a file the language read: the per-file steps of the rules that govern it run on its rows, the words of
+    /// what leaves it wait in the buckets, and the rows are released.
+    fn read_file(
+        &self,
+        worker: &mut Worker,
+        visit: &FileVisit<'_>,
+        file: FileId,
+        semantic: &super::semantic::SemanticState,
+    ) -> Result<(), FileAnalysisError> {
+        let tables = &mut worker.tables;
+        let acceptance = syntax_acceptance(&tables.elements);
+        let original_mask = tables.mask.clone();
+        let skipped = Self::gate_rules(tables, &visit.setting, file, acceptance);
+        tables.mask = original_mask;
+        // Publication always sees physical partiality, even when Rows output relaxes evaluation.
+        let physical = tables.partials.clone();
+        let evaluation = if matches!(visit.setting.answering, Answering::Rows(_)) {
+            &[][..]
+        } else {
+            physical.as_slice()
+        };
+        let demanded = visit
+            .setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+        let intents = demanded
+            .iter()
+            .enumerate()
+            .map(|(place, demanded)| {
+                if !demanded {
+                    return FileRuleIntent::Undemanded;
+                }
+                if skipped[place] {
+                    return match (visit.setting.applicability.get(place), acceptance) {
+                        (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
+                            FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)
+                        }
+                        (Some(RuleApplicability::AcceptedSyntax), _) => {
+                            FileRuleIntent::Refused(ApplicabilityRefusal::SyntaxUndetermined)
+                        }
+                        _ => FileRuleIntent::Refused(ApplicabilityRefusal::MetadataUnavailable),
+                    };
+                }
+                let emit = governs_rule(tables, RuleIndex(place)) == Governing::Governs;
+                FileRuleIntent::Run {
+                    diagnostic: if emit {
+                        DiagnosticDelivery::Collected
+                    } else {
+                        DiagnosticDelivery::Disabled
+                    },
+                    observations: ObservationDemand::Required,
+                    capture: if emit {
+                        CaptureIntent::DiagnosticAndObservations
+                    } else {
+                        CaptureIntent::Observations
+                    },
+                }
+            })
+            .collect::<Vec<_>>();
+        let refused = std::cell::RefCell::new(None);
+        let read = |relation| {
+            worker
+                .facts
+                .rows(relation)
+                .map(SourceRows::Stored)
+                .map_err(|error| {
+                    *refused.borrow_mut() = Some(error);
+                    ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRead
+                })
+        };
+        let mut run = visit.setting.services.open_file(
+            FileInput {
+                file,
+                evaluation,
+                publication: &physical,
+                intents: &intents,
+                source: &tables.bytes.0,
+                elements: &tables.elements,
+                language: if tables.language.is_some() {
+                    SourceLanguage::Recognized
+                } else {
+                    SourceLanguage::Unrecognized
+                },
+                resident_stability: worker.facts.resident_stability(),
+                read: &read,
+                semantic: Some(semantic),
+                kinds: tables.kind_vocabulary.as_ref().map(Arc::clone),
+            },
+            &mut tables.symbols,
+        )?;
+        for rule in visit.setting.program.rule_order() {
+            let Some(FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                ..
+            }) = intents.get(rule.0)
+            else {
                 continue;
-            }
-            // The worker already owns these columns. This callback only borrows resident views;
-            // source reads and retained-word writes stay in this application operation.
-            let rows = &*facts;
-            // A view the store refuses stops the file: the step that asked for it is not read as given no rows.
-            let refused = std::cell::RefCell::new(None);
-            let evaluated =
-                evaluate_rule(tables, &visit.setting, rule, file, &|relation| match rows
-                    .rows(relation)
-                {
-                    Ok(view) => Some(view),
-                    Err(error) => {
-                        *refused.borrow_mut() = Some(error);
-                        None
-                    }
-                });
+            };
+            let emit = *diagnostic != DiagnosticDelivery::Disabled;
+            let demand = RuleDemand {
+                emit: if emit {
+                    EmitDemand::Enabled
+                } else {
+                    EmitDemand::Disabled
+                },
+                observations: *observations,
+            };
+            let outcome = { run.rule(rule, demand, &mut tables.symbols) };
             if let Some(error) = refused.take() {
                 return Err(error.into());
             }
-            evaluated?;
-            let inputs = visit
-                .setting
-                .plans
-                .get(rule.0)
-                .map_or(0, |plan| plan.frontier.len());
-            for place in 0..inputs {
-                let Some(bucket) = prepare_frontier(
-                    tables,
-                    &visit.setting,
+            let outcome = outcome?;
+            // Named roots have already been published independently of diagnostic delivery.
+            if emit {
+                let partial = matches!(&outcome.emit, RootOutcome::Partial { .. });
+                match outcome.emit {
+                    RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
+                        let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
+                            ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun
+                        })?);
+                        let id = crate::domain::render::types::FindingRule(
+                            visit
+                                .setting
+                                .ids
+                                .get(rule.0)
+                                .ok_or(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)?
+                                .0
+                                .as_ref(),
+                        );
+                        let scene = crate::domain::value_cells::types::Scene {
+                            file,
+                            symbols: &tables.symbols,
+                            elements: &tables.elements,
+                            source: SourceView(&tables.bytes.0),
+                            paths: visit.setting.paths,
+                            unknown: visit.setting.unknown,
+                        };
+                        crate::domain::render::service::render_rows(
+                            crate::domain::render::types::RenderInput {
+                                rule: number,
+                                table: &table,
+                                emit: visit.setting.program.emit(rule)?,
+                                layout: crate::domain::render::service::shown_by(
+                                    visit.setting.answering,
+                                    number,
+                                    id,
+                                ),
+                                scene,
+                                limit: crate::domain::render::service::rendered_limit(
+                                    visit.setting.answering,
+                                ),
+                            },
+                            &mut tables.starts,
+                            &mut tables.rendered,
+                        )
+                        .map_err(|error| {
+                            crate::domain::rules::service::failed(
+                                &visit.setting.ids[rule.0],
+                                &error,
+                            )
+                        })?;
+                        if partial {
+                            tables
+                                .unknowns
+                                .push(ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                                    rule: visit.setting.ids[rule.0].clone(),
+                                    path: visit.setting.paths[file.0 as usize].clone(),
+                                    message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+                                        "physical source facts are incomplete".into(),
+                                    ),
+                                });
+                        }
+                    }
+                    RootOutcome::Unknown(error) => {
+                        tables.unknowns.push(
+                            ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                                rule: visit.setting.ids[rule.0].clone(),
+                                path: visit.setting.paths[file.0 as usize].clone(),
+                                message:
+                                    ryo_execution::inbound::use_cases::metadata::interface::Message(
+                                        error.to_string().into(),
+                                    ),
+                            },
+                        );
+                        if matches!(
+                            error,
+                            ryo_execution::inbound::use_cases::execution::types::OperatingError::SemanticIncomplete { .. }
+                        ) {
+                            semantic.mark_incomplete();
+                        }
+                    }
+                    RootOutcome::Failed(error) => {
+                        return Err(crate::domain::rules::service::failed(
+                            &visit.setting.ids[rule.0],
+                            &error,
+                        )
+                        .into());
+                    }
+                    RootOutcome::Skipped(_)
+                    | RootOutcome::NoQuery
+                    | RootOutcome::Deferred { .. } => {}
+                }
+            }
+            let captures = {
+                run.capture_frontiers(
                     rule,
-                    file,
-                    ryo_values::domain::plan_parts::types::InputNumber(place),
-                ) else {
-                    continue;
+                    *visit.setting.first_bucket.get(rule.0).ok_or(
+                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                    )?,
+                    &mut tables.symbols,
+                    CaptureContext {
+                        worker: tables.number,
+                        arena: &mut tables.arena.0,
+                        places: &mut tables.places,
+                        words: &mut tables.words,
+                    },
+                )
+            };
+            if let Some(error) = refused.take() {
+                return Err(error.into());
+            }
+            for captured in captures? {
+                let capture = match captured.outcome {
+                    Ok(capture) => capture,
+                    Err(error) => {
+                        tables.unknowns.push(
+                            ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                                rule: visit.setting.ids[rule.0].clone(),
+                                path: visit.setting.paths[file.0 as usize].clone(),
+                                message:
+                                    ryo_execution::inbound::use_cases::metadata::interface::Message(
+                                        format!(
+                                            "file phase frontier input {}: {error}",
+                                            captured.input.0
+                                        )
+                                        .into(),
+                                    ),
+                            },
+                        );
+                        continue;
+                    }
                 };
-                facts.keep(bucket, WordsToKeep(&tables.packed))?;
-                if visit.setting.keeping == Keeping::Keeps {
-                    capture_frontier(tables, visit.setting.answering, bucket);
+                worker.facts.keep(
+                    capture.bucket,
+                    WordsToKeep {
+                        words: &capture.words,
+                        file,
+                        proof: &capture.proof,
+                    },
+                )?;
+                run.commit_frontier(rule, capture.input)?;
+                if visit.setting.keeping == Keeping::Keeps
+                    && *visit.setting.answering == Answering::Findings
+                {
+                    tables
+                        .captured
+                        .push(ryo_values::domain::records::types::Kept {
+                            bucket: capture.bucket,
+                            proof: capture.proof,
+                            words: ryo_values::domain::stored_facts::types::KeptWords(
+                                capture.words,
+                            ),
+                        });
+                }
+            }
+            let counts = run.counts(rule)?;
+            let counted = tables.fed.get_mut(rule.0).ok_or(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+            )?;
+            if counted.len() != counts.fed.len() {
+                return Err(ryo_execution::inbound::use_cases::execution::types::OperatingError::ShapeMismatch.into());
+            }
+            for (total, current) in counted.iter_mut().zip(counts.fed.iter()) {
+                for (total, current) in total.0.iter_mut().zip(current.0) {
+                    *total += current;
                 }
             }
         }
+        tables.current_observations = run.finish()?.readiness;
+        if let Some(root) = &tables.current_observations {
+            tables.observations.push(
+                ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
+                    file,
+                    root: Arc::clone(root),
+                },
+            );
+        }
         settle_file(tables, visit.setting.answering);
-        Ok(facts.release()?)
+        worker.facts.release()?;
+        Ok(())
+    }
+
+    /// Reads primary inventoried manifests once before project preparation, retaining genuine read failures.
+    /// Consulted project dependencies use their separate lookup route and never become primary failure events.
+    pub(crate) fn read_manifests(
+        &self,
+        files: &mut [CorpusInput],
+    ) -> Result<
+        Vec<ryo_language::inbound::use_cases::project::types::ManifestFile>,
+        FileAnalysisError,
+    > {
+        use crate::outbound::language::types::ManifestReading;
+        use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
+        use ryo_values::domain::files::types::InputReadFailure;
+        let mut manifests = Vec::new();
+        let mut text = FileBytes::default();
+        for input in files {
+            if self.language.reads_manifest(input_path(input)) != ManifestReading::Read {
+                continue;
+            }
+            let CorpusInput::Available(file) = input else {
+                continue;
+            };
+            text.0.clear();
+            match self.corpus.read(file, &mut text) {
+                Ok(()) => manifests.push(ManifestFile {
+                    path: file.path.clone(),
+                    text: ManifestText(String::from_utf8_lossy(&text.0).into()),
+                }),
+                Err(CorpusError::Unreadable { reason, .. }) => {
+                    text.0.clear();
+                    *input = CorpusInput::ReadFailed {
+                        entry: file.clone(),
+                        reason: InputReadFailure(reason.into()),
+                    };
+                }
+                Err(error) => {
+                    text.0.clear();
+                    return Err(error.into());
+                }
+            }
+        }
+        Ok(manifests)
     }
 
     /// The visit of one file, in the worker that took its job: read it, decide which rules govern it, parse it, and run their
@@ -244,7 +721,7 @@ impl FileAnalysis {
         &self,
         worker: &mut Worker,
         visit: &FileVisit<'_>,
-        files: &[CorpusEntry],
+        files: &[CorpusInput],
         job: JobNumber,
     ) {
         if let Err(error) = self.visit(worker, visit, files, job) {
@@ -260,7 +737,7 @@ impl FileAnalysis {
         &self,
         worker: &mut Worker,
         visit: &FileVisit<'_>,
-        files: &[CorpusEntry],
+        files: &[CorpusInput],
         job: JobNumber,
     ) -> Result<(), FileAnalysisError> {
         let setting = &visit.setting;
@@ -269,7 +746,7 @@ impl FileAnalysis {
             return Ok(());
         };
         let number = FileId(job.0);
-        if govern(setting, &mut worker.tables, &file.path) == Governing::DoesNotGovern {
+        if govern(setting, &mut worker.tables, input_path(file)) == Governing::DoesNotGovern {
             return Ok(());
         }
         if checking(at) == Checking::Now {
@@ -278,19 +755,64 @@ impl FileAnalysis {
                 governing(mask, setting.ids)
             })?;
         }
+        let file = match file {
+            CorpusInput::Available(entry) => entry,
+            CorpusInput::ReadFailed { entry, reason } => {
+                return self.read_failed(
+                    worker,
+                    visit,
+                    number,
+                    &entry.path,
+                    entry.executable,
+                    &reason.0,
+                    PrimaryFailureKind::Disk,
+                    true,
+                );
+            }
+            CorpusInput::Unreadable { path, reason } => {
+                return self.read_failed(
+                    worker,
+                    visit,
+                    number,
+                    path,
+                    ExecutablePermission::Unknown,
+                    &reason.0,
+                    PrimaryFailureKind::Disk,
+                    false,
+                );
+            }
+        };
         let kept = setting.records.get(at.0).copied().flatten();
         // A file the system says is as it was is not read: what came of it is used again.
-        if let Some(record) = kept.filter(|record| is_as_it_was(record, file) == Freshness::AsItWas)
-        {
+        if let Some(record) = kept.filter(|record| {
+            !read_failure_demanded(
+                setting.wanted,
+                &worker.tables.mask,
+                setting.needs,
+                setting.ids.len(),
+            ) && is_as_it_was(record, file) == Freshness::AsItWas
+        }) {
             replay(&mut worker.tables, number, at, record, file, record.digest);
-            return Self::hand_again(worker, setting, at, number, record);
+            return Self::hand_again(worker, visit, at, number, record);
         }
+        worker.tables.bytes.0.clear();
         if let Err(error) = self.corpus.read(file, &mut worker.tables.bytes) {
-            worker.tables.unread.push(Unread {
-                path: file.path.clone(),
-                reason: Unreadable::Failed(ReadFailure(error.to_string().into())),
-            });
-            return Ok(());
+            worker.tables.bytes.0.clear();
+            let kind = if matches!(error, CorpusError::Unreadable { .. }) {
+                PrimaryFailureKind::Disk
+            } else {
+                PrimaryFailureKind::Other
+            };
+            return self.read_failed(
+                worker,
+                visit,
+                number,
+                &file.path,
+                file.executable,
+                &error.to_string(),
+                kind,
+                true,
+            );
         }
         // Only a store reads the digest of a file's bytes.
         let digest =
@@ -300,12 +822,16 @@ impl FileAnalysis {
                 Digest([0; 16])
             };
         // A file written again with the same bytes is as it was too.
-        if let Some(record) = kept.filter(|record| record.digest == digest) {
+        if let Some(record) =
+            kept.filter(|record| record.digest == digest && record.executable == file.executable)
+        {
             replay(&mut worker.tables, number, at, record, file, digest);
-            return Self::hand_again(worker, setting, at, number, record);
+            return Self::hand_again(worker, visit, at, number, record);
         }
         let outcome = self.parse_file(worker, visit, file, number)?;
-        cover(&mut worker.tables, setting, number, &file.path);
+        let outcome = Self::stage_outcome(visit.store, outcome)?;
+        let acceptance = syntax_acceptance(&worker.tables.elements);
+        cover(&mut worker.tables, setting, number, &file.path, acceptance);
         finish_file(
             &mut worker.tables,
             setting,
@@ -318,14 +844,126 @@ impl FileAnalysis {
         Ok(())
     }
 
-    /// Hands what the store kept of a file the run uses again to the steps that read across files, when they are made again.
-    fn hand_again(
+    /// Executes demanded engine facts for a primary input failure without constructing source or syntax.
+    fn read_failed(
+        &self,
         worker: &mut Worker,
-        setting: &VisitSetting<'_>,
+        visit: &FileVisit<'_>,
+        number: FileId,
+        path: &FilePath,
+        executable: ExecutablePermission,
+        detail: &str,
+        kind: PrimaryFailureKind,
+        observed_file: bool,
+    ) -> Result<(), FileAnalysisError> {
+        use ryo_language::domain::symbols::service::intern_derived;
+        use ryo_language::domain::symbols::types::ByteSlice;
+        use ryo_relations::domain::relations::collections::relations::filesystem_read_failure::item::FilesystemReadFailureRow;
+        use ryo_relations::domain::relations::types::{Offset, Span};
+        use ryo_relations::domain::terms::types::NameText;
+
+        let setting = &visit.setting;
+        worker.tables.bytes.0.clear();
+        prepare(&mut worker.tables);
+        clear_symbols(&mut worker.tables.symbols);
+        worker.tables.language = None;
+        worker.facts.release()?;
+        let asked = engine_asked(setting.wanted);
+        let mut said = failure_partials(setting.wanted, number, detail, observed_file);
+        Self::write_engine_rows(
+            worker,
+            EngineAsked {
+                file: if observed_file {
+                    asked.file
+                } else {
+                    EngineRows::NotAsked
+                },
+                lines: EngineRows::NotAsked,
+                ..asked
+            },
+            number,
+            executable,
+            &mut said,
+        )?;
+        if asked.read_failure == EngineRows::Asked && kind == PrimaryFailureKind::Disk {
+            let detail =
+                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail));
+            worker.facts.columns_mut()?.write(FilesystemReadFailureRow {
+                path: number,
+                detail,
+                span: Span {
+                    start: Offset(0),
+                    end: Offset(0),
+                },
+            });
+        }
+        start_partials(&mut worker.tables, &said, Recovery::Whole, setting.wanted);
+        worker.tables.unread.push(Unread {
+            path: path.clone(),
+            reason: Unreadable::Failed(ReadFailure(detail.into())),
+        });
+        let acceptance = syntax_acceptance(&worker.tables.elements);
+        if asked.any == EngineRows::Asked {
+            index_kinds(&mut worker.tables.elements);
+            let semantic =
+                super::semantic::SemanticState::new(number, &worker.tables.elements, None);
+            self.read_file(worker, visit, number, &semantic)?;
+        } else if Self::may_gate_rules(setting, acceptance) {
+            drop(Self::gate_rules(
+                &mut worker.tables,
+                setting,
+                number,
+                acceptance,
+            ));
+        }
+        cover(&mut worker.tables, setting, number, path, acceptance);
+        // Failure facts are invocation-local: retry the real input next time even if metadata is unchanged.
+        if matches!(setting.answering, Answering::Findings) {
+            worker.tables.unrecorded.push(path.clone());
+        }
+        Ok(())
+    }
+
+    /// Only successfully validated and digested fresh outcomes cross this IO boundary.
+    pub(super) fn stage_outcome(
+        read: Option<&dyn crate::outbound::lint_store::interface::ReadStore>,
+        mut outcome: Option<FileOutcome>,
+    ) -> Result<Option<FileOutcome>, FileAnalysisError> {
+        let Some(read) = read else {
+            return Ok(outcome);
+        };
+        let ran = match outcome.as_mut() {
+            Some(FileOutcome::Read(ran) | FileOutcome::Unread { ran: Some(ran), .. }) => Some(ran),
+            None | Some(FileOutcome::Unread { ran: None, .. }) => None,
+        };
+        if let Some(ran) = ran
+            && let Handing::Made(handed) = &mut ran.handed
+        {
+            for bucket in &mut handed.buckets {
+                let words = std::mem::replace(
+                    &mut bucket.words,
+                    ryo_values::domain::records::types::RecordWords::Inline(PackedWords::default()),
+                );
+                bucket.words = match words {
+                    ryo_values::domain::records::types::RecordWords::Inline(words) => {
+                        read.stage_words(words)?
+                    }
+                    staged @ ryo_values::domain::records::types::RecordWords::Staged(_) => staged,
+                };
+            }
+        }
+        Ok(outcome)
+    }
+
+    /// Hands what the store kept of a file the run uses again to the steps that read across files, when they are made again.
+    pub(super) fn hand_again(
+        worker: &mut Worker,
+        visit: &FileVisit<'_>,
         at: FileOrder,
         number: FileId,
         record: &Record,
     ) -> Result<(), FileAnalysisError> {
+        let setting = &visit.setting;
         if setting.replaying != Replaying::FindingsAndHanded {
             return Ok(());
         }
@@ -349,13 +987,33 @@ impl FileAnalysis {
                     notes,
                     &handed.governing,
                     &handed.partials,
+                    handed.observations.as_ref(),
                 );
+                let mut loaded = PackedWords::default();
                 for each in &handed.buckets {
+                    // Filtering must precede any staged read, including an invalid unrequested descriptor.
+                    if let BucketsWanted::These(buckets) = setting.wanted_buckets
+                        && buckets.binary_search(&each.bucket).is_err()
+                    {
+                        continue;
+                    }
+                    let words = match &each.words {
+                        ryo_values::domain::records::types::RecordWords::Inline(words) => words,
+                        ryo_values::domain::records::types::RecordWords::Staged(span) => {
+                            let read = visit.store.ok_or(
+                                crate::outbound::lint_store::errors::LintStoreError::NothingRead,
+                            )?;
+                            read.read_staged(span, &mut loaded)?;
+                            &loaded
+                        }
+                    };
                     Self::hand_words_again(
                         worker,
                         setting,
+                        number,
                         each.bucket,
-                        &each.words,
+                        &each.proof,
+                        words,
                         &map,
                         &mut out,
                     )?;
@@ -385,13 +1043,42 @@ impl FileAnalysis {
                         .map(|each| &each.notes),
                     covered.map_or(&GoverningRules::default(), |each| &each.governing),
                     covered.map_or(&[][..], |each| &each.partials),
+                    match rows_of_file(&kept.observations, file, |each| each.file) {
+                        [one] => Some(&one.root),
+                        _ => None,
+                    },
                 );
+                let mut loaded = PackedWords::default();
                 for each in rows_of_file(&kept.frontier, file, |each| each.file) {
+                    if let BucketsWanted::These(buckets) = setting.wanted_buckets
+                        && buckets.binary_search(&each.bucket).is_err()
+                    {
+                        continue;
+                    }
+                    let words = match &each.words {
+                        ryo_values::domain::stores::types::ReadWordPayload::Inline(words) => words,
+                        ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
+                            let read = visit.store.ok_or(
+                                crate::outbound::lint_store::errors::LintStoreError::NothingRead,
+                            )?;
+                            if worker.old_rows.is_none() {
+                                worker.old_rows = read.begin_old_rows(setting.wanted_buckets)?;
+                            }
+                            if let Some(batch) = worker.old_rows.as_mut() {
+                                batch.read(span, &mut loaded)?;
+                            } else {
+                                read.read_old(span, &mut loaded)?;
+                            }
+                            &loaded
+                        }
+                    };
                     Self::hand_words_again(
                         worker,
                         setting,
+                        number,
                         each.bucket,
-                        &each.words,
+                        &each.proof,
+                        words,
                         &map,
                         &mut out,
                     )?;
@@ -406,11 +1093,50 @@ impl FileAnalysis {
     fn hand_words_again(
         worker: &mut Worker,
         setting: &VisitSetting<'_>,
+        file: FileId,
         bucket: Bucket,
+        proof: &ryo_values::domain::records::types::FrontierProof,
         words: &PackedWords,
         map: &Remap,
         out: &mut Words,
     ) -> Result<(), FileAnalysisError> {
+        use ryo_values::domain::records::types::FrontierCoverage;
+        let rule = RuleIndex(usize::try_from(proof.rule).unwrap_or(usize::MAX));
+        let input = usize::try_from(proof.input).unwrap_or(usize::MAX);
+        let valid = proof.version == 1
+            && setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
+            && setting
+                .program
+                .frontiers(rule)
+                .ok()
+                .and_then(|frontiers| frontiers.get(input))
+                .is_some()
+            && setting
+                .metadata
+                .get(rule.0)
+                .and_then(|rule| rule.frontier_capture.get(input))
+                .copied()
+                == Some(true)
+            && setting.first_bucket.get(rule.0).copied().map(|first| {
+                ryo_values::domain::stored_facts::service::frontier_bucket(
+                    first,
+                    InputNumber(input),
+                )
+            }) == Some(bucket)
+            && match &proof.coverage {
+                FrontierCoverage::Complete => true,
+                FrontierCoverage::Partial(affected) => {
+                    !affected.is_empty() && affected.windows(2).all(|pair| pair[0] < pair[1])
+                }
+            };
+        if !valid {
+            return Err(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete {
+                    reason: "stored frontier proof does not match the prepared root".into(),
+                }
+                .into(),
+            );
+        }
         if let BucketsWanted::These(buckets) = setting.wanted_buckets
             && buckets.binary_search(&bucket).is_err()
         {
@@ -421,9 +1147,14 @@ impl FileAnalysis {
             let packed = &mut worker.tables.packed;
             packed.0.clear();
             pack_onto(WordSlice(&out.0), packed);
-            worker
-                .facts
-                .keep(bucket, WordsToKeep(&worker.tables.packed))?;
+            worker.facts.keep(
+                bucket,
+                WordsToKeep {
+                    words: &worker.tables.packed,
+                    file,
+                    proof,
+                },
+            )?;
         }
         Ok(())
     }
@@ -440,6 +1171,7 @@ impl FileAnalysis {
         let setting = &visit.setting;
         let base = begin(&mut worker.tables);
         let source = FileToRead {
+            source_language: setting.source_language,
             path: &file.path,
             file: number,
             bytes: &worker.tables.bytes,
@@ -448,13 +1180,21 @@ impl FileAnalysis {
             roles: setting.roled.into(),
         };
         let mut writer = worker.facts.columns_mut()?;
+        let parse_started =
+            tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
+                .then(Instant::now);
         let reading = self.language.parse(
             source,
             &mut worker.tables.elements,
             &mut worker.tables.symbols,
             &mut writer,
         );
-        let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
+        if let Some(started) = parse_started {
+            tracing::trace!(target: "ryo::diagnostic::execution", phase = "provider_parse", file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+        }
+        let mut said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
+        let acceptance = syntax_acceptance(&worker.tables.elements);
+        let active_wanted = Self::active_wanted(&worker.tables, setting, acceptance);
         // The language that read the file is kept with what it noted of it.
         worker.tables.language = match &reading {
             FileReading::Read(language) => Some(*language),
@@ -466,31 +1206,48 @@ impl FileAnalysis {
         }
         // What the language wrote is admitted before the store keeps anything or a rule reads it.
         if let FileReading::Read(provider) = &reading {
-            self.admit(worker, setting.wanted, number, *provider)?;
+            self.admit(worker, active_wanted.as_ref(), number, *provider)?;
         }
-        let asked = engine_asked(setting.wanted);
-        Self::write_engine_rows(worker, asked, number)?;
+        let asked = engine_asked(active_wanted.as_ref());
+        Self::write_engine_rows(worker, asked, number, file.executable, &mut said)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
-        let everything = match &reading {
-            FileReading::Read(_) if diagnostic_count(&worker.tables.elements).0 > 0 => {
-                Recovery::SyntaxErrors
-            }
-            FileReading::Failed(_) => Recovery::Unparsed,
-            FileReading::Read(_) | FileReading::Manifest | FileReading::Unsupported => {
-                Recovery::Whole
-            }
+        let everything = recovery_of(&reading, &worker.tables.elements);
+        start_partials(
+            &mut worker.tables,
+            &said,
+            everything,
+            active_wanted.as_ref(),
+        );
+        let semantic_needed = setting.program.semantic_needed();
+        let session = if semantic_needed {
+            worker.tables.language.and_then(|language| {
+                let source = FileToRead {
+                    source_language: setting.source_language,
+                    path: &file.path,
+                    file: number,
+                    bytes: &worker.tables.bytes,
+                    wanted: setting.wanted,
+                    notes: setting.noted.into(),
+                    roles: setting.roled.into(),
+                };
+                self.language
+                    .begin_semantics(language, source, &worker.tables.elements)
+            })
+        } else {
+            None
         };
-        start_partials(&mut worker.tables, &said, everything, setting.wanted);
-        // Findings are not decided over a relation read in part; rows of the queries' own columns are the rows of what was read.
-        if matches!(setting.answering, Answering::Rows(_)) {
-            worker.tables.pool.partial.clear();
-        }
+        let semantic =
+            super::semantic::SemanticState::new(number, &worker.tables.elements, session);
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
-                Self::read_file(worker, visit, number)?;
-                self.recorded(worker, visit, number, base)
-                    .map(FileOutcome::Read)
+                self.read_file(worker, visit, number, &semantic)?;
+                if semantic.is_incomplete() {
+                    None
+                } else {
+                    self.recorded(worker, visit, number, base)
+                        .map(FileOutcome::Read)
+                }
             }
             unread @ (FileReading::Failed(_) | FileReading::Unsupported) => {
                 // What no language read has no tree and no names; the rules that ask for the file still run.
@@ -507,19 +1264,35 @@ impl FileAnalysis {
                 if asked.any == EngineRows::Asked {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
-                    Self::read_file(worker, visit, number)?;
+                    self.read_file(worker, visit, number, &semantic)?;
+                } else {
+                    let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
+                    if Self::may_gate_rules(setting, unavailable_acceptance) {
+                        drop(Self::gate_rules(
+                            &mut worker.tables,
+                            setting,
+                            number,
+                            unavailable_acceptance,
+                        ));
+                    }
                 }
                 match (setting.answering, asked.any) {
                     (Answering::Rows(_), _) => None,
                     (Answering::Findings, EngineRows::NotAsked) => {
                         Some(FileOutcome::Unread { reason, ran: None })
                     }
-                    (Answering::Findings, EngineRows::Asked) => self
-                        .recorded(worker, visit, number, base)
-                        .map(|ran| FileOutcome::Unread {
-                            reason,
-                            ran: Some(ran),
-                        }),
+                    (Answering::Findings, EngineRows::Asked) => {
+                        if semantic.is_incomplete() {
+                            None
+                        } else {
+                            self.recorded(worker, visit, number, base).map(|ran| {
+                                FileOutcome::Unread {
+                                    reason,
+                                    ran: Some(ran),
+                                }
+                            })
+                        }
+                    }
                 }
             }
         })
@@ -530,7 +1303,32 @@ impl FileAnalysis {
         worker: &mut Worker,
         asked: EngineAsked,
         number: FileId,
+        executable: ExecutablePermission,
+        said: &mut Vec<ReadInPart>,
     ) -> Result<(), FileAnalysisError> {
+        if asked.executable == EngineRows::Asked {
+            match executable {
+                ExecutablePermission::Posix(value) => {
+                    worker.facts.columns_mut()?.write(FilesystemExecutableRow {
+                        path: number,
+                        executable: if value {
+                            ryo_relations::domain::relations::types::Flag::Raised
+                        } else {
+                            ryo_relations::domain::relations::types::Flag::Lowered
+                        },
+                    })
+                }
+                ExecutablePermission::Unsupported => {}
+                ExecutablePermission::Unknown => said.push(ReadInPart {
+                    relation: Relation::FilesystemExecutable,
+                    cause: PartialCause(
+                        "input edge did not supply executable permission metadata".into(),
+                    ),
+                    lacking: ryo_relations::domain::relations::types::Missing::Any,
+                    at: PartialScope::OneFile(PartialAt(number.0)),
+                }),
+            }
+        }
         if asked.file == EngineRows::Asked {
             worker
                 .facts
@@ -550,7 +1348,7 @@ impl FileAnalysis {
     /// What a file read came to, as the store keeps it: its findings, and what it shows other files: what its language noted of it,
     /// the relations it is read in part and what it hands the cross-file steps. Nothing when the run keeps nothing, or the words cannot
     /// be moved to another run.
-    fn recorded(
+    pub(super) fn recorded(
         &self,
         worker: &Worker,
         visit: &FileVisit<'_>,
@@ -573,15 +1371,40 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
+        let layout = setting.program.observation_layout();
+        let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
+            (Some(map), Some((layout, slots))) => {
+                let count = ryo_values::domain::observations::types::ObservationReadinessCount(
+                    u32::try_from(slots.len()).ok()?,
+                );
+                let checked = ryo_values::domain::observations::service::validate_frontiers(
+                    map, layout, count,
+                )
+                .ok()?;
+                (Some(checked), slots)
+            }
+            (None, Some((_, slots))) if !slots.is_empty() => return None,
+            (Some(_), None) => return None,
+            _ => (None, &[][..]),
+        };
         let mut flat = Flat::default();
-        let frontier: Vec<Digest> = (0..setting.plans.len())
+        let frontier: Vec<Digest> = (0..setting.metadata.len())
             .map(|rule| {
-                frontier_flat(&moved, setting, RuleIndex(rule), &mut flat);
-                if flat.0.is_empty() {
+                frontier_flat(
+                    &moved,
+                    observations,
+                    slots,
+                    setting,
+                    RuleIndex(rule),
+                    &mut flat,
+                );
+                let digest = if flat.0.is_empty() {
                     Digest([0; 16])
                 } else {
                     self.digest.digest_words(DigestWords(&flat.0))
-                }
+                };
+                flat.0.clear();
+                digest
             })
             .collect();
         let noted = self.digest.digest(DigestBytes(&interface_bytes(tables).0));
@@ -608,12 +1431,30 @@ impl FileAnalysis {
         symbols: &mut Symbols,
         facts: &mut dyn FactsWorker,
     ) -> Result<Projected, FileAnalysisError> {
+        let mut candidates = self.language.project_entries(input);
+        candidates.sort_unstable();
+        candidates.dedup();
+        let observed_entries = ryo_language::domain::project_context::service::observed(
+            candidates
+                .iter()
+                .map(|path| self.corpus.observe_entry(path))
+                .collect(),
+        );
+        let input = ProjectInput {
+            observed_entries: &observed_entries,
+            ..*input
+        };
         let mut writer = facts.columns_mut()?;
-        let answer = self.language.project(input, symbols, &mut writer)?;
+        let answer = self.language.project(&input, symbols, &mut writer)?;
+        if answer.observed_entries.as_slice()
+            != ryo_language::domain::project_context::service::entries(&observed_entries)
+        {
+            return Err(FileAnalysisError::ProjectObservationMismatch);
+        }
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let mut projected = Projected {
             unknowns: Vec::new(),
-            partials: partial_of(&said, Recovery::Whole, &[]),
+            partials: MetadataUseCaseImpl.partial_of(&said, Recovery::Whole, &[]),
             refused: answer
                 .refused
                 .into_iter()
@@ -624,15 +1465,22 @@ impl FileAnalysis {
                 })
                 .collect(),
             unlisted: answer.unlisted,
+            observed_entries: ryo_language::domain::project_context::service::receipt(
+                &observed_entries,
+            ),
             ..Projected::default()
         };
-        self.consulted(&answer.consulted, &mut projected);
+        self.consulted(&answer.consulted, &mut projected)?;
         Ok(projected)
     }
 
     /// The files the lookup read beyond the manifests, each stat'ed, read and digested as the files of the run are, in the order of
-    /// `paths`, and apart from them the ones that are not there, into `into`; one that cannot be read now is in neither.
-    fn consulted(&self, paths: &[FilePath], into: &mut Projected) {
+    /// `paths`, and apart from them the ones that are not there, into `into`. An unrecordable dependency fails the run.
+    pub(super) fn consulted(
+        &self,
+        paths: &[FilePath],
+        into: &mut Projected,
+    ) -> Result<(), FileAnalysisError> {
         let mut bytes = FileBytes::default();
         for path in paths {
             let entry = match self.corpus.stat(path) {
@@ -642,12 +1490,11 @@ impl FileAnalysis {
                     into.consulted_absent.push(path.clone());
                     continue;
                 }
-                Err(_) => continue,
+                Err(error) => return Err(error.into()),
             };
-            if self.corpus.read(&entry, &mut bytes).is_err() {
-                continue;
-            }
+            self.corpus.read(&entry, &mut bytes)?;
             into.consulted.push(StoredFile {
+                executable: entry.executable,
                 digest: self.digest.digest(DigestBytes(&bytes.0)),
                 interface: Digest([0; 16]),
                 noted: Digest([0; 16]),
@@ -656,5 +1503,8 @@ impl FileAnalysis {
                 path: entry.path,
             });
         }
+        Ok(())
     }
 }
+
+use ryo_execution::inbound::use_cases::metadata::interface::Governing;

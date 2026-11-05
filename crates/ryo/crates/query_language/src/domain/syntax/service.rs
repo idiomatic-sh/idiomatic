@@ -1,9 +1,9 @@
 //! The `syntax` service: what RyoQL's operations look like, and what a program reads. Free
 //! functions over the domain's types, with no IO and no ports.
 
-use ryo_language::domain::relations::service::relation_named;
-use ryo_language::domain::relations::types::NameRef;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::relation_named;
+use ryo_relations::domain::relations::types::NameRef;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::operator_named;
 use super::types::{ArgumentRole, ArgumentSlot, OperationShape};
@@ -13,7 +13,79 @@ use ryo_values::domain::program::types::{
 };
 
 /// The operations a query can call, besides `select`.
-const SHAPES: [OperationShape; 16] = [
+const SHAPES: [OperationShape; 24] = [
+    OperationShape {
+        operator: QueryOperator::RenderSyntax,
+        inputs: &[ArgumentSlot::From],
+        required: &[ArgumentSlot::Node, ArgumentSlot::Context, ArgumentSlot::Output],
+    },
+    OperationShape {
+        operator: QueryOperator::FitsRendered,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Texts,
+            ArgumentSlot::Literals,
+            ArgumentSlot::Span,
+            ArgumentSlot::MaxLine,
+            ArgumentSlot::TabWidth,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::SpanBounds,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Span,
+            ArgumentSlot::StartOutput,
+            ArgumentSlot::EndOutput,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::SourceMatches,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Span,
+            ArgumentSlot::Pattern,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::OrderedDfs,
+        inputs: &[ArgumentSlot::From, ArgumentSlot::Edges],
+        required: &[
+            ArgumentSlot::Root,
+            ArgumentSlot::Source,
+            ArgumentSlot::Destination,
+            ArgumentSlot::Order,
+            ArgumentSlot::Edge,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::SpanBetween,
+        inputs: &[ArgumentSlot::From],
+        required: &[ArgumentSlot::Start, ArgumentSlot::End, ArgumentSlot::Output],
+    },
+    OperationShape {
+        operator: QueryOperator::Replace,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Text,
+            ArgumentSlot::Pattern,
+            ArgumentSlot::Replacement,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::OrderedMatch,
+        inputs: &[ArgumentSlot::Left, ArgumentSlot::Right],
+        required: &[
+            ArgumentSlot::LeftOn,
+            ArgumentSlot::RightOn,
+            ArgumentSlot::LeftOrder,
+            ArgumentSlot::RightOrder,
+            ArgumentSlot::Output,
+        ],
+    },
     OperationShape {
         operator: QueryOperator::Project,
         inputs: &[ArgumentSlot::From],

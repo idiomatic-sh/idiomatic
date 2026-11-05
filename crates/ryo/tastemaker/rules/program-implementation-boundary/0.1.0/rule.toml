@@ -1,0 +1,310 @@
+description = "Only declared owners and bridges may depend on execution implementation modules."
+why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The facade, descriptors, and borrowed semantic interfaces remain available. Rust visibility and engine-issued permits separately enforce construction and invocation. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
+
+query = '''
+let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
+let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
+let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let protected = select * from local where implementation-tail != "facade.rs";
+let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
+let forbidden = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,native_walk.rs,native_join.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let program-violations = select file, span from forbidden;
+let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
+let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let cache-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
+let local-cache = select source as file, span, source-tail, cache-part from cache-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
+let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing.rs}");
+let dispatch-violations = union(left=program-violations, right=foreign-leases);
+let owner-violations = union(left=dispatch-violations, right=foreign-cache);
+let positioned-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/relations/{issuer}.rs", captures=["target-root", "issuer"]);
+let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and source-tail != "application/file_dag/program/kernel_session.rs") or (issuer = "selection" and source-tail != "application/file_dag/program/selection.rs"));
+let app-violations = union(left=owner-violations, right=foreign-positioned);
+let application-targets = capture(from=paths, path="target", pattern="{*target-root}/application/{*application-tail}", captures=["target-root", "application-tail"]);
+let local-application = select source as file, span, source-tail from application-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let application-roots = capture(from=paths, path="target", pattern="{*target-root}/application.rs", captures=["target-root"]);
+let local-application-roots = select source as file, span, source-tail from application-roots where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let all-application = union(left=local-application, right=local-application-roots);
+let domain-application = select file, span from all-application where source-tail = "domain.rs" or glob_any(source-tail, "domain/**");
+let protected-app = union(left=app-violations, right=domain-application);
+let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
+let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
+let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease.rs}");
+let context-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context.rs", captures=["target-root"]);
+let local-context = select source as file, span, source-tail from context-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-context = select file, span from local-context where source-tail != "application/file_dag/execution/lease.rs";
+let domain-entry-violations = union(left=foreign-kernel, right=foreign-registry);
+let domain-violations = union(left=domain-entry-violations, right=foreign-context);
+let violations = union(left=protected-app, right=domain-violations);
+emit violations subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "a caller reaches the executable-program implementation"
+help = "Domain primitives must use borrowed semantic interfaces and cannot call application owners or facades. Application and inbound callers must enter through the supported facade; keep dispatch, admission and registration in their declared owners."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "program_boundary_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'pub mod application; pub mod domain;'
+files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
+files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod relations;'
+files.'src/application/file_dag/program.rs' = 'pub mod facade; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
+files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
+files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = 'pub fn raw_admit() {}'
+files.'src/application/file_dag/program/facade.rs' = 'pub fn invoke() {}'
+files.'src/application/file_dag/program/runtime.rs' = 'pub fn execute() {}'
+files.'src/application/file_dag/program/admission.rs' = 'pub struct Permit;'
+files.'src/application/file_dag/program/restored.rs' = 'pub fn restore() {}'
+files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() {}'
+files.'src/application/file_dag/program/request_identity.rs' = 'pub struct RequestId;'
+files.'src/application/file_dag/executor.rs' = 'pub fn bridge() {}'
+files.'src/application/file_dag/execution.rs' = 'pub mod lease;'
+files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() {}'
+files.'src/application/file_dag/derived.rs' = 'pub mod owner;'
+files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub mod future_acquisition;'
+files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire() {}'
+files.'src/application/file_dag/derived/owner/future_acquisition.rs' = 'pub fn acquire() {}'
+files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'pub fn make_scope() {}'
+files.'src/application/file_dag/derived/owner/leases.rs' = 'pub fn make_lease() {}'
+files.'src/application/file_dag/relations.rs' = 'pub mod positioned; pub mod selection;'
+files.'src/application/file_dag/relations/positioned.rs' = 'pub fn publish() {}'
+files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() {}'
+files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() {}'
+files.'src/application/file_dag/relations/selection.rs' = 'pub fn publish() {}'
+files.'src/application/caller.rs' = 'pub fn invoke() {}'
+files.'src/domain.rs' = 'pub mod semantic; pub mod executable_program; pub mod operator;'
+files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
+files.'src/domain/executable_program.rs' = 'pub mod kernel;'
+files.'src/domain/executable_program/kernel.rs' = 'pub fn evaluate() {}'
+files.'src/domain/operator.rs' = 'pub mod contract; pub mod service; pub mod collections;'
+files.'src/domain/operator/collections.rs' = 'pub mod operators;'
+files.'src/domain/operator/collections/operators.rs' = 'pub mod select;'
+files.'src/domain/operator/collections/operators/select.rs' = 'pub mod item;'
+files.'src/domain/operator/collections/operators/select/item.rs' = 'pub fn evaluate() {}'
+files.'src/domain/operator/contract.rs' = 'pub mod registration; pub mod context;'
+files.'src/domain/operator/contract/registration.rs' = 'pub fn registered() {}'
+files.'src/domain/operator/contract/context.rs' = 'pub fn with_primitive_context() {}'
+files.'src/domain/operator/service.rs' = 'pub fn registered() {}'
+
+[[scenarios]]
+id = "direct-internal-import"
+scenario = "An application peer cannot import the runtime implementation."
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::program::runtime::execute;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "new-nested-admission-implementation"
+scenario = "A newly added nested implementation is protected without listing its filename."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::facade_runtime::source_admission::raw_admit(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "renamed-relative-import"
+scenario = "A relative renamed admission import still resolves to the protected module."
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::admission::Permit as Borrowed;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "qualified-call"
+scenario = "A qualified restoration call without an import is also a dependency."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::restored::restore(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "reexport-escape"
+scenario = "Re-exporting an implementation entrypoint is not an allowed facade."
+given.files.'src/application/caller.rs' = 'pub use crate::application::file_dag::program::kernel_session::dispatch;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-cannot-reach-permit"
+scenario = "A semantic module cannot reach request identity or admission."
+given.files.'src/domain/semantic.rs' = 'use crate::application::file_dag::program::request_identity::RequestId;'
+then.findings = [{ path = "src/domain/semantic.rs", line = 1 }]
+
+[[scenarios]]
+id = "primitive-cannot-call-owner-acquisition"
+scenario = "A domain primitive cannot call application acquisition, even when that implementation is otherwise an authorized owner target."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'pub fn evaluate() { crate::application::file_dag::derived::owner::acquisition::acquire(); }'
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "primitive-cannot-alias-permit"
+scenario = "An aliased permit import from a primitive still resolves from domain to application."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'use crate::application::file_dag::program::admission::Permit as RawPermit;'
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "primitive-cannot-reach-new-owner-module"
+scenario = "A future acquisition module is protected without adding its name to the guard."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'pub fn evaluate() { crate::application::file_dag::derived::owner::future_acquisition::acquire(); }'
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-cannot-call-facade"
+scenario = "The facade remains a caller entrypoint but cannot invert domain into application."
+given.files.'src/domain/semantic.rs' = 'pub fn evaluate() { crate::application::file_dag::program::facade::invoke(); }'
+then.findings = [{ path = "src/domain/semantic.rs", line = 1 }]
+
+[[scenarios]]
+id = "primitive-may-call-borrowed-domain"
+scenario = "A primitive may use a pure borrowed semantic sibling without application authority."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'pub fn evaluate() { crate::domain::semantic::read_borrowed(); }'
+
+[[scenarios]]
+id = "peer-cannot-call-domain-dispatcher"
+scenario = "An application peer cannot dispatch a semantic kernel directly."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::executable_program::kernel::evaluate(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-alias-domain-registration"
+scenario = "An alias of the operator registry still reaches its protected source."
+given.files.'src/application/caller.rs' = 'use crate::domain::operator::contract::registration::registered as install;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-qualify-domain-registration"
+scenario = "A qualified registry call without an import is also forbidden."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::registration::registered(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-mint-semantic-context"
+scenario = "A peer cannot call the pure borrowed context constructor outside the application invocation bridge."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::context::with_primitive_context(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "production-named-test-is-still-forbidden"
+scenario = "A normally compiled module cannot gain registry access by ending in _test.rs."
+given.files.'src/application.rs' = 'pub mod file_dag; pub mod caller; pub mod caller_test;'
+given.files.'src/application/caller_test.rs' = 'pub fn run() { crate::domain::operator::contract::registration::registered(); }'
+then.findings = [{ path = "src/application/caller_test.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-dispatch-physical-lease"
+scenario = "An application peer cannot call the raw physical lease dispatcher."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::execution::lease::bridge(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-acquire-cache"
+scenario = "An application peer cannot call the derived cache acquisition implementation."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::derived::owner::acquisition::acquire(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-mint-raw-scope"
+scenario = "An application peer cannot import raw cache scope construction."
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::derived::owner::raw_scope::make_scope;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "facade-is-supported"
+scenario = "A consumer may call the application facade."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::facade::invoke(); }'
+
+[[scenarios]]
+id = "borrowed-data-is-supported"
+scenario = "The program may use the semantic borrowed-data surface."
+given.files.'src/application/file_dag/program/runtime.rs' = 'pub fn execute() { crate::domain::semantic::read_borrowed(); }'
+
+[[scenarios]]
+id = "owner-internals-are-supported"
+scenario = "The program owner may use internal admission."
+given.files.'src/application/file_dag/program/runtime.rs' = 'use super::admission::Permit;'
+
+[[scenarios]]
+id = "physical-bridge-is-supported"
+scenario = "The physical execution bridge may borrow an admission permit."
+given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::program::admission::Permit;'
+
+[[scenarios]]
+id = "program-dispatch-is-supported"
+scenario = "The program's kernel session may invoke the physical lease."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::bridge(); }'
+
+[[scenarios]]
+id = "declared-domain-dispatch-bridge"
+scenario = "The physical bridge may call the semantic dispatcher."
+given.files.'src/application/file_dag/execution.rs' = 'pub mod lease; pub fn evaluate() { crate::domain::executable_program::kernel::evaluate(); }'
+
+[[scenarios]]
+id = "declared-row-admission-bridge"
+scenario = "The program kernel session may call the semantic row dispatcher."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
+
+[[scenarios]]
+id = "declared-operator-preparation"
+scenario = "The request preparation owner uses the metadata-only service."
+given.files.'src/application/file_dag/request.rs' = 'pub fn prepare() { crate::domain::operator::service::registered(); }'
+given.files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod request;'
+
+[[scenarios]]
+id = "declared-context-bridge"
+scenario = "The application invocation bridge may construct a borrowed semantic context."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::with_primitive_context(); }'
+
+[[scenarios]]
+id = "declared-operator-execution"
+scenario = "The application execution owner may dispatch the registered primitive after permit validation."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn dispatch() { crate::domain::operator::contract::registration::registered(); }'
+
+[[scenarios]]
+id = "cache-owner-is-supported"
+scenario = "The cache owner may invoke its own acquisition implementation."
+given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub fn acquire() { acquisition::acquire(); }'
+
+[[scenarios]]
+id = "foreign-positioned-population"
+scenario = "A sibling caller cannot invoke the native relation population issuer."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::relations::positioned::publish(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "foreign-positioned-alias"
+scenario = "An alias does not grant native relation publication authority."
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::relations::positioned::publish as create;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "declared-positioned-bridge"
+scenario = "The admitted native instruction may finish a relation population through its owner."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
+
+[[scenarios]]
+id = "foreign-selected-population"
+scenario = "A sibling caller cannot invoke the selected relation population issuer."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::relations::selection::publish(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "declared-selected-bridge"
+scenario = "The admitted selector finishes its population through the same relation owner."
+given.files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::selection::publish(); }'
+
+[[scenarios]]
+id = "primitive-cannot-call-application-root"
+scenario = "Declarations directly in application.rs are application authority too."
+given.files.'src/application.rs' = 'pub mod file_dag; pub mod caller; pub fn acquire() {}'
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'pub fn evaluate() { crate::application::acquire(); }'
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "primitive-cannot-alias-application-root"
+scenario = "Aliasing an application root declaration cannot hide the dependency."
+given.files.'src/application.rs' = 'pub mod file_dag; pub mod caller; pub struct Permit;'
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'use crate::application::Permit as OwnerPermit;'
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]

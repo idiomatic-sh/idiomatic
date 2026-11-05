@@ -16,8 +16,28 @@ impl ProjectUseCase for ProjectUseCaseImpl {
         &[]
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
+    fn primary_role(
+        &self,
+        _path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole {
+        crate::domain::files::service::primary_role_from_manifests(
+            _path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath> {
+        Vec::new()
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved, ProjectError> {
         Ok(Resolved {
+            observed_entries: crate::domain::project_context::service::receipt(
+                &request.observed_entries,
+            ),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -25,5 +45,5 @@ impl ProjectUseCase for ProjectUseCaseImpl {
         })
     }
 
-    crate::each_relation!(crate::absent_manifests);
+    ryo_relations::each_relation!(absent_manifests);
 }

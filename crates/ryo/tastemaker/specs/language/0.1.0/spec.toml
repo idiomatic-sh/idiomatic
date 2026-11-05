@@ -1,11 +1,13 @@
 description = "A language: the crate that fulfils ryo's concepts for one language, applied beside its `crate` and `nu-hex` entries. It names what a language must have and holds each part to it: its two contracts, `parse` and `project` (the only place its answers live), its one file of kinds, a syntax adapter for each parser library, an adapter for each manifest tool of its manifest reading port and for each host framework of its embedded port (where it has them), its fixtures, and the two tests every language runs."
-why = "Ryo owns the concepts, the language fulfils them. The compiler holds that `Parse` and `Project` answer every relation of the catalog; the conformance holds each answer to the language's fixtures; this spec holds the rest, so that a language added by the directory is complete or says what it lacks: no part is optional, none is left for an author to remember, and no list of languages, of parsers or of rules is kept anywhere else."
+why = "Ryo owns the concepts, the language fulfils them. The compiler holds that `Parse` and `Project` answer every relation of the catalog; the conformance holds each answer to the language's fixtures; this spec holds the rest, so that a language added by the directory is complete or says what it lacks: no part is optional, none is left for an author to remember, and no list of languages, of parsers or of rules is kept anywhere else. Shared-engine changes must pass every established language's declared correctness, allocation, and performance gates. Discover language benchmarks from their declarations; absent, skipped, incomplete, or failed evidence is not a pass. Preserve pinned workloads, settings, source and executable identities and enforce each supported CPU, wall, and memory bound independently, including cold, retained-cache warm, and edit conditions where established. A gain in one language or metric cannot offset a regression in another; existing thresholds must not be weakened to admit an engine change."
 closed = false
 specs = [
+  { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.1.0", include = ["benchmarks"], count = { min = 1 }, params = { lang = { param = "lang" } }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
   { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.1.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
   { alias = "project-contract", spec = "idiomatic.ryo/contract@0.1.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
 ]
 templates = [
+  { template = "idiomatic.arch/adapter-writer@0.1.0", alias = "writer", file = "src/outbound/syntax/adapters/{library}/writer.rs", count = { min = 0 }, description = "Optional parser-library traversal and serialization, owned by the syntax adapter and using its schemas and plain types." },
   { template = "contracts", file = "src/inbound/contracts.rs", description = "The list of the language's contracts, one public module each, rendered from the contract parts placed above." },
   { alias = "parse-module", template = "contract-module", file = "src/inbound/contracts/parse.rs", params = { contract = "parse" }, description = "The parse contract's module file, beside the contract part: it declares the contract and its test." },
   { alias = "project-module", template = "contract-module", file = "src/inbound/contracts/project.rs", params = { contract = "project" }, description = "The project contract's module file, beside the contract part: it declares the contract and its test." },
@@ -25,7 +27,6 @@ templates = [
   { template = "language-conformance-test", file = "tests/conformance.rs", params = { lang = { param = "lang" } }, description = "The conformance row of the language contract: each answer the language gives for the catalog is held to its fixtures." },
   { template = "language-cargo", file = "Cargo.toml", params = { lang = { param = "lang" } }, description = "The crate's manifest: the SDK and the derives it uses, the closed test targets, the bench and the `fixtures` feature." },
   { template = "language-readme", file = "README.md", params = { lang = { param = "lang" } }, description = "The crate's README: its name, what it is for, how a program links it, one runnable example and a line for each of its domains." },
-  { template = "language-benches-performance", file = "benches/performance.rs", params = { lang = { param = "lang" } }, description = "The bench: the language's workload, a generated file read through the linked language with every relation asked, held to a growth limit." },
   { template = "language-cases", file = "src/cases.rs", description = "The test support of the crate: the `Case` rows, the four case words, the expectation and the `run` every unit test calls." },
   { template = "language-domain", file = "src/domain.rs", params = { lang = { param = "lang" } }, description = "The list of the domain's concepts, one module each." },
   { template = "language-domain-extras", file = "src/domain/extras.rs", params = { lang = { param = "lang" } }, description = "The module file of the `extras` concept: the kinds of the language's trees that its standard has no name for: it declares the files beside it." },
@@ -94,8 +95,12 @@ templates = [
   { template = "language-relation-input", file = "tests/fixtures/relations/{relation}/input.*", description = "`tests/fixtures/relations/{relation}/input.*` of a language: `input.<extension>`, or `input.<file name>` for a file the language reads only by its whole name (`input.go.mod`)." },
 ]
 rules = [
-  { rule = "bench-registers-workloads", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, registers at least one workload, a function with `#[divan::bench]`." },
-  { rule = "bench-checks-growth", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
+  { rule = "idiomatic.arch/adapter-writer-layering@0.1.0", include = ["src/outbound/syntax/adapters/*/*.rs"], description = "The parser adapter orchestrates its writer; schemas and data never call the traversal back." },
+  { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["src/outbound/syntax/adapters/*/writer.rs"], description = "Serialization entry points remain inside the owning adapter." },
+  { rule = "idiomatic.ryo/benchmark-outside-runtime@0.1.0", include = ["src/**"], description = "The benchmark is allowed only in the development edge, never provider source." },
+  { rule = "idiomatic.ryo/benchmark-targets@0.1.0", include = ["Cargo.toml", "benches/**", "benchmarks/provider/bench.rs", "benchmarks/linters/*/bench.rs", "benchmarks/linters/*/tests.rs"], description = "Provider and linter benchmark executables are distinct named Cargo targets; the former benches/performance.rs cannot coexist." },
+  { rule = "bench-registers-workloads", include = ["benchmarks/provider/bench.rs"], description = "A language's bench, which exists exactly when it has a workload, registers at least one workload, a function with `#[divan::bench]`." },
+  { rule = "bench-checks-growth", include = ["benchmarks/provider/bench.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/*_test.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
@@ -150,8 +155,8 @@ rules = [
   { rule = "adapter-contract", include = ["src/outbound/*/adapters/*/adapter_test.rs"], description = "An adapter's test runs the contract rows the core exports for its port, or calls the exported check. (Held over the language's adapter parts.)" },
   { rule = "adapter-scope", include = ["src/outbound/*/adapters/*/*.rs"], description = "An adapter reaches only its own port: no other hex's adapters or domain concepts, no use case or domain concept of the core, no second port. (Held over the language's adapter parts.)" },
   { rule = "adapter-owns-no-adapter", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/fixtures.rs"], description = "An adapter never reaches another adapter: no path into another adapter directory, no other adapter type, no port trait but the one it implements, no factory. (Held over the language's adapter parts.)" },
-  { rule = "no-wildcard-into-domain-enum", include = ["src/outbound/*/adapters/*/adapter.rs", "src/outbound/*/adapters/*/schemas.rs"], description = "A match in an adapter has no `_ =>` arm: a variant added to a domain enum is a compile error in every adapter that maps it. (Held over the language's adapter parts.)" },
-  { rule = "stateless-adapters", include = ["src/outbound/*/adapters/*/adapter.rs", "src/outbound/*/adapters/*/types.rs", "src/outbound/*/adapters/*/errors.rs", "src/outbound/*/adapters/*/settings.rs"], description = "An adapter holds no process-global state: no `static` item, `thread_local!`, `OnceLock`, `LazyLock`, `lazy_static` or `once_cell`. (Held over the language's adapter parts.)" },
+  { rule = "no-wildcard-into-domain-enum", include = ["src/outbound/*/adapters/*/adapter.rs", "src/outbound/*/adapters/*/schemas.rs", "src/outbound/*/adapters/*/writer.rs"], description = "A match in an adapter has no `_ =>` arm: a variant added to a domain enum is a compile error in every adapter that maps it. (Held over the language's adapter parts.)" },
+  { rule = "stateless-adapters", include = ["src/outbound/*/adapters/*/adapter.rs", "src/outbound/*/adapters/*/types.rs", "src/outbound/*/adapters/*/errors.rs", "src/outbound/*/adapters/*/settings.rs", "src/outbound/*/adapters/*/writer.rs"], description = "An adapter holds no process-global state: no `static` item, `thread_local!`, `OnceLock`, `LazyLock`, `lazy_static` or `once_cell`. (Held over the language's adapter parts.)" },
   { rule = "hollow-settings", include = ["src/outbound/*/adapters/*/settings.rs"], description = "An adapter's settings hold real values, never an empty struct. (Held over the language's adapter parts.)" },
   { rule = "schemas-members", include = ["src/outbound/*/adapters/*/*.rs"], description = "An adapter that parses or writes an external format and whose port carries data has a schemas.rs and its test; one whose port carries none has neither; an adapter with no external format owes none. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's adapter parts.)" },
@@ -199,7 +204,7 @@ rules = [
   { rule = "thiserror-in-errors", include = ["**"], exclude = ["**/errors.rs", "**/schemas.rs"], description = "Outside a part's errors.rs nothing in the crate names `thiserror`. The refusal of a conversion, `<Name>SchemaError`, is derived in the schemas.rs it belongs to. (Held over the language's crate parts.)" },
   { rule = "error-shape", include = ["**"], description = "Every error type of the crate is a `thiserror` derive, never a hand-written `Error` or `Display` impl. (Held over the language's crate parts.)" },
   { rule = "fixtures-feature", include = ["Cargo.toml"], description = "The crate's `fixtures` feature is switched on only from `[dev-dependencies]`, so its fakes never ship. (Held over the language's crate parts.)" },
-  { rule = "idiomatic.ryo/language-parts@0.1.0", include = ["Cargo.toml", "tastemaker.toml", "src/**", "benches/performance.rs", "tests/fixtures/relations/**", "tests/fixtures/manifests/**", "tests/fixtures/allocation/**"], description = "What a placement cannot say of a language, held over its tree: no directory of kinds, the manifest reading adapter and its cases when it has manifest items, the sample files its allocation test reads, and the `model` concept when its file model is not `()`." },
+  { rule = "idiomatic.ryo/language-parts@0.1.0", include = ["Cargo.toml", "tastemaker.toml", "src/**", "benchmarks/provider/bench.rs", "tests/fixtures/relations/**", "tests/fixtures/manifests/**", "tests/fixtures/allocation/**"], description = "What a placement cannot say of a language, held over its tree: no directory of kinds, the manifest reading adapter and its cases when it has manifest items, the sample files its allocation test reads, and the `model` concept when its file model is not `()`." },
   { rule = "idiomatic.ryo/extras-iff-variant@0.1.0", include = ["src/domain/syntax/types.rs", "src/domain/extras/**"], description = "A language has the concept `extras` exactly when its kind enum has an `Extra` variant." },
   { rule = "idiomatic.ryo/readers-in-items@0.1.0", include = ["src/**/*.rs"], exclude = ["**/fixtures/**", "**/*_test.rs"], description = "A reader is an item in `domain/{relations,manifests,links}/collections/<collection>/<name>/item.rs`, the one answer to where it lives, and nowhere else." },
   { rule = "idiomatic.ryo/language-depends-on-ryo-only@0.1.0", include = ["Cargo.toml"], description = "A language depends on the SDK, `ryo`, and on no other crate of ryo: the engine's macros and types are the engine's, so that a relation added to the catalog is a compile error in every language until it answers it." },
@@ -264,8 +269,8 @@ name = "conformance"
 harness = false
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -277,6 +282,11 @@ workspace = true
 # Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]
 '''
 files.'demo/README.md' = '''
 # idiomatic-sh-ryo-demo
@@ -1243,7 +1253,136 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
@@ -2077,7 +2216,7 @@ files.'demo/tests/fixtures/suite/case.rs' = '''
 fn case() {}
 '''
 files.'tastemaker.toml' = '''
-workspace = { name = "fixture", members = ["demo"], dependencies = [{ package = "idiomatic.arch", path = "../../../../../../tastemaker" }, { package = "idiomatic.ryo", path = "../../.." }] }
+workspace = { name = "fixture", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.arch", path = "../../../../../../tastemaker" }, { package = "idiomatic.ryo", path = "../../.." }] }
 closed = false
 specs = [
   { spec = "idiomatic.ryo/language", include = ["{lang}"], count = 1 },
@@ -2087,7 +2226,7 @@ specs = [
 [[scenarios]]
 id = 'complete-minimal-language'
 scenario = 'A complete minimal language.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -2276,6 +2415,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -2295,6 +2441,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -2348,16 +2502,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -2439,8 +2597,8 @@ The release or commit of the suite that is pinned here.
 '''
 
 [[scenarios]]
-id = 'complete-without-bench'
-scenario = 'A language without a bench.'
+id = 'missing-provider-bench'
+scenario = 'Every language must declare its provider workload.'
 given.files.'demo/src/fixtures/kinds.rs' = '''
 //! How each kind of the language's trees is shown: the source whose tree holds it, or the reason no relation reads it.
 
@@ -2519,6 +2677,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -2538,6 +2703,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -2591,16 +2764,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -2681,13 +2858,13 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 then.findings = [
-  { rule = 'idiomatic.ryo/language/language-benches-performance#count', path = 'demo' },
+  { rule = 'idiomatic.ryo/benchmark(benchmark)#count', path = 'demo' },
 ]
 
 [[scenarios]]
 id = 'missing-allocation-test'
 scenario = 'The language has no allocation test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -2817,6 +2994,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -2836,6 +3020,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -2889,16 +3081,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/conformance.rs' = '''
 //! The conformance row of the language contract: every relation the language answers `Reads` is shown by a fixture and written as expected, every one it answers `NotInThisLanguage` has no fixture with the construct in it and says why, every manifest relation it reads gives rows from a project fixture, and every kind of its trees is shown or marked unread.
 
@@ -2972,7 +3168,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-conformance-test'
 scenario = 'The language has no conformance test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3102,6 +3298,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -3121,6 +3324,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -3174,16 +3385,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -3260,7 +3475,7 @@ then.findings = [
 [[scenarios]]
 id = 'conformance-with-extra-test'
 scenario = "The conformance test carries a test of the language's own."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3362,6 +3577,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -3381,6 +3603,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -3434,16 +3664,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -3534,7 +3768,7 @@ then.findings = [
 [[scenarios]]
 id = 'allocation-with-extra-logic'
 scenario = "The allocation test carries logic of the language's own."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3636,6 +3870,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -3655,6 +3896,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -3708,16 +3957,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -3808,7 +4061,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-tastemaker'
 scenario = 'The language has no placement of its own.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -3997,6 +4250,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -4016,6 +4276,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -4154,7 +4422,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-contract-missing'
 scenario = 'The language has no project contract.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -4316,16 +4584,20 @@ pub(super) fn expected() -> Vec<Expected> {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -4406,13 +4678,15 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'demo/src/inbound/contracts/project.rs' },
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'demo/src/inbound/contracts/project.rs' },
   { rule = 'idiomatic.ryo/contract(project-contract)#count', path = 'demo' },
 ]
 
 [[scenarios]]
 id = 'project-contract-not-implemented'
 scenario = "The project contract does not implement the engine's Project trait."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -4633,16 +4907,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -4734,12 +5012,15 @@ then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract-implements', path = 'demo/src/inbound/contracts/project/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
 ]
 
 [[scenarios]]
 id = 'missing-suite-readme'
 scenario = 'The language has no page pinning its test suite.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -4928,6 +5209,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -4947,6 +5235,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -5000,16 +5296,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -5085,7 +5385,7 @@ then.findings = [
 [[scenarios]]
 id = 'bench-without-workload'
 scenario = 'The bench registers no workload.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -5209,6 +5509,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -5228,6 +5535,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -5281,16 +5596,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -5372,13 +5691,13 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/bench-registers-workloads']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/bench-registers-workloads', path = 'demo/benches/performance.rs' },
+  { rule = 'idiomatic.ryo/language/bench-registers-workloads', path = 'demo/benchmarks/provider/bench.rs' },
 ]
 
 [[scenarios]]
 id = 'missing-suite-notice'
 scenario = 'The language has the README of its suite but no notice beside it.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -5567,6 +5886,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -5586,6 +5912,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -5639,16 +5973,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -5733,7 +6071,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-corpus-notice'
 scenario = 'The language has no notice of its real-world corpus.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -5922,6 +6260,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -5941,6 +6286,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -5994,16 +6347,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -6088,7 +6445,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-corpus-readme'
 scenario = 'The language has no page pinning its real-world corpus.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -6277,6 +6634,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -6296,6 +6660,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -6349,16 +6721,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -6435,7 +6811,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-kinds'
 scenario = 'The language has no file saying how its kinds are shown.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -6588,6 +6964,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -6607,6 +6990,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -6660,16 +7051,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -6757,7 +7152,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-relations'
 scenario = 'The language has no file of the rows its relations must give.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -6932,6 +7327,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -6951,6 +7353,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -7004,16 +7414,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -7127,8 +7541,8 @@ idiomatic-sh-ryo-demo = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -7140,8 +7554,13 @@ workspace = true
 # Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]
 '''
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -7330,6 +7749,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -7349,6 +7775,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -7402,16 +7836,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -7503,7 +7941,7 @@ then.findings = [
 [[scenarios]]
 id = 'crate-without-linked'
 scenario = 'The library root does not link the language.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -7692,6 +8130,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -7711,6 +8156,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -7772,16 +8225,20 @@ pub(crate) mod outbound;
 mod domain;
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -7905,8 +8362,8 @@ name = "conformance"
 harness = false
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -7918,6 +8375,11 @@ workspace = true
 # Its `allocation` test target sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]
 '''
 given.files.'demo/README.md' = '''
 # idiomatic-sh-ryo-demo
@@ -7938,7 +8400,7 @@ use ryo_demo as _;
 
 What syntax does, in one line.
 '''
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads: the growth of its reading, and a generated file read with every relation asked, through the linked language.
 
 #![expect(
@@ -8139,6 +8601,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -8158,6 +8627,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -8251,16 +8728,20 @@ pub fn linked() -> ryo::languages::Language {
 pub mod fixtures;
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -8335,7 +8816,7 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 given.files.'tastemaker.toml' = '''
-workspace = { name = "fixture", members = ["demo"], dependencies = [{ package = "idiomatic.arch", path = "../../../../../../tastemaker" }, { package = "idiomatic.ryo", path = "../../.." }] }
+workspace = { name = "fixture", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.arch", path = "../../../../../../tastemaker" }, { package = "idiomatic.ryo", path = "../../.." }] }
 closed = false
 specs = [
   { spec = "idiomatic.ryo/language", include = ["{lang}"], count = 1 },
@@ -8351,7 +8832,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-standard-readme'
 scenario = 'The pinned standard has no README.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -8540,6 +9021,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -8559,6 +9047,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -8612,16 +9108,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -8697,7 +9197,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-standard-notice'
 scenario = 'The pinned standard has no notice.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -8886,6 +9386,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -8905,6 +9412,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -8958,16 +9473,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -9051,7 +9570,7 @@ then.findings = [
 [[scenarios]]
 id = 'relation-input-without-rows'
 scenario = 'A relation fixture has its input and no rows.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -9240,6 +9759,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -9259,6 +9785,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -9312,16 +9846,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -9399,7 +9937,7 @@ then.findings = [
 [[scenarios]]
 id = 'relation-rows-without-input'
 scenario = 'A relation fixture has its rows and no input.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -9588,6 +10126,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -9607,6 +10152,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -9660,16 +10213,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -9753,7 +10310,7 @@ then.findings = [
 [[scenarios]]
 id = 'concept-wrapped-failure-without-fails'
 scenario = 'A concept constructs a wrapped dependency error and its test has no fails row.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -10018,6 +10575,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -10037,6 +10601,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -10090,16 +10662,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -10187,7 +10763,7 @@ then.findings = [
 [[scenarios]]
 id = 'adapter-wrapped-failure-without-fails'
 scenario = 'An adapter constructs a wrapped library error and its test has no fails row.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -10376,6 +10952,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -10395,6 +10978,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -10517,16 +11108,20 @@ pub enum DemoParserError {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -10614,7 +11209,7 @@ then.findings = [
 [[scenarios]]
 id = 'concept-test-with-empty-cases'
 scenario = "A concept's test runs an empty table of cases."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -10856,6 +11451,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -10875,6 +11477,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -10928,16 +11538,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -11025,7 +11639,7 @@ then.findings = [
 [[scenarios]]
 id = 'runner-compares-discriminants'
 scenario = "The language's case runner compares errors by their discriminant alone."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -11306,6 +11920,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -11325,6 +11946,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -11378,16 +12007,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -11476,7 +12109,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-adapter'
 scenario = 'A manifest reading adapter is a module file, an adapter and a test; a language without an embedded port owes nothing for it.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -11665,6 +12298,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -11684,6 +12324,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -11781,16 +12429,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -11875,7 +12527,7 @@ then.only = ['idiomatic.ryo/language-parts', 'idiomatic.ryo/language/adapter-con
 [[scenarios]]
 id = 'project-adapter-without-test'
 scenario = 'A manifest reading adapter has no test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -12064,6 +12716,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -12083,6 +12742,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -12153,16 +12820,20 @@ pub(crate) struct ManifestReadingDemoToolAdapter;
 impl ManifestReadingPort for ManifestReadingDemoToolAdapter {}
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -12250,7 +12921,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-adapter-test-without-contract'
 scenario = "A manifest reading adapter's test never runs the port's contract."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -12439,6 +13110,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -12458,6 +13136,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -12552,16 +13238,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -12649,7 +13339,7 @@ then.findings = [
 [[scenarios]]
 id = 'embedded-adapter'
 scenario = 'An embedded adapter is held the same way where the embedded port exists.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -12838,6 +13528,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -12857,6 +13554,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -12954,16 +13659,20 @@ fn succeeds() {
 }
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -13048,7 +13757,7 @@ then.only = ['idiomatic.ryo/language-parts', 'idiomatic.ryo/language/adapter-con
 [[scenarios]]
 id = 'embedded-adapter-without-test'
 scenario = 'An embedded adapter has no test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -13237,6 +13946,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -13256,6 +13972,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -13326,16 +14050,20 @@ pub(crate) struct EmbeddedDemoFrameworkAdapter;
 impl EmbeddedPort for EmbeddedDemoFrameworkAdapter {}
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -13423,7 +14151,7 @@ then.findings = [
 [[scenarios]]
 id = 'thiserror-in-errors-reaches-a-contract-part'
 scenario = 'A thiserror derive outside errors.rs in a contract part.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -13704,6 +14432,123 @@ impl Parse for ParseContract {
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
     }
@@ -13885,6 +14730,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -13904,6 +14756,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -14234,16 +15094,20 @@ given.files.'demo/src/outbound/syntax/types.rs' = '''
 pub struct SourceText<'a>(pub &'a [u8]);
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -14325,13 +15189,13 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/thiserror-in-errors']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 174 },
+  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 291 },
 ]
 
 [[scenarios]]
 id = 'error-shape-reaches-a-contract-part'
 scenario = 'A hand-written Error impl in a contract part.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -14611,6 +15475,123 @@ impl Parse for ParseContract {
     type FileModel = ();
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
@@ -14794,6 +15775,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -14813,6 +15801,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -15143,16 +16139,20 @@ given.files.'demo/src/outbound/syntax/types.rs' = '''
 pub struct SourceText<'a>(pub &'a [u8]);
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -15234,13 +16234,13 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/error-shape']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 177 },
+  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 294 },
 ]
 
 [[scenarios]]
 id = 'language-parts-reads-a-contract-part'
 scenario = 'A parse contract with a file model and no model concept.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -15521,6 +16521,123 @@ impl Parse for ParseContract {
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
     }
@@ -15697,6 +16814,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -15716,6 +16840,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -16046,16 +17178,20 @@ given.files.'demo/src/outbound/syntax/types.rs' = '''
 pub struct SourceText<'a>(pub &'a [u8]);
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -16145,7 +17281,7 @@ then.findings = [
 [[scenarios]]
 id = 'readers-in-items-reaches-a-contract-part'
 scenario = 'A reader constant in a contract part instead of an item folder.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -16425,6 +17561,123 @@ impl Parse for ParseContract {
     type FileModel = ();
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
@@ -16605,6 +17858,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -16624,6 +17884,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -16954,16 +18222,20 @@ given.files.'demo/src/outbound/syntax/types.rs' = '''
 pub struct SourceText<'a>(pub &'a [u8]);
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -17051,7 +18323,7 @@ then.findings = [
 [[scenarios]]
 id = 'io-at-boundary-reaches-a-contract-part'
 scenario = 'A contract part that reads a file through std::fs.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -17331,6 +18603,123 @@ impl Parse for ParseContract {
     type FileModel = ();
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
@@ -17513,6 +18902,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -17532,6 +18928,14 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -17862,16 +19266,20 @@ given.files.'demo/src/outbound/syntax/types.rs' = '''
 pub struct SourceText<'a>(pub &'a [u8]);
 '''
 given.files.'demo/tastemaker.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["demo_parser::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -17953,5 +19361,5 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
-  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 175 },
+  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 292 },
 ]

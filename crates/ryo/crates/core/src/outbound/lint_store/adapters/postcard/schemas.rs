@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the one schemas.rs the adapter spec places holds the one wire shape of the store: its flat tables, one row per thing, its table of strings, its table of contents, and their conversion from and into the core's tables; a second schemas file is a role no spec places.
+// the one schemas.rs the adapter spec places holds the one wire shape of the store: its flat tables, one row per thing, its table of strings, its table of contents, and their conversion from and into the core's tables; a second schemas file is a role no spec places.
 //! The shape of the data this adapter does not control: the store as flat tables of numbers, each text once in a table of strings,
 //! a row naming it, a file or a finding by its place. The file is sections one after the other: the small tables, what the files
 //! handed but their words, then the words of each bucket on its own, and last a table of contents that says where each section is
@@ -9,8 +9,9 @@ use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
 use ryo_language::domain::reasons::types::ToolMessage;
-use ryo_language::domain::relations::types::{Integer, Offset, Span};
+use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
@@ -18,21 +19,66 @@ use ryo_values::domain::program::types::ColumnName;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{GoverningRules, PlacedRule};
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, Unreadable};
-use ryo_values::domain::runs::types::{ManifestRefused, RuleId};
+use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
+#[cfg(test)]
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause,
     PartialKind, PartialScope, ReadFailure, StoredPartial,
 };
 use ryo_values::domain::stores::types::{
-    Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredCell, StoredCovered, StoredFile,
+    Crossing, FindingMade, FindingPlace, Stored, StoredCell, StoredCovered, StoredFile,
     StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredNotes, StoredPlace,
-    StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue, StoredWords, UnknownText,
+    StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue, UnknownText,
 };
+
+#[cfg(test)]
+use ryo_values::domain::stores::types::StoredWords;
 
 /// A text, by its place in the table of strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct TextSchema(u32);
+
+/// One exact project-entry observation retained for warm context validation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct EntrySchema {
+    path: TextSchema,
+    state: EntryStateSchema,
+}
+
+/// Stable entry-kind tags in the checked store version.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum EntryStateSchema {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+impl From<EntryState> for EntryStateSchema {
+    fn from(state: EntryState) -> Self {
+        match state {
+            EntryState::File => Self::File,
+            EntryState::Directory => Self::Directory,
+            EntryState::Other => Self::Other,
+            EntryState::Missing => Self::Missing,
+            EntryState::Unknown => Self::Unknown,
+        }
+    }
+}
+
+impl From<EntryStateSchema> for EntryState {
+    fn from(state: EntryStateSchema) -> Self {
+        match state {
+            EntryStateSchema::File => Self::File,
+            EntryStateSchema::Directory => Self::Directory,
+            EntryStateSchema::Other => Self::Other,
+            EntryStateSchema::Missing => Self::Missing,
+            EntryStateSchema::Unknown => Self::Unknown,
+        }
+    }
+}
 
 /// A rule: one row for each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -48,6 +94,8 @@ pub(super) struct RuleSchema {
 /// A file: one row for each, numbered by its place in the table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct FileSchema {
+    /// Explicit permission observation in this versioned store format.
+    executable: ExecutableSchema,
     /// Its path.
     path: TextSchema,
     /// What its bytes came to.
@@ -168,6 +216,11 @@ pub(super) struct TablesSchema<'a> {
     consulted: Vec<FileSchema>,
     /// The files the lookup asked for and found none of, as texts.
     consulted_absent: Vec<TextSchema>,
+    /// Candidate entries used for project membership, in request order.
+    project_observations: Vec<EntrySchema>,
+    /// Rules explicitly skipped because their required syntax was rejected.
+    #[serde(default)]
+    skipped: Vec<TripleSchema>,
 }
 
 /// Bytes of a file only the core reads, its names' text: one row for each file that has some.
@@ -216,9 +269,30 @@ pub(super) struct PartialSchema {
     at: u32,
 }
 
+/// Typed named-root readiness beside the existing frontier bucket rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(super) enum ObservationReadinessSchema {
+    Unknown(TextSchema),
+    NoQuery,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(super) struct ObservationSchema {
+    file: u32,
+    version: u32,
+    layout: [u8; 16],
+    slots: u32,
+    complete: Vec<u64>,
+    skipped: Vec<u64>,
+    refusals: Vec<(u32, ObservationReadinessSchema)>,
+}
+
 /// What the files handed the steps that read across files and the project but their words.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct RestSchema<'a> {
+    observations: Vec<ObservationSchema>,
+    /// Source identity and coverage for each payload row, in the rest section
+    /// so existing bucket byte framing and unchanged-bucket copying stay exact.
+    proofs: Vec<FrontierProofSchema>,
     /// Every text the rows name, each once.
     #[serde(borrow)]
     strings: Vec<Cow<'a, str>>,
@@ -234,7 +308,31 @@ pub(super) struct RestSchema<'a> {
     partials: Vec<PartialSchema>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum FrontierAffectedSchema {
+    CurrentFile,
+    Repository,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum FrontierCoverageSchema {
+    Complete,
+    Partial(Vec<FrontierAffectedSchema>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct FrontierProofSchema {
+    file: u32,
+    bucket: u32,
+    version: u32,
+    rule: u32,
+    input: u32,
+    rule_digest: [u8; 16],
+    coverage: FrontierCoverageSchema,
+}
+
 /// The words one file handed one bucket: one row for each file, in a section of the bucket's own.
+#[cfg(test)]
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct WordsSchema<'a> {
     /// The file, by its place among the files.
@@ -344,9 +442,28 @@ fn file_number(files: usize, at: u32) -> Result<StoredFileNumber, postcard::Erro
     }
 }
 
+/// Wire representation of permission knowledge; no integer sentinel means false.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum ExecutableSchema {
+    Unknown,
+    Unsupported,
+    Posix(bool),
+}
+
 /// The row of a file, its path named in the table of strings.
 fn file_schema<'a>(strings: &mut StringsSchema<'a>, file: &'a StoredFile) -> FileSchema {
     FileSchema {
+        executable: match file.executable {
+            ryo_values::domain::files::types::ExecutablePermission::Unknown => {
+                ExecutableSchema::Unknown
+            }
+            ryo_values::domain::files::types::ExecutablePermission::Unsupported => {
+                ExecutableSchema::Unsupported
+            }
+            ryo_values::domain::files::types::ExecutablePermission::Posix(value) => {
+                ExecutableSchema::Posix(value)
+            }
+        },
         path: text(strings, &file.path.0),
         digest: file.digest.0,
         interface: file.interface.0,
@@ -359,6 +476,17 @@ fn file_schema<'a>(strings: &mut StringsSchema<'a>, file: &'a StoredFile) -> Fil
 /// The file a row is of, its path read from the table of strings.
 fn file_from(strings: &[Cow<'_, str>], file: &FileSchema) -> Result<StoredFile, postcard::Error> {
     Ok(StoredFile {
+        executable: match file.executable {
+            ExecutableSchema::Unknown => {
+                ryo_values::domain::files::types::ExecutablePermission::Unknown
+            }
+            ExecutableSchema::Unsupported => {
+                ryo_values::domain::files::types::ExecutablePermission::Unsupported
+            }
+            ExecutableSchema::Posix(value) => {
+                ryo_values::domain::files::types::ExecutablePermission::Posix(value)
+            }
+        },
         path: FilePath(named(strings, file.path)?),
         digest: Digest(file.digest),
         interface: Digest(file.interface),
@@ -434,6 +562,14 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
             .iter()
             .map(|each| text(&mut strings, &each.0))
             .collect();
+        let project_observations = stored
+            .project_observations
+            .iter()
+            .map(|each| EntrySchema {
+                path: text(&mut strings, &each.path.0),
+                state: each.state.into(),
+            })
+            .collect();
         let (findings, finding_keys, finding_values) =
             findings_schema(&mut strings, &stored.findings);
         let unread = stored
@@ -465,6 +601,20 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
                 said: text(&mut strings, &each.message.0),
             })
             .collect();
+        let skipped = stored
+            .skipped
+            .iter()
+            .map(|each| TripleSchema {
+                first: text(&mut strings, &each.rule.0),
+                path: text(&mut strings, &each.path.0),
+                said: text(
+                    &mut strings,
+                    match each.reason {
+                        SkipReason::SyntaxRejected => "syntax-rejected",
+                    },
+                ),
+            })
+            .collect();
         Self {
             frontiers: stored
                 .frontiers
@@ -486,6 +636,8 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
             unknowns,
             consulted,
             consulted_absent,
+            project_observations,
+            skipped,
         }
     }
 }
@@ -545,26 +697,32 @@ fn findings_from(
     Ok(findings)
 }
 
+/// Decode rule identities and crossing policies from the interned snapshot tables.
+fn rules_from(tables: &TablesSchema<'_>) -> Result<Vec<StoredRule>, postcard::Error> {
+    let strings = &tables.strings;
+    tables
+        .rules
+        .iter()
+        .map(|each| {
+            Ok(StoredRule {
+                rule: RuleId(named(strings, each.rule)?),
+                digest: Digest(each.digest),
+                crossing: if each.across {
+                    Crossing::Across
+                } else {
+                    Crossing::Within
+                },
+            })
+        })
+        .collect::<Result<_, postcard::Error>>()
+}
+
 impl TryFrom<TablesSchema<'_>> for Stored {
     type Error = postcard::Error;
 
     fn try_from(tables: TablesSchema<'_>) -> Result<Self, Self::Error> {
         let strings = &tables.strings;
-        let rules = tables
-            .rules
-            .iter()
-            .map(|each| {
-                Ok(StoredRule {
-                    rule: RuleId(named(strings, each.rule)?),
-                    digest: Digest(each.digest),
-                    crossing: if each.across {
-                        Crossing::Across
-                    } else {
-                        Crossing::Within
-                    },
-                })
-            })
-            .collect::<Result<_, postcard::Error>>()?;
+        let rules = rules_from(&tables)?;
         let files: Vec<StoredFile> = tables
             .files
             .iter()
@@ -580,6 +738,16 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             .iter()
             .map(|each| named(strings, *each).map(FilePath))
             .collect::<Result<_, postcard::Error>>()?;
+        let project_observations = tables
+            .project_observations
+            .iter()
+            .map(|each| {
+                Ok(EntryObservation {
+                    path: FilePath(named(strings, each.path)?),
+                    state: each.state.into(),
+                })
+            })
+            .collect::<Result<Vec<_>, postcard::Error>>()?;
         let file = |at: u32| file_number(files.len(), at);
         let frontiers = tables
             .frontiers
@@ -627,6 +795,22 @@ impl TryFrom<TablesSchema<'_>> for Stored {
                 })
             })
             .collect::<Result<_, postcard::Error>>()?;
+        let skipped = tables
+            .skipped
+            .iter()
+            .map(|each| {
+                let said = named(strings, each.said)?;
+                let reason = match said.as_ref() {
+                    "syntax-rejected" => SkipReason::SyntaxRejected,
+                    _ => return Err(postcard::Error::DeserializeBadEncoding),
+                };
+                Ok(Skipped {
+                    rule: RuleId(named(strings, each.first)?),
+                    path: FilePath(named(strings, each.path)?),
+                    reason,
+                })
+            })
+            .collect::<Result<_, postcard::Error>>()?;
         let findings = findings_from(&tables, files.len())?;
         Ok(Self {
             rules,
@@ -636,14 +820,78 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             unread,
             refused,
             unknowns,
+            skipped,
             consulted,
             consulted_absent,
+            project_observations,
             handed: StoredHanded::default(),
         })
     }
 }
 
 /// The section of what the files of `stored` handed but their words.
+fn proof_schema(
+    row: &ryo_values::domain::stores::types::StoredFrontierProof,
+) -> FrontierProofSchema {
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
+    FrontierProofSchema {
+        file: row.file.0,
+        bucket: row.bucket.0,
+        version: row.proof.version,
+        rule: row.proof.rule,
+        input: row.proof.input,
+        rule_digest: row.proof.rule_digest.0,
+        coverage: match &row.proof.coverage {
+            FrontierCoverage::Complete => FrontierCoverageSchema::Complete,
+            FrontierCoverage::Partial(affected) => FrontierCoverageSchema::Partial(
+                affected
+                    .iter()
+                    .map(|cause| match cause {
+                        FrontierAffected::CurrentFile => FrontierAffectedSchema::CurrentFile,
+                        FrontierAffected::Repository => FrontierAffectedSchema::Repository,
+                    })
+                    .collect(),
+            ),
+        },
+    }
+}
+
+fn proof_row(
+    row: &FrontierProofSchema,
+) -> Result<ryo_values::domain::stores::types::StoredFrontierProof, postcard::Error> {
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage, FrontierProof};
+    if row.version != 1 {
+        return Err(postcard::Error::DeserializeBadEncoding);
+    }
+    let coverage = match &row.coverage {
+        FrontierCoverageSchema::Complete => FrontierCoverage::Complete,
+        FrontierCoverageSchema::Partial(affected) => {
+            let values = affected
+                .iter()
+                .map(|cause| match cause {
+                    FrontierAffectedSchema::CurrentFile => FrontierAffected::CurrentFile,
+                    FrontierAffectedSchema::Repository => FrontierAffected::Repository,
+                })
+                .collect::<Vec<_>>();
+            if values.is_empty() || !values.windows(2).all(|pair| pair[0] < pair[1]) {
+                return Err(postcard::Error::DeserializeBadEncoding);
+            }
+            FrontierCoverage::Partial(values)
+        }
+    };
+    Ok(ryo_values::domain::stores::types::StoredFrontierProof {
+        file: StoredFileNumber(row.file),
+        bucket: Bucket(row.bucket),
+        proof: FrontierProof {
+            version: row.version,
+            rule: row.rule,
+            input: row.input,
+            rule_digest: Digest(row.rule_digest),
+            coverage,
+        },
+    })
+}
+
 fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
     let mut strings = StringsSchema::default();
     let bytes = |file: StoredFileNumber, bytes: &'a [u8]| BytesSchema {
@@ -665,7 +913,39 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
             });
         }
     }
+    let observations = stored
+        .observations
+        .iter()
+        .map(|each| ObservationSchema {
+            file: each.file.0,
+            version: each.root.version.0,
+            layout: each.root.layout.0.0,
+            slots: each.root.slots.0,
+            complete: each.root.complete.clone(),
+            skipped: each.root.skipped.clone(),
+            refusals: each
+                .root
+                .refusals
+                .iter()
+                .map(|refusal| {
+                    (
+                        refusal.slot.0,
+                        match &refusal.reason {
+                            ryo_values::domain::records::types::FrontierRefusalReason::Unknown(
+                                reason,
+                            ) => ObservationReadinessSchema::Unknown(text(&mut strings, &reason.0)),
+                            ryo_values::domain::records::types::FrontierRefusalReason::NoQuery => {
+                                ObservationReadinessSchema::NoQuery
+                            }
+                        },
+                    )
+                })
+                .collect(),
+        })
+        .collect();
     RestSchema {
+        observations,
+        proofs: stored.proofs.iter().map(proof_schema).collect(),
         texts: stored
             .texts
             .iter()
@@ -696,6 +976,18 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
 /// What the files handed but their words, from its section.
 fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
     let strings = &rest.strings;
+    let mut proofs = rest
+        .proofs
+        .iter()
+        .map(proof_row)
+        .collect::<Result<Vec<_>, _>>()?;
+    proofs.sort_by_key(|row| (row.file.0, row.bucket.0));
+    if proofs
+        .windows(2)
+        .any(|pair| pair[0].file == pair[1].file && pair[0].bucket == pair[1].bucket)
+    {
+        return Err(postcard::Error::DeserializeBadEncoding);
+    }
     let mut covered = rest
         .covered
         .iter()
@@ -723,6 +1015,49 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
         }
     }
     Ok(StoredHanded {
+        proofs,
+        observations: rest
+            .observations
+            .iter()
+            .map(|each| {
+                use ryo_values::domain::observations::types::{
+                    ObservationReadinessCount, ObservationReadinessLayout,
+                    ObservationReadinessSlot, ObservationReadinessVersion, ObservationReason,
+                };
+                use ryo_values::domain::records::types::{
+                    FrontierReadiness, FrontierRefusal, FrontierRefusalReason,
+                };
+                Ok(ryo_values::domain::stores::types::StoredFrontierReadiness {
+                    file: StoredFileNumber(each.file),
+                    root: std::sync::Arc::new(FrontierReadiness {
+                        version: ObservationReadinessVersion(each.version),
+                        layout: ObservationReadinessLayout(Digest(each.layout)),
+                        slots: ObservationReadinessCount(each.slots),
+                        complete: each.complete.clone(),
+                        skipped: each.skipped.clone(),
+                        refusals: each
+                            .refusals
+                            .iter()
+                            .map(|(slot, reason)| {
+                                Ok(FrontierRefusal {
+                                    slot: ObservationReadinessSlot(*slot),
+                                    reason: match *reason {
+                                        ObservationReadinessSchema::Unknown(reason) => {
+                                            FrontierRefusalReason::Unknown(ObservationReason(
+                                                named(strings, reason)?,
+                                            ))
+                                        }
+                                        ObservationReadinessSchema::NoQuery => {
+                                            FrontierRefusalReason::NoQuery
+                                        }
+                                    },
+                                })
+                            })
+                            .collect::<Result<_, postcard::Error>>()?,
+                    }),
+                })
+            })
+            .collect::<Result<_, postcard::Error>>()?,
         frontier: Vec::new(),
         texts: rest
             .texts
@@ -769,6 +1104,7 @@ pub(super) fn rest_bytes(stored: &StoredHanded) -> Result<Vec<u8>, postcard::Err
 }
 
 /// The words the files of `stored` handed `bucket`, as its section's bytes; `rows` are the rows of that bucket.
+#[cfg(test)]
 pub(super) fn bucket_bytes(rows: &[&StoredWords]) -> Result<Vec<u8>, postcard::Error> {
     let words: Vec<WordsSchema<'_>> = rows
         .iter()
@@ -789,10 +1125,11 @@ pub(super) fn bucket_bytes(rows: &[&StoredWords]) -> Result<Vec<u8>, postcard::E
 /// The words of a bucket made again, as its section's bytes: those of the files read now, `fresh`, and, of the section `old` the
 /// store kept of the bucket, those of each file used again, under its number now (`file_again`, old number to new, in the order of
 /// both); in the order of the files. The words of `old` are copied as they are, never decoded. None when no file hands it any.
+#[cfg(test)]
 pub(super) fn rebuilt_bucket_bytes(
     fresh: &[&StoredWords],
     old: Option<&[u8]>,
-    file_again: &[FileAgain],
+    file_again: &[ryo_values::domain::stores::types::FileAgain],
 ) -> Result<Option<Vec<u8>>, postcard::Error> {
     let mut words: Vec<WordsSchema<'_>> = fresh
         .iter()
@@ -884,7 +1221,7 @@ pub(super) fn contents_bytes(
 /// The table of contents `bytes` hold, when `build` wrote them.
 pub(super) fn contents(build: &str, bytes: &[u8]) -> Option<TableOfContents> {
     postcard::from_bytes::<ContentsSchema<'_>>(bytes)
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a table of contents that does not read back is a store kept by another build or cut short: nothing is kept, and the run reads every file again
+        .ok() // a table of contents that does not read back is a store kept by another build or cut short: nothing is kept, and the run reads every file again
         .filter(|contents| *contents.build == *build)
         .map(|contents| TableOfContents {
             tables: SectionSpan::from(contents.tables),
@@ -904,21 +1241,33 @@ pub(super) fn tables_of(bytes: &[u8]) -> Stored {
 pub(super) fn rest_from(bytes: &[u8]) -> Option<StoredHanded> {
     postcard::from_bytes::<RestSchema<'_>>(bytes)
         .and_then(|rest| handed_of(&rest))
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a section that does not read back holds nothing the run can use again: the files are read again
+        .ok() // a section that does not read back holds nothing the run can use again: the files are read again
 }
 
 /// The words the files handed `bucket`, from its section's bytes.
-pub(super) fn bucket_from(bucket: Bucket, bytes: &[u8]) -> Option<Vec<StoredWords>> {
+#[cfg(test)]
+pub(super) fn bucket_from(
+    bucket: Bucket,
+    bytes: &[u8],
+    proofs: &[ryo_values::domain::stores::types::StoredFrontierProof],
+) -> Option<Vec<StoredWords>> {
     postcard::from_bytes::<Vec<WordsSchema<'_>>>(bytes)
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a section that does not read back holds nothing the run can use again: the files are read again
-        .map(|rows| {
+        .ok() // a section that does not read back holds nothing the run can use again: the files are read again
+        .and_then(|rows| {
             rows.into_iter()
-                .map(|each| StoredWords {
-                    file: StoredFileNumber(each.file),
-                    bucket,
-                    words: PackedWords(each.words.into_owned()),
+                .map(|each| {
+                    Some(StoredWords {
+                        file: StoredFileNumber(each.file),
+                        bucket,
+                        proof: proofs
+                            .iter()
+                            .find(|row| row.file.0 == each.file && row.bucket == bucket)?
+                            .proof
+                            .clone(),
+                        words: PackedWords(each.words.into_owned()),
+                    })
                 })
-                .collect()
+                .collect::<Option<Vec<_>>>()
         })
 }
 

@@ -1,0 +1,192 @@
+{
+  "bounded_full_request_trace": {
+    "completed_rule_file_pairs": 133178,
+    "event_records": 266357,
+    "event_span_seconds": 59.009156,
+    "events_bytes": 56733657,
+    "events_path": "/tmp/ruff-rule-file-diagnostic-2026-11-01/events.jsonl",
+    "events_sha256": "e8297076b5f3600300b8b50f60a9ea82cf51233cb766c11f021dc5d29d950f39",
+    "request_sha256": "4b4ada2b210e46a7988bcd02687a98f2fcdd1967311e319d2f0db09b25677336",
+    "sum_completed_elapsed_seconds": 57.864063,
+    "termination": "SIGTERM timeout after 60 seconds (exit 124); no completed report; one unmatched start C415 on django/db/backends/base/base.py",
+    "top_file_elapsed_seconds": [
+      {
+        "file": "django/contrib/admin/options.py",
+        "seconds": 2.698467
+      },
+      {
+        "file": "django/contrib/admin/checks.py",
+        "seconds": 1.191335
+      },
+      {
+        "file": "django/contrib/contenttypes/fields.py",
+        "seconds": 0.792288
+      },
+      {
+        "file": "django/contrib/gis/gdal/geometries.py",
+        "seconds": 0.766689
+      },
+      {
+        "file": "django/core/management/commands/makemessages.py",
+        "seconds": 0.747948
+      }
+    ],
+    "top_rule_elapsed_seconds": [
+      {
+        "rule": "B023",
+        "seconds": 1.513475
+      },
+      {
+        "rule": "B020",
+        "seconds": 1.459054
+      },
+      {
+        "rule": "PLW0642",
+        "seconds": 1.271112
+      },
+      {
+        "rule": "PLR1704",
+        "seconds": 1.255318
+      },
+      {
+        "rule": "F821",
+        "seconds": 1.234524
+      }
+    ],
+    "unmatched_start_pairs": 1,
+    "worker_sha256": "03494d09c17b24c0f42511fc2d71a62bc07208f3a02fd676ad94e22ea96ce832"
+  },
+  "created_date": "2026-11-01",
+  "purpose": "bounded rule/file profiling followed by one-file/operator attribution; diagnostic only, not a benchmark or corpus-parity certificate",
+  "reduced_f811_file_check": {
+    "candidate_query_sha256": "2cca40a1d351ab1e0049c6d5168f45001360b28dca4ffb0b459bde70bccbe664",
+    "cases_sha256": "3bc9ddc8e75e35b1e4369cadf7f999d55511d26f1beb22af3f7a08eb26d9fbb8",
+    "coverage": {
+      "evaluated": 1,
+      "selected": 1,
+      "skipped": 0,
+      "unknown_or_unread": 0
+    },
+    "diagnostics": [
+      {
+        "end": 37810,
+        "file": "django/contrib/admin/options.py",
+        "rule": "F811",
+        "start": 37803
+      },
+      {
+        "end": 40745,
+        "file": "django/contrib/admin/options.py",
+        "rule": "F811",
+        "start": 40733
+      }
+    ],
+    "elapsed_system_seconds": 0.01,
+    "elapsed_user_seconds": 0.1,
+    "elapsed_wall_seconds": 0.12,
+    "max_rss_kib": 108640,
+    "request_sha256": "06ac1b2fa51744f3e9ed6e46493037ed500cfffa1a40744f951a17f9d6320828",
+    "same_f811_multiset_as_all_211_same_file_check": true,
+    "status": 0,
+    "worker_sha256": "03494d09c17b24c0f42511fc2d71a62bc07208f3a02fd676ad94e22ea96ce832"
+  },
+  "same_file_all_rules_check": {
+    "coverage": {
+      "evaluated": 211,
+      "selected": 211,
+      "skipped": 0,
+      "unknown_or_unread": 0
+    },
+    "elapsed_system_seconds": 0.37,
+    "elapsed_user_seconds": 4.38,
+    "elapsed_wall_seconds": 4.76,
+    "f811_diagnostics": [
+      {
+        "end": 37810,
+        "file": "django/contrib/admin/options.py",
+        "rule": "F811",
+        "start": 37803
+      },
+      {
+        "end": 40745,
+        "file": "django/contrib/admin/options.py",
+        "rule": "F811",
+        "start": 40733
+      }
+    ],
+    "max_rss_kib": 1827388,
+    "request_sha256": "59277682e1f1b24820b52a39483d4ebb293a116efed846fcd97fdeb78e06e409",
+    "status": 0,
+    "stdout_path": "/tmp/ruff-rule-file-diagnostic-2026-11-01/admin-options-all211-stdout.json",
+    "stdout_sha256": "fdbf8837163e65508f1b09d713629fe9f6783039b8a9069e6bd303f2d8068672",
+    "worker_sha256": "03494d09c17b24c0f42511fc2d71a62bc07208f3a02fd676ad94e22ea96ce832"
+  },
+  "schema": "ruff-diagnostic-attribution/v1",
+  "step_attribution": {
+    "dominant_step": {
+      "elapsed_ns": 49107582,
+      "exclusive_elapsed_ns": 47282653,
+      "invocation_id": 109,
+      "nested": true,
+      "operation": "closure",
+      "operation_details": "Some(Closure { edges: Step(StepId(98)), source: ColumnIndex(0), destination: ColumnIndex(1) })",
+      "outcome": "ok",
+      "parent_invocation_id": 108,
+      "step_index": 99
+    },
+    "events_path": "/tmp/ruff-rule-file-diagnostic-2026-11-01/f811-step-events-final.jsonl",
+    "events_sha256": "d0cce86af417df1c9336fdfdf6bcd98c6050e210f6f7d41dd8316bff6588030f",
+    "file": "django/contrib/admin/options.py",
+    "interpretation": "Historical frozen-211 query only: step 99 was the syntax_descendants closure in query SHA 2cca40 and took 47.3ms exclusive in the old diagnostic. It is not a current-canonical F811 performance measurement; see the seeded-axis receipt for current-query A/B evidence.",
+    "records": 574,
+    "rule": "F811",
+    "rule_file_elapsed_ns": 96924571,
+    "step_invocations": 279,
+    "unmatched_step_invocations": 0,
+    "worker_sha256": "a5a49dec215bf3051ef807e9d9cf85c8438022a6dd7f5f60489981073076283d"
+  },
+  "worker_build": {
+    "cargo_artifact": "/workspaces/idiomatic-benchmark-guards/crates/ryo/target/release/deps/ruff-7e28d70e09f1927b",
+    "command": [
+      "cargo",
+      "bench",
+      "--no-run",
+      "--locked",
+      "-p",
+      "idiomatic-sh-ryo-python",
+      "--bench",
+      "ruff",
+      "--message-format=json"
+    ],
+    "dirty_worktree_diff_sha256": "589c68f9ee28becc9486de3204d720315a708eee0fdc15353bc8d676070afce6",
+    "f811_profile_status": 0,
+    "profile_manifest_sha256": "595f66f24bedb21c386ae71ef9813bce3ec40492b85f370c23f141e8104abff6",
+    "reference_version": "0.16.5",
+    "source_revision": "8107e4cb60849336f8d8c455ab14851b18e40a00",
+    "source_stable_during_build": true,
+    "source_tree_sha256": "7cd3f196bc2f8cdc38220a4e95dd3f9dadae34630fcfe7e38fb1ca1bec0ddfff",
+    "status": 0,
+    "target_version": "py310",
+    "worker_path": "/tmp/ruff-step-diagnostic-worker-2026-11-01-r3/worker/ruff-a5a49dec215bf3051ef807e9d9cf85c8438022a6dd7f5f60489981073076283d",
+    "worker_sha256": "a5a49dec215bf3051ef807e9d9cf85c8438022a6dd7f5f60489981073076283d"
+  },
+  "workload": {
+    "cache": "null",
+    "corpus": "Django",
+    "corpus_revision": "36b5f39d9372147f0e758f590e35ee2b2bc317dd",
+    "file_count": 2874,
+    "full_request_sha256": "4b4ada2b210e46a7988bcd02687a98f2fcdd1967311e319d2f0db09b25677336",
+    "selected_rule_count": 211,
+    "target": "py310"
+  },
+  "provenance_correction": {
+    "status": "historical_frozen_211_query_not_current_canonical",
+    "query_sha256": "2cca40a1d351ab1e0049c6d5168f45001360b28dca4ffb0b459bde70bccbe664",
+    "query_snapshot": "results/query-snapshots/F811-frozen-211-query-before-seeded-axis-2026-11-01.ryoql",
+    "current_canonical_query_sha256_before_seeded_axis": "303e2db29747c934616cfe1da142e2d3bac3c0b77a7a12867a3ccc92c7692ae8",
+    "current_canonical_query_sha256_after_seeded_axis": "a0d64db857148edcfe4220919eafdf203cd20e0104a387a28517fb31395f6144",
+    "current_canonical_recheck_receipt": "results/F811-seeded-axis-2026-11-01.json",
+    "current_canonical_recheck_receipt_sha256": "ab9232d6a7b84ca0e419faf14b9d8102bb88ffcb298b1df1504186a01aea00e9",
+    "note": "The earlier F811 two-diagnostic same-file result and 47.3ms closure event belong to the frozen 211-rule query snapshot. Current canonical query was checked separately against Ruff and the same F811 profile before/after the seeded-axis rewrite."
+  }
+}

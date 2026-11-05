@@ -52,12 +52,12 @@ pub(crate) fn connect(
 /// says its own.
 pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
     let program = std::env::current_exe()
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|path| std::fs::metadata(path).ok()); // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
+        .ok() // a program the system cannot describe has no size or time: the build identity reads 0
+        .and_then(|path| std::fs::metadata(path).ok()); // a program the system cannot describe has no size or time: the build identity reads 0
     let modified = program
         .as_ref()
-        .and_then(|meta| meta.modified().ok()) // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
+        .and_then(|meta| meta.modified().ok()) // a program the system cannot describe has no size or time: the build identity reads 0
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // a program the system cannot describe has no size or time: the build identity reads 0
         .map_or(0, |since| since.as_nanos());
     let size = program.map_or(0, |meta| meta.len());
     let mut build = size.to_string();
@@ -66,6 +66,37 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
         [
             language.name().0.to_string(),
             language.build().0.to_string(),
+            {
+                let mut capabilities: Vec<_> = language
+                    .parse_use_case()
+                    .capabilities()
+                    .iter()
+                    .map(|capability| {
+                        ryo_relations::domain::relations::service::name(
+                            ryo_relations::domain::relations::service::capability_relation(
+                                *capability,
+                            ),
+                        )
+                        .0
+                    })
+                    .collect();
+                capabilities.sort_unstable();
+                capabilities.dedup();
+                // Release identity plus length-delimited canonical names: declaration order is irrelevant.
+                let mut identity = language.build().0.to_string();
+                let configuration = language.configuration_identity().0;
+                identity.push_str(" config:");
+                identity.push_str(&configuration.len().to_string());
+                identity.push(':');
+                identity.push_str(configuration);
+                for capability in capabilities {
+                    identity.push(' ');
+                    identity.push_str(&capability.len().to_string());
+                    identity.push(':');
+                    identity.push_str(capability);
+                }
+                identity
+            },
         ]
     });
     for part in parts.into_iter().chain(linked) {

@@ -1,0 +1,28 @@
+{
+  "name": "upstream-pep639",
+  "files": {
+    "pyproject.toml": "[project]\nname = \"hello-world\"\nversion = \"0.1.0\"\n# PEP 639 - passing\nlicense = \"MIT OR GPL-2.0-or-later OR (FSFUL AND BSD-2-Clause)\"\nlicense-files = [\"LICEN[CS]E*\", \"AUTHORS*\", \"licenses/LICENSE.MIT\"]\n"
+  },
+  "argv": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/ruf200-reference-20261103/upstream-pep639/.ruff_cache",
+    "--select",
+    "RUF200",
+    "--target-version",
+    "py310",
+    "--",
+    "pyproject.toml"
+  ],
+  "root": "/tmp/ruf200-reference-20261103/upstream-pep639",
+  "exit": 0,
+  "executable": "/home/vscode/.local/bin/ruff",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "expected": [],
+  "stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

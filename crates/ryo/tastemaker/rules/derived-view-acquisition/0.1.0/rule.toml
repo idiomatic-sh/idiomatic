@@ -1,0 +1,111 @@
+description = "Only the derived-view implementation and application acquisition owner may reach its registry or build interface."
+why = "The operator engine owns derived-view acquisition, sharing and population lifetime. A domain operator or another domain concept that names the registry or build trait can bypass that owner even when the ordinary four-layer import matrix passes. This rule checks resolved same-crate source-dependency targets, including aliases and qualified references. It intentionally refuses entrypoint access from any other domain concept; application request preparation and acquisition are allowed. Macro-expanded and unresolved paths are outside the source-dependency relation, so this is a source boundary, not a complete call-graph proof."
+
+query = '''
+let directory-sources = capture(from="source-dependency", path="source", pattern="{*source-root}/domain/{concept}/{*source-rest}", captures=["source-root", "concept", "source-rest"]);
+let module-sources = capture(from="source-dependency", path="source", pattern="{*source-root}/domain/{concept}.rs", captures=["source-root", "concept"]);
+let source-files = select source, target, span, source-root, concept from directory-sources;
+let source-modules = select source, target, span, source-root, concept from module-sources;
+let named-sources = union(left=source-files, right=source-modules);
+let other-concepts = select source, target, span, source-root from named-sources where concept != "derived_views";
+let root-source = capture(from="source-dependency", path="source", pattern="{*source-root}/domain.rs", captures=["source-root"]);
+let domain-root = select source, target, span, source-root from root-source;
+let outside = union(left=other-concepts, right=domain-root);
+let registry-target = capture(from=outside, path="target", pattern="{*target-root}/domain/derived_views/collections/views/registration.rs", captures=["target-root"]);
+let interface-target = capture(from=outside, path="target", pattern="{*target-root}/domain/derived_views/collections/views/interface.rs", captures=["target-root"]);
+let registry-rows = select source, span, source-root, target-root from registry-target;
+let interface-rows = select source, span, source-root, target-root from interface-target;
+let entrypoints = union(left=registry-rows, right=interface-rows);
+let local = select source as file, span from entrypoints where source-root = target-root;
+emit local subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "a domain consumer reaches the derived-view acquisition entrypoint"
+help = "Declare the derived view in the operator contract and let the application owner acquire and release it. Keep registry/build calls inside domain/derived_views and the application acquisition path."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "view_ownership_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'pub mod domain; pub mod application;'
+files.'src/domain.rs' = 'pub mod derived_views; pub mod operator; pub mod other;'
+files.'src/domain/derived_views.rs' = 'pub mod collections;'
+files.'src/domain/derived_views/collections.rs' = 'pub mod views;'
+files.'src/domain/derived_views/collections/views.rs' = 'pub mod registration; pub mod interface; pub mod item;'
+files.'src/domain/derived_views/collections/views/registration.rs' = 'pub fn registered() {}'
+files.'src/domain/derived_views/collections/views/interface.rs' = 'pub trait DerivedViewsItem { fn build(&self); }'
+files.'src/domain/derived_views/collections/views/item.rs' = 'pub fn build() { super::registration::registered(); }'
+files.'src/domain/operator.rs' = 'pub mod item;'
+files.'src/domain/operator/item.rs' = 'pub fn ordinary() {}'
+files.'src/domain/other.rs' = 'pub mod service;'
+files.'src/domain/other/service.rs' = 'pub fn ordinary() {}'
+files.'src/application.rs' = 'pub mod request; pub mod owner;'
+files.'src/application/request.rs' = 'pub fn ordinary() {}'
+files.'src/application/owner.rs' = 'pub fn ordinary() {}'
+
+[[scenarios]]
+id = "operator-imports-registry"
+scenario = "A domain operator cannot import the resolved registration entrypoint."
+given.files.'src/domain/operator/item.rs' = 'use crate::domain::derived_views::collections::views::registration::registered;'
+then.findings = [{ path = "src/domain/operator/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "operator-aliases-registry"
+scenario = "Renaming the registry import does not evade its resolved source target."
+given.files.'src/domain/operator/item.rs' = 'use crate::domain::derived_views::collections::views::registration::registered as acquire;'
+then.findings = [{ path = "src/domain/operator/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "qualified-registry-call"
+scenario = "A qualified call without a use declaration still reaches the registry file."
+given.files.'src/domain/operator/item.rs' = 'pub fn run() { crate::domain::derived_views::collections::views::registration::registered(); }'
+then.findings = [{ path = "src/domain/operator/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "other-domain-build-interface"
+scenario = "Another domain concept cannot import the build trait directly."
+given.files.'src/domain/other/service.rs' = 'use crate::domain::derived_views::collections::views::interface::DerivedViewsItem;'
+then.findings = [{ path = "src/domain/other/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-root-registry"
+scenario = "The domain root module is also a consumer when it names the registry."
+given.files.'src/domain.rs' = '''
+pub mod derived_views; pub mod operator; pub mod other;
+use crate::domain::derived_views::collections::views::registration::registered;
+'''
+then.findings = [{ path = "src/domain.rs", line = 2 }]
+
+[[scenarios]]
+id = "derived-item-may-register"
+scenario = "The derived-view implementation itself may use the registry."
+given.files.'src/domain/derived_views/collections/views/item.rs' = 'pub fn build() { super::registration::registered(); }'
+
+[[scenarios]]
+id = "application-owner-may-register"
+scenario = "The application acquisition owner may call the registry."
+given.files.'src/application/owner.rs' = 'pub fn acquire() { crate::domain::derived_views::collections::views::registration::registered(); }'
+
+[[scenarios]]
+id = "application-request-may-bind"
+scenario = "Application request preparation may name the build interface."
+given.files.'src/application/request.rs' = 'use crate::domain::derived_views::collections::views::interface::DerivedViewsItem;'
+
+[[scenarios]]
+id = "other-domain-types-allowed"
+scenario = "Another concept may use ordinary derived-view types without taking acquisition."
+given.files.'src/domain/other/service.rs' = 'use crate::domain::derived_views::collections::views::item::build;'
+
+[[scenarios]]
+id = "comments-and-strings-allowed"
+scenario = "Text mentioning the registry is not a resolved dependency."
+given.files.'src/domain/operator/item.rs' = '''
+// crate::domain::derived_views::collections::views::registration::registered
+pub fn description() -> &'static str { "crate::domain::derived_views::collections::views::interface::DerivedViewsItem" }
+'''

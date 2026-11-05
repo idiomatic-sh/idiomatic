@@ -1,0 +1,53 @@
+[[cases]]
+name = "base-two"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 2)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 30 }]
+
+[[cases]]
+name = "base-ten-float"
+comparison = "full"
+files = { "case.py" = "import math as m\nm.log(value, 10.0)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 17, end = 35 }]
+
+[[cases]]
+name = "base-e"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, math.e)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 35 }]
+
+[[cases]]
+name = "radix-base"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 0x2)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 32 }]
+
+[[cases]]
+name = "wrong-base"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 3)\n" }
+expected = []
+
+[[cases]]
+name = "wrong-call"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log2(value, 2)\n" }
+expected = []
+
+[[cases]]
+name = "keyword-argument"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, base=2)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-math"
+comparison = "full"
+files = { "case.py" = "math = custom\nmath.log(value, 2)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 2)  # noqa: FURB163\n" }
+expected = []

@@ -1,0 +1,1068 @@
+{
+  "source_commit": "076c3ab459ba192822c0f731e3613f95bd6986af",
+  "members": [
+    {
+      "member": "Function",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Annotates",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Assigns",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "binding",
+        "value",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Comment",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Directive",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Decorates",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "declaration"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Defines",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Visibility",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "declaration"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Inherits",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "declaration"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Parameter",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Reference",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Mention",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Scope",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "parent",
+        "child"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "StaticCall",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "CallArgument",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "call",
+        "expression"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Resolves",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner",
+        "definition"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BindingEvent",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "scope",
+        "phase"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BindingRead",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "reference",
+        "scope",
+        "phase"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BindingUse",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "reference",
+        "binding",
+        "scope",
+        "phase"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BindingShadow",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "binding",
+        "previous",
+        "scope",
+        "previous_scope",
+        "phase"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "ImplicitSymbol",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "scope"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "QualifiedName",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Identifier",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "ExpressionShape",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "shape"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "LiteralProperties",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FunctionTerminal",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "ExpressionType",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "InterpolatedStringLiteral",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "LanguageTarget",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "CompilerFeature",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "ConstantKey",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "key"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FormatParse",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FormatField",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BraceFormatParse",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BraceFormatField",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "RawFormatSegment",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "segment"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "RawFormatField",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "segment"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "LiteralExpressionParse",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "StaticImport",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "StringLiteral",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "BytesLiteral",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FormatSpecification",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "origin"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SyntaxChild",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "applicable Edges",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "parent",
+        "child"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SyntaxError",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SyntaxTree",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "applicable Elements",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SemanticSyntax",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SemanticChild",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "parent",
+        "child"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "EmbeddedExpression",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "root",
+        "host"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SourceLocation",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "IndentRegion",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "parent"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Mapping",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Entry",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SequenceElement",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "occurrence",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "Prose",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id",
+        "owner"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "NumericLiteral",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "id"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "TokenLink",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "node operands available; backend/context may refuse",
+      "node_columns": [
+        "source",
+        "target"
+      ],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "syntax",
+      "producer_owner": "provider/shared typed reader + common ParseEngine drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "PackageDependency",
+      "ordinary_stored": "produced per file when admitted, then handed over for CrossFile X consumption only",
+      "selected_computed": "CrossFile X only: manifest provenance forces CrossFile scope; per-file G/T, K, L/LC, N, J and C are N/A",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "manifest",
+      "producer_owner": "provider ProjectUseCase + common project drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "WorkspaceMember",
+      "ordinary_stored": "produced per file when admitted, then handed over for CrossFile X consumption only",
+      "selected_computed": "CrossFile X only: manifest provenance forces CrossFile scope; per-file G/T, K, L/LC, N, J and C are N/A",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "manifest",
+      "producer_owner": "provider ProjectUseCase + common project drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "SourceDependency",
+      "ordinary_stored": "produced per file when admitted, then handed over for CrossFile X consumption only",
+      "selected_computed": "CrossFile X only: manifest provenance forces CrossFile scope; per-file G/T, K, L/LC, N, J and C are N/A",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "manifest",
+      "producer_owner": "provider ProjectUseCase + common project drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "AnalyzedSource",
+      "ordinary_stored": "produced per file when admitted, then handed over for CrossFile X consumption only",
+      "selected_computed": "CrossFile X only: manifest provenance forces CrossFile scope; per-file G/T, K, L/LC, N, J and C are N/A",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "manifest",
+      "producer_owner": "provider ProjectUseCase + common project drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FilePackage",
+      "ordinary_stored": "produced per file when admitted, then handed over for CrossFile X consumption only",
+      "selected_computed": "CrossFile X only: manifest provenance forces CrossFile scope; per-file G/T, K, L/LC, N, J and C are N/A",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "manifest",
+      "producer_owner": "provider ProjectUseCase + common project drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "ModuleIdentity",
+      "ordinary_stored": "produced per file when admitted, then handed over for CrossFile X consumption only",
+      "selected_computed": "CrossFile X only: manifest provenance forces CrossFile scope; per-file G/T, K, L/LC, N, J and C are N/A",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "manifest",
+      "producer_owner": "provider ProjectUseCase + common project drive",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FilesystemFile",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "engine",
+      "producer_owner": "core application FileAnalysis",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FilesystemLineCount",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "engine",
+      "producer_owner": "core application FileAnalysis",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    },
+    {
+      "member": "FilesystemExecutable",
+      "ordinary_stored": "applicable with actual producer support/completeness",
+      "selected_computed": "applicable generic typed rows; plan eligibility controls lowering",
+      "native_tree": "N/A: exhaustive pipeline native match falls back to Stored",
+      "native_match_anchor": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs:659",
+      "semantic_render_direct": "N/A direct operand: schema has no Node column; joins may supply one",
+      "node_columns": [],
+      "semantic_session_provider": "Python only; other nine default None, independent of semantic relation readers",
+      "hosted_producer": "N/A: this is catalog member, Hosted is a separate request source",
+      "group": "engine",
+      "producer_owner": "core application FileAnalysis",
+      "ownership_verdict": "INCOMPLETE; see owner-routes.md, no new test execution"
+    }
+  ],
+  "membership_count": 65,
+  "state": "INCOMPLETE"
+}

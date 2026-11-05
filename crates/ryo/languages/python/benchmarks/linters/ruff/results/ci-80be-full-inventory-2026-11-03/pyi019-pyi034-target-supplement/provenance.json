@@ -1,0 +1,46 @@
+{
+  "schema": "source-bound-python-rule-fixture-proof/v1",
+  "identity": {
+    "worker_sha256": "fe24023f0f920182eefe1e1b866d16f8977bd1ff6f6434f750f43f4938b8c9c1",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "source_head": "1f476f83ac486ea5c54ee3301b777b4d75f744c5",
+  "worker_seal": {
+    "worker": "/tmp/natural-order-release-20261103/python-release-sealed",
+    "worker_sha256": "fe24023f0f920182eefe1e1b866d16f8977bd1ff6f6434f750f43f4938b8c9c1",
+    "worker_bytes": 10512784,
+    "source_head": "8cc89a28db",
+    "source_stable": true,
+    "source_paths": 35,
+    "source_patch_sha256": "5303b003583e584ab015a619c39db131527312a8ecd36265aa583f8659f9bd5b",
+    "cargo_jsonl_sha256": "6a8e2a7e5418813b40ea5efcb8b928c2e199a58bae687e878b3ee4105379895a",
+    "artifact": "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-15c3eb82f35d5703",
+    "artifact_target": {
+      "kind": [
+        "bench"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "ruff",
+      "src_path": "/workspaces/idiomatic-benchmark-guards/crates/ryo/languages/python/benchmarks/linters/ruff/bench.rs",
+      "edition": "2024",
+      "doc": false,
+      "doctest": false,
+      "test": false
+    },
+    "artifact_profile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": true
+    },
+    "cargo_command": "flock -x /workspaces/.cargo-build.lock cargo build --release -p idiomatic-sh-ryo-python --bench ruff --locked -j 6 --message-format=json"
+  },
+  "receipt_origin": "Derived offline from preserved successful native verify-cases execution and its strict v2 records; not a collector invocation, combined413 replay, or re-verification of earlier proofs.",
+  "scope": "Only PYI019/PYI034 complete fixtures. No query/provider/engine change or other prior PASS re-verification. No combined413 run.",
+  "original_ci_artifact_sha256": "82f1c23a8c059240ee2e648e5f5870de0e944b52f3d95d38257cbe5e12067b17",
+  "discrepancy_scope": "Exactly one .pyi named-expression annotation source per rule. Python grammar acceptance is separate from supported/portable type-expression semantics; the certificate does not assert the stub is well typed. Existing full fixtures, positive controls and source bytes unchanged.",
+  "language_evidence": "Actual CPython3.10.19 parses and compiles both original sources with future_annotationsFalse. Official typing grammar distinguishes Python expressions from type expressions and supported stub constructs. Unrelated39-source invalid cases are not claimed as positive evidence."
+}

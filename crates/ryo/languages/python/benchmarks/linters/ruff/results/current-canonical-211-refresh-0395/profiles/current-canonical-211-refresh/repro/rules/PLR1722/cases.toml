@@ -1,0 +1,71 @@
+[[cases]]
+name = "exit"
+comparison = "full"
+files = { "case.py" = "exit()\n" }
+expected = [{ "rule" = "PLR1722", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "quit"
+comparison = "full"
+files = { "case.py" = "quit(1)\n" }
+expected = [{ "rule" = "PLR1722", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.quit()\n" }
+expected = [{ "rule" = "PLR1722", "file" = "case.py", "start" = 16, "end" = 29 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from builtins import exit as stop\nstop()\n" }
+expected = [{ "rule" = "PLR1722", "file" = "case.py", "start" = 34, "end" = 38 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(exit):\n    exit()\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "quit = custom\nquit()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 13 }]
+
+[[cases]]
+name = "sys"
+comparison = "full"
+files = { "case.py" = "import sys\nsys.exit()\n" }
+expected = []
+
+[[cases]]
+name = "attribute"
+comparison = "full"
+files = { "case.py" = "obj.exit()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "not-called"
+comparison = "full"
+files = { "case.py" = "value = quit\n" }
+expected = []
+
+[[cases]]
+name = "too-many-args"
+comparison = "full"
+files = { "case.py" = "quit(1, 2)\n" }
+expected = [{ "rule" = "PLR1722", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "unpacked"
+comparison = "full"
+files = { "case.py" = "exit(**options)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 14 }, { "rule" = "PLR1722", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "quit() # noqa: PLR1722\n" }
+expected = []

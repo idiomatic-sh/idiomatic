@@ -1,0 +1,252 @@
+[[cases]]
+name = "invalid-index-value"
+files = { "case.pyi" = "import sys\nif sys.version_info[4] == 3:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 38 }]
+
+[[cases]]
+name = "invalid-boolean-rhs"
+files = { "case.pyi" = "import sys\nif sys.version_info[0] == True:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 41 }]
+
+[[cases]]
+name = "valid-major-index"
+files = { "case.pyi" = "import sys\nif sys.version_info[0] == 3:\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "valid-major-slice"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == (3,):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "import sys\nif sys.version_info[4] == 3:\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "from-import-alias"
+files = { "case.pyi" = "from sys import version_info\nif version_info[0] == True:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 32, end = 55 }]
+
+[[cases]]
+name = "invalid-slice-upper"
+files = { "case.pyi" = "import sys\nif sys.version_info[:3] == (3, 10, 1):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 48 }]
+
+[[cases]]
+name = "nonzero-index"
+files = { "case.pyi" = "import sys\nif sys.version_info[1] == 10:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 39 }]
+
+[[cases]]
+name = "binary-three-is-invalid"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0b1_1] == (3, 10):\n    pass\n" }
+expected = [{ file = "example.pyi", start = 14, end = 49 }]
+
+[[cases]]
+name = "binary-prefixed-one"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0b_1] == (3,):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "octal-prefixed-one"
+files = { "example.pyi" = "import sys\nif sys.version_info[:0o0_1] == (3,):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI007-valid"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"darwin\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI008-known-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI066-comparison-matrix-4-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3,10) < upper: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI008-misspelled-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI008-unknown-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"freebsd\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI066-tagged-PYI066.pyi"
+comparison = "full"
+files = { "PYI066.pyi" = "import sys\n\nif sys.version_info < (3, 10):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def foo(x): ...\nelse:\n    def foo(x, *, bar=True): ...\n\nif sys.version_info < (3, 8):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 8)\"\n    def bar(x): ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 9)\"\n    def bar(x, *, bar=True): ...\nelif sys.version_info < (3, 11):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def bar(x, *, bar=True, baz=False): ...\nelse:\n    def bar(x, *, bar=True, baz=False, qux=1): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    ...\nelse:\n    ...\n\n# Negative cases\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...\nif sys.version_info < ('3', '0'): ...\nif sys.version_info >= (3, 4, 3): ...\nif sys.version_info == (3, 4): ...\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelse:\n    ...\n\nif sys.version_info >= (3, 10):\n    def foo1(x, *, bar=True, baz=False): ...\nelif sys.version_info >= (3, 9):\n    def foo1(x, *, bar=True): ...\nelse:\n    def foo1(x): ...\n\nif sys.version_info < (3, 9):\n    def foo2(x): ...\nelif sys.version_info < (3, 10):\n    def foo2(x, *, bar=True): ...\n# no else case, no raise\n" }
+expected = [{ end = 1228, file = "PYI066.pyi", rule = "PYI003", start = 1197 }, { end = 1266, file = "PYI066.pyi", rule = "PYI003", start = 1237 }]
+
+[[cases]]
+name = "cross-PYI002-chain"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif (3, 10) <= sys.version_info < (3, 12):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI002-invalid-platform-membership"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform in (\"win32\",):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI002-invalid-version-attribute"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI002-nested-bool-chain"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10) and (sys.platform == \"win32\" or sys.platform == \"linux\"):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI002-sys-alias"
+comparison = "full"
+files = { "case.pyi" = "import sys as system\nif system.version == \"3.10\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI002-valid-bool-chain"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10) and sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI007-membership"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform in (\"win32\", \"linux\"):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI066-comparison-matrix-3-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif (3,10) < sys.version_info: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name="policy-plain-integer"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == 3: ...\n"}
+expected=[{rule="PYI003", file="case.pyi", start=14, end=35}]
+
+[[cases]]
+name="policy-major-tuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0] == (3,): ...\n"}
+expected=[{rule="PYI003", file="case.pyi", start=14, end=41}]
+
+[[cases]]
+name="policy-negative-integer"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0] == -3: ...\n"}
+expected=[{rule="PYI003", file="case.pyi", start=14, end=39}]
+
+[[cases]]
+name="policy-noncondition"
+comparison="full"
+files={"case.pyi"="import sys\nx=sys.version_info == (3,10,1)\n"}
+expected=[]
+
+[[cases]]
+name="policy-while"
+comparison="full"
+files={"case.pyi"="import sys\nwhile sys.version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-boolean-direct"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (3,10,1) and True: ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-boolean-nested"
+comparison="full"
+files={"case.pyi"="import sys\nif True and (False or sys.version_info == (3,10,1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-chained"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (3,10,1) == (3,10): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-major-longtuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0] == (3,10,1): ...\n"}
+expected=[{rule="PYI003", file="case.pyi", start=14, end=45}]
+
+[[cases]]
+name="policy-invalid-slice-longtuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[:3] == (3,10,1): ...\n"}
+expected=[{rule="PYI003", file="case.pyi", start=14, end=46}]
+
+[[cases]]
+name="policy-nested-subscript"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0][0] == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-attribute"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info.major == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-empty-tuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-boolean-tuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (True,10,1): ...\n"}
+expected=[{rule="PYI003", file="case.pyi", start=14, end=45}]
+
+[[cases]]
+name="policy-elif-only"
+comparison="full"
+files={"case.pyi"="import sys\nif False: ...\nelif sys.version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-shadowed-module"
+comparison="full"
+files={"case.pyi"="import sys\nsys=object()\nif sys.version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-shadowed-from-import"
+comparison="full"
+files={"case.pyi"="from sys import version_info\nversion_info=object()\nif version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="tagged-PYI003.py"
+comparison="full"
+files={"PYI003.py"="import sys\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[0] == True: ...  # Y003 Unrecognized sys.version_info check  # E712 comparison to True should be 'if cond is True:' or 'if cond:'\nif sys.version_info[0.0] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[False] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0j] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0] == (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0] == '2': ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[1:] >= (7, 11): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[::-1] < (11, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:3] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:True] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:1] == (2, 7): ...  # Y005 Version comparison must be against a length-1 tuple\nif sys.version_info[:2] == (2, 7): ...\nif sys.version_info[:2] == (2,): ...  # Y005 Version comparison must be against a length-2 tuple\nif sys.version_info[:2] == \"lol\": ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:2.0] >= (3, 9): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:2j] >= (3, 9): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:, :] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info < [3, 0]: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info < ('3', '0'): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info >= (3, 4, 3): ...  # Y004 Version comparison must use only major and minor version\nif sys.version_info == (3, 4): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info > (3, 0): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info <= (3, 0): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...  # Y002 If test must be a simple comparison against sys.platform or sys.version_info\n"}
+expected=[]
+
+[[cases]]
+name="tagged-PYI003.pyi"
+comparison="full"
+files={"PYI003.pyi"="import sys\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[0] == True: ...  # Y003 Unrecognized sys.version_info check  # E712 comparison to True should be 'if cond is True:' or 'if cond:'\nif sys.version_info[0.0] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[False] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0j] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0] == (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0] == '2': ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[1:] >= (7, 11): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[::-1] < (11, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:3] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:True] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:1] == (2, 7): ...  # Y005 Version comparison must be against a length-1 tuple\nif sys.version_info[:2] == (2, 7): ...\nif sys.version_info[:2] == (2,): ...  # Y005 Version comparison must be against a length-2 tuple\nif sys.version_info[:2] == \"lol\": ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:2.0] >= (3, 9): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:2j] >= (3, 9): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:, :] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info < [3, 0]: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info < ('3', '0'): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info >= (3, 4, 3): ...  # Y004 Version comparison must use only major and minor version\nif sys.version_info == (3, 4): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info > (3, 0): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info <= (3, 0): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...  # Y002 If test must be a simple comparison against sys.platform or sys.version_info\n"}
+expected=[{rule="PYI003", file="PYI003.pyi", start=48, end=75}, {rule="PYI003", file="PYI003.pyi", start=198, end=224}, {rule="PYI003", file="PYI003.pyi", start=277, end=305}, {rule="PYI003", file="PYI003.pyi", start=358, end=383}, {rule="PYI003", file="PYI003.pyi", start=436, end=465}, {rule="PYI003", file="PYI003.pyi", start=518, end=544}, {rule="PYI003", file="PYI003.pyi", start=597, end=628}, {rule="PYI003", file="PYI003.pyi", start=681, end=713}, {rule="PYI003", file="PYI003.pyi", start=766, end=796}, {rule="PYI003", file="PYI003.pyi", start=849, end=882}, {rule="PYI003", file="PYI003.pyi", start=972, end=1003}, {rule="PYI003", file="PYI003.pyi", start=1291, end=1320}, {rule="PYI003", file="PYI003.pyi", start=1373, end=1405}, {rule="PYI003", file="PYI003.pyi", start=1458, end=1489}, {rule="PYI003", file="PYI003.pyi", start=1542, end=1574}, {rule="PYI003", file="PYI003.pyi", start=1627, end=1652}, {rule="PYI003", file="PYI003.pyi", start=1705, end=1734}]

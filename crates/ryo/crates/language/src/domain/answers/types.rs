@@ -1,10 +1,11 @@
 //! The types of the `answers` concept: how a language answers a relation: the reader of its trees, the answer it gives and why it gives none.
-// ignore: idiomatic.arch/public-fields - the answer of `Support` is private on purpose: only `absent` and `reads` make one, through `From<Answer>`, which no language can call because only this crate names an `Answer`, so a reader written beside its item is no answer (the ui case `fail_support_built_without_an_item`)
+// the answer of `Support` is private on purpose: only `absent` and `reads` make one, through `From<Answer>`, which no language can call because only this crate names an `Answer`, so a reader written beside its item is no answer (the ui case `fail_support_built_without_an_item`)
 
 use crate::domain::elements::types::Tree;
-use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::types::{KindBits, Position, Rows};
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::types::{KindBits, Position, Rows};
 
 /// Which elements of a file's tree a relation's reader looks at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,24 +87,6 @@ impl<R: RelationsItem, M: 'static> Clone for Reader<R, M> {
 
 impl<R: RelationsItem, M: 'static> Copy for Reader<R, M> {}
 
-/// Why a language does not answer a relation: a reason the engine can list, not a sentence.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum AbsenceCause {
-    /// The language has no such construct.
-    NoSuchConstruct,
-    /// The language is a format of data, which has no such construct of code.
-    NotCode,
-    /// The language is a language of code, which has no keyed documents.
-    NotAKeyedDocument,
-    /// The language is not a language of documents, which have no prose.
-    NotADocument,
-    /// The language has the construct and has not written the reader of it yet: a stage of a language being written, never an answer a
-    /// finished language gives for a construct it has.
-    NotYetRead,
-    /// The language has no project manifests.
-    NoManifests,
-}
-
 /// What a language does for a relation: it reads it, or it says the relation is not in the language. A language can say it
 /// reads a relation only through the item that reads it (`reads::<Item>()`), which implements the trait ryo owns for it;
 /// there is no way to make the answer from a reader written beside the item.
@@ -140,4 +123,164 @@ pub enum Expansions {
     Included,
     /// It does not: it reads the file's own tree.
     Ignored,
+}
+
+/// The engine-owned reader; every provider delegates to the same indexed source coordinates.
+#[derive(Debug)]
+pub(crate) struct SourceLocationReader<M>(
+    pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
+);
+
+impl<M> declared::Syntax for SourceLocationReader<M> {}
+
+impl<M: 'static> ReadItem for SourceLocationReader<M> {
+    type Relation =
+        ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocation;
+    type Model = M;
+    const READER: Reader<
+        ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocation,
+        M,
+    > = Reader {
+        reads: Reads::Every,
+        visit: &Self(std::marker::PhantomData),
+        expansions: Expansions::Included,
+        relation: std::marker::PhantomData,
+    };
+}
+
+impl<M>
+    Visiting<
+        ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocation,
+        M,
+    > for SourceLocationReader<M>
+{
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        _model: &M,
+        _symbols: &mut Symbols,
+        position: Position,
+        out: &mut dyn Rows<ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocationRow>,
+    ) {
+        use crate::domain::elements::service::{end_at, start_at};
+        use crate::domain::location::{
+            service::{column, line},
+            types::SourceLineOffset,
+        };
+        let span = ryo_relations::domain::relations::types::Span {
+            start: start_at(tree.elements, position),
+            end: end_at(tree.elements, position),
+        };
+        if span.start > span.end
+            || usize::try_from(span.end.0).unwrap_or(usize::MAX) > tree.source.0.len()
+        {
+            return;
+        }
+        let index = &crate::domain::elements::service::engine(tree.elements).line_starts;
+        out.write(ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocationRow {
+            id: ryo_relations::domain::relations::service::node_id(tree.file, position),
+            file: tree.file,
+            span,
+            start_line: ryo_relations::domain::relations::types::Integer(line(index, SourceLineOffset(span.start.0)).0),
+            end_line: ryo_relations::domain::relations::types::Integer(line(index, SourceLineOffset(span.end.0)).0),
+            start_byte: ryo_relations::domain::relations::types::Integer(i64::from(span.start.0)),
+            end_byte: ryo_relations::domain::relations::types::Integer(i64::from(span.end.0)),
+            start_column: ryo_relations::domain::relations::types::Integer(column(index, SourceLineOffset(span.start.0)).0),
+            end_column: ryo_relations::domain::relations::types::Integer(column(index, SourceLineOffset(span.end.0)).0),
+        });
+    }
+}
+
+/// Shared native projection used by providers without embedded expressions.
+#[derive(Debug)]
+pub(crate) struct NativeSemanticSyntax<M>(
+    pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
+);
+impl<M> declared::Syntax for NativeSemanticSyntax<M> {}
+impl<M: 'static> ReadItem for NativeSemanticSyntax<M> {
+    type Relation =
+        ryo_relations::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntax;
+    type Model = M;
+    const READER: Reader<Self::Relation, M> = Reader {
+        reads: Reads::Every,
+        visit: &Self(std::marker::PhantomData),
+        expansions: Expansions::Ignored,
+        relation: std::marker::PhantomData,
+    };
+}
+impl<M>
+    Visiting<
+        ryo_relations::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntax,
+        M,
+    > for NativeSemanticSyntax<M>
+{
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        _model: &M,
+        _symbols: &mut Symbols,
+        position: Position,
+        out: &mut dyn Rows<ryo_relations::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxRow>,
+    ) {
+        use crate::domain::elements::service::{end_at, kind_at, kind_names, start_at, text_at};
+        let Some(kind) = kind_names(tree.elements)
+            .get(usize::from(kind_at(tree.elements, position).0))
+            .copied()
+        else {
+            return;
+        };
+        out.write(ryo_relations::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxRow {
+            id: ryo_relations::domain::relations::service::node_id(tree.file, position),
+            kind,
+            text: text_at(tree.elements, position),
+            file: tree.file,
+            span: ryo_relations::domain::relations::types::Span { start: start_at(tree.elements, position), end: end_at(tree.elements, position) },
+        });
+    }
+}
+
+/// Shared native edge projection; providers with embeddings supply explicit alternatives.
+#[derive(Debug)]
+pub(crate) struct NativeSemanticChild<M>(
+    pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
+);
+impl<M> declared::Syntax for NativeSemanticChild<M> {}
+impl<M: 'static> ReadItem for NativeSemanticChild<M> {
+    type Relation =
+        ryo_relations::domain::relations::collections::relations::semantic_child::item::SemanticChild;
+    type Model = M;
+    const READER: Reader<Self::Relation, M> = Reader {
+        reads: Reads::Every,
+        visit: &Self(std::marker::PhantomData),
+        expansions: Expansions::Ignored,
+        relation: std::marker::PhantomData,
+    };
+}
+impl<M>
+    Visiting<
+        ryo_relations::domain::relations::collections::relations::semantic_child::item::SemanticChild,
+        M,
+    > for NativeSemanticChild<M>
+{
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        _model: &M,
+        _symbols: &mut Symbols,
+        position: Position,
+        out: &mut dyn Rows<ryo_relations::domain::relations::collections::relations::semantic_child::item::SemanticChildRow>,
+    ) {
+        use crate::domain::elements::service::{field_name_at, ordinal_at, parent_at};
+        let parent = parent_at(tree.elements, position);
+        if parent == position {
+            return;
+        }
+        out.write(ryo_relations::domain::relations::collections::relations::semantic_child::item::SemanticChildRow {
+            parent: ryo_relations::domain::relations::service::node_id(tree.file, parent),
+            child: ryo_relations::domain::relations::service::node_id(tree.file, position),
+            ordinal: ryo_relations::domain::relations::types::Integer(i64::from(ordinal_at(tree.elements, position).0)),
+            field: field_name_at(tree.elements, position),
+            file: tree.file,
+        });
+    }
 }

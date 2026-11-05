@@ -1,6 +1,6 @@
 //! The `rewriting` service's cases, on plans written by hand.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::same_sets;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -77,6 +77,8 @@ fn idiom(second_join_on: u32, second_asks: [u32; 2]) -> Vec<PlanStep> {
             output: rows.to_vec(),
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         step(Operation::Antijoin {
             left: Reads::Step(StepId(2)),
@@ -97,6 +99,8 @@ fn idiom(second_join_on: u32, second_asks: [u32; 2]) -> Vec<PlanStep> {
             output: rows.to_vec(),
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         step(Operation::Antijoin {
             left: Reads::Step(StepId(5)),

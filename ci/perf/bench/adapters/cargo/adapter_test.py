@@ -4,11 +4,28 @@ without running the tool it wraps."""
 from __future__ import annotations
 
 import subprocess
+import hashlib
+import json
 
-from ci.perf.bench.adapters.cargo.adapter import CargoBench, cargo_bench, measures
+import pytest
+
+from ci.perf.bench.adapters.cargo.adapter import BENCH_DIRECTORY, FIXTURE_COPY, FIXTURE_HOOK, FIXTURE_MODULE, FIXTURE_HELPER, CargoBench, cargo_bench, measures
 from ci.perf.bench.interface_test import conforms
+from ci.perf.use_case import Refused
 
 DOCUMENT = '{"ruff": {"cold-milliseconds": {"value": 831, "lower_value": 794, "upper_value": 893}, "peak-megabytes": {"value": 546}}}'
+
+
+def fixture_setup(head, tree):
+    """A historical driver and a distinct, benchmark-owned setup helper supplied by head."""
+    helper = head / FIXTURE_HELPER
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text("// benchmark-owned scratch normalization helper\n")
+    driver = tree / BENCH_DIRECTORY / "use_case.rs"
+    driver.parent.mkdir(parents=True, exist_ok=True)
+    original = "/// The core's warm and cold `check`.\nfn target() {\n" + FIXTURE_COPY + "}\n"
+    driver.write_text(original)
+    return driver, original, helper
 
 
 def test_the_cargo_adapter_implements_the_port() -> None:
@@ -31,10 +48,112 @@ def test_both_trees_build_with_the_checkout_s_toolchain_and_the_document_is_kept
 
     def run(argv, **kwargs):
         calls.append((kwargs["cwd"], kwargs["env"]["RUSTUP_TOOLCHAIN"]))
-        return subprocess.CompletedProcess(argv, 0, DOCUMENT)
+        return subprocess.CompletedProcess(argv, 0, DOCUMENT, "")
 
     monkeypatch.setattr(subprocess, "run", run)
     bench = CargoBench(tmp_path, tmp_path / "out")
     assert bench.measure(tmp_path / "base", "ryo", "lint", "base-1") == measures(DOCUMENT)
     assert calls == [(tmp_path / "base/crates/ryo", "1.97.1")]
     assert (tmp_path / "out/base-1-ryo-lint.json").read_text() == DOCUMENT
+
+
+def test_failed_bench_keeps_stdout_stderr_and_command_for_the_failure_artifact(monkeypatch, tmp_path) -> None:
+    (tmp_path / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.97.1"\n')
+    fixture_setup(tmp_path, tmp_path / "head")
+
+    def run(argv, **kwargs):
+        return subprocess.CompletedProcess(argv, 101, "compiler json diagnostics", "cargo failed")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    bench = CargoBench(tmp_path, tmp_path / "out")
+    try:
+        bench.measure(tmp_path / "head", "tastemaker", "commands", "head-1")
+    except subprocess.CalledProcessError as error:
+        assert error.returncode == 101
+        assert error.stdout == "compiler json diagnostics"
+        assert error.stderr == "cargo failed"
+    else:
+        raise AssertionError("failed cargo benchmark must remain a failure")
+    assert (tmp_path / "out/head-1-tastemaker-commands.stdout.txt").read_text() == "compiler json diagnostics"
+    assert (tmp_path / "out/head-1-tastemaker-commands.stderr.txt").read_text() == "cargo failed"
+    assert '"status": 101' in (tmp_path / "out/head-1-tastemaker-commands.command.json").read_text()
+
+
+def test_historical_benchmark_setup_is_explicit_and_fully_restored(monkeypatch, tmp_path) -> None:
+    (tmp_path / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.97.1"\n')
+    tree = tmp_path / "base"
+    driver, original, helper = fixture_setup(tmp_path, tree)
+    manifest = tree / "crates/ryo/tastemaker.toml"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text('tastemaker = "0.1.0"\n')
+
+    def run(argv, **kwargs):
+        assert FIXTURE_HOOK in driver.read_text()
+        assert FIXTURE_MODULE in driver.read_text()
+        assert (tree / FIXTURE_HELPER).read_bytes() == helper.read_bytes()
+        assert manifest.read_text() == 'tastemaker = "0.1.0"\n', "the adapter never rewrites a production manifest"
+        return subprocess.CompletedProcess(argv, 0, DOCUMENT, "BENCH_FIXTURE_VERSION recorded\n")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert CargoBench(tmp_path, None).measure(tree, "tastemaker", "commands", "base-1") == measures(DOCUMENT)
+    assert driver.read_text() == original
+    assert not (tree / FIXTURE_HELPER).exists()
+    record = tmp_path / "target/benchmarks/speed/base-1-tastemaker-commands.command.json"
+    evidence = json.loads(record.read_text())["benchmark_setup"]
+    assert evidence["execution"] == "audited-benchmark-setup-overlay"
+    assert evidence["original_driver_sha256"] == hashlib.sha256(original.encode()).hexdigest()
+    assert evidence["original_driver_sha256"] != evidence["effective_driver_sha256"]
+    assert evidence["helper_sha256"] == hashlib.sha256(helper.read_bytes()).hexdigest()
+    assert evidence["helper_source"] == helper.read_text()
+    assert FIXTURE_HOOK.splitlines()[0] in evidence["driver_patch"]
+
+
+def test_current_benchmark_uses_the_same_setup_without_an_extra_hook(monkeypatch, tmp_path) -> None:
+    (tmp_path / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.97.1"\n')
+    driver, original, helper = fixture_setup(tmp_path, tmp_path)
+    current = FIXTURE_MODULE + original.replace(FIXTURE_COPY, FIXTURE_COPY + FIXTURE_HOOK)
+    driver.write_text(current)
+
+    def run(argv, **kwargs):
+        assert driver.read_text() == current
+        return subprocess.CompletedProcess(argv, 0, DOCUMENT, "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    CargoBench(tmp_path, tmp_path / "out").measure(tmp_path, "tastemaker", "commands", "head-1")
+    assert driver.read_text() == current
+    assert helper.exists()
+    evidence = json.loads((tmp_path / "out/head-1-tastemaker-commands.command.json").read_text())["benchmark_setup"]
+    assert evidence["driver_patch"] == ""
+    assert evidence["original_driver_sha256"] == evidence["effective_driver_sha256"]
+
+
+def test_exception_restores_the_original_driver_and_existing_helper(monkeypatch, tmp_path) -> None:
+    (tmp_path / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.97.1"\n')
+    tree = tmp_path / "base"
+    driver, original, _ = fixture_setup(tmp_path, tree)
+    old_helper = tree / FIXTURE_HELPER
+    old_helper.parent.mkdir(parents=True, exist_ok=True)
+    old_helper.write_text("// original historical helper\n")
+
+    def run(argv, **kwargs):
+        raise OSError("cargo cannot start")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    with pytest.raises(OSError, match="cargo cannot start"):
+        CargoBench(tmp_path, None).measure(tree, "tastemaker", "commands", "base-1")
+    assert driver.read_text() == original
+    assert old_helper.read_text() == "// original historical helper\n"
+
+
+def test_unknown_historical_setup_is_refused_without_mutation(monkeypatch, tmp_path) -> None:
+    (tmp_path / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.97.1"\n')
+    driver, _, _ = fixture_setup(tmp_path, tmp_path / "base")
+    driver.write_text("unknown benchmark driver\n")
+
+    def run(argv, **kwargs):
+        raise AssertionError("unsupported setup must not launch cargo")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    with pytest.raises(Refused, match="unsupported historical"):
+        CargoBench(tmp_path, None).measure(tmp_path / "base", "tastemaker", "commands", "base-1")
+    assert driver.read_text() == "unknown benchmark driver\n"

@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "crates/core", "crates/language", "crates/query_language", "crates/sdk", "crates/values", "languages/*"]
+members = ["cli", "crates/benchmark", "crates/benchmark_contracts", "crates/core", "crates/derived", "crates/execution", "crates/matching", "crates/language", "crates/operators", "crates/query_language", "crates/relations", "crates/sdk", "crates/values", "languages/*"]
 resolver = "3"
 # The languages not yet written: each joins the workspace, the command line and the build when its author starts it, and the compiler
 # then lists what its use cases lack. Their directories stay, with the part of each that a scaffold places.
@@ -27,18 +27,22 @@ license = "MIT"
 repository = "https://github.com/idiomatic-sh/idiomatic"
 
 [workspace.dependencies]
+unicode-width = "=0.2.2"
+wait4 = "=0.2.0"
 sha2 = "=0.10.9"
 ignore = "=0.4.33"
 rayon = "=1.12.0"
 memchr = "=2.8.3"
+num-bigint = "=0.4.8"
 globset = "=0.4.18"
-regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "perf", "meta", "hybrid"] }
+regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "meta", "hybrid", "unicode"] }
 dhat = "=0.3.3"
 # The allocators ruff and uv ship, pinned as ruff pins them: jemalloc where it builds, mimalloc on Windows (mimalloc v2: v3.3.2
 # crashes on Windows CPUs without POPCNT).
 mimalloc = { version = "=0.1.52", default-features = false, features = ["v2"] }
 tikv-jemallocator = { version = "=0.6.1", default-features = false, features = ["background_threads_runtime_support"] }
 hashbrown = "=0.17.1"
+indexmap = "=2.14.2"
 heck = "=0.5.0"
 rustc-hash = "=2.1.3"
 strum = { version = "=0.27.2", features = ["derive"] }
@@ -51,6 +55,7 @@ clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
 cpu-time = "=1.0.0"
 cucumber = "=0.23.0"
 divan = "=0.1.21"
+dunce = "=1.0.5"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151" }
 blake3 = "=1.8.6"

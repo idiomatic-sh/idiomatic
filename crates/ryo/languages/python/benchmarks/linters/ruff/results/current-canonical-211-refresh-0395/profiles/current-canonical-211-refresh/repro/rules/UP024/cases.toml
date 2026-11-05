@@ -1,0 +1,107 @@
+[[cases]]
+name = "builtin-call"
+comparison = "full"
+files = { "case.py" = "IOError()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "raise-builtin"
+comparison = "full"
+files = { "case.py" = "raise IOError\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 6, "end" = 13 }]
+
+[[cases]]
+name = "except-builtin"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept IOError:\n    pass\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 21, "end" = 28 }]
+
+[[cases]]
+name = "except-tuple-two-aliases"
+comparison = "full"
+files = { "case.py" = "import socket\ntry:\n    pass\nexcept (IOError, socket.error):\n    pass\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 35, "end" = 58 }]
+
+[[cases]]
+name = "except-tuple-one-alias"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (IOError, ValueError):\n    pass\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 21, "end" = 42 }]
+
+[[cases]]
+name = "imported-builtin-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import IOError as OldError\nOldError()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 41, "end" = 49 }]
+
+[[cases]]
+name = "os-error-call"
+comparison = "full"
+files = { "case.py" = "import os\nos.error()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 10, "end" = 18 }]
+
+[[cases]]
+name = "socket-error-call"
+comparison = "full"
+files = { "case.py" = "import socket\nsocket.error()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 14, "end" = 26 }]
+
+[[cases]]
+name = "mmap-error-call"
+comparison = "full"
+files = { "case.py" = "import mmap\nmmap.error()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 12, "end" = 22 }]
+
+[[cases]]
+name = "resource-error-call"
+comparison = "full"
+files = { "case.py" = "import resource\nresource.error()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 16, "end" = 30 }]
+
+[[cases]]
+name = "select-error-call"
+comparison = "full"
+files = { "case.py" = "import select\nselect.error()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 14, "end" = 26 }]
+
+[[cases]]
+name = "windows-error"
+comparison = "full"
+files = { "case.py" = "WindowsError(1)\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 0, "end" = 12 }]
+
+[[cases]]
+name = "not-a-call"
+comparison = "full"
+files = { "case.py" = "IOError\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "shadowed-name"
+comparison = "full"
+files = { "case.py" = "IOError = Custom\nIOError()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 16 }]
+
+[[cases]]
+name = "wrong-attribute"
+comparison = "full"
+files = { "case.py" = "other.error()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 5 }]
+
+[[cases]]
+name = "wrong-module"
+comparison = "full"
+files = { "case.py" = "import os as socket\nsocket.error()\n" }
+expected = [{ "rule" = "UP024", "file" = "case.py", "start" = 20, "end" = 32 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "IOError()  # noqa: UP024\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP024\nIOError()\n" }
+expected = []

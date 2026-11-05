@@ -26,6 +26,7 @@ pub use lint::schemas::RuleIdSchemaError;
 pub use lint::types::Cache;
 
 pub use lint::types::CaseSource;
+pub use lint::types::ExecutablePermission;
 
 pub use lint::types::SourceText;
 
@@ -52,9 +53,16 @@ pub use lint::types::Finding;
 
 pub use lint::types::Glob;
 
+pub use lint::entry::dependency_fingerprint;
 pub use lint::types::LintReport;
+pub use lint::types::Skipped;
+pub use lint::types::{DependencyFingerprint, ProjectDependency, ProjectDependencyState};
 
 pub use lint::types::LintRequest;
+pub use lint::types::{
+    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
+    ProjectInventoryCompleteness, ProjectSearchScope,
+};
 
 pub use crate::domain::capacity::types::MemoryBudget;
 
@@ -67,6 +75,9 @@ pub use lint::types::ProviderName;
 pub use lint::types::Rule;
 
 pub use lint::types::RuleId;
+
+pub use lint::types::RuleApplicability;
+pub use lint::types::SkipReason;
 
 pub use lint::types::Unknown;
 
@@ -115,3 +126,19 @@ pub use lint::types::Corpus;
 pub use lint::types::FindingColumn;
 
 pub use crate::domain::relation::types::ColumnName;
+
+/// Local typed query input name.
+pub use crate::domain::observation::types::ObservationBindingName;
+/// Ordered semantic column required by a bound input.
+pub use crate::domain::observation::types::ObservationColumn;
+/// Name of one bound input column.
+pub use crate::domain::observation::types::ObservationColumnName;
+/// Name of an explicitly authored producer output.
+pub use crate::domain::observation::types::ObservationName;
+/// Explicit authored query outputs consumed by another configured rule.
+pub use lint::types::ObservationBinding;
+/// A selected producer output or an explicitly unavailable query.
+pub use lint::types::ObservationProducer;
+pub use lint::types::{ExecutionOptions, NodeResultReuse};
+
+pub use crate::domain::observation::types::ObservationKind;

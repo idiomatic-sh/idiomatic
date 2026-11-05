@@ -2,16 +2,16 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::super::errors::QueryLanguageError;
-use super::super::interface::QueryLanguagePort;
-use ryo_language::domain::relations::types::{Integer, Offset, Relation, Span};
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
 use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::RefusalMessage;
 use ryo_values::domain::plan_parts::types::RefusedKind;
 use ryo_values::domain::plan_parts::types::RefusedQuery;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input, LiteralText, Operand, QueryLiteral, QueryText, StepId, Test,
+    ColumnIndex, Comparison, Input, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 
@@ -31,6 +31,8 @@ impl Default for QueryLanguageFake {
     fn default() -> Self {
         Self {
             plan: Plan {
+                observation_inputs: Vec::new(),
+                observations: Vec::new(),
                 parameters: Vec::new(),
                 steps: Vec::new(),
                 emit: Emit {
@@ -40,6 +42,7 @@ impl Default for QueryLanguageFake {
                     headings: Vec::new(),
                 },
                 frontier: Vec::new(),
+                comparison_origins: Vec::new(),
             },
             calls: AtomicUsize::new(0),
         }
@@ -61,6 +64,8 @@ fn select(comparisons: Vec<Comparison>) -> PlanStep {
 /// A plan of the steps given, emitting the step `step` as the rows of `function` are shown.
 fn plan_of(steps: Vec<PlanStep>, step: u32) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps,
         emit: Emit {
@@ -70,6 +75,7 @@ fn plan_of(steps: Vec<PlanStep>, step: u32) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -99,6 +105,7 @@ impl QueryLanguageFake {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("no-such-kind".into()))),
+            origin: None,
         };
         let mut step = select(vec![comparison]);
         if let Operation::Select { from, .. } = &mut step.operation {
@@ -117,6 +124,7 @@ impl QueryLanguageFake {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(9)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
+            origin: None,
         };
         Self {
             plan: plan_of(vec![select(vec![comparison])], 0),
@@ -150,10 +158,11 @@ impl QueryLanguageFake {
 impl QueryLanguagePort for QueryLanguageFake {
     fn validate(
         &self,
-        text: &QueryText,
+        bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
-        if text.0.contains(REFUSED) {
+        if bundle.root.text.contains(REFUSED) {
             return Err(refused());
         }
         Ok(ValidateReport {
@@ -168,11 +177,12 @@ impl QueryLanguagePort for QueryLanguageFake {
 
     fn compile(
         &self,
-        text: &QueryText,
+        bundle: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
         let _calls_before = self.calls.fetch_add(1, Ordering::SeqCst);
-        if text.0.contains(REFUSED) {
+        if bundle.root.text.contains(REFUSED) {
             return Err(refused());
         }
         Ok(self.plan.clone())
@@ -189,6 +199,7 @@ fn refused() -> QueryLanguageError {
                 start: Offset(0),
                 end: Offset(0),
             },
+            origin: None,
         },
     }
 }

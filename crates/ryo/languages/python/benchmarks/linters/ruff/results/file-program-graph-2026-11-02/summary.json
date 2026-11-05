@@ -1,0 +1,86 @@
+{
+  "schema": "file-program-graph-scoped-checkpoint/v1",
+  "source_head": "7d30651ad92c4958626247870a51198b8c168a31",
+  "worker_sha256": "84cf8b5e0c440e03782b5917380d1cb569c6806854c48dc7001990afb9c464e1",
+  "scope": {
+    "rules": 310,
+    "files": 2875,
+    "corpus": "frozen Django 3.10",
+    "phase": "cold",
+    "rayon_threads": 1,
+    "graph_default": "off"
+  },
+  "ordinary_cold": {
+    "off": {
+      "wall_seconds": 248.623745115,
+      "cpu_seconds": 246.53282,
+      "peak_rss_bytes": 2240929792,
+      "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+      "diagnostics": 2327,
+      "coverage": {
+        "selected": 891250,
+        "evaluated": 890943,
+        "skipped": 307,
+        "unknown_or_unread": 0
+      }
+    },
+    "on": {
+      "wall_seconds": 405.181617593,
+      "cpu_seconds": 404.927353,
+      "peak_rss_bytes": 2235699200,
+      "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+      "diagnostics": 2327,
+      "coverage": {
+        "selected": 891250,
+        "evaluated": 890943,
+        "skipped": 307,
+        "unknown_or_unread": 0
+      }
+    },
+    "report_exact": true,
+    "wall_ratio_on_over_off": 1.6296979896493182,
+    "cpu_ratio_on_over_off": 1.6424886268692338
+  },
+  "one_file_mechanism": {
+    "options_source_sha256": "5fe3992cb355086f69d21900382af60f31d72134056edb05dfdacb5daae5aecc",
+    "full_stdout_equal": true,
+    "target_node": 1504,
+    "target_events": [
+      {
+        "event": "publish",
+        "node": 1504,
+        "cells": 157280,
+        "capacity": 262144,
+        "remaining": 12
+      },
+      {
+        "event": "release",
+        "node": 1504,
+        "rule": 295
+      }
+    ],
+    "target_hits": 11,
+    "all_file_program_events": {
+      "native_tree_admission": 1,
+      "complete_relations": 1,
+      "cut_decision": 67617,
+      "publish": 8,
+      "publish_refused": 3575,
+      "hit": 96,
+      "release": 2,
+      "null": 1
+    }
+  },
+  "interrupted_attempt": {
+    "graph_on_observation_bytes": 0,
+    "graph_on_result_missing": true,
+    "restarted_fresh_cache": true,
+    "resource_preflight_sha256": "d259fd367630101ece735349e7a2cf1cd407b8fd161f7b3d0491b494d2a58825"
+  },
+  "limitations": [
+    "single paired cold observation",
+    "graph-on rerun occurred after workspace restart and cleanup",
+    "no full 413-rule or two additional corpus acceptance",
+    "existing Rust main cold guard remains failed"
+  ]
+}

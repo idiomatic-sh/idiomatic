@@ -1,0 +1,62 @@
+description = "No Rust source file lies on a cycle of written-path dependencies between two or more source files."
+why = "Files that name each other's modules in a ring cannot be read, tested or moved one at a time: a change to any of them reaches all of them. Edges are the provider's source dependencies (a written path in one file naming a module another file owns), mapped onto each file's syntax root so the engine's cycle search runs over entities. A file on a cycle is reported once, at its root. Not seen: a cycle through a macro invocation's tokens or through a glob import the provider cannot resolve to a file; a file naming its own modules is no edge."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let dependencies = project(from="source-dependency", columns=["source", "target"]);
+let foreign = select * from dependencies where source != target;
+let files = select * from tree-nodes where kind = "source-file";
+let from-files = select r."id" as "from", l."target" as "target" from foreign as l join files as r on l."source" = r."file";
+let edges = select l."from" as "from", r."id" as "to" from from-files as l join files as r on l."target" = r."file";
+let cycles = cycles(edges=edges, source="from", destination="to");
+let cyclic-files = select r."file" as "file", r."span" as "span" from cycles as l join files as r on l."from" = r."id";
+emit cyclic-files subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{file}` lies on a cycle of module dependencies"
+help = "Break the ring: move what the files share into a module both depend on, or invert one dependency."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod first;
+mod second;
+'''
+
+[[scenarios]]
+id = 'two-files-name-each-other-s-modules'
+scenario = "Two files name each other's modules."
+given.files.'src/first.rs' = '''
+use crate::second::Second;
+
+pub struct First(pub Option<Box<Second>>);
+'''
+given.files.'src/second.rs' = '''
+use crate::first::First;
+
+pub struct Second(pub Option<Box<First>>);
+'''
+then.findings = [
+  { path = 'src/first.rs', line = 1 },
+  { path = 'src/second.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'dependencies-run-one-way'
+scenario = 'Dependencies run one way.'
+given.files.'src/first.rs' = '''
+use crate::second::Second;
+
+pub struct First(pub Second);
+'''
+given.files.'src/second.rs' = '''
+pub struct Second;
+'''

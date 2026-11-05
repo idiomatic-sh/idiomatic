@@ -1,9 +1,9 @@
 //! What every `language` adapter must pass.
 
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::{FileId, Relation};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::fixtures::contract::Discard;
+use ryo_relations::domain::relations::types::{FileId, Relation};
 
 use super::super::errors::LanguageError;
 use super::super::interface::LanguagePort;
@@ -33,6 +33,7 @@ fn a_file_no_language_reads_is_unsupported(language: &dyn LanguagePort) -> Value
     let path = FilePath("contract.not-a-language".into());
     let bytes = FileBytes(b"anything".to_vec());
     let file = FileToRead {
+        source_language: None,
         path: &path,
         file: FileId(0),
         bytes: &bytes,
@@ -89,6 +90,9 @@ fn reading_no_manifest_refuses_none(language: &dyn LanguagePort) -> Result<Value
     let root = RootPath("contract".into());
     let notes = ProjectNotes::default();
     let input = ProjectInput {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &Default::default(),
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         root: &root,
         manifests: &[],

@@ -2,12 +2,12 @@
 
 use crate::domain::elements::service::{engine, engine_mut, positions};
 use crate::domain::elements::types::{Completion, CompletionEngine, Elements, KindSum, Tree};
-use crate::domain::relations::constants::{NO_FIELD, NO_SYMBOL};
-use crate::domain::relations::types::{Bytes, FieldId, FileId, KindBits, Position};
 use crate::domain::symbols::service::{hash_in, intern_derived, vocabulary_symbol};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::NameText;
+use ryo_relations::domain::relations::constants::{NO_FIELD, NO_SYMBOL};
+use ryo_relations::domain::relations::types::{Bytes, FieldId, FileId, KindBits, Position};
+use ryo_relations::domain::terms::types::NameText;
 
 /// What a kind's number and name are mixed with before they are added to the vocabulary.
 const MIX: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -31,16 +31,30 @@ pub fn completion<'a>(
 
 /// Interns the decoded value of each node, after every token of the file's bytes, and gives the node that text.
 pub fn intern_decoded(elements: &mut Elements, symbols: &mut Symbols, source: ByteSlice<'_>) {
+    intern_decoded_from(elements, symbols, source, 0);
+}
+
+/// Intern only decoded entries added after an append, preserving every previous symbol.
+pub(crate) fn intern_decoded_from(
+    elements: &mut Elements,
+    symbols: &mut Symbols,
+    source: ByteSlice<'_>,
+    from: usize,
+) {
     // Source tokens have all been interned; derived node values must follow them.
     let count = engine(elements).decoded.len();
-    for at in 0..count {
+    for at in from..count {
+        #[cfg(test)]
+        {
+            engine_mut(elements).decoded_intern_visits += 1;
+        }
         let table = engine(elements);
         let Some(decoded) = table.decoded.get(at).copied() else {
             break;
         };
         if decoded.property.0 != 0
             || crate::domain::elements::service::flags_at(elements, decoded.element).0
-                & crate::domain::relations::constants::TOKEN.0
+                & ryo_relations::domain::relations::constants::TOKEN.0
                 != 0
         {
             continue;
@@ -51,7 +65,7 @@ pub fn intern_decoded(elements: &mut Elements, symbols: &mut Symbols, source: By
             .decoded_text
             .0
             .get(from..to)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
+            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
             .map(|value| intern_derived(symbols, source, NameText(value)));
         if let Some(symbol) = symbol {
             *crate::domain::elements::service::number_mut(&mut elements.text, decoded.element) =
@@ -129,7 +143,9 @@ pub fn write_fields(
         source: completion.source,
         file: completion.file,
     };
-    for at in positions(completion.elements) {
+    for at in positions(completion.elements).chain(
+        crate::domain::elements::service::expanded_positions(completion.elements),
+    ) {
         *crate::domain::elements::service::number_mut(&mut roles, at) = assign(&tree, at);
     }
     completion.elements.field = roles;

@@ -1,0 +1,83 @@
+[[cases]]
+name = "functools-direct"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache()\ndef f():\n    return 1\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 37, end = 39 }]
+
+[[cases]]
+name = "alias-module"
+comparison = "full"
+files = { "case.py" = "import functools as ft\n@ft.lru_cache()\ndef f():\n    return 1\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 36, end = 38 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from functools import lru_cache\n@lru_cache()\ndef f():\n    return 1\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 42, end = 44 }]
+
+[[cases]]
+name = "from-alias"
+comparison = "full"
+files = { "case.py" = "from functools import lru_cache as cache\n@cache()\ndef f():\n    return 1\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 47, end = 49 }]
+
+[[cases]]
+name = "configured-size"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(32)\ndef f():\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(maxsize=None)\ndef f():\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "not-decorator"
+comparison = "full"
+files = { "case.py" = "import functools\nfunctools.lru_cache()\n" }
+expected = []
+
+[[cases]]
+name = "other-decorator"
+comparison = "full"
+files = { "case.py" = "from other import lru_cache\n@lru_cache()\ndef f():\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache()  # noqa: UP011\ndef f():\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP011\nimport functools\n@functools.lru_cache()\ndef f():\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache()  # noqa: F401\ndef f():\n    return 1\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 37, end = 39 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache()\ndef f(): ...\n@functools.lru_cache()\ndef g(): ...\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 37, end = 39 }, { rule = "UP011", file = "case.py", start = 73, end = 75 }]
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "é = 1\nimport functools\n@functools.lru_cache()\ndef f(): ...\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 44, end = 46 }]
+
+[[cases]]
+name = "nested"
+comparison = "full"
+files = { "case.py" = "import functools\ndef outer():\n    @functools.lru_cache()\n    def inner(): ...\n" }
+expected = [{ rule = "UP011", file = "case.py", start = 54, end = 56 }]

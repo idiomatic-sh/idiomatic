@@ -46,7 +46,7 @@ fn escape(rest: Written<'_>) -> Option<Escaped<'_>> {
         'x' => {
             let read = number(after, HEX_DIGITS, HEXADECIMAL)?;
             return Some(Escaped::Byte {
-                octet: Octet(u8::try_from(read.code.0).ok()?), // ignore: idiomatic.arch/no-ok-on-result - an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
+                octet: Octet(u8::try_from(read.code.0).ok()?), // an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
                 after: read.after,
             });
         }
@@ -65,7 +65,7 @@ fn escape(rest: Written<'_>) -> Option<Escaped<'_>> {
         '0'..='7' => {
             let read = number(rest, OCTAL_DIGITS, OCTAL)?;
             return Some(Escaped::Byte {
-                octet: Octet(u8::try_from(read.code.0).ok()?), // ignore: idiomatic.arch/no-ok-on-result - an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
+                octet: Octet(u8::try_from(read.code.0).ok()?), // an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
                 after: read.after,
             });
         }
@@ -100,7 +100,7 @@ fn interpreted(content: Written<'_>) -> Option<Unquoted<'_>> {
     }
     bytes.extend_from_slice(rest.as_bytes());
     String::from_utf8(bytes)
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - escapes that spell bytes which are no text leave the literal with no text value
+        .ok() // escapes that spell bytes which are no text leave the literal with no text value
         .map(|text| Unquoted(Cow::Owned(text)))
 }
 

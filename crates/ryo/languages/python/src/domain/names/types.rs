@@ -20,6 +20,8 @@ pub(crate) enum Unresolved {
     InterpolatedString = 21,
     /// A requirement that writes a URL or a file and no name: the distribution names itself only once it is built.
     UnnamedRequirement = 22,
+    /// No proven canonical import or builtin origin exists for this expression.
+    QualifiedOrigin = 23,
 }
 
 /// Whether an expression writes a dotted name: a name, or attributes of one.

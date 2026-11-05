@@ -1,0 +1,26 @@
+{
+  "name": "namespace-prefix-bad-package-root",
+  "comparison": "full",
+  "files": {
+    "namespace/BadRoot/child/__init__.py": ""
+  },
+  "context": {
+    "logical-root": "inventory",
+    "auxiliary-files": {
+      "inventory/namespace/BadRoot/__init__.py": ""
+    },
+    "missing": [
+      "__init__.py",
+      "inventory/__init__.py",
+      "inventory/namespace/__init__.py"
+    ]
+  },
+  "expected": [
+    {
+      "rule": "N999",
+      "file": "namespace/BadRoot/child/__init__.py",
+      "start": 0,
+      "end": 0
+    }
+  ]
+}

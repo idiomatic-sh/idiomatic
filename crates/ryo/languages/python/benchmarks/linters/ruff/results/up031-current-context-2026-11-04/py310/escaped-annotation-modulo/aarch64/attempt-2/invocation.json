@@ -1,0 +1,85 @@
+{
+  "actual_request_root": "/tmp/.tmp29OHU9/UP031/0",
+  "arguments": [
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/.tmp29OHU9/cache/UP031/0/ruff",
+    "--select",
+    "UP031",
+    "--target-version",
+    "py310",
+    "--",
+    "case.py"
+  ],
+  "context_derivation": {
+    "changes": [
+      "profile includes explicit query-module declarations; reference argv unchanged",
+      "normalized settings adds typed default performance; reference argv/environment/directory/source/process bytes unchanged"
+    ],
+    "kind": "canonical-invocation-context-rebind",
+    "not_a_new_process_capture": true,
+    "original_invocation": {
+      "path": "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-2/invocation.json",
+      "sha256": "6f0b357df029dc60c481f2fa500a109a99594e8b234f5391e0eeef1e8f6b78c6"
+    },
+    "original_profile_sha256": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e",
+    "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63"
+  },
+  "directory": "/tmp/.tmp29OHU9/UP031/0",
+  "environment": {
+    "RAYON_NUM_THREADS": "1"
+  },
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "exit": 2,
+  "files": [
+    "case.py"
+  ],
+  "normalized_settings": {
+    "arguments": [
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "$STATE/ruff",
+      "--select",
+      "UP031",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "$ROOT",
+    "environment": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "parser_configuration": "python-target=3.10",
+    "performance": {
+      "column_kernel": false,
+      "diagnostics": {
+        "execution": false,
+        "joins": false,
+        "lifecycle_memory": false,
+        "prefixes": false,
+        "resource_routes": false,
+        "row_progress": false,
+        "selection_detail": false,
+        "steps": false,
+        "subplans": false
+      },
+      "node_result_reuse": "disabled"
+    },
+    "project_context_mode": "Isolated"
+  },
+  "observer_no_deadline": true,
+  "profile_sha256": "26b273ef64f63ef1b9ab7d4215d8f1a90e43f100eb240d3ebff5daee896eeffa",
+  "settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689",
+  "signal": null,
+  "source_sha256": "37d8c29ceaf683cbd160d3b919f5cc8a38ebb7d5a28ada2db77203cba91a0191",
+  "state": "/tmp/.tmp29OHU9/cache/UP031/0",
+  "tool": "ruff",
+  "version": "0.16.5"
+}

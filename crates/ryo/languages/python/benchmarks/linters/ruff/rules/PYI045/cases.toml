@@ -1,0 +1,83 @@
+[[cases]]
+name = "iter-direct-import"
+comparison = "full"
+files = { "case.pyi" = "from typing import Iterable\nclass C:\n    def __iter__(self) -> Iterable: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 63, end = 71 }]
+
+[[cases]]
+name = "iter-parameterized"
+comparison = "full"
+files = { "case.pyi" = "import collections.abc as abc\nclass C:\n    def __iter__(self) -> abc.Iterable[int]: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 65, end = 82 }]
+
+[[cases]]
+name = "iter-alias-import"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Iterable as I\nclass C:\n    def __iter__(self) -> I[int]: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 77, end = 83 }]
+
+[[cases]]
+name = "aiter-wrong-sync-return-control"
+comparison = "full"
+files = { "case.pyi" = "from typing import AsyncIterable\nclass C:\n    def __aiter__(self) -> AsyncIterable[int]: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 69, end = 87 }]
+
+[[cases]]
+name = "iter-async-function-name"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Iterable\nclass C:\n    async def __iter__(self) -> Iterable[int]: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 78, end = 91 }]
+
+[[cases]]
+name = "aiter-direct"
+comparison = "full"
+files = { "case.pyi" = "from typing import AsyncIterable\nclass C:\n    def __aiter__(self) -> AsyncIterable: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 69, end = 82 }]
+
+[[cases]]
+name = "aiter-parameterized-alias"
+comparison = "full"
+files = { "case.pyi" = "import collections.abc as abc\nclass C:\n    async def __aiter__(self) -> abc.AsyncIterable[int]: ...\n" }
+expected = [{ rule = "PYI045", file = "case.pyi", start = 72, end = 94 }]
+
+[[cases]]
+name = "iterator-control"
+comparison = "full"
+files = { "case.pyi" = "from typing import Iterator\nclass C:\n    def __iter__(self) -> Iterator[int]: ...\n" }
+expected = []
+
+[[cases]]
+name = "iterable-outside-class"
+comparison = "full"
+files = { "case.pyi" = "from typing import Iterable\ndef __iter__(self) -> Iterable[int]: ...\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-method-name"
+comparison = "full"
+files = { "case.pyi" = "from typing import Iterable\nclass C:\n    def values(self) -> Iterable[int]: ...\n" }
+expected = []
+
+[[cases]]
+name = "nested-iterable-is-not-return-root"
+comparison = "full"
+files = { "case.pyi" = "from typing import Iterable\nclass C:\n    def __iter__(self) -> list[Iterable[int]]: ...\n" }
+expected = []
+
+[[cases]]
+name = "runtime-module-method"
+comparison = "full"
+files = { "case.py" = "from typing import Iterable\nclass C:\n    def __iter__(self) -> Iterable[int]: ...\n" }
+expected = [{ rule = "PYI045", file = "case.py", start = 63, end = 76 }]
+
+[[cases]]
+name = "unrelated-import-alias"
+comparison = "full"
+files = { "case.pyi" = "from custom import Iterable\nclass C:\n    def __iter__(self) -> Iterable[int]: ...\n" }
+expected = []
+
+[[cases]]
+name = "suppressed-iterable"
+comparison = "full"
+files = { "case.pyi" = "from typing import Iterable\nclass C:\n    def __iter__(self) -> Iterable[int]: ... # noqa: PYI045\n" }
+expected = []

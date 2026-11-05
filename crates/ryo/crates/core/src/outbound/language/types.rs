@@ -1,15 +1,15 @@
 //! The types of the `language` port: plain data, public fields and derives, with no constructor
 //! and no inherent impl.
 
-use ryo_language::domain::answers::types::AbsenceCause;
-use ryo_language::domain::relations::types::{FileId, Relation};
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::terms::types::UnknownName;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, RootPath};
 use ryo_values::domain::descriptions::types::LanguageName;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
 /// A linked language as a listing names it: its name, then its build.
@@ -50,6 +50,8 @@ pub struct LanguageBuild(pub Box<str>);
 /// One file to read, and the relations wanted of it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileToRead<'a> {
+    /// A linked provider explicitly selected by the request edge.
+    pub source_language: Option<&'a LanguageName>,
     /// The path, relative to the root: text that came from disk.
     pub path: &'a FilePath,
     /// The number the run gave the file.
@@ -69,7 +71,7 @@ pub struct FileToRead<'a> {
 pub enum FileReading {
     /// The language at this place among the ones linked read it and wrote its rows.
     Read(LanguageNumber),
-    /// No linked language parses this file, and a linked language reads it as a manifest: it has no tree, and it is not left unread.
+    /// A provider classifies this input as project/configuration data: its project reader owns semantics, it has no source tree, and it is not left unread.
     Manifest,
     /// No linked language reads this file.
     Unsupported,
@@ -105,10 +107,16 @@ pub struct ProjectInput<'a> {
     pub root: &'a RootPath,
     /// Where its files are: on the disk below the root, or only those given.
     pub repository: ryo_language::inbound::use_cases::project::types::Repository,
+    /// Ordered host-declared project search roots.
+    pub search_scope: &'a ryo_language::domain::project_context::types::ProjectSearchScope,
+    /// Host inventory authority for Given requests.
+    pub given_inventory: &'a ryo_language::domain::project_context::types::GivenProjectInventory,
+    /// Entry states acquired once by the engine for the demanded candidates.
+    pub observed_entries: &'a ryo_language::domain::project_context::types::ObservedEntries,
     /// The manifests of the repository.
     pub manifests: &'a [ManifestFile],
     /// Every file the run lists, by path, in the order of their places.
-    pub files: &'a [CorpusEntry],
+    pub files: &'a [CorpusInput],
     /// What the language that read each file wrote of it, in the order of `files`.
     pub notes: &'a ProjectNotes,
     /// The relations the run asks for.
@@ -137,6 +145,8 @@ pub struct ProjectAnswer {
     /// The files the languages read beyond the manifests the run handed them, and the manifests the rows are about that the run does
     /// not list, by path from the root (`../` climbs above it), in the order of their paths, each once.
     pub consulted: Vec<FilePath>,
+    /// The exact candidate observations the engine handed to the readers.
+    pub observed_entries: Vec<ryo_language::domain::project_context::types::EntryObservation>,
 }
 
 /// Whether a language gives the elements of a file their roles under their parents, for the queries that read them.
@@ -162,7 +172,7 @@ pub struct Answers(pub Vec<RelationAnswer>);
 
 /// The parts of one language an edge hands over: its name, its build, and the two use cases it implements. One value for each
 /// language, so no part can be missing or out of step with another.
-// ignore: idiomatic.arch/port/plain-port-types - the parts of one language an edge hands the adapter: its two use cases are shared engines behind `dyn` that nothing compares, copies or prints; the adapter takes them whole, and declaring them in factory.rs would make the adapter name its factory (factory-calls)
+// the parts of one language an edge hands the adapter: its two use cases are shared engines behind `dyn` that nothing compares, copies or prints; the adapter takes them whole, and declaring them in factory.rs would make the adapter name its factory (factory-calls)
 pub struct LanguageHandles {
     /// What the language is called, in listings.
     pub name: LanguageName,

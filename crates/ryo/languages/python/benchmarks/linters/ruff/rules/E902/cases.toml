@@ -1,0 +1,63 @@
+[[cases]]
+name = "missing-explicit-primary"
+comparison = "full"
+requested-files = ["companion.py", "missing.py"]
+files = { "companion.py" = "value = 1\n" }
+context = { logical-root = "project", missing = ["project/missing.py"] }
+expected = [{ rule = "E902", file = "missing.py", start = 0, end = 0 }]
+
+[[cases]]
+name = "nested-missing-primary"
+comparison = "full"
+requested-files = ["companion.py", "pkg/gone.py"]
+files = { "companion.py" = "value = 1\n" }
+context = { logical-root = "project", missing = ["project/pkg/gone.py"] }
+expected = [{ rule = "E902", file = "pkg/gone.py", start = 0, end = 0 }]
+
+[[cases]]
+name = "missing-nonlanguage-primary"
+comparison = "full"
+requested-files = ["companion.py", "gone.txt"]
+files = { "companion.py" = "value = 1\n" }
+context = { logical-root = "project", missing = ["project/gone.txt"] }
+expected = [{ rule = "E902", file = "gone.txt", start = 0, end = 0 }]
+
+[[cases]]
+name = "unrequested-missing-context-is-not-primary"
+comparison = "full"
+files = { "companion.py" = "value = 1\n" }
+context = { logical-root = "project", missing = ["project/optional.py"] }
+expected = []
+
+[[cases]]
+name = "readable-source"
+comparison = "full"
+files = { "input.py" = "value = 1\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "readable-text-path"
+comparison = "full"
+files = { "input.txt" = "value = 1\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "missing-only-primary-without-any-source-bytes"
+comparison = "full"
+requested-files = ["missing.py"]
+files = {}
+context = { logical-root = "project", missing = ["project/missing.py"] }
+expected = [{ rule = "E902", file = "missing.py", start = 0, end = 0 }]
+
+[[cases]]
+name = "readable-invalid-syntax-remains-visible-beside-missing-input"
+comparison = "full"
+requested-files = ["invalid.py", "missing.py"]
+files = { "invalid.py" = "def broken(\n" }
+context = { logical-root = "project", missing = ["project/missing.py"] }
+expected = [
+  { rule = "invalid-syntax", file = "invalid.py", start = 12, end = 12 },
+  { rule = "E902", file = "missing.py", start = 0, end = 0 },
+]

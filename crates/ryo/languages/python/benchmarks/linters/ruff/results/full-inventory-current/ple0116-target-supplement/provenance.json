@@ -1,0 +1,6 @@
+{
+  "negative": "same query and 12 source files, direct run-ryo py310 and pinned Ruff; all 12 empty; verify-cases correctly refuses all-negative adequacy",
+  "no_combined_replay": true,
+  "positive": "sealed-worker py37 shared collector verify-inventory, 12 cases and 24 passed raw side records",
+  "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f"
+}

@@ -19,6 +19,8 @@ name = "ryo"
 path = "src/main.rs"
 
 [dependencies]
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../crates/execution", version = "0.1.2" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../crates/relations", version = "0.1.2" }
 anstream.workspace = true
 clap.workspace = true
 indicatif.workspace = true
@@ -29,6 +31,8 @@ tracing-chrome.workspace = true
 tracing-subscriber.workspace = true
 thiserror.workspace = true
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", version = "0.1.2" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../crates/operators", version = "0.1.2" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../crates/derived", version = "0.1.2" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../crates/language", version = "0.1.2" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../crates/values", version = "0.1.2" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../crates/query_language", version = "0.1.2" }

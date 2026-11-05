@@ -49,8 +49,8 @@ name = "conformance"
 harness = false
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -62,3 +62,9 @@ workspace = true
 # Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+# Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]

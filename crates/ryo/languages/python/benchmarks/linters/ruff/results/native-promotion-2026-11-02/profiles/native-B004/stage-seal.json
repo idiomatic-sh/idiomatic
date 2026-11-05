@@ -1,0 +1,400 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "e4836a800be0f030765ae56a3912c2f37e5c135b1cb657145e6b3c822d428ff9",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/annotation-origins.ryoql": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "fragments/boolean-test-context.ryoql": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/checker-namespace-events.ryoql": "7a268dd1ef24bd6589889cd46c15b35ae2b2f90f31fa678452b08cd01fc10ce3",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/class-bases.ryoql": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424",
+    "fragments/conditional-guards.ryoql": "fd83fa7007ae3ee3c1bb069e18064b06e95eac0c011ede7828c543f5ed7e6ebe",
+    "fragments/dataclass-decorators.ryoql": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+    "fragments/deferred-class-origins.ryoql": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c",
+    "fragments/deferred-read-events.ryoql": "c14a2ae37ebe042492956e83931cd13ab742b6bbcba1d0b1e67b752cbe382f24",
+    "fragments/deferred-read-resolutions.ryoql": "3c29d708f1763cebaa4e17b3803af2bc4eec614514978820abd2773fc561e9ca",
+    "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+    "fragments/eager-before-future.ryoql": "c6aeb8a561e1957e2341000601156edb529cfcb00491a28fb9c405ea9085aec1",
+    "fragments/enum-bases.ryoql": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/immutable-annotation.ryoql": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+    "fragments/immutable-annotations.ryoql": "acc17b77923b62bd9e5e4ae1df308b73a8a08179a880895e73f6ea2148934a5c",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/literal-members.ryoql": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237",
+    "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+    "fragments/lookup-read-events.ryoql": "7e2c8011f7c7810db6033a8bf74c9650c20b342aa4399ae33060bfc233c48412",
+    "fragments/lookup-symbol-events.ryoql": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "fragments/metaclass.ryoql": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a",
+    "fragments/modernization-symbols.ryoql": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "fragments/nonlocal-bindings.ryoql": "b9daa7c34cd274c2018dc621f4d141eab6548fb8dadde25ab053d5132041a609",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/python-evaluation-regions.ryoql": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "fragments/qualified-origins.ryoql": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5",
+    "fragments/repeated-characters.ryoql": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
+    "fragments/simple-stub-defaults.ryoql": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
+    "fragments/statement-equal.ryoql": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-unmapped.ryoql": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "fragments/typing-match-at-visit.ryoql": "385018e3c0553ab31e8bd3a82332afb30b078073b1fc9c6983ed9c993d3ab2aa",
+    "fragments/union-members.ryoql": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6",
+    "fragments/unpack-symbols.ryoql": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
+    "fragments/version-checks.ryoql": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771",
+    "fragments/without-effect.ryoql": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7",
+    "rules/B004/cases.toml": "831a8fc9e746bc5fafa83e5e57e52307a1316038e9081218acd6b6e09531c1e2",
+    "rules/B004/query.ryoql": "ad58476a24a904f6ef893a254f13ff8605e173efdf850ca8f6002d1cd50e9f7f"
+  },
+  "declared": {
+    "profile_name": "native-B004",
+    "rule_id": "B004",
+    "selected_rules": [
+      "B004"
+    ],
+    "profile_file": "benchmark.toml",
+    "candidate_file": "rules/B004/query.ryoql",
+    "query_sha256": "ad58476a24a904f6ef893a254f13ff8605e173efdf850ca8f6002d1cd50e9f7f",
+    "cases_file": "rules/B004/cases.toml",
+    "cases_sha256": "831a8fc9e746bc5fafa83e5e57e52307a1316038e9081218acd6b6e09531c1e2",
+    "case_count": 17,
+    "case_names": [
+      "hasattr",
+      "getattr",
+      "default",
+      "hasattr-extra",
+      "getattr-extra",
+      "keyword",
+      "unpack-keyword",
+      "different-name",
+      "bytes",
+      "concatenated",
+      "shadowed",
+      "alias",
+      "qualified",
+      "starred-first",
+      "noqa",
+      "argument-rank-skips-punctuation-and-trivia",
+      "quoted-annotation-decoded-literal"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "B004"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "B004": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "B004",
+      "name": "alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0a378e33bd6e47bb4d43efbb29ac0d9b758aec4850cb0b597617bafcb05f1965",
+      "source_sha256": "31703e60359a0ac4f605f65ac244227c74baf8276756193336268fd80f769dcc",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 38,
+          "end": 60
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "argument-rank-skips-punctuation-and-trivia",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "63d40cbde2fd293abecd61bb156d74bcfa8b0db7fe7112287cce3c61f44716bd",
+      "source_sha256": "3ccc970475a17da0571c8102b11dc6ef048904afba17964751820b0867961a96",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 0,
+          "end": 100
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "bytes",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f9b017d6c0762d72397a447fa149823904fcd9dde5bd71d59cf9c23cacaf3477",
+      "source_sha256": "47bb06c54bc71d2a26f4ec29975dc6a91313f3e084f9b80e4191630d776b11e0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "concatenated",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f42f1f1fd622c42988ad90d37dfcf60a1be53957df55501cba13e7f3cdbbde0e",
+      "source_sha256": "2f06ac67ef01f79bbd6926d0f4bd09832b0b7e739ef3d4fc61bed48bc1676905",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 0,
+          "end": 27
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "default",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "cb5fa23ce3d9f4610f45268fe2c9904173721f4417b540511d4b611c6e862cf7",
+      "source_sha256": "cdeb2a35220342e7ed1ab22fac317e45ecd23e9353c516a98fc75936771e3c19",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 0,
+          "end": 30
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "different-name",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e21f42033997b3584e5aba489dc8a09782f30d383e540b4c3fdcc23d04678590",
+      "source_sha256": "5273ed6bf262eed8478b9ace9396a29c7d46c6547d531bc97c0668c95deb0056",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "getattr",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7d0109b07d8a0b78e30e7a34299d47ea7466a0a4593030be85c5ca6065b8616b",
+      "source_sha256": "e44ee08f99fc50108b23c638fd319ca08e10fbcf6206ce986ef437650e5ce6ec",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 0,
+          "end": 24
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "getattr-extra",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2767b579b9aa8f31e24b8ab4ac2221de5598cc443e546988c59c2aa1a69ace0d",
+      "source_sha256": "46efd8b010acb3a0a35f4f42f5b8d8e212d95d6567fc07f4327b6e0cd2275257",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "hasattr",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "019ff5d87d25fd2b46cf48d9073bd6351b7411b71319ccea3d77a759a08e2956",
+      "source_sha256": "f936d2f73082c663c8f693b1b5470e0eab20c05b986ebad3c9c02c6cea8f7659",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 0,
+          "end": 24
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "hasattr-extra",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1bcf8ab4d648ca4506bef3cdadd89b30f1404069a936d564b0bb1876d6d46a67",
+      "source_sha256": "22c142da352ac07afd87fd12c33f141de57816ff407e21d6bdd02993399b2704",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2a14116b21da24c7c95b1b64f8f9d513c3a2132777f4ae9b12a39ba7a2b7d8f4",
+      "source_sha256": "d953da0e8a12c52780295a6b004f6b791a1283867439fb76a345e2456edf0fc9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "30a8b31bbb7420482a70fab4f9892cf2ddfe363edea08700c054d3fa5ae5817b",
+      "source_sha256": "c4c84f59c048931e7799f24d2be25938a42ae491c41f351473ab1d5a8bb6bada",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "qualified",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1975d1f6fa6ecd0697113e73990c9e87288f9fe13786d1641837727527555b21",
+      "source_sha256": "1b785101ffd31a7605994d90a66e22723b6181ff8069e27ddf82f0ba21343406",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 16,
+          "end": 49
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "quoted-annotation-decoded-literal",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "70fa897a3869c4977ef80654177c0e0823ea1c62adee6f2b31e47f24bec58b2b",
+      "source_sha256": "8c6a3f437d8c81e2769023844dd156edc842d1eb8992ceff554ca4d98400ca5f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 4,
+          "end": 28
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "shadowed",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6290c0c0da058d6c2e82cb7c5ab5b6bfb7770b3d1d896e798fde4deef41fa039",
+      "source_sha256": "79f609d3d8ad0b3bbbddd4a9e388a6800df1d8c6132280c183af5e5256f4278f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "starred-first",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "486f1a91a91e391c2af9a6287d3aed46235245027f4ce2d763288df3726b1a31",
+      "source_sha256": "5361f0cd6f9a9117178dbbeb30b87f5fbca69a27ccbefe32fd2f04f3da97403a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "B004",
+          "file": "case.py",
+          "start": 0,
+          "end": 27
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "B004",
+      "name": "unpack-keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "890a662f977ebd8a0dcc8439161bb213549258bfe3f68f8d56c12ca7ef8b7eda",
+      "source_sha256": "fb3c10cc72cfc31e11beca5099e9c4646f1d60a4b427ea6b2b3120e6bea5cc2f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    }
+  ]
+}

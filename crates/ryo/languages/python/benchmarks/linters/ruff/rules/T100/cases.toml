@@ -1,0 +1,215 @@
+[[cases]]
+name = "pdb-set-trace"
+comparison = "full"
+files = { "case.py" = "import pdb\npdb.set_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 10 }, { rule = "T100", file = "case.py", start = 11, end = 26 }]
+
+[[cases]]
+name = "pudb-set-trace-alias"
+comparison = "full"
+files = { "case.py" = "import pudb as debugger\ndebugger.set_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 23 }, { rule = "T100", file = "case.py", start = 24, end = 44 }]
+
+[[cases]]
+name = "ipdb-set-trace-importfrom"
+comparison = "full"
+files = { "case.py" = "from ipdb import set_trace as stop\nstop()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 34 }, { rule = "T100", file = "case.py", start = 35, end = 41 }]
+
+[[cases]]
+name = "ipdb-sset-trace"
+comparison = "full"
+files = { "case.py" = "import ipdb\nipdb.sset_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 11 }, { rule = "T100", file = "case.py", start = 12, end = 29 }]
+
+[[cases]]
+name = "ipython-terminal-embed"
+comparison = "full"
+files = { "case.py" = "from IPython.terminal.embed import InteractiveShellEmbed\nInteractiveShellEmbed()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 56 }, { rule = "T100", file = "case.py", start = 57, end = 80 }]
+
+[[cases]]
+name = "ipython-frontend-embed"
+comparison = "full"
+files = { "case.py" = "import IPython.frontend.terminal.embed\nIPython.frontend.terminal.embed.InteractiveShellEmbed()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 38 }, { rule = "T100", file = "case.py", start = 39, end = 94 }]
+
+[[cases]]
+name = "celery-rdb"
+comparison = "full"
+files = { "case.py" = "from celery.contrib import rdb\nrdb.set_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 31, end = 46 }]
+
+[[cases]]
+name = "builtin-breakpoint"
+comparison = "full"
+files = { "case.py" = "breakpoint()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "builtins-breakpoint"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.breakpoint()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 16, end = 37 }]
+
+[[cases]]
+name = "debugpy-calls"
+comparison = "full"
+files = { "case.py" = "import debugpy\ndebugpy.breakpoint()\ndebugpy.listen(5678)\ndebugpy.wait_for_client()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 14 }, { rule = "T100", file = "case.py", start = 15, end = 35 }, { rule = "T100", file = "case.py", start = 36, end = 56 }, { rule = "T100", file = "case.py", start = 57, end = 82 }]
+
+[[cases]]
+name = "ptvsd-calls"
+comparison = "full"
+files = { "case.py" = "import ptvsd\nptvsd.break_into_debugger()\nptvsd.wait_for_attach()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 12 }, { rule = "T100", file = "case.py", start = 13, end = 40 }, { rule = "T100", file = "case.py", start = 41, end = 64 }]
+
+[[cases]]
+name = "sys-breakpointhook-call"
+comparison = "full"
+files = { "case.py" = "import sys\nsys.breakpointhook()\nsys.__breakpointhook__()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 11, end = 31 }, { rule = "T100", file = "case.py", start = 32, end = 56 }]
+
+[[cases]]
+name = "pdb-import"
+comparison = "full"
+files = { "case.py" = "import pdb\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "debugpy-import"
+comparison = "full"
+files = { "case.py" = "import debugpy\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "ipython-module-import"
+comparison = "full"
+files = { "case.py" = "import IPython.terminal.embed\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "pdb-from-import"
+comparison = "full"
+files = { "case.py" = "from pdb import set_trace\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "sys-from-import"
+comparison = "full"
+files = { "case.py" = "from sys import breakpointhook\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 30 }]
+
+[[cases]]
+name = "ignored-sys-module-import"
+comparison = "full"
+files = { "case.py" = "import sys\n" }
+expected = []
+
+[[cases]]
+name = "ignored-builtins-module-import"
+comparison = "full"
+files = { "case.py" = "import builtins\n" }
+expected = []
+
+[[cases]]
+name = "non-debugger-member"
+comparison = "full"
+files = { "case.py" = "from pdb import run\n" }
+expected = []
+
+[[cases]]
+name = "import-submodule-only"
+comparison = "full"
+files = { "case.py" = "import pdb.set_trace\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-breakpoint"
+comparison = "full"
+files = { "case.py" = "def breakpoint():\n    pass\nbreakpoint()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-pdb"
+comparison = "full"
+files = { "case.py" = "pdb = object()\npdb.set_trace()\n" }
+expected = []
+
+[[cases]]
+name = "relative-from-import"
+comparison = "full"
+files = { "case.py" = "from .pdb import set_trace\nset_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "relative-module-import"
+comparison = "full"
+files = { "case.py" = "from . import pdb\npdb.set_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "multi-import-aliases"
+comparison = "full"
+files = { "case.py" = "from pdb import set_trace as a, set_trace as b\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 46 }, { rule = "T100", file = "case.py", start = 0, end = 46 }]
+
+[[cases]]
+name = "inline-noqa"
+comparison = "full"
+files = { "case.py" = "import pdb\npdb.set_trace()  # noqa: T100\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: T100\nimport pdb\npdb.set_trace()\n" }
+expected = []
+
+[[cases]]
+name = "unicode-prefix"
+comparison = "full"
+files = { "case.py" = "label = \"é\"\nimport pdb\npdb.set_trace()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 13, end = 23 }, { rule = "T100", file = "case.py", start = 24, end = 39 }]
+
+[[cases]]
+name = "builtins-from-import"
+comparison = "full"
+files = { "case.py" = "from builtins import breakpoint as stop\nstop()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 39 }, { rule = "T100", file = "case.py", start = 40, end = 46 }]
+
+[[cases]]
+name = "celery-module-import"
+comparison = "full"
+files = { "case.py" = "import celery.contrib.rdb\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "ipython-frontend-module-import"
+comparison = "full"
+files = { "case.py" = "import IPython.frontend.terminal.embed\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 38 }]
+
+[[cases]]
+name = "rebound-imported-debugger"
+comparison = "full"
+files = { "case.py" = "from pdb import set_trace as stop\nstop = run\nstop()\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "multi-code-noqa"
+comparison = "full"
+files = { "case.py" = "import pdb # noqa: F401, T100\n" }
+expected = []
+
+[[cases]]
+name = "multiline-noqa-statement-line"
+comparison = "full"
+files = { "case.py" = "from pdb import (\n    set_trace,\n)  # noqa: F401, T100\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 34 }]
+
+[[cases]]
+name = "multiline-noqa-alias-line"
+comparison = "full"
+files = { "case.py" = "from pdb import (\n    set_trace,  # noqa: F401, T100\n)\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 54 }]

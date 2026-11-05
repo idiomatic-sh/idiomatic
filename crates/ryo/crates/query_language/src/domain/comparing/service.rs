@@ -1,18 +1,19 @@
 //! The `comparing` service: the sides of a comparison are resolved, and the test is checked against
 //! the types of its sides.
 
-use ryo_language::domain::relations::constants::{LOWERED, RAISED};
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::service::{owner_of, words_of};
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::service::{owner_of, words_of};
+use ryo_relations::domain::terms::types::Vocabulary;
 
-use super::constants::{ENDS_WITH, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
+use super::constants::{ENDS_WITH, MATCHES, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     Addressable, Builder, Compatibility, PlannedColumn, ResolvedOperand, SearchMatch, Typed,
 };
 use crate::domain::resolving::service::{column_of, find_parameter, parameter_of, position};
 use ryo_values::domain::plan_parts::types as parts;
+use ryo_values::domain::plan_parts::types::ComparisonOriginId;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
 
@@ -72,8 +73,13 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
         | parts::Test::GreaterThanOrEqual => {
             (numbery(left) && numbery(right)) || (texty(left) && texty(right))
         }
-        parts::Test::FloatTextGreaterThanOrEqual
+        parts::Test::NumericGreaterThanOrEqual | parts::Test::IntegerSuccessor => {
+            (texty(left) || numbery(left)) && (texty(right) || numbery(right))
+        }
+        parts::Test::NaturalLessThan
+        | parts::Test::FloatTextGreaterThanOrEqual
         | parts::Test::StartsWith
+        | parts::Test::Matches
         | parts::Test::EndsWith => texty(left) && texty(right),
         parts::Test::In | parts::Test::NotIn => {
             (numbery(left) && right == Typed::Parameter(plans::ParameterType::Numbers))
@@ -93,6 +99,7 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
 /// The test a filter's operator is.
 pub(crate) fn test_of(test: syntax::WrittenTest) -> parts::Test {
     match test {
+        syntax::WrittenTest::NaturalLessThan => parts::Test::NaturalLessThan,
         syntax::WrittenTest::Equal => parts::Test::Equal,
         syntax::WrittenTest::NotEqual => parts::Test::NotEqual,
         syntax::WrittenTest::LessThan => parts::Test::LessThan,
@@ -106,7 +113,10 @@ pub(crate) fn test_of(test: syntax::WrittenTest) -> parts::Test {
         syntax::WrittenTest::FloatTextGreaterThanOrEqual => {
             parts::Test::FloatTextGreaterThanOrEqual
         }
+        syntax::WrittenTest::NumericGreaterThanOrEqual => parts::Test::NumericGreaterThanOrEqual,
+        syntax::WrittenTest::IntegerSuccessor => parts::Test::IntegerSuccessor,
         syntax::WrittenTest::StartsWith => parts::Test::StartsWith,
+        syntax::WrittenTest::Matches => parts::Test::Matches,
         syntax::WrittenTest::EndsWith => parts::Test::EndsWith,
     }
 }
@@ -119,6 +129,7 @@ fn function_of(function: syntax::WrittenFunction) -> parts::Function {
         syntax::WrittenFunction::Camel => parts::Function::Camel,
         syntax::WrittenFunction::Snake => parts::Function::Snake,
         syntax::WrittenFunction::Kebab => parts::Function::Kebab,
+        syntax::WrittenFunction::Lower => parts::Function::Lower,
     }
 }
 
@@ -198,7 +209,7 @@ pub(crate) fn operand_of(
         }),
         syntax::WrittenOperand::Number(number) => Ok(ResolvedOperand {
             operand: parts::Operand::Literal(parts::QueryLiteral::Number(
-                ryo_language::domain::relations::types::Integer(number.0),
+                ryo_relations::domain::relations::types::Integer(number.0),
             )),
             typed: Typed::Number,
         }),
@@ -229,7 +240,7 @@ fn column_index(
 
 /// The comparison a filter makes over `columns`: its two operands resolved and checked to be of kinds that compare.
 pub(crate) fn comparison_of(
-    builder: &Builder<'_>,
+    builder: &mut Builder<'_>,
     filter: &syntax::Filter,
     columns: Addressable<'_>,
 ) -> Result<parts::Comparison, LoweringError> {
@@ -243,7 +254,9 @@ pub(crate) fn comparison_of(
     } = operand_of(builder, &filter.right, columns)?;
     let test = test_of(filter.test);
     let affix = match test {
+        parts::Test::NaturalLessThan => Some(super::constants::NATURAL_LESS_THAN),
         parts::Test::StartsWith => Some(STARTS_WITH),
+        parts::Test::Matches => Some(MATCHES),
         parts::Test::EndsWith => Some(ENDS_WITH),
         parts::Test::Equal
         | parts::Test::NotEqual
@@ -252,6 +265,8 @@ pub(crate) fn comparison_of(
         | parts::Test::GreaterThan
         | parts::Test::GreaterThanOrEqual
         | parts::Test::FloatTextGreaterThanOrEqual
+        | parts::Test::NumericGreaterThanOrEqual
+        | parts::Test::IntegerSuccessor
         | parts::Test::In
         | parts::Test::NotIn
         | parts::Test::GlobAny
@@ -275,7 +290,35 @@ pub(crate) fn comparison_of(
         return Err(LoweringError::KindMismatch { span: filter.span });
     }
     check_words(filter, &left, &right, columns.fields)?;
-    Ok(parts::Comparison { test, left, right })
+    // Literal patterns are checked before optimization or execution, including empty inputs.
+    // Dynamic patterns remain checked by the executor when their values are available.
+    // The executor builds its bounded cache separately: this validation cost is query compilation.
+    if test == parts::Test::Matches
+        && let parts::Operand::Literal(parts::QueryLiteral::Text(pattern)) = &right
+    {
+        let _compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
+            LoweringError::InvalidRegex {
+                reason: error.to_string(),
+                span: filter.span,
+            }
+        })?;
+    }
+    let origin = if let Some(mut origin) = builder.origin.clone() {
+        origin.span = filter.span;
+        let id = u32::try_from(builder.comparison_origins.len())
+            .map(ComparisonOriginId)
+            .map_err(|_overflow| LoweringError::TooManyComparisonOrigins { span: filter.span })?;
+        builder.comparison_origins.push(origin);
+        Some(id)
+    } else {
+        None
+    };
+    Ok(parts::Comparison {
+        test,
+        left,
+        right,
+        origin,
+    })
 }
 
 /// That a word compared with a column of a closed set of words is one of them: `kind = "headline"` is refused when the query is compiled,

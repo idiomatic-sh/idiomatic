@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
+// `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
 /// Declares how a language reads a relation, as data. It is the only way an item implements `ryo::languages::ReadItem` or
 /// `ryo::languages::ManifestItem`: both are sealed against an accidental hand-written impl: an impl that forgets the marker in `languages::declared` does not compile. A deliberate marker impl compiles, and the rule `readers-in-items` flags it.
 ///
@@ -53,6 +53,14 @@
 /// The functions a statement calls are the language's model: they answer values and never write a row.
 #[macro_export]
 macro_rules! reads {
+    (
+        $item:ident => $relation:ty, model ($model_type:ty)
+        |$tree:ident, $model:ident, $at:ident, $symbols:ident|
+        { kinds: every, expanded, $($body:tt)* }
+    ) => {
+        $crate::reads!(@syntax $item $relation [$tree $at $symbols] [$model : $model_type] $crate::languages::Expansions::Included,
+            { $crate::languages::Reads::Every } $($body)*);
+    };
     (
         $item:ident => $relation:ty
         |$tree:ident, $at:ident, $symbols:ident|

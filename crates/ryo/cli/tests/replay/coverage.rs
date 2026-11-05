@@ -213,3 +213,147 @@ fn the_unknown_reasons_of_the_linked_languages_are_numbered_apart() {
         );
     }
 }
+
+/// Optional semantic facts are unavailable from Rust, rather than a known empty set.
+const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
+    (
+        "shape-positive",
+        "let rows = select * from \"expression-shape\"; emit rows subject file key(span);",
+    ),
+    (
+        "shape-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"expression-shape\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "identifier-positive",
+        "let rows = select * from \"identifier\"; emit rows subject file key(span);",
+    ),
+    (
+        "identifier-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"identifier\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "qualified-positive",
+        "let rows = select * from \"qualified-name\"; emit rows subject file key(span);",
+    ),
+    (
+        "qualified-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"qualified-name\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "embedded-positive",
+        "let rows = select * from \"embedded-expression\"; emit rows subject file key(span);",
+    ),
+    (
+        "embedded-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"embedded-expression\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-event-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-event\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-event-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-event\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-read-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-read\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-read-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-read\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-use-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-use\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-use-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-use\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-shadow-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-shadow\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-shadow-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-shadow\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "implicit-symbol-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"implicit-symbol\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "implicit-symbol-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"implicit-symbol\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "literal-properties-positive",
+        "let literals = select id, file, span from \"literal-properties\" where kind = \"integer\" and zero = \"true\"; emit literals subject file key(span);",
+    ),
+    (
+        "literal-properties-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"literal-properties\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+];
+
+#[test]
+fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
+    let _beside = crate::beside();
+    let root = directory(&[("input.rs", "fn example() { let value = 1; }")]);
+    let kept: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort> =
+        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
+    for phase in ["cold", "warm"] {
+        let rules = OPTIONAL_CAPABILITY_RULES
+            .iter()
+            .chain(std::iter::once(&("witness", SELECTS)))
+            .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+            .collect();
+        let (rows, report) = base::lint_report(
+            root.path(),
+            rules,
+            Arc::new(ryo_core::outbound::facts::factory::memory()),
+            Arc::clone(&kept),
+        )
+        .expect("optional capability queries compile and execute");
+        assert!(
+            report.unread.is_empty(),
+            "{phase}: every input must be read"
+        );
+        assert_eq!(
+            rows.len(),
+            1,
+            "{phase}: only the known variable witness is emitted: {rows:?}"
+        );
+        assert_eq!(
+            rows.first().and_then(|row| row.first()).map(String::as_str),
+            Some("witness")
+        );
+        let mut actual: Vec<_> = report
+            .unknowns
+            .iter()
+            .map(|unknown| (unknown.rule.0.to_string(), unknown.path.0.to_string()))
+            .collect();
+        actual.sort();
+        let mut expected: Vec<_> = OPTIONAL_CAPABILITY_RULES
+            .iter()
+            .map(|(rule, _)| pair(rule, "input.rs"))
+            .collect();
+        expected.sort();
+        assert_eq!(
+            actual, expected,
+            "{phase}: every optional query must fail closed"
+        );
+        assert!(
+            report
+                .unknowns
+                .iter()
+                .all(|unknown| unknown.message.0.contains(
+                    "The requested optional capability is unavailable from this provider."
+                )),
+            "{phase}: the unknown must explain the unavailable capability: {:?}",
+            report.unknowns
+        );
+    }
+}

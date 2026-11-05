@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/serialize-dont-format - the `--json` document of rows is written as the rows come, one row at a time: its frame is the fixed bytes below, and each value inside it is written by `serde_json`; a whole-document serializer would hold every row before writing one
+// the `--json` document of rows is written as the rows come, one row at a time: its frame is the fixed bytes below, and each value inside it is written by `serde_json`; a whole-document serializer would hold every row before writing one
 //! The shape of the data this output does not control: each wire shape is a `<Name>Schema`, its conversion into the core's type is an `impl TryFrom<<Name>Schema>` (or an `impl From<<Name>Schema>` where it cannot fail), and each refusal of a conversion is a `<Name>SchemaError`.
 
 #[cfg(test)]
@@ -12,9 +12,9 @@ use std::sync::{Mutex, PoisonError};
 use ryo_core::outbound::rows::errors::RowsError;
 use ryo_core::outbound::rows::interface::RowsPort;
 use ryo_core::outbound::rows::types::{LentCell, Summary};
-use ryo_language::domain::relations::constants::UNLOCATED;
-use ryo_language::domain::relations::service::location;
-use ryo_language::domain::relations::types::Locatedness;
+use ryo_relations::domain::relations::constants::UNLOCATED;
+use ryo_relations::domain::relations::service::location;
+use ryo_relations::domain::relations::types::Locatedness;
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::{Cell, CellText, RowTotal, Unread, Unreadable};
 

@@ -8,7 +8,7 @@ use crate::domain::plan_parts::types::HostedNumber;
 use crate::domain::plan_parts::types::Input as PlanInput;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
@@ -67,6 +67,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn plan_of(operation: Operation) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation,
@@ -79,6 +81,7 @@ fn plan_of(operation: Operation) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

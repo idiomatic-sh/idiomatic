@@ -1,8 +1,8 @@
 //! The `idioms` service: the pairs whose two functions have equal sets of texts, said as a comparison of
 //! digests instead of two antijoins.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::constants::{Added, added};
 use crate::domain::lowering::types::{
@@ -45,6 +45,8 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         first_fields.clone(),
     );
@@ -69,6 +71,8 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
             output: both_output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         both_fields.clone(),
     );
@@ -77,6 +81,7 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
         test: parts::Test::Equal,
         left: parts::Operand::Column(left),
         right: parts::Operand::Column(right),
+        origin: None,
     };
     let equal = pushed(
         builder,
@@ -150,6 +155,8 @@ pub(crate) fn push_same_sets_joined(
             output: columns,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         widened,
     );
@@ -167,6 +174,8 @@ pub(crate) fn push_same_sets_joined(
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         met_fields,
     );
@@ -275,6 +284,8 @@ pub(crate) fn recognize_same_sets(builder: &Builder<'_>, idiom: SameSets) -> Opt
         output,
         filter,
         view,
+
+        reach: None,
     }) = builder
         .steps
         .get(index(met))

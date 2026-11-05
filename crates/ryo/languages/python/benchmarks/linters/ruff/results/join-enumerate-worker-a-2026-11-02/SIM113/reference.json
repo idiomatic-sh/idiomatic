@@ -1,0 +1,1829 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "coordinate_helper_sha256": "be4c5e2ee6ca8a28b207672c7fa291e45f39c6acbaa397cbff3f8dcfaf43d7b9",
+  "coordinate_helper": "ruff_location_to_byte",
+  "rows": [
+    {
+      "rule": "SIM113",
+      "name": "basic",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "28a98dc0406464770e2ec45a9c36ac02eb80d2b506223f5f6b51d243e1876c95",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 4
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 53,
+          "end": 59
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "increment-first",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += 1\n    consume(value, i)\n"
+      },
+      "target": "py310",
+      "source_sha256": "ee29bab60a3e612cedf1726188f1ea632ba20c567c15111707e957832774979e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 37
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "unused-index",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "714057b92b994c8302b6412dc5ff180c459daaba511c7b32cc62b79b2adfead4",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 37
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "one-hex",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += 0x1\n"
+      },
+      "target": "py310",
+      "source_sha256": "92854b85c35a88bd82af104f19f96c1956ec03bf9d5baecb6083f60b3e3b870c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 13,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "zero-hex",
+      "files": {
+        "case.py": "i = 0x0\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "55c34144fb6af0520687bc36e3527c12f09ec10f80123303004249f258a5a371",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 4
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 55,
+          "end": 61
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "nonzero-start",
+      "files": {
+        "case.py": "i = 1\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "c5065d3814eab72f72edcfd6e7a0bc598d0411c1906cbeb84d50003752b810e4",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "float-start",
+      "files": {
+        "case.py": "i = 0.0\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "2a34822464f8950afa739ff7701b70942f92c163f7ee72ee0abb55e7dcf6db4d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "bool-start",
+      "files": {
+        "case.py": "i = False\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "195630b596de76fc2cc51d9a8d78d721cd800f7b4efebcfd8afc4ac182b0e88c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "float-increment",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += 1.0\n"
+      },
+      "target": "py310",
+      "source_sha256": "63242e91af3056e7c1f1ba5427fe78881f101cca634653ffafb58471d7ebfc9b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "bool-increment",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += True\n"
+      },
+      "target": "py310",
+      "source_sha256": "9983b006da22000c7bb6f0204013440ff1989bf2df5ebe8bf010e810291880d9",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "subtract",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i -= 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "b8c7498f71bfb99e45991b7f15698a6b5bec30133d90376118ee1333ef626621",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "continue",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    if skip:\n        continue\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "b0c2f83dad382fa03f30b96af907bc495f98683548c58d2924e2ee72fd3dedf0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-continue",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    for x in xs:\n        continue\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "33c083d8f76b0e1d37ab8c21b55c0797df6bb9ea99fb44ffdbf96efa34e13fa1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "two-writes",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i = 3\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "d784f8e54b13e89b6a25a285da4e3feb21fe31f9b94ea71fc73e000c856cd84e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "loop-target-write",
+      "files": {
+        "case.py": "i = 0\nfor i in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "9765877fca3b600e86d47b4b04341168a311efc6b3e622fd61405b755471d72a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "after-loop-read",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    consume(value, i)\n    i += 1\nconsume(i)\n"
+      },
+      "target": "py310",
+      "source_sha256": "9e281f2ebe7ac87800e6213b5f231dae310ef47a033c61a1fd271cb4fd283165",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "before-initializer-read",
+      "files": {
+        "case.py": "consume(i)\ni = 0\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "c252841bd336edf0023dbe3a3ed2c4f4d4184b75473d12d58db5686dc10acb1a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 5
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 64,
+          "end": 70
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "annotation",
+      "files": {
+        "case.py": "i: int = 0\nfor value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "f2fe46e18767fe9d10c3fb857ae94bf2b26415ba988050728b9f36f4436a61e8",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 4
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 58,
+          "end": 64
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-block-init",
+      "files": {
+        "case.py": "if cond:\n    i = 0\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "292b61551308bc4424f99188eb52283d0b80e535280464388e757e56cf08ebf0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "branch-modifies-initializer",
+      "files": {
+        "case.py": "i = 0\nif cond:\n    i = 3\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "a6eb177f2d8b26876755c8cb6063b1c1f05ffd60462975883c4f98b553d4fc30",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-namespace",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    def f():\n        i = 2\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "285b695bf02d66e411bad519b211981fc5965a7f3f298b8fa230c5870e39e5c4",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 5
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 58,
+          "end": 64
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "no-initializer",
+      "files": {
+        "case.py": "for value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "bc58219114b100642e063cc2daaee480ac23a015f2be293e6d5350ad2da80e53",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "async-loop",
+      "files": {
+        "case.py": "i = 0\nasync for value in values:\n    consume(value, i)\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "1abf49887dcf8b5c0287d043865765f485b7b43b945a2ae39d1bbfeb97657558",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "noqa",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += 1  # noqa: SIM113\n"
+      },
+      "target": "py310",
+      "source_sha256": "5c806af76d01348a73323c0d8dec374f4af9a3b76025d2ecbdee42559766082c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "function",
+      "files": {
+        "case.py": "def f():\n    i = 0\n    for value in values:\n        consume(value, i)\n        i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "8f4f332039e6650d10656b2c3a4b1ffacf1f7bb4573c926b0b79d8faa60d84e0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 5
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 78,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "function-global",
+      "files": {
+        "case.py": "i = 0\ndef f():\n    global i\n    for value in values:\n        i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "1b0cf3ad611ae2decc86d3966b1cd701de9f1b2bb2a6cedf55b222551a65fed0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "nonlocal",
+      "files": {
+        "case.py": "def outer():\n    i = 0\n    def inner():\n        nonlocal i\n        for value in values:\n            i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "6d237a992d57a4ad890f0f40c70b661dfdb67e4c0c9e47c5db72526ee00a532a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "tagged-flake8_simplify-SIM113.py",
+      "files": {
+        "case.py": "def func():\n    # SIM113\n    idx = 0\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        h(x)\n\n\ndef func():\n    # SIM113\n    sum = 0\n    idx = 0\n    for x in range(5):\n        if g(x):\n            break\n        idx += 1\n        sum += h(x, idx)\n\n\ndef func():\n    # SIM113\n    idx = 0\n    for x, y in zip(range(5), range(5)):\n        g(x)\n        h(x, y)\n        idx += 1\n\n\ndef func():\n    # SIM113\n    idx = 0\n    sum = 0\n    for x in range(5):\n        sum += h(x, idx)\n        idx += 1\n\n\ndef func():\n    # SIM113\n    sum, idx = 0, 0\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        h(x)\n\n\ndef func():\n    # SIM113\n    # https://github.com/astral-sh/ruff/pull/21395\n    idx = 10\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        h(x)\n\n\ndef func():\n    # OK (incremented by more than 1)\n    idx = 0\n    for x in range(5):\n        g(x, idx)\n        idx += 2\n        h(x)\n\n\ndef func():\n    # OK (incremented in `if`)\n    idx = 0\n    for x in range(5):\n        if g(x):\n            idx += 1\n        h(x)\n\n\ndef func():\n    # OK (`continue` in match-case)\n    idx = 0\n    for x in range(5):\n        match g(x):\n            case 1:\n                h(x)\n            case 2:\n                continue\n            case _:\n                h(idx)\n        idx += 1\n\n\ndef func():\n    # OK (`continue` inside `with` clause)\n    idx = 0\n    for x in range(5):\n        with context as c:\n            if g(x):\n                continue\n            h(x, idx, c)\n        idx += 1\n\n\ndef func():\n    # OK (incremented in `try` block)\n    idx = 0\n    for x in range(5):\n        try:\n            g(x, idx)\n        except:\n            h(x)\n            continue\n        idx += 1\n\n\ndef func(idx: 0):\n    # OK (index is an argument)\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n\n\ndef func(x: int):\n    # OK (index _may_ be non-zero)\n    if x > 0:\n        idx = 1\n    else:\n        idx = 0\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        h(x)\n\n\ndef func():\n    # OK\n    idx = 0\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        idx += 1\n        h(x)\n\n\ndef func():\n    # OK\n    idx = 0\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        if idx > 10:\n            idx *= 2\n        h(x)\n\n\ndef func():\n    # OK (index used after loop)\n    idx = 0\n    for x in range(5):\n        g(x, idx)\n        idx += 1\n        h(x)\n    print(idx)\n\n\ndef func():\n    # OK (index within nested loop)\n    idx = 0\n    for x in range(5):\n        for y in range(5):\n            g(x, idx)\n            idx += 1\n\n\ndef func():\n    # OK (index used within inner)\n    idx = 0\n\n    def inner():\n        print(idx)\n\n    for x in range(5):\n        for y in range(5):\n            g(x, idx)\n            idx += 1\n\n\ndef func():\n    # OK (index used as nonlocal inner)\n    idx = 0\n\n    def inner():\n        nonlocal idx\n        idx = 3\n\n    for x in range(5):\n        for y in range(5):\n            g(x, idx)\n            idx += 1\n\n\ndef func():\n    # SIM113 x2 (same variable name reused in sibling loops)\n    i = 0\n    for val in [1, 2, 3]:\n        print(f\"{i}: {val}\")\n        i += 1\n\n    i = 0\n    for val in [1, 2, 3]:\n        print(f\"{i}: {val}\")\n        i += 1\n\n\ndef func():\n    # SIM113 (same variable name reused after an `enumerate` loop)\n    for i, val in enumerate([1, 2, 3]):\n        print(f\"{i}: {val}\")\n\n    i = 0\n    for val in [1, 2, 3]:\n        print(f\"{i}: {val}\")\n        i += 1\n\n\nasync def func():\n    # OK (for loop is async)\n    idx = 0\n\n    async for x in async_gen():\n        g(x, idx)\n        idx += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "3c0241db9b92d7da7f49289e16f3c4b170acc23845ca2c06cf77584032b2e727",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 17,
+            "row": 6
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 6
+          },
+          "message": "Use `enumerate()` for index variable `idx` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 6,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 17,
+            "row": 17
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 17
+          },
+          "message": "Use `enumerate()` for index variable `idx` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 17,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 17,
+            "row": 27
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 27
+          },
+          "message": "Use `enumerate()` for index variable `idx` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 27,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 17,
+            "row": 36
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 36
+          },
+          "message": "Use `enumerate()` for index variable `idx` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 36,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 17,
+            "row": 44
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 44
+          },
+          "message": "Use `enumerate()` for index variable `idx` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 44,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 204
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 204
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 204,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 209
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 209
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 209,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        },
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 220
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 220
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 220,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 86,
+          "end": 94
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 225,
+          "end": 233
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 376,
+          "end": 384
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 492,
+          "end": 500
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 597,
+          "end": 605
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 3116,
+          "end": 3122
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 3197,
+          "end": 3203
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 3428,
+          "end": 3434
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "closure-before-initializer",
+      "files": {
+        "case.py": "def f():\n    callback = lambda: i\n    i = 0\n    for value in values:\n        i += 1\n    return callback()\n"
+      },
+      "target": "py310",
+      "source_sha256": "cd6a2bdb478d949b0ba13c1396559ac5fb04633d4c8e51a92eb8a352aa5178fa",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 5
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 77,
+          "end": 83
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "closure-inside-loop",
+      "files": {
+        "case.py": "def f():\n    i = 0\n    for value in values:\n        callback = lambda: i\n        i += 1\n    return callback()\n"
+      },
+      "target": "py310",
+      "source_sha256": "c83cc57dd03beb207a859de98b0ea87e1decfbf14e7f951f2cd6bd5f51bff950",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 5
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 81,
+          "end": 87
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "loop-initializer",
+      "files": {
+        "case.py": "for previous in previous_values:\n    i = 0\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "8d016f53bf5f495cd7821f1a96bde7aeddf58ab6a662eca5df699efbb5a7c851",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "while-initializer",
+      "files": {
+        "case.py": "while condition:\n    i = 0\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "b0ca0244fe7ee16ac1a8ab3f2ba56f9b8b1b585e81af48ec75415c1aefa08df8",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "conditional-overwrite",
+      "files": {
+        "case.py": "i = 0\nif condition:\n    i = 3\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "13026132d2450130a722f5f92c420061d67e0c48e7b2fd46a9eb860c4b55af8d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "loop-overwrite",
+      "files": {
+        "case.py": "i = 0\nfor previous in previous_values:\n    i = 3\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "e8fdb1e7d470032a9b421a80b8e17fff11e10c5266da3b39005ec942cabf8e01",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "deleted-before-loop",
+      "files": {
+        "case.py": "i = 0\ndel i\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "b31d00e14ee6e936da8876cf5e395fd71a86c3fc960699d5dd1ae23b2f4d2cc1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "overwrite-before-loop",
+      "files": {
+        "case.py": "i = 0\ni = 3\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "e39dab3fc59ac5ce9e719ec464c192adce94aa43d702478a3a8df17380acf3ee",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "zero-reinitializes",
+      "files": {
+        "case.py": "i = 3\ni = 0\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "edeb53c5605f42f97d4af7999505c23db9426761e6beb721c2353be9fd0c69e1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 4
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 37,
+          "end": 43
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "post-reinitialized-lifetime",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    i += 1\ni = 9\nprint(i)\n"
+      },
+      "target": "py310",
+      "source_sha256": "f6bf1956c94a7ec45b41961e75385eb6f321e44cd3d878263845ce17d7783802",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 37
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-local-shadow-read",
+      "files": {
+        "case.py": "i = 0\ndef inner():\n    i = 9\n    return i\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "27fa94d7100516bb4f4e663bb41105e7bfc6143edf2fa639b5bc388470097e94",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 11,
+            "row": 6
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 6
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 6,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 67,
+          "end": 73
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "enclosing-if-same-block",
+      "files": {
+        "case.py": "if condition:\n    i = 0\n    for value in values:\n        i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "4b15f6b2d7c24edbf304c970c2187945c0097a528a4781eb28064676990a29bf",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "SIM113",
+          "end_location": {
+            "column": 15,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 4
+          },
+          "message": "Use `enumerate()` for index variable `i` in `for` loop",
+          "name": "enumerate-for-loop",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/enumerate-for-loop"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 57,
+          "end": 63
+        }
+      ]
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-if-increment",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    if condition:\n        i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "c1a70549101532beaa66d0c96378aedbbc7320d262daef31de6cf4543f6de28a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "else-increment",
+      "files": {
+        "case.py": "i = 0\nfor value in values:\n    pass\nelse:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "aaaed806e38d45ae095aeae39bbc36a5a07d88fa3fbfe59ade0e2fd3aae26ce9",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-nonlocal-mutation",
+      "files": {
+        "case.py": "def outer():\n    i = 0\n    seen = []\n    def change():\n        nonlocal i\n        i = 3\n    change()\n    for value in values:\n        seen.append(i)\n        i += 1\n    return seen\n"
+      },
+      "target": "py310",
+      "source_sha256": "503cd7ae8b558c0464b8111e085b33ae728e75fdf7405e5a5120ff21957d4ec3",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "conditional-value-namedexpr",
+      "files": {
+        "case.py": "x = condition and (i := 0)\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "e6b0a89cc71c19fcc551d119af3bda9caf032f1d2ce24d45c34f21c8ebfb9fd0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "SIM113",
+      "name": "unconditional-value-namedexpr",
+      "files": {
+        "case.py": "x = (i := 0)\nfor value in values:\n    i += 1\n"
+      },
+      "target": "py310",
+      "source_sha256": "4ad7800f4f16687ad2707d01dd3cf619cb032238ef8e8f1c142fcb9fdfe7ee7d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "SIM113",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    }
+  ]
+}

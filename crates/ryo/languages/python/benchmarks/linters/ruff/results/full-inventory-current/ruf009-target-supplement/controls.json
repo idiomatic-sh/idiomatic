@@ -1,0 +1,53 @@
+{
+  "identity": {
+    "inventory_sha256": "d7907baa630941108d2ec0189b5fc2a5de0c6bc5db8635d5ebb4437f3441d143",
+    "phase_registry_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4",
+    "pinned_reference": {
+      "path": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "version": "0.16.5"
+    },
+    "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "controls": [
+    {
+      "rule": "RUF009",
+      "target": "py310",
+      "case_count": 26,
+      "raw_exact": 26,
+      "documented_discrepancies": 0,
+      "cases_file": "rules/RUF009/cases.toml",
+      "cases_sha256": "b6ca5bf3a7a022b505669df348af7cf1aefe7e72b6d9f6db3b0e010f71651848",
+      "settings_source": "profiles/RUF009/benchmark.toml",
+      "settings_source_sha256": "0d9d87db3ae62f98acab4687a7fec3a320c4d587ad56d3845e84ffe9dc1d182c",
+      "query_sha256": "0e628288250bb8835c8dd38b7dc68826297d616aefb134ce874176e186130b0a",
+      "profile_sha256": "0692474b8e539abd87b3b2a7706c3f74f47f52d5cd26de1c08025d5a526c9b1b",
+      "registration_path": "derived/registration.json",
+      "registration_sha256": "c9b26f7a89eb1c0b85400d7c56e8b8a83c97978b8948d7af8a3909c6467d5103",
+      "summary_path": "derived/summary.json",
+      "summary_sha256": "6ac7aa160e7f26b41778073765f7a532d25b9aaa50c890d7053417a21194513a",
+      "case_results_path": "actual/RUF009/cases.jsonl",
+      "case_results_sha256": "deec6b945ebdd6a31ca09999193afce2abf00542c8856b5c3ede877537c0f092",
+      "query_path": "inputs/rules/RUF009/query.ryoql",
+      "profile_path": "inputs/benchmark.toml",
+      "native_counts": {
+        "complete_case_pairs": 26,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 26,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 26,
+        "intended_behavior_failures": 0,
+        "diagnostic_parity_matches": 26,
+        "diagnostic_parity_mismatches": 0,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 26,
+        "typed_candidate_execution_complete": 26,
+        "legacy_or_unknown_candidate_execution": 0
+      }
+    }
+  ]
+}

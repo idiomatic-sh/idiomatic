@@ -1,0 +1,65 @@
+{
+  "status": "scoped-ready",
+  "version": "0.16.5",
+  "target": "py310",
+  "authored_rule_count_delta": 2,
+  "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+  "rules": {
+    "RUF020": {
+      "cases": 42,
+      "matched": 42,
+      "complete_records": 84,
+      "unknown_or_unread": 0,
+      "skipped": 0,
+      "assets": {
+        "profiles/RUF020/benchmark.toml": "7e25d4f0fada1246dc726a788b9d1e25587a353c4272e21aca37936d14dd00b4",
+        "rules/RUF020/candidate.ryoql": "e98a7c5788f3abd1e6893d969d3ac7af04b6a7c1c1555fdee66fbd7c299af621",
+        "rules/RUF020/cases.toml": "46d687b70fe0e64937ef7dc0bdc8860c3ff1933ed404dca0429e8847529a3282",
+        "rules/RUF020/full-cases.toml": "1fab70332498ad0ea77598d63cbb48d91ad7db0623fe356a7deee1f2f5ad5ad5",
+        "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+        "fragments/deferred-type-reads.ryoql": "0563043ef8bbc9e5c308d343fa60f5a35a84fa70e72deb4eded07842122453ce",
+        "fragments/forward-reference-context.ryoql": "cabc0ef81dcaf85a0c1e01944b972d717d7767bf87941fe4e26280ca3f7f0f55",
+        "fragments/future-annotation-context.ryoql": "0548854431b90da6fa41daeb7cd5d3243e270937478ce5de54db48d29b1d0fda",
+        "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+        "fragments/lookup-symbol-events.ryoql": "a0a1b2238698a35673f844a6d168ad76fdb602fec68d83cec7e5a021430463ae",
+        "fragments/seen-module-at-check.ryoql": "1a514acefab730f5c361e220904b14d42f5289b516ca31fabdf80e7c5003b963",
+        "fragments/suppress.ryoql": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80",
+        "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+        "fragments/type-match-at-check.ryoql": "7e14f91dbdac29452abf2aac51ce38cdca05ce226c77aa20af3c8a443376b9c1",
+        "fragments/typing-match-at-visit.ryoql": "fb6d477b71119910239ca09dab10903b7b30b102e0fc060f7a81d83348f17ccc"
+      },
+      "evidence_path": "/tmp/typing-visit-sealed-sol/RUF020",
+      "records_sha256": "4060471984eac97d306f8c3acf715916b11a452d74f7511fbe314d3dadc90566",
+      "query_modules_sha256": "67d6261104cef986e8b3bed0abe2462082c800a66199ea74d6a4fc540edce6c9"
+    },
+    "RUF041": {
+      "cases": 41,
+      "matched": 41,
+      "complete_records": 82,
+      "unknown_or_unread": 0,
+      "skipped": 0,
+      "assets": {
+        "profiles/RUF041/benchmark.toml": "3bf6f8e526d134e046c3a4e37c33e5f20d507503521e3bdde172c867772f26a9",
+        "rules/RUF041/candidate.ryoql": "b5bf8ec5154452aa442a82bae9e61850bdf2a974b76827bad3187525f679ba7c",
+        "rules/RUF041/cases.toml": "8570a1533529abe889a50078eb008d76119c9c21279c3416d7a707a88ff7f250",
+        "rules/RUF041/full-cases.toml": "2a417793a16b2cd83ad71129509cedfbb9876215c64ed867536d9675d786657d",
+        "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+        "fragments/deferred-type-reads.ryoql": "0563043ef8bbc9e5c308d343fa60f5a35a84fa70e72deb4eded07842122453ce",
+        "fragments/forward-reference-context.ryoql": "cabc0ef81dcaf85a0c1e01944b972d717d7767bf87941fe4e26280ca3f7f0f55",
+        "fragments/future-annotation-context.ryoql": "0548854431b90da6fa41daeb7cd5d3243e270937478ce5de54db48d29b1d0fda",
+        "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+        "fragments/lookup-symbol-events.ryoql": "a0a1b2238698a35673f844a6d168ad76fdb602fec68d83cec7e5a021430463ae",
+        "fragments/seen-module-at-check.ryoql": "1a514acefab730f5c361e220904b14d42f5289b516ca31fabdf80e7c5003b963",
+        "fragments/suppress.ryoql": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80",
+        "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+        "fragments/type-match-at-check.ryoql": "7e14f91dbdac29452abf2aac51ce38cdca05ce226c77aa20af3c8a443376b9c1",
+        "fragments/typing-match-at-visit.ryoql": "fb6d477b71119910239ca09dab10903b7b30b102e0fc060f7a81d83348f17ccc"
+      },
+      "evidence_path": "/tmp/typing-visit-sealed-sol/RUF041",
+      "records_sha256": "5fb55872daaf631f5cca69cc80509db54d6531b047138c7face10a31bddc9fc9",
+      "query_modules_sha256": "67d6261104cef986e8b3bed0abe2462082c800a66199ea74d6a4fc540edce6c9"
+    }
+  },
+  "claim": "Bounded source-policy differential evidence, not full413 parity. Exact all413 reference arrays retained in full-cases.toml; standalone profiles explicitly project own rule plus invalid-syntax.",
+  "shared_modules": "RUF05137660908 helper bytes unchanged. Executed suppression is72ea, not later commoncore; seal future combined proof with exact registry."
+}

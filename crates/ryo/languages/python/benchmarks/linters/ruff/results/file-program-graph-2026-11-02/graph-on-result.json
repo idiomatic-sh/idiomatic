@@ -1,0 +1,28 @@
+{
+  "variant": "graph-on",
+  "phase": "cold",
+  "worker_sha256": "84cf8b5e0c440e03782b5917380d1cb569c6806854c48dc7001990afb9c464e1",
+  "request_sha256": "f481839efa9de55555be6d42b7b03018f5e18e2f085251daf4826889eaa8392b",
+  "collector_exit_code": 0,
+  "capped": false,
+  "orchestration_wall_seconds": 405.2299776460002,
+  "observation_sha256": "452b7702e96e047e7ffc8d308d163b2930e7028062cf51ec5f01c3a185faa1d2",
+  "worker_exit_code": 0,
+  "wall_seconds": 405.181617593,
+  "cpu_seconds": 404.927353,
+  "peak_rss_bytes": 2235699200,
+  "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+  "diagnostics": 2327,
+  "coverage": {
+    "selected": 891250,
+    "evaluated": 890943,
+    "skipped": 307,
+    "unknown_or_unread": 0
+  },
+  "historical_delta": {
+    "added_count": 0,
+    "removed_count": 0,
+    "added_examples": [],
+    "removed_examples": []
+  }
+}

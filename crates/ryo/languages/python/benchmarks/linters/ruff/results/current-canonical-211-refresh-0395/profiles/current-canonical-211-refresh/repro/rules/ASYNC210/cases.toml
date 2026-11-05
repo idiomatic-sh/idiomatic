@@ -1,0 +1,125 @@
+[[cases]]
+name = "requests-direct"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    requests.get(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 35, "end" = 47 }]
+
+[[cases]]
+name = "requests-alias"
+comparison = "full"
+files = { "case.py" = "import requests as rq\nasync def f():\n    rq.post(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 41, "end" = 48 }]
+
+[[cases]]
+name = "requests-from-import"
+comparison = "full"
+files = { "case.py" = "from requests import get\nasync def f():\n    get(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 44, "end" = 47 }]
+
+[[cases]]
+name = "httpx-direct"
+comparison = "full"
+files = { "case.py" = "import httpx\nasync def f():\n    httpx.request(\"GET\", \"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 32, "end" = 45 }]
+
+[[cases]]
+name = "httpx-from-import"
+comparison = "full"
+files = { "case.py" = "from httpx import delete\nasync def f():\n    delete(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 44, "end" = 50 }]
+
+[[cases]]
+name = "urllib-urlopen"
+comparison = "full"
+files = { "case.py" = "from urllib.request import urlopen\nasync def f():\n    urlopen(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 54, "end" = 61 }]
+
+[[cases]]
+name = "urllib3-request"
+comparison = "full"
+files = { "case.py" = "import urllib3\nasync def f():\n    urllib3.request(\"GET\", \"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 34, "end" = 49 }]
+
+[[cases]]
+name = "outside-async"
+comparison = "full"
+files = { "case.py" = "import requests\nrequests.get(\"https://example.com\")\n" }
+expected = []
+
+[[cases]]
+name = "sync-function"
+comparison = "full"
+files = { "case.py" = "import requests\ndef f():\n    requests.get(\"https://example.com\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    def g():\n        requests.get(\"https://example.com\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-async"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    async def g():\n        requests.get(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 58, "end" = 70 }]
+
+[[cases]]
+name = "lambda-stops-context"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    callback = lambda: requests.get(\"https://example.com\")\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 35, "end" = 43 }]
+
+[[cases]]
+name = "class-body-stops-context"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    class C:\n        requests.get(\"https://example.com\")\n" }
+expected = []
+
+[[cases]]
+name = "async-method-context"
+comparison = "full"
+files = { "case.py" = "import requests\nclass C:\n    async def f(self):\n        requests.get(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 56, "end" = 68 }]
+
+[[cases]]
+name = "session-method-not-qualified"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    requests.Session().get(\"https://example.com\")\n" }
+expected = []
+
+[[cases]]
+name = "unlisted-member"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    requests.Session(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "urllib-alias"
+comparison = "full"
+files = { "case.py" = "import urllib.request as u\nasync def f():\n    u.urlopen(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 46, "end" = 55 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    requests.get(\"https://example.com\")  # noqa: ASYNC210\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f():\n    requests.get(\"https://example.com\")  # noqa: F401\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 35, "end" = 47 }]
+
+[[cases]]
+name = "unicode-offset"
+comparison = "full"
+files = { "case.py" = "label = \"雪\"\nimport requests\nasync def f():\n    requests.get(\"https://example.com\")\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 49, "end" = 61 }]
+
+[[cases]]
+name = "async-comp"
+comparison = "full"
+files = { "case.py" = "import requests\nasync def f(urls):\n    return [requests.get(url) async for url in urls]\n" }
+expected = [{ "rule" = "ASYNC210", "file" = "case.py", "start" = 47, "end" = 59 }]

@@ -17,6 +17,7 @@ use crate::domain::links::types::Linked;
 use crate::domain::manifests::collections::manifests::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::manifests::collections::manifests::file_package::item::FilePackageItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
+use crate::domain::manifests::collections::manifests::project_namespace_membership::item::ProjectNamespaceMembershipItem;
 use crate::domain::manifests::collections::manifests::source_dependency::item::SourceDependencyItem;
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
 use crate::domain::merging::service::merged;
@@ -28,6 +29,8 @@ use crate::outbound::notes::interface::NotesPort;
 /// `project`, implementing `ryo::languages::Project`: it reads each manifest with the adapters that claim it, and the manifests it
 /// reads are the union of what the adapters claim.
 pub(crate) struct ProjectContract {
+    /// Package context lookup with explicit Disk/Given isolation.
+    module_context: Arc<dyn crate::outbound::module_context::interface::ModuleContextPort>,
     /// Builds the manifest adapters for one run, each reading the files it claims, over every manifest of the run's repository.
     projects: fn(&[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>>,
     /// The manifest file names the adapters claim, together.
@@ -43,6 +46,7 @@ impl ProjectContract {
     pub(crate) fn new(
         projects: fn(&[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>>,
         notes: Arc<dyn NotesPort>,
+        module_context: Arc<dyn crate::outbound::module_context::interface::ModuleContextPort>,
     ) -> Self {
         let mut names: Vec<ManifestName> = Vec::new();
         for name in projects(&[]).iter().flat_map(|project| project.manifests()) {
@@ -51,6 +55,7 @@ impl ProjectContract {
             }
         }
         Self {
+            module_context,
             projects,
             names: Box::leak(names.into_boxed_slice()),
             notes,
@@ -58,7 +63,36 @@ impl ProjectContract {
     }
 
     /// What the manifests of the request declare: the packages, and the manifests the tools refused.
-    fn packages(&self, request: &ProjectRequest) -> Packages {
+    fn packages(
+        &self,
+        request: &ProjectRequest,
+    ) -> (
+        Packages,
+        crate::domain::manifest_validation::types::ManifestValidations,
+    ) {
+        use crate::domain::manifest_validation::types::{
+            FileValidation, ManifestValidations, MetadataDemand,
+        };
+        let projection_wanted = request.wanted.iter().any(|relation| {
+            matches!(
+                relation,
+                languages::Relation::PackageDependency
+                    | languages::Relation::WorkspaceMember
+                    | languages::Relation::SourceDependency
+                    | languages::Relation::FilePackage
+                    | languages::Relation::AnalyzedSource
+            )
+        });
+        let diagnostics_wanted = request
+            .wanted
+            .contains(&languages::Relation::ManifestDiagnostic);
+        let demand = match (projection_wanted, diagnostics_wanted) {
+            (true, true) => MetadataDemand::Both,
+            (true, false) => MetadataDemand::Projection,
+            (false, true) => MetadataDemand::Diagnostics,
+            (false, false) => return (Packages::default(), ManifestValidations::default()),
+        };
+        let mut validation = ManifestValidations::default();
         let projects = (self.projects)(&request.manifests);
         let mut found = Vec::new();
         let mut refused: Vec<Refusal> = Vec::new();
@@ -67,12 +101,36 @@ impl ProjectContract {
                 .iter()
                 .filter(|project| project.claims(&manifest.path) == Claim::Reads)
             {
-                match project.declared(manifest) {
-                    Ok(declared) => found.push(Package {
+                let primary_demand = if request.files.contains(&manifest.path) {
+                    demand
+                } else if projection_wanted {
+                    MetadataDemand::Projection
+                } else {
+                    continue;
+                };
+                let reading = project.read(manifest, primary_demand);
+                if let Some(result) = reading.validation {
+                    if let Some(index) =
+                        request.files.iter().position(|file| file == &manifest.path)
+                    {
+                        if let Ok(index) = u32::try_from(index) {
+                            validation.files.push(FileValidation {
+                                file: languages::FileId(index),
+                                validation: result,
+                            });
+                        } else {
+                            validation.incomplete.push(Said(
+                                "requested manifest file identity exceeds the catalog range".into(),
+                            ));
+                        }
+                    }
+                }
+                match reading.declaration {
+                    Some(Ok(declared)) => found.push(Package {
                         manifest: ManifestPath(manifest.path.0.clone()),
                         declared,
                     }),
-                    Err(error) => {
+                    Some(Err(error)) => {
                         if !refused
                             .iter()
                             .any(|each| each.manifest.0 == manifest.path.0)
@@ -83,14 +141,32 @@ impl ProjectContract {
                             });
                         }
                     }
+                    None => {}
+                }
+            }
+        }
+        if diagnostics_wanted {
+            for (index, file) in request.files.iter().enumerate() {
+                if file.0.rsplit('/').next() == Some(crate::domain::packages::constants::PYPROJECT)
+                    && !validation
+                        .files
+                        .iter()
+                        .any(|observed| usize::try_from(observed.file.0).ok() == Some(index))
+                {
+                    validation.incomplete.push(Said(
+                        format!("requested metadata validator did not observe {}", file.0).into(),
+                    ));
                 }
             }
         }
         refused.sort_by(|left, right| left.manifest.cmp(&right.manifest));
-        Packages {
-            packages: merged(found),
-            refused,
-        }
+        (
+            Packages {
+                packages: merged(found),
+                refused,
+            },
+            validation,
+        )
     }
 }
 
@@ -101,8 +177,29 @@ impl Project for ProjectContract {
         self.names
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        crate::domain::language::service::primary_role(path, self.manifests())
+    }
+
+    fn project_entries(&self, request: &ProjectRequest) -> Vec<languages::FilePath> {
+        if !request
+            .wanted
+            .contains(&languages::Relation::ProjectNamespaceMembership)
+        {
+            return Vec::new();
+        }
+        let notes: Vec<Option<Note>> = request
+            .notes
+            .iter()
+            .map(|bytes| self.notes.note_in(bytes).ok())
+            .collect();
+        let roots = crate::domain::project_namespace::service::imported_roots(&notes);
+        crate::domain::project_namespace::service::candidates(request.search_roots(), &roots)
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
-        let packages = self.packages(request);
+        let (packages, validation) = self.packages(request);
+        // Refusals describe only the dependency outputs that were actually demanded and read.
         let refused = packages
             .refused
             .iter()
@@ -117,12 +214,12 @@ impl Project for ProjectContract {
                 languages::Relation::SourceDependency | languages::Relation::AnalyzedSource
             )
         });
-        let derived = if links_wanted {
+        let mut derived = if links_wanted {
             let notes: Vec<Option<Note>> = request
                 .notes
                 .iter()
                 .map(|bytes| {
-                    // ignore: idiomatic.arch/no-ok-on-result - the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
+                    // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
                     self.notes.note_in(bytes).ok()
                 })
                 .collect();
@@ -133,10 +230,53 @@ impl Project for ProjectContract {
                 ..Linked::default()
             }
         };
+        if request
+            .wanted
+            .contains(&languages::Relation::ModuleIdentity)
+        {
+            derived.module_context = self.module_context.resolve(request)?;
+        }
+        derived.manifest_validation = validation;
+        if request
+            .wanted
+            .contains(&languages::Relation::ProjectNamespaceMembership)
+        {
+            let mut incomplete_notes = Vec::new();
+            let notes: Vec<Option<Note>> = request
+                .notes
+                .iter()
+                .enumerate()
+                .map(|(number, bytes)| match self.notes.note_in(bytes) {
+                    Ok(note) => Some(note),
+                    Err(_) => {
+                        if !bytes.0.is_empty() {
+                            incomplete_notes
+                                .push(languages::FileId(u32::try_from(number).unwrap_or(u32::MAX)));
+                        }
+                        None
+                    }
+                })
+                .collect();
+            let roots = crate::domain::project_namespace::service::imported_roots(&notes);
+            derived.namespace_memberships = crate::domain::project_namespace::service::memberships(
+                request.search_roots(),
+                &roots,
+                incomplete_notes,
+                |path, file| {
+                    if file {
+                        request.candidate_file(path)
+                    } else {
+                        request.candidate_directory(path)
+                    }
+                },
+            );
+        }
+        let consulted = derived.module_context.consulted.clone();
         Ok(Resolved {
             refused,
             unlisted: Vec::new(),
-            consulted: Vec::new(),
+            consulted,
+            observed_entries: request.observed_entries.receipt(),
             derived,
         })
     }
@@ -159,5 +299,21 @@ impl Project for ProjectContract {
 
     fn analyzed_source(&self) -> Support<ManifestReader<languages::AnalyzedSource, Linked>> {
         languages::reads_manifests::<AnalyzedSourceItem>()
+    }
+
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::reads_manifests::<crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem>()
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::reads_manifests::<crate::domain::manifests::collections::manifests::module_identity::item::ModuleIdentityItem>()
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
+        languages::reads_manifests::<ProjectNamespaceMembershipItem>()
     }
 }

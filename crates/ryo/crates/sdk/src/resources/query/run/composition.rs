@@ -75,8 +75,9 @@ pub(crate) fn build(
                 skipped,
             ));
             let port: Arc<dyn language::interface::LanguagePort> = Arc::new(linked);
-            let digests: Arc<dyn digest::interface::DigestPort> =
-                Arc::new(digest::factory::blake3());
+            let digests: Arc<
+                dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            > = Arc::new(digest::factory::blake3());
             let machine: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
@@ -86,13 +87,15 @@ pub(crate) fn build(
                     Arc::clone(&digests),
                     Arc::clone(&machine),
                 ),
-                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files)),
+                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
                 Arc::clone(&files),
                 Arc::new(facts::factory::memory()),
                 port,
                 Arc::new(matching::factory::globset()),
                 Arc::new(query_language::factory::use_case(compile, typecheck)),
                 machine,
+                Arc::new(ryo_core::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new())),
+std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
                 pool,
                 workers,
                 Arc::new(rows::factory::collect(collector)),

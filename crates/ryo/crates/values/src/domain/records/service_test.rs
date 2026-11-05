@@ -78,10 +78,10 @@ fn kept_and_lent() -> bool {
     let cells = [
         Cell::File(CellText("src/a.rs")),
         Cell::Text(CellText("main")),
-        Cell::Number(ryo_language::domain::relations::types::Integer(-7)),
-        Cell::Span(ryo_language::domain::relations::types::Span {
-            start: ryo_language::domain::relations::types::Offset(3),
-            end: ryo_language::domain::relations::types::Offset(4),
+        Cell::Number(ryo_relations::domain::relations::types::Integer(-7)),
+        Cell::Span(ryo_relations::domain::relations::types::Span {
+            start: ryo_relations::domain::relations::types::Offset(3),
+            end: ryo_relations::domain::relations::types::Offset(4),
         }),
     ];
     let mut text = RenderedText::default();
@@ -95,6 +95,7 @@ fn kept_and_lent() -> bool {
 
 fn record(modified: u64) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath("a".into()),
         size: FileSize(5),
         modified: Nanoseconds(modified),
@@ -109,6 +110,7 @@ fn record(modified: u64) -> Record {
 
 fn entry(size: u64, modified: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath("a".into()),
         size: FileSize(size),
         modified: Nanoseconds(modified),
@@ -138,4 +140,30 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn executable_observation_invalidates_same_size_and_timestamp_in_both_directions() {
+    use crate::domain::files::types::ExecutablePermission::{Posix, Unknown, Unsupported};
+    for (before, after) in [
+        (Posix(false), Posix(true)),
+        (Posix(true), Posix(false)),
+        (Unknown, Posix(false)),
+        (Posix(false), Unknown),
+        (Unsupported, Unknown),
+    ] {
+        let mut kept = record(7);
+        kept.executable = before;
+        let mut file = entry(5, 7);
+        file.executable = before;
+        assert_eq!(
+            super::service::is_as_it_was(&kept, &file),
+            crate::domain::records::types::Freshness::AsItWas
+        );
+        file.executable = after;
+        assert_eq!(
+            super::service::is_as_it_was(&kept, &file),
+            crate::domain::records::types::Freshness::Changed
+        );
+    }
 }

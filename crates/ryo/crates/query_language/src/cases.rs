@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-bool - `selects` is given the result of a `matches!` over the error, the one boolean the selector of a row is made of
+// `selects` is given the result of a `matches!` over the error, the one boolean the selector of a row is made of
 //! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
 
 use std::fmt::Debug;
@@ -116,5 +116,30 @@ where
             "{}: expected {expected:?}, answered {answer:?}",
             case.name.0
         );
+    }
+}
+
+/// Typed lowering inputs shared by domain tests; no text is parsed here.
+#[cfg(test)]
+pub(crate) fn lowering_builder() -> crate::domain::lowering::types::Builder<'static> {
+    use ryo_relations::domain::relations::types::Relation;
+    crate::domain::lowering::types::Builder {
+        catalog: &[
+            Relation::Function,
+            Relation::SyntaxChild,
+            Relation::SemanticChild,
+        ],
+        hosted_steps: Vec::new(),
+        observation_inputs: &[],
+        parameters: &[],
+        kinds: Vec::new(),
+        steps: Vec::new(),
+        lowered: Vec::new(),
+        span: ryo_values::domain::program::types::QuerySpan {
+            start: ryo_values::domain::program::types::ByteOffset(7),
+            end: ryo_values::domain::program::types::ByteOffset(19),
+        },
+        origin: None,
+        comparison_origins: Vec::new(),
     }
 }

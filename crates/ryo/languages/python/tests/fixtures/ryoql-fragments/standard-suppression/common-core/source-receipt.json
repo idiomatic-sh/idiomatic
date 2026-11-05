@@ -1,0 +1,115 @@
+{
+  "scope": "2additional-line +8unmapped callers; common directivecore is separately checked for all previousconsumers",
+  "rows": [
+    {
+      "rule": "F401",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/candidate.ryoql",
+      "before_sha256": "21c6ce08a89cc672d0a743db2737025b71c704eb2ba6f2cee0f55f9c5bc9c4a0",
+      "after_sha256": "6349162b87c85926e698327931ed62f38491ae63897c59f1cd91e2543fd6f23e",
+      "preserved_prelude_sha256": "f330ab74085f013c2fc5f3e81097ca42f5a46531b1eda3ac5470b13f58628172",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*F401(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:F401)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "additional-lines-module"
+    },
+    {
+      "rule": "F822",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F822/candidate.ryoql",
+      "before_sha256": "0d1d1de564c67cff431c6dd26c64ba5a0cfe7b9fbf907652f542e31bfb2854bc",
+      "after_sha256": "57b575fef74cf1a9ffbc8956b7882d4b59f2d0361dfd2b2e4d7e1cf2771b1d85",
+      "preserved_prelude_sha256": "78993f6298d717045859fdf11ed07f92584c9d5a2be1b31dc4090da0e5e7a396",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*F822(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:F822)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "additional-lines-module"
+    },
+    {
+      "rule": "PIE807",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PIE807/candidate.ryoql",
+      "before_sha256": "ad72ddec6bc9a1f2405aedc4bca3f72eef910ed43e07d95c257e4f86a65c2bfc",
+      "after_sha256": "1e4715ad168154a47109a87f85b05861d09972bb58e5088654067c79c36c1850",
+      "preserved_prelude_sha256": "be8e33faac15894b94fc176c9047815d59174c6d72070babe749aa9a05f30db6",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PIE807(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:PIE807)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "RUF016",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/RUF016/candidate.ryoql",
+      "before_sha256": "7205a5aeafb261d2422f85091c1ceb05bc76359386bfbc6c7123c76c7478ebc5",
+      "after_sha256": "b04680b490583f7208dee8e20fcbf2ee16dee77b087da9b3dfa6c9b367103d8d",
+      "preserved_prelude_sha256": "90fd8e4178c918ba1c670dfc44855cdcc76037c80328aa2b08e57b794bad0cae",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*RUF016(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:RUF016)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "RUF058",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/RUF058/candidate.ryoql",
+      "before_sha256": "04081bc3d43831eaf1eba28b3e2cf339b4ff6f9bd1193943b01b8ebb4d972f7a",
+      "after_sha256": "e9bb5dd71092dabc859ec2a2f543101e9486a1593224d9a477618036d46d2560",
+      "preserved_prelude_sha256": "ad28ae254838cabcaf515b6109a38bda8e4e64fd36bbf777f5ed65fae850c103",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*RUF058(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:RUF058)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "UP009",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP009/candidate.ryoql",
+      "before_sha256": "3b2b2fdbcef11e07d16967e2f4631f00c333702a2a3b35bc410f919ec9d43a62",
+      "after_sha256": "b12ee866c170bdb149c5fd97c321e6bebc6ea45b7bafed8f5431fcd65ccf140d",
+      "preserved_prelude_sha256": "b8f0fb76509a78c3f6019686e6af642f2ce0229ca5b4604c8a500148d37fe27f",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*UP009(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:UP009)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "UP011",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP011/candidate.ryoql",
+      "before_sha256": "8381a374dc7f38c3cc44bfd762a89a77c87f87032cf1df07f0ca171df20eb60b",
+      "after_sha256": "915244133e1b57c296a51a4ef7ef732166fdf4448a29934d826bd81bd1536c8a",
+      "preserved_prelude_sha256": "eb00207bdfa55c105391c35d7bbc6e63c600886affbd09d9956c738aa943bd4f",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*UP011(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:UP011)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "UP018",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP018/candidate.ryoql",
+      "before_sha256": "63bc4dad3b3b72101329cf5fc199b7f15f8e4bdfc73cee3ee54424d17397995b",
+      "after_sha256": "c37a810f36e869d664b58d1ce18d036bb3b9262ab21ccb83d1a1f12daabd5db8",
+      "preserved_prelude_sha256": "759d93fb007b1bb3c2bd299c2797ecba233630b36a6850acce75c916ba0ff9b1",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*UP018(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:UP018)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "UP026",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP026/candidate.ryoql",
+      "before_sha256": "49ae3d0b795ec0e9d770dc0a437f4e7f57609761f45b389d29be7f2d1cad35d8",
+      "after_sha256": "84b268c4e1d72f55d2cb649c93117a5f30d0f779a1e93b53e0c5dd5478f8a764",
+      "preserved_prelude_sha256": "8586d5b66cbc689ad9006188a4538cbf0abf3af39edeee20e888b184ef49bbd2",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*UP026(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:UP026)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    },
+    {
+      "rule": "UP028",
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP028/candidate.ryoql",
+      "before_sha256": "af7136eb8d50677f9feab37c93e8085a9f992e83217e01dfe2099089e4fb4d81",
+      "after_sha256": "996e623f794ab76201c673f8f41eced34385e2e8ceb49175dcf84dbdd89fc2f6",
+      "preserved_prelude_sha256": "ca98b0f46486f6ef18ca578602b64177aa1bedc2ec4964421817b8411a16df4f",
+      "inline_pattern": "\"^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*UP028(?:$|[\\s,#]|[A-Z])\"",
+      "range_pattern": "\"(?:^|,)(?:UP028)(?:,|$)\"",
+      "emit": "emit violations subject file key(id);",
+      "policy": "unmapped-module"
+    }
+  ]
+}

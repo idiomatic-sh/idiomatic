@@ -1,0 +1,114 @@
+{
+  "schema": "ryo-cost-attribution/v1",
+  "source": "1e3d3bdcecdf7742cf9b72cfc2f284f235b85c12",
+  "timed_worker_sha256": "f7165cd68afcabbe34c4c83326b5866f710b71cbc7f924573d80a793a1c1bca2",
+  "profile_worker_sha256": "64cc85e6e5931c2336452f46d19a53f1ce2745a8c5d59574ee34a4cdd055f9e5",
+  "profile_build_differences": {
+    "optimization": "3 unchanged",
+    "debug": 1,
+    "strip": "none",
+    "force_frame_pointers": true
+  },
+  "cpu": {
+    "workload": "frozenDjango310rules/2875files,freshstore,Python3.10,oneRayonthread",
+    "report_document_exact": true,
+    "sampling_ms": 100,
+    "sampled_cpu_seconds": 234.6,
+    "process_cpu_seconds": 234.651,
+    "profiler_warning": "Intervaltimer changed100000\u21920 remains; independent syscall probe found active100msCPUtimer; sampleweight matchesprocessCPU within0.022%. Coarseflat-PC ranking only.",
+    "unknown_caller_fraction_percent": 25.75,
+    "quality_limits": [
+      "10Hz coarse samples: not precise instruction timings",
+      "25.75%calltree under unknown parent; do not attribute generichashes or umbrella rows to specificcaller without proof",
+      "Query-specificCPU split not captured; no attribution from callcounts",
+      "Profilewall is not benchmark timing"
+    ],
+    "exclusive_responsibility_rows": [
+      {
+        "matrix_responsibility": "file setup / inlined umbrella",
+        "exclusive_cpu_seconds": 29.0,
+        "exclusive_percent": 12.3614663256607,
+        "evidence": "FileAnalysis::read_file; not attributable to disk IO from this symbol alone"
+      },
+      {
+        "matrix_responsibility": "request/rule consumer lifecycle",
+        "exclusive_cpu_seconds": 23.5,
+        "exclusive_percent": 10.017050298380221,
+        "evidence": "FileDagExecution::consumed19.4 + consume_required4.1; two distinct lifetime axes"
+      },
+      {
+        "matrix_responsibility": "primitive invocation setup",
+        "exclusive_cpu_seconds": 18.5,
+        "exclusive_percent": 7.885763000852515,
+        "evidence": "lease::evaluate13.7 + InvocationWorkspace::default4.8"
+      },
+      {
+        "matrix_responsibility": "backing accounting",
+        "exclusive_cpu_seconds": 12.7,
+        "exclusive_percent": 5.4134697357203745,
+        "evidence": "Ledger::acquire5.0 + ResourceLease::drop4.9 + ledger::normalized2.8"
+      },
+      {
+        "matrix_responsibility": "comparison evaluation",
+        "exclusive_cpu_seconds": 10.0,
+        "exclusive_percent": 4.262574595055414,
+        "evidence": "holds_one_bound5.6 + BoundPredicate::holds4.4"
+      }
+    ],
+    "do_not_sum_inclusive_costs": true
+  },
+  "allocation": {
+    "workload": "boundedoptions.py withall310requestplans; NOT whole-corpus memory/traffic attribution",
+    "allocations": 34188564,
+    "temporary_allocations": 4559023,
+    "peak_heap_reported": "481.37M",
+    "artifact_bytes": 43222762,
+    "profiler_wall_seconds": 28.09509962699667,
+    "heaptrack_overhead_rss_reported": "570.55M",
+    "retained_at_peak_examples": [
+      {
+        "reported_peak": "112.05M",
+        "calls": 102235,
+        "owner": "request.rs118 Arc::new(contract)"
+      },
+      {
+        "reported_peak": "38.80M",
+        "calls": 1,
+        "owner": "file_program/service.rs305 canonicalgraphnodes vector"
+      },
+      {
+        "reported_peak": "34.95M each at3stacksites",
+        "calls": 3410,
+        "owner": "QueryBundle/source-text construction and clones throughSDKvalidation,RuleSpec,rule_compilation"
+      },
+      {
+        "reported_peak": "20.46M +20.45M",
+        "calls": 311,
+        "owner": "loweringdemand+Planvectors"
+      }
+    ],
+    "traffic_examples": [
+      {
+        "calls": 717974,
+        "owner": "query_language/comparing/service.rs298 regexvalidation",
+        "bytes_at_global_peak": "0B"
+      },
+      {
+        "calls": 555043,
+        "owner": "LiteralText/QueryLiteral/Operand/Comparison clone stack",
+        "bytes_at_global_peak": "0B"
+      },
+      {
+        "calls": 535364,
+        "owner": "trust::RelationRead/StepReads clone,uses_of",
+        "bytes_at_global_peak": "0B"
+      }
+    ],
+    "limits": [
+      "Counts are allocationcalls, not allocated bytes",
+      "Peakexamples are physicalallocations alive at processpeak, not optional-retention budgets",
+      "Boundedstartup dominated by all-rule preparation; cannot extrapolate to wholeDjango steady state"
+    ]
+  },
+  "next_boundary_priority": "Single engine owner for publication/two-axisconsumer lifecycle and preparedprimitive invocation/resources; request/querysource immutable ownership. No next microoptimization authorized from counts alone."
+}

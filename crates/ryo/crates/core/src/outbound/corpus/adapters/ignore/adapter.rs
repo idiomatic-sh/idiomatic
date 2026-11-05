@@ -11,11 +11,12 @@ use super::constants::{exact_skip, file_root, git_directory};
 use super::types::{BytesRead, Stability, Stamp};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
+use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_values::domain::files::service::with_separator;
+use ryo_values::domain::files::service::{input_path, with_separator};
 use ryo_values::domain::files::types::{
-    CorpusEntry, CorpusFile, CorpusListing, FileBytes, FileSize, Nanoseconds, NativeSeparator,
-    PlatformPath,
+    CorpusEntry, CorpusFile, CorpusInput, CorpusListing, FileBytes, FileSize, InputReadFailure,
+    Nanoseconds, NativeSeparator, PlatformPath,
 };
 
 /// The ignore corpus adapter: which files it lists, and the files given as text it reads in place of the disk's.
@@ -27,6 +28,8 @@ pub(crate) struct CorpusIgnoreAdapter {
     listing: CorpusListing,
     /// Files given as text: listed beside the others, and read as given, also where the disk has a file of that path.
     beside: Vec<CorpusFile>,
+    /// Paths supplied as source text, indexed for demanded candidate observations.
+    beside_paths: std::collections::BTreeSet<ryo_language::domain::files::types::FilePath>,
     /// Directories a walk never goes into, at any depth.
     skipped: SkippedDirectories,
 }
@@ -34,16 +37,18 @@ pub(crate) struct CorpusIgnoreAdapter {
 impl CorpusIgnoreAdapter {
     /// An adapter over the repository at `root` that lists the files `listing` says, reads those of `beside` as given, and walks
     /// into no directory of `skipped`.
-    pub(crate) const fn new(
+    pub(crate) fn new(
         root: RootPath,
         listing: CorpusListing,
         beside: Vec<CorpusFile>,
         skipped: SkippedDirectories,
     ) -> Self {
+        let beside_paths = beside.iter().map(|file| file.path.clone()).collect();
         Self {
             root,
             listing,
             beside,
+            beside_paths,
             skipped,
         }
     }
@@ -111,6 +116,7 @@ fn walked(root: &RootPath, skipped: &SkippedDirectories) -> Result<Vec<CorpusEnt
                         return WalkState::Continue;
                     };
                     sender.send(Ok(CorpusEntry {
+                        executable: executable(&meta),
                         path: with_separator(
                             PlatformPath(&relative.to_string_lossy()),
                             NativeSeparator(std::path::MAIN_SEPARATOR),
@@ -135,31 +141,36 @@ fn walked(root: &RootPath, skipped: &SkippedDirectories) -> Result<Vec<CorpusEnt
         .map_err(|reason| unreadable(root, &reason))
 }
 
-/// The files the caller listed that are files below `root`, each with what the system says of it; a listed path that is not
-/// there, or is not a file, is not listed.
-///
-/// # Errors
-///
-/// `Unreadable` when the system cannot say what a listed path is.
+/// Observe real metadata once; directory/non-file paths are not source-file entries.
+fn observed(
+    root: &RootPath,
+    path: &ryo_language::domain::files::types::FilePath,
+) -> std::io::Result<Option<CorpusEntry>> {
+    let metadata = std::fs::metadata(std::path::Path::new(&*root.0).join(&*path.0))?;
+    Ok(metadata.is_file().then(|| CorpusEntry {
+        executable: executable(&metadata),
+        path: path.clone(),
+        size: FileSize(metadata.len()),
+        modified: modified(&metadata),
+    }))
+}
+
+/// Keep each explicitly requested unreadable path without inventing metadata or source text.
 fn listed(
     root: &RootPath,
     paths: &[ryo_language::domain::files::types::FilePath],
-) -> Result<Vec<CorpusEntry>, CorpusError> {
+) -> Vec<CorpusInput> {
     use rayon::prelude::*;
-    let base = std::path::Path::new(&*root.0);
-    let found = paths
+    paths
         .par_iter()
-        .map(|path| match std::fs::metadata(base.join(&*path.0)) {
-            Ok(meta) => Ok(meta.is_file().then(|| CorpusEntry {
+        .filter_map(|path| match observed(root, path) {
+            Ok(entry) => entry.map(CorpusInput::Available),
+            Err(error) => Some(CorpusInput::Unreadable {
                 path: path.clone(),
-                size: FileSize(meta.len()),
-                modified: modified(&meta),
-            })),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(unreadable(root, &error)),
+                reason: InputReadFailure(error.to_string().into()),
+            }),
         })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(found.into_iter().flatten().collect())
+        .collect()
 }
 
 /// The refusal of a file below `root` that could not be read, saying why.
@@ -182,8 +193,8 @@ fn unreadable_file(entry: &CorpusEntry, reason: &dyn std::fmt::Display) -> Corpu
 fn modified(meta: &std::fs::Metadata) -> Nanoseconds {
     Nanoseconds(
         meta.modified()
-            .ok() // ignore: idiomatic.arch/no-ok-on-result - a system that keeps no modification time says nothing, which the record keeps as zero
-            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // ignore: idiomatic.arch/no-ok-on-result - a time before 1970 has no count since it, which the record keeps as zero
+            .ok() // a system that keeps no modification time says nothing, which the record keeps as zero
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // a time before 1970 has no count since it, which the record keeps as zero
             .map_or(0, |since| {
                 u64::try_from(since.as_nanos()).unwrap_or(u64::MAX)
             }),
@@ -231,15 +242,25 @@ impl CorpusPort for CorpusIgnoreAdapter {
     fn inventory(&self) -> Result<Inventory, CorpusError> {
         let root = &self.root;
         let mut entries = match &self.listing {
-            CorpusListing::Walked => walked(root, &self.skipped)?,
-            CorpusListing::Listed(paths) => listed(root, paths)?,
+            CorpusListing::Walked => walked(root, &self.skipped)?
+                .into_iter()
+                .map(CorpusInput::Available)
+                .collect(),
+            CorpusListing::Listed(paths) => listed(root, paths),
         };
         if !self.beside.is_empty() {
-            entries.retain(|entry| self.beside.iter().all(|given| given.path != entry.path));
-            entries.extend(self.beside.iter().map(|given| CorpusEntry {
-                path: given.path.clone(),
-                size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
-                modified: given_date(&given.bytes),
+            entries.retain(|entry| {
+                self.beside
+                    .iter()
+                    .all(|given| given.path != *input_path(entry))
+            });
+            entries.extend(self.beside.iter().map(|given| {
+                CorpusInput::Available(CorpusEntry {
+                    executable: given.executable,
+                    path: given.path.clone(),
+                    size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
+                    modified: given_date(&given.bytes),
+                })
             }));
         }
         Ok(Inventory(entries))
@@ -294,13 +315,53 @@ impl CorpusPort for CorpusIgnoreAdapter {
     ) -> Result<PathStat, CorpusError> {
         if let Some(given) = self.beside.iter().find(|given| given.path == *path) {
             return Ok(PathStat::Found(CorpusEntry {
+                executable: given.executable,
                 path: given.path.clone(),
                 size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
                 modified: given_date(&given.bytes),
             }));
         }
-        Ok(listed(&self.root, std::slice::from_ref(path))?
-            .pop()
-            .map_or(PathStat::Missing, PathStat::Found))
+        match observed(&self.root, path) {
+            Ok(Some(entry)) => Ok(PathStat::Found(entry)),
+            Ok(None) => Ok(PathStat::Missing),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(PathStat::Missing),
+            Err(error) => Err(unreadable(&self.root, &error)),
+        }
     }
+
+    fn observe_entry(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> EntryObservation {
+        let state = if self.beside_paths.contains(path) {
+            EntryState::File
+        } else {
+            match std::fs::metadata(std::path::Path::new(&*self.root.0).join(&*path.0)) {
+                Ok(metadata) if metadata.is_file() => EntryState::File,
+                Ok(metadata) if metadata.is_dir() => EntryState::Directory,
+                Ok(_) => EntryState::Other,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => EntryState::Missing,
+                Err(_) => EntryState::Unknown,
+            }
+        };
+        EntryObservation {
+            path: path.clone(),
+            state,
+        }
+    }
+}
+
+/// Observe only the platform's actual permission model; reference WSL policy stays at its edge.
+#[cfg(unix)]
+fn executable(
+    metadata: &std::fs::Metadata,
+) -> ryo_values::domain::files::types::ExecutablePermission {
+    use std::os::unix::fs::PermissionsExt as _;
+    ryo_values::domain::files::types::ExecutablePermission::Posix(
+        metadata.permissions().mode() & 0o111 != 0,
+    )
+}
+#[cfg(not(unix))]
+fn executable(_: &std::fs::Metadata) -> ryo_values::domain::files::types::ExecutablePermission {
+    ryo_values::domain::files::types::ExecutablePermission::Unsupported
 }

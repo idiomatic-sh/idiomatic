@@ -1,6 +1,6 @@
 //! The `visit` concept's failures.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 /// Why a visit could not be planned.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

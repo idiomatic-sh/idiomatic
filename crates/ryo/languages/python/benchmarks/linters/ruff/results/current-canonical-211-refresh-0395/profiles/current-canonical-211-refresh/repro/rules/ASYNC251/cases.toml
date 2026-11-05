@@ -1,0 +1,89 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    time.sleep(1)\n" }
+expected = [{ "rule" = "ASYNC251", "file" = "case.py", "start" = 31, "end" = 41 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import time as t\nasync def f():\n    t.sleep(1)\n" }
+expected = [{ "rule" = "ASYNC251", "file" = "case.py", "start" = 36, "end" = 43 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from time import sleep\nasync def f():\n    sleep(1)\n" }
+expected = [{ "rule" = "ASYNC251", "file" = "case.py", "start" = 42, "end" = 47 }]
+
+[[cases]]
+name = "sync-function"
+comparison = "full"
+files = { "case.py" = "import time\ndef f():\n    time.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "outside-async"
+comparison = "full"
+files = { "case.py" = "import time\ntime.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "async-nested-sync"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    def g():\n        time.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "async-nested-async"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    async def g():\n        time.sleep(1)\n" }
+expected = [{ "rule" = "ASYNC251", "file" = "case.py", "start" = 54, "end" = 64 }]
+
+[[cases]]
+name = "async-class"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    class C:\n        time.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "async-lambda"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    g = lambda: time.sleep(1)\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 31, "end" = 32 }]
+
+[[cases]]
+name = "async-comprehension"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f(items):\n    return [time.sleep(x) for x in items]\n" }
+expected = [{ "rule" = "ASYNC251", "file" = "case.py", "start" = 44, "end" = 54 }]
+
+[[cases]]
+name = "async-call-not-attribute"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    time.sleep\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 31, "end" = 41 }]
+
+[[cases]]
+name = "other-sleep"
+comparison = "full"
+files = { "case.py" = "from random import sleep\nasync def f():\n    sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import time\nasync def f():\n    time.sleep(1)  # noqa: ASYNC251\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: ASYNC251\nimport time\nasync def f():\n    time.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "unicode-alias"
+comparison = "full"
+files = { "case.py" = "import time as ｔ\nasync def f():\n    ｔ.sleep(1)\n" }
+expected = [{ "rule" = "ASYNC251", "file" = "case.py", "start" = 38, "end" = 47 }]

@@ -1,0 +1,190 @@
+{
+  "status": "source-smoke-only",
+  "rule": "PLE1700",
+  "selected_rules": [
+    "PLE1700"
+  ],
+  "parser_configuration": "python-target=3.10",
+  "project_context": "isolated",
+  "rule_applicability": {
+    "PLE1700": "accepted-syntax"
+  },
+  "worker_sha256": "755bda55137ed839ba49b41e3fbcfb874be337e55e0a10c05f148572c52ccb9c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "upstream_tag": "0.16.5",
+  "upstream_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "case_count": 24,
+  "complete_pairs": 24,
+  "complete_records": 48,
+  "exact_case_count": 23,
+  "unknown_or_unread": 0,
+  "query_sha256": "f1b7f335440d0d05ccccef70cba2a2a96a7d9d66f5fa3c93e855897ac8298489",
+  "cases_sha256": "3cd9f258ff5175454a4602a9a3aed0fa55abb737952823e6ad572840660d20a1",
+  "profile_sha256": "70c0f2cf6468a5476ffeffbb3ef52151f6933a5e8034e12731abc0403f4cc63c",
+  "query_modules": {
+    "python/ruff/python-evaluation-regions": "fragments/python-evaluation-regions.ryoql",
+    "python/ruff/suppress": "fragments/suppress.ryoql",
+    "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+  },
+  "module_sha256": {
+    "python/ruff/python-evaluation-regions": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+  },
+  "raw_differences": [
+    {
+      "rule": "PLE1700",
+      "name": "class-base-outer-async",
+      "target": "py310",
+      "complete": true,
+      "passed": false,
+      "extra": [
+        [
+          "PLE1700",
+          "case.py",
+          28,
+          41
+        ]
+      ],
+      "missing": [],
+      "coverage": {
+        "selected": 1,
+        "evaluated": 1,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    }
+  ],
+  "limits": [
+    "No canonical parity/admission claim; strict profile staging refresh pending.",
+    "Raw native differences are retained; no reference-discrepancy waiver has been admitted.",
+    "Only parsed .py/.pyi singleton target3.10 source is covered; notebook top-level-await admission is not certified."
+  ],
+  "admission_status": "pending authoritative canonical-profile staging and exact invocation audit",
+  "prior_proof_rejection": "Direct source-smoke WorkerRequest omitted canonical rule_applicability; defaults were always. Later hand-authored phase requests are smoke only, not authoritative profile staging.",
+  "smoke_case_scope": "Only independently authored additions; original canonical case-only fixtures require authoritative refresh.",
+  "canonical_union_case_count": 35,
+  "original_preserved_case_count": 11,
+  "canonical_name_aliases": [
+    {
+      "original_smoke_name": "async-yield-from",
+      "source_sha256": "e2944a154f01a499a1174b3b8472593163fa4b0695e0f3cdcf82f52dd0e29881",
+      "canonical_name": "authored-async-yield-from"
+    },
+    {
+      "original_smoke_name": "sync-yield-from",
+      "source_sha256": "99a9dd5daf14bcfc2670b92e00a07fe9c02cf1db670dc389a869e5b035f680c9",
+      "canonical_name": "authored-sync-yield-from"
+    },
+    {
+      "original_smoke_name": "module-yield-from",
+      "source_sha256": "e8c770a122774e7801836482a90fa270f192dced6cb3bda09b75b232d4866907",
+      "canonical_name": "authored-module-yield-from"
+    },
+    {
+      "original_smoke_name": "async-yield",
+      "source_sha256": "85d50943d96b1e3061b6d89a70e2bdcca58fbe3d386e8cd921e86b6574370315",
+      "canonical_name": "authored-async-yield"
+    },
+    {
+      "original_smoke_name": "nested-sync",
+      "source_sha256": "55aecd33face90efb280e4fcd116eb6397c39ea34e8b35ccf9cae5414b62166e",
+      "canonical_name": "authored-nested-sync"
+    },
+    {
+      "original_smoke_name": "nested-async",
+      "source_sha256": "b518cdaf640590066bbc1ef2e49bf80f1bb3a06b540bc865435ae04f646e6d11",
+      "canonical_name": "authored-nested-async"
+    },
+    {
+      "original_smoke_name": "class-barrier",
+      "source_sha256": "153446da74cc74102cdacfe1e18868a81c2eb50800cfd88e0e73457ee2243544",
+      "canonical_name": "authored-class-barrier"
+    },
+    {
+      "original_smoke_name": "lambda-barrier",
+      "source_sha256": "68e97a3c3984465f49d989288df834b5517bb9b80f89df6e21e9fcd31e997514",
+      "canonical_name": "authored-lambda-barrier"
+    },
+    {
+      "original_smoke_name": "function-default-outer-async",
+      "source_sha256": "5bba84dacc3ea7a09126e73dddaf308bb0d3b2722be14321cd79eb97d60b4176",
+      "canonical_name": "authored-function-default-outer-async"
+    },
+    {
+      "original_smoke_name": "function-default-module",
+      "source_sha256": "bd66860b6d3359655a7101a61b74365b4597ea8ce758b22df027979b3d8909b2",
+      "canonical_name": "authored-function-default-module"
+    },
+    {
+      "original_smoke_name": "class-base-outer-async",
+      "source_sha256": "64f3f4ea665e5fc75c976a29218e1bb4536c966030459cff986bfdf2280aa72f",
+      "canonical_name": "authored-class-base-outer-async"
+    },
+    {
+      "original_smoke_name": "decorator-outer-async",
+      "source_sha256": "d34b842b3f8c1479edf7d127560a7d88ff2ca52397936ee8ec950268fd867401",
+      "canonical_name": "authored-decorator-outer-async"
+    },
+    {
+      "original_smoke_name": "comprehension-element",
+      "source_sha256": "1f8731c6a680cfa843a9b0ebc3028e797abc010005a4d9454fee303791947633",
+      "canonical_name": "authored-comprehension-element"
+    },
+    {
+      "original_smoke_name": "generator-element",
+      "source_sha256": "595906b840522d3ada27a692b8a3d19be218d599993a42a8b489500ae03c6e00",
+      "canonical_name": "authored-generator-element"
+    },
+    {
+      "original_smoke_name": "comprehension-first-iterable",
+      "source_sha256": "3ee4feb6516af5d116d790916e270a6a0c43386bdfbce4ade60e901f6649b2bc",
+      "canonical_name": "authored-comprehension-first-iterable"
+    },
+    {
+      "original_smoke_name": "comprehension-later-iterable",
+      "source_sha256": "6b49cbd400cb68a1e33de65cc67a4cc7a6e47d1a6c1a4e695b7f7bf970468ca7",
+      "canonical_name": "authored-comprehension-later-iterable"
+    },
+    {
+      "original_smoke_name": "comprehension-filter",
+      "source_sha256": "4187b2967ee9a8eaf53df69866eacc582f8625b1d72bd94c4e72b7e52285d9d1",
+      "canonical_name": "authored-comprehension-filter"
+    },
+    {
+      "original_smoke_name": "string-text",
+      "source_sha256": "9cfe4ee2ed95dab15231bca7b30a177527102862d5c9f5c2fe15e30d95115a59",
+      "canonical_name": "authored-string-text"
+    },
+    {
+      "original_smoke_name": "unicode",
+      "source_sha256": "8a9e9c1eec5fe2d5d7e0d2b013ac15b45ab4de1f834aec3ed7307b0c5da3d9ea",
+      "canonical_name": "authored-unicode"
+    },
+    {
+      "original_smoke_name": "noqa",
+      "source_sha256": "5ebc0ccdf8ef8e834723c49b53faf7e860392196de5144a24eb2309e1bd6ffdd",
+      "canonical_name": "authored-noqa"
+    },
+    {
+      "original_smoke_name": "tagged-yield_from_in_async_function.py",
+      "source_sha256": "59ac792293c367ecce4406541ce0c4eda6cdf234b63d07ff10230b8375e787b0",
+      "canonical_name": "authored-tagged-yield_from_in_async_function.py-59ac7922"
+    },
+    {
+      "original_smoke_name": "tagged-yield_from_in_async_function.py",
+      "source_sha256": "f701fdb5afd65dd773fa3d1e35f59b16a087d1cda0ba0ad2b69ebab2dbb9c4f7",
+      "canonical_name": "authored-tagged-yield_from_in_async_function.py-f701fdb5"
+    },
+    {
+      "original_smoke_name": "two-file-scope-isolation",
+      "source_sha256": "f930d2d01e523535351dbd6c796a58e086fe7bedaddad83a62557fa1dafed2c3",
+      "canonical_name": "authored-two-file-scope-isolation"
+    },
+    {
+      "original_smoke_name": "stub-async-yield-from",
+      "source_sha256": "869858273d5ef301b27d1c3f760e262f4adb9b7725bb2ba4345b6ca45d3cff04",
+      "canonical_name": "authored-stub-async-yield-from"
+    }
+  ]
+}

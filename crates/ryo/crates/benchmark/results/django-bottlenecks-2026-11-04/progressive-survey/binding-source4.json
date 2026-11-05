@@ -1,0 +1,97 @@
+{
+  "source": "db1f035022c4b758362a7f010226d7a853088b6d",
+  "worker_sha256": "68156078f5f7947d1ea178f39ceb67fa509698ae4d2465323cde15c0f92398f5",
+  "collector_sha256": "4e1d3d328618bee455f9ee1f6e9c1963f076803e7251bdc953cb55db362d4205",
+  "rules": [
+    "F401",
+    "F811",
+    "F821",
+    "F841"
+  ],
+  "parent_pack_sha256": "6029d363ec77e6f2941ed715f1e1477aad90bd1995a89c3f3d0dc938de4b2428",
+  "files_sha256": "bb2fe156070448637450bdd2301f661621221deb1a41f1faa42c5e756df71c9c",
+  "corpus_files": 2875,
+  "uncertified_diagnostic": true,
+  "isolated_timings_not_added_or_subtracted": true,
+  "execution_policy": "User-requested progressive30\u219290\u2192180\u2192doubling, no hard final cutoff",
+  "all53_helpers_retained": true,
+  "cohort": "binding-source4",
+  "runtime_policy": "same common DAG; optional node-result retention enabled by historical sealed worker flags; not alternative executor",
+  "attempts": [
+    {
+      "cap_seconds": 30,
+      "capped": true,
+      "status": "FAIL_TIMEOUT",
+      "seconds_orchestration": 30.005807093009935,
+      "request_sha256": "fc2841a503d335967c2b6d20cc30c18c91b25e524add268818773f9cb99ba664",
+      "wall_seconds": 30.004951298,
+      "cpu_seconds": 30.003765,
+      "peak_rss_bytes": 158834688,
+      "worker_exit": -15
+    },
+    {
+      "cap_seconds": 90,
+      "capped": false,
+      "status": "COMPLETED_UNCERTIFIED",
+      "seconds_orchestration": 31.279006828001002,
+      "request_sha256": "8db82c97f5e2b8c5c87c394131cb2315d51405b976bab3f5d416f95627e67d17",
+      "wall_seconds": 31.251177933,
+      "cpu_seconds": 31.228897,
+      "peak_rss_bytes": 154550272,
+      "worker_exit": 0,
+      "coverage": {
+        "selected": 11500,
+        "evaluated": 11496,
+        "skipped": 4,
+        "unknown_or_unread": 0
+      },
+      "complete_report": true,
+      "isolated_rule_output_bags_equal": {
+        "F401": true,
+        "F811": true,
+        "F821": true,
+        "F841": true
+      },
+      "isolated_skip_bags_equal": {
+        "F401": true,
+        "F811": true,
+        "F821": true,
+        "F841": true
+      },
+      "global_invalid_syntax_bag_once_equal": true,
+      "diagnostics": 5
+    }
+  ],
+  "latest": {
+    "cap_seconds": 90,
+    "capped": false,
+    "status": "COMPLETED_UNCERTIFIED",
+    "seconds_orchestration": 31.279006828001002,
+    "request_sha256": "8db82c97f5e2b8c5c87c394131cb2315d51405b976bab3f5d416f95627e67d17",
+    "wall_seconds": 31.251177933,
+    "cpu_seconds": 31.228897,
+    "peak_rss_bytes": 154550272,
+    "worker_exit": 0,
+    "coverage": {
+      "selected": 11500,
+      "evaluated": 11496,
+      "skipped": 4,
+      "unknown_or_unread": 0
+    },
+    "complete_report": true,
+    "isolated_rule_output_bags_equal": {
+      "F401": true,
+      "F811": true,
+      "F821": true,
+      "F841": true
+    },
+    "isolated_skip_bags_equal": {
+      "F401": true,
+      "F811": true,
+      "F821": true,
+      "F841": true
+    },
+    "global_invalid_syntax_bag_once_equal": true,
+    "diagnostics": 5
+  }
+}

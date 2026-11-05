@@ -1,13 +1,13 @@
-// ignore: idiomatic.arch/file-length - the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
+// the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
 //! The `pushing` service: free functions named by verb over the lookups into a join of edges and elements made before the join.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{
-    FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons, Pushed, Skipped,
+    ColumnPrefixLength, FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons,
+    Pushed,
 };
 use crate::domain::fusing::service::source_column;
-use crate::domain::pruning::service::each_input;
 use crate::domain::rewriting::types::{Planned, StepIndex};
 use crate::domain::walking::service::width_of;
 use ryo_values::domain::plan_parts::service::{columns_of, each_column, remapped};
@@ -18,6 +18,7 @@ use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -25,7 +26,13 @@ use ryo_values::domain::plans::types::PlanStep;
 /// asking the edges and the elements for the children of a few nodes does not need the children of every node.
 /// `Join(left, Join(edges, elements))` keyed on the parent of the edges becomes `Join(Join(left, edges), elements)`.
 #[must_use]
-pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn push_lookups(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = push_lookups_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn push_lookups_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
         if let Some(Pushed { below, above }) = pushed(&steps, StepIndex(place)) {
@@ -40,8 +47,10 @@ pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pla
                     }
                 });
             }
-            if emitted.0 >= first.0 {
-                emitted.0 += 1;
+            for root in roots.iter_mut() {
+                if root.0 >= first.0 {
+                    root.0 += 1;
+                }
             }
             #[expect(
                 clippy::indexing_slicing,
@@ -61,7 +70,7 @@ pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pla
         }
         place += 1;
     }
-    Planned { steps, emitted }
+    steps
 }
 
 /// The second join, reading the first at `first`.
@@ -113,6 +122,7 @@ fn element_comparisons(
                 test: comparison.test,
                 left: element_side(&comparison.left)?,
                 right: element_side(&comparison.right)?,
+                origin: comparison.origin,
             });
         }
     }
@@ -149,7 +159,11 @@ fn kept_columns(
 }
 
 /// Where `column` is among `columns`, after `offset` columns before them.
-fn index_among(columns: &[ColumnIndex], column: ColumnIndex, offset: Skipped) -> ColumnIndex {
+fn index_among(
+    columns: &[ColumnIndex],
+    column: ColumnIndex,
+    offset: ColumnPrefixLength,
+) -> ColumnIndex {
     ColumnIndex(
         u32::try_from(offset.0 + columns.iter().position(|each| *each == column).unwrap_or(0))
             .unwrap_or(u32::MAX),
@@ -196,6 +210,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -233,6 +249,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: made_output,
         filter: element_filter,
         view: element_view,
+
+        reach: None,
     } = made
     else {
         return None;
@@ -272,8 +290,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         left: kept_left,
         edge: kept_edge,
     } = kept_columns(output, &made_column)?;
-    let width = Skipped(kept_left.len());
-    let at_left = |column: ColumnIndex| index_among(&kept_left, column, Skipped(0));
+    let width = ColumnPrefixLength(kept_left.len());
+    let at_left = |column: ColumnIndex| index_among(&kept_left, column, ColumnPrefixLength(0));
     let at_edge = |column: ColumnIndex| index_among(&kept_edge, column, width);
     let below = edge_lookup(*left, *lookup, &kept_left, &kept_edge);
     let answer = answer_columns(output, &made_column, &at_left, &at_edge)?;
@@ -285,6 +303,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: answer,
         filter: filters,
         view: element_view.clone(),
+
+        reach: None,
     };
     Some(Pushed { below, above })
 }
@@ -315,13 +335,24 @@ fn edge_lookup(
             .collect(),
         filter: Vec::new(),
         view: Vec::new(),
+
+        reach: None,
     }
 }
 
 /// The plan with each filter on the columns a capture was given, made before the capture instead of after it: the capture matches the
 /// paths of the rows the filter lets through, not of every row. Not done when another step reads the capture.
 #[must_use]
-pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn push_below_captures(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = push_below_captures_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn push_below_captures_roots(
+    mut steps: Vec<PlanStep>,
+    roots: &mut [StepId],
+) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
         if let Some(MovedComparisons {
@@ -329,7 +360,7 @@ pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId)
             input,
             before: moved,
             rest,
-        }) = movable(&steps, StepIndex(place), emitted)
+        }) = movable(&steps, StepIndex(place), roots)
         {
             let capture = capture.0;
             let before = StepId(u32::try_from(capture).unwrap_or(u32::MAX));
@@ -342,8 +373,10 @@ pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId)
                     }
                 });
             }
-            if emitted.0 >= before.0 {
-                emitted.0 += 1;
+            for root in roots.iter_mut() {
+                if root.0 >= before.0 {
+                    root.0 += 1;
+                }
             }
             #[expect(
                 clippy::indexing_slicing,
@@ -382,12 +415,12 @@ pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId)
         }
         place += 1;
     }
-    Planned { steps, emitted }
+    steps
 }
 
 /// The filter at `place`, when it filters what a capture made on columns the capture was given: the capture, what it reads, and the
 /// comparisons that move before it and those that stay.
-fn movable(steps: &[PlanStep], place: StepIndex, emitted: StepId) -> Option<MovedComparisons> {
+fn movable(steps: &[PlanStep], place: StepIndex, roots: &[StepId]) -> Option<MovedComparisons> {
     let Operation::Select {
         from: Input::Step(read),
         comparisons,
@@ -411,7 +444,7 @@ fn movable(steps: &[PlanStep], place: StepIndex, emitted: StepId) -> Option<Move
             reads
         })
         .count();
-    if readers != 1 || emitted == *read || captured.scope != steps.get(place.0)?.scope {
+    if readers != 1 || roots.contains(read) || captured.scope != steps.get(place.0)?.scope {
         return None;
     }
     let width = width_of(steps, *from)?.0;

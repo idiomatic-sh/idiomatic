@@ -1,0 +1,29 @@
+{
+  "artifact_id": 13283085851,
+  "artifact_name": "ruff-all-defaults-1",
+  "counts": {
+    "FAIL": 2,
+    "PASS": 411
+  },
+  "files_sha256": {
+    "comparison.json": "4d20d1d8577a62be45d88b2184fc5237d7a53e3e700232e634484c15063e760a",
+    "inventory-runner-seal.json": "1c94114b7fb88646199ffcefc5c3d112e28ee1e77e0f1a2b63e1767b7334fad9",
+    "raw-receipts.tar.gz": "082f82d5535fffd3f56e24142d9d6abdb490481eff0983946359b97fb3c13771",
+    "registration.json": "660919c6ba3714d1860eadf27c2c02c518e4cf312124d61ce6723c6208d0394f",
+    "summary.json": "804a167c698ab7c56d26fc67c158078fa65afdf736ba8ea527330b93d77b1cbc",
+    "worker-seal.json": "86c95e54aff1716a7d55f057d2f05e23cacac1b6b70ac789ce12edd08507eb61"
+  },
+  "job_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41742876963/job/126288505868",
+  "new_pass_rules": [
+    "RUF200"
+  ],
+  "raw_receipts_validated_pass_rules": 411,
+  "remaining_fail_rules": [
+    "I001",
+    "RUF100"
+  ],
+  "run_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41742876963",
+  "schema": "source-bound-ci-inventory/v1",
+  "source_head": "c3360a7f75bb5c346d07933712c94ec9b35ee8cc",
+  "status": "complete"
+}

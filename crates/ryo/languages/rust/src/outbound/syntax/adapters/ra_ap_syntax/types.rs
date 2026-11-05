@@ -88,7 +88,7 @@ pub(crate) struct ArgumentSpan {
 
 /// What a stretch of an argument list is read as.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Reading {
+pub(crate) enum FragmentEntryPoint {
     /// An expression.
     Expression,
     /// A pattern.
@@ -101,7 +101,7 @@ pub(crate) struct Stretch {
     /// The text.
     pub span: ArgumentSpan,
     /// What it is read as.
-    pub reading: Reading,
+    pub reading: FragmentEntryPoint,
 }
 
 /// An argument of a macro read again: where its text starts and the steps it parses to.

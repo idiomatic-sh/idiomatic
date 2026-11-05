@@ -1,0 +1,12 @@
+[
+  {
+    "name": "module-vs-enclosing-local",
+    "source": "from __future__ import annotations\nNever=str\ndef outer():\n from typing import NoReturn as Never\n def f()->Never | int: ...\n return f\nf=outer()\n",
+    "resolution_pair": true
+  },
+  {
+    "name": "eager-enclosing-local-positive",
+    "source": "Never=str\ndef outer():\n from typing import NoReturn as Never\n def f()->Never | int: ...\n return f\nf=outer()\n",
+    "bottom": true
+  }
+]

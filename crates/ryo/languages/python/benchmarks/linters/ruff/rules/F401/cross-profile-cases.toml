@@ -1,0 +1,6 @@
+
+[[cases]]
+name = "cross-PYI052-current-enum-context-11"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Outer:\n from enum import Enum as E\nclass Subject(Outer.E):\n x=1\n" }
+expected = [{ end = 21, file = "case.pyi", rule = "F401", start = 17 }, { end = 91, file = "case.pyi", rule = "PYI052", start = 90 }]

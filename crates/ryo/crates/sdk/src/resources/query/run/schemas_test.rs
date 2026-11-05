@@ -71,6 +71,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| selects(matches!(error, RunError::Language { .. }))),
     },
     Case {
+        name: CaseName("fails_when_an_explicit_source_language_is_unavailable"),
+        word: Word::Fails,
+        input: || {
+            Offered::CoreFails(CoreError::SourceLanguage {
+                name: "missing".into(),
+            })
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, RunError::Language { reason } if !reason.is_empty()))
+        }),
+    },
+    Case {
         name: CaseName("fails_when_the_memory_fails"),
         word: Word::Fails,
         input: || {

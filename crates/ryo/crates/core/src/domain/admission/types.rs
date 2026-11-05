@@ -1,6 +1,6 @@
 //! The types of the `admission` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::FileId;
 
 /// How many bytes the file has.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

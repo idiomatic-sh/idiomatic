@@ -7,9 +7,9 @@ use std::path::Path;
 use super::super::service::absence as parse_absence;
 use super::super::types::ParseEngine;
 use super::findings::Findings;
-use crate::domain::answers::types::AbsenceCause;
-use crate::domain::relations::service::{all, folder_of, provenance_of};
-use crate::domain::relations::types::{Provenance, Relation};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::service::{all, folder_of, provenance_of};
+use ryo_relations::domain::relations::types::{OptionalCapability, Provenance, Relation};
 use crate::inbound::use_cases::project::types::ProjectEngine;
 
 /// Where the command line's manifest is from a language's directory: its default features are the languages that ship.
@@ -65,7 +65,7 @@ fn ships(name: &str, directory: &Path) -> Result<bool, String> {
 }
 
 /// Prints each relation the language has not read yet, by name, so that a stage of a language being written is never a silence:
-/// the line is printed whether the run passes or not. A language that ships may not leave a relation for later: each is a finding.
+/// the line is printed whether the run passes or not. Shipped baseline relations and advertised optional capabilities must be answered; unadvertised optional capabilities remain explicitly unavailable.
 pub(super) fn report_not_yet_read(
     name: &str,
     directory: &Path,
@@ -73,13 +73,13 @@ pub(super) fn report_not_yet_read(
     language: &dyn ProjectEngine,
     findings: &mut Findings,
 ) {
-    let lines = listed(&answers(|relation| {
+    let observed = answers(|relation| {
         if provenance_of(relation) == Provenance::Manifests {
             language.absence_of(relation)
         } else {
             parse_absence(parse, relation)
         }
-    }));
+    });
     let shipped = match ships(name, directory) {
         Ok(shipped) => shipped,
         Err(why) => {
@@ -87,16 +87,43 @@ pub(super) fn report_not_yet_read(
             true
         }
     };
+    let promises = parse.capabilities();
+    if duplicates(promises) != 0 {
+        findings
+            .0
+            .push(format!("duplicate advertised capabilities: {promises:?}"));
+    }
     let mut errors = std::io::stderr().lock();
-    for line in lines {
-        // Nothing is left to say when stderr is gone.
+    for (relation, reason) in observed {
+        if reason != Some(AbsenceCause::NotYetRead) {
+            continue;
+        }
+        let line = format!("not yet read: {}", folder_of(relation));
         drop(writeln!(errors, "{line}"));
-        if shipped {
-            findings.0.push(format!(
-                "{line}: {name} ships by default, so it reads the relation or answers why the language has none"
-            ));
+        let required = needs_answer(relation, promises, shipped);
+        if required {
+            findings.0.push(format!("{line}: {name} must answer its required baseline and advertised optional capabilities"));
         }
     }
+}
+
+/// Optional promises are required even when a language is not a default CLI feature.
+fn needs_answer(relation: Relation, promises: &[OptionalCapability], shipped: bool) -> bool {
+    ryo_relations::domain::relations::service::optional_capability(relation)
+        .map_or(shipped, |capability| promises.contains(&capability))
+}
+/// Duplicate declarations are an invalid provider inventory, not extra support.
+fn duplicates(promises: &[OptionalCapability]) -> usize {
+    promises
+        .iter()
+        .enumerate()
+        .filter(|(index, capability)| {
+            promises
+                .iter()
+                .take(*index)
+                .any(|previous| previous == *capability)
+        })
+        .count()
 }
 
 #[cfg(test)]

@@ -1,0 +1,77 @@
+[[cases]]
+name = "earlier-nonadjacent-name-key"
+comparison = "full"
+files = { "case.py" = "{item: 1, other: 2, item: 3}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 28 }, { "rule" = "F602", "file" = "case.py", "start" = 20, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 24 }]
+
+[[cases]]
+name = "repeated-name-key"
+comparison = "full"
+files = { "case.py" = "{item: 1, item: 2}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 18 }, { "rule" = "F602", "file" = "case.py", "start" = 10, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 14 }]
+
+[[cases]]
+name = "different-name-keys"
+comparison = "full"
+files = { "case.py" = "{left: 1, right: 2}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 19 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }]
+
+[[cases]]
+name = "name-with-tuple-key"
+comparison = "full"
+files = { "case.py" = "{item: 1, (item,): 2, item: 3}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 30 }, { "rule" = "F602", "file" = "case.py", "start" = 22, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 11, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }]
+
+[[cases]]
+name = "walrus-keys-are-not-name-keys"
+comparison = "full"
+files = { "case.py" = "{(item := 1): 1, (item := 2): 2}\n" }
+expected = []
+
+[[cases]]
+name = "attribute-keys"
+comparison = "full"
+files = { "case.py" = "{obj.item: 1, obj.item: 2}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 17 }]
+
+[[cases]]
+name = "calls-are-not-name-keys"
+comparison = "full"
+files = { "case.py" = "{get(): 1, get(): 2}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 11, "end" = 14 }]
+
+[[cases]]
+name = "normalized-name-key"
+comparison = "full"
+files = { "case.py" = "{ｘ: 1, x: 2}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 14 }, { "rule" = "F602", "file" = "case.py", "start" = 9, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 4 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 10 }]
+
+[[cases]]
+name = "triple-repeated-name-key"
+comparison = "full"
+files = { "case.py" = "{item: 1, item: 2, item: 3}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 27 }, { "rule" = "F602", "file" = "case.py", "start" = 10, "end" = 14 }, { "rule" = "F602", "file" = "case.py", "start" = 19, "end" = 23 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 19, "end" = 23 }]
+
+[[cases]]
+name = "same-name-separate-dictionaries"
+comparison = "full"
+files = { "case.py" = "[{item: 1}, {item: 2}]\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 2, "end" = 6 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "case-sensitive-name-keys"
+comparison = "full"
+files = { "case.py" = "{Item: 1, item: 2}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 14 }]
+
+[[cases]]
+name = "repeated-alias-key"
+comparison = "full"
+files = { "case.py" = "from module import value as alias\n{alias: 1, alias: 2}\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 34, "end" = 54 }, { "rule" = "F602", "file" = "case.py", "start" = 45, "end" = 50 }]
+
+[[cases]]
+name = "noqa-suppression"
+comparison = "full"
+files = { "case.py" = "{item: 1, item: 2}  # noqa: F602\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 5 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 14 }]

@@ -1,0 +1,306 @@
+[
+  {
+    "name": "initializer-3",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in os.open(\"x\", 0).readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 134,
+        "end": 161
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "assigned-initializer-3",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = os.open(\"x\", 0)\nfor line in f.readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 154,
+        "end": 167
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "initializer-7",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in PurePath(\"x\").open().readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 134,
+        "end": 166
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "assigned-initializer-7",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = PurePath(\"x\").open()\nfor line in f.readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 159,
+        "end": 172
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "initializer-8",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in PurePosixPath(\"x\").open().readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 134,
+        "end": 171
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "assigned-initializer-8",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = PurePosixPath(\"x\").open()\nfor line in f.readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 164,
+        "end": 177
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "initializer-9",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in PureWindowsPath(\"x\").open().readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 134,
+        "end": 173
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "assigned-initializer-9",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = PureWindowsPath(\"x\").open()\nfor line in f.readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 166,
+        "end": 179
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "initializer-10",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in io.StringIO().readlines():\n    pass\n"
+    },
+    "reference_expected": [],
+    "intended_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 134,
+        "end": 159
+      }
+    ],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "assigned-initializer-10",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = io.StringIO()\nfor line in f.readlines():\n    pass\n"
+    },
+    "reference_expected": [],
+    "intended_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 152,
+        "end": 165
+      }
+    ],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "initializer-11",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nfor line in io.BytesIO().readlines():\n    pass\n"
+    },
+    "reference_expected": [],
+    "intended_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 134,
+        "end": 158
+      }
+    ],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "assigned-initializer-11",
+    "files": {
+      "case.py": "import io, os, builtins\nfrom builtins import open as o\nfrom pathlib import Path, PurePath, PurePosixPath, PureWindowsPath\nf = io.BytesIO()\nfor line in f.readlines():\n    pass\n"
+    },
+    "reference_expected": [],
+    "intended_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 151,
+        "end": 164
+      }
+    ],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-11",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: os.Path):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 75,
+        "end": 89
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-12",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: os.PathLike):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 79,
+        "end": 93
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-13",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.Path):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 80,
+        "end": 94
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-14",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.PurePath):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 84,
+        "end": 98
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-15",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.PurePosixPath):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 89,
+        "end": 103
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-16",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: pathlib.PureWindowsPath):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 91,
+        "end": 105
+      }
+    ],
+    "intended_expected": [],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  },
+  {
+    "name": "annotation-22",
+    "files": {
+      "case.py": "import io, os, pathlib, typing, codecs\ndef f(fp: \"typing.TextIO\"):\n    for line in fp.readlines():\n        pass\n"
+    },
+    "reference_expected": [],
+    "intended_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 83,
+        "end": 97
+      }
+    ],
+    "reason": "Actual IO types are separated from integer file descriptors and path values; supported in-memory IO constructors and explicit forward annotations remain file-like."
+  }
+]

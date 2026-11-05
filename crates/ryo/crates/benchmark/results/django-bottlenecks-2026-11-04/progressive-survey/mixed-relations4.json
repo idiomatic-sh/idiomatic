@@ -1,0 +1,97 @@
+{
+  "source": "db1f035022c4b758362a7f010226d7a853088b6d",
+  "worker_sha256": "68156078f5f7947d1ea178f39ceb67fa509698ae4d2465323cde15c0f92398f5",
+  "collector_sha256": "4e1d3d328618bee455f9ee1f6e9c1963f076803e7251bdc953cb55db362d4205",
+  "rules": [
+    "RUF028",
+    "RET501",
+    "SIM114",
+    "B018"
+  ],
+  "parent_pack_sha256": "6029d363ec77e6f2941ed715f1e1477aad90bd1995a89c3f3d0dc938de4b2428",
+  "files_sha256": "bb2fe156070448637450bdd2301f661621221deb1a41f1faa42c5e756df71c9c",
+  "corpus_files": 2875,
+  "uncertified_diagnostic": true,
+  "isolated_timings_not_added_or_subtracted": true,
+  "execution_policy": "User-requested progressive30\u219290\u2192180\u2192doubling, no hard final cutoff",
+  "all53_helpers_retained": true,
+  "cohort": "mixed-relations4",
+  "runtime_policy": "same common DAG; optional node-result retention enabled by historical sealed worker flags; not alternative executor",
+  "attempts": [
+    {
+      "cap_seconds": 30,
+      "capped": true,
+      "status": "FAIL_TIMEOUT",
+      "seconds_orchestration": 30.016453478994663,
+      "request_sha256": "14e2f531639e80d60b66136ae296a558208b1023b3773a0f9b9c77e1a039e944",
+      "wall_seconds": 30.014097091,
+      "cpu_seconds": 30.001027,
+      "peak_rss_bytes": 288133120,
+      "worker_exit": -15
+    },
+    {
+      "cap_seconds": 90,
+      "capped": false,
+      "status": "COMPLETED_UNCERTIFIED",
+      "seconds_orchestration": 33.97470488099498,
+      "request_sha256": "e986609e04a13f864309862be351c18c43e7ef5162490d09e317d43984dc060d",
+      "wall_seconds": 33.95527578,
+      "cpu_seconds": 33.950668,
+      "peak_rss_bytes": 299319296,
+      "worker_exit": 0,
+      "coverage": {
+        "selected": 11500,
+        "evaluated": 11496,
+        "skipped": 4,
+        "unknown_or_unread": 0
+      },
+      "complete_report": true,
+      "isolated_rule_output_bags_equal": {
+        "RUF028": true,
+        "RET501": true,
+        "SIM114": true,
+        "B018": true
+      },
+      "isolated_skip_bags_equal": {
+        "RUF028": true,
+        "RET501": true,
+        "SIM114": true,
+        "B018": true
+      },
+      "global_invalid_syntax_bag_once_equal": true,
+      "diagnostics": 202
+    }
+  ],
+  "latest": {
+    "cap_seconds": 90,
+    "capped": false,
+    "status": "COMPLETED_UNCERTIFIED",
+    "seconds_orchestration": 33.97470488099498,
+    "request_sha256": "e986609e04a13f864309862be351c18c43e7ef5162490d09e317d43984dc060d",
+    "wall_seconds": 33.95527578,
+    "cpu_seconds": 33.950668,
+    "peak_rss_bytes": 299319296,
+    "worker_exit": 0,
+    "coverage": {
+      "selected": 11500,
+      "evaluated": 11496,
+      "skipped": 4,
+      "unknown_or_unread": 0
+    },
+    "complete_report": true,
+    "isolated_rule_output_bags_equal": {
+      "RUF028": true,
+      "RET501": true,
+      "SIM114": true,
+      "B018": true
+    },
+    "isolated_skip_bags_equal": {
+      "RUF028": true,
+      "RET501": true,
+      "SIM114": true,
+      "B018": true
+    },
+    "global_invalid_syntax_bag_once_equal": true,
+    "diagnostics": 202
+  }
+}

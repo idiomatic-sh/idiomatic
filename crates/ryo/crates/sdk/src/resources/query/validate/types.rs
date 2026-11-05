@@ -24,6 +24,8 @@ pub struct ValidateReport {
 /// What `query validate` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidateRequest {
+    /// Typed named producer inputs available to this query.
+    pub observations: Vec<crate::domain::observation::types::BoundObservationInput>,
     /// The query to check.
     pub query: RyoQlQuery,
     /// The relations the host declares, which the query may name.

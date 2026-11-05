@@ -1,0 +1,59 @@
+{
+  "comparison_schema": "benchmark-comparison/v1",
+  "expectation_contract": "diagnostics",
+  "raw_count_contract": "legacy-stored-field-equality/v1",
+  "execution_metadata_contract": "explicit-capability/v1; legacy absence remains unknown",
+  "profile": "UP045",
+  "command": [
+    "/tmp/io-capability-native118-artifacts-20261102/python-release",
+    "verify-cases",
+    "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "/tmp/modernization-lexical-ownership-20261102/certificates/profiles/UP045/repro"
+  ],
+  "cwd": "/tmp/modernization-lexical-ownership-20261102/certificates/repository/crates/ryo",
+  "status": 0,
+  "process_status": 0,
+  "error": null,
+  "identities": {
+    "worker_sha256": "afb2cd5552ebf24f09d41ec9ad2652ebb6d031b79e8e37d5f7d84b9508a2fc88",
+    "helper_sha256": "52b2cbb925f0da6370cea681057c6b5b3f50ed4bb58d050f52fe5f984efb1411",
+    "scope": "generic modernization lexical ownership correction, existing consumers and independent controls"
+  },
+  "staged_inputs": {
+    "benchmark.toml": "845946ce1982b4c940a51a9296fb2f1dc0ce7cac02cd6db74fcd1c859a651e3c",
+    "evidence/lexical-ownership-cpython310.json": "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7",
+    "evidence/lexical-ownership-cpython313.json": "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463",
+    "evidence/lexical-ownership-probe-inputs.json": "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082",
+    "evidence/lexical-ownership-probe.py": "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/modernization-symbols.ryoql": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "rules/UP045/cases.toml": "3cb66b7b5fe44008b71048db4e4c401967264df8f9dfa239904545e5adacf0a0",
+    "rules/UP045/query.ryoql": "76aded66b14a1c842177837c14f7bab120d95adeb9c640cb2e7e68946875aa09"
+  },
+  "stdout_file": "profiles/UP045/stdout.bin",
+  "stderr_file": "profiles/UP045/stderr.bin",
+  "reproduction_directory": "profiles/UP045/repro",
+  "case_results_file": "profiles/UP045/cases.jsonl",
+  "case_results_sha256": "92c1d5908ce9d4ae49140cb076f221efbcb4e299549fbeb4e3759349b3498ab5",
+  "case_expectation_summary": {
+    "complete_case_pairs": 33,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 32,
+    "raw_parity_mismatches": 1,
+    "documented_reference_discrepancies": 1,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 33,
+    "intended_behavior_failures": 0,
+    "diagnostic_parity_matches": 32,
+    "diagnostic_parity_mismatches": 1,
+    "execution_metadata_exact": 0,
+    "execution_metadata_different": 0,
+    "execution_metadata_incomparable": 33,
+    "typed_candidate_execution_complete": 33,
+    "legacy_or_unknown_candidate_execution": 0
+  }
+}

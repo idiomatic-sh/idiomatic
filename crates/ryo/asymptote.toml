@@ -32,7 +32,7 @@ id = "cargo-clippy"
 group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
 # pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | python ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
@@ -51,7 +51,7 @@ group = "check"
 # The core crates' tests, every feature on: each test tool builds the workspace once, as the others do, and runs the
 # packages its filter names, so its run is kept while its own inputs did not move. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values) | package(=idiomatic-sh-ryo-benchmark)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -62,7 +62,26 @@ group = "check"
 # language reaches crates/language and every other crate through crates/sdk, so all of them are its inputs.
 run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-{lang})"]
 timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "crates/benchmark", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "correctness-python-ruff"
+group = "check"
+# All 104 native query assets retain their 2,211 authored cases under explicitly declared
+# singleton selections. The full combined candidate cohort stays a separate tool; no
+# reference arrays are rewritten and every staged execution identity is recorded.
+run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nguards = subprocess.run([sys.executable, str(helper), '--self-test-native-standalone'])\nif guards.returncode:\n    sys.exit(guards.returncode)\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nsys.exit(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)"]
+timeout-seconds = 3600
+inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "correctness-python-ruff-candidates"
+group = "ruff-candidates"
+# This job checks authoring guards and optimized Python release behavior. The dedicated
+# ruff-all-defaults CI job owns strict 413-rule verification and its receipts.
+run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--test', 'ruff', 'literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
+timeout-seconds = 3600
+inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "test-cli"
@@ -76,7 +95,7 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 id = "test-bdd"
 group = "check"
 # The cucumber runners (`tests/bdd.rs`, `harness = false`), which nextest's default filter leaves out.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
+run = ["bash", "-c", "mkdir -p target/checks/bdd; set +e; cargo test --workspace --locked --all-features --test bdd > target/checks/bdd/stdout.log 2> target/checks/bdd/stderr.log; tool_status=$?; cat target/checks/bdd/stdout.log; cat target/checks/bdd/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/bdd/status; exit \"$tool_status\""]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -175,7 +194,7 @@ id = "peak"
 group = "perf"
 # The warm run's memory peak over ruff, held to its bound (`cli/tests/replay/peak.rs`): measured here, apart from the release's
 # tests, until it holds its bound on every runner.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "-E", "test(/^peak::/)"]
+run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -209,8 +228,19 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "build"
 group = "build"
-# Compiles what the `check` group's tools compile, as they compile it, so that CI builds once per machine and every group's job
-# reuses the build from the cache this job saves: clippy's analysis, the test targets nextest and `cargo test` run, and the docs.
-run = ["bash", "-c", "set -e; cargo clippy --workspace --all-targets --all-features --locked; cargo test --workspace --locked --all-features --no-run; cargo doc --workspace --no-deps --all-features --locked"]
+# Compile reusable test/doc artifacts before independent quality and speed jobs.
+# Clippy remains mandatory in its quality group; denied style findings do not gate Rust speed execution.
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/checks/build; cargo check --workspace --all-targets --all-features --locked 2>&1 | tee target/checks/build/compile.log; cargo test --workspace --locked --all-features --no-run 2>&1 | tee target/checks/build/test.log; cargo doc --workspace --no-deps --all-features --locked 2>&1 | tee target/checks/build/doc.log"]
 timeout-seconds = 7200
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "performance-python-ruff"
+group = "perf"
+# Complete default disposition accounting and case certification precede every run.
+# Both contestants select the complete immutable configured inventory (all413 Ruff defaults). Missing
+# tools, mismatched pins and unassessed defaults are failures, never skipped work.
+run = ["bash", "-o", "pipefail", "-c", "set -euo pipefail\nmkdir -p target/benchmark/python\ncargo build --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector --message-format=json > target/benchmark/python/collector-build.jsonl\npython3 ../../.github/scripts/seal_cargo_artifact.py target/benchmark/python/collector-build.jsonl ryo-benchmark-collector bin /crates/benchmark/src/main.rs false target/benchmark/python/collector\ncargo bench --no-run --locked -p idiomatic-sh-ryo-python --bench ruff --message-format=json > target/benchmark/python/worker-build.jsonl\npython3 ../../.github/scripts/seal_cargo_artifact.py target/benchmark/python/worker-build.jsonl ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true target/benchmark/python/worker\nproof=\"$(mktemp -d target/benchmark/python/cases.XXXXXX)\"\n# Source preparation requires a fresh destination; the shared Rust runner owns execution.\nrmdir \"$proof\"\npython3 languages/python/benchmarks/linters/ruff/verify_profiles.py \"$(command -v ruff)\" --full-inventory --prepare-inventory --worker \"$PWD/target/benchmark/python/worker\" --output-dir \"$PWD/$proof\"\n{ target/benchmark/python/worker measure-valid \"$(command -v ruff)\" target/benchmark/python/state \"$PWD/target/benchmark/python/collector\" \"--case-inventory=$PWD/$proof/registration.json\" 2>&1 1>&3 | tee target/benchmark/python/observations.log >&2; } 3>&1 | tee target/benchmark/python/measurements.json"]
+output = "bmf"
+timeout-seconds = 14400
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]

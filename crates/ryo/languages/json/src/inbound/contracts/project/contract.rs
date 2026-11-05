@@ -25,8 +25,20 @@ impl Project for ProjectContract {
         &[]
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
+    fn project_entries(&self, _request: &ProjectRequest) -> Vec<ryo::languages::FilePath> {
+        Vec::new()
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.receipt(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -47,6 +59,20 @@ impl Project for ProjectContract {
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the standard names no project manifest.
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

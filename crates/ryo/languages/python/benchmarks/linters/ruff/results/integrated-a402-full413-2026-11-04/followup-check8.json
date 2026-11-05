@@ -1,0 +1,60 @@
+{
+  "head": "a0b6478ec61e27fe1ea6a50528361c5de3398822",
+  "tree": "5ff2249ffdfb5a7fe04b734692a49acd0706e27a",
+  "status_before": " M .github/workflows/check.yml\n M ci/workflows_test.py\n?? .agents/agents/\n?? ci/contract_review/\n",
+  "commands": [
+    {
+      "argv": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--target-dir",
+        "/workspaces/idiomatic-benchmark-guards/target",
+        "-j6",
+        "--message-format=json",
+        "--lib",
+        "-p",
+        "idiomatic-sh-ryo-benchmark",
+        "-p",
+        "idiomatic-sh-ryo-core",
+        "-p",
+        "idiomatic-sh-ryo-sdk",
+        "-p",
+        "idiomatic-sh-ryo-python",
+        "-p",
+        "idiomatic-sh-ryo-language",
+        "-p",
+        "idiomatic-sh-ryo-relations",
+        "-p",
+        "idiomatic-sh-ryo-values",
+        "-p",
+        "idiomatic-sh-ryo-query_language"
+      ],
+      "exit": 0,
+      "started": 1793803135.8998497,
+      "finished": 1793803142.6904693
+    },
+    {
+      "argv": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--target-dir",
+        "/workspaces/idiomatic-benchmark-guards/target",
+        "-j6",
+        "--message-format=json",
+        "-p",
+        "idiomatic-sh-ryo-python",
+        "--bench",
+        "ruff"
+      ],
+      "exit": 0,
+      "started": 1793803142.6910207,
+      "finished": 1793803149.392603
+    }
+  ],
+  "lock_acquired": 1793803135.8987277,
+  "lock_released": 1793803149.3927603
+}

@@ -1,15 +1,15 @@
 //! The `render` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{
-    CellKind, FileId, Integer, KindBits, Offset, Position, Span, Value as Cell,
-};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Integer, KindBits, Offset, Position, Span, Value as Cell,
+};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::records::types::Cell as Typed;
 use ryo_values::domain::records::types::{CellText, RowsTextView};
 
@@ -20,9 +20,9 @@ use super::types::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use crate::domain::finish::types::{LineStarts, RuleNumber};
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
+use ryo_values::domain::rows::service::push_row;
+use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
+
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
@@ -308,6 +308,8 @@ fn finding(table: &Table, scene: Scene<'_>) -> Result<Value, Failure> {
 /// Whether one rule's answer is its own columns, and two rules' are the rule, then every heading of each as often as one has it.
 fn answered() -> Value {
     let headed = |names: &[&str]| Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: Vec::new(),
         emit: Emit {
@@ -315,6 +317,7 @@ fn answered() -> Value {
             ..emit()
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     };
     let one = rows_answer(&[headed(&["file", "name"])], RowTotal(5));
     let many = rows_answer(
@@ -384,3 +387,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

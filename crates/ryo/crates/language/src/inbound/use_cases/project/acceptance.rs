@@ -26,6 +26,9 @@ fn runs(world: &mut Behavior) {
     let resolved = project(
         &ProjectUseCaseImpl,
         &ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(Box::default()),
             manifests: Vec::new(),

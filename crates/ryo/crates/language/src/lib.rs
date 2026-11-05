@@ -17,6 +17,8 @@
 
 #[macro_use]
 pub mod domain;
+/// Engine-owned preparation and completion of one file generation.
+pub mod application;
 pub mod inbound;
 
 #[cfg(any(test, feature = "fixtures"))]

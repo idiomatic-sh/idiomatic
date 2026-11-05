@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import re
 import tomllib
+from copy import deepcopy
+from hashlib import sha256
+from json import dumps
 from pathlib import Path
 
 import pytest
@@ -17,6 +20,9 @@ WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
 
 # The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
 CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z][a-z-]*(,[a-z][a-z-]*)*)?")
+# Evidence capture keeps one check's stdout, stderr and exact exit status. This is deliberately a whole-script grammar, not
+# permission to run arbitrary shell commands around a check.
+CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format json > target/checks/\1\.json 2> target/checks/\1\.stderr")
 # The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from its trusted publishing,
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
@@ -38,6 +44,109 @@ RELEASE_LINE = re.compile(
 )
 # The steps that put the declared tools on a machine; a job command runs beside them and installs nothing itself.
 SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
+
+# This independent job is an inventory gate, not an Asymptote check. The three
+# approved scripts are sealed whole: a removed build, narrowed rule set, masked
+# exit, or extra shell command must require an explicit review of this contract.
+FULL_INVENTORY_SCRIPTS = {
+    "Build one Ruff worker and seal its artifact": "4bfd20ca1e5bf10a02068af69a944d180a7ca4076bd064ec787e33cb83009e58",
+    "Build shared benchmark inventory runner": "5d8998c6e9bdfbdec286c4606f51bebb5785784a27a8afa118f7205d7e8c0f1f",
+    "Verify all 413 pinned Ruff defaults": "c3aaa07327b3c8134fcd36a4cf760fbed37cd6cb3bd9be6f0836462468879adf",
+}
+# Each digest binds the entire pinned action step: its `uses`, inputs, id,
+# condition and name. The ordered inventory also prevents inserted actions
+# from changing PATH, environment or the checkout beneath sealed scripts.
+FULL_INVENTORY_ACTIONS = [
+    ("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "3facce523aa8a0e29a937485282e18e07e2907c45914b4ce7745b674c765f3b7"),
+    ("rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621", "29c1d451230538f43d0b400cd8f29d6d44751605fdc700c034be0ee1dd079524"),
+    ("actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", "7f5474ce29bf0dbdda451c45fc3e6dea65abfbbe1df98d51d9f4d0d29a599875"),
+    ("actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "575dd3621a9046d2565240ed6cd1a03f836bdb30bf621ee41116f601aa13b2c1"),
+    ("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "4ff5f58fc47d55df93511f6dfea5db27c569b98f43b84e380960801b15c1761d"),
+    ("astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", "39393228bcaf4b2e15bc14f2fadb3501c81f8966ef57502f9be19f86dbc3fa10"),
+    ("Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0", "93dc05c5ffb39e0b24acd9de22bbdda46c973841166ede158a8d8ea3f01ca63e"),
+    ("actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "c8ee43c3c99e776f1742d16763c36999907144bc3b69900a90461778414a683e"),
+    ("actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "109b67da612eaa7e25df38fbc0f69727c3f6bdfc18638720ec49c2e924c7ab2b"),
+    ("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", "b9cf3ef4ae00784578aec3c3df418ccd2be3bec3c9518457e0c5f8d60856b14f"),
+]
+FULL_INVENTORY_ORDER = [
+    *(uses for uses, _ in FULL_INVENTORY_ACTIONS[:6]),
+    "Rust toolchain (rust-toolchain.toml)",
+    FULL_INVENTORY_ACTIONS[6][0],
+    FULL_INVENTORY_ACTIONS[7][0],
+    "Install pinned tools",
+    FULL_INVENTORY_ACTIONS[8][0],
+    *FULL_INVENTORY_SCRIPTS,
+    FULL_INVENTORY_ACTIONS[9][0],
+]
+
+
+def full_inventory_problems(job: dict) -> list[str]:
+    """A narrow second gate: sealed worker, collector, all defaults, propagated status and receipts."""
+    found = []
+    steps = job.get("steps", [])
+    if not steps:
+        return ["full inventory has no worker, collector, verifier or receipts"]
+    if set(job) != {"runs-on", "timeout-minutes", "defaults", "steps"} or job.get("runs-on") != "ubuntu-26.04" or job.get("timeout-minutes") != 360:
+        found.append("full inventory must run independently on Linux and propagate failure")
+    if job.get("defaults") != {"run": {"shell": "bash"}}:
+        found.append("full inventory must use the reviewed Bash scripts")
+    actions = [
+        (step["uses"], sha256(dumps(step, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+        for step in steps if "uses" in step
+    ]
+    if actions != FULL_INVENTORY_ACTIONS or [step.get("uses") or step.get("name") or step.get("run") for step in steps] != FULL_INVENTORY_ORDER:
+        found.append("full inventory changed its ordered setup actions or action inputs")
+    named = [step for step in steps if step.get("name") in FULL_INVENTORY_SCRIPTS]
+    if [step.get("name") for step in named] != list(FULL_INVENTORY_SCRIPTS):
+        found.append("full inventory lost or reordered its worker, collector or verifier")
+    for name, expected in FULL_INVENTORY_SCRIPTS.items():
+        matches = [step for step in steps if step.get("name") == name]
+        run = matches[0].get("run") if len(matches) == 1 else None
+        if not isinstance(run, str) or sha256(run.encode()).hexdigest() != expected:
+            found.append(f"full inventory changed the reviewed {name} script")
+        elif any(key in matches[0] for key in ("if", "continue-on-error", "shell")):
+            found.append(f"full inventory may not skip or mask {name}")
+        elif name != "Verify all 413 pinned Ruff defaults" and any(key in matches[0] for key in ("env", "working-directory")):
+            found.append(f"full inventory changed the reviewed {name} build environment")
+    if named and named != steps[-4:-1]:
+        found.append("full inventory has steps between its builds, verifier and upload")
+    extra_runs = [step.get("run") for step in steps if "run" in step and step.get("name") not in FULL_INVENTORY_SCRIPTS]
+    if len(extra_runs) != len(SETUP) or any(not isinstance(run, str) for run in extra_runs) or set(extra_runs) != SETUP:
+        found.append("full inventory runs an unreviewed setup command")
+    if any("shell" in step or "continue-on-error" in step or "if" in step for step in steps if "run" in step):
+        found.append("full inventory run steps may not override their shell or skip failures")
+    if any("continue-on-error" in step for step in steps):
+        found.append("full inventory steps may not mask failures")
+    if any(
+        "if" in step and (step.get("name"), step["if"])
+        not in {
+            ("Save installed tools", "steps.cargo_bin_cache.outputs.cache-hit != 'true'"),
+            ("All-defaults inventory and per-rule receipts", "always()"),
+        }
+        for step in steps
+    ):
+        found.append("full inventory has an unreviewed step condition")
+    if any(
+        "env" in step and step.get("name") not in {"Install pinned tools", "Verify all 413 pinned Ruff defaults"}
+        for step in steps
+    ):
+        found.append("full inventory has an unreviewed step environment")
+    install = next((step for step in steps if step.get("name") == "Install pinned tools"), None)
+    if install is None or install.get("env") != {"GH_TOKEN": "${{ github.token }}"}:
+        found.append("full inventory changed the pinned tool installation environment")
+    verifier = next((step for step in named if step.get("name") == "Verify all 413 pinned Ruff defaults"), None)
+    if verifier and (verifier.get("working-directory") != "crates/ryo" or verifier.get("env") != {"RAYON_NUM_THREADS": "1"}):
+        found.append("full inventory changed its pinned worker environment")
+    upload = steps[-1]
+    if not upload.get("uses", "").startswith(UPLOAD) or upload.get("name") != "All-defaults inventory and per-rule receipts" or upload.get("if") != "always()" or upload.get("with") != {
+        "name": "ruff-all-defaults-${{ github.run_attempt }}",
+        "path": "target/checks/ruff-all-defaults/",
+        "include-hidden-files": True,
+        "if-no-files-found": "error",
+        "retention-days": 7,
+    }:
+        found.append("full inventory must upload complete receipts even after failure")
+    return found
 
 
 def triggers(workflow: dict) -> set[str]:
@@ -78,6 +187,35 @@ def needs(job: dict) -> list[str]:
     return [waits] if isinstance(waits, str) else list(waits)
 
 
+def captured_check(run: str) -> bool:
+    """Accept only the workflow's evidence wrappers, preserving the check's streams and exit status exactly."""
+    lines = run.splitlines()
+    if len(lines) == 9 and (matched := CAPTURE_GROUP.fullmatch(lines[2])):
+        group = matched[1]
+        status = "build_status" if group == "build" else "quality_status"
+        stem = f"target/checks/{group}"
+        return lines == [
+            "mkdir -p target/checks",
+            "set +e",
+            f"asymptote check --groups {group} --format json > {stem}.json 2> {stem}.stderr",
+            f"{status}=$?",
+            "set -e",
+            f"cat {stem}.json",
+            f"cat {stem}.stderr >&2",
+            f"printf '%s\\n' \"${status}\" > {stem}.status",
+            f'exit "${status}"',
+        ]
+    return lines == [
+        "mkdir -p target/benchmarks/speed",
+        "set +e",
+        "asymptote check --groups speed --format json > target/benchmarks/speed/check.json 2> target/benchmarks/speed/check.stderr.log",
+        "speed_status=$?",
+        "cat target/benchmarks/speed/check.json",
+        "cat target/benchmarks/speed/check.stderr.log >&2",
+        'exit "$speed_status"',
+    ]
+
+
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
@@ -86,6 +224,12 @@ def problems(workflow: dict) -> list[str]:
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
+        if name == "contract-review":
+            found.extend(contract_review_problems(workflow))
+            continue
+        if name == "ruff-all-defaults":
+            found.extend(full_inventory_problems(job))
+            continue
         positions = checks(job)
         if len(positions) > 1:
             found.append(f"{name} calls asymptote check {len(positions)} times")
@@ -93,7 +237,7 @@ def problems(workflow: dict) -> list[str]:
             run = re.sub(r"\$\{\{.*?\}\}", "value", job["steps"][positions[0]]["run"].strip())
             if any(not step.get("uses", "").startswith(UPLOAD) for step in job["steps"][positions[0] + 1 :]):
                 found.append(f"{name} does not end in its asymptote check step")
-            if not CHECK.fullmatch(run):
+            if not CHECK.fullmatch(run) and not captured_check(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
             steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
@@ -108,6 +252,10 @@ def problems(workflow: dict) -> list[str]:
                 found.append(f"{name} hands a step more than {sorted(HANDED)}")
 
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
+        if name == "contract-review":
+            return not contract_review_problems(workflow)
+        if name == "ruff-all-defaults":
+            return not full_inventory_problems(jobs[name])
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
     # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
@@ -137,6 +285,32 @@ def test_every_workflow_checks_through_one_asymptote_call(path: Path) -> None:
     assert problems(yaml.safe_load(path.read_text())) == []
 
 
+def test_speed_job_saves_installed_tools_before_quality_checks() -> None:
+    """The independent speed guard retains its installed tools even when quality fails."""
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    action = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+    paths = "~/.cargo/bin\n~/.cargo/.crates.toml\n~/.cargo/.crates2.json\n"
+    prefix = "cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}"
+    key = f"{prefix}-${{{{ github.sha }}}}"
+    restore_keys = f"{prefix}-\ncargo-bin-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-\n"
+    for name in ("speed",):
+        steps = workflow["jobs"][name]["steps"]
+        restore = next(index for index, step in enumerate(steps) if step.get("id") == "cargo_bin_cache")
+        install = next(index for index, step in enumerate(steps) if step.get("run") == "uv run --script tools/install.py")
+        save = steps[install + 1]
+        assert restore < install < len(steps) - 1
+        assert steps[restore]["uses"] == f"actions/cache/restore@{action}"
+        assert steps[restore]["with"] == {
+            "path": paths,
+            "key": key,
+            "restore-keys": restore_keys,
+        }
+        assert save["uses"] == f"actions/cache/save@{action}"
+        assert save["if"] == "steps.cargo_bin_cache.outputs.cache-hit != 'true'"
+        assert save["with"] == {"path": paths, "key": key}
+        assert any("asymptote check" in step.get("run", "") for step in steps[install + 2 :])
+
+
 def test_there_are_workflows_to_hold() -> None:
     assert [path.name for path in WORKFLOWS]
 
@@ -148,6 +322,125 @@ def test_a_job_that_installs_and_ends_in_one_check_is_a_thin_edge() -> None:
 
 def test_a_job_that_installs_with_the_script_and_ends_in_one_check_is_a_thin_edge() -> None:
     assert problems({"jobs": {"check": job("uv run --script tools/install.py", "asymptote check --groups test")}}) == []
+
+
+def test_the_full_inventory_is_an_independent_complete_gate() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert full_inventory_problems(workflow["jobs"]["ruff-all-defaults"]) == []
+    assert problems(workflow) == []
+
+
+@pytest.mark.parametrize(
+    ("step_name", "old", "new"),
+    [
+        ("Build one Ruff worker and seal its artifact", "cargo bench --no-run", "true # cargo bench --no-run"),
+        ("Build shared benchmark inventory runner", "cargo build --release", "true # cargo build --release"),
+        ("Verify all 413 pinned Ruff defaults", "--full-inventory", "--profile PLE0115"),
+        ("Verify all 413 pinned Ruff defaults", 'exit "$inventory_status"', "exit 0"),
+    ],
+)
+def test_full_inventory_refuses_missing_builds_narrowing_and_suppressed_exit(step_name: str, old: str, new: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    step = next(step for step in altered["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == step_name)
+    assert old in step["run"]
+    step["run"] = step["run"].replace(old, new)
+    assert problems(altered)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("path", "target/checks/other/"),
+        ("if-no-files-found", "warn"),
+        ("include-hidden-files", False),
+    ],
+)
+def test_full_inventory_refuses_dropped_receipts(field: str, value: object) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    altered["jobs"]["ruff-all-defaults"]["steps"][-1]["with"][field] = value
+    assert problems(altered)
+
+
+def test_full_inventory_name_alone_grants_no_exception() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    altered["jobs"]["ruff-all-defaults"]["steps"] = [{"run": "echo skipped"}]
+    assert problems(altered)
+
+
+@pytest.mark.parametrize("step_name", ["Build one Ruff worker and seal its artifact", "Build shared benchmark inventory runner", "All-defaults inventory and per-rule receipts"])
+def test_full_inventory_refuses_a_dropped_required_step(step_name: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    steps = altered["jobs"]["ruff-all-defaults"]["steps"]
+    steps[:] = [step for step in steps if step.get("name") != step_name]
+    assert problems(altered)
+
+
+@pytest.mark.parametrize("condition_yaml", ["false", "no", "0"])
+def test_full_inventory_refuses_a_falsy_step_condition(condition_yaml: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    verifier = next(step for step in altered["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Verify all 413 pinned Ruff defaults")
+    verifier["if"] = yaml.safe_load(f"if: {condition_yaml}")["if"]
+    assert problems(altered)
+
+
+@pytest.mark.parametrize("condition", [False, "github.event_name == 'workflow_dispatch'"])
+def test_full_inventory_refuses_job_level_skips(condition: object) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    altered["jobs"]["ruff-all-defaults"]["if"] = condition
+    assert problems(altered)
+
+
+@pytest.mark.parametrize("shell", ["true {0}", "bash -c true {0}"])
+def test_full_inventory_refuses_step_shell_overrides(shell: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    verifier = next(step for step in altered["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Verify all 413 pinned Ruff defaults")
+    verifier["shell"] = shell
+    assert problems(altered)
+
+
+def test_full_inventory_refuses_masked_upload_and_build_environment_override() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    masked = deepcopy(workflow)
+    masked["jobs"]["ruff-all-defaults"]["steps"][-1]["continue-on-error"] = True
+    assert problems(masked)
+    changed = deepcopy(workflow)
+    worker = next(step for step in changed["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Build one Ruff worker and seal its artifact")
+    worker["env"] = {"CARGO_TARGET_DIR": "/tmp/other"}
+    assert problems(changed)
+
+
+@pytest.mark.parametrize(("field", "value"), [("ref", "main"), ("repository", "someone/else")])
+def test_full_inventory_refuses_checkout_away_from_the_run_commit(field: str, value: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    checkout = altered["jobs"]["ruff-all-defaults"]["steps"][0]
+    checkout["with"][field] = value
+    assert problems(altered)
+
+
+def test_full_inventory_refuses_added_or_changed_setup_actions() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    added = deepcopy(workflow)
+    added["jobs"]["ruff-all-defaults"]["steps"].insert(6, {"uses": "./.github/actions/replace-tool"})
+    assert problems(added)
+    changed = deepcopy(workflow)
+    setup_node = next(step for step in changed["jobs"]["ruff-all-defaults"]["steps"] if step.get("uses", "").startswith("actions/setup-node@"))
+    setup_node["with"]["node-version"] = 22
+    assert problems(changed)
+
+
+def test_full_inventory_refuses_a_job_container() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    altered["jobs"]["ruff-all-defaults"]["container"] = "example.invalid/custom:latest"
+    assert problems(altered)
 
 
 def test_a_job_command_runs_beside_the_steps_that_install_the_tools() -> None:
@@ -185,6 +478,56 @@ def test_a_check_may_take_its_group_from_the_matrix_and_upload_what_its_tools_le
     checking = job("uv run --script tools/install.py", f"asymptote check --groups {expression}")
     checking["steps"].append({"uses": "actions/upload-artifact@0000000000000000000000000000000000000000", "with": {"path": "target"}})
     assert problems({"jobs": {"check": checking}}) == []
+
+
+@pytest.mark.parametrize("name", ["root", "check", "speed"])
+def test_each_real_check_remains_one_check(name: str) -> None:
+    """The product checks and independent speed guard each contain one propagated check."""
+    checking = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"][name]
+    assert problems({"jobs": {name: checking}}) == []
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        ("set +e", "set +e\necho extra"),
+        ("build_status=$?", "asymptote check --groups lint\nbuild_status=$?"),
+        ("build_status=$?", "echo changed-status\nbuild_status=$?"),
+        ("build_status=$?", "build_status=0"),
+        ('exit "$build_status"', "exit 0"),
+        ('exit "$build_status"', 'exit "$other_status"'),
+        ("build.stderr", "other.stderr"),
+        ("cat target/checks/build.json", "cat target/checks/build.json; echo extra"),
+        ("--format json", "--format json --groups lint"),
+        ("--format json", "--format json || true"),
+        ("mkdir -p target/checks", "mkdir -p target/$(echo injected)"),
+    ],
+)
+def test_capture_refuses_extra_commands_changed_streams_and_masked_status(before: str, after: str) -> None:
+    """Finding a check inside a script never authorizes unrelated shell work or a successful exit after a failed check."""
+    checking = job("\n".join([
+        "mkdir -p target/checks", "set +e",
+        "asymptote check --groups build --format json > target/checks/build.json 2> target/checks/build.stderr",
+        "build_status=$?", "set -e", "cat target/checks/build.json",
+        "cat target/checks/build.stderr >&2", "printf '%s\\n' \"$build_status\" > target/checks/build.status",
+        'exit "$build_status"',
+    ]))
+    assert problems({"jobs": {"build": checking}}) == []
+    step = checking["steps"][checks(checking)[0]]
+    assert before in step["run"]
+    step["run"] = step["run"].replace(before, after)
+    assert problems({"jobs": {"build": checking}})
+
+
+def test_speed_capture_refuses_a_second_check_or_masked_exit() -> None:
+    """The shorter speed wrapper has the same one-command and status requirements."""
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    run = workflow["jobs"]["speed"]["steps"][checks(workflow["jobs"]["speed"])[0]]["run"]
+    for changed in (
+        run.replace("speed_status=$?", "asymptote check\nspeed_status=$?"),
+        run.replace('exit "$speed_status"', "exit 0"),
+    ):
+        assert problems({"jobs": {"speed": job(changed)}})
 
 
 def test_a_job_that_checks_twice_is_refused() -> None:
@@ -364,6 +707,17 @@ def test_a_job_that_releases_with_anything_but_gh_is_refused() -> None:
     ]
 
 
+def test_speed_requires_declared_timings_for_every_language_workspace_member() -> None:
+    """A source-registry omission cannot hide behind equal observed base/head metric sets."""
+    tools = tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"]
+    speed = next(tool for tool in tools if tool["id"] == "speed")
+    bench_names = [speed["run"][index + 1] for index, value in enumerate(speed["run"]) if value == "--bench"]
+    assert "languages" in bench_names
+    for manifest in sorted((ROOT / "crates/ryo/languages").glob("*/Cargo.toml")):
+        language = tomllib.loads(manifest.read_text())
+        contract = language["package"]["metadata"]["ryo"]["performance"]
+        assert contract == {"schema": "divan-timing/v1", "workloads": {"generated_every_relation": [2500, 10000]}, "metrics": ["median-ns"]}
+
 def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_checking_again() -> None:
     """The pull request gate checked the tree a push to main brings, so the push tags and releases each product whose version it
     changes, and only those, each product's publish in a concurrency group of its own; a hand run checks its product first."""
@@ -412,7 +766,7 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     }
     assert workflow["concurrency"] == {"group": "check-${{ github.event.pull_request.number || github.ref }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"changes", "root", "check", "gate"}
+    assert set(jobs) == {"changes", "root", "check", "gate", "speed", "ruff-candidates", "ruff-all-defaults", "contract-review"}
     (filter,) = jobs["changes"]["steps"]
     assert filter["uses"].startswith("dorny/paths-filter@") and filter["with"]["predicate-quantifier"] == "some-with-excludes"
     filters = yaml.safe_load(filter["with"]["filters"])
@@ -451,10 +805,72 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
             step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
         ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == [name for name in jobs if name != "gate"]
+    assert gate["if"] == "always()" and gate["needs"] == ["changes", "root", "check", "speed", "ruff-candidates", "contract-review"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
-    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "root, check"}
+    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "root, check, ruff-candidates"}
+
+
+def ruff_candidates_covered(workflow: dict) -> bool:
+    """The authored Ruff subset has a real Linux runner and a required gate edge."""
+    jobs = workflow["jobs"]
+    job = jobs.get("ruff-candidates")
+    if job is None:
+        return False
+    return (
+        job.get("needs") == "changes"
+        and job.get("if") == "contains(fromJSON(needs.changes.outputs.products), 'ryo')"
+        and job.get("runs-on") == "ubuntu-26.04"
+        and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
+        == ["asymptote check --root crates/ryo --groups ruff-candidates"]
+        and "ruff-candidates" in jobs["gate"]["needs"]
+        and "ruff-candidates" in jobs["gate"]["steps"][0]["with"]["allowed-skips"].split(", ")
+    )
+
+
+def test_ruff_authoring_guard_cannot_be_orphaned_by_product_selection() -> None:
+    tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
+    assert any(tool["id"] == "correctness-python-ruff-candidates" and tool["group"] == "ruff-candidates" for tool in tools)
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert ruff_candidates_covered(workflow)
+    missing = deepcopy(workflow)
+    missing["jobs"].pop("ruff-candidates")
+    detached = deepcopy(workflow)
+    detached["jobs"]["gate"]["needs"].remove("ruff-candidates")
+    skipped = deepcopy(workflow)
+    skipped["jobs"]["ruff-candidates"]["if"] = "false"
+    wrong_group = deepcopy(workflow)
+    command = next(step for step in wrong_group["jobs"]["ruff-candidates"]["steps"] if "asymptote check" in step.get("run", ""))
+    command["run"] = "asymptote check --root crates/ryo --groups check"
+    assert all(not ruff_candidates_covered(changed) for changed in (missing, detached, skipped, wrong_group))
+
+
+def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
+    def one_workspace(cache: dict, source: str) -> bool:
+        return cache.get("workspaces", "").splitlines() == [f"{source} -> ../../target"]
+
+    jobs = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]
+    keys = set()
+    for name in ("check", "speed", "ruff-candidates", "ruff-all-defaults"):
+        cache = next(step for step in jobs[name]["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
+        assert "prefix-key" not in cache
+        assert cache["cache-workspace-crates"] is True
+        assert one_workspace(cache, "crates/${{ matrix.product }}" if name == "check" else "crates/ryo")
+        assert cache["save-if"] is True and cache["cache-on-failure"] is True
+        assert cache["shared-key"] == (
+            "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}" if name == "check"
+            else f"ubuntu-26.04-{name}-ryo"
+        )
+        keys.add(cache["shared-key"])
+    assert len(keys) == 4
+    duplicate_target = deepcopy(cache)
+    duplicate_target["workspaces"] += "\ncrates/asymptote -> ../../target"
+    assert not one_workspace(duplicate_target, "crates/ryo")
+    release = next(step for step in release_check()["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
+    assert "prefix-key" not in release
+    assert release["cache-workspace-crates"] is True
+    assert one_workspace(release, "crates/${{ inputs.product }}")
+    assert release["shared-key"] == "${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}"
 
 
 def release_check() -> dict:
@@ -492,3 +908,134 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
             "git_release_enable": False,
         }
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
+
+
+CONTRACT_REVIEW_SCRIPT = 'policy_revision=763a846f1f17af7d6a503874524b7a33adf56e73\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
+
+
+def contract_review_problems(workflow: dict) -> list[str]:
+    """Reject an orphaned, conditional, replaced, or failure-masked review gate."""
+    jobs = workflow["jobs"]
+    expected = {
+        "runs-on": "ubuntu-26.04",
+        "steps": [
+            {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
+            {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
+            {"name": "Require exact-source Astra and Opus reviews", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || format('refs/remotes/origin/{0}', github.event.repository.default_branch) }}"}, "run": CONTRACT_REVIEW_SCRIPT},
+        ],
+    }
+    gate = jobs.get("gate", {})
+    allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
+    if jobs.get("contract-review") != expected or "contract-review" not in needs(gate) or "contract-review" in allowed:
+        return ["paired contract review must run unconditionally and be required by gate"]
+    return []
+
+
+def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert not contract_review_problems(workflow)
+    for mutate in (
+        lambda w: w["jobs"].pop("contract-review"),
+        lambda w: w["jobs"]["gate"]["needs"].remove("contract-review"),
+        lambda w: w["jobs"]["contract-review"].update({"if": "false"}),
+        lambda w: w["jobs"]["contract-review"].update({"continue-on-error": True}),
+        lambda w: w["jobs"]["contract-review"]["steps"][-1].update({"run": "true"}),
+        lambda w: w["jobs"]["contract-review"]["steps"][-1].update({"if": "false"}),
+        lambda w: w["jobs"]["contract-review"]["steps"][0]["with"].update({"ref": "main"}),
+        lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "contract-review"}),
+    ):
+        changed = deepcopy(workflow)
+        mutate(changed)
+        assert contract_review_problems(changed)
+
+
+def ownership_contract_problems(workflow: dict) -> list[str]:
+    tm_script = "tm validate --root crates/ryo\ntm check --root crates/ryo"
+    rust_script = """set -euo pipefail
+required_suite() {
+  listing=$(mktemp)
+  "$@" -- --include-ignored --list | tee "$listing"
+  if ! grep -Eq ': test$' "$listing"; then
+    echo "required suite has no tests: $*" >&2
+    exit 1
+  fi
+  "$@" -- --include-ignored
+}
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --test boundary_contract
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --lib inbound::use_cases::execution
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-operators --doc
+cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --all-targets
+cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc"""
+    jobs = workflow["jobs"]
+    job = jobs.get("ownership-contracts", {})
+    steps = job.get("steps", [])
+    gate = jobs.get("gate", {})
+    allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
+    if (
+        job.get("runs-on") != "ubuntu-26.04"
+        or job.get("if") is not None
+        or job.get("continue-on-error") is not None
+        or len(steps) != 9
+        or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
+        or steps[-2].get("run", "").strip() != tm_script
+        or steps[-1].get("run", "").strip() != rust_script
+        or "ownership-contracts" not in needs(gate)
+        or "ownership-contracts" in allowed
+    ):
+        return ["real ownership TM and Rust suites must run unconditionally in the required gate"]
+    return []
+
+
+def test_real_ownership_contract_suites_are_required() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert not ownership_contract_problems(workflow)
+    for mutate in (
+        lambda w: w["jobs"].pop("ownership-contracts"),
+        lambda w: w["jobs"]["gate"]["needs"].remove("ownership-contracts"),
+        lambda w: w["jobs"]["ownership-contracts"].update({"continue-on-error": True}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "true"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": "true"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "tm validate --root crates/ryo || true\ntm check --root crates/ryo"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("set -euo pipefail\n", "")}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("--include-ignored", "")}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("required_suite cargo test --locked", "# required_suite cargo test --locked", 1)}),
+        lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "ownership-contracts"}),
+    ):
+        changed = deepcopy(workflow)
+        mutate(changed)
+        assert ownership_contract_problems(changed)
+
+
+@pytest.mark.parametrize("dispatch", [False, True])
+def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp_path: Path, dispatch: bool) -> None:
+    import os
+    import subprocess
+    from ci.contract_review import service
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    objects = service.git(ROOT, "rev-parse", "--path-format=absolute", "--git-path", "objects").decode().strip()
+    (tmp_path / ".git/objects/info/alternates").write_text(objects + "\n")
+    service.git(tmp_path, "read-tree", service.ACTIVATION)
+    candidate = b"print('forged approval')\n"
+    blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=candidate).decode().strip()
+    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{blob},ci/contract_review/command.py")
+    forged_service = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=b"def validate(*args): return 'forged approval'\n").decode().strip()
+    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{forged_service},ci/contract_review/service.py")
+    module = b"raise RuntimeError('candidate package must not run')\n"
+    module_blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=module).decode().strip()
+    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{module_blob},ci/__init__.py")
+    tree = service.git(tmp_path, "write-tree").decode().strip()
+    env = dict(os.environ, GIT_AUTHOR_NAME="Control", GIT_AUTHOR_EMAIL="test@example.invalid", GIT_COMMITTER_NAME="Control", GIT_COMMITTER_EMAIL="test@example.invalid")
+    head = subprocess.check_output(["git", "-C", str(tmp_path), "commit-tree", tree, "-p", service.ACTIVATION], input=b"hostile validator control\n", env=env).decode().strip()
+    service.git(tmp_path, "reset", "--hard", head)
+    # The candidate's own entry point lies; the actual CI shell ignores it.
+    own = subprocess.run(["python3", "ci/contract_review/command.py"], cwd=tmp_path, capture_output=True)
+    assert own.returncode == 0 and b"forged approval" in own.stdout
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    script = workflow["jobs"]["contract-review"]["steps"][-1]["run"]
+    service.git(tmp_path, "update-ref", "refs/remotes/origin/main", service.ACTIVATION)
+    review_base = "refs/remotes/origin/main" if dispatch else service.ACTIVATION
+    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "PYTHONPATH": str(tmp_path), "REVIEW_BASE": review_base, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert "No valid exact-source" in result.stderr
+    assert "candidate package must not run" not in result.stderr

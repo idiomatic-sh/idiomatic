@@ -1,6 +1,6 @@
 //! The `fusing` service's cases, on plans written by hand.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::fuse_selects;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -68,6 +68,7 @@ fn two_filters_are_one() -> usize {
             test: Test::Equal,
             left: Operand::Column(column(left)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+            origin: None,
         },
     );
     let steps = vec![
@@ -94,6 +95,7 @@ fn a_join_on_ids_reads_the_filtered_elements_in_place(scenario: Scenario) -> usi
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+        origin: None,
     };
     let steps = vec![
         step(Operation::Select {
@@ -114,6 +116,8 @@ fn a_join_on_ids_reads_the_filtered_elements_in_place(scenario: Scenario) -> usi
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
     ];
     let fused = fuse_selects(steps);
@@ -126,6 +130,7 @@ fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
         test: Test::Equal,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+        origin: None,
     };
     let steps = vec![
         step(Operation::Select {
@@ -146,6 +151,8 @@ fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
     ];
     let fused = fuse_selects(steps);
@@ -180,6 +187,8 @@ fn a_join_on_the_edges_reads_them_in_place(scenario: Scenario) -> usize {
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
     ];
     let fused = fuse_selects(steps);
@@ -192,6 +201,7 @@ fn an_axis_among_filtered_elements_reads_them_in_place() -> usize {
         test: Test::Equal,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+        origin: None,
     };
     let steps = vec![
         step(Operation::Select {
@@ -270,6 +280,8 @@ fn a_filter_of_a_join_with_the_tree_is_the_joins_own(scenario: Scenario) -> usiz
             ],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         step(Operation::Select {
             from: Reads::Step(StepId(1)),
@@ -277,6 +289,7 @@ fn a_filter_of_a_join_with_the_tree_is_the_joins_own(scenario: Scenario) -> usiz
                 test: Test::Equal,
                 left: Operand::Column(column(u32::from(!on_left))),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("ident".into()))),
+                origin: None,
             }],
             kept: Vec::new(),
         }),

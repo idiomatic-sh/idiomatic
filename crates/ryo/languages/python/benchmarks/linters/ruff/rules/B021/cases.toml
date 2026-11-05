@@ -1,0 +1,114 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "f\"doc\"\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f():\n    f\"doc\"\n" }
+expected = [{ file = "case.py", start = 13, end = 19 }]
+
+[[cases]]
+name = "class"
+files = { "case.py" = "class C:\n    f\"doc\"\n" }
+expected = [{ file = "case.py", start = 13, end = 19 }]
+
+[[cases]]
+name = "async"
+files = { "case.py" = "async def f():\n    f\"doc\"\n" }
+expected = [{ file = "case.py", start = 19, end = 25 }]
+
+[[cases]]
+name = "second"
+files = { "case.py" = "\"doc\"\nf\"later\"\n" }
+expected = []
+
+[[cases]]
+name = "if-body"
+files = { "case.py" = "if True:\n    f\"doc\"\n" }
+expected = []
+
+[[cases]]
+name = "interpolation"
+files = { "case.py" = "f\"{value}\"\n" }
+expected = [{ file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "comment"
+files = { "case.py" = " # comment\nf\"doc\"\n" }
+expected = [{ file = "case.py", start = 11, end = 17 }]
+
+[[cases]]
+name = "normal"
+files = { "case.py" = "\"doc\"\n" }
+expected = []
+
+[[cases]]
+name = "concatenated"
+files = { "case.py" = "\"doc\" f\"more\"\n" }
+expected = [{ file = "case.py", start = 0, end = 13 }]
+
+[[cases]]
+name = "parentheses"
+files = { "case.py" = "(f\"doc\")\n" }
+expected = [{ file = "case.py", start = 0, end = 8 }]
+
+[[cases]]
+name = "multiline-string-noqa"
+files = { "case.py" = "f\"\"\"doc\nmore\"\"\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "multiline-concat-noqa"
+files = { "case.py" = "(f\"one\"\n f\"two\") # noqa\n" }
+expected = [{ file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "multiline-string"
+files = { "case.py" = "f\"\"\"doc\nmore\"\"\"\n" }
+expected = [{ file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "f\"doc\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "f\"doc\" # noqa: B021\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "f\"doc\" # noqa: F401\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nf\"doc\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[B021]\nf\"doc\"\n\n# ruff: enable[B021]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[B021]\n# ruff: enable[B021]\nf\"doc\"\n" }
+expected = [{ file = "case.py", start = 43, end = 49 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[B021]\nf\"doc\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nf\"doc\"\n" }
+expected = [{ file = "case.py", start = 22, end = 28 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[B021]\nf\"doc\"\n" }
+expected = []

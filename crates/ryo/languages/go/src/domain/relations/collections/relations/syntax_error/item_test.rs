@@ -39,6 +39,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("syntax error: the parser could not read this text as go"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((1, 1), (1, 10)),
             ]],
@@ -53,6 +56,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("syntax error: non-declaration statement outside function body"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((1, 1), (1, 4)),
             ]],
@@ -69,6 +75,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_name(
                     "syntax error: need a trailing comma before the newline that ends the list",
                 ),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((3, 1), (3, 2)),
             ]],
@@ -83,6 +92,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("syntax error: the parser could not read this text as go"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((2, 1), (2, 11)),
             ]],
@@ -97,6 +109,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("syntax error: the block is not closed: its `)` is missing"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(MODULE_SHOWN),
                 want_span((3, 1), (5, 1)),
             ]],

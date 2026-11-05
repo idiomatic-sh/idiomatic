@@ -1,0 +1,49 @@
+{
+  "version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "results": [
+    {
+      "name": "none-missing",
+      "source": "def f(x: Missing): ...\n",
+      "accepted": true,
+      "annotations_future": false
+    },
+    {
+      "name": "none-walrus",
+      "source": "def f(x:(value:=object)): ...\n",
+      "accepted": true,
+      "annotations_future": false
+    },
+    {
+      "name": "absolute-missing",
+      "source": "from __future__ import annotations\ndef f(x: Missing): ...\n",
+      "accepted": true,
+      "annotations_future": true
+    },
+    {
+      "name": "absolute-walrus",
+      "source": "from __future__ import annotations\ndef f(x:(value:=object)): ...\n",
+      "accepted": false,
+      "message": "'named expression' can not be used within an annotation",
+      "line": 2,
+      "offset": 10,
+      "end_line": 2,
+      "end_offset": 23
+    },
+    {
+      "name": "relative-missing",
+      "source": "from .__future__ import annotations\ndef f(x: Missing): ...\n",
+      "accepted": true,
+      "annotations_future": true
+    },
+    {
+      "name": "relative-walrus",
+      "source": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n",
+      "accepted": false,
+      "message": "'named expression' can not be used within an annotation",
+      "line": 2,
+      "offset": 10,
+      "end_line": 2,
+      "end_offset": 23
+    }
+  ]
+}

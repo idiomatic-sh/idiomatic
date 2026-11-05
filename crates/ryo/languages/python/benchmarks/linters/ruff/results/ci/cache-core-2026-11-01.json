@@ -1,0 +1,30 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "flock",
+    "/workspaces/.cargo-build.lock",
+    "cargo",
+    "test",
+    "--locked",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-core",
+    "--lib"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "runner_sha256": "cae1bd2dab71fa97efbab336a5ecc97c9fe831eab581af3fff28decfcca62cd6",
+  "started_utc": "2026-11-01T14:28:01.703701+00:00",
+  "completed_utc": "2026-11-01T14:28:16.807945+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "1bd03a3d5c4186bd6bd221d67a3a8ea3bcab0f6d8f769b3a1696cd4153ec195f",
+  "stderr_sha256": "58eb7813fb2e1ea36cd0aa3f988ad56ece4084c5603cfdad4c15638c738ca541",
+  "head": "48acfc0321046a0a3d0c44b5d122dbe09eb51cc6",
+  "source_tree_sha256": "f0864f76e51fe2f11541239f87cd456ba3ea25c1ad7f1467979974f8ff6b242a",
+  "raw_receipt_path": "/tmp/cache-core-observer-isolated-suite-20261101/result.json",
+  "raw_receipt_sha256": "bd380632610ffc8d8539d9f787b15e13b0b7b3d9fd4b553e59f65781b2dce89e",
+  "scope": "Only the exact command and recorded source identity; later changes are not covered."
+}

@@ -1,6 +1,6 @@
 //! The language adapter of the catalog port: the port's contract rows run through it, then the cases specific to it.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::adapter::CatalogLanguageAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};

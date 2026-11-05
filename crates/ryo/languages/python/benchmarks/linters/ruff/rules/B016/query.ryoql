@@ -1,0 +1,14 @@
+import observation_matches from "python/ruff/suppress-matches";
+import suppress from "python/ruff/suppress";
+let raises = select id from "semantic-syntax" where kind = "raise";
+let values = select parent, child from "semantic-child" where field = "exc";
+let literals = select * from "semantic-syntax" where kind = "constant";
+let raised = select r.child as child from raises as l join values as r on l.id = r.parent;
+let reportable = select r.id as id, r.file as file, r.span as span from raised as l join literals as r on l.child = r.id;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*B016(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B016)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*B016(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B016)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "B016"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

@@ -1,0 +1,59 @@
+[[cases]]
+name = "version_string_len2"
+files = { "case.py" = "import sys\nif sys.version > \"3.9\":\n    pass\n" }
+expected = [{ rule = "YTT103", file = "case.py", start = 14, end = 25 }]
+comparison = "full"
+
+[[cases]]
+name = "version_string_len3"
+files = { "case.py" = "import sys\nif sys.version >= \"3.10\":\n    pass\n" }
+expected = [{ rule = "YTT103", file = "case.py", start = 14, end = 25 }]
+comparison = "full"
+
+[[cases]]
+name = "single_byte_string"
+files = { "case.py" = "import sys\nif sys.version > \"3\":\n    pass\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "one_unicode_character_two_bytes"
+files = { "case.py" = "import sys\nif sys.version >= \"é\":\n    pass\n" }
+expected = [{ rule = "YTT103", file = "case.py", start = 14, end = 25 }]
+comparison = "full"
+
+[[cases]]
+name = "equality_not_ordering"
+files = { "case.py" = "import sys\nif sys.version == \"3.10\":\n    pass\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "parenthesized_literal"
+files = { "case.py" = "import sys\nif sys.version <= (\"3.9\"):\n    pass\n" }
+expected = [{ rule = "YTT103", file = "case.py", start = 14, end = 25 }]
+comparison = "full"
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import sys as runtime\nif runtime.version > \"3.9\":\n    pass\n" }
+expected = [{ rule = "YTT103", file = "case.py", start = 25, end = 40 }]
+comparison = "full"
+
+[[cases]]
+name = "inline_noqa"
+files = { "case.py" = "import sys\nif sys.version > \"3.9\":  # noqa: YTT103\n    pass\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "version_info_eq3"
+files = { "case.py" = "import sys\nif sys.version_info[0] == 3:\n    pass\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "version_info_neq3_hex"
+files = { "case.py" = "import sys\nif sys.version_info[0] != 0x3:\n    pass\n" }
+expected = []
+comparison = "full"

@@ -1,0 +1,37 @@
+[
+  {
+    "rule": "RUF051",
+    "name": "ruf051-with-target",
+    "source": "with {} as d:\n if key in d: del d[key]\n"
+  },
+  {
+    "rule": "RUF051",
+    "name": "ruf051-async-with-target",
+    "source": "async def f():\n async with {} as d:\n  if key in d: del d[key]\n"
+  },
+  {
+    "rule": "FURB132",
+    "name": "with-initializer",
+    "source": "with set() as s:\n    if x in s:\n        s.remove(x)\n"
+  },
+  {
+    "rule": "FURB132",
+    "name": "with-initializer-extra",
+    "source": "with set() as out:\n    if item in out:\n        out.remove(item)\n"
+  },
+  {
+    "rule": "PERF402",
+    "name": "with-initializer-extra",
+    "source": "with list() as out:\n    for item in xs:\n        out.append(item)\n"
+  },
+  {
+    "rule": "PLC0206",
+    "name": "assignment-with",
+    "source": "with {} as d:\n pass\nfor k in d:\n print(d[k])\n"
+  },
+  {
+    "rule": "PERF101",
+    "name": "with-initializer",
+    "source": "with [1] as items:\n    for x in list(items):\n        print(x)\n"
+  }
+]

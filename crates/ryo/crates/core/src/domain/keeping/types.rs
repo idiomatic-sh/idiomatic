@@ -1,9 +1,9 @@
 //! The types of the `keeping` concept: plain data, public fields and derives, with no constructor
 //! and no inherent impl.
 
-use ryo_language::domain::relations::types::{FileId, WorkerNumber};
+use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
 
-use crate::domain::rules::types::RuleSpec;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// How the numbers a file's words carry change when they are used in another run: the file has another
 /// number, and the text its names made is somewhere else in another worker's arena.

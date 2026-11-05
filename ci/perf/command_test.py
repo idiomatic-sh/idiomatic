@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import subprocess
+
 from ci.perf import command, composition
 from ci.perf.use_case import ROUNDS
 from ci.perf.use_case_test import HEAD, FakeBench, FakeReport, FakeTree, Journal
@@ -46,3 +48,24 @@ def test_an_unknown_bench_is_a_usage_error() -> None:
         assert exit.code == 2
     else:
         raise AssertionError("an unknown bench was accepted")
+
+
+def test_an_invalid_measured_comparison_is_refused_with_status_2(capsys) -> None:
+    journal = Journal()
+    measurements = {"head-1": {}}
+    assert command.run(["--against", "origin/main", "--bench", "lint"], job(journal, measurements=measurements)) == 2
+    assert "same nonempty metric set" in capsys.readouterr().err
+    assert not any(call[0] == "ratio" for call in journal.calls)
+
+
+def test_failed_child_compilation_preserves_operational_status_and_both_streams(capsys) -> None:
+    class FailedJob:
+        def run(self, _request):
+            raise subprocess.CalledProcessError(101, ["cargo", "bench", "--locked"], output="partial BMF", stderr="error[E0001]: compile failed")
+
+    assert command.run(["--bench", "commands"], lambda _output: FailedJob()) == 101
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "cargo bench --locked failed with exit 101" in captured.err
+    assert "partial BMF" in captured.err
+    assert "error[E0001]: compile failed" in captured.err

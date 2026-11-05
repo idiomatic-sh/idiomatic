@@ -41,7 +41,7 @@ crates/ryo/
   tastemaker.toml                   places every crate below
   Cargo.toml  Cargo.lock  tastemaker.lock  asymptote.toml  deny.toml  README.md
   cli/                             package ryo
-    Cargo.toml  README.md  benches/performance.rs
+    Cargo.toml  README.md  benches/
     benches/performance/<resource>.rs   benches/performance/<resource>/<verb>.rs   benches/performance/<resource>/<verb>/bench.rs
     src/main.rs  src/lib.rs  src/cases.rs  src/resources.rs     the cli spec's fixed shell: output, outcome (with remedy), pager, dry_run, progress, timings
     src/resources/<resource>.rs
@@ -56,7 +56,8 @@ crates/ryo/
   crates/values/                   package idiomatic-sh-ryo-values, lib ryo_values: a nu-hex of domain concepts only
     Cargo.toml  README.md  src/lib.rs  src/cases.rs  src/domain.rs  src/domain/<concept>.rs  src/domain/<concept>/{types.rs, service.rs?, service_test.rs?, constants.rs?}
   crates/core/ crates/query_language/ crates/language/ languages/<lang>/     each a nu-hex:
-    Cargo.toml  README.md  benches/performance.rs  src/lib.rs  src/cases.rs
+    Cargo.toml  README.md  src/lib.rs  src/cases.rs
+    languages/<lang>/benchmarks/provider/bench.rs   the language's all-relations provider workload
     src/inbound.rs
     src/inbound/use_cases.rs
     src/inbound/use_cases/<use_case>.rs
@@ -204,7 +205,7 @@ languages/<lang>/src/
 Rules, held by the placement and the product's `tastemaker.toml`:
 - A library is named only in its adapter (`client-at-adapter`, whose `libraries` lists every parser library). The `imports` of the `languages/*` entry deny everything but `ryo::languages`, `crate`, `std`, `thiserror`, `strum` and the parser libraries; `std::fs`, `std::net`, `std::env` and `std::process` are reached only in `outbound/manifest_reading/adapters/**`.
 - `domain` names no library. Layer 2 (the language's model) uses ryo's table primitives only; only layer 3 (`domain/relations`, `domain/manifests`, `domain/language`) names the catalog, and only through `ryo::languages` (the model cannot exist without the table it reads; what it must not know is the catalog it is mapped onto).
-- Every relation of the catalog is a method of `ryo::languages::Parse` (syntax relations) or `ryo::languages::Project` (manifest relations), with no default body, generated from the catalog's one list (`each_relation!` in `crates/language/src/domain/relations/service.rs`): a language answers `ryo::languages::reads::<Item>()` (`reads_manifests::<Item>()` for a manifest relation) or `ryo::languages::absent(reason)` for each, so a relation added to the catalog stops every language compiling until it answers. `docs/language-contract.md` states the moving parts.
+- Every relation of the catalog is a method of `ryo::languages::Parse` (syntax relations) or `ryo::languages::Project` (manifest relations), with no default body, generated from the catalog's one list (`each_relation!` in `crates/relations/src/domain/relations/service.rs`): a language answers `ryo::languages::reads::<Item>()` (`reads_manifests::<Item>()` for a manifest relation) or `ryo::languages::absent(reason)` for each, so a relation added to the catalog stops every language compiling until it answers. `docs/language-contract.md` states the moving parts.
 - The contract every adapter passes holds the kinds as a match with no wildcard arm in `src/fixtures/kinds.rs`, and the conformance holds each answer to `tests/fixtures/relations/<relation>/{input.<ext>,expected.rs}`, the full typed rows (no table file: `no-tsv`).
 - Per-file rows keep a name that does not resolve in the file as written, with a scope id local to the file. Resolution across files is the later `link` use case.
 - `project` is called once per run by core's generic `language` adapter, beside `parse`; it reads the manifests and writes `package-dependency` and `workspace-member` rows, which Tastemaker's `crate-dependency-cycles` and `workspace-membership` rules read.

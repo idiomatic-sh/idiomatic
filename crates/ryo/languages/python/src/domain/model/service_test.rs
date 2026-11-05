@@ -1,6 +1,7 @@
 //! The `model` service's cases, on values alone.
 
 use ryo::languages::{Position, Symbol};
+use std::cell::RefCell;
 
 use super::service::redirect_of;
 use super::types::{BindingRedirect, Declarations, ScopeDeclaration};
@@ -36,6 +37,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scope, name): Input) -> Value {
     let model = Declarations {
+        language_target: (3, 15),
+        bindings: Vec::default(),
+        expression_shapes: RefCell::default(),
+        constant_keys: RefCell::default(),
+        format_parsing: RefCell::default(),
+        raw_format: RefCell::default(),
+        literal_expression_parsing: RefCell::default(),
+        brace_format: RefCell::default(),
+        expression_types: RefCell::default(),
+        terminal_flow: RefCell::default(),
+        indentation: RefCell::default(),
+        qualification: RefCell::default(),
+        semantic: RefCell::default(),
+        binding_analysis: RefCell::default(),
         declared: vec![
             ScopeDeclaration {
                 scope: Position(3),

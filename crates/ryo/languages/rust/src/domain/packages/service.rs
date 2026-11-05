@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::OUTPUTS;
 use super::errors::PackagesError;
-use super::types::{Analysis, Cause, Dependency, Membership, Packages, Refusal};
+use super::types::{Analysis, Cause, Dependency, WorkspacePackageMembership, Packages, Refusal};
 use crate::domain::dependencies::service::declared_of;
 use crate::domain::dependencies::types::{DeclaredDependency, Shared};
 use crate::domain::package_index::types::ListIndex;
@@ -20,7 +20,7 @@ use crate::domain::targets::types::Manifest;
 use crate::domain::workspaces::service::{
     configurations_above, excluded, load, members_of, root_of,
 };
-use crate::domain::workspaces::types::{Configured, Looking, Reason};
+use crate::domain::workspaces::types::{WorkspaceConfiguration, Looking, Reason};
 use ryo::languages;
 
 /// Where the outputs of the workspace in `directory` go, relative to the root when they go inside it: where the nearest configuration
@@ -28,7 +28,7 @@ use ryo::languages;
 fn output_of(looking: &mut Looking, directory: &RepoPath) -> Option<RepoPath> {
     let placed = configurations_above(looking, directory)
         .into_iter()
-        .find_map(|Configured { target_dir }| match target_dir {
+        .find_map(|WorkspaceConfiguration { target_dir }| match target_dir {
             Section::Present(placement) => Some(placement),
             Section::Absent => None,
         })
@@ -156,7 +156,7 @@ pub(crate) fn read(manifests: &[RepoPath], looking: &mut Looking) -> Packages {
                     package,
                     &mut looking.directories,
                 ));
-            packages.members.push(Membership {
+            packages.members.push(WorkspacePackageMembership {
                 workspace: root.clone(),
                 package: member.clone(),
             });

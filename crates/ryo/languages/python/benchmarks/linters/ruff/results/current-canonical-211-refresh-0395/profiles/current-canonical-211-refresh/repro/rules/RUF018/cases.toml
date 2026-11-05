@@ -1,0 +1,71 @@
+[[cases]]
+name = "assert-only"
+comparison = "full"
+files = { "case.py" = "assert (value := compute())\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 24 }]
+
+[[cases]]
+name = "used-after-assert"
+comparison = "full"
+files = { "case.py" = "assert (value := compute())\nprint(value)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 24 }, { "rule" = "RUF018", "file" = "case.py", "start" = 8, "end" = 26 }]
+
+[[cases]]
+name = "used-before-and-after"
+comparison = "full"
+files = { "case.py" = "value = 1\nassert (value := compute())\nprint(value)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 34 }, { "rule" = "RUF018", "file" = "case.py", "start" = 18, "end" = 36 }]
+
+[[cases]]
+name = "unused-walrus"
+comparison = "full"
+files = { "case.py" = "assert (value := compute())\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 24 }]
+
+[[cases]]
+name = "non-assert"
+comparison = "full"
+files = { "case.py" = "value = (compute() if (value := condition) else None)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 32, "end" = 41 }]
+
+[[cases]]
+name = "in-call-in-assert"
+comparison = "full"
+files = { "case.py" = "assert check((value := compute()))\nuse(value)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 30 }, { "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 38 }, { "rule" = "RUF018", "file" = "case.py", "start" = 14, "end" = 32 }]
+
+[[cases]]
+name = "assert-message"
+comparison = "full"
+files = { "case.py" = "assert condition, (message := build())\nuse(message)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 35 }, { "rule" = "F821", "file" = "case.py", "start" = 39, "end" = 42 }, { "rule" = "RUF018", "file" = "case.py", "start" = 19, "end" = 37 }]
+
+[[cases]]
+name = "assert-only-lambda"
+comparison = "full"
+files = { "case.py" = "assert (value := (lambda: value))\n" }
+expected = []
+
+[[cases]]
+name = "other-assert-use"
+comparison = "full"
+files = { "case.py" = "assert (value := compute())\nassert value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 24 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "assert (value := compute())\nuse(value) # noqa: RUF018\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 31 }, { "rule" = "RUF018", "file" = "case.py", "start" = 8, "end" = 26 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RUF018\nassert (value := compute())\nuse(value)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 38, "end" = 45 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 52 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "assert (left := one())\nuse(left)\nassert (right := two())\nuse(right)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 19 }, { "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 50, "end" = 53 }, { "rule" = "F821", "file" = "case.py", "start" = 57, "end" = 60 }, { "rule" = "RUF018", "file" = "case.py", "start" = 8, "end" = 21 }, { "rule" = "RUF018", "file" = "case.py", "start" = 41, "end" = 55 }]

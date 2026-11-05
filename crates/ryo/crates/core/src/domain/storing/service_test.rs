@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the one service_test.rs a service has holds a row for each decision of the service, and each row its own store; a second test file for one service is a role no spec places
+// the one service_test.rs a service has holds a row for each decision of the service, and each row its own store; a second test file for one service is a role no spec places
 //! The `storing` service's cases, on values alone.
 
 use ryo_language::domain::files::types::FilePath;
@@ -11,7 +11,7 @@ use ryo_values::domain::records::types::{
     FileOutcome, FindingRows, Handing, PlacedColumn, PlacedLine, PlacedRule, Ran, Record,
     RuleFrontier, Unreadable,
 };
-use ryo_values::domain::runs::types::{ManifestRefused, RuleId};
+use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
 use ryo_values::domain::stores::types::{
     BucketsWanted, Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredFile,
@@ -20,11 +20,12 @@ use ryo_values::domain::stores::types::{
 };
 
 use super::service::{
-    decide, later_from, made_again, records_from, stored_of, unknowns_from, with_fresh,
+    later_from, made_again, records_from, skipped_from, stored_of, unknowns_from, with_fresh,
 };
-use super::types::{Decision, MadeAgain, ToKeep};
+use super::types::{Decision, ToKeep};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::workers::types::FileOrder;
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digits.
 #[derive(Clone, Copy)]
@@ -50,6 +51,8 @@ enum Scenario {
     WithFresh,
     /// `unknowns_from` with one of the two files it holds unknowns of read again.
     UnknownsFrom,
+    /// Explicit skip outcomes are retained only for files not read again.
+    SkippedFrom,
 }
 
 /// What a row of the cases does.
@@ -74,10 +77,21 @@ fn rules(across: bool) -> Vec<StoredRule> {
 /// The file at `path` as the system lists it.
 fn entry(path: &str, size: u64, modified: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(size),
         modified: Nanoseconds(modified),
     }
+}
+
+/// Existing store fixtures have observed metadata; preserve their decision assertions through the input sum type.
+fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusEntry]) -> Decision {
+    let inputs: Vec<_> = files
+        .iter()
+        .cloned()
+        .map(ryo_values::domain::files::types::CorpusInput::Available)
+        .collect();
+    super::service::decide(stored, rules, &inputs)
 }
 
 /// The two files of the store, as the system lists them while they are as they were.
@@ -113,6 +127,7 @@ fn finding(file: Option<u32>, subject: &str, line: u32) -> StoredFinding {
 /// what a rule could not decide in `a.rs` and a configuration above the root the project's lookup read.
 fn stored() -> Stored {
     let file = |path: &str, size: u64, modified: u64, tag: u8| StoredFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         digest: Digest([tag; 16]),
         interface: Digest([tag + 1; 16]),
@@ -152,6 +167,7 @@ fn stored() -> Stored {
 fn plain() -> Stored {
     Stored {
         unknowns: Vec::new(),
+        skipped: Vec::new(),
         ..stored()
     }
 }
@@ -165,6 +181,7 @@ fn ids() -> Vec<RuleId> {
 /// the digest `frontier`.
 fn record(path: &str, digest: u8, interface: u8, noted: u8, frontier: u8) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(9),
         modified: Nanoseconds(9),
@@ -245,6 +262,44 @@ fn held_changed() -> Value {
         + made(&plain, record("a.rs", 12, 99, 13, 5), &[])
 }
 
+/// Round-trip all stored metadata and retain each file's original word number.
+fn stored_round_trip() -> Value {
+    let mut kept = stored();
+    kept.files[0].executable = ryo_values::domain::files::types::ExecutablePermission::Posix(false);
+    kept.files[1].executable = ryo_values::domain::files::types::ExecutablePermission::Posix(true);
+    let records = records_from(&kept, &ids()).unwrap_or_default();
+    let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
+    let unknowns = unknowns_from(&kept, &[]);
+    let again = stored_of(
+        ToKeep {
+            rules: kept.rules.clone(),
+            records,
+            later: &later,
+            refused: &kept.refused,
+            unknowns: &unknowns,
+            skipped: &kept.skipped,
+            consulted: &kept.consulted,
+            consulted_absent: &kept.consulted_absent,
+            project_observations: &kept.project_observations,
+        },
+        &kept,
+        &StoredHanded::default(),
+        &BucketsWanted::All,
+        Vec::new(),
+    );
+    // Every file is used again, at its number: its words stay where the store keeps them.
+    let numbers: Vec<FileAgain> = (0..kept.files.len())
+        .map(|place| {
+            let number = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
+            FileAgain {
+                was: number,
+                now: number,
+            }
+        })
+        .collect();
+    usize::from(again.stored == kept && again.kept.file_again == numbers)
+}
+
 fn subject(scenario: Input) -> Value {
     match scenario {
         Scenario::DecideWhole => {
@@ -290,38 +345,7 @@ fn subject(scenario: Input) -> Value {
         }
         Scenario::MadeAgainFrontier => frontier_changed(),
         Scenario::MadeAgainHeld => held_changed(),
-        Scenario::StoreRoundTrip => {
-            let kept = stored();
-            let records = records_from(&kept, &ids()).unwrap_or_default();
-            let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
-            let unknowns = unknowns_from(&kept, &[]);
-            let again = stored_of(
-                ToKeep {
-                    rules: kept.rules.clone(),
-                    records,
-                    later: &later,
-                    refused: &kept.refused,
-                    unknowns: &unknowns,
-                    consulted: &kept.consulted,
-                    consulted_absent: &kept.consulted_absent,
-                },
-                &kept,
-                &StoredHanded::default(),
-                &BucketsWanted::All,
-                Vec::new(),
-            );
-            // Every file is used again, at its number: its words stay where the store keeps them.
-            let numbers: Vec<FileAgain> = (0..kept.files.len())
-                .map(|place| {
-                    let number = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
-                    FileAgain {
-                        was: number,
-                        now: number,
-                    }
-                })
-                .collect();
-            usize::from(again.stored == kept && again.kept.file_again == numbers)
-        }
+        Scenario::StoreRoundTrip => stored_round_trip(),
         Scenario::UnknownRule => {
             let other = [RuleId("s".into())];
             usize::from(records_from(&stored(), &other).is_none()) * 10
@@ -344,6 +368,17 @@ fn subject(scenario: Input) -> Value {
             });
             let left = unknowns_from(&kept, &[FilePath("a.rs".into())]);
             left.len() * 10 + usize::from(left.first().is_some_and(|each| &*each.path.0 == "b.rs"))
+        }
+        Scenario::SkippedFrom => {
+            let mut kept = stored();
+            kept.skipped.push(Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("a.rs".into()),
+                reason: SkipReason::SyntaxRejected,
+            });
+            let reused = skipped_from(&kept, &[]);
+            let refreshed = skipped_from(&kept, &[FilePath("a.rs".into())]);
+            usize::from(reused == kept.skipped) * 10 + refreshed.len()
         }
     }
 }
@@ -413,9 +448,75 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::UnknownsFrom,
         expect: Expect::Value(11),
     },
+    Case {
+        name: CaseName("syntax_rejection_skips_are_replayed_until_their_file_is_read_again"),
+        word: Word::Succeeds,
+        input: || Scenario::SkippedFrom,
+        expect: Expect::Value(10),
+    },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+#[test]
+fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions() {
+    use ryo_values::domain::files::types::ExecutablePermission::Posix;
+    for (before, after) in [(false, true), (true, false)] {
+        let mut kept = stored();
+        let mut files = listed();
+        kept.files[0].executable = Posix(before);
+        files[0].executable = Posix(before);
+        assert_eq!(
+            super::service::as_kept(&kept.files[0], &files[0]),
+            ryo_values::domain::records::types::Freshness::AsItWas
+        );
+        assert_eq!(decide(&kept, &rules(true), &files), Decision::Again);
+        let mut fresh = record("a.rs", 10, 11, 12, 5);
+        fresh.size = files[0].size;
+        fresh.modified = files[0].modified;
+        fresh.executable = Posix(before);
+        assert_eq!(
+            made_again(&kept, &[fresh.clone()], &[], &[], &[]),
+            MadeAgain::Nothing
+        );
+        files[0].executable = Posix(after);
+        fresh.executable = Posix(after);
+        assert_eq!(
+            super::service::as_kept(&kept.files[0], &files[0]),
+            ryo_values::domain::records::types::Freshness::Changed
+        );
+        assert_eq!(
+            decide(&kept, &rules(true), &files),
+            Decision::Check(vec![FileOrder(0)])
+        );
+        assert_eq!(
+            made_again(&kept, &[fresh], &[], &[], &[]),
+            MadeAgain::All,
+            "equal byte/interface digests cannot hide changed input observations"
+        );
+    }
+}
+
+#[test]
+fn unavailable_primary_cannot_reuse_a_cached_cross_file_interface() {
+    use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
+    for failed in [
+        CorpusInput::Unreadable {
+            path: FilePath("a.rs".into()),
+            reason: InputReadFailure("missing".into()),
+        },
+        CorpusInput::ReadFailed {
+            entry: entry("a.rs", 1, 5),
+            reason: InputReadFailure("read denied".into()),
+        },
+    ] {
+        let inputs = [failed, CorpusInput::Available(entry("b.rs", 2, 6))];
+        assert_eq!(
+            super::service::decide(&stored(), &rules(true), &inputs),
+            Decision::Whole
+        );
+    }
 }

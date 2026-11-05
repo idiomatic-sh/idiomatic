@@ -1,9 +1,9 @@
 //! The list of relations not yet read: each relation answered `NotYetRead` is named, and no other answer is.
 
-use super::{answers, listed, ships};
+use super::{answers, duplicates, listed, needs_answer, ships};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::answers::types::AbsenceCause;
-use crate::domain::relations::types::Relation;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{OptionalCapability, Relation};
 
 /// What the case gives: the answers of a language, as a function of the relation; or the command line's manifest a language
 /// `go` is looked for in, as its text, or as a directory where the file should be.
@@ -15,6 +15,10 @@ enum Question {
     Ships(&'static str),
     /// Whether `go` ships, by a manifest that cannot be read.
     Unreadable,
+    /// Baseline and promised optional answers cannot be deferred silently.
+    Required(Relation, &'static [OptionalCapability], bool),
+    /// Repeated optional declarations are invalid.
+    Duplicates(&'static [OptionalCapability]),
 }
 
 type Input = Question;
@@ -36,6 +40,58 @@ fn everything_read(_relation: Relation) -> Option<AbsenceCause> {
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("shipped baseline cannot be unimplemented"),
+        word: Word::Succeeds,
+        input: || Question::Required(Relation::Function, &[], true),
+        expect: Expect::Value("required"),
+    },
+    Case {
+        name: CaseName("semantic views remain baseline"),
+        word: Word::Succeeds,
+        input: || Question::Required(Relation::SemanticChild, &[], true),
+        expect: Expect::Value("required"),
+    },
+    Case {
+        name: CaseName("advertised optional capability cannot be unimplemented"),
+        word: Word::Succeeds,
+        input: || {
+            Question::Required(
+                Relation::Identifier,
+                &[OptionalCapability::Identifier],
+                false,
+            )
+        },
+        expect: Expect::Value("required"),
+    },
+    Case {
+        name: CaseName("unadvertised optional capability stays explicitly unavailable"),
+        word: Word::Succeeds,
+        input: || Question::Required(Relation::Identifier, &[], true),
+        expect: Expect::Value("optional"),
+    },
+    Case {
+        name: CaseName("duplicate capability promises refused"),
+        word: Word::Succeeds,
+        input: || {
+            Question::Duplicates(&[
+                OptionalCapability::Identifier,
+                OptionalCapability::Identifier,
+            ])
+        },
+        expect: Expect::Value("duplicate"),
+    },
+    Case {
+        name: CaseName("distinct optional promises accepted"),
+        word: Word::Succeeds,
+        input: || {
+            Question::Duplicates(&[
+                OptionalCapability::Identifier,
+                OptionalCapability::QualifiedName,
+            ])
+        },
+        expect: Expect::Value("unique"),
+    },
     Case {
         name: CaseName("a_relation_not_yet_read_is_listed_by_name"),
         word: Word::Succeeds,
@@ -109,6 +165,20 @@ fn shipped(manifest: Option<&str>) -> &'static str {
 
 fn subject(given: Input) -> Result<Value, Failure> {
     Ok(match given {
+        Question::Required(relation, promises, shipped) => {
+            if needs_answer(relation, promises, shipped) {
+                "required"
+            } else {
+                "optional"
+            }
+        }
+        Question::Duplicates(promises) => {
+            if duplicates(promises) == 0 {
+                "unique"
+            } else {
+                "duplicate"
+            }
+        }
         Question::Answers(answer) => {
             Box::leak(listed(&answers(answer)).join("\n").into_boxed_str())
         }

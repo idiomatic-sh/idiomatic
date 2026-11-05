@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
+// `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
 use std::sync::Arc;
 
 use ryo_language::inbound::use_cases::parse::types::ParseEngine;

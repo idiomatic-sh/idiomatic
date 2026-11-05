@@ -2,6 +2,8 @@
 
 The `ryo` command line and its SDK: query a repository's source with RyoQL, over independent language providers.
 
+Engine extension ownership and current enforcement are recorded in the [contracts map](docs/contracts/README.md).
+
 ## Install
 
 | Language | Command |

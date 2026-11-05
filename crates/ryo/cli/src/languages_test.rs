@@ -43,16 +43,21 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         ryo_values::domain::runs::types::WorkersAsked(0),
     )
     .lint(LintRequest {
+        source_language: None,
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(directory.path().to_str().expect("a utf-8 path").into()),
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("1".into()),
-            query: QueryText(
-                "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into(),
+            query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into()),
             ),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

@@ -1,33 +1,43 @@
-// ignore: idiomatic.arch/file-length - the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
+// the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
 //! The `crossing` service's cases, on values alone.
 
 use super::service::CrossFile;
+use crate::application::run_coordination::settings::CrossingInput;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::answering::types::Todo;
-use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, RuleIndex};
 use crate::domain::crossing::service::{partials_for, placeable};
-use crate::domain::crossing::types::{CrossingInput, Placeability};
-use crate::domain::frontiers::service::decode_input;
-use crate::domain::rules::errors::RulesError;
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, ParameterBinding, Table};
-use crate::domain::table_words::service::{encode_table, pack};
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::types::{Needs, RelationRead};
-use ryo_language::domain::relations::types::{
+use crate::domain::crossing::types::Placeability;
+use ryo_execution::inbound::use_cases::execution::{
+    interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution},
+    types::{
+        FrontierDemand, FrontierRequest, ObservationIdentity, PreparedFrontiers, PreparedRequest,
+        ProjectScope,
+    },
+    use_case::ExecutionUseCaseImpl,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Covered, FilePartial, Lacking, Partial, RuleIndex,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
+use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
     Value as Cell, Words, WorkerNumber,
 };
-use ryo_language::domain::symbols::service::places_mut;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::WordSlice;
+use std::sync::Arc;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
@@ -40,14 +50,10 @@ enum Scenario {
     Placeable,
     /// Files and the project that read a relation in part which a rule trusts.
     Partials,
-    /// The names two files handed over, counted.
+    /// The nodes two files handed over, counted.
     CrossCounts,
     /// A rule the plans lack.
     CrossNoRule,
-    /// A present plan without its bindings cannot run.
-    CrossNoBinding,
-    /// Two names of one hash spelled two ways.
-    CrossSpellings,
     /// A cross-file step that reads what nobody handed over.
     CrossNothingHanded,
 }
@@ -60,9 +66,13 @@ type Failure = RulesError;
 
 /// What the cross-file steps of every rule read, owned.
 struct World {
-    plans: Vec<Plan>,
-    bindings: Vec<Vec<ParameterBinding>>,
+    placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
+    program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    request: ryo_execution::inbound::use_cases::execution::types::RequestExecution,
+    metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
     ids: Vec<RuleId>,
+    paths: Vec<ryo_language::domain::files::types::FilePath>,
+    files: Vec<ryo_values::domain::files::types::CorpusInput>,
     needs: Vec<Needs>,
     arenas: Vec<ArenaBytes>,
     covered: Vec<Covered>,
@@ -72,6 +82,8 @@ struct World {
 /// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
 fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![
             PlanStep {
@@ -98,14 +110,88 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
             headings: Vec::new(),
         },
         frontier: vec![PlanInput::Step(StepId(0))],
+        comparison_origins: Vec::new(),
     }
 }
 
 fn world(plan: Plan) -> World {
+    use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
+    use ryo_values::domain::{
+        files::types::{CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        rule_requests::types::{RuleParameters, RuleSpec},
+        stored_facts::types::Digest,
+    };
+    let placement = MetadataUseCaseImpl.decide(&[
+        ryo_execution::inbound::use_cases::metadata::interface::RuleScope {
+            include: Vec::new(),
+            exclude: Vec::new(),
+        },
+    ]);
+    let matcher = crate::outbound::matching::fixtures::fake::MatchingFake
+        .compile(&placement.globs)
+        .expect("matcher");
+    let ids = vec![RuleId("rule".into())];
+    let paths = vec![FilePath("first.py".into()), FilePath("second.py".into())];
+    let files = paths
+        .iter()
+        .cloned()
+        .map(|path| {
+            CorpusInput::Available(CorpusEntry {
+                executable: ExecutablePermission::Unknown,
+                path,
+                size: FileSize(0),
+                modified: Nanoseconds(0),
+            })
+        })
+        .collect::<Vec<_>>();
+    let metadata =
+        ryo_values::domain::run_metadata::service::from_plans(std::slice::from_ref(&plan));
+    let engine = ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let program = Arc::new(
+        engine
+            .prepare(PreparedRequest {
+                plans: vec![plan],
+                bindings: vec![Vec::new()],
+                rules: vec![RuleSpec {
+                    id: ids[0].clone(),
+                    query: QueryBundle {
+                        root: QueryDocumentSource {
+                            id: QuerySourceId("rule".into()),
+                            text: "".into(),
+                        },
+                        modules: Default::default(),
+                    },
+                    applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+                    given: Vec::new(),
+                    observations: Vec::new(),
+                    spelled: RuleParameters("".into()),
+                    include: Vec::new(),
+                    exclude: Vec::new(),
+                }],
+                digests: vec![Digest([0; 16])],
+                hosted: Vec::new(),
+                observations: ObservationIdentity::Independent,
+            })
+            .expect("prepared cross rule"),
+    );
+    let request = engine.begin(&program, &files);
     World {
-        plans: vec![plan],
-        bindings: vec![Vec::new()],
-        ids: vec![RuleId("rule".into())],
+        placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
+            placement,
+            matcher,
+        },
+        program,
+        request,
+        metadata,
+        ids,
+        paths,
+        files,
         needs: vec![Needs::default()],
         arenas: Vec::new(),
         covered: Vec::new(),
@@ -115,19 +201,89 @@ fn world(plan: Plan) -> World {
 
 fn crossing(world: &World) -> CrossingInput<'_> {
     CrossingInput {
-        unknown: &[],
-        plans: &world.plans,
-        bindings: &world.bindings,
-        ids: &world.ids,
-        needs: &world.needs,
-        paths: &[],
+        program: Arc::clone(&world.program),
+        services: &world.request,
         arenas: &world.arenas,
-        files: &[],
-        covered: &world.covered,
-        project: &world.project,
-        hosted: &[],
-        answering: &crate::domain::render::types::Answering::Findings,
+        domain: crate::domain::crossing::types::CrossingInput {
+            placed: &world.placed,
+            observations: &[],
+            metadata: &world.metadata,
+            ids: &world.ids,
+            needs: &world.needs,
+            paths: &world.paths,
+            files: &world.files,
+            covered: &world.covered,
+            skipped: &[],
+            project: &world.project,
+            answering: &crate::domain::render::types::Answering::Findings,
+            unknown: &[],
+        },
     }
+}
+
+fn prepared(
+    world: &World,
+    rows: &[(FileId, ryo_values::domain::rows::types::Table)],
+    symbols: &mut Symbols,
+) -> Result<(ProjectScope, PreparedFrontiers), RulesError> {
+    use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
+    use ryo_values::domain::{
+        records::types::{FrontierCoverage, FrontierProof},
+        stored_facts::types::Bucket,
+    };
+    let facts_port = crate::outbound::facts::fixtures::fake::FactsFake::default();
+    let mut workers = Vec::new();
+    let proof = FrontierProof {
+        version: 1,
+        rule: 0,
+        input: 0,
+        rule_digest: world
+            .program
+            .rule_digest(RuleIndex(0))
+            .expect("rule digest"),
+        coverage: FrontierCoverage::Complete,
+    };
+    for (file, table) in rows {
+        let worker = facts_port.worker().expect("facts worker");
+        let mut words = Words::default();
+        encode_table(table, &[], &mut words);
+        let packed = pack(WordSlice(&words.0));
+        worker
+            .keep(
+                Bucket(0),
+                WordsToKeep {
+                    words: &packed,
+                    file: *file,
+                    proof: &proof,
+                },
+            )
+            .expect("source frame");
+        workers.push(worker);
+    }
+    let facts = facts_port
+        .finish(&mut workers.into_iter())
+        .expect("facts finish");
+    let project = facts_port.worker().expect("project facts");
+    let scope = world
+        .request
+        .project_scope(RuleIndex(0), &world.files, &world.covered, &[])
+        .expect("project scope");
+    let frontiers = world
+        .request
+        .prepare_frontiers(
+            FrontierRequest {
+                demand: FrontierDemand::Diagnostic,
+                scope: &scope,
+                rule: RuleIndex(0),
+                first: Bucket(0),
+                facts: facts.as_ref(),
+                project: project.as_ref(),
+                project_symbols: &Symbols::default(),
+            },
+            symbols,
+        )
+        .map_err(|error| crate::domain::rules::service::failed(&world.ids[0], &error))?;
+    Ok((scope, frontiers))
 }
 
 fn todo(rule: usize) -> Todo {
@@ -153,27 +309,24 @@ fn name(hash: u64, place: u32) -> Cell {
     })
 }
 
-/// The words of a table of one column of names, one row for each of the given places and hashes.
-fn words_of(names: &[(u64, u32)]) -> KeptWords {
-    let mut table = Table {
-        kinds: vec![CellKind::Symbol],
-        ..Table::default()
+/// Two source files contribute three actual Function-node rows to one project count.
+fn frontier_rows() -> Vec<(FileId, Table)> {
+    use ryo_relations::domain::relations::{service::node_id, types::Position};
+    use ryo_values::domain::rows::types::RowCount;
+    let row = |file, positions: &[u32]| {
+        (
+            FileId(file),
+            Table {
+                kinds: vec![CellKind::Node],
+                count: RowCount(positions.len()),
+                cells: positions
+                    .iter()
+                    .map(|position| Cell::Node(node_id(FileId(file), Position(*position))))
+                    .collect(),
+            },
+        )
     };
-    for (hash, place) in names {
-        push_row(&mut table, &[name(*hash, *place)]);
-    }
-    let mut words = Words::default();
-    encode_table(&table, &[], &mut words);
-    KeptWords(pack(WordSlice(&words.0)))
-}
-
-/// The rows the files handed to the first input of a counting plan: two files handed over the name hashed 1, a third another name.
-fn handed_over(cross: &mut Symbols) -> Vec<Frontier> {
-    let table = decode_input(&words_of(&[(1, 0), (1, 0), (2, 0)]), cross);
-    vec![Frontier {
-        input: PlanInput::Step(StepId(0)),
-        table,
-    }]
+    vec![row(0, &[1, 1]), row(1, &[2])]
 }
 
 /// The file of `partial`, as a number: the repository as a whole is the number past every file, as the store writes it; 0
@@ -224,7 +377,7 @@ fn placing_outcomes() -> Value {
         ..Table::default()
     };
     let says = |emitted, key| {
-        usize::from(placeable(&counting_plan(emitted, key), &table) == Placeability::Placeable)
+        usize::from(placeable(&counting_plan(emitted, key).emit, &table) == Placeability::Placeable)
     };
     [
         says(0, Vec::new()),
@@ -246,67 +399,51 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let frontier = handed_over(&mut cross);
-            let done = service().evaluate(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
-            [
-                done.rendered.order.len(),
-                done.fed.len(),
-                done.rendered.cells.len(),
-            ]
-        }
-        Scenario::CrossNoBinding => {
-            let mut rules = world(counting_plan(1, Vec::new()));
-            rules.bindings.clear();
+            let (scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
             let done =
-                service().evaluate(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
+                service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
             [
-                usize::from(done.rendered != crate::domain::render::types::Rendered::default()),
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
                 done.fed.len(),
-                0,
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.cells.len()),
             ]
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done =
-                service().evaluate(&crossing(&rules), &todo(3), &[], &mut Symbols::default())?;
-            [done.rendered.order.len(), done.fed.len(), 0]
-        }
-        Scenario::CrossSpellings => {
-            let mut rules = world(counting_plan(1, Vec::new()));
-            rules.arenas = vec![ArenaBytes(b"ab".to_vec())];
             let mut cross = Symbols::default();
-            for (start, end) in [(0, 1), (1, 2)] {
-                places_mut(&mut cross).push(NamePlace {
-                    origin: Origin::Derived(WorkerNumber(0)),
-                    file: FileId(0),
-                    start: Offset(start),
-                    end: Offset(end),
-                });
-            }
-            let table = decode_input(&words_of(&[(1, 0), (1, 1)]), &mut Symbols::default());
-            let frontier = [Frontier {
-                input: PlanInput::Step(StepId(0)),
-                table,
-            }];
-            let done = service().evaluate(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
-            [done.rendered.order.len(), 0, 0]
+            let (scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
+            let done =
+                service().evaluate(&crossing(&rules), &todo(3), frontier, &mut cross, &scope)?;
+            [
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                done.fed.len(),
+                0,
+            ]
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
+            let mut cross = Symbols::default();
+            let (scope, frontier) = prepared(&rules, &[], &mut cross)?;
             let done =
-                service().evaluate(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
-            [done.rendered.order.len(), 0, 0]
+                service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
+            [
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                0,
+                0,
+            ]
         }
     })
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_plan_without_bindings_produces_no_cross_file_work"),
-        word: Word::Succeeds,
-        input: || Scenario::CrossNoBinding,
-        expect: Expect::Value([0, 0, 0]),
-    },
     Case {
         name: CaseName("substituting_the_injected_corpus_changes_source_spelling"),
         word: Word::Succeeds,
@@ -335,22 +472,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "the_names_two_files_handed_over_are_counted_into_two_findings_of_five_cells",
+            "the_nodes_two_files_handed_over_are_counted_into_two_findings_of_five_cells",
         ),
         word: Word::Succeeds,
         input: || Scenario::CrossCounts,
         expect: Expect::Value([2, 2, 10]),
     },
     Case {
-        name: CaseName("a_rule_the_plans_lack_crosses_to_nothing"),
-        word: Word::Succeeds,
-        input: || Scenario::CrossNoRule,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("one_hash_spelled_two_ways_fails_the_rule"),
+        name: CaseName("an_unprepared_rule_refuses_the_project_scope"),
         word: Word::Refuses,
-        input: || Scenario::CrossSpellings,
+        input: || Scenario::CrossNoRule,
         expect: Expect::Refusal(|error| {
             if matches!(error, RulesError::Failed { .. }) {
                 Selection::Matches
@@ -386,11 +517,10 @@ fn refuses() {
 fn service() -> CrossFile {
     CrossFile::new(std::sync::Arc::new(
         crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ))
+    ), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))))
 }
 fn source_text(bytes: &[u8], fails: bool) -> String {
     use crate::outbound::corpus::fixtures::fake::CorpusFake;
-    use ryo_language::domain::files::types::FilePath;
     use ryo_values::domain::files::types::CorpusFile;
     use ryo_values::domain::files::types::{FileSize, Nanoseconds};
     let corpus = CorpusFake {
@@ -398,6 +528,7 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
             Vec::new()
         } else {
             vec![CorpusFile {
+                executable: Default::default(),
                 path: FilePath("source".into()),
                 bytes: FileBytes(bytes.to_vec()),
             }]
@@ -406,12 +537,14 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
         reads: std::sync::Arc::default(),
         outside: Vec::new(),
     };
-    let service = CrossFile::new(std::sync::Arc::new(corpus));
+    let service = CrossFile::new(std::sync::Arc::new(corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))));
     let files = [CorpusEntry {
+        executable: Default::default(),
         path: FilePath("source".into()),
         size: FileSize(3),
         modified: Nanoseconds(0),
-    }];
+    }]
+    .map(ryo_values::domain::files::types::CorpusInput::Available);
     let mut symbols = Symbols::default();
     places_mut(&mut symbols).push(NamePlace {
         origin: Origin::Source,
@@ -446,5 +579,115 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
             | ryo_values::domain::records::types::Cell::Span(_),
         )
         | None => String::new(),
+    }
+}
+
+use ryo_values::domain::rows::types::Table;
+
+use ryo_execution::inbound::use_cases::metadata::{
+    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
+};
+
+#[test]
+fn current_project_roots_keep_the_original_two_group_four_cell_result() {
+    use ryo_execution::inbound::use_cases::execution::{
+        interface::ProjectExecution,
+        types::{EmitDemand, ObservationDemand, Partials, ProjectInput, RootOutcome, RuleDemand},
+    };
+    let world = world(counting_plan(1, Vec::new()));
+    let mut symbols = Symbols::default();
+    let (scope, ordinary) =
+        prepared(&world, &frontier_rows(), &mut symbols).expect("actual source-bound frontier");
+    let partials = Partials::default();
+    let mut run = world
+        .request
+        .open_project(
+            ProjectInput {
+                scope: &scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: &world.arenas,
+            },
+            &mut symbols,
+        )
+        .expect("project");
+    let done = run
+        .rule(
+            RuleIndex(0),
+            RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::Required,
+            },
+            &mut symbols,
+        )
+        .expect("rule");
+    let RootOutcome::Complete(table) = done.emit else {
+        panic!("complete group root")
+    };
+    assert_eq!(
+        [table.count.0, done.counts.fed.len(), table.cells.len()],
+        [2, 2, 4]
+    );
+    run.finish();
+}
+
+#[test]
+fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics() {
+    use ryo_values::domain::runs::types::{SkipReason, Skipped};
+    let mut world = world(counting_plan(0, Vec::new()));
+    let path = ryo_language::domain::files::types::FilePath("rejected.py".into());
+    world.paths = vec![path.clone()];
+    world.needs[0].cross.push(RelationRead {
+        relation: Relation::Function,
+        kinds: vec![],
+    });
+    let skipped = [Skipped {
+        rule: world.ids[0].clone(),
+        path,
+        reason: SkipReason::SyntaxRejected,
+    }];
+    let mut input = crossing(&world);
+    input.domain.skipped = &skipped;
+    let partials = partials_for(&input, RuleIndex(0));
+    assert!(partials.entries.is_empty(), "no provider partial invented");
+    assert_eq!(
+        partials.unavailable_files,
+        [FileId(0)],
+        "skipped source remains unavailable for absence checks"
+    );
+}
+
+#[test]
+fn project_evaluation_rejects_frontiers_from_another_request() {
+    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+    let rules = world(counting_plan(1, Vec::new()));
+    let mut symbols = Symbols::default();
+    let (_scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
+        .expect("frontiers admitted by the original request");
+    let engine = ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let next = engine.begin(&rules.program, &rules.files);
+    let foreign = next
+        .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
+        .expect("independent request over the same program and corpus");
+    let result = service().evaluate(
+        &crossing(&rules),
+        &todo(0),
+        frontier,
+        &mut symbols,
+        &foreign,
+    );
+    match result {
+        Err(error) => assert_eq!(
+            error,
+            crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead)
+        ),
+        Ok(_) => panic!("an unrelated request scope cannot admit the original frontiers"),
     }
 }

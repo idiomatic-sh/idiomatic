@@ -49,6 +49,7 @@ impl Variant {
 fn files() -> Vec<CorpusFile> {
     (0..FILES)
         .map(|number| CorpusFile {
+            executable: Default::default(),
             path: FilePath(format!("src/{}/file_{number}.rs", number % 10).into()),
             bytes: FileBytes(format!("fn function_{number}() {{}}\n").into_bytes()),
         })

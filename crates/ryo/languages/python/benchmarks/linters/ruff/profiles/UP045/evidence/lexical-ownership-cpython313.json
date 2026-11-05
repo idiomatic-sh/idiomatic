@@ -1,0 +1,90 @@
+{
+  "version": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "executable": "/usr/bin/python3.13",
+  "interpreter_sha256": "bd241b38381974ae27d7d5098a6d0e6dda0a744b5e9fdd6fe3a1ae632588961e",
+  "probe_sha256": "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791",
+  "dont_inherit": true,
+  "scope": "Exact controlled definitions and function calls only; each negative has compiler-local ownership despite a prior outer alias/builtin, each positive imports locally before use.",
+  "cases": [
+    {
+      "rule": "UP007",
+      "name": "independent-callable-lexical-ownership-0",
+      "source": "import typing\ndef f():\n    value = typing.Union[int,str]\n    typing = object\n",
+      "source_sha256": "ef6fc71e47db1d0a2dc22711628355ffa634e562037d386e6b38d1d58009c40f",
+      "result": {
+        "status": "raised",
+        "type": "UnboundLocalError",
+        "message": "cannot access local variable 'typing' where it is not associated with a value"
+      }
+    },
+    {
+      "rule": "UP007",
+      "name": "independent-callable-lexical-ownership-1",
+      "source": "def f():\n    import typing\n    value = typing.Union[int,str]\n",
+      "source_sha256": "f96039a9634e6245610b11769a0dbdc3ec69952cce1fa8ff64446fccaeb270d2",
+      "result": {
+        "status": "returned"
+      }
+    },
+    {
+      "rule": "UP045",
+      "name": "independent-callable-lexical-ownership-0",
+      "source": "from typing import Optional as Opt\ndef f():\n    value = Opt[int]\n    Opt = object\n",
+      "source_sha256": "89add88be6f8e4f5dea05ac6c12df126915a3db6906ced0004100d87410350d9",
+      "result": {
+        "status": "raised",
+        "type": "UnboundLocalError",
+        "message": "cannot access local variable 'Opt' where it is not associated with a value"
+      }
+    },
+    {
+      "rule": "UP045",
+      "name": "independent-callable-lexical-ownership-1",
+      "source": "def f():\n    from typing import Optional as Opt\n    value = Opt[int]\n",
+      "source_sha256": "1a04ba44a792e2946b2649412f517f8d997e3f50ce070d2294786913ad715018",
+      "result": {
+        "status": "returned"
+      }
+    },
+    {
+      "rule": "UP050",
+      "name": "independent-callable-lexical-ownership-0",
+      "source": "def f():\n    class C(metaclass=type): pass\n    type = object\n",
+      "source_sha256": "602ccc388fb5566ee124e169e11a7efd1509deadcd5e2719f713efb4d364e092",
+      "result": {
+        "status": "raised",
+        "type": "UnboundLocalError",
+        "message": "cannot access local variable 'type' where it is not associated with a value"
+      }
+    },
+    {
+      "rule": "UP050",
+      "name": "independent-callable-lexical-ownership-1",
+      "source": "def f():\n    from builtins import type as Meta\n    class C(metaclass=Meta): pass\n",
+      "source_sha256": "afe0463b0d146bb13cfacf9e9ab42dd6a4dcfb51d95ecf11f1991d0db8229c3b",
+      "result": {
+        "status": "returned"
+      }
+    },
+    {
+      "rule": "TC005",
+      "name": "independent-callable-lexical-ownership-0",
+      "source": "from typing import TYPE_CHECKING as TC\ndef f():\n    if TC:\n        pass\n    TC = False\n",
+      "source_sha256": "abe9670e7ee96702c9f35466220d1cfed1238d1d2cf5534908f14bac54c04572",
+      "result": {
+        "status": "raised",
+        "type": "UnboundLocalError",
+        "message": "cannot access local variable 'TC' where it is not associated with a value"
+      }
+    },
+    {
+      "rule": "TC005",
+      "name": "independent-callable-lexical-ownership-1",
+      "source": "def f():\n    from typing import TYPE_CHECKING as TC\n    if TC:\n        pass\n",
+      "source_sha256": "745f3259906547db992747fa733a72d4231b9e580a5a0b33a4655f5578c8b0e5",
+      "result": {
+        "status": "returned"
+      }
+    }
+  ]
+}

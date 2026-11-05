@@ -1,8 +1,8 @@
 //! The types of the `lowering` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -15,7 +15,7 @@ use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::plans::types::ParameterType;
 use ryo_values::domain::plans::types::StepScope;
 use ryo_values::domain::program::types::{
-    AliasName, ColumnName, ParameterDeclaration, QuerySpan, StepName,
+    AliasName, ColumnName, ParameterDeclaration, QueryOrigin, QuerySpan, StepName,
 };
 
 /// A column of a step's answer while the plan is built: the name the query gives it and what it holds.
@@ -203,6 +203,8 @@ pub(crate) struct Builder<'a> {
     pub catalog: &'a [Relation],
     /// The steps the relations the host declared were made into, by the name a rule writes.
     pub hosted_steps: Vec<HostedStep>,
+    /// Typed producer input schemas; these are not Hosted static tables.
+    pub observation_inputs: &'a [ryo_values::domain::observations::types::BoundObservationInput],
     /// The parameters the query declares.
     pub parameters: &'a [ParameterDeclaration],
     /// What each parameter holds, in the order declared.
@@ -213,6 +215,10 @@ pub(crate) struct Builder<'a> {
     pub lowered: Vec<LoweredStep>,
     /// Where the line being lowered is written.
     pub span: QuerySpan,
+    /// The source document and trace of the step currently lowered.
+    pub origin: Option<QueryOrigin>,
+    /// Source origins interned for comparisons in this plan.
+    pub comparison_origins: Vec<QueryOrigin>,
 }
 
 /// The join the pairs of the same-sets idiom come from, as recognized.
@@ -246,6 +252,12 @@ pub(crate) enum PairFiltering {
 /// Why an argument cannot be used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ArgumentFault {
+    /// Root and edge entity kinds must agree.
+    MatchingGraphEntities,
+    /// Matching root/edge partition names must have identical kinds.
+    MatchingGraphKeys,
+    /// Outgoing edge order must be numeric.
+    NumericGraphOrder,
     /// The call leaves it out.
     Missing,
     /// It should name one thing.

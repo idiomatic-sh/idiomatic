@@ -1,0 +1,119 @@
+[[cases]]
+name = "invalid-simple"
+comparison = "full"
+files = { "case.py" = "x = \"\\q\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 5, end = 7 }]
+
+[[cases]]
+name = "even-run"
+comparison = "full"
+files = { "case.py" = "x = \"\\\\q\"\n" }
+expected = []
+
+[[cases]]
+name = "odd-three-run"
+comparison = "full"
+files = { "case.py" = "x = \"\\\\\\q\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 7, end = 9 }]
+
+[[cases]]
+name = "adjacent-invalid"
+comparison = "full"
+files = { "case.py" = "x = \"\\q\\z\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 5, end = 7 }, { rule = "W605", file = "case.py", start = 7, end = 9 }]
+
+[[cases]]
+name = "valid-escapes"
+comparison = "full"
+files = { "case.py" = "x = \"\\n\\t\\x41\\u1234\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-string"
+comparison = "full"
+files = { "case.py" = "x = r\"\\q\"\n" }
+expected = []
+
+[[cases]]
+name = "unicode-invalid"
+comparison = "full"
+files = { "case.py" = "x = \"\\é\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 5, end = 8 }]
+
+[[cases]]
+name = "triple-multiline"
+comparison = "full"
+files = { "case.py" = "x = \"\"\"\n\\q\n\\z\"\"\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 8, end = 10 }, { rule = "W605", file = "case.py", start = 11, end = 13 }]
+
+[[cases]]
+name = "fstring-literal"
+comparison = "full"
+files = { "case.py" = "x = f\"\\q{value}\\z\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 6, end = 8 }, { rule = "W605", file = "case.py", start = 15, end = 17 }]
+
+[[cases]]
+name = "fstring-brace-boundary"
+comparison = "full"
+files = { "case.py" = "x = f\"\\{value}\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 6, end = 8 }]
+
+[[cases]]
+name = "fstring-format-spec-boundary"
+comparison = "full"
+files = { "case.py" = "x = f\"{value:\\}\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 13, end = 15 }]
+
+[[cases]]
+name = "tstring-literal"
+comparison = "full"
+files = { "case.py" = "x = t\"\\q\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 6, end = 8 }]
+
+[[cases]]
+name = "raw-tstring"
+comparison = "full"
+files = { "case.py" = "x = rt\"\\q\"\n" }
+expected = []
+
+[[cases]]
+name = "comment-outside-string"
+comparison = "full"
+files = { "case.py" = "# \\q\nx = 1\n" }
+expected = []
+
+[[cases]]
+name = "same-line-noqa"
+comparison = "full"
+files = { "case.py" = "x = \"\\q\"  # noqa: W605\n" }
+expected = []
+
+[[cases]]
+name = "closing-line-noqa"
+comparison = "full"
+files = { "case.py" = "x = \"\"\"\\q\n\\z\"\"\"  # noqa: W605\n" }
+expected = []
+
+[[cases]]
+name = "tstring-triple-without-noqa"
+comparison = "full"
+files = { "case.py" = "x = t'''\\q\n\\z'''\n" }
+expected = [{ rule = "W605", file = "case.py", start = 8, end = 10 }, { rule = "W605", file = "case.py", start = 11, end = 13 }]
+
+[[cases]]
+name = "tstring-triple-closing-line-noqa"
+comparison = "full"
+files = { "case.py" = "x = t'''\\q\n\\z'''  # noqa: W605\n" }
+expected = []
+
+[[cases]]
+name = "ruff-0.16.5-W605_0.py"
+comparison = "full"
+files = { "case.py" = "#: W605:1:10\nregex = '\\.png$'\n\n#: W605:2:1\nregex = '''\n\\.png$\n'''\n\n#: W605:2:6\nf(\n    '\\_'\n)\n\n#: W605:4:6\n\"\"\"\nmulti-line\nliteral\nwith \\_ somewhere\nin the middle\n\"\"\"\n\n#: W605:1:38\nvalue = 'new line\\nand invalid escape \\_ here'\n\n\ndef f():\n    #: W605:1:11\n    return'\\.png$'\n\n#: Okay\nregex = r'\\.png$'\nregex = '\\\\.png$'\nregex = r'''\n\\.png$\n'''\nregex = r'''\n\\\\.png$\n'''\ns = '\\\\'\nregex = '\\w'  # noqa\nregex = '''\n\\w\n'''  # noqa\n\nregex = '\\\\\\_'\n\n#: W605:1:7\nu'foo\\ bar'\n\n#: W605:1:13\n(\n    \"foo \\\n    bar \\. baz\"\n)\n\n#: W605:1:6\n\"foo \\. bar \\t\"\n\n#: W605:1:13\n\"foo \\t bar \\.\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 22, end = 24 }, { rule = "W605", file = "case.py", start = 55, end = 57 }, { rule = "W605", file = "case.py", start = 87, end = 89 }, { rule = "W605", file = "case.py", start = 134, end = 136 }, { rule = "W605", file = "case.py", start = 217, end = 219 }, { rule = "W605", file = "case.py", start = 265, end = 267 }, { rule = "W605", file = "case.py", start = 436, end = 438 }, { rule = "W605", file = "case.py", start = 458, end = 460 }, { rule = "W605", file = "case.py", start = 500, end = 502 }, { rule = "W605", file = "case.py", start = 528, end = 530 }, { rule = "W605", file = "case.py", start = 565, end = 567 }]
+
+[[cases]]
+name = "ruff-0.16.5-W605_1.py"
+comparison = "full"
+files = { "case.py" = "# Same as `W605_0.py` but using f-strings and t-strings instead.\n\n#: W605:1:10\nregex = f'\\.png$'\n\n#: W605:2:1\nregex = f'''\n\\.png$\n'''\n\n#: W605:2:6\nf(\n    f'\\_'\n)\n\n#: W605:4:6\nf\"\"\"\nmulti-line\nliteral\nwith \\_ somewhere\nin the middle\n\"\"\"\n\n#: W605:1:38\nvalue = f'new line\\nand invalid escape \\_ here'\n\n\n#: Okay\nregex = fr'\\.png$'\nregex = f'\\\\.png$'\nregex = fr'''\n\\.png$\n'''\nregex = fr'''\n\\\\.png$\n'''\ns = f'\\\\'\nregex = f'\\w'  # noqa\nregex = f'''\n\\w\n'''  # noqa\n\nregex = f'\\\\\\_'\nvalue = f'\\{{1}}'\nvalue = f'\\{1}'\nvalue = f'{1:\\}'\nvalue = f\"{f\"\\{1}\"}\"\nvalue = rf\"{f\"\\{1}\"}\"\n\n# Okay\nvalue = rf'\\{{1}}'\nvalue = rf'\\{1}'\nvalue = rf'{1:\\}'\nvalue = f\"{rf\"\\{1}\"}\"\n\n# Regression tests for https://github.com/astral-sh/ruff/issues/10434\nf\"{{}}+-\\d\"\nf\"\\n{{}}+-\\d+\"\nf\"\\n{{}}�+-\\d+\"\n\n# See https://github.com/astral-sh/ruff/issues/11491\ntotal = 10\nok = 7\nincomplete = 3\ns = f\"TOTAL: {total}\\nOK: {ok}\\INCOMPLETE: {incomplete}\\n\"\n\n# Debug text (should trigger)\nt = f\"{'\\InHere'=}\"\n\n\n\n#: W605:1:10\nregex = t'\\.png$'\n\n#: W605:2:1\nregex = t'''\n\\.png$\n'''\n\n#: W605:2:6\nf(\n    t'\\_'\n)\n\n#: W605:4:6\nt\"\"\"\nmulti-line\nliteral\nwith \\_ somewhere\nin the middle\n\"\"\"\n\n#: W605:1:38\nvalue = t'new line\\nand invalid escape \\_ here'\n\n\n#: Okay\nregex = fr'\\.png$'\nregex = t'\\\\.png$'\nregex = fr'''\n\\.png$\n'''\nregex = fr'''\n\\\\.png$\n'''\ns = t'\\\\'\nregex = t'\\w'  # noqa\nregex = t'''\n\\w\n'''  # noqa\n\nregex = t'\\\\\\_'\nvalue = t'\\{{1}}'\nvalue = t'\\{1}'\nvalue = t'{1:\\}'\nvalue = t\"{t\"\\{1}\"}\"\nvalue = rt\"{t\"\\{1}\"}\"\n\n# Okay\nvalue = rt'\\{{1}}'\nvalue = rt'\\{1}'\nvalue = rt'{1:\\}'\nvalue = t\"{rt\"\\{1}\"}\"\n\n# Regression tests for https://github.com/astral-sh/ruff/issues/10434\nt\"{{}}+-\\d\"\nt\"\\n{{}}+-\\d+\"\nt\"\\n{{}}�+-\\d+\"\n\n# See https://github.com/astral-sh/ruff/issues/11491\ntotal = 10\nok = 7\nincomplete = 3\ns = t\"TOTAL: {total}\\nOK: {ok}\\INCOMPLETE: {incomplete}\\n\"\n\n# Debug text (should trigger)\nt = t\"{'\\InHere'=}\"\n" }
+expected = [{ rule = "W605", file = "case.py", start = 89, end = 91 }, { rule = "W605", file = "case.py", start = 123, end = 125 }, { rule = "W605", file = "case.py", start = 156, end = 158 }, { rule = "W605", file = "case.py", start = 204, end = 206 }, { rule = "W605", file = "case.py", start = 288, end = 290 }, { rule = "W605", file = "case.py", start = 469, end = 471 }, { rule = "W605", file = "case.py", start = 483, end = 485 }, { rule = "W605", file = "case.py", start = 501, end = 503 }, { rule = "W605", file = "case.py", start = 520, end = 522 }, { rule = "W605", file = "case.py", start = 537, end = 539 }, { rule = "W605", file = "case.py", start = 559, end = 561 }, { rule = "W605", file = "case.py", start = 730, end = 732 }, { rule = "W605", file = "case.py", start = 744, end = 746 }, { rule = "W605", file = "case.py", start = 762, end = 764 }, { rule = "W605", file = "case.py", start = 884, end = 886 }, { rule = "W605", file = "case.py", start = 952, end = 954 }, { rule = "W605", file = "case.py", start = 990, end = 992 }, { rule = "W605", file = "case.py", start = 1024, end = 1026 }, { rule = "W605", file = "case.py", start = 1057, end = 1059 }, { rule = "W605", file = "case.py", start = 1105, end = 1107 }, { rule = "W605", file = "case.py", start = 1189, end = 1191 }, { rule = "W605", file = "case.py", start = 1370, end = 1372 }, { rule = "W605", file = "case.py", start = 1384, end = 1386 }, { rule = "W605", file = "case.py", start = 1402, end = 1404 }, { rule = "W605", file = "case.py", start = 1421, end = 1423 }, { rule = "W605", file = "case.py", start = 1438, end = 1440 }, { rule = "W605", file = "case.py", start = 1460, end = 1462 }, { rule = "W605", file = "case.py", start = 1631, end = 1633 }, { rule = "W605", file = "case.py", start = 1645, end = 1647 }, { rule = "W605", file = "case.py", start = 1663, end = 1665 }, { rule = "W605", file = "case.py", start = 1785, end = 1787 }, { rule = "W605", file = "case.py", start = 1853, end = 1855 }]

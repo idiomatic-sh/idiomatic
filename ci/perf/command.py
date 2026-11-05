@@ -16,6 +16,8 @@ the checkout and `--output` keeps the documents it prints.
 from __future__ import annotations
 
 import argparse
+import shlex
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -44,7 +46,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
 def run(argv: list[str], compose: Callable[[Path | None], UseCase]) -> int:
     """Runs the job `compose` makes as the command line asks: 0 when it passes, 1 when a measure is too slow,
-    2 when the request is refused."""
+    2 when the request or measured comparison is refused."""
     arguments = parse(argv)
     output = arguments.output.resolve() if arguments.output else None
     with tempfile.TemporaryDirectory(prefix="perf-") as scratch:
@@ -53,6 +55,13 @@ def run(argv: list[str], compose: Callable[[Path | None], UseCase]) -> int:
         except Refused as refused:
             print(f"perf: {refused}", file=sys.stderr)
             return 2
+        except subprocess.CalledProcessError as failed:
+            print(f"perf: {shlex.join(failed.cmd)} failed with exit {failed.returncode}", file=sys.stderr)
+            for label, stream in (("stdout", failed.stdout), ("stderr", failed.stderr)):
+                if stream:
+                    text = stream.decode("utf-8", errors="backslashreplace") if isinstance(stream, bytes) else stream
+                    print(f"--- child {label} ---\n{text}", file=sys.stderr)
+            return failed.returncode if failed.returncode > 0 else 2
 
 
 def main() -> int:

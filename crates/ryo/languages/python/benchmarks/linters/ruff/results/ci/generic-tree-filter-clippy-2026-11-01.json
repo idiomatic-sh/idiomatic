@@ -1,0 +1,31 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "flock",
+    "/workspaces/.cargo-build.lock",
+    "cargo",
+    "clippy",
+    "--locked",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-query_language",
+    "--all-targets",
+    "--all-features"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "runner_sha256": "6fd6b47bd5ccf056d5a8577ea11a6780e6af19a136bed1fe3f7a05901714e2ae",
+  "started_utc": "2026-11-01T16:36:36.119267+00:00",
+  "completed_utc": "2026-11-01T16:36:38.009113+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "a05667ec45b8ce44f7e46e87f304dc1038db9fe6af3a5fb151e826d3601d895d",
+  "head": "2da4f191a29ea9225478980ee6eae3610eb7f117",
+  "source_tree_sha256": "d217ed4ada247d5516193bf7a30a354e64356ff89018dc42d85f42e63192efa0",
+  "source_file_count": 16302,
+  "raw_receipt_path": "/tmp/generic-tree-filter-querylanguage-clippy-2-20261101/result.json",
+  "raw_receipt_sha256": "3bcff4b287930dbee93af4435658272649cfa51118f19118f77bf472862c2c59"
+}

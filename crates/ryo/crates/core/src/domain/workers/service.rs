@@ -6,33 +6,28 @@ use super::types::{
     Checking, FileOrder, FileTotal, FilesRead, Fresh, FreshNotes, PlacedNotes, Tables,
     VisitSetting, WorkersMet,
 };
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::finish::types::{LineStarts, RuleNumber};
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::service::pool_for;
-use crate::domain::operator::types::{PlanIdentity, Pool, RowsFed, TreeSteps};
-use crate::domain::placement::service::{governed, governs, place};
-use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
-use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{Words, WorkerNumber};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Hits};
-use ryo_values::domain::plans::types::Plan;
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
+use ryo_values::domain::run_metadata::types::RuleMetadata;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
+use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 
 /// What a worker owns before it reads a file: empty tables, and a pool big enough for any of the plans.
 #[must_use]
-pub(crate) fn tables_for(
-    number: WorkerNumber,
-    plans: &[Plan],
-    unlowered: TreeSteps,
-    counting: Counting,
-) -> Tables {
+pub(crate) fn tables_for(number: WorkerNumber, metadata: &[RuleMetadata]) -> Tables {
     Tables {
+        current_observations: None,
+        observations: Vec::new(),
         number,
         elements: Elements::default(),
         symbols: Symbols::default(),
@@ -42,13 +37,11 @@ pub(crate) fn tables_for(
         hits: Hits::default(),
         words: Words::default(),
         packed: PackedWords::default(),
-        memo: Vec::new(),
-        scratch: OperatorScratch::default(),
-        pool: Pool {
-            unlowered,
-            counting,
-            ..pool_for(plans)
-        },
+        fed: metadata
+            .iter()
+            .map(|rule| vec![RowsFed::default(); rule.steps.len()])
+            .collect(),
+        kind_vocabulary: None,
         starts: LineStarts(Vec::new()),
         arena: ArenaBytes::default(),
         places: Vec::new(),
@@ -62,20 +55,23 @@ pub(crate) fn tables_for(
         partials: Vec::new(),
         covered: Vec::new(),
         unknowns: Vec::new(),
-        shared: crate::domain::shared_walk::types::MergedWalk::default(),
+        skipped: Vec::new(),
     }
 }
 
 /// The file at `place` among the files.
 #[must_use]
-pub(crate) fn file_at(files: &[CorpusEntry], place: FileOrder) -> Option<&CorpusEntry> {
+pub(crate) fn file_at(files: &[CorpusInput], place: FileOrder) -> Option<&CorpusInput> {
     files.get(place.0)
 }
 
 /// The bytes of the file at `place`; none for a place there is no file at.
 #[must_use]
-pub(crate) fn size_at(files: &[CorpusEntry], place: FileOrder) -> FileSize {
-    files.get(place.0).map_or(FileSize(0), |entry| entry.size)
+pub(crate) fn size_at(files: &[CorpusInput], place: FileOrder) -> FileSize {
+    files.get(place.0).map_or(FileSize(0), |input| match input {
+        CorpusInput::Available(entry) => entry.size,
+        CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => FileSize(0),
+    })
 }
 
 /// Decides which rules govern the file, once for it; a file no rule governs is neither read nor parsed.
@@ -84,8 +80,8 @@ pub(crate) fn govern(
     tables: &mut Tables,
     path: &FilePath,
 ) -> Governing {
-    place(setting.placed, path, &mut tables.mask, &mut tables.hits);
-    governed(&tables.mask)
+    MetadataUseCaseImpl.place(setting.placed, path, &mut tables.mask, &mut tables.hits);
+    MetadataUseCaseImpl.governed(&tables.mask)
 }
 
 /// Whether the visit of the file at `place` reads the memory the process holds: the reading costs more than a file's visit when
@@ -108,34 +104,28 @@ pub(crate) fn add_fed(total: &mut RowsFed, more: &RowsFed) {
 
 /// Nothing met yet, with room for the rows each step of each plan is fed.
 #[must_use]
-pub(crate) fn gathering(plans: &[Plan]) -> WorkersMet {
+pub(crate) fn gathering(metadata: &[RuleMetadata]) -> WorkersMet {
     WorkersMet {
-        fed: plans
+        fed: metadata
             .iter()
-            .map(|plan| vec![RowsFed::default(); plan.steps.len()])
+            .map(|rule| vec![RowsFed::default(); rule.steps.len()])
             .collect(),
         ..WorkersMet::default()
     }
 }
 
 /// Takes what one worker made into what the workers made together.
-pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables, plans: &[Plan]) {
-    for (layout, fed) in tables.pool.layouts.iter().zip(&tables.pool.fed) {
-        let Some(rule) = plans
-            .iter()
-            .position(|plan| PlanIdentity(std::ptr::from_ref(plan).addr()) == layout.plan)
-        else {
-            continue;
-        };
-        if let Some(slots) = met.fed.get_mut(rule) {
-            for (slot, more) in slots.iter_mut().zip(fed) {
-                add_fed(slot, more);
-            }
+pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables) {
+    for (slots, fed) in met.fed.iter_mut().zip(&tables.fed) {
+        for (slot, more) in slots.iter_mut().zip(fed) {
+            add_fed(slot, more);
         }
     }
     met.read.0 += tables.reads.0;
+    met.observations.extend(tables.observations);
     met.covered.extend(tables.covered);
     met.unknowns.extend(tables.unknowns);
+    met.skipped.extend(tables.skipped);
     met.unread.extend(tables.unread);
     met.unrecorded.extend(tables.unrecorded);
     met.arenas.push(tables.arena);
@@ -158,7 +148,7 @@ pub(crate) fn order(met: &mut WorkersMet) -> Fresh {
 /// Whether the rule governs the file the worker is visiting.
 #[must_use]
 pub(crate) fn governs_rule(tables: &Tables, rule: RuleIndex) -> Governing {
-    governs(
+    MetadataUseCaseImpl.governs(
         &tables.mask,
         RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX)),
     )

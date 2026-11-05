@@ -1,0 +1,61 @@
+{
+  "case_count": 109,
+  "diagnostic_raw_exact": 105,
+  "documented_reference_discrepancies": 4,
+  "typed_candidate_complete": 109,
+  "reference_execution_metadata": "Unavailable; incomparable",
+  "profiles": {
+    "UP045": {
+      "complete_case_pairs": 33,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 32,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 33,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 32,
+      "diagnostic_parity_mismatches": 1,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 33,
+      "typed_candidate_execution_complete": 33,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "UP050": {
+      "complete_case_pairs": 18,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 17,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 18,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 17,
+      "diagnostic_parity_mismatches": 1,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 18,
+      "typed_candidate_execution_complete": 18,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "TC005": {
+      "complete_case_pairs": 58,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 56,
+      "raw_parity_mismatches": 2,
+      "documented_reference_discrepancies": 2,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 58,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 56,
+      "diagnostic_parity_mismatches": 2,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 58,
+      "typed_candidate_execution_complete": 58,
+      "legacy_or_unknown_candidate_execution": 0
+    }
+  },
+  "UP007": "Pending32/33; late-future syntax-taxonomy difference unchanged. Its validated local-origin certificate is not a whole-profile admission."
+}

@@ -1,0 +1,112 @@
+[
+  {
+    "rule": "SIM113",
+    "case": "closure-before-initializer",
+    "files": {
+      "case.py": "def f():\n    callback = lambda: i\n    i = 0\n    for value in values:\n        i += 1\n    return callback()\n"
+    },
+    "source_sha256": "b90c3c21d063d73f222b0e2c9dc71e4d4097d6b80f384f00ec6baa401fbc7d7d",
+    "intended_expected": [],
+    "reference_expected": [
+      {
+        "rule": "SIM113",
+        "file": "case.py",
+        "start": 77,
+        "end": 83
+      }
+    ],
+    "reference_argv": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--no-cache",
+      "--target-version",
+      "py310",
+      "--select",
+      "SIM113",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "observed_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "profile_file": "profiles/SIM113/benchmark.toml",
+    "profile_sha256": "b1dd08d5e846b8bdf5eefcc4298c17c379bdbe4bd5b83f0cefd3f55850aa37b4",
+    "evidence": [
+      {
+        "path": "results/join-enumerate-worker-a-2026-11-02/counter-exact-cpython-3.10.19.json",
+        "sha256": "5a8562b4693936b6cff59d624416ac8f0bbee150858e94cc1818831db4291fa9",
+        "kind": "independent-language-run",
+        "language-version": "3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython3.10.19 exactly matches configured3.10;3.13.5 corroborates the exact same valid source and late closure reads. No unsupported-target extrapolation."
+      },
+      {
+        "path": "results/join-enumerate-worker-a-2026-11-02/counter-exact-cpython-3.13.5.json",
+        "sha256": "d27096776e36d375370731950a0b3fb2dbb462facb118ba2d273641d7d65226e",
+        "kind": "independent-language-run",
+        "language-version": "3.13.5",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython3.10.19 exactly matches configured3.10;3.13.5 corroborates the exact same valid source and late closure reads. No unsupported-target extrapolation."
+      }
+    ],
+    "reason": "The explicit deferred closure reads the carried counter after the loop. Replacing the manual counter with enumerate changes the observed result2 to1 on the exact authored source and fixed input.",
+    "admission_status": "Candidate for the existing reference-discrepancy schema; actual canonical invocation/settings hash must be sealed by integration before activation. Native cases.toml remains unchanged."
+  },
+  {
+    "rule": "SIM113",
+    "case": "closure-inside-loop",
+    "files": {
+      "case.py": "def f():\n    i = 0\n    for value in values:\n        callback = lambda: i\n        i += 1\n    return callback()\n"
+    },
+    "source_sha256": "2fa40407a9edd34cfc9cf21dc58a2a05285909c1c464c43002b1ec6fb26adc7b",
+    "intended_expected": [],
+    "reference_expected": [
+      {
+        "rule": "SIM113",
+        "file": "case.py",
+        "start": 81,
+        "end": 87
+      }
+    ],
+    "reference_argv": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--no-cache",
+      "--target-version",
+      "py310",
+      "--select",
+      "SIM113",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "observed_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "profile_file": "profiles/SIM113/benchmark.toml",
+    "profile_sha256": "b1dd08d5e846b8bdf5eefcc4298c17c379bdbe4bd5b83f0cefd3f55850aa37b4",
+    "evidence": [
+      {
+        "path": "results/join-enumerate-worker-a-2026-11-02/counter-exact-cpython-3.10.19.json",
+        "sha256": "5a8562b4693936b6cff59d624416ac8f0bbee150858e94cc1818831db4291fa9",
+        "kind": "independent-language-run",
+        "language-version": "3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython3.10.19 exactly matches configured3.10;3.13.5 corroborates the exact same valid source and late closure reads. No unsupported-target extrapolation."
+      },
+      {
+        "path": "results/join-enumerate-worker-a-2026-11-02/counter-exact-cpython-3.13.5.json",
+        "sha256": "d27096776e36d375370731950a0b3fb2dbb462facb118ba2d273641d7d65226e",
+        "kind": "independent-language-run",
+        "language-version": "3.13.5",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython3.10.19 exactly matches configured3.10;3.13.5 corroborates the exact same valid source and late closure reads. No unsupported-target extrapolation."
+      }
+    ],
+    "reason": "The explicit deferred closure reads the carried counter after the loop. Replacing the manual counter with enumerate changes the observed result2 to1 on the exact authored source and fixed input.",
+    "admission_status": "Candidate for the existing reference-discrepancy schema; actual canonical invocation/settings hash must be sealed by integration before activation. Native cases.toml remains unchanged."
+  }
+]

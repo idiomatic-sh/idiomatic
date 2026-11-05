@@ -1,0 +1,74 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "os.environ = {}\n" }
+expected = [{ file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "os.environ = values\n" }
+expected = [{ file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(os):\n    os.environ = {}\n" }
+expected = [{ file = "case.py", start = 15, end = 25 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import os as env\nenv.environ = {}\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+files = { "case.py" = "os.environ: dict = {}\n" }
+expected = []
+
+[[cases]]
+name = "augmented"
+files = { "case.py" = "os.environ |= {}\n" }
+expected = []
+
+[[cases]]
+name = "chained"
+files = { "case.py" = "os.environ = other = {}\n" }
+expected = []
+
+[[cases]]
+name = "unpacked"
+files = { "case.py" = "os.environ, other = {}, {}\n" }
+expected = []
+
+[[cases]]
+name = "item"
+files = { "case.py" = "os.environ[\"A\"] = \"B\"\n" }
+expected = []
+
+[[cases]]
+name = "other-member"
+files = { "case.py" = "os.environment = {}\n" }
+expected = []
+
+[[cases]]
+name = "nested-value"
+files = { "case.py" = "pkg.os.environ = {}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "(os).environ = {}\n" }
+expected = [{ file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "os.environ = {}  # noqa: B003\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "# ruff: disable[B003]\nos.environ = {}\n# ruff: enable[B003]\n" }
+expected = []
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "\uff4f\uff53.\uff45\uff4e\uff56\uff49\uff52\uff4f\uff4e = {}\n" }
+expected = [{ file = "case.py", start = 0, end = 28 }]

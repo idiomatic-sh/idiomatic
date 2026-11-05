@@ -1,0 +1,1825 @@
+[[cases]]
+name = "sort-simple-imports"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import z\nimport a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "stdlib-before-external"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import numpy\nimport os\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "external-after-stdlib"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\nimport numpy\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "aliases-in-one-statement"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from x import Z, A\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "extra-import-spacing"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import  os\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "split-directive-spacing"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import z\n# isort: split\nimport a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 8 }]
+
+[[cases]]
+name = "trailing-blank-line-before-definition"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\ndef f(): pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "correct-future-section"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from __future__ import annotations\n\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-import-spacing"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n" }
+expected = []
+
+[[cases]]
+name = "split-directive-with-blank-line"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import z\n\n# isort: split\nimport a\n" }
+expected = []
+
+[[cases]]
+name = "two-blank-lines-before-definition"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "unselected-first-party-sibling"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "import localmod\nimport os\n", "localmod.py" = "value = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "straight-import-precedes-from-import"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from collections import Collection\nimport os\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 44 }]
+
+[[cases]]
+name = "continued-line-import-prefix"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "x = 1; import sys\nimport os\n\nif True:\n    x = 1; import sys\n    import os\n\nif True:\n    x = 1; \\\n        import os\n\nx = 1; \\\nimport os\n" }
+expected = [
+    { rule = "I001", file = "input.py", start = 7, end = 27 },
+    { rule = "I001", file = "input.py", start = 49, end = 73 },
+    { rule = "I001", file = "input.py", start = 105, end = 114 },
+    { rule = "I001", file = "input.py", start = 125, end = 134 },
+]
+
+[[cases]]
+name = "stdlib-precedes-local-name-shadow"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "os.py", state = "file" }] }
+files = { "input.py" = "import os\nimport sys\n", "os.py" = "value = 1\n" }
+expected = []
+
+[[cases]]
+name = "naturally-ordered-imported-numbers"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from numpy import (\n\tint8,\n\tint16,\n)\n" }
+expected = []
+
+[[cases]]
+name = "duplicate-import-in-one-block"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\nimport os\nimport os as os1\nimport os as os2\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 53 }]
+
+[[cases]]
+name = "isort-off-region"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "# isort: off\nimport z\nimport a\n# isort: on\n" }
+expected = []
+
+[[cases]]
+name = "isort-inline-skip"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import z  # isort: skip\nimport a\n" }
+expected = []
+
+[[cases]]
+name = "isort-skip-file"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "# isort: skip_file\nimport z\nimport a\n" }
+expected = []
+
+[[cases]]
+name = "plain-future-import-remains-stdlib"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import __future__\nfrom __future__ import annotations\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 52 }]
+
+[[cases]]
+name = "utf8-bom-in-first-import-block"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "\uFEFFimport foo\nimport bar\n" }
+expected = [{ rule = "I001", file = "input.py", start = 3, end = 24 }]
+
+[[cases]]
+name = "review2-def-good"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\ndef f():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "review2-class-good"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\nclass C:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "review2-decorated-good"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n@classmethod\ndef f():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "review2-def-bad"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n\ndef f():\n    pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "review2-stub-def-good"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.pyi", state = "file" }] }
+files = { "input.pyi" = "import os\n\ndef f(): ...\n" }
+expected = []
+
+[[cases]]
+name = "review2-stub-def-bad"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.pyi", state = "file" }] }
+files = { "input.pyi" = "import os\n\n\ndef f(): ...\n" }
+expected = [{ rule = "I001", file = "input.pyi", start = 0, end = 9 }]
+
+[[cases]]
+name = "review2-alias-good"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import a as b\nfrom m import c\n" }
+expected = []
+
+[[cases]]
+name = "review2-alias-upstream-fixed"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from module import CONSTANT, function\nfrom module import Class as C\nfrom module import function as f\n" }
+expected = []
+
+[[cases]]
+name = "review2-star-long"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa import *\n" }
+expected = []
+
+[[cases]]
+name = "review2-star-comment-good"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import *  # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n" }
+expected = []
+
+[[cases]]
+name = "review2-star-comment-bad"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import * # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "review2-unicode-class"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import Äb, x\n" }
+expected = []
+
+[[cases]]
+name = "review2-unicode-constant"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import ÄB, x\n" }
+expected = []
+
+[[cases]]
+name = "review2-collapse-multi"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    environ,\n    path\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 40 }]
+
+[[cases]]
+name = "review2-relative-no-space"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from .import z\nfrom .import a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "review2-relative-spaced"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from . import z\nfrom . import a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "review2-continued-module"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from a \\\n import z\nfrom a \\\n import a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 37 }]
+
+[[cases]]
+name = "review3-short-trailing-comma"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,\n    b,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-long-trailing-comma"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a0,\n    a1,\n    a2,\n    a3,\n    a4,\n    a5,\n    a6,\n    a7,\n    a8,\n    a9,\n    a10,\n    a11,\n    a12,\n    a13,\n    a14,\n    a15,\n    a16,\n    a17,\n    a18,\n    a19,\n    a20,\n    a21,\n    a22,\n    a23,\n    a24,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-comment-close-trailing-comma"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,\n    b,\n    # explanatory\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-comment-member-trailing-comma"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,  # explanatory\n    b,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-comment-leading-trailing-comma"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    # explanatory\n    a,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-off-directive-parenthesized"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "# isort: off\nfrom m import (\n    a,\n    b\n)\n# isort: on\n" }
+expected = []
+
+[[cases]]
+name = "review3-skip-file-parenthesized"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "# isort: skip_file\nfrom m import (\n    a,\n    b\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-first-line-skip-parenthesized"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (  # isort: skip\n    a,\n    b\n)\n" }
+expected = []
+
+[[cases]]
+name = "review3-member-line-skip-not-effective"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,  # isort: skip\n    b\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 45 }]
+
+[[cases]]
+name = "review3-long-without-trailing-comma"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a0,\n    a1,\n    a2,\n    a3,\n    a4,\n    a5,\n    a6,\n    a7,\n    a8,\n    a9,\n    a10,\n    a11,\n    a12,\n    a13,\n    a14,\n    a15,\n    a16,\n    a17,\n    a18,\n    a19,\n    a20,\n    a21,\n    a22,\n    a23,\n    a24\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 231 }]
+
+[[cases]]
+name = "review4-inline-two-with-comma"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (a,b,)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "review4-inline-one-with-comma"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (a,)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "review4-multiline-two-with-comma"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,\n    b,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review4-multiline-comment-with-comma"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,  # note\n    b,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review4-multiline-comment-no-comma"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,  # note\n    b\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 38 }]
+
+[[cases]]
+name = "review5-unicode-accept-aumlaut-b"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u00c4, B\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]
+
+
+[cases.tool-contract-difference]
+reason = "Ryo applies upstream isort Unicode code-point length; pinned Ruff 0.16.5 uses UTF-8 byte length for a one-character uppercase import member."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "394c2f3b83f4505b121282d2fb98b96f1c4f4770eb25eb9f9929f628163f371a"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "bcac08547704fcf9645b4133653bcde95e4ffe140db110dc02c7a00945a28345"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned upstream isort classifies a one-character uppercase name using Unicode code-point length; Ruff cites this contract but uses UTF-8 byte length."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/unicode-class-prior-worker.json"
+sha256 = "0c4dc78976fcc0e8f2c3095a4c69546f908d09c73c562b954115aef65f23d0ea"
+worker-sha256 = "9b8d2bd82624e3ee20abf2d9a5b11319e4f3fc8dd3adb813c08a4e53742df7ac"
+control-source-sha256 = "394c2f3b83f4505b121282d2fb98b96f1c4f4770eb25eb9f9929f628163f371a"
+control-query-sha256 = "3bafc2d10a985d84b130904942cb0c6fe27c3a36d131d484761a03adb5f30484"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "unicode-single-character-class"
+rationale = "An exact sealed prior worker run reports I001 on the Unicode class-first control while pinned Ruff reports no finding."
+
+[[cases]]
+name = "review5-unicode-accept-aumlaut-a"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u00c4, A\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]
+
+
+[cases.tool-contract-difference]
+reason = "Ryo applies upstream isort Unicode code-point length; pinned Ruff 0.16.5 uses UTF-8 byte length for a one-character uppercase import member."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "fae2aeb7e159e6c190b106566f522d442d7f5ea1b88db66157660b98a961fd24"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "bcac08547704fcf9645b4133653bcde95e4ffe140db110dc02c7a00945a28345"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned upstream isort classifies a one-character uppercase name using Unicode code-point length; Ruff cites this contract but uses UTF-8 byte length."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/unicode-class-prior-worker.json"
+sha256 = "0c4dc78976fcc0e8f2c3095a4c69546f908d09c73c562b954115aef65f23d0ea"
+worker-sha256 = "9b8d2bd82624e3ee20abf2d9a5b11319e4f3fc8dd3adb813c08a4e53742df7ac"
+control-source-sha256 = "394c2f3b83f4505b121282d2fb98b96f1c4f4770eb25eb9f9929f628163f371a"
+control-query-sha256 = "3bafc2d10a985d84b130904942cb0c6fe27c3a36d131d484761a03adb5f30484"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "unicode-single-character-class"
+rationale = "An exact sealed prior worker run reports I001 on the Unicode class-first control while pinned Ruff reports no finding."
+
+[[cases]]
+name = "review5-unicode-flag-b-aumlaut"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B, \u00c4\n" }
+expected = []
+
+
+[cases.tool-contract-difference]
+reason = "Ryo applies upstream isort Unicode code-point length; pinned Ruff 0.16.5 uses UTF-8 byte length for a one-character uppercase import member."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "570db2a06a5c353a9b8caccd055bcd988029a39658d24c832adc6e210832280d"
+reference-output-sha256 = "bcac08547704fcf9645b4133653bcde95e4ffe140db110dc02c7a00945a28345"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned upstream isort classifies a one-character uppercase name using Unicode code-point length; Ruff cites this contract but uses UTF-8 byte length."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/unicode-class-prior-worker.json"
+sha256 = "0c4dc78976fcc0e8f2c3095a4c69546f908d09c73c562b954115aef65f23d0ea"
+worker-sha256 = "9b8d2bd82624e3ee20abf2d9a5b11319e4f3fc8dd3adb813c08a4e53742df7ac"
+control-source-sha256 = "394c2f3b83f4505b121282d2fb98b96f1c4f4770eb25eb9f9929f628163f371a"
+control-query-sha256 = "3bafc2d10a985d84b130904942cb0c6fe27c3a36d131d484761a03adb5f30484"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "unicode-single-character-class"
+rationale = "An exact sealed prior worker run reports I001 on the Unicode class-first control while pinned Ruff reports no finding."
+
+[[cases]]
+name = "review5-unicode-flag-a-aumlaut"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A, \u00c4\n" }
+expected = []
+
+
+[cases.tool-contract-difference]
+reason = "Ryo applies upstream isort Unicode code-point length; pinned Ruff 0.16.5 uses UTF-8 byte length for a one-character uppercase import member."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "0efb5eda3c8325c3acf9e6648b7c9254846e1f6a6ee27864ec46c1bf15932252"
+reference-output-sha256 = "bcac08547704fcf9645b4133653bcde95e4ffe140db110dc02c7a00945a28345"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned upstream isort classifies a one-character uppercase name using Unicode code-point length; Ruff cites this contract but uses UTF-8 byte length."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/unicode-class-prior-worker.json"
+sha256 = "0c4dc78976fcc0e8f2c3095a4c69546f908d09c73c562b954115aef65f23d0ea"
+worker-sha256 = "9b8d2bd82624e3ee20abf2d9a5b11319e4f3fc8dd3adb813c08a4e53742df7ac"
+control-source-sha256 = "394c2f3b83f4505b121282d2fb98b96f1c4f4770eb25eb9f9929f628163f371a"
+control-query-sha256 = "3bafc2d10a985d84b130904942cb0c6fe27c3a36d131d484761a03adb5f30484"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "unicode-single-character-class"
+rationale = "An exact sealed prior worker run reports I001 on the Unicode class-first control while pinned Ruff reports no finding."
+
+[[cases]]
+name = "review5-unicode-flag-aumlaut-ab"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u00c4, AB\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+
+[[cases]]
+name = "review5-wrapped-long-member"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,\n)\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-wrapped-long-member-comment"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,  # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n)\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-wrapped-long-module"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx import (\n    a,\n)\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-wrapped-opening-comment"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (  # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    a,\n)\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-wrapped-comment-line"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    a,\n)\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-spacing-plain-one"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os # c\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-spacing-from-one"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import a # c\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 15 }]
+
+
+[[cases]]
+name = "review5-spacing-plain-three"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os   # c\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-spacing-plain-tab"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\t# c\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-spacing-star-none"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import *# c\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 15 }]
+
+
+[[cases]]
+name = "review5-spacing-opening-one"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import ( # c\n    a,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 28 }]
+
+
+[[cases]]
+name = "review5-spacing-member-one"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a, # c\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 28 }]
+
+
+[[cases]]
+name = "review5-alias-from-none-after"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import a as b\nfrom m import a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 36 }]
+
+
+[[cases]]
+name = "review5-alias-from-reverse"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import a as c\nfrom m import a as b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 41 }]
+
+
+[[cases]]
+name = "review5-alias-import-none-after"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a as b\nimport a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+
+[[cases]]
+name = "review5-alias-import-reverse"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a as c\nimport a as b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 27 }]
+
+
+[[cases]]
+name = "review5-comment-gap-extra"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\nx = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-comment-gap-none"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n# c\nx = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-comment-gap-before-def"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n# c\n\n\ndef f(): pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-comment-gap-leading-def"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n\n# c\ndef f(): pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-comment-gap-leading-stub"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.pyi", state = "file" }] }
+files = { "input.pyi" = "import os\n\n\n# c\ndef f(): ...\n" }
+expected = [{ rule = "I001", file = "input.pyi", start = 0, end = 9 }]
+
+
+[[cases]]
+name = "review5-comment-gap-valid-def"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n# c\n\ndef f(): pass\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-comment-gap-valid-x"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n# c\n\n\nx = 1\n" }
+expected = []
+
+
+[[cases]]
+name = "review5-comma-comment-not-real"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    path  # note,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 36 }]
+
+
+[[cases]]
+name = "review5-comma-inline-one"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (path,)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+
+[[cases]]
+name = "review5-comma-inline-two"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (path, sep,)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 27 }]
+
+
+[[cases]]
+name = "review5-continued-from"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from a \\\n import b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 18 }]
+
+
+[[cases]]
+name = "review5-continued-import"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import \\\n os\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 12 }]
+
+
+[[cases]]
+name = "review5-continued-relative"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from . \\\n import x\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 18 }]
+
+
+[[cases]]
+name = "review5-continued-relative-name"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from .a \\\n import x\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "review6-comment-gap-def-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "review6-comment-gap-class-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\nclass C: pass\n" }
+expected = []
+
+[[cases]]
+name = "review6-comment-gap-decorated-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\n@d\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "review6-comment-gap-two-comments-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# a\n# b\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "review6-comment-gap-blank-after-comment"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\n\ndef f(): pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "review6-comment-gap-blank-after-comment-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n# c\n\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "review6-multialias-same-line"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    environ, path,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 37 }]
+
+[[cases]]
+name = "review6-multialias-same-line-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    environ,\n    path,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review6-multialias-opening-line"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (environ,\n    path,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 36 }]
+
+[[cases]]
+name = "review6-multialias-opening-line-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    environ,\n    path,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review6-multialias-closing-line"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    path,)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "review6-multialias-closing-line-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    path,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review6-comment-backslash-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os import (\n    environ,  # C:\\\n)\n" }
+expected = []
+
+[[cases]]
+name = "review6-roman-class-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u2160, B\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode code-point length; Ruff 0.16.5 uses UTF-8 byte length for a one-character uppercase member."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "7fb03be0ac827d9fcb6b92989eaf8c9d4405b9d8a93ec8b279ba785900051432"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "d17c3d63e08a2ac77d859e73c509f631abde5e5d945ada8c3eed6af34f956eb5"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/roman-class-prior-worker.json"
+sha256 = "627d807c20952c63391e8b588b9910b794da0deba2ff0b5fc6ece493e3e62b26"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "7fb03be0ac827d9fcb6b92989eaf8c9d4405b9d8a93ec8b279ba785900051432"
+control-query-sha256 = "afaff29b7c6530f1d9d3a398491637ed2db634ad0925438d62b6a55fc4db0114"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "roman-class-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
+
+[[cases]]
+name = "review6-roman-class-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B, \u2160\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode code-point length; Ruff 0.16.5 uses UTF-8 byte length for a one-character uppercase member."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "8f67baa1bcc207e6e4d5b8dcbed8e7e54023adbf221f190534406f80bbbc8171"
+reference-output-sha256 = "d17c3d63e08a2ac77d859e73c509f631abde5e5d945ada8c3eed6af34f956eb5"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/roman-class-prior-worker.json"
+sha256 = "627d807c20952c63391e8b588b9910b794da0deba2ff0b5fc6ece493e3e62b26"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "7fb03be0ac827d9fcb6b92989eaf8c9d4405b9d8a93ec8b279ba785900051432"
+control-query-sha256 = "afaff29b7c6530f1d9d3a398491637ed2db634ad0925438d62b6a55fc4db0114"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "roman-class-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
+
+[[cases]]
+name = "review6-titlecase-class-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u01c5, Ab\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode isupper classification; Ruff 0.16.5 treats a titlecase-containing member as an uppercase constant."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "498c8b2308594bb362691d8b36f67a65585c22efbb36ddbb74fbbfab84d97ad2"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-class-prior-worker.json"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "titlecase-vs-zz-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
+
+[[cases]]
+name = "review6-titlecase-class-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import Ab, A\u01c5\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode isupper classification; Ruff 0.16.5 treats a titlecase-containing member as an uppercase constant."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "e7cf93daaacb3aaa6640e122e42f9f047fd6308e379a5401dbae5f2b41c3e961"
+reference-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-class-prior-worker.json"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "titlecase-vs-zz-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
+
+[[cases]]
+name = "review5-comment-gap-leading-def-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "review5-comment-gap-leading-stub-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.pyi", state = "file" }] }
+files = { "input.pyi" = "import os\n\n# c\ndef f(): ...\n" }
+expected = []
+
+[[cases]]
+name = "review7-titlecase-vs-zz-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u01c5, ZZ\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode isupper classification; Ruff 0.16.5 ranks a titlecase-containing member as an uppercase constant."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-class-prior-worker.json"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "titlecase-vs-zz-first"
+rationale = "Sealed Ryo worker recorded a complete finding on a discriminating titlecase-versus-constant witness while Ruff returned no finding."
+
+[[cases]]
+name = "review7-titlecase-vs-zz-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import ZZ, A\u01c5\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode isupper classification; Ruff 0.16.5 ranks a titlecase-containing member as an uppercase constant."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "0746e161a6a84827cad689a2743759b1a96724474d11a3250bd86af76e2f44db"
+reference-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-class-prior-worker.json"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "titlecase-vs-zz-first"
+rationale = "Sealed Ryo worker recorded a complete finding on a discriminating titlecase-versus-constant witness while Ruff returned no finding."
+
+[[cases]]
+name = "review8-decomposed-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u0308, B\n" }
+expected = []
+
+[[cases]]
+name = "review8-decomposed-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B, A\u0308\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "review8-decomposed-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u0308, B\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-from-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import fz, \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-from-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \ufb01, fz\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "review8-ligature-from-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import fz, \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-plain-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import fz\nimport \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-plain-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import \ufb01\nimport fz\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "review8-ligature-plain-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import fz\nimport \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-modifier-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import Ab, B\u1d2c\n" }
+expected = []
+
+[[cases]]
+name = "review8-modifier-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B\u1d2c, Ab\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "review8-modifier-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import Ab, B\u1d2c\n" }
+expected = []
+
+[[cases]]
+name = "review8-roman-two-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u2161, B\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode code-point length; Ruff 0.16.5 uses UTF-8 byte length for a single Roman numeral member."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "259dbd5796c7dc4bf06b0a95b6d7908526e6753c05c54078c274d1019127d014"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "d17c3d63e08a2ac77d859e73c509f631abde5e5d945ada8c3eed6af34f956eb5"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/roman-two-prior-worker.json"
+sha256 = "8e06e57ffd4f5a7431e633958e63625e87b5504ee0771cd3da9910ff395f9f31"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "259dbd5796c7dc4bf06b0a95b6d7908526e6753c05c54078c274d1019127d014"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "roman-two-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-roman-two-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B, \u2161\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode code-point length; Ruff 0.16.5 uses UTF-8 byte length for a single Roman numeral member."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "3a2aed75e243c91d6149a24d08da8c417a901fa8c46ed84a00fb033be9f1d4c4"
+reference-output-sha256 = "d17c3d63e08a2ac77d859e73c509f631abde5e5d945ada8c3eed6af34f956eb5"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/roman-two-prior-worker.json"
+sha256 = "8e06e57ffd4f5a7431e633958e63625e87b5504ee0771cd3da9910ff395f9f31"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "259dbd5796c7dc4bf06b0a95b6d7908526e6753c05c54078c274d1019127d014"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "roman-two-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-survive-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u1f88B, a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-survive-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import a, \u1f88B\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "d3c62c5d9fe6514832bf07f7519589e72348d9dd32abd871498ac3491169e148"
+reference-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-later-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B\u1f88, ZZ\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "778578755e8e0cf93796efa8e7bff8cb8e375cef05528cd7657f4ce397b4bd89"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "fdbe66ad4c4217e84d4a95458c8641beb7bbbfd14dd88a90c2c4a3c27fbca9ab"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-later-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import ZZ, B\u1f88\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "a9c42835a9de11811bb3403c7cc0fad2cb1275fe1f86c107af5364bb4a768b3c"
+source-sha256 = "6d1b303d9bd7d4d2967b5976e6957954de9e74ab2dc53c11f9417e02d8ad3c97"
+reference-output-sha256 = "fdbe66ad4c4217e84d4a95458c8641beb7bbbfd14dd88a90c2c4a3c27fbca9ab"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review9-split-as-alias"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a\n    as b,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "review9-split-as-alias-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a as b,\n)\n" }
+expected = []
+
+[[cases]]
+name = "review-s1-fullwidth-module-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import numpy\nimport ｏｓ\n" }
+expected = []
+
+[[cases]]
+name = "review-s1-fullwidth-module-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import ｏｓ\n\nimport numpy\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "review-s1-fullwidth-from-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from ｏｓ import path\nimport numpy\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 36 }]
+
+[[cases]]
+name = "review-s1-fullwidth-from-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import numpy\nfrom ｏｓ import path\n" }
+expected = []
+
+[[cases]]
+name = "review-r1-dotted-stdlib-plain-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os.ｐａｔｈ\n\nimport numpy\n" }
+expected = []
+
+[[cases]]
+name = "review-r1-dotted-stdlib-plain-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import numpy\nimport os.ｐａｔｈ\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 35 }]
+
+[[cases]]
+name = "review-r1-dotted-stdlib-from-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from os.ｐａｔｈ import join\n\nimport numpy\n" }
+expected = []
+
+[[cases]]
+name = "review-r1-dotted-stdlib-from-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nfrom os.ｐａｔｈ import join\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 46 }]
+
+[[cases]]
+name = "review-firstparty-root-unresolved-child-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "import localmod.missing\nimport numpy\n", "localmod.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 36 }]
+
+[cases.tool-contract-difference]
+reason = "Pinned isort places an ordinary existing project root in first-party even when its imported child is unresolved; pinned Ruff 0.16.5 groups this spelling as third-party. This records a tool policy difference, not an asserted Ruff defect."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "502690e3c5b252c7e093666e19d53a9b0e9e1c830fce5e0a42479252215b60dc"
+source-sha256 = "dec7b454664f4955555893a69759e64299108450f2c8ebf7f0f6cd0a78a71003"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "efbf0bb09e6fb3eb83077af0d3f68175d30a3eced0a6a24a71d32bd0e64dd807"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-firstparty-root-contract.json"
+sha256 = "ae462206e9b4d800ef933db69765b21cc6526a9f9311dbea3fda1de840ac52c5"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/place.py"
+rationale = "Pinned isort source checks the existing root path and returns FIRSTPARTY before requiring an ordinary dotted child."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/firstparty-root-prior-worker.json"
+sha256 = "cb72f4931b7c028bf2c28135c7873b40f55fe1ec2b23b5f5e79f6587754d5dc4"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "dec7b454664f4955555893a69759e64299108450f2c8ebf7f0f6cd0a78a71003"
+control-query-sha256 = "2452ac676a9ac0e93d272c00d78c81507c5bae0f40f08136e35b8a4d19946007"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "root-child-missing-first"
+rationale = "The sealed prior worker completed and reported I001 for the ordinary project root while pinned Ruff did not."
+
+[[cases]]
+name = "review-firstparty-root-unresolved-child-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport localmod.missing\n", "localmod.py" = "" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Pinned isort places an ordinary existing project root in first-party even when its imported child is unresolved; pinned Ruff 0.16.5 groups this spelling as third-party. This records a tool policy difference, not an asserted Ruff defect."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 37 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "72aaa5cdeae152d83cd41e404050f01160cc8181cd6fd6c879df7f1440a15ba5"
+settings-sha256 = "502690e3c5b252c7e093666e19d53a9b0e9e1c830fce5e0a42479252215b60dc"
+source-sha256 = "60bf7814df62be6f977fa4fdc275bc3a6095e9e023ad08dfc51be29bda2746b9"
+reference-output-sha256 = "3c86f38d69c9fd87a7e3384a9821a961e95c381502d3059c7ef184251cd078bc"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-firstparty-root-contract.json"
+sha256 = "ae462206e9b4d800ef933db69765b21cc6526a9f9311dbea3fda1de840ac52c5"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/place.py"
+rationale = "Pinned isort source checks the existing root path and returns FIRSTPARTY before requiring an ordinary dotted child."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/firstparty-root-prior-worker.json"
+sha256 = "cb72f4931b7c028bf2c28135c7873b40f55fe1ec2b23b5f5e79f6587754d5dc4"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "dec7b454664f4955555893a69759e64299108450f2c8ebf7f0f6cd0a78a71003"
+control-query-sha256 = "2452ac676a9ac0e93d272c00d78c81507c5bae0f40f08136e35b8a4d19946007"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "root-child-missing-first"
+rationale = "The sealed prior worker completed and reported I001 for the ordinary project root while pinned Ruff did not."
+
+[[cases]]
+name = "review-root-plain-firstparty-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport localmod\n", "localmod.py" = "" }
+expected = []
+
+[[cases]]
+name = "review-root-plain-firstparty-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "import localmod\nimport numpy\n", "localmod.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 28 }]
+
+[[cases]]
+name = "review-root-from-firstparty-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nfrom localmod import thing\n", "localmod.py" = "" }
+expected = []
+
+[[cases]]
+name = "review-root-from-firstparty-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "localmod.py", state = "file" }] }
+files = { "input.py" = "from localmod import thing\nimport numpy\n", "localmod.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 39 }]
+
+[[cases]]
+name = "review-future-nfkc-member-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from __future__ import ａｎｎｏｔａｔｉｏｎｓ\n\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "review-n2-namespace-missing-child-external-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import acme.storage\nimport numpy\n", "src/acme/billing/__init__.py" = "" }
+expected = []
+
+[[cases]]
+name = "review-n2-namespace-missing-child-external-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport acme.storage\n", "src/acme/billing/__init__.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "review-n2-namespace-existing-child-firstparty-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import acme.billing\nimport numpy\n", "src/acme/billing/__init__.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 32 }]
+
+[[cases]]
+name = "review-n2-namespace-existing-child-firstparty-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport acme.billing\n", "src/acme/billing/__init__.py" = "" }
+expected = []
+
+[[cases]]
+name = "review-n2-overlapping-package-prefix-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/__init__.py", state = "file" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import acme.billing\nimport numpy\n", "src/acme/__init__.py" = "", "src/acme/billing/__init__.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 32 }]
+
+[[cases]]
+name = "review-n2-overlapping-package-prefix-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/__init__.py", state = "file" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport acme.billing\n", "src/acme/__init__.py" = "", "src/acme/billing/__init__.py" = "" }
+expected = []
+
+[[cases]]
+name = "review-n3-module-directory-collision-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme.py", state = "file" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import acme.billing\nimport numpy\n", "src/acme.py" = "", "src/acme/billing/__init__.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 32 }]
+
+[[cases]]
+name = "review-n3-module-directory-collision-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme.py", state = "file" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport acme.billing\n", "src/acme.py" = "", "src/acme/billing/__init__.py" = "" }
+expected = []

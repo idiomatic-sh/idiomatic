@@ -1,0 +1,34 @@
+{
+  "schema": "benchmark-inventory-target-supplement/v1",
+  "rule_ids": [
+    "TC004"
+  ],
+  "requirements": {
+    "TC004": [
+      "py312",
+      "py310"
+    ]
+  },
+  "prior_summaries_sha256": {
+    "summary.json": "ea3396b368a4e0197d6c4308ac53e6d13e736f491ffaf082d9a1c04827618c67",
+    "f811-f841-target-supplement/summary.json": "e0112aa3daf127fe2919a259014f74c29f71f2f63537d76922c3667ee50e159b",
+    "ple0115-ple0117-target-supplement/summary.json": "21c2953181244dde5c9adca7423b6b861665e325fa3ac6035691637a4460c8e5",
+    "pyi019-pyi034-target-supplement/summary.json": "5201a2f315c49c5598779c8617979413e6925e2763da860adf4829d08d21ba6b",
+    "ruf020-target-supplement/summary.json": "f3b585d7ced34b3abe2abf0dbb19fe4a5e22f6742df44836a34269c847fa9a50",
+    "ruf022-ruf023-target-supplement/summary.json": "3ed5916a67e54311602e60d4373a2409776cbb82f19548f1f9e91368d9f8d285",
+    "speed-evidence/summary.json": "b29d89b86833a98dc322e8abe18874a10b0a4ad24242836da296adef57c5d96f",
+    "tc007-target-supplement/summary.json": "df11af396010ad4574e2c72bb6b8609e872d5a537bc663919ca05b3e9a5ab20a",
+    "up046-up047-target-supplement/summary.json": "97315a4830c4297f355326d75c0cee1838c99c4317a447e01e60aa3016cdc42b"
+  },
+  "identity": {
+    "worker_sha256": "82341f24076f38c30dd593b0d5084665470bf8d6f63b8596ed9841f71b8ee107",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "default_case_results_sha256": {
+    "TC004": "2876ae45c2af32e55822d647fa53fcb42f33c87a03820dfd6b08a2d353125a92"
+  },
+  "summary_sha256": "3045957e734dfdbc8dba16a4977f3ffa683044b7cbc1d56ef3c600475b4eb328",
+  "controls_sha256": "548a2f2628ab198fd05f8f7dafd4285d3d6a270effeadbddbdee8d5edf92b628",
+  "provenance_sha256": "7ac2ae6ef0b7b7439aa046d1ae77db10b8fd5f7712fcda5a82b28fa5d6d08f21",
+  "raw_receipts_sha256": "0cb38540d4bc5b5a3a0e39e7f58abb2abf23b33569a7a6960d8be54efcc9b24f"
+}

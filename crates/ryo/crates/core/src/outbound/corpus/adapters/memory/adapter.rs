@@ -4,19 +4,74 @@
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::{Inventory, PathStat};
-use ryo_values::domain::files::types::{CorpusEntry, CorpusFile, FileBytes, FileSize, Nanoseconds};
+use ryo_language::domain::project_context::types::{
+    EntryObservation, EntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+};
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
+};
+use std::collections::{BTreeMap, BTreeSet};
 
 /// The memory corpus adapter: the files it was given.
 #[derive(Debug)]
 pub(crate) struct CorpusMemoryAdapter {
     /// The files it lists and reads.
     files: Vec<CorpusFile>,
+    /// Explicit host inventory of contextual entries outside the source texts.
+    project_entries: BTreeMap<ryo_language::domain::files::types::FilePath, EntryState>,
+    project_completeness: ProjectInventoryCompleteness,
+    source_paths: BTreeSet<ryo_language::domain::files::types::FilePath>,
+    /// Parent directories proved by supplied source files or known present entries.
+    parent_directories: BTreeSet<ryo_language::domain::files::types::FilePath>,
 }
 
 impl CorpusMemoryAdapter {
     /// An adapter over `files`.
-    pub(crate) fn new(files: Vec<CorpusFile>) -> Self {
-        Self { files }
+    pub(crate) fn new(files: Vec<CorpusFile>, project_inventory: GivenProjectInventory) -> Self {
+        let mut project_entries = BTreeMap::new();
+        let mut parent_directories = BTreeSet::new();
+        for entry in project_inventory.entries {
+            if matches!(
+                entry.state,
+                EntryState::File | EntryState::Directory | EntryState::Other
+            ) {
+                parents_of(&entry.path, &mut parent_directories);
+            }
+            match project_entries.entry(entry.path) {
+                std::collections::btree_map::Entry::Vacant(slot) => {
+                    slot.insert(entry.state);
+                }
+                std::collections::btree_map::Entry::Occupied(mut slot) => {
+                    slot.insert(EntryState::Unknown);
+                }
+            }
+        }
+        let source_paths = files.iter().map(|file| file.path.clone()).collect();
+        for file in &files {
+            parents_of(&file.path, &mut parent_directories);
+        }
+        Self {
+            files,
+            project_entries,
+            project_completeness: project_inventory.completeness,
+            source_paths,
+            parent_directories,
+        }
+    }
+}
+
+/// A known child proves each of its repository-relative parent directories exists.
+fn parents_of(
+    path: &ryo_language::domain::files::types::FilePath,
+    into: &mut BTreeSet<ryo_language::domain::files::types::FilePath>,
+) {
+    let mut parent = path.0.rsplit_once('/').map(|(parent, _)| parent);
+    while let Some(path) = parent {
+        if path.is_empty() {
+            break;
+        }
+        into.insert(ryo_language::domain::files::types::FilePath(path.into()));
+        parent = path.rsplit_once('/').map(|(next, _)| next);
     }
 }
 
@@ -33,10 +88,12 @@ impl CorpusPort for CorpusMemoryAdapter {
             self.files
                 .iter()
                 .map(|file| CorpusEntry {
+                    executable: file.executable,
                     path: file.path.clone(),
                     size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                     modified: written(&file.bytes),
                 })
+                .map(CorpusInput::Available)
                 .collect(),
         ))
     }
@@ -64,10 +121,47 @@ impl CorpusPort for CorpusMemoryAdapter {
             .iter()
             .find(|file| file.path == *path)
             .map(|file| CorpusEntry {
+                executable: file.executable,
                 path: file.path.clone(),
                 size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                 modified: written(&file.bytes),
             })
             .map_or(PathStat::Missing, PathStat::Found))
+    }
+
+    fn observe_entry(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> EntryObservation {
+        let supplied = self.project_entries.get(path).copied();
+        let source_file = self.source_paths.contains(path);
+        let parent_directory = self.parent_directories.contains(path);
+        let state = if supplied == Some(EntryState::Unknown) || (source_file && parent_directory) {
+            EntryState::Unknown
+        } else if source_file {
+            if supplied.is_none_or(|state| state == EntryState::File) {
+                EntryState::File
+            } else {
+                EntryState::Unknown
+            }
+        } else if parent_directory {
+            if supplied.is_none_or(|state| state == EntryState::Directory) {
+                EntryState::Directory
+            } else {
+                EntryState::Unknown
+            }
+        } else if let Some(state) = supplied {
+            state
+        } else if self.project_completeness
+            == ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+        {
+            EntryState::Missing
+        } else {
+            EntryState::Unknown
+        };
+        EntryObservation {
+            path: path.clone(),
+            state,
+        }
     }
 }

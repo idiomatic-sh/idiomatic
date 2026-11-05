@@ -1,28 +1,26 @@
 //! The types of the `workers` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::{Covered, Partial, Unknown};
 use crate::domain::finish::types::LineStarts;
-use crate::domain::operating::types::Memo;
-use crate::domain::operator::types::{Pool, RowsFed};
-use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
-use crate::domain::table_model::types::ParameterBinding;
-use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
+use ryo_execution::inbound::use_cases::execution::types::{PreparedVocabulary, RowsFed};
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial, Unknown};
+use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{NamePlace, Relation, Words, WorkerNumber};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::relations::types::{NamePlace, Relation, Words, WorkerNumber};
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::{FileBytes, Hits};
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Kept, Record, RowTotal, Unread};
 use ryo_values::domain::runs::types::MemoryBytes;
+use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, FileNotes, LanguageNumber};
-use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
 
 /// A file, by its place among the files in the order of their paths.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,6 +77,12 @@ pub(crate) enum Checking {
 /// What one worker owns, which no other worker touches while the jobs run: its element table, the bytes of the file it reads,
 /// the rules that govern it, its tables of the store and the room it computes in.
 pub(crate) struct Tables {
+    /// Current file's demanded named frontier readiness; empty ordinary path allocates nothing.
+    pub current_observations:
+        Option<std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+    /// Actual fresh/replayed readiness accumulated for the existing cross handover.
+    pub observations:
+        Vec<ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness>,
     /// The worker's number.
     pub number: WorkerNumber,
     /// The elements of the file being read.
@@ -97,12 +101,10 @@ pub(crate) struct Tables {
     pub words: Words,
     /// The words of the table being handed over, packed as they are kept.
     pub packed: PackedWords,
-    /// What a comparison has decided about a name.
-    pub memo: Vec<Memo>,
-    /// The room the operators sort rows in.
-    pub scratch: OperatorScratch,
-    /// The tables the rules compute in.
-    pub pool: Pool,
+    /// Actual work totals returned by the execution owner.
+    pub fed: Vec<Vec<RowsFed>>,
+    /// The active immutable vocabulary; no operator/cache owner is held here.
+    pub kind_vocabulary: Option<std::sync::Arc<PreparedVocabulary>>,
     /// Where the lines of the file start.
     pub starts: LineStarts,
     /// The text the names of the files made.
@@ -129,17 +131,15 @@ pub(crate) struct Tables {
     pub covered: Vec<Covered>,
     /// What the rules could not decide in the files this worker visited.
     pub unknowns: Vec<Unknown>,
-    /// The steps of the rules that select from the elements of a file, merged to be decided in one pass over them.
-    pub shared: crate::domain::shared_walk::types::MergedWalk,
+    /// Rules explicitly skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
 }
 
 /// What a visit of a file reads that is the same for every file.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct VisitSetting<'a> {
-    /// The plans of the rules.
-    pub plans: &'a [Plan],
-    /// What each rule binds its parameters to.
-    pub bindings: &'a [Vec<ParameterBinding>],
+    /// Pure source and accounting facts extracted once before executable plans are consumed.
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
     /// The relations the languages are asked to walk the files for.
     pub wanted: &'a [Relation],
     /// The path of each file of the run.
@@ -148,6 +148,10 @@ pub(crate) struct VisitSetting<'a> {
     pub first_bucket: &'a [Bucket],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
+    /// Whether each rule runs on every file or only after syntax acceptance.
+    pub applicability: &'a [RuleApplicability],
+    /// Whether any rule can be gated or its applicability metadata is incomplete.
+    pub applicability_can_gate: bool,
     /// Which rule governs which file.
     pub placed: &'a PlacedScopes,
     /// What the store kept of each file, by the file's place among the files.
@@ -157,7 +161,7 @@ pub(crate) struct VisitSetting<'a> {
     /// What the last run kept, which what a file it does not read handed is taken from.
     pub stored: &'a Stored,
     /// What the files of the last run handed, read when the run makes the cross-file steps again.
-    pub handed: &'a StoredHanded,
+    pub handed: &'a ReadHanded,
     /// The buckets the cross-file steps made again read.
     pub wanted_buckets: &'a BucketsWanted,
     /// The most memory the process may hold while it runs.
@@ -179,6 +183,8 @@ pub(crate) struct VisitSetting<'a> {
 /// What the workers made, once they have met: their text, the files they could not read and what the rules could not decide.
 #[derive(Debug, Default)]
 pub(crate) struct WorkersMet {
+    pub observations:
+        Vec<ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness>,
     /// The text each worker made, in the order of the workers.
     pub arenas: Vec<ArenaBytes>,
     /// The files no language read.
@@ -189,6 +195,8 @@ pub(crate) struct WorkersMet {
     pub covered: Vec<Covered>,
     /// What the rules could not decide.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
     /// What the workers made of the files they read, in no order.
     pub fresh: Vec<FreshRecord>,
     /// What the languages wrote of the files read now.
@@ -231,10 +239,15 @@ pub(crate) struct ProjectHandle<W> {
 
 /// What the rules that cross files read when they are made again: what the files handed over and the text of the workers.
 pub(crate) struct CrossReading<'a, W> {
+    /// Actual fresh/replayed per-file named-root readiness.
+    pub observations:
+        &'a [ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness],
     /// The text of the workers.
     pub arenas: &'a mut Vec<ArenaBytes>,
     /// What each rule covered.
     pub covered: &'a [Covered],
+    /// Files explicitly skipped because syntax was rejected.
+    pub skipped: &'a [Skipped],
     /// The store's handle of each worker.
     pub workers: Vec<W>,
 }

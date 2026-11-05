@@ -20,7 +20,7 @@ fn operation_of(steps: &[PlanStep], id: StepId) -> Option<&Operation> {
 fn step_of(input: Input) -> Option<StepId> {
     match input {
         Input::Step(id) => Some(id),
-        Input::Relation(_) => None,
+        Input::Relation(_) | Input::BoundObservation(_) => None,
     }
 }
 

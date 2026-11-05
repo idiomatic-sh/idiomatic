@@ -1,0 +1,215 @@
+[[cases]]
+name = "single"
+comparison = "full"
+files = { "case.py" = "\"{0}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "ordered"
+comparison = "full"
+files = { "case.py" = "\"{0} {1}\".format(x, y)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "reordered"
+comparison = "full"
+files = { "case.py" = "\"{1} {0}\".format(x, y)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "duplicate"
+comparison = "full"
+files = { "case.py" = "\"{0} {0}\".format(x)\n" }
+expected = []
+
+[[cases]]
+name = "gap"
+comparison = "full"
+files = { "case.py" = "\"{0} {2}\".format(x, y, z)\n" }
+expected = []
+
+[[cases]]
+name = "automatic"
+comparison = "full"
+files = { "case.py" = "\"{} {}\".format(x, y)\n" }
+expected = []
+
+[[cases]]
+name = "mixed"
+comparison = "full"
+files = { "case.py" = "\"{0} {}\".format(x, y)\n" }
+expected = []
+
+[[cases]]
+name = "keyword-field"
+comparison = "full"
+files = { "case.py" = "\"{0} {name}\".format(x, name=y)\n" }
+expected = []
+
+[[cases]]
+name = "reorder-keyword-arg"
+comparison = "full"
+files = { "case.py" = "\"{1} {0}\".format(x, y, name=z)\n" }
+expected = []
+
+[[cases]]
+name = "ordered-keyword-arg"
+comparison = "full"
+files = { "case.py" = "\"{0}\".format(name=x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "reorder-insufficient"
+comparison = "full"
+files = { "case.py" = "\"{1} {0}\".format(x)\n" }
+expected = []
+
+[[cases]]
+name = "reorder-star"
+comparison = "full"
+files = { "case.py" = "\"{1} {0}\".format(*args)\n" }
+expected = []
+
+[[cases]]
+name = "ordered-star"
+comparison = "full"
+files = { "case.py" = "\"{0} {1}\".format(*args)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "trailing-star"
+comparison = "full"
+files = { "case.py" = "\"{1} {0}\".format(x, y, *args)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "nested-spec"
+comparison = "full"
+files = { "case.py" = "\"{0:{1}}\".format(x, width)\n" }
+expected = []
+
+[[cases]]
+name = "format-spec"
+comparison = "full"
+files = { "case.py" = "\"{0:>10}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "attribute-selector"
+comparison = "full"
+files = { "case.py" = "\"{0.real}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "item-selector"
+comparison = "full"
+files = { "case.py" = "\"{0[key]}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "escaped"
+comparison = "full"
+files = { "case.py" = "\"{{0}} {0}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "concatenated"
+comparison = "full"
+files = { "case.py" = "(\"{0}\" \" {1}\").format(x, y)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "decoded"
+comparison = "full"
+files = { "case.py" = "\"{\\x30}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "not-call"
+comparison = "full"
+files = { "case.py" = "f = \"{0}\".format\n" }
+expected = []
+
+[[cases]]
+name = "wrong-method"
+comparison = "full"
+files = { "case.py" = "\"{0}\".format_map(x)\n" }
+expected = []
+
+[[cases]]
+name = "bytes"
+comparison = "full"
+files = { "case.py" = "b\"{0}\".format(x)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "\"{0}\".format(x)  # noqa: UP030\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "π = \"{0}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 5, end = 20 }]
+
+[[cases]]
+name = "tagged-UP030_0.py"
+comparison = "full"
+files = { "case.py" = "# Invalid calls; errors expected.\n\n\"{0}\" \"{1}\" \"{2}\".format(1, 2, 3)\n\n\"a {3} complicated {1} string with {0} {2}\".format(\n    \"first\", \"second\", \"third\", \"fourth\"\n)\n\n'{0}'.format(1)\n\n'{0:x}'.format(30)\n\nx = '{0}'.format(1)\n\n'''{0}\\n{1}\\n'''.format(1, 2)\n\nx = \"foo {0}\" \\\n    \"bar {1}\".format(1, 2)\n\n(\"{0}\").format(1)\n\n\"\\N{snowman} {0}\".format(1)\n\nprint(\n    'foo{0}'\n    'bar{1}'.format(1, 2)\n)\n\nprint(\n    'foo{0}'  # ohai\\n\"\n    'bar{1}'.format(1, 2)\n)\n\n'{' '0}'.format(1)\n\nargs = list(range(10))\nkwargs = {x: x for x in range(10)}\n\n\"{0}\".format(*args)\n\n\"{0}\".format(**kwargs)\n\n\"{0}_{1}\".format(*args)\n\n\"{0}_{1}\".format(1, *args)\n\n\"{0}_{1}\".format(1, 2, *args)\n\n\"{0}_{1}\".format(*args, 1, 2)\n\n\"{0}_{1}_{2}\".format(1, **kwargs)\n\n\"{0}_{1}_{2}\".format(1, 2, **kwargs)\n\n\"{0}_{1}_{2}\".format(1, 2, 3, **kwargs)\n\n\"{0}_{1}_{2}\".format(1, 2, 3, *args, **kwargs)\n\n\"{1}_{0}\".format(1, 2, *args)\n\n\"{1}_{0}\".format(1, 2)\n\nr\"\\d{{1,2}} {0}\".format(42)\n\n\"{{{0}}}\".format(123)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 35, end = 68 }, { rule = "UP030", file = "case.py", start = 70, end = 164 }, { rule = "UP030", file = "case.py", start = 166, end = 181 }, { rule = "UP030", file = "case.py", start = 183, end = 201 }, { rule = "UP030", file = "case.py", start = 207, end = 222 }, { rule = "UP030", file = "case.py", start = 224, end = 253 }, { rule = "UP030", file = "case.py", start = 259, end = 297 }, { rule = "UP030", file = "case.py", start = 299, end = 316 }, { rule = "UP030", file = "case.py", start = 318, end = 345 }, { rule = "UP030", file = "case.py", start = 358, end = 392 }, { rule = "UP030", file = "case.py", start = 407, end = 452 }, { rule = "UP030", file = "case.py", start = 456, end = 474 }, { rule = "UP030", file = "case.py", start = 535, end = 554 }, { rule = "UP030", file = "case.py", start = 556, end = 578 }, { rule = "UP030", file = "case.py", start = 580, end = 603 }, { rule = "UP030", file = "case.py", start = 605, end = 631 }, { rule = "UP030", file = "case.py", start = 633, end = 662 }, { rule = "UP030", file = "case.py", start = 664, end = 693 }, { rule = "UP030", file = "case.py", start = 695, end = 728 }, { rule = "UP030", file = "case.py", start = 730, end = 766 }, { rule = "UP030", file = "case.py", start = 768, end = 807 }, { rule = "UP030", file = "case.py", start = 809, end = 855 }, { rule = "UP030", file = "case.py", start = 857, end = 886 }, { rule = "UP030", file = "case.py", start = 888, end = 910 }, { rule = "UP030", file = "case.py", start = 912, end = 939 }, { rule = "UP030", file = "case.py", start = 941, end = 962 }]
+
+[[cases]]
+name = "tagged-UP030_1.py"
+comparison = "full"
+files = { "case.py" = "# Valid calls; no errors expected.\n\n'{}'.format(1)\n\nx = ('{0} {1}',)\n\n'{0} {0}'.format(1)\n\n'{0:<{1}}'.format(1, 4)\n\nf\"{0}\".format(a)\n\nf\"{0}\".format(1)\n\nprint(f\"{0}\".format(1))\n\n''.format(1)\n\n'{1} {0}'.format(*args)\n\n\"{1}_{0}\".format(*args, 1)\n\n\"{1}_{0}\".format(*args, 1, 2)\n\n\"{1}_{0}\".format(1, **kwargs)\n\n\"{1}_{0}\".format(1, foo=2)\n\n\"{1}_{0}\".format(1, 2, **kwargs)\n\n\"{1}_{0}\".format(1, 2, foo=3, bar=4)\n" }
+expected = []
+
+[[cases]]
+name = "overflow-first"
+comparison = "full"
+files = { "case.py" = "\"{9223372036854775808} {0}\".format(x, y)\n" }
+expected = []
+
+[[cases]]
+name = "overflow-last"
+comparison = "full"
+files = { "case.py" = "\"{0} {9223372036854775808}\".format(x, y)\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "\"literal\".format(x)\n" }
+expected = []
+
+[[cases]]
+name = "zero-padded"
+comparison = "full"
+files = { "case.py" = "\"{00} {01}\".format(x, y)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "invalid-selector"
+comparison = "full"
+files = { "case.py" = "\"{0.}\".format(x)\n" }
+expected = []
+
+[[cases]]
+name = "reorder-three"
+comparison = "full"
+files = { "case.py" = "\"{2} {0} {1}\".format(x, y, z)\n" }
+expected = [{ rule = "UP030", file = "case.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "reorder-first-star"
+comparison = "full"
+files = { "case.py" = "\"{1} {0}\".format(*x, y, z)\n" }
+expected = []
+
+[[cases]]
+name = "two-file-identical-offset-isolation"
+comparison = "full"
+files = { "a.py" = "\"{0}\".format(x)\n", "b.py" = "\"{2}\".format(x)\n" }
+expected = [{ rule = "UP030", file = "a.py", start = 0, end = 15 }]

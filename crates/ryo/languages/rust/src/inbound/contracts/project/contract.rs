@@ -36,7 +36,7 @@ use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{FileText, Settlement};
 use crate::domain::targets::types::Manifest as TargetManifest;
 use crate::domain::workspaces::service::settled;
-use crate::domain::workspaces::types::{Configured, Looking, Reason};
+use crate::domain::workspaces::types::{WorkspaceConfiguration, Looking, Reason};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
 use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
@@ -264,7 +264,7 @@ impl ProjectContract {
         repository: &dyn RepositoryPort,
         directory: &RepoPath,
         consulted: &mut Vec<RepoPath>,
-    ) -> Vec<Configured> {
+    ) -> Vec<WorkspaceConfiguration> {
         let current = repository
             .above(directory, &EntryName(CONFIGURATION.into()))
             .0;
@@ -295,7 +295,7 @@ impl ProjectContract {
                 let Ok(config) = self.manifest.configuration(text) else {
                     return None;
                 };
-                Some(Configured {
+                Some(WorkspaceConfiguration {
                     target_dir: match &config.target_dir {
                         Section::Present(written) => {
                             Section::Present(repository.placed(directory, look.height, written))
@@ -315,6 +315,17 @@ impl Project for ProjectContract {
         MANIFESTS
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
+    fn project_entries(&self, _request: &ProjectRequest) -> Vec<ryo::languages::FilePath> {
+        Vec::new()
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
         if !request
             .manifests
@@ -322,6 +333,7 @@ impl Project for ProjectContract {
             .any(|manifest| *name_of(&RepoPath(manifest.path.0.clone())).0 == *MANIFEST)
         {
             return Ok(Resolved {
+                observed_entries: request.observed_entries.receipt(),
                 refused: Vec::new(),
                 unlisted: Vec::new(),
                 consulted: Vec::new(),
@@ -371,6 +383,7 @@ impl Project for ProjectContract {
             .collect();
         derived.packages = Some(packages);
         Ok(Resolved {
+            observed_entries: request.observed_entries.receipt(),
             refused,
             unlisted,
             consulted,
@@ -388,6 +401,22 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, Linked>> {
         languages::reads_manifests::<SourceDependencyItem>()
+    }
+
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, Linked>> {

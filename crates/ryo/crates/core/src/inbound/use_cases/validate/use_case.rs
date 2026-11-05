@@ -1,15 +1,16 @@
 //! The `validate` use case: it checks the text through the query language, then, when a language is linked, the kinds the query
 //! names against the kinds the linked languages have.
 
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::sync::Arc;
 
 use super::errors::ValidateError;
 use super::interface::ValidateUseCase;
 use super::types::ValidateRequest;
-use crate::domain::kind_check::service::refusal;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::query_language::errors::QueryLanguageError;
-use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 use ryo_values::domain::descriptions::types::ValidateReport;
 
 /// `validate`, over the query language and the language port.
@@ -45,7 +46,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
     fn validate(&self, request: ValidateRequest) -> Result<ValidateReport, ValidateError> {
         let report = self
             .query_language
-            .validate(&request.text, &request.hosted)
+            .validate(&request.text, &request.hosted, &request.observations)
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Refused { error },
             })?;
@@ -57,13 +58,14 @@ impl ValidateUseCase for ValidateUseCaseImpl {
         }
         let plan = self
             .query_language
-            .compile(&request.text, &request.hosted)
+            .compile(&request.text, &request.hosted, &request.observations)
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;
-        match refusal(&plan, &vocabularies) {
+        match MetadataUseCaseImpl.kind_refusal(&plan, &vocabularies) {
             Some(message) => Err(ValidateError::UnknownKind {
                 reason: message.0.into(),
+                origin: message.1,
             }),
             None => Ok(report),
         }

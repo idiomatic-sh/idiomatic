@@ -1,0 +1,35 @@
+[[cases]]
+name = "instance_self_assignment"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        self = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 34, "end" = 38 }, { "rule" = "PLW0642", "file" = "case.py", "start" = 34, "end" = 38 }]
+
+[[cases]]
+name = "classmethod_cls_assignment"
+comparison = "full"
+files = { "case.py" = "class C:\n    @classmethod\n    def f(cls):\n        cls = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 50, "end" = 53 }, { "rule" = "PLW0642", "file" = "case.py", "start" = 50, "end" = 53 }]
+
+[[cases]]
+name = "staticmethod_self_assignment_is_ignored"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def f(self):\n        self = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 52, "end" = 56 }]
+
+[[cases]]
+name = "assignment_to_nonconventional_name_is_ignored"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        cls = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 34, "end" = 37 }]
+
+[[cases]]
+name = "new_method_cls_assignment"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __new__(cls):\n        cls = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 39, "end" = 42 }, { "rule" = "PLW0642", "file" = "case.py", "start" = 39, "end" = 42 }]
+
+[[cases]]
+name = "tuple_target_self_assignment"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        self, other = values\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 48, "end" = 54 }, { "rule" = "PLW0642", "file" = "case.py", "start" = 34, "end" = 38 }, { "rule" = "RUF059", "file" = "case.py", "start" = 34, "end" = 38 }, { "rule" = "RUF059", "file" = "case.py", "start" = 40, "end" = 45 }]

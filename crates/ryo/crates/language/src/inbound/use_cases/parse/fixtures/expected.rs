@@ -1,12 +1,14 @@
-// ignore: idiomatic.arch/file-length - the typed cells, the rows and the text they are written as are one vocabulary a fixture is stated in
+// the typed cells, the rows and the text they are written as are one vocabulary a fixture is stated in
 //! What a language's conformance expects, as typed rows: a relation's rows are cells, a name is its text, a span is a line and a
 //! column on each end, and nothing is a line of a table file.
 
 use std::fmt;
 
-use crate::domain::relations::service::{column_name, columns, folder_of};
-use crate::domain::relations::types::{Integer, KindBits, Offset, Position, Relation};
+use crate::domain::semantics::types::{RenderContext, RenderOutcome};
+use crate::inbound::use_cases::parse::types::SourceFile;
 use crate::inbound::use_cases::parse::types::{KindSample, Why};
+use ryo_relations::domain::relations::service::{column_name, columns, folder_of};
+use ryo_relations::domain::relations::types::{Integer, KindBits, Offset, Position, Relation};
 
 /// Whether a piece of a tree is a node or a token.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -429,6 +431,21 @@ pub struct ManifestExpected {
     pub rows: Vec<(&'static str, Vec<Cell>)>,
 }
 
+/// One actual semantic-session request against a source fixture, addressed by a unique byte span.
+#[derive(Clone, Debug)]
+pub struct SemanticExpected {
+    /// The source the provider parses and renders.
+    pub source: SourceFile,
+    /// The requested expression's start byte.
+    pub start: Offset,
+    /// The requested expression's end byte.
+    pub end: Offset,
+    /// The role in which the expression is rendered.
+    pub context: RenderContext,
+    /// The complete expected answer, including an explicit unsupported reason.
+    pub outcome: RenderOutcome,
+}
+
 /// Everything a language's conformance is held to besides the files of its fixtures: how each kind of its trees is shown, and the
 /// rows its fixtures must give.
 #[derive(Clone, Debug)]
@@ -439,6 +456,8 @@ pub struct Fixtures {
     pub relations: Vec<Expected>,
     /// The rows of the manifest relations, for each project.
     pub manifests: Vec<ManifestExpected>,
+    /// Actual semantic-session requests and complete expected answers.
+    pub semantic: Vec<SemanticExpected>,
     /// What the language holds the shape of its tree to: a walk of its library's own tree, or a projection of its standard.
     pub shape: Shape,
     /// How the language rebuilds facts from its rows and compares them with its library's semantic model.

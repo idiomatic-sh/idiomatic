@@ -1,5 +1,5 @@
 description = "A hex's factory: one function per adapter, building it from the parameters the edge passes. It has no test of its own: it only constructs, and what it constructs, each adapter, is proven by that adapter's `adapter_test.rs`."
-why = "Keeps construction beside the adapters and composition at the edge: every dependency (settings, the connection or client the edge opened, shared caches) arrives as a parameter, so the edge opens each connection once, passes it to every adapter that uses it and chooses the implementation, and a factory builds nothing else and chooses nothing. It returns the core's port. Construction is constructor injection: a factory takes its clients and returns the adapter built with them. A store's factory takes the store's settings, the directory it is kept in and the build that reads it, so its port methods take only the core's rows."
+why = "Keeps construction beside the adapters and composition at the edge: every dependency (settings, the connection or client the edge opened, shared caches) arrives as a parameter, so the edge opens each connection once, passes it to every adapter that uses it and chooses the implementation, and a factory builds nothing else and chooses nothing. Its settings and boundary values belong to outbound, with translation from domain at inbound or application boundaries. It returns the core's port. Construction is constructor injection: a factory takes its clients and returns the adapter built with them. A store's factory takes the store's settings, the directory it is kept in and the build that reads it, so its port methods take only the core's rows."
 content = '''
 //! Builds the {{ port }} adapters, one function each, by constructor injection: a factory takes
 //! the clients and settings the edge opened and returns the adapter built with them, so no
@@ -85,7 +85,7 @@ given.files.'factory.rs' = '''
 
 /// The disk names adapter, built from the clients the edge passes.
 #[must_use]
-pub fn disk(root: crate::domain::root::types::Root, budget: crate::domain::budget::types::Budget) -> impl crate::outbound::names::interface::NamesPort {
+pub fn disk(root: crate::outbound::names::types::Root, budget: crate::outbound::names::types::Budget) -> impl crate::outbound::names::interface::NamesPort {
     super::adapters::disk::adapter::NamesDiskAdapter { root, budget }
 }
 '''

@@ -4,9 +4,24 @@ use std::sync::Arc;
 
 use ryo_language::domain::files::types::FilePath;
 
+/// What an input edge knows of POSIX executable permission semantics.
+/// Unavailable observations never mean a known nonexecutable file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ExecutablePermission {
+    /// The edge supplied no reliable observation.
+    #[default]
+    Unknown,
+    /// The input's permission model has no POSIX executable-bit meaning.
+    Unsupported,
+    /// The observed mode intersects POSIX execute bits (`0o111`).
+    Posix(bool),
+}
+
 /// One file of the repository, found but not read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorpusEntry {
+    /// Edge-observed permission state, independent of source bytes and modification time.
+    pub executable: ExecutablePermission,
     /// The path, relative to the root, with `/` between directories.
     pub path: FilePath,
     /// The file's size in bytes.
@@ -15,9 +30,38 @@ pub struct CorpusEntry {
     pub modified: Nanoseconds,
 }
 
+/// A listed input has either real observed metadata or a truthful per-path discovery failure.
+/// Unreadable inputs never carry fabricated file sizes, timestamps or source bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CorpusInput {
+    /// A real file whose metadata the edge observed.
+    Available(CorpusEntry),
+    /// A primary inventoried file failed an earlier read, retaining its real observed metadata.
+    /// This is not a provider refusal or an unrelated consulted dependency.
+    ReadFailed {
+        /// The metadata that was actually observed before the read failed.
+        entry: CorpusEntry,
+        /// The original input-edge diagnostic detail.
+        reason: InputReadFailure,
+    },
+    /// An explicitly requested file could not be observed on disk.
+    Unreadable {
+        /// The exact requested path, relative to the root.
+        path: FilePath,
+        /// The edge's original diagnostic detail.
+        reason: InputReadFailure,
+    },
+}
+
+/// The original detail of an input discovery/read failure, without a provider or lint classification.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InputReadFailure(pub Box<str>);
+
 /// One file of the repository with its bytes: what a fake keeps and hands out on `read`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorpusFile {
+    /// Edge-observed permission state, independent of source bytes and modification time.
+    pub executable: ExecutablePermission,
     /// The path, relative to the root, with `/` between directories.
     pub path: FilePath,
     /// The file's bytes.
@@ -96,3 +140,7 @@ impl<F: Fn(MatchCandidate<'_>, &mut Hits) + Send + Sync> Matching for F {
         self(path, hits);
     }
 }
+
+/// Borrowed immutable bytes, without execution authority.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SourceView<'a>(pub &'a [u8]);

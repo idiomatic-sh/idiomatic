@@ -1,0 +1,289 @@
+{
+  "ruff": "/home/vscode/.local/bin/ruff",
+  "ruff_version": "ruff 0.16.5",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker": "/tmp/ruff-shape-worker-9003086b",
+  "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+  "query_sha256": "5a0be7ffb3c6b9ac2d7e9cab9ec96357a02fc0a0b1162d38659d5a965e05cc06",
+  "cases_sha256": "ea525d7571a78028450a6063a9cada2c0074641b4f78c8f1386ca5f13fa6e0d9",
+  "case_count": 18,
+  "matches": 18,
+  "runs": [
+    {
+      "name": "py-module",
+      "expected": [
+        [
+          14,
+          27
+        ]
+      ],
+      "ruff": [
+        [
+          14,
+          27
+        ]
+      ],
+      "old_worker": [
+        [
+          14,
+          27
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "aliased-module",
+      "expected": [
+        [
+          15,
+          27
+        ]
+      ],
+      "ruff": [
+        [
+          15,
+          27
+        ]
+      ],
+      "old_worker": [
+        [
+          15,
+          27
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "import-local",
+      "expected": [
+        [
+          26,
+          31
+        ]
+      ],
+      "ruff": [
+        [
+          26,
+          31
+        ]
+      ],
+      "old_worker": [
+        [
+          26,
+          31
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "import-local-alias",
+      "expected": [
+        [
+          34,
+          38
+        ]
+      ],
+      "ruff": [
+        [
+          34,
+          38
+        ]
+      ],
+      "old_worker": [
+        [
+          34,
+          38
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "multiple-calls",
+      "expected": [
+        [
+          14,
+          27
+        ],
+        [
+          37,
+          50
+        ]
+      ],
+      "ruff": [
+        [
+          14,
+          27
+        ],
+        [
+          37,
+          50
+        ]
+      ],
+      "old_worker": [
+        [
+          14,
+          27
+        ],
+        [
+          37,
+          50
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "nested-call",
+      "expected": [
+        [
+          23,
+          36
+        ]
+      ],
+      "ruff": [
+        [
+          23,
+          36
+        ]
+      ],
+      "old_worker": [
+        [
+          23,
+          36
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "attribute-value",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "wrong-module",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "wrong-member",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "wrong-case",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "prefix-member",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "noncall-attribute",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "shadow-py",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "shadow-local",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "noqa",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "file-noqa",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "Unicode-prefix",
+      "expected": [
+        [
+          15,
+          28
+        ]
+      ],
+      "ruff": [
+        [
+          15,
+          28
+        ]
+      ],
+      "old_worker": [
+        [
+          15,
+          28
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "function-context",
+      "expected": [
+        [
+          30,
+          43
+        ]
+      ],
+      "ruff": [
+        [
+          30,
+          43
+        ]
+      ],
+      "old_worker": [
+        [
+          30,
+          43
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    }
+  ]
+}

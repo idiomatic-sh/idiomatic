@@ -1,0 +1,38 @@
+{
+  "command": [
+    "/tmp/owner-perf-bench-f09b-20261103/ruff-worker",
+    "profile-ryo",
+    "--request-file",
+    "/tmp/owner-django-candidate-trace-20261103/request.json",
+    "python-target=3.10",
+    "/tmp/owner-django-candidate-trace-20261103/trace.json"
+  ],
+  "coverage": {
+    "evaluated": 890943,
+    "selected": 891250,
+    "skipped": 307,
+    "unknown_or_unread": 0
+  },
+  "diagnostic_only": true,
+  "diagnostics": 2327,
+  "env": {
+    "RAYON_NUM_THREADS": "1",
+    "RYO_DIAGNOSTIC_RESOURCE_ROUTES": "1",
+    "RYO_FILE_DAG_EXECUTION": "1",
+    "RYO_FILE_PROGRAM_GRAPH": "0"
+  },
+  "exit_code": 0,
+  "report_equal_frozen": true,
+  "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+  "request_sha256": "3a380334f8038de103cbb87be8a4a83f23429c58e5fd0219ac90789f1da6e34b",
+  "schema": "owner-django-trace/v1",
+  "script_sha256": "d3629554d9e3851eae9b38b9801175e1b7c557e64a5ecb5dc47fd9d538431715",
+  "source_commit": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "source_manifest_sha256": "3b4cf4257dda9174d5340e282fd15b995f013f6358d803ac380c71bc27b9feaa",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "f796e0a039c3dc1298cb8cf995bca2fdfa5cc37006d246d6aeb5a5f2cbd83d4d",
+  "trace_bytes": 1569,
+  "trace_sha256": "bbe3f6dc13c8e307ee3d05dcb0999a63747e59f3363334ed405483b5187e79f6",
+  "wall_seconds_diagnostic": 343.80851523599995,
+  "worker_sha256": "aaace83ca21a1726a0f5ea7a25f88c10466f4c8fc82b36488ee76d1b88bda207"
+}

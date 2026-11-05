@@ -1,0 +1,375 @@
+[
+  {
+    "name": "upstream-pinned-RUF008.py",
+    "files": {
+      "RUF008.py": "import typing\nfrom dataclasses import dataclass, field\nfrom typing import ClassVar, Sequence\n\nKNOWINGLY_MUTABLE_DEFAULT = []\n\n\n@dataclass\nclass A:\n    mutable_default: list[int] = []\n    immutable_annotation: typing.Sequence[int] = []\n    without_annotation = []\n    correct_code: list[int] = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: list[int] = field(default_factory=list)\n    class_variable: typing.ClassVar[list[int]] = []\n\n\n@dataclass\nclass B:\n    mutable_default: list[int] = []\n    immutable_annotation: Sequence[int] = []\n    without_annotation = []\n    correct_code: list[int] = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: list[int] = field(default_factory=list)\n    class_variable: ClassVar[list[int]] = []\n\n# Lint should account for deferred annotations\n# See https://github.com/astral-sh/ruff/issues/15857\n@dataclass\nclass AWithQuotes:\n    mutable_default: 'list[int]' = []\n    immutable_annotation: 'typing.Sequence[int]' = []\n    without_annotation = []\n    correct_code: 'list[int]' = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: 'list[int]' = field(default_factory=list)\n    class_variable: 'typing.ClassVar[list[int]]'= []\n\n\n# Mutable defaults wrapped in field() calls\n@dataclass\nclass C:\n    mutable_default: list[int] = field(default=[])  # RUF008\n    mutable_default2: dict[str, int] = field(default={})  # RUF008\n    mutable_default3: set[int] = field(default=set())  # RUF008\n    mutable_default4: dict[str, int] = field(default=dict())  # RUF008\n    correct_factory: list[int] = field(default_factory=list)  # okay\n    immutable_default: tuple[int, ...] = field(default=())  # okay\n    immutable_default2: str = field(default=\"hello\")  # okay\n    immutable_default3: int = field(default=1)  # okay\n    non_mutable_var: list[int] = field(default=KNOWINGLY_MUTABLE_DEFAULT)  # okay\n    class_variable: ClassVar[list[int]] = field(default=[])  # okay\n"
+    }
+  },
+  {
+    "name": "upstream-pinned-RUF008_attrs.py",
+    "files": {
+      "RUF008_attrs.py": "import typing\nfrom typing import ClassVar, Sequence\n\nimport attr, attrs\nfrom attr import s\nfrom attrs import define, frozen\n\nKNOWINGLY_MUTABLE_DEFAULT = []\n\n\n@define\nclass A:\n    mutable_default: list[int] = []\n    immutable_annotation: typing.Sequence[int] = []\n    without_annotation = []\n    correct_code: list[int] = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: list[int] = field(default_factory=list)\n    class_variable: typing.ClassVar[list[int]] = []\n\n\n@frozen\nclass B:\n    mutable_default: list[int] = []\n    immutable_annotation: Sequence[int] = []\n    without_annotation = []\n    correct_code: list[int] = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: list[int] = field(default_factory=list)\n    class_variable: ClassVar[list[int]] = []\n\n\n@attr.s\nclass C:\n    mutable_default: list[int] = []\n    immutable_annotation: Sequence[int] = []\n    without_annotation = []\n    correct_code: list[int] = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: list[int] = field(default_factory=list)\n    class_variable: ClassVar[list[int]] = []\n\n@s\nclass D:\n    mutable_default: list[int] = []\n    immutable_annotation: Sequence[int] = []\n    without_annotation = []\n    correct_code: list[int] = KNOWINGLY_MUTABLE_DEFAULT\n    perfectly_fine: list[int] = field(default_factory=list)\n    class_variable: ClassVar[list[int]] = []\n\n\n# Mutable defaults wrapped in field() calls\n@define\nclass E:\n    mutable_default: list[int] = attrs.field(default=[])  # RUF008\n    mutable_default2: dict[str, int] = attrs.field(default={})  # RUF008\n    mutable_default3: set[int] = attrs.field(default=set())  # RUF008\n    mutable_default4: dict[str, int] = attrs.field(default=dict())  # RUF008\n    correct_factory: list[int] = attrs.field(factory=list)  # okay\n    immutable_default: tuple[int, ...] = attrs.field(default=())  # okay\n    immutable_default2: str = attrs.field(default=\"hello\")  # okay\n    immutable_default3: int = attrs.field(default=1)  # okay\n    non_mutable_var: list[int] = attrs.field(default=KNOWINGLY_MUTABLE_DEFAULT)  # okay\n    class_variable: ClassVar[list[int]] = attrs.field(default=[])  # okay\n\n\n@attr.s\nclass F:\n    mutable_default: list[int] = attr.ib(default=[])  # RUF008\n    mutable_default2: dict[str, int] = attr.ib(default={})  # RUF008\n    correct_factory: list[int] = attr.ib(factory=list)  # okay\n    immutable_default: tuple[int, ...] = attr.ib(default=())  # okay\n\n\n@attr.s\nclass G:\n    mutable_default: list[int] = attr.attrib(default=[])  # RUF008\n    mutable_default2: set[int] = attr.attrib(default=set())  # RUF008\n    correct_factory: list[int] = attr.attrib(factory=list)  # okay\n"
+    }
+  },
+  {
+    "name": "upstream-pinned-RUF008_deferred.py",
+    "files": {
+      "RUF008_deferred.py": "# Lint should account for deferred annotations\n# See https://github.com/astral-sh/ruff/issues/15857\n\nfrom __future__ import annotations\n\nimport typing\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass Example():\n    \"\"\"Class that uses ClassVar.\"\"\"\n\n    options: ClassVar[dict[str, str]] = {}\n\n\nif typing.TYPE_CHECKING:\n    from typing import ClassVar\n\n"
+    }
+  },
+  {
+    "name": "decorator-0",
+    "files": {
+      "case.py": "from dataclasses import dataclass\n@dataclass\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-1",
+    "files": {
+      "case.py": "from dataclasses import dataclass as d\n@d()\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-2",
+    "files": {
+      "case.py": "import dataclasses as d\n@d.dataclass\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-3",
+    "files": {
+      "case.py": "import attr\n@attr.s\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-4",
+    "files": {
+      "case.py": "import attr\n@attr.s()\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-5",
+    "files": {
+      "case.py": "import attr\n@attr.attributes\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-6",
+    "files": {
+      "case.py": "import attr\n@attr.attrs()\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-7",
+    "files": {
+      "case.py": "import attrs\n@attrs.define\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-8",
+    "files": {
+      "case.py": "import attrs\n@attrs.frozen()\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-9",
+    "files": {
+      "case.py": "import attrs\n@attrs.mutable\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-10",
+    "files": {
+      "case.py": "from attrs import define\n@define(auto_attribs=False)\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "decorator-11",
+    "files": {
+      "case.py": "from attrs import define\n@define(auto_attribs=unknown)\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-0",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: list[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-1",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: int = []\n"
+    }
+  },
+  {
+    "name": "annotation-2",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: str = []\n"
+    }
+  },
+  {
+    "name": "annotation-3",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Sequence[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-4",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: tuple[unknown] = []\n"
+    }
+  },
+  {
+    "name": "annotation-5",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Optional[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-6",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Optional[list[int]] = []\n"
+    }
+  },
+  {
+    "name": "annotation-7",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Union[int,str] = []\n"
+    }
+  },
+  {
+    "name": "annotation-8",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Union[int,list[int]] = []\n"
+    }
+  },
+  {
+    "name": "annotation-9",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Union[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-10",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Union[()] = []\n"
+    }
+  },
+  {
+    "name": "annotation-11",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Annotated[int,\"metadata\"] = []\n"
+    }
+  },
+  {
+    "name": "annotation-12",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Annotated[list[int],\"metadata\"] = []\n"
+    }
+  },
+  {
+    "name": "annotation-13",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: Annotated[()] = []\n"
+    }
+  },
+  {
+    "name": "annotation-14",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: ClassVar = []\n"
+    }
+  },
+  {
+    "name": "annotation-15",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: ClassVar[list[int]] = []\n"
+    }
+  },
+  {
+    "name": "annotation-16",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: \"ClassVar[list[int]]\" = []\n"
+    }
+  },
+  {
+    "name": "annotation-17",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: int | str = []\n"
+    }
+  },
+  {
+    "name": "annotation-18",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: int | list[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-19",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: None = []\n"
+    }
+  },
+  {
+    "name": "annotation-20",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: builtins.int = []\n"
+    }
+  },
+  {
+    "name": "annotation-21",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: builtins.tuple[int] = []\n"
+    }
+  },
+  {
+    "name": "annotation-22",
+    "files": {
+      "case.py": "import builtins\nimport typing_extensions\nfrom typing import Sequence,Optional,Union,Annotated,ClassVar\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: typing_extensions.Annotated[int,\"meta\"] = []\n"
+    }
+  },
+  {
+    "name": "value-0",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = []\n"
+    }
+  },
+  {
+    "name": "value-1",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = {}\n"
+    }
+  },
+  {
+    "name": "value-2",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = {1}\n"
+    }
+  },
+  {
+    "name": "value-3",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = [x for x in xs]\n"
+    }
+  },
+  {
+    "name": "value-4",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = {x for x in xs}\n"
+    }
+  },
+  {
+    "name": "value-5",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = {x:x for x in xs}\n"
+    }
+  },
+  {
+    "name": "value-6",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = list()\n"
+    }
+  },
+  {
+    "name": "value-7",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = list[int]()\n"
+    }
+  },
+  {
+    "name": "value-8",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = dict()\n"
+    }
+  },
+  {
+    "name": "value-9",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = set()\n"
+    }
+  },
+  {
+    "name": "value-10",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = collections.deque()\n"
+    }
+  },
+  {
+    "name": "value-11",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = collections.Counter()\n"
+    }
+  },
+  {
+    "name": "value-12",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = collections.OrderedDict()\n"
+    }
+  },
+  {
+    "name": "value-13",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = collections.defaultdict(int)\n"
+    }
+  },
+  {
+    "name": "value-14",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = unknown()\n"
+    }
+  },
+  {
+    "name": "value-15",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = shared\n"
+    }
+  },
+  {
+    "name": "value-16",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = ()\n"
+    }
+  },
+  {
+    "name": "value-17",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = [[]]\n"
+    }
+  },
+  {
+    "name": "value-18",
+    "files": {
+      "case.py": "import dataclasses\nimport collections\n@dataclasses.dataclass\nclass C:\n    x: list = dataclasses.field(default=[])\n"
+    }
+  },
+  {
+    "name": "non-dataclass",
+    "files": {
+      "case.py": "class C:\n    x: list = []\n"
+    }
+  },
+  {
+    "name": "direct-body-only",
+    "files": {
+      "case.py": "from dataclasses import dataclass\n@dataclass\nclass C:\n    if True:\n        x: list = []\n    def f(self):\n        x: list = []\n    y = []\n"
+    }
+  },
+  {
+    "name": "suppression",
+    "files": {
+      "case.py": "from dataclasses import dataclass\n@dataclass\nclass C:\n    x: list = [] # noqa: RUF008\n"
+    }
+  },
+  {
+    "name": "deferred-import",
+    "files": {
+      "case.py": "from __future__ import annotations\nfrom dataclasses import dataclass\n@dataclass\nclass C:\n    x: ClassVar[list] = []\nfrom typing import ClassVar\n"
+    }
+  },
+  {
+    "name": "two-files",
+    "files": {
+      "a.py": "from dataclasses import dataclass\n@dataclass\nclass C:\n    x: list = []\n",
+      "b.py": "class C:\n    x: list = []\n"
+    }
+  }
+]

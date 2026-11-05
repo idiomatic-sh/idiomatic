@@ -1,0 +1,37 @@
+{
+  "status": "source-smoke-only",
+  "admission_status": "pending authoritative canonical-profile staging and exact invocation audit",
+  "rule": "EXE004",
+  "selected_rules": [
+    "EXE004"
+  ],
+  "parser_configuration": "python-target=3.10",
+  "rule_applicability": {
+    "EXE004": "always"
+  },
+  "project_context": "isolated",
+  "worker_sha256": "755bda55137ed839ba49b41e3fbcfb874be337e55e0a10c05f148572c52ccb9c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "upstream_tag": "0.16.5",
+  "upstream_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "case_count": 21,
+  "complete_pairs": 21,
+  "complete_records": 42,
+  "exact_source_smoke_cases": 21,
+  "unknown_or_unread": 0,
+  "query_sha256": "c8c12b1caeeb01ae67ef37a551241a12c0b45b5a9da5dd9d5602a83e05478807",
+  "cases_sha256": "3182f6fc9dab774fee502cdeb253dabac569433683f6af5c55c34bac0aecdb86",
+  "profile_sha256": "fe1aa431b701626013d19ae94fce8de284d484addc080a1e02b584ffec398e8f",
+  "query_modules": {
+    "python/ruff/suppress": "fragments/suppress.ryoql",
+    "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+  },
+  "module_sha256": {
+    "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+  },
+  "raw_differences": [],
+  "limits": [
+    "Hand-fed WorkerRequest source smoke is not a substitute for strict canonical profile staging/admission."
+  ]
+}

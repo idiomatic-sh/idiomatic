@@ -8,7 +8,7 @@ use super::constants::{
     INTERFACE_METHOD, LABEL, METHOD, RANGE_VARIABLE, SHORT_VARIABLE, STRUCT, TYPE_PARAMETER,
     TYPE_SWITCH_VARIABLE, VARIABLE,
 };
-use super::types::{Annotation, Assignment, Declaration, Defined, Meaning, NameSpelling, Shape};
+use super::types::{Annotation, Assignment, Declaration, Defined, Meaning, NameSpelling, DeclarationShape};
 use crate::domain::assignments::service::{left, operator, right};
 use crate::domain::fields::service::{names as field_names, type_of};
 use crate::domain::names::service::{
@@ -19,7 +19,7 @@ use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::enclosing;
 use crate::domain::signatures::constants::{PARAMETER, RECEIVER, RESULT, VARIADIC};
 use crate::domain::signatures::service::{callable, listing, signature};
-use crate::domain::signatures::types::{Listing, Refinement};
+use crate::domain::signatures::types::{Listing, SignatureRefinement};
 use crate::domain::specs::service::{
     declares, import_name, name as spec_name, names as spec_names, underlying, value_type,
 };
@@ -29,12 +29,12 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
 /// What a declaration is: its shared kind and Go's word for it.
-const fn defined(kind: DeclarationKind, word: Refinement) -> Defined {
+const fn defined(kind: DeclarationKind, word: SignatureRefinement) -> Defined {
     Defined { kind, word }
 }
 
 /// A word of the language as a name of the file.
-pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: Refinement) -> Symbol {
+pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: SignatureRefinement) -> Symbol {
     languages::intern_derived(symbols, tree.source, languages::NameText(text.0))
 }
 
@@ -44,16 +44,16 @@ pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: Refi
     clippy::wildcard_enum_match_arm,
     reason = "only the kinds that declare names have a shape; every other kind declares nothing"
 )]
-pub(crate) fn shape(tree: &Tree<'_>, at: Position) -> Shape {
+pub(crate) fn shape(tree: &Tree<'_>, at: Position) -> DeclarationShape {
     match kind(tree, at) {
-        Kind::Node(Node::FuncDecl) => Shape::Function,
-        Kind::Node(Node::TypeSpec) => Shape::Type,
-        Kind::Node(Node::ValueSpec) => Shape::Values,
-        Kind::Node(Node::ImportSpec) => Shape::Import,
-        Kind::Node(Node::Field) => Shape::Field,
-        Kind::Node(Node::AssignStmt | Node::RangeStmt) => Shape::Variables,
-        Kind::Node(Node::LabeledStmt) => Shape::Label,
-        _ => Shape::Nothing,
+        Kind::Node(Node::FuncDecl) => DeclarationShape::Function,
+        Kind::Node(Node::TypeSpec) => DeclarationShape::Type,
+        Kind::Node(Node::ValueSpec) => DeclarationShape::Values,
+        Kind::Node(Node::ImportSpec) => DeclarationShape::Import,
+        Kind::Node(Node::Field) => DeclarationShape::Field,
+        Kind::Node(Node::AssignStmt | Node::RangeStmt) => DeclarationShape::Variables,
+        Kind::Node(Node::LabeledStmt) => DeclarationShape::Label,
+        _ => DeclarationShape::Nothing,
     }
 }
 
@@ -323,15 +323,15 @@ pub(crate) fn declarations<'a>(
 ) -> impl Iterator<Item = Declaration> + 'a {
     let shaped = shape(tree, at);
     let one = match shaped {
-        Shape::Function => function_declaration(tree, at),
-        Shape::Type => type_declaration(tree, at),
-        Shape::Import => import_declaration(tree, at),
-        Shape::Label => label_declaration(tree, at),
-        Shape::Values | Shape::Field | Shape::Variables | Shape::Nothing => None,
+        DeclarationShape::Function => function_declaration(tree, at),
+        DeclarationShape::Type => type_declaration(tree, at),
+        DeclarationShape::Import => import_declaration(tree, at),
+        DeclarationShape::Label => label_declaration(tree, at),
+        DeclarationShape::Values | DeclarationShape::Field | DeclarationShape::Variables | DeclarationShape::Nothing => None,
     };
-    let values = (shaped == Shape::Values).then(|| value_declarations(tree, at));
-    let fields = (shaped == Shape::Field).then(|| field_declarations(tree, at));
-    let variables = (shaped == Shape::Variables).then(|| variable_declarations(tree, at));
+    let values = (shaped == DeclarationShape::Values).then(|| value_declarations(tree, at));
+    let fields = (shaped == DeclarationShape::Field).then(|| field_declarations(tree, at));
+    let variables = (shaped == DeclarationShape::Variables).then(|| variable_declarations(tree, at));
     one.into_iter()
         .chain(values.into_iter().flatten())
         .chain(fields.into_iter().flatten())

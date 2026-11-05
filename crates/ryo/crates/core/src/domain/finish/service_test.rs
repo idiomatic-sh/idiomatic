@@ -1,25 +1,21 @@
 //! The `finish` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{
-    CellKind, FileId, Offset, Origin, Span, Value as Cell, WorkerNumber,
+use ryo_language::domain::symbols::service::{
+    hash_of, intern_derived, name_made_across, places_mut,
 };
-use ryo_language::domain::symbols::service::{intern, intern_derived, places_mut};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::service::unknown_symbol;
-use ryo_language::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Span, Value as Cell,
+};
+use ryo_relations::domain::terms::service::unknown_symbol;
+use ryo_relations::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
+use ryo_values::domain::files::types::SourceView;
 
 use super::errors::FinishError;
-use super::service::{carry, escape, founds, place_all, shown_cell};
-use super::types::{
-    Arena, Arenas, ColumnNumber, FileLine, Leaves, Leaving, Loaded, Point, Resolving, Retained,
-    RuleNumber,
-};
+use super::service::{founds, place_all, shown_cell};
+use super::types::{Arenas, ColumnNumber, FileLine, Loaded, Point, Resolving};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::table_cells::types::RowIndex;
-use crate::domain::table_model::errors::TableModelError;
-use crate::domain::table_model::service::{push_row, row_in};
-use crate::domain::table_model::types::Table;
+
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::records::types::RenderedText;
@@ -31,16 +27,14 @@ enum Scenario {
     Findings(u32),
     /// Places a finding in a file of two lines.
     Placed,
-    /// Sends a name out of its file.
-    Escaped,
-    /// Sends a name out of its file with its text, for steps that read the text after the files are read.
-    EscapedWithText,
     /// Reads a name that left its file back from the file.
     Shown,
     /// Shows a value a language could not resolve.
     ShownUnknown,
-    /// Carries a name the project wrote to the steps after the files, where it compares with the name a file handed over.
-    Carried,
+    /// Shows the retained text of a name carried from project facts.
+    CarriedShown,
+    /// A complete observation with no table is a refusal, not an empty table.
+    MissingPublicationTable,
 }
 
 /// What a row of the cases does.
@@ -52,41 +46,22 @@ type Failure = FinishError;
 const SOURCE: &[u8] = b"fn a() {}\nfn bee() {}\n";
 
 fn rows() -> Table {
-    let mut table = Table {
+    Table {
         kinds: vec![CellKind::File, CellKind::Span],
-        ..Table::default()
-    };
-    push_row(
-        &mut table,
-        &[
+        count: RowCount(2),
+        cells: vec![
             Cell::File(FileId(0)),
             Cell::Span(Span {
                 start: Offset(0),
                 end: Offset(4),
             }),
-        ],
-    );
-    push_row(
-        &mut table,
-        &[
             Cell::File(FileId(1)),
             Cell::Span(Span {
                 start: Offset(13),
                 end: Offset(16),
             }),
         ],
-    );
-    table
-}
-
-/// A table of one name.
-fn names(name: Cell) -> Table {
-    let mut table = Table {
-        kinds: vec![CellKind::Symbol],
-        ..Table::default()
-    };
-    push_row(&mut table, &[name]);
-    table
+    }
 }
 
 fn emit(subject: u32) -> Emit {
@@ -98,31 +73,19 @@ fn emit(subject: u32) -> Emit {
     }
 }
 
-/// A name the project wrote, carried among the cross-file names, is the cell a name that escaped its file is, and reads as its text.
-fn carried() -> Value {
-    let (mut project, mut cross) = (Symbols::default(), Symbols::default());
-    let written = intern_derived(&mut project, ByteSlice(&[]), NameText("bee"));
-    let mut table = names(Cell::Symbol(written));
-    carry(&mut table, &project, &mut cross);
-    let mut handed = Symbols::default();
-    let name = intern(&mut handed, ByteSlice(SOURCE), Offset(13), Offset(16));
-    let mut file = names(Cell::Symbol(name));
-    escape(
-        &mut file,
-        Leaving {
-            symbols: &handed,
-            source: SourceView(SOURCE),
-            file: FileId(0),
-            worker: WorkerNumber(0),
-            text: Leaves::WithoutText,
-        },
-        Retained {
-            arena: Arena(&mut Vec::new()),
-            places: &mut Vec::new(),
-        },
-    );
-    let first = |rows: &Table| row_in(rows, RowIndex(0)).and_then(<[Cell]>::first).copied();
-    let (carried, escaped) = (first(&table), first(&file));
+/// Reporting consumes a truthful persisted source-name record; normalization is tested in its owning engine.
+fn shown_source_name() -> Value {
+    let mut cross = Symbols::default();
+    places_mut(&mut cross).push(NamePlace {
+        origin: Origin::Source,
+        file: FileId(0),
+        start: Offset(13),
+        end: Offset(16),
+    });
+    let escaped = Cell::Name(Name {
+        hash: hash_of(ByteSlice(b"bee")),
+        place: PlaceNumber(0),
+    });
     let (paths, arenas) = (Vec::new(), Vec::new());
     let resolving = Resolving {
         unknown: &[],
@@ -130,69 +93,27 @@ fn carried() -> Value {
         arenas: Arenas(&arenas),
         cross: &cross,
     };
-    let text = carried.and_then(|each| shown_text(each, &resolving, &Loaded::default()));
-    usize::from(carried.is_some() && carried == escaped && text.as_deref() == Some("bee"))
+    let loaded = Loaded {
+        bytes: ryo_values::domain::files::types::FileBytes(SOURCE.to_vec()),
+        ..Loaded::default()
+    };
+    usize::from(shown_text(escaped, &resolving, &loaded).as_deref() == Some("bee"))
 }
 
-/// A name that leaves with its text keeps its bytes in the arena, placed as the worker's own.
-fn escaped_with_text() -> Value {
-    let mut symbols = Symbols::default();
-    let name = intern(&mut symbols, ByteSlice(SOURCE), Offset(13), Offset(16));
-    let mut table = names(Cell::Symbol(name));
-    let mut arena = Vec::new();
-    let mut places = Vec::new();
-    escape(
-        &mut table,
-        Leaving {
-            symbols: &symbols,
-            source: SourceView(SOURCE),
-            file: FileId(0),
-            worker: WorkerNumber(2),
-            text: Leaves::WithText,
-        },
-        Retained {
-            arena: Arena(&mut arena),
-            places: &mut places,
-        },
-    );
-    let kept = places.first().is_some_and(|place| {
-        place.origin == Origin::Derived(WorkerNumber(2))
-            && arena.get(
-                usize::try_from(place.start.0).unwrap_or(0)
-                    ..usize::try_from(place.end.0).unwrap_or(0),
-            ) == Some(b"bee".as_slice())
-    });
-    usize::from(kept)
-}
-
-/// A name that leaves without its text keeps its place in the source and nothing in the arena.
-fn escaped() -> Value {
-    let mut symbols = Symbols::default();
-    let name = intern(&mut symbols, ByteSlice(SOURCE), Offset(13), Offset(16));
-    let mut table = names(Cell::Symbol(name));
-    let mut arena = Vec::new();
-    let mut places = Vec::new();
-    escape(
-        &mut table,
-        Leaving {
-            symbols: &symbols,
-            source: SourceView(SOURCE),
-            file: FileId(0),
-            worker: WorkerNumber(0),
-            text: Leaves::WithoutText,
-        },
-        Retained {
-            arena: Arena(&mut arena),
-            places: &mut places,
-        },
-    );
-    usize::from(
-        matches!(row_in(&table, RowIndex(0)), Some([Cell::Name(kept)]) if kept.place.0 == 0)
-            && places.len() == 1
-            && places[0].start == Offset(13)
-            && places[0].end == Offset(16)
-            && arena.is_empty(),
-    )
+/// Project names already carried by the engine are read from the retained cross-symbol backing.
+fn shown_carried_name() -> Value {
+    let mut cross = Symbols::default();
+    let symbol = intern_derived(&mut cross, ByteSlice(&[]), NameText("bee"));
+    let carried =
+        Cell::Name(name_made_across(&cross, symbol).expect("a stored cross-name fixture"));
+    let (paths, arenas) = (Vec::new(), Vec::new());
+    let resolving = Resolving {
+        unknown: &[],
+        paths: &paths,
+        arenas: Arenas(&arenas),
+        cross: &cross,
+    };
+    usize::from(shown_text(carried, &resolving, &Loaded::default()).as_deref() == Some("bee"))
 }
 
 /// Whether a value a language could not resolve shows as `unknown`, as 1 or 0.
@@ -264,49 +185,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                         },
             ))
         }
-        Scenario::Escaped => Ok(escaped()),
-        Scenario::EscapedWithText => Ok(escaped_with_text()),
-        Scenario::Carried => Ok(carried()),
+        Scenario::CarriedShown => Ok(shown_carried_name()),
         Scenario::ShownUnknown => Ok(shown_unknown()),
-        Scenario::Shown => {
-            let mut symbols = Symbols::default();
-            let name = intern(&mut symbols, ByteSlice(SOURCE), Offset(13), Offset(16));
-            let mut table = names(Cell::Symbol(name));
-            let mut cross = Symbols::default();
-            escape(
-                &mut table,
-                Leaving {
-                    symbols: &symbols,
-                    source: SourceView(SOURCE),
-                    file: FileId(0),
-                    worker: WorkerNumber(0),
-                    text: Leaves::WithoutText,
-                },
-                Retained {
-                    arena: Arena(&mut Vec::new()),
-                    places: places_mut(&mut cross),
-                },
-            );
-            let (paths, arenas) = (Vec::new(), Vec::new());
-            let resolving = Resolving {
-                unknown: &[],
-                paths: &paths,
-                arenas: Arenas(&arenas),
-                cross: &cross,
-            };
-            let escaped = row_in(&table, RowIndex(0))
-                .and_then(<[Cell]>::first)
-                .copied()
-                .ok_or(FinishError::Table(TableModelError::NoSuchColumn {
-                    index: 0,
-                }))?;
-            let loaded = Loaded {
-                bytes: ryo_values::domain::files::types::FileBytes(SOURCE.to_vec()),
-                ..Loaded::default()
-            };
-            let text = shown_text(escaped, &resolving, &loaded);
-            Ok(usize::from(text.as_deref() == Some("bee")))
-        }
+        Scenario::Shown => Ok(shown_source_name()),
+        Scenario::MissingPublicationTable => Err(super::service::missing_publication_table()),
     }
 }
 
@@ -325,21 +207,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a_name_leaves_its_file_with_its_text_when_the_steps_read_it"),
+        name: CaseName("a_carried_project_name_keeps_its_text_when_reported"),
         word: Word::Succeeds,
-        input: || Scenario::EscapedWithText,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_name_leaves_its_file_as_a_place"),
-        word: Word::Succeeds,
-        input: || Scenario::Escaped,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_name_the_project_wrote_compares_with_the_name_a_file_handed_over"),
-        word: Word::Succeeds,
-        input: || Scenario::Carried,
+        input: || Scenario::CarriedShown,
         expect: Expect::Value(1),
     },
     Case {
@@ -360,6 +230,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Findings(7),
         expect: Expect::Refusal(|error| selects(matches!(error, FinishError::Table(..)))),
     },
+    Case {
+        name: CaseName("a_complete_observation_without_rows_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::MissingPublicationTable,
+        expect: Expect::Refusal(|error| selects(matches!(error, FinishError::Publication { .. }))),
+    },
 ];
 
 #[test]
@@ -371,3 +247,11 @@ fn succeeds() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::runs::types::RuleNumber;

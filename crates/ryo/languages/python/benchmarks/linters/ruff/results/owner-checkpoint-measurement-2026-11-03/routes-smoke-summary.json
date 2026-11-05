@@ -1,0 +1,38 @@
+{
+  "event_lines": 13222,
+  "overflow": 0,
+  "phase_files": 1,
+  "phases": {
+    "native_shared_walk": {
+      "elapsed_ns": 3766012,
+      "events": 1,
+      "maximum_ns": 3766012
+    },
+    "provider_parse": {
+      "elapsed_ns": 29729599,
+      "events": 1,
+      "maximum_ns": 29729599
+    },
+    "rules_and_frontiers": {
+      "elapsed_ns": 939425761,
+      "events": 1,
+      "maximum_ns": 939425761
+    },
+    "settle_and_release": {
+      "elapsed_ns": 1118754,
+      "events": 1,
+      "maximum_ns": 1118754
+    }
+  },
+  "raw_summary_sha256": "84a8b7e6770159b12c4aad337bcd5448474497a5cbf1fa0edce3fe1fe122280a",
+  "resource_files": 1,
+  "route_build_successes": 2139,
+  "route_calls": 106777,
+  "schema": "owner-route-smoke-compact/v1",
+  "source_commit": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "target_counts": {
+    "other": 13217,
+    "ryo::diagnostic::execution": 4,
+    "ryo::diagnostic::resource_routes": 1
+  }
+}

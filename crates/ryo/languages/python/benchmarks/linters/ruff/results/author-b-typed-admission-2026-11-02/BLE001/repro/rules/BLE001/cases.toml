@@ -1,0 +1,713 @@
+[[cases]]
+name = "builtin-exception"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "builtin-baseexception"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept BaseException as error:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 36 }]
+
+[[cases]]
+name = "narrow-exception"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept ValueError as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "bare-except"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "module-builtin"
+comparison = "full"
+files = { "case.py" = "import builtins\ntry:\n    work()\nexcept builtins.Exception as error:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 39, end = 57 }]
+
+[[cases]]
+name = "module-builtin-alias"
+comparison = "full"
+files = { "case.py" = "import builtins as b\ntry:\n    work()\nexcept b.BaseException as error:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 44, end = 59 }]
+
+[[cases]]
+name = "builtin-import-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import Exception as AnyError\ntry:\n    work()\nexcept AnyError as error:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 66, end = 74 }]
+
+[[cases]]
+name = "module-shadow"
+comparison = "full"
+files = { "case.py" = "Exception = ValueError\ntry:\n    work()\nexcept Exception as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "foreign-import-shadow"
+comparison = "full"
+files = { "case.py" = "from elsewhere import Exception\ntry:\n    work()\nexcept Exception as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "value-alias-is-not-a-qualified-builtin"
+comparison = "full"
+files = { "case.py" = "Broad = Exception\ntry:\n    work()\nexcept Broad as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "parameter-shadow"
+comparison = "full"
+files = { "case.py" = "def f(Exception):\n    try:\n        work()\n    except Exception:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "first-member-of-nested-tuples"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept (ValueError, (OSError, BaseException), Exception):\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 46, end = 59 }]
+
+[[cases]]
+name = "one-diagnostic-for-repeated-broad-members"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept (Exception, (BaseException, Exception)):\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 24, end = 33 }]
+
+[[cases]]
+name = "type-call-is-not-tuple-descent"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept choose(Exception) as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "type-subscript-is-not-tuple-descent"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept types[Exception] as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "arbitrary-exception-attribute"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept obj.Exception as error:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "normalized-unicode-builtin"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept ℰxception as error:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 34 }]
+
+[[cases]]
+name = "two-independent-handlers"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception:\n    pass\nexcept BaseException:\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }, { rule = "BLE001", file = "case.py", start = 50, end = 63 }]
+
+[[cases]]
+name = "bare-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise\n" }
+expected = []
+
+[[cases]]
+name = "named-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise error\n" }
+expected = []
+
+[[cases]]
+name = "named-reraise-from-none"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise error from None\n" }
+expected = []
+
+[[cases]]
+name = "chained-reraise-cause"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise RuntimeError() from error\n" }
+expected = []
+
+[[cases]]
+name = "conditional-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    if condition:\n        raise\n" }
+expected = []
+
+[[cases]]
+name = "loop-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    for item in values:\n        raise error\n" }
+expected = []
+
+[[cases]]
+name = "with-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    with guard():\n        raise\n" }
+expected = []
+
+[[cases]]
+name = "match-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    match value:\n        case 1:\n            raise\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-raise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise RuntimeError()\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "wrong-cause"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise RuntimeError() from other\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "wrapped-exception-is-not-direct-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise RuntimeError(error)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "exception-attribute-is-not-direct-reraise"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise error.other\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "nested-try-does-not-reraise-outer"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    try:\n        raise error\n    except ValueError:\n        pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "nested-finally-does-not-reraise-outer"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    try:\n        work()\n    finally:\n        raise\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "nested-function-does-not-reraise-outer"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    def nested():\n        raise error\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "nested-class-does-not-reraise-outer"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    class Nested:\n        raise error\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "logging-module"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "logging-module-alias"
+comparison = "full"
+files = { "case.py" = "import logging as m\ntry:\n    work()\nexcept Exception as error:\n    m.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "logging-direct-import-alias"
+comparison = "full"
+files = { "case.py" = "from logging import exception as report\ntry:\n    work()\nexcept Exception as error:\n    report(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "logging-direct-error-enabled"
+comparison = "full"
+files = { "case.py" = "from logging import error as report\ntry:\n    work()\nexcept Exception as error:\n    report(\"failure\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "flask-current-app"
+comparison = "full"
+files = { "case.py" = "from flask import current_app\ntry:\n    work()\nexcept Exception as error:\n    current_app.logger.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "inline-getlogger"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.getLogger(__name__).exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "inline-logger-constructor"
+comparison = "full"
+files = { "case.py" = "from logging import Logger as Factory\ntry:\n    work()\nexcept Exception as error:\n    Factory(\"name\").exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "exception-method-does-not-require-exc-info"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.exception(\"failure\", exc_info=False)\n" }
+expected = []
+
+[[cases]]
+name = "local-spelling-policy-unresolved"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    logger.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "local-spelling-policy-attribute"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    self.logger.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "local-spelling-policy-uppercase"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    self.LOGGING.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "local-spelling-policy-rebound"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging = arbitrary\ntry:\n    work()\nexcept Exception as error:\n    logging.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "local-spelling-policy-unicode-normalized"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    ｌｏｇｇｅｒ.exception(\"failure\")\n" }
+expected = []
+
+[[cases]]
+name = "logging-without-trace"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "direct-logging-without-trace"
+comparison = "full"
+files = { "case.py" = "from logging import error as report\ntry:\n    work()\nexcept Exception as error:\n    report(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 59, end = 68 }]
+
+[[cases]]
+name = "ordinary-exception-method"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    other.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "imported-foreign-logger"
+comparison = "full"
+files = { "case.py" = "from elsewhere import logger\ntry:\n    work()\nexcept Exception as error:\n    logger.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 52, end = 61 }]
+
+[[cases]]
+name = "foreign-import-named-logging"
+comparison = "full"
+files = { "case.py" = "import elsewhere as logging\ntry:\n    work()\nexcept Exception as error:\n    logging.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 51, end = 60 }]
+
+[[cases]]
+name = "foreign-dotted-logger"
+comparison = "full"
+files = { "case.py" = "import elsewhere\ntry:\n    work()\nexcept Exception as error:\n    elsewhere.logger.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 40, end = 49 }]
+
+[[cases]]
+name = "unproven-factory-receiver"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    factory().logger.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "assigned-call-is-not-expression-statement"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    result = logging.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "nested-call-is-not-expression-statement"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    consume(logging.exception(\"failure\"))\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "bool-call-is-not-expression-statement"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.exception(\"failure\") or None\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "condition-call-is-not-expression-statement"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    if logging.exception(\"failure\"):\n        pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "nested-try-logging-does-not-exempt"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    try:\n        logging.exception(\"failure\")\n    except ValueError:\n        pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "nested-function-logging-does-not-exempt"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    def nested():\n        logging.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "nested-class-logging-does-not-exempt"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    class Nested:\n        logging.exception(\"failure\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "kwargs-do-not-prove-exc-info"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", **{\"exc_info\": True})\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "enabled-debug"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.debug(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-info"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.info(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-warn"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.warn(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-warning"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.warning(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-error"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-critical"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.critical(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-log"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.log(\"failure\", exc_info=error)\n" }
+expected = []
+
+[[cases]]
+name = "false-exc-info-false"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=False)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-none"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=None)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-integer-zero"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=0)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-hex-zero"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=0x0)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-underscore-zero"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=0_0)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-float-zero"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=0.0)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-exponent-zero"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=0e100)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-complex-zero"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=0.0j)\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-string"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=\"\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-concatenated-string"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=\"\" \"\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-bytes"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=b\"\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-list"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=[])\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-tuple"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=())\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-dict"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info={})\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-builtin-list"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list())\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-builtin-frozenset"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=frozenset())\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-recursive-empty-constructors"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list(tuple(set())))\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-iterable-argument"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list(\"\"))\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-dict-iterable"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=dict([]))\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-fstring"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-empty-fstring-interpolation"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"{''}\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "false-exc-info-nested-empty-fstring"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"{f''}\")\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "enabled-exc-info-true"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-nonzero"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=1)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-nonempty-string"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-decoded-nul"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=\"\\x00\")\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-nonempty-list"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=[0])\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-unknown-name"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=dynamic)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-boolop-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=False or False)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-unaryop-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=-0)\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-noniterable-constructor-argument"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list(0))\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-false-constructor-argument"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list(False))\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-none-constructor-argument"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list(None))\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-empty-generator-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list(item for item in []))\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-starred-empty-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=[*[]])\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-unpacked-dict-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info={**{}})\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-qualified-constructor-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=builtins.list())\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-fstring-conversion-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"{''!s}\")\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-fstring-spec-is-unknown"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"{'':}\")\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-fstring-debug-is-not-empty"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"{''=}\")\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-fstring-bytes-is-not-empty"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"{b''}\")\n" }
+expected = []
+
+[[cases]]
+name = "enabled-exc-info-fstring-literal-piece"
+comparison = "full"
+files = { "case.py" = "import logging\nimport builtins\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=f\"prefix{''}\")\n" }
+expected = []
+
+[[cases]]
+name = "explicitly-imported-list-is-not-builtin-binding"
+comparison = "full"
+files = { "case.py" = "import logging\nfrom builtins import list\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", exc_info=list())\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-list-does-not-prove-false"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f(list):\n    try:\n        work()\n    except Exception:\n        logging.error(\"failure\", exc_info=list())\n" }
+expected = []
+
+[[cases]]
+name = "normalized-exc-info-name"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception as error:\n    logging.error(\"failure\", ｅｘｃ_ｉｎｆｏ=True)\n" }
+expected = []
+
+[[cases]]
+name = "inline-noqa"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception:  # noqa: BLE001\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-noqa"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception:  # noqa: BLE0010\n    pass\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: BLE001\ntry:\n    work()\nexcept Exception:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "body-noqa-does-not-hide-type"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception:\n    pass  # noqa: BLE001\n" }
+expected = [{ rule = "BLE001", file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "upstream-pinned-BLE.py"
+comparison = "full"
+files = { "BLE.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept Exception as e:\n    raise e\nfinally:\n    pass\n\n\ntry:\n    pass\nexcept BaseException as e:\n    raise e\nexcept TypeError:\n    pass\nelse:\n    pass\n\n\ntry:\n    pass\nexcept Exception as e:\n    raise e\nexcept BaseException:\n    pass\n\n\ntry:\n    pass\nexcept Exception:\n    pass\nfinally:\n    try:\n        pass\n    except BaseException as e:\n        raise e\n\n\ntry:\n    pass\nexcept Exception as e:\n    try:\n        raise e\n    except BaseException:\n        pass\n\n\ntry:\n    try:\n        pass\n    except BaseException as e:\n        raise e\nexcept Exception:\n    pass\n\n\ntry:\n    pass\nexcept Exception as e:\n    raise bad\nexcept BaseException:\n    pass\n\nimport logging\n\ntry:\n    pass\nexcept Exception:\n    logging.error(\"...\")  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    logging.error(\"...\", exc_info=False)  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    logging.error(\"...\", exc_info=None)  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    logging.exception(\"...\")  # ok\n\n\ntry:\n    pass\nexcept Exception:\n    logging.error(\"...\", exc_info=True)  # ok\n\n\nfrom logging import critical, error, exception\n\ntry:\n    pass\nexcept Exception:\n    error(\"...\")  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    error(\"...\", exc_info=False)  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    error(\"...\", exc_info=None)  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    critical(\"...\")  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    critical(\"...\", exc_info=False)  # BLE001\n\n\ntry:\n    pass\nexcept Exception:\n    critical(\"...\", exc_info=None)  # BLE001\n\ntry:\n    pass\nexcept Exception:\n    exception(\"...\")  # ok\n\n\ntry:\n    pass\nexcept Exception:\n    error(\"...\", exc_info=True)  # ok\n\n\ntry:\n    pass\nexcept Exception:\n    critical(\"...\", exc_info=True)  # ok\n\n\ntry:\n    ...\nexcept Exception as e:\n    raise ValueError from e\n\ntry:\n    ...\nexcept Exception as e:\n    raise e from ValueError(\"hello\")\n\n\ntry:\n    pass\nexcept Exception:\n    if True:\n        exception(\"An error occurred\")\n    else:\n        exception(\"An error occurred\")\n\n# Test tuple exceptions\ntry:\n    pass\nexcept (Exception,):\n    pass\n\ntry:\n    pass\nexcept (Exception, ValueError):\n    pass\n\ntry:\n    pass\nexcept (ValueError, Exception):\n    pass\n\ntry:\n    pass\nexcept (ValueError, Exception) as e:\n    print(e)\n\ntry:\n    pass\nexcept (BaseException, TypeError):\n    pass\n\ntry:\n    pass\nexcept (TypeError, BaseException):\n    pass\n\ntry:\n    pass\nexcept (Exception, BaseException):\n    pass\n\ntry:\n    pass\nexcept (BaseException, Exception):\n    pass\n\n# Test nested tuples\ntry:\n    pass\nexcept ((Exception, ValueError), TypeError):\n    pass\n\ntry:\n    pass\nexcept (ValueError, (BaseException, TypeError)):\n    pass\n\n# Test valid tuple exceptions (should not trigger)\ntry:\n    pass\nexcept (ValueError, TypeError):\n    pass\n\ntry:\n    pass\nexcept (OSError, FileNotFoundError):\n    pass\n\ntry:\n    pass\nexcept (OSError, FileNotFoundError) as e:\n    print(e)\n\ntry:\n    pass\nexcept (Exception, ValueError):\n    critical(\"...\", exc_info=True)  # ok\n\ntry:\n    pass\nexcept (Exception, ValueError):\n    raise\n\ntry:\n    pass\nexcept (Exception, ValueError) as e:\n    raise e\n\n# `from None` cause\ntry:\n    pass\nexcept BaseException as e:\n    raise e from None\n\n\ntry:\n    pass\nexcept Exception as e:\n    logging.error(\"...\", exc_info=e)  # ok\n\n\ntry:\n    pass\nexcept Exception as e:\n    logging.debug(\"...\", exc_info=e)  # ok\n\n\ntry:\n    pass\nexcept Exception:\n    logging.info(\"...\", exc_info=True)  # ok \n\ntry:\n    pass\nexcept Exception as e:\n    logging.warn(\"...\", exc_info=e)  # ok\n\n\ntry:\n    pass\nexcept Exception:\n    logging.warning(\"...\", exc_info=True)  # ok\n\n\ntry:\n    pass\nexcept Exception as e:\n    logging.log(logging.INFO, \"...\", exc_info=e)  # ok\n" }
+expected = [{ rule = "BLE001", file = "BLE.py", start = 250, end = 263 }, { rule = "BLE001", file = "BLE.py", start = 297, end = 306 }, { rule = "BLE001", file = "BLE.py", start = 418, end = 427 }, { rule = "BLE001", file = "BLE.py", start = 470, end = 483 }, { rule = "BLE001", file = "BLE.py", start = 581, end = 590 }, { rule = "BLE001", file = "BLE.py", start = 624, end = 633 }, { rule = "BLE001", file = "BLE.py", start = 661, end = 674 }, { rule = "BLE001", file = "BLE.py", start = 723, end = 732 }, { rule = "BLE001", file = "BLE.py", start = 792, end = 801 }, { rule = "BLE001", file = "BLE.py", start = 877, end = 886 }, { rule = "BLE001", file = "BLE.py", start = 1158, end = 1167 }, { rule = "BLE001", file = "BLE.py", start = 1219, end = 1228 }, { rule = "BLE001", file = "BLE.py", start = 1296, end = 1305 }, { rule = "BLE001", file = "BLE.py", start = 1372, end = 1381 }, { rule = "BLE001", file = "BLE.py", start = 1436, end = 1445 }, { rule = "BLE001", file = "BLE.py", start = 1516, end = 1525 }, { rule = "BLE001", file = "BLE.py", start = 2101, end = 2110 }, { rule = "BLE001", file = "BLE.py", start = 2146, end = 2155 }, { rule = "BLE001", file = "BLE.py", start = 2214, end = 2223 }, { rule = "BLE001", file = "BLE.py", start = 2270, end = 2279 }, { rule = "BLE001", file = "BLE.py", start = 2323, end = 2336 }, { rule = "BLE001", file = "BLE.py", start = 2393, end = 2406 }, { rule = "BLE001", file = "BLE.py", start = 2441, end = 2450 }, { rule = "BLE001", file = "BLE.py", start = 2500, end = 2513 }, { rule = "BLE001", file = "BLE.py", start = 2581, end = 2590 }, { rule = "BLE001", file = "BLE.py", start = 2662, end = 2675 }]

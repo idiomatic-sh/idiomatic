@@ -23,6 +23,7 @@ pub fn expected() -> Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
         manifests: vec![projects::expected(), workspace::expected()],
+        semantic: Vec::new(),
         shape: Shape::Reference(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),

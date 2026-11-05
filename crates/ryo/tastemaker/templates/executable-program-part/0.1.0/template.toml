@@ -1,0 +1,17 @@
+description = "One explicitly named implementation part of the executable-program application owner."
+why = "A service may own cohesive nested context, admission, runtime, and publication parts. Exact file placement records their roles without opening arbitrary modules; the resolved dependency guard and Rust privacy still control who may call or construct execution authority."
+content = '''
+//! A declared part of the executable-program owner.
+'''
+
+[[scenarios]]
+id = "declared-part"
+scenario = "A declared implementation file is placed."
+given.file = "example.rs"
+given.files."example.rs" = "//! A declared part of the executable-program owner.\n"
+
+[[scenarios]]
+id = "missing-declared-part"
+scenario = "A required declared file cannot silently vanish."
+given.file = "example.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

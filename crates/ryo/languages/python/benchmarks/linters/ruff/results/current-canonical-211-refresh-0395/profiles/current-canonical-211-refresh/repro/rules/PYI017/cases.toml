@@ -1,0 +1,101 @@
+[[cases]]
+name = "attribute"
+comparison = "full"
+files = { "case.pyi" = "obj.value = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 0, "end" = 3 }, { "rule" = "PYI017", "file" = "case.pyi", "start" = 0, "end" = 13 }]
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.pyi" = "x, y = 1, 2\n" }
+expected = [{ "rule" = "PYI017", "file" = "case.pyi", "start" = 0, "end" = 11 }]
+
+[[cases]]
+name = "chained"
+comparison = "full"
+files = { "case.pyi" = "x = y = 1\n" }
+expected = [{ "rule" = "PYI017", "file" = "case.pyi", "start" = 0, "end" = 9 }]
+
+[[cases]]
+name = "simple"
+comparison = "full"
+files = { "case.pyi" = "x = 1\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+comparison = "full"
+files = { "case.pyi" = "obj.value: int = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    x = y = 1\n" }
+expected = [{ "rule" = "PYI017", "file" = "case.pyi", "start" = 13, "end" = 22 }]
+
+[[cases]]
+name = "ordinary-py"
+comparison = "full"
+files = { "case.py" = "obj.value = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "list"
+comparison = "full"
+files = { "case.pyi" = "[x, y] = 1, 2\n" }
+expected = [{ "rule" = "PYI017", "file" = "case.pyi", "start" = 0, "end" = 13 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.pyi" = "obj.value = 1 # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.pyi" = "obj.value = 1 # noqa: PYI017\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.pyi" = "obj.value = 1 # noqa: F401\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 0, "end" = 3 }, { "rule" = "PYI017", "file" = "case.pyi", "start" = 0, "end" = 13 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.pyi" = "# ruff: noqa\nobj.value = 1\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI017]\nobj.value = 1\n\n# ruff: enable[PYI017]\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 24, "end" = 27 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI017]\n# ruff: enable[PYI017]\nobj.value = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 47, "end" = 50 }, { "rule" = "PYI017", "file" = "case.pyi", "start" = 47, "end" = 60 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI017]\nobj.value = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 24, "end" = 27 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[E501]\nobj.value = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 22, "end" = 25 }, { "rule" = "PYI017", "file" = "case.pyi", "start" = 22, "end" = 35 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.pyi" = "# ruff: file-ignore[PYI017]\nobj.value = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 28, "end" = 31 }]

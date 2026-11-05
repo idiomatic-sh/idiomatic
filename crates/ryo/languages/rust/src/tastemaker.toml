@@ -1,0 +1,1 @@
+imports-allow = ["ra_ap_syntax::*", "ra_ap_parser::*", "toml::*", "globset::*", "std::fs::*", "rustc_literal_escaper::*", "cargo_platform::*", "serde::*", "postcard::*", "rayon::*", "std::sync::Mutex", "std::sync::PoisonError"]

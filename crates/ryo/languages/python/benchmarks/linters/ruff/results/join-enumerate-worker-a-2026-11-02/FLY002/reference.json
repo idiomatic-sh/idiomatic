@@ -1,0 +1,2004 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "coordinate_helper_sha256": "be4c5e2ee6ca8a28b207672c7fa291e45f39c6acbaa397cbff3f8dcfaf43d7b9",
+  "coordinate_helper": "ruff_location_to_byte",
+  "rows": [
+    {
+      "rule": "FLY002",
+      "name": "names",
+      "files": {
+        "case.py": "\" \".join([a, b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "cb0c44adcc9fe9f0fcd363259ee2000fc8273f1acb7b7b7e29a982a779e7d529",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 17,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{a} {b}\"",
+                "end_location": {
+                  "column": 17,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{a} {b}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{a} {b}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 16
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "strings",
+      "files": {
+        "case.py": "\" \".join([\"a\", \"b\"])\n"
+      },
+      "target": "py310",
+      "source_sha256": "24fbdd06a5e27bb8967b8539ad3fc91fc6d600ea304277f7809b1b508f085834",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 21,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "\"a b\"",
+                "end_location": {
+                  "column": 21,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `\"a b\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `\"a b\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 20
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "tuple",
+      "files": {
+        "case.py": "\",\".join((a, b))\n"
+      },
+      "target": "py310",
+      "source_sha256": "369048fdd96bb8c340f2a0e30ff4795572d823b8b050df0b850387a5d1b9ceec",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 17,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{a},{b}\"",
+                "end_location": {
+                  "column": 17,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{a},{b}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{a},{b}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 16
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "single",
+      "files": {
+        "case.py": "\" \".join([a])\n"
+      },
+      "target": "py310",
+      "source_sha256": "882d89c41569ce01279a0fceb098f6ed6fc6f33652a9d7b4095580db41866571",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 14,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{a}\"",
+                "end_location": {
+                  "column": 14,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{a}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{a}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "empty",
+      "files": {
+        "case.py": "\" \".join([])\n"
+      },
+      "target": "py310",
+      "source_sha256": "a7558816e50fb4542b1a5f814b3efb90e17b4533205efefbe66f7f728a2987a3",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "set",
+      "files": {
+        "case.py": "\" \".join({a, b})\n"
+      },
+      "target": "py310",
+      "source_sha256": "c08612fb83d2316ac221e0467ab354e2989d3f4c1975889419fa630fcfc07b10",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "generator",
+      "files": {
+        "case.py": "\" \".join(x for x in xs)\n"
+      },
+      "target": "py310",
+      "source_sha256": "96b434cec203ab67830beff1aeab61c2b78fed916c00512ada8423e55741d6ab",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "starred",
+      "files": {
+        "case.py": "\" \".join([*xs])\n"
+      },
+      "target": "py310",
+      "source_sha256": "a3ea94f44b36566f2a3b55525c0f4c4e5dea65e3f1bb13983bc41ea1b17d7c04",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "keyword",
+      "files": {
+        "case.py": "\" \".join(values=[a, b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "f7582b1b39a84f512fab7ca5cf6c1ff69cd355e8dd092b0623513f183b542e1a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "multiple-args",
+      "files": {
+        "case.py": "\" \".join([a], [b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "861a6465c893516f0dbab64f2415fcc318df67a249b91ed471908473b16eace6",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "bytes-receiver",
+      "files": {
+        "case.py": "b\" \".join([a, b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "508a69f231127bd1822c95e0a612a5015e1633be5e5434b741998bc265dd480b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "bytes-element",
+      "files": {
+        "case.py": "\" \".join([b\"a\", b\"b\"])\n"
+      },
+      "target": "py310",
+      "source_sha256": "2769f084b763ccac16e594e9b4342ce1d0da21829db3978d823851d5d48e80f5",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "fstring-element",
+      "files": {
+        "case.py": "\" \".join([f\"{a}\", b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "1eefe72df78032e2eb2fdb302ac8a6e826125d396dcc79dbd921c013d86c0ee2",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "numbers",
+      "files": {
+        "case.py": "\" \".join([1, 2.5, True])\n"
+      },
+      "target": "py310",
+      "source_sha256": "02ac5a677addae14d146dd03cf2666c58147638e5aa2f3510b1ca3e3ca63d45d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 25,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{1} {2.5} {True}\"",
+                "end_location": {
+                  "column": 25,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{1} {2.5} {True}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{1} {2.5} {True}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 24
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "none",
+      "files": {
+        "case.py": "\" \".join([None, a])\n"
+      },
+      "target": "py310",
+      "source_sha256": "4f85e0373f47446e4c59bdf1c1222c0405a12c1aa9c52e5acec51ef80ca48c8a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "binary",
+      "files": {
+        "case.py": "\" \".join([a + b, c])\n"
+      },
+      "target": "py310",
+      "source_sha256": "0b730547a91a7d44e41af756543b12e73038837a82bc4e594fb88fd321c1862c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "subscript",
+      "files": {
+        "case.py": "\" \".join([a[0], b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "4c0453e4c287c866ed6807869c3db521bb3b879ab0c1d6e091f924ccee7b9006",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "attribute",
+      "files": {
+        "case.py": "\" \".join([a.b, c])\n"
+      },
+      "target": "py310",
+      "source_sha256": "34ff8f3f8fddd7ef7d9cdf6127850ebd06592fcf2f3968dd7f9183018a790e70",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 19,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{a.b} {c}\"",
+                "end_location": {
+                  "column": 19,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{a.b} {c}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{a.b} {c}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "simple-call",
+      "files": {
+        "case.py": "\" \".join([get(), b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "ab5adda3ddece7b93bd9ace482b81aabcf968950f7aab2e3e76cde0aadc9a69f",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 21,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{get()} {b}\"",
+                "end_location": {
+                  "column": 21,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{get()} {b}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{get()} {b}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 20
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "attribute-call",
+      "files": {
+        "case.py": "\" \".join([get.a.b(), c])\n"
+      },
+      "target": "py310",
+      "source_sha256": "a3c4f0aca21a12897aee0cb6e5b1c02d54a82ad758bcc6797d21d17a5b365c2b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 25,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{get.a.b()} {c}\"",
+                "end_location": {
+                  "column": 25,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{get.a.b()} {c}\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `f\"{get.a.b()} {c}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 24
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "complex-call",
+      "files": {
+        "case.py": "\" \".join([get(1), b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "0f5cf059d9a6545ad5127a64329f00d6b6da4f0a64e251eb6dbc865e84ba516f",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "call-keyword",
+      "files": {
+        "case.py": "\" \".join([get(x=1), b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "17639f76e9cb85b7030c52101b84cccfcdc98fa4002229a5a1e0a3c33bf4aff0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "call-callee",
+      "files": {
+        "case.py": "\" \".join([get()(), b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "666343da3bd8a2de1bc34d590236f23b35f2a385c02bf0b5f7941f51be7ecc21",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "both-quotes-mixed",
+      "files": {
+        "case.py": "\" \".join([\"\\\"'\", value])\n"
+      },
+      "target": "py310",
+      "source_sha256": "af5ed6775764aa4945228db76f060b788b395f4d38ed358ab139f1781a9bd896",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "both-quotes-static",
+      "files": {
+        "case.py": "\" \".join([\"\\\"'\", \"tail\"])\n"
+      },
+      "target": "py310",
+      "source_sha256": "267c3445a7c6362061ff12052c09ba3b60c5aea1dbc82f382dc70691bf71ba58",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 26,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "\"\\\"' tail\"",
+                "end_location": {
+                  "column": 26,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `\"\\\"' tail\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `\"\\\"' tail\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "unicode",
+      "files": {
+        "case.py": "π = \" \".join([a, b])\n"
+      },
+      "target": "py310",
+      "source_sha256": "c92f9a273461e2e4a82265e425175d25db926e52246d3e1fb757289294a777df",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 21,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{a} {b}\"",
+                "end_location": {
+                  "column": 21,
+                  "row": 1
+                },
+                "location": {
+                  "column": 5,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `f\"{a} {b}\"`"
+          },
+          "location": {
+            "column": 5,
+            "row": 1
+          },
+          "message": "Consider `f\"{a} {b}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 5,
+          "end": 21
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "noqa",
+      "files": {
+        "case.py": "\" \".join([a, b])  # noqa: FLY002\n"
+      },
+      "target": "py310",
+      "source_sha256": "0ca0a8777996c79cd50190d881e42537441157a11b12f822db81c60ea4be194e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "tagged-flynt-FLY002.py",
+      "files": {
+        "case.py": "import secrets\nfrom random import random, choice\n\na = \"Hello\"\nok1 = \" \".join([a, \" World\"])  # OK\nok2 = \"\".join([\"Finally, \", a, \" World\"])  # OK\nok3 = \"x\".join((\"1\", \"2\", \"3\"))  # OK\nok4 = \"y\".join([1, 2, 3])  # Technically OK, though would've been an error originally\nok5 = \"a\".join([random(), random()])  # OK (simple calls)\nok6 = \"a\".join([secrets.token_urlsafe(), secrets.token_hex()])  # OK (attr calls)\n\nnok1 = \"x\".join({\"4\", \"5\", \"yee\"})  # Not OK (set)\nnok2 = a.join([\"1\", \"2\", \"3\"])  # Not OK (not a static joiner)\nnok3 = \"a\".join(a)  # Not OK (not a static joinee)\nnok4 = \"a\".join([a, a, *a])  # Not OK (not a static length)\nnok5 = \"a\".join([choice(\"flarp\")])  # Not OK (not a simple call)\nnok6 = \"a\".join(x for x in \"feefoofum\")  # Not OK (generator)\nnok7 = \"a\".join([f\"foo{8}\", \"bar\"])  # Not OK (contains an f-string)\n# https://github.com/astral-sh/ruff/issues/19887\nnok8 = '\\n'.join([r'line1','line2'])\nnok9 = '\\n'.join([r\"raw string\", '<\"\"\">', \"<'''>\"])  # Not OK (both triple-quote delimiters appear; should bail)\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7197\ndef create_file_public_url(url, filename):\n    return''.join([url, filename])\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/19837\nnok10 = \"\".join((foo, '\"'))\nnok11 = ''.join((foo, \"'\"))\nnok12 = ''.join([foo, \"'\", '\"'])\nnok13 = \"\".join([foo, \"'\", '\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "ec450a8845df676194f9c865ff7e36cca59696129198ceb36a6fd10712010d45",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 30,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{a}  World\"",
+                "end_location": {
+                  "column": 30,
+                  "row": 5
+                },
+                "location": {
+                  "column": 7,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Replace with `f\"{a}  World\"`"
+          },
+          "location": {
+            "column": 7,
+            "row": 5
+          },
+          "message": "Consider `f\"{a}  World\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 42,
+            "row": 6
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"Finally, {a} World\"",
+                "end_location": {
+                  "column": 42,
+                  "row": 6
+                },
+                "location": {
+                  "column": 7,
+                  "row": 6
+                }
+              }
+            ],
+            "message": "Replace with `f\"Finally, {a} World\"`"
+          },
+          "location": {
+            "column": 7,
+            "row": 6
+          },
+          "message": "Consider `f\"Finally, {a} World\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 6,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 32,
+            "row": 7
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "\"1x2x3\"",
+                "end_location": {
+                  "column": 32,
+                  "row": 7
+                },
+                "location": {
+                  "column": 7,
+                  "row": 7
+                }
+              }
+            ],
+            "message": "Replace with `\"1x2x3\"`"
+          },
+          "location": {
+            "column": 7,
+            "row": 7
+          },
+          "message": "Consider `\"1x2x3\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 7,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 26,
+            "row": 8
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{1}y{2}y{3}\"",
+                "end_location": {
+                  "column": 26,
+                  "row": 8
+                },
+                "location": {
+                  "column": 7,
+                  "row": 8
+                }
+              }
+            ],
+            "message": "Replace with `f\"{1}y{2}y{3}\"`"
+          },
+          "location": {
+            "column": 7,
+            "row": 8
+          },
+          "message": "Consider `f\"{1}y{2}y{3}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 8,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 37,
+            "row": 9
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{random()}a{random()}\"",
+                "end_location": {
+                  "column": 37,
+                  "row": 9
+                },
+                "location": {
+                  "column": 7,
+                  "row": 9
+                }
+              }
+            ],
+            "message": "Replace with `f\"{random()}a{random()}\"`"
+          },
+          "location": {
+            "column": 7,
+            "row": 9
+          },
+          "message": "Consider `f\"{random()}a{random()}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 9,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 63,
+            "row": 10
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{secrets.token_urlsafe()}a{secrets.token_hex()}\"",
+                "end_location": {
+                  "column": 63,
+                  "row": 10
+                },
+                "location": {
+                  "column": 7,
+                  "row": 10
+                }
+              }
+            ],
+            "message": "Replace with `f\"{secrets.token_urlsafe()}a{secrets.token_hex()}\"`"
+          },
+          "location": {
+            "column": 7,
+            "row": 10
+          },
+          "message": "Consider `f\"{secrets.token_urlsafe()}a{secrets.token_hex()}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 10,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 37,
+            "row": 20
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "r'''line1\nline2'''",
+                "end_location": {
+                  "column": 37,
+                  "row": 20
+                },
+                "location": {
+                  "column": 8,
+                  "row": 20
+                }
+              }
+            ],
+            "message": "Replace with f-string"
+          },
+          "location": {
+            "column": 8,
+            "row": 20
+          },
+          "message": "Consider f-string instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 20,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 35,
+            "row": 25
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": " f\"{url}{filename}\"",
+                "end_location": {
+                  "column": 35,
+                  "row": 25
+                },
+                "location": {
+                  "column": 11,
+                  "row": 25
+                }
+              }
+            ],
+            "message": "Replace with `f\"{url}{filename}\"`"
+          },
+          "location": {
+            "column": 11,
+            "row": 25
+          },
+          "message": "Consider `f\"{url}{filename}\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 25,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 28,
+            "row": 28
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f'{foo}\"'",
+                "end_location": {
+                  "column": 28,
+                  "row": 28
+                },
+                "location": {
+                  "column": 9,
+                  "row": 28
+                }
+              }
+            ],
+            "message": "Replace with `f'{foo}\"'`"
+          },
+          "location": {
+            "column": 9,
+            "row": 28
+          },
+          "message": "Consider `f'{foo}\"'` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 28,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        },
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 28,
+            "row": 29
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "f\"{foo}'\"",
+                "end_location": {
+                  "column": 28,
+                  "row": 29
+                },
+                "location": {
+                  "column": 9,
+                  "row": 29
+                }
+              }
+            ],
+            "message": "Replace with `f\"{foo}'\"`"
+          },
+          "location": {
+            "column": 9,
+            "row": 29
+          },
+          "message": "Consider `f\"{foo}'\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 29,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 68,
+          "end": 91
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 104,
+          "end": 139
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 152,
+          "end": 177
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 190,
+          "end": 209
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 276,
+          "end": 306
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 334,
+          "end": 390
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 888,
+          "end": 917
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 1154,
+          "end": 1178
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 1258,
+          "end": 1277
+        },
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 1286,
+          "end": 1305
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-split-single-two",
+      "files": {
+        "case.py": "''.join([r\"\"\"start\n\"\"\", \"''\", \"'\", '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "422f84d48be118f0019d234f5a5a1f846628b012ae96f2a4c528dd9c2168d4e8",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-split-single-three-empty",
+      "files": {
+        "case.py": "''.join([r\"\"\"start\n\"\"\", \"'\", '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', \"'\", '', \"'\", '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "8c96c2ce8227470edb1b08123409e39f091882a00c5694da5b3413edf315f152",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-split-double-two",
+      "files": {
+        "case.py": "''.join([r\"\"\"start\n\"\"\", '\"\"', '\"', \"''' \"])\n"
+      },
+      "target": "py310",
+      "source_sha256": "908b7335427f0a6b3c03f9140aec4dc263aa47baaac11e531c454a808e84f96d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-one-quote-separator-three",
+      "files": {
+        "case.py": "\"'\".join([r\"\"\"start\n\"\"\", '', '', '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "51822c5ec450c37305233ca4a308ccc2813a12d4e4c2f3dbfab79a821ff37448",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-one-quote-separator-two",
+      "files": {
+        "case.py": "\"'\".join([r\"\"\"start\n\"\"\", '', '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "c4634026985b3f226830fc05f6e64c6496c6f915979cfec360959ffb873f0b90",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "r'''start\n''\"\"\"'''",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with f-string"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider f-string instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 36
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-two-quote-separator-empty",
+      "files": {
+        "case.py": "'\"\"'.join([r\"\"\"start\n\"\"\", '', \"'''\"])\n"
+      },
+      "target": "py310",
+      "source_sha256": "a6e70c6288b6f059d9c070050f97350588c2ef15211ba90ae798a6b9712d3962",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-separated-quoted-middle",
+      "files": {
+        "case.py": "\"'a'\".join([r\"\"\"start\n\"\"\", \"'\", '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "a496176fabd4f436505fb523611c0a6cc4d2489e869f1149696f6f3ebf30d66e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-separated-empty-middle",
+      "files": {
+        "case.py": "\"'a'\".join([r\"\"\"start\n\"\"\", '', '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "5f9977ac6fe25c8e07ae4d029024eb2e3a62dfdee2faad9e0eb8e735ba69e801",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "r'''start\n'a''a'\"\"\"'''",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with f-string"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider f-string instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-asymmetric-separator-empty",
+      "files": {
+        "case.py": "\"''a'\".join([r\"\"\"start\n\"\"\", '', '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "f252194276188698bd3bdfab0b2adfc2cad9d5d9b992fc79f0e81ef053127e54",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "FLY002",
+      "name": "raw-literal-no-newline",
+      "files": {
+        "case.py": "''.join([r\"start\", \"'''\", '\"\"\"'])\n"
+      },
+      "target": "py310",
+      "source_sha256": "ef919fd9e4708abfc8040a3b28e46d2b1ed98322bdcf6692fcb54f5b8973dfd1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "FLY002",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "FLY002",
+          "end_location": {
+            "column": 34,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "r\"start'''\"\"\"\"",
+                "end_location": {
+                  "column": 34,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Replace with `r\"start'''\"\"\"\"`"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Consider `r\"start'''\"\"\"\"` instead of string join",
+          "name": "static-join-to-f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/static-join-to-f-string"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "FLY002",
+          "file": "case.py",
+          "start": 0,
+          "end": 33
+        }
+      ]
+    }
+  ]
+}

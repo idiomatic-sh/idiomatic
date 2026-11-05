@@ -1,0 +1,188 @@
+[[cases]]
+name = "all"
+files = { "case.pyi" = "__all__: list[str]\n" }
+expected = [{ file = "case.pyi", start = 0, end = 18 }]
+
+[[cases]]
+name = "slots"
+files = { "case.pyi" = "class C:\n    __slots__: tuple[str]\n" }
+expected = [{ file = "case.pyi", start = 13, end = 34 }]
+
+[[cases]]
+name = "match"
+files = { "case.pyi" = "class C:\n    __match_args__: tuple[str]\n" }
+expected = [{ file = "case.pyi", start = 13, end = 39 }]
+
+[[cases]]
+name = "assigned"
+files = { "case.pyi" = "__all__: list[str] = []\n" }
+expected = []
+
+[[cases]]
+name = "slots-inside-async-method-is-not-class-attribute"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    async def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "slots-inside-sync-method-control"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "python"
+files = { "case.py" = "__all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "module-slots"
+files = { "case.pyi" = "__slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "class-all"
+files = { "case.pyi" = "class C:\n    __all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-all"
+files = { "case.pyi" = "def f():\n    __all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "class-conditional"
+files = { "case.pyi" = "class C:\n    if True:\n        __slots__: tuple[str]\n" }
+expected = [{ file = "case.pyi", start = 30, end = 51 }]
+
+[[cases]]
+name = "attribute"
+files = { "case.pyi" = "obj.__all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.pyi" = "__all__: list[str] # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.pyi" = "__all__: list[str] # noqa: PYI035\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.pyi" = "__all__: list[str] # noqa: F401\n" }
+expected = [{ file = "case.pyi", start = 0, end = 18 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.pyi" = "# ruff: noqa\n__all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.pyi" = "# ruff: disable[PYI035]\n__all__: list[str]\n\n# ruff: enable[PYI035]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.pyi" = "# ruff: disable[PYI035]\n# ruff: enable[PYI035]\n__all__: list[str]\n" }
+expected = [{ file = "case.pyi", start = 47, end = 65 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.pyi" = "# ruff: disable[PYI035]\n__all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.pyi" = "# ruff: disable[E501]\n__all__: list[str]\n" }
+expected = [{ file = "case.pyi", start = 22, end = 40 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.pyi" = "# ruff: file-ignore[PYI035]\n__all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "nfkc-all-target"
+files = { "case.pyi" = "__\uff41\uff4c\uff4c__: list[str]\n" }
+expected = [{ file = "case.pyi", start = 0, end = 24 }]
+
+[[cases]]
+name = "nfkc-assigned-all"
+files = { "case.pyi" = "__\uff41\uff4c\uff4c__: list[str] = []\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-0-py-False"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-1-py-False"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        __match_args__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-2-py-False"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        __all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-0-py-True"
+comparison = "full"
+files = { "case.py" = "class C:\n    async def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-1-py-True"
+comparison = "full"
+files = { "case.py" = "class C:\n    async def f(self):\n        __match_args__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-2-py-True"
+comparison = "full"
+files = { "case.py" = "class C:\n    async def f(self):\n        __all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-0-pyi-False"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-1-pyi-False"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def f(self):\n        __match_args__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-2-pyi-False"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def f(self):\n        __all__: list[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-0-pyi-True"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    async def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-1-pyi-True"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    async def f(self):\n        __match_args__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-special-2-pyi-True"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    async def f(self):\n        __all__: list[str]\n" }
+expected = []

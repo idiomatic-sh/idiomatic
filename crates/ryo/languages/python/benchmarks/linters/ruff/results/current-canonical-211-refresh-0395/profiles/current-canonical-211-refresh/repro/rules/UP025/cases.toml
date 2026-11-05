@@ -1,0 +1,137 @@
+[[cases]]
+name = "lowercase"
+comparison = "full"
+files = { "case.py" = "value = u\"hello\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 8, "end" = 16 }]
+
+[[cases]]
+name = "uppercase"
+comparison = "full"
+files = { "case.py" = "value = U\"hello\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 8, "end" = 16 }]
+
+[[cases]]
+name = "ordinary"
+comparison = "full"
+files = { "case.py" = "value = \"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "bytes"
+comparison = "full"
+files = { "case.py" = "value = b\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "raw"
+comparison = "full"
+files = { "case.py" = "value = r\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "concatenated"
+comparison = "full"
+files = { "case.py" = "value = u\"one\" \"two\" u\"three\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 8, "end" = 14 }, { "rule" = "UP025", "file" = "case.py", "start" = 21, "end" = 29 }]
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "value = u\"\"\"one\ntwo\"\"\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 8, "end" = 22 }]
+
+[[cases]]
+name = "multiline-noqa"
+comparison = "full"
+files = { "case.py" = "value = u\"\"\"one\ntwo\"\"\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "value = u\"hello\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "value = u\"hello\" # noqa: UP025\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "value = u\"hello\" # noqa: F401\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 8, "end" = 16 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nvalue = u\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[UP025]\nvalue = u\"hello\"\n\n# ruff: enable[UP025]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[UP025]\n# ruff: enable[UP025]\nvalue = u\"hello\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 53, "end" = 61 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[UP025]\nvalue = u\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = u\"hello\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 30, "end" = 38 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[UP025]\nvalue = u\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "quoted-annotation-string-prefix"
+comparison = "full"
+files = { "case.py" = "x: \"list[u'foo']\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 11, "end" = 14 }, { "rule" = "UP025", "file" = "case.py", "start" = 9, "end" = 15 }]
+
+[[cases]]
+name = "raw-u"
+comparison = "full"
+files = { "case.py" = "value = ur\"hello\"\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 10, "end" = 17 }]
+
+[[cases]]
+name = "raw-ru"
+comparison = "full"
+files = { "case.py" = "value = ru\"hello\"\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 10, "end" = 17 }]
+
+[[cases]]
+name = "uppercase-raw"
+comparison = "full"
+files = { "case.py" = "value = UR\"hello\"\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 10, "end" = 17 }]
+
+[[cases]]
+name = "bytes-with-u"
+comparison = "full"
+files = { "case.py" = "value = bu\"hello\"\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 10, "end" = 17 }]
+
+[[cases]]
+name = "string-concatenation"
+comparison = "full"
+files = { "case.py" = "value = u\"a\" + u\"b\"\n" }
+expected = [{ "rule" = "UP025", "file" = "case.py", "start" = 8, "end" = 12 }, { "rule" = "UP025", "file" = "case.py", "start" = 15, "end" = 19 }]

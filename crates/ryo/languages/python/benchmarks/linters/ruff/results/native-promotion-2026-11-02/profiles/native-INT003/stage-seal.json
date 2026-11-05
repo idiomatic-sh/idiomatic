@@ -1,0 +1,356 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "f117fdd0b619669a2c0c3edd8f7d280ecc79aca23fe60137d4c57aca1a22441f",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/annotation-origins.ryoql": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "fragments/boolean-test-context.ryoql": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/checker-namespace-events.ryoql": "7a268dd1ef24bd6589889cd46c15b35ae2b2f90f31fa678452b08cd01fc10ce3",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/class-bases.ryoql": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424",
+    "fragments/conditional-guards.ryoql": "fd83fa7007ae3ee3c1bb069e18064b06e95eac0c011ede7828c543f5ed7e6ebe",
+    "fragments/dataclass-decorators.ryoql": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+    "fragments/deferred-class-origins.ryoql": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c",
+    "fragments/deferred-read-events.ryoql": "c14a2ae37ebe042492956e83931cd13ab742b6bbcba1d0b1e67b752cbe382f24",
+    "fragments/deferred-read-resolutions.ryoql": "3c29d708f1763cebaa4e17b3803af2bc4eec614514978820abd2773fc561e9ca",
+    "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+    "fragments/eager-before-future.ryoql": "c6aeb8a561e1957e2341000601156edb529cfcb00491a28fb9c405ea9085aec1",
+    "fragments/enum-bases.ryoql": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/immutable-annotation.ryoql": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+    "fragments/immutable-annotations.ryoql": "acc17b77923b62bd9e5e4ae1df308b73a8a08179a880895e73f6ea2148934a5c",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/literal-members.ryoql": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237",
+    "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+    "fragments/lookup-read-events.ryoql": "7e2c8011f7c7810db6033a8bf74c9650c20b342aa4399ae33060bfc233c48412",
+    "fragments/lookup-symbol-events.ryoql": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "fragments/metaclass.ryoql": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a",
+    "fragments/modernization-symbols.ryoql": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "fragments/nonlocal-bindings.ryoql": "b9daa7c34cd274c2018dc621f4d141eab6548fb8dadde25ab053d5132041a609",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/python-evaluation-regions.ryoql": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "fragments/qualified-origins.ryoql": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5",
+    "fragments/repeated-characters.ryoql": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
+    "fragments/simple-stub-defaults.ryoql": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
+    "fragments/statement-equal.ryoql": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-unmapped.ryoql": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "fragments/typing-match-at-visit.ryoql": "385018e3c0553ab31e8bd3a82332afb30b078073b1fc9c6983ed9c993d3ab2aa",
+    "fragments/union-members.ryoql": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6",
+    "fragments/unpack-symbols.ryoql": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
+    "fragments/version-checks.ryoql": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771",
+    "fragments/without-effect.ryoql": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7",
+    "rules/INT003/cases.toml": "f699eb8898043877667c363ec6061e7aa19a291ca31fe15535ab6b45b119528e",
+    "rules/INT003/query.ryoql": "eab1a7a92ca4a9e6b77ac17b5a00add41e17dfa050aeaf31da4f912f85a7f07d"
+  },
+  "declared": {
+    "profile_name": "native-INT003",
+    "rule_id": "INT003",
+    "selected_rules": [
+      "INT003"
+    ],
+    "profile_file": "benchmark.toml",
+    "candidate_file": "rules/INT003/query.ryoql",
+    "query_sha256": "eab1a7a92ca4a9e6b77ac17b5a00add41e17dfa050aeaf31da4f912f85a7f07d",
+    "cases_file": "rules/INT003/cases.toml",
+    "cases_sha256": "f699eb8898043877667c363ec6061e7aa19a291ca31fe15535ab6b45b119528e",
+    "case_count": 15,
+    "case_names": [
+      "underscore",
+      "gettext",
+      "ngettext-first",
+      "plural-default-excluded",
+      "unrelated",
+      "keyword",
+      "second",
+      "direct-shadow",
+      "import-alias",
+      "module-alias",
+      "local-attribute",
+      "builtins",
+      "plain",
+      "noqa",
+      "nested"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "INT003"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "INT003": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "INT003",
+      "name": "builtins",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "bdb43ebe58310b7700431657c223a49181eb0e7056a4980d58da43dc7c7a3e84",
+      "source_sha256": "5e680412a48ec862df21119b78cefd034ea8fab665db45a9960e37bb53305fe5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 27,
+          "end": 44
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "direct-shadow",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c0aa01e9b223399eba995aebc31b053b6589386d0f2872b3562cbcbaa50e1642",
+      "source_sha256": "bc7de57b517009416cb4e2d9ac8ce1ea419a8e27dd2b07bf865abc30472ee7f8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 16,
+          "end": 33
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "gettext",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ab83440f5e9eefcbc8c7c96ad99862ca187398e40fe92a3604022776800a6f30",
+      "source_sha256": "082b2ba7b3d84ce9c839a59d2acd33cf89af6415310185c13159abf82a26af20",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 8,
+          "end": 25
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "import-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "83e1d92b7948b3103fe22c6fbaff708fe8f073a829c848cd79c960c168286d3a",
+      "source_sha256": "c0a3c7ae7b4e85b96e39bc4da69a2839a3c71e9094a0f60186af7df7699451e2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 51,
+          "end": 68
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4162dca7a4a259a60024eabceca11b7a4322de1c13dc697dd1942175c1d795ec",
+      "source_sha256": "c9fbe3010a26d59590880f438178b22b9ed4ab526907213ffca1b2c3f136b829",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "local-attribute",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "96b34796d0da19249ef95d8381c85d924e5192d496dc15f2bbdca3af425c4ee8",
+      "source_sha256": "cf76938adcce190cb731be2905db847b226e8d7902370385ff909080f289167f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "module-alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "982e3f5483413617f983cfb8b9aae898aec2fadd82d1c7faa6a8180671a18a9a",
+      "source_sha256": "ff8d1dc4be87a0661c41ac9deea6574020f5efd809ffc4ef6288588ed0009016",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 32,
+          "end": 49
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "nested",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "cae82979cce20db546ff293d5c7401f42d85c4b0b04d18243c1636cafba8176e",
+      "source_sha256": "51ae241820f3a70ebc49ea92192d277d402628a8248e45043608ca43d176f283",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "ngettext-first",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0f84288d58a6928bc09ba5202bc97783febf2fb203cc257c33518318df91e622",
+      "source_sha256": "0dfccf81f7789947872032d9f5eaedd6d1eedbb26dbc740c619e0251d0595a46",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 9,
+          "end": 26
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "df86b92f57c2f7d690083014d155d14f11f0e46432569bebf7c6089c0f878f07",
+      "source_sha256": "60f7f56c4da63a4db7753c355b0775dbec6c725b67aa4693d039173c79e6c66f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "plain",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e1c5ed1dcf50c4283b5e9e9201ce339cff9e51bff46a9f2a368103a040007320",
+      "source_sha256": "49141bbc0ea222b86190a18c9266c229ab58a5342178dc1c2cf6db745dcfd041",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "plural-default-excluded",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "96f4b51c0732864d5b43d313909fa57fb617620f7303d29d70dcc72adf2dd25b",
+      "source_sha256": "0f4fa541161187ce72b2f60c62f935f6cb78f6121cedb2d624e2e9f23dbe0fbe",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "second",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c46e70cb966baf84c05f5896825968bac7560d9b24acf52a9fc53e240146624d",
+      "source_sha256": "5df415d0fc0fb85c86ebdfa8b28b0177b68f28c46ff4c8e545a3b9b2c7d0b19d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "underscore",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2dceb38c41a3cb61a61a11b08c0367c6c6452a1984018b31464735806e497b51",
+      "source_sha256": "46a67ab515329fa47df3a743d37a2f62c95203157a1bd1e822b8762bd96e01c0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "INT003",
+          "file": "case.py",
+          "start": 2,
+          "end": 19
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "INT003",
+      "name": "unrelated",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5ca111f81344f345a763664795176033247f5be6324b93f95ec9781637ce2369",
+      "source_sha256": "63eb37ccc4e413e45f3dce87903cccda1bc204e715b857aefc4302bc82b57368",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    }
+  ]
+}

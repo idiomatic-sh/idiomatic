@@ -1,0 +1,22 @@
+{
+  "audit_sha256": "1cf1d4d9d92bc3d87d40bd126c00fd45c86a307e5138afb3c073e68aab2a8f12",
+  "compiled_worker_build_receipt_sha256": "cca780a53fdc6a1fcbb23f90aec5671bd0f5c930bc29c0a28e08d7642c794fc0",
+  "compiled_worker_sha256": "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05",
+  "compiled_worker_source_commit": "55ec0afc673df13fd84017640e7a7c7a8f5a007e",
+  "counts": {
+    "case_count": 198,
+    "contract_only": 0,
+    "documented_discrepancies": 16,
+    "raw_exact": 182
+  },
+  "fixed_counterparts_sha256": "0beae6e62a2fd20d34ff2d217b31ffe3fd99dc5c8753c12c3eb2896479241849",
+  "pinned_reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "profile_sha256": "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0",
+  "query_sha256": "664c9985e69a793dbfdfe3b929c11f982c689124569629dbd852a282344890cc",
+  "raw_receipt_sha256": "e83c2106a8fb0baa8d484cf81978ce357d3b927014bcd4daa11e98a5814cbaf7",
+  "registration_sha256": "425a57ab8487cb90fdd9f39dee7197a38918e0ab5f10f0134ec0de7acb2e5f3e",
+  "source_cases_sha256": "15f62540eadd0b0197d69864480184649d3ddd509298a3ad096c675aad58ad8a",
+  "staged_cases_sha256": "8570c215eca98339903de9741592b4500035108142db0c593ef6531a2d370a7a",
+  "staged_query_sha256": "664c9985e69a793dbfdfe3b929c11f982c689124569629dbd852a282344890cc",
+  "union_identity_sha256": "fda46bcbda610d954bc908cd32a3f55afd5c1809cdee8dead80d1694c1ef5473"
+}

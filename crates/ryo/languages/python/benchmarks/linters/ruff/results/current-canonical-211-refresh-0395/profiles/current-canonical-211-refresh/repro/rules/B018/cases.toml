@@ -1,0 +1,107 @@
+[[cases]]
+name = "useless_number"
+comparison = "full"
+files = { "case.py" = "def f():\n    42\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 13, "end" = 15 }]
+
+[[cases]]
+name = "useless_attribute"
+comparison = "full"
+files = { "case.py" = "def f(obj):\n    obj.value\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 25 }]
+
+[[cases]]
+name = "effectful_call"
+comparison = "full"
+files = { "case.py" = "def f():\n    work()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "comparison_is_handled_separately"
+comparison = "full"
+files = { "case.py" = "def f(left, right):\n    left == right\n" }
+expected = [{ "rule" = "B015", "file" = "case.py", "start" = 24, "end" = 37 }]
+
+[[cases]]
+name = "nested-literal-in-container-is-not-an-expression-statement"
+comparison = "full"
+files = { "case.py" = "def f():\n    values = [1]\n    return values\n" }
+expected = []
+
+[[cases]]
+name = "literal-in-control-flow-condition-is-not-an-expression-statement"
+comparison = "full"
+files = { "case.py" = "def f():\n    if [1]:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "direct-name-expression-remains-reportable"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    value\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 18, "end" = 23 }]
+
+[[cases]]
+name = "async-context-literal-is-not-a-direct-expression-statement"
+comparison = "full"
+files = { "case.py" = "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        async with other():\n            work()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 84, "end" = 89 }, { "rule" = "F821", "file" = "case.py", "start" = 105, "end" = 109 }]
+
+[[cases]]
+name = "safe-literal-binop-is-unused"
+comparison = "full"
+files = { "case.py" = "def f():\n    1 + 2\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 13, "end" = 18 }]
+
+[[cases]]
+name = "name-binop-may-have-overloaded-effects"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    value + 2\n" }
+expected = []
+
+[[cases]]
+name = "effectful-descendant-in-container-is-not-unused"
+comparison = "full"
+files = { "case.py" = "def f():\n    [work()]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 18 }]
+
+[[cases]]
+name = "empty-builtin-iterable-constructor-is-unused"
+comparison = "full"
+files = { "case.py" = "def f():\n    list()\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 13, "end" = 19 }, { "rule" = "C408", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "shadowed-empty-constructor-may-have-effects"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    list()\n" }
+expected = []
+
+[[cases]]
+name = "lambda-parameter-does-not-shadow-builtin-in-current-scope"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda list: list())\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 37 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 1 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 11 }, { "rule" = "SIM220", "file" = "case.py", "start" = 0, "end" = 37 }]
+
+[[cases]]
+name = "module-annotation-does-not-shadow-builtin-in-current-scope"
+comparison = "full"
+files = { "case.py" = "list: object\nx and not x and (lambda list: list())\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 13, "end" = 50 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 24 }, { "rule" = "SIM220", "file" = "case.py", "start" = 13, "end" = 50 }]
+
+[[cases]]
+name = "outer-binding-before-expression-shadows-builtin-in-lambda-body"
+comparison = "full"
+files = { "case.py" = "list = custom\nx and not x and (lambda list: list())\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 24, "end" = 25 }]
+
+[[cases]]
+name = "function-binding-after-expression-does-not-shadow-at-check-site"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\n    list = custom\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 13, "end" = 50 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 62, "end" = 68 }, { "rule" = "F841", "file" = "case.py", "start" = 55, "end" = 59 }, { "rule" = "SIM220", "file" = "case.py", "start" = 13, "end" = 50 }]
+
+[[cases]]
+name = "module-binding-before-deferred-function-check-shadows-builtin"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\nlist = custom\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 58, "end" = 64 }]

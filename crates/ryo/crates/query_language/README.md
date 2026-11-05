@@ -36,9 +36,17 @@ The `query_language` domain's `inlining` concept: the views of a relation read i
 
 The `query_language` domain's `joining` concept: the join a `select` writes, and the columns of either side its `where` names.
 
+### linking
+
+Resolves fragment imports, input bindings and source identities before lowering.
+
 ### lowering
 
 The `query_language` domain's `lowering` concept: the values, names and failures the concepts that lower a program share while a plan is built.
+
+### observation_inputs
+
+Validates bound input names and columns against the admitted catalog and hosted sources.
 
 ### planning
 
@@ -67,6 +75,10 @@ The `query_language` domain's `rewriting` concept: the idiom of a plan that says
 ### selecting
 
 The `query_language` domain's `selecting` concept: a `select` lowered to the join, the filter and the projection the query wrote.
+
+### substituting
+
+The `query_language` domain's `substituting` concept: validating and lowering literal regular-expression replacement and ordered request/reply matching, including their keys, ordering and output columns.
 
 ### syntax
 

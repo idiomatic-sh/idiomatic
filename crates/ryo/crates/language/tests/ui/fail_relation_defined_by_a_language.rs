@@ -1,7 +1,7 @@
 //! relation_defined_by_a_language: the compiler rejects this.
 
-use ryo_language::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_language::domain::relations::types::{Class, CellKind, Relation};
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::types::{Class, CellKind, Relation};
 
 /// A language that defines a relation of its own, past the catalog.
 struct Mine;

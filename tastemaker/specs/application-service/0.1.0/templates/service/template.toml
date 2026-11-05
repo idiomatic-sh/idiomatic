@@ -1,9 +1,10 @@
-description = "A concrete application service; fill in its injected outbound contracts and domain operation."
-why = "The operation needs no interface or factory of its own. Ports are supplied at construction; domain functions are called directly. Use cases own the workflow and final publication."
+description = "A concrete cohesive application operation; fill in its injected contracts and explicitly owned state."
+why = "The operation owns its related structures and states invocation, worker or session lifetimes explicitly. It need not be shared or reusable. Ports are supplied at construction; domain functions are called directly. Use cases may call application, domain and outbound directly and own workflow/publication."
 content = '''
 //! The `{{ part }}` application operation.
 {% if scaffold | default(false) %}
-// Add the concrete service with its injected outbound ports and cohesive operation.
+// Add the cohesive operation, its injected outbound contracts and related structures.
+// State which state is invocation-local, worker-owned or retained for a bounded session.
 // Do not construct adapters, call sibling services, or publish a completed pipeline here.
 {% endif %}
 '''

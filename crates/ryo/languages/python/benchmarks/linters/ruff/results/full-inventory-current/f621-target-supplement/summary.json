@@ -1,0 +1,44 @@
+{
+  "schema": "benchmark-inventory/v1",
+  "provider": "ruff",
+  "run_state": "complete",
+  "identity": {
+    "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "counts": {
+    "PASS": 1,
+    "FAIL": 0
+  },
+  "rules": [
+    {
+      "rule_id": "F621",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "query_file": "rules/F621/query.ryoql",
+        "query_sha256": "f3d2428369813576a3c24b3c5ab7b651f2a136d144350507aa94a10b0265aa49",
+        "cases_file": "rules/F621/cases.toml",
+        "cases_sha256": "b503db7f191df53de434660ab897295344e5252d9330bdb4a19010c8b5cb29a7",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F621/benchmark.toml",
+        "settings_source_sha256": "3cc9ad33cc66f04f2bc909a28ac2dd2760f64516bfb23e4e15473de4edc16cca",
+        "profile_sha256": "3cc9ad33cc66f04f2bc909a28ac2dd2760f64516bfb23e4e15473de4edc16cca",
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "effective_settings": {
+          "parser_configuration": "python-target=3.10"
+        },
+        "parser_configuration": "python-target=3.10",
+        "case_count": 24
+      },
+      "case_results_sha256": "57df2d77150797a80626218e56437da0a6dce4ba43c829f7cdddd7ab3f44a99b",
+      "case_count": 24,
+      "raw_exact": 11,
+      "documented_discrepancies": 12,
+      "contract_only": 1
+    }
+  ],
+  "receipt_origin": "Derived offline from preserved actual direct verify-cases output, not a collector execution or combined inventory replay."
+}

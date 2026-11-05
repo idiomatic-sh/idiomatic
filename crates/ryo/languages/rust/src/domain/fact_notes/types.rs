@@ -30,7 +30,7 @@ pub(crate) struct NoteOffset(pub u32);
 
 /// The notes of a file: what it says of its modules.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - the notes of a file as the notes port holds them, borrowed from the encoded bytes; its look-alike is the module tree's owned `Facts`, which the notes are converted to once
+// the notes of a file as the notes port holds them, borrowed from the encoded bytes; its look-alike is the module tree's owned `Facts`, which the notes are converted to once
 pub(crate) struct Note<'a> {
     /// Whether the file parses without errors.
     pub clean: NoteFlag,
@@ -64,7 +64,7 @@ pub(crate) struct DeclaredNote<'a> {
 
 /// A path a file writes.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - a written path as the notes port holds it, borrowed from the encoded bytes; its look-alike is the module tree's owned `Written`, which it is converted to once
+// a written path as the notes port holds it, borrowed from the encoded bytes; its look-alike is the module tree's owned `Written`, which it is converted to once
 pub(crate) struct WrittenNote<'a> {
     /// The segments.
     pub segments: Vec<NoteName<'a>>,

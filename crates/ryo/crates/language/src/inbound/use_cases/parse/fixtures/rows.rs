@@ -3,22 +3,23 @@
 use super::super::service::read;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition};
+use super::configuration::Selection;
 use super::contract::Collect;
 use super::expected::{Cell, Point};
 use super::findings::Findings;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::constants::NO_FILE;
-use crate::domain::relations::service::from_bits;
-use crate::domain::relations::service::{all, kinds, node_position};
-use crate::domain::relations::types::{Bits, FileId, Flag, Name, Origin, Relation, Value};
+use ryo_relations::domain::relations::constants::NO_FILE;
+use ryo_relations::domain::relations::service::from_bits;
+use ryo_relations::domain::relations::service::{all, kinds, node_position};
+use ryo_relations::domain::relations::types::{Bits, FileId, Flag, Name, Origin, Relation, Value};
 use crate::domain::symbols::service::{derived_of, place_of, places_of, text_of};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::service::unknown_reason;
-use crate::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::service::unknown_reason;
+use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
-use std::path::Path;
+use std::path::PathBuf;
 
 /// What reading one fixture gave: the rows, the names they hold and the bytes the names are in.
 pub(super) struct Read {
@@ -36,14 +37,108 @@ pub(super) struct Read {
     pub unknowns: &'static [UnknownName],
 }
 
-/// Reads `input` as the file its folder names, asking for every relation, and answers the rows.
-pub(super) fn rows_of(
+/// Independent inputs may share local node numbers only when every row names its file.
+pub(super) fn check_input_identity(
+    count: usize,
+    kinds: &[ryo_relations::domain::relations::types::CellKind],
+    folder: &str,
+    findings: &mut Findings,
+) -> bool {
+    if count <= 1 || kinds.contains(&ryo_relations::domain::relations::types::CellKind::File) {
+        return true;
+    }
+    findings.0.push(format!(
+        "{folder}: multiple inputs require a File column for unambiguous row identity"
+    ));
+    false
+}
+
+/// Read each input with its own symbols and local node IDs, preserving the explicit file cells.
+#[cfg(test)]
+pub(super) fn rows_of_inputs(
     parse: &dyn ParseEngine,
-    input: &Path,
+    inputs: &[PathBuf],
+    relation: Relation,
+    folder: &str,
+    findings: &mut Findings,
+) -> Option<Vec<Vec<Cell>>> {
+    rows_of_inputs_with(
+        &Selection {
+            default: parse,
+            configure: &|_| Ok(None),
+        },
+        inputs,
+        relation,
+        folder,
+        findings,
+    )
+}
+
+/// Read every independent input with its own validated parser configuration.
+pub(super) fn rows_of_inputs_with(
+    selection: &Selection<'_>,
+    inputs: &[PathBuf],
+    relation: Relation,
+    folder: &str,
+    findings: &mut Findings,
+) -> Option<Vec<Vec<Cell>>> {
+    if !check_input_identity(inputs.len(), kinds(relation), folder, findings) {
+        return None;
+    }
+    let mut paths = std::collections::BTreeSet::new();
+    let mut shown_inputs = Vec::new();
+    for input in inputs {
+        let name = input.file_name()?.to_string_lossy();
+        let shown = super::findings::read_as(&format!("{folder}/{name}"));
+        if !paths.insert(shown.clone()) {
+            findings.0.push(format!(
+                "{folder}: multiple inputs normalize to the same file {shown}"
+            ));
+            return None;
+        }
+        shown_inputs.push(shown);
+    }
+    let mut rows = Vec::new();
+    for (input, shown) in inputs.iter().zip(shown_inputs) {
+        let before = findings.0.len();
+        let bytes = match std::fs::read(input) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                findings
+                    .0
+                    .push(format!("{shown}: cannot read fixture input: {error}"));
+                return None;
+            }
+        };
+        let configured = match std::str::from_utf8(&bytes) {
+            Ok(text) => selection.select(text, &shown, findings).ok()?,
+            Err(_) => None, // Binary fixture bytes retain the language's existing parser.
+        };
+        let parse = configured
+            .as_ref()
+            .map_or(selection.default, |context| context.parse.as_ref());
+        let Some(read) = rows_of_bytes(parse, bytes, &shown, findings) else {
+            if findings.0.len() == before {
+                findings.0.push(format!(
+                    "{folder}: cannot read fixture input {}",
+                    input.display()
+                ));
+            }
+            return None;
+        };
+        rows.extend(rows_of_relation(&read, relation, &shown));
+    }
+    rows.sort();
+    Some(rows)
+}
+
+/// Read exactly the bytes whose fixture configuration was already selected.
+pub(super) fn rows_of_bytes(
+    parse: &dyn ParseEngine,
+    bytes: Vec<u8>,
     shown: &str,
     findings: &mut Findings,
 ) -> Option<Read> {
-    let bytes = std::fs::read(input).ok()?;
     let request = ParseRequest {
         path: SourcePath(shown),
         file: FileId(0),
@@ -151,8 +246,8 @@ pub(super) fn cell(value: Value, shown: &str, read: &Read, text: &[u8]) -> Cell 
                 .map_or_else(|| shown.to_owned(), Clone::clone),
         ),
         Value::Span(span) => {
-            if crate::domain::relations::service::location(span)
-                == crate::domain::relations::types::Locatedness::Located
+            if ryo_relations::domain::relations::service::location(span)
+                == ryo_relations::domain::relations::types::Locatedness::Located
             {
                 Cell::Span(point_of(text, span.start.0), point_of(text, span.end.0))
             } else {

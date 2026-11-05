@@ -143,3 +143,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[test]
+fn comparison_equality_ignores_diagnostic_origin_ids() {
+    use super::types::{Comparison, ComparisonOriginId, Test};
+
+    let comparison = |origin| Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(1)),
+        right: Operand::Column(ColumnIndex(2)),
+        origin,
+    };
+    assert_eq!(comparison(None), comparison(Some(ComparisonOriginId(9))));
+}

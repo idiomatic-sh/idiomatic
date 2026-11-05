@@ -1,0 +1,22 @@
+{
+  "run_id": 41556074310,
+  "head": "37e561bf42a07c610b06f0c195db668e9241fa3f",
+  "job_id": 125655494262,
+  "job_conclusion": "failure",
+  "artifact_id": 13195863749,
+  "artifact_name": "speed-evidence-Linux-1",
+  "artifact_sha256": "abc8a9364b3a1a04464963adc72e808abc0019d5b2a098df6b3481cf34c871c9",
+  "artifact_bytes": 61217,
+  "rust_warm_peak": {
+    "actual_bytes": 100974592,
+    "limit_bytes": 100000000,
+    "result": "fail"
+  },
+  "go_baseline_file_scaling": {
+    "fourfold_seconds": 3.233017623,
+    "linear_bound_seconds": 0.279896586,
+    "result": "fail"
+  },
+  "cross_language_candidate_comparison": "unavailable: Go baseline failed before a valid differential",
+  "attribution": "single exact-head observations; earlier heads also exceeded the Rust cap, so not proof of a new regression"
+}

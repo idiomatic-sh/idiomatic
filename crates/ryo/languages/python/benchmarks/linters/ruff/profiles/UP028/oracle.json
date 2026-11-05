@@ -1,0 +1,126 @@
+{
+  "name": {
+    "source": "def f():\n    for x in values:\n        yield x\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 45
+      }
+    ]
+  },
+  "tuple": {
+    "source": "def f():\n    for x, y in values:\n        yield x, y\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 51
+      }
+    ]
+  },
+  "nested-tuple": {
+    "source": "def f():\n    for x, (y, z) in values:\n        yield x, (y, z)\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 61
+      }
+    ]
+  },
+  "else": {
+    "source": "def f():\n    for x in values:\n        yield x\n    else:\n        pass\n",
+    "expected": []
+  },
+  "multiple-body": {
+    "source": "def f():\n    for x in values:\n        work()\n        yield x\n",
+    "expected": []
+  },
+  "changed-value": {
+    "source": "def f():\n    for x in values:\n        yield x + 1\n",
+    "expected": []
+  },
+  "different-name": {
+    "source": "def f():\n    for x in values:\n        yield y\n",
+    "expected": []
+  },
+  "async-function": {
+    "source": "async def f():\n    for x in values:\n        yield x\n",
+    "expected": []
+  },
+  "async-for": {
+    "source": "async def f():\n    async for x in values:\n        yield x\n",
+    "expected": []
+  },
+  "external-use": {
+    "source": "def f():\n    for x in values:\n        yield x\n    use(x)\n",
+    "expected": []
+  },
+  "only-yield-use": {
+    "source": "def f():\n    for x in values:\n        yield x\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 45
+      }
+    ]
+  },
+  "noqa": {
+    "source": "def f():\n    for x in values:\n        yield x  # noqa: UP028\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 45
+      }
+    ]
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: UP028\ndef f():\n    for x in values:\n        yield x\n",
+    "expected": []
+  },
+  "multiline": {
+    "source": "def f():\n    for x, y in values:\n        yield (x, y)\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 53
+      }
+    ]
+  },
+  "with-parentheses": {
+    "source": "def f():\n    for x in values:\n        yield (x)\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 13,
+        "end": 47
+      }
+    ]
+  },
+  "list-target": {
+    "source": "def f():\n    for [x, y] in values:\n        yield [x, y]\n",
+    "expected": []
+  },
+  "nested-sync-function-in-async": {
+    "source": "async def outer():\n    def inner():\n        for x in values:\n            yield x\n",
+    "expected": [
+      {
+        "rule": "UP028",
+        "file": "case.py",
+        "start": 44,
+        "end": 80
+      }
+    ]
+  }
+}

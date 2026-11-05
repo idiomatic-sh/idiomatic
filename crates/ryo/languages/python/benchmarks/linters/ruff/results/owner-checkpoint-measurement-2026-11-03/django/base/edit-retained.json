@@ -1,0 +1,37 @@
+{
+  "capped": false,
+  "collector_exit_code": 0,
+  "coverage": {
+    "evaluated": 890943,
+    "selected": 891250,
+    "skipped": 307,
+    "unknown_or_unread": 0
+  },
+  "cpu_seconds": 8.944436,
+  "diagnostics": 2328,
+  "load_after": [
+    0.91748046875,
+    1.11474609375,
+    1.22412109375
+  ],
+  "load_before": [
+    0.90185546875,
+    1.119140625,
+    1.22705078125
+  ],
+  "matches_retained_baseline_report": true,
+  "observation_sha256": "5c5bd51aaae247e8455f04dcabdee2d67f0a91e3a32cc7f2c7d8cc3ed2939070",
+  "orchestration_wall_seconds": 8.957856054999866,
+  "peak_rss_bytes": 2130014208,
+  "phase": "edit-retained",
+  "raw_report_bytes_equal": true,
+  "report_sha256": "e9070428b1d759fb900a10d52311c97b2e50bd7ad5e0119faced82a897377489",
+  "request_sha256": "78a361f0956daa181a2d8799a765201c7272097784a451af37cc92e77ef03054",
+  "script_sha256": "21979496d21e51188d81632bcf78be84b3a59f13c2e38b9ff762fda2d6c29899",
+  "source_commit": "69a402d8df9d8864b51094c256a165883816aeb2",
+  "target_kind": "bench",
+  "variant": "base",
+  "wall_seconds": 8.94451006,
+  "worker_exit_code": 0,
+  "worker_sha256": "920119dcbfb2fda17ecd8b14973b850a177bb9239e7f31bee93dbc734187a378"
+}

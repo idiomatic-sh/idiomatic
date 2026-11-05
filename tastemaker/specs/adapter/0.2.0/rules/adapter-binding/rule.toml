@@ -1,0 +1,96 @@
+description = "An adapter implements the port imported from its explicitly bound owning crate."
+why = "A filename and a trait suffix do not establish a boundary. The adapter imports the exact owner::outbound::port::interface::Port trait and uses that import in its impl header, including a renamed binding. The compiler checks the implementation; placement checks that it is the intended port."
+query = '''
+param core: string;
+param port: string;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let a-token-edges = select l."parent" as "parent", r."id" as "token", r."kind" as "kind", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let a-paths = select * from tree-nodes where kind = "path";
+let a-segments = select * from tree-nodes where kind = "path-segment";
+let a-name-refs = select * from tree-nodes where kind = "name-ref";
+let a-path-segment-edges = select l."id" as "pathnode", r."child" as "child" from a-paths as l join "syntax-child" as r on l."id" = r."parent";
+let a-path-segments = select l."pathnode" as "pathnode", r."id" as "segment" from a-path-segment-edges as l join a-segments as r on l."child" = r."id";
+let a-segment-ref-edges = select l."pathnode" as "pathnode", r."child" as "child" from a-path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let a-segment-refs = select l."pathnode" as "pathnode", r."id" as "nameref" from a-segment-ref-edges as l join a-name-refs as r on l."child" = r."id";
+let a-path-names = select l."pathnode" as "pathnode", r."text" as "name" from a-segment-refs as l join a-token-edges as r on l."nameref" = r."parent";
+let a-impls = select * from tree-nodes where kind = "impl";
+let a-impl-children = select r."child" as "child", l."id" as "id", r."ordinal" as "ordinal", l."file" as "file", l."span" as "span" from a-impls as l join "syntax-child" as r on l."id" = r."parent";
+let a-path-types = select * from tree-nodes where kind = "path-type";
+let a-impl-types = select l."child" as "type", l."id" as "id", l."ordinal" as "ordinal", l."file" as "file", l."span" as "span" from a-impl-children as l join a-path-types as r on l."child" = r."id";
+let a-for-tokens = select * from tree-tokens where kind = "for-kw";
+let a-impl-for = select l."id" as "id", l."ordinal" as "for" from a-impl-children as l join a-for-tokens as r on l."child" = r."id";
+let a-impl-types-for = select r."for" as "for", l."id" as "id", l."ordinal" as "ordinal", l."type" as "type", l."file" as "file", l."span" as "span" from a-impl-types as l join a-impl-for as r on l."id" = r."id";
+let a-trait-types = select * from a-impl-types-for where ordinal < for;
+let a-self-types = select * from a-impl-types-for where ordinal > for;
+let a-trait-path-edges = select r."child" as "child", l."id" as "impl", l."file" as "file", l."span" as "span" from a-trait-types as l join "syntax-child" as r on l."type" = r."parent";
+let a-trait-paths = select l."impl" as "impl", l."file" as "file", l."span" as "span", r."id" as "pathnode" from a-trait-path-edges as l join a-paths as r on l."child" = r."id";
+let a-impl-trait = select l."impl" as "impl", l."file" as "file", l."span" as "span", r."name" as "trait" from a-trait-paths as l join a-path-names as r on l."pathnode" = r."pathnode";
+
+let imported = select * from "static-import" where target = concat($core, "::outbound::", $port, "::interface::", pascal($port), "Port");
+let bound = select l."file" as "file" from imported as l join a-impl-trait as r on l."file" = r."file" and l."binding" = r."trait";
+let files = select l."path" as "file" from "filesystem.file" as l;
+let missing = antijoin(left=files, right=bound, left-on=["file"], right-on=["file"]);
+emit missing subject "file" key("file");
+'''
+[params.core]
+type = "string"
+description = "Rust crate that owns the port."
+[params.port]
+type = "string"
+description = "Outbound port name."
+[diagnostic]
+primary = "file"
+message = "adapter does not implement its bound owner and port"
+help = "Import the bound core's outbound port interface and implement that imported trait; a similarly named local trait is not the boundary."
+[given]
+include = ['**/adapter.rs']
+params = { core = "foreign_core", port = "names" }
+
+[[scenarios]]
+id = 'bound-owner'
+scenario = 'Checks bound-owner owner binding.'
+given.files.'edge/adapter.rs' = '''
+use foreign_core::outbound::names::interface::NamesPort;
+struct NamesEdgeAdapter;
+impl NamesPort for NamesEdgeAdapter {}
+'''
+
+[[scenarios]]
+id = 'renamed-import'
+scenario = 'Checks renamed-import owner binding.'
+given.files.'edge/adapter.rs' = '''
+use foreign_core::outbound::names::interface::NamesPort as BoundPort;
+struct NamesEdgeAdapter;
+impl BoundPort for NamesEdgeAdapter {}
+'''
+
+[[scenarios]]
+id = 'wrong-owner'
+scenario = 'Checks wrong-owner owner binding.'
+given.files.'edge/adapter.rs' = '''
+use other_core::outbound::names::interface::NamesPort;
+struct NamesEdgeAdapter;
+impl NamesPort for NamesEdgeAdapter {}
+'''
+then.findings = [{ path = 'edge/adapter.rs' }]
+
+[[scenarios]]
+id = 'wrong-port'
+scenario = 'Checks wrong-port owner binding.'
+given.files.'edge/adapter.rs' = '''
+use foreign_core::outbound::names::interface::NamesPort;
+struct NamesEdgeAdapter;
+impl OtherPort for NamesEdgeAdapter {}
+'''
+then.findings = [{ path = 'edge/adapter.rs' }]
+
+[[scenarios]]
+id = 'unused-correct-owner'
+scenario = 'Checks unused-correct-owner owner binding.'
+given.files.'edge/adapter.rs' = '''
+use foreign_core::outbound::names::interface::NamesPort as UnusedPort;
+struct NamesEdgeAdapter;
+impl NamesPort for NamesEdgeAdapter {}
+'''
+then.findings = [{ path = 'edge/adapter.rs' }]

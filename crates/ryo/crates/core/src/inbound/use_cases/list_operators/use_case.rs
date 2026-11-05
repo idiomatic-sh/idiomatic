@@ -3,7 +3,8 @@
 use super::errors::ListOperatorsError;
 use super::interface::ListOperatorsUseCase;
 use super::types::{ListOperatorsReport, OperatorSummary};
-use crate::domain::operator::constants::{OPERATORS, describe};
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 /// `list_operators`; the operators are the domain's own, so it calls no port.
 #[derive(Clone, Copy, Debug, Default)]
@@ -19,9 +20,10 @@ impl ListOperatorsUseCaseImpl {
 
 impl ListOperatorsUseCase for ListOperatorsUseCaseImpl {
     fn list_operators(&self) -> Result<ListOperatorsReport, ListOperatorsError> {
-        let operators = OPERATORS
+        let operators = MetadataUseCaseImpl
+            .operators()
             .into_iter()
-            .map(describe)
+            .map(|operator| MetadataUseCaseImpl.describe(*operator))
             .map(|description| OperatorSummary {
                 name: description.name,
                 summary: description.summary,

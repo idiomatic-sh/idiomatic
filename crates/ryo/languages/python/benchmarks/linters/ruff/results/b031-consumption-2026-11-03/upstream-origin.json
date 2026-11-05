@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/astral-sh/ruff",
+  "tag": "0.16.5",
+  "commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "fixture": "crates/ruff_linter/resources/test/fixtures/flake8_bugbear/B031.py",
+  "fixture_sha256": "5dd6a981d3eaebbcec788af0c5b411a31f141b5af2f6f9a10fa8335457f13225",
+  "lines": 237,
+  "local_preserved_fixture_sha256": "5dd6a981d3eaebbcec788af0c5b411a31f141b5af2f6f9a10fa8335457f13225"
+}

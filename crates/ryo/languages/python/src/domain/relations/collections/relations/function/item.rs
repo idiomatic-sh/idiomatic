@@ -1,4 +1,4 @@
-//! The `function` relation of the language: every `def`, `async` or not, at any depth, methods included; a lambda is no function.
+//! The `function` relation of the language: every `def`, async or not, at any depth, methods included; a lambda is no function.
 
 use crate::domain::extras::types::Extra;
 use crate::domain::model::types::Declarations;
@@ -12,7 +12,7 @@ pub(crate) struct FunctionItem;
 
 ryo::reads! {
     FunctionItem => languages::Function, model(Declarations) |tree, model, at, _symbols| {
-        kinds: [Kind::Node(Node::FunctionDef)] as kind_bits,
+        kinds: [Kind::Node(Node::FunctionDef), Kind::Node(Node::AsyncFunctionDef)] as kind_bits,
         given identifier = child(tree, at, Kind::Extra(Extra::Identifier))?;
         given name = name_of(tree, identifier)?;
         row { id: node(at), name: value(name), file: file, span: span(at) }

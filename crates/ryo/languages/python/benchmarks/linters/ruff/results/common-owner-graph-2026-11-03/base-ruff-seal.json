@@ -1,0 +1,7 @@
+{
+  "source_head": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "worker_sha256": "aaace83ca21a1726a0f5ea7a25f88c10466f4c8fc82b36488ee76d1b88bda207",
+  "compiler_artifact": "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-d3478b90299998bf",
+  "target_kind": "bench",
+  "worker_protocol": "run-ryo --request-file"
+}

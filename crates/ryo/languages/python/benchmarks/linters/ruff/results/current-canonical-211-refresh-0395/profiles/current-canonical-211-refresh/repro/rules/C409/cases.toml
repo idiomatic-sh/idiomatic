@@ -1,0 +1,113 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "tuple([1, 2])\n" }
+expected = [{ "rule" = "C409", "file" = "case.py", "start" = 0, "end" = 13 }]
+
+[[cases]]
+name = "assignment"
+comparison = "full"
+files = { "case.py" = "result = tuple([1, 2])\n" }
+expected = [{ "rule" = "C409", "file" = "case.py", "start" = 9, "end" = 22 }]
+
+[[cases]]
+name = "parenthesized-function"
+comparison = "full"
+files = { "case.py" = "(tuple)([1, 2])\n" }
+expected = [{ "rule" = "C409", "file" = "case.py", "start" = 0, "end" = 15 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(tuple):\n    tuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "tuple = custom\ntuple([1, 2])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 14 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.tuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "imported-same-name"
+comparison = "full"
+files = { "case.py" = "from builtins import tuple\ntuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import tuple as convert\nconvert([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+comparison = "full"
+files = { "case.py" = "tuple([1, 2], other)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 19 }]
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "tuple([1, 2], unexpected=True)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-keyword"
+comparison = "full"
+files = { "case.py" = "tuple([1, 2], **kwargs)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 22 }]
+
+[[cases]]
+name = "starred-argument"
+comparison = "full"
+files = { "case.py" = "tuple(*[([1, 2])])\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "tuple()\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 7 }, { "rule" = "C408", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "tuple([1, 2]) # noqa: C409\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[C409]\ntuple([1, 2])\n# ruff: enable[C409]\n" }
+expected = []
+
+[[cases]]
+name = "empty-list"
+comparison = "full"
+files = { "case.py" = "tuple([])\n" }
+expected = [{ "rule" = "C409", "file" = "case.py", "start" = 0, "end" = 9 }]
+
+[[cases]]
+name = "empty-tuple"
+comparison = "full"
+files = { "case.py" = "tuple(())\n" }
+expected = [{ "rule" = "C409", "file" = "case.py", "start" = 0, "end" = 9 }]
+
+[[cases]]
+name = "starred-literal"
+comparison = "full"
+files = { "case.py" = "tuple([*values])\n" }
+expected = [{ "rule" = "C409", "file" = "case.py", "start" = 0, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 14 }]
+
+[[cases]]
+name = "variable"
+comparison = "full"
+files = { "case.py" = "tuple(values)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 12 }]

@@ -3,21 +3,25 @@
 
 use std::io::Write as _;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
-use ryo_language::domain::relations::service::{all, columns, kinds};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::{FILE, FLUSH_AT, MISSING};
 use super::types::{
     PackedLength, RoomToFill, Spill, SpillFile, SpillOffset, SpillStretch, SpillWorkerNumber,
 };
-use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{ColumnsMut, WordsToKeep};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    BucketSource, ColumnsMut, KeptBucket, WordsToKeep,
+};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsFinish, FactsPort, FactsWorker,
+};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_values::domain::stored_facts::types::Bucket;
 
 /// The spill facts adapter: the rows of each worker in memory, a file of the adapter's directory for its words.
 #[derive(Debug)]
@@ -67,7 +71,7 @@ struct SpillWorker {
     /// The columns of each relation for the worker's file, in the order of all relations.
     tables: Vec<Vec<FactColumn>>,
     /// The file the worker's words go to, and where each bucket's stretches are in it.
-    spill: Spill,
+    spill: Mutex<Spill>,
 }
 
 impl SpillWorker {
@@ -154,6 +158,12 @@ fn read_exact_at(
 }
 
 impl FactsWorker for SpillWorker {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Ok(self
             .tables
@@ -176,12 +186,12 @@ impl FactsWorker for SpillWorker {
         })
     }
 
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
-        let bytes = &words.0.0;
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+        let bytes = &words.words.0;
         if bytes.is_empty() {
-            return Ok(());
+            return Err(refused());
         }
-        let spill = &mut self.spill;
+        let mut spill = self.spill.lock().map_err(|_| refused())?;
         let offset = SpillOffset(
             spill
                 .written
@@ -196,13 +206,15 @@ impl FactsWorker for SpillWorker {
             .push(SpillStretch {
                 offset,
                 length: PackedLength(u64::try_from(bytes.len()).unwrap_or(u64::MAX)),
+                file: words.file,
+                proof: words.proof.clone(),
             });
         // The file is made only when what waits reaches the bound: a run that keeps little spills nothing to disk.
         if spill.pending.0.len() >= FLUSH_AT {
-            if matches!(self.spill.file, SpillFile::Missing) {
-                self.spill.file = SpillFile::Open(self.open()?);
+            if matches!(spill.file, SpillFile::Missing) {
+                spill.file = SpillFile::Open(self.open()?);
             }
-            flush(&mut self.spill)?;
+            flush(&mut spill)?;
         }
         Ok(())
     }
@@ -214,13 +226,14 @@ impl FactsWorker for SpillWorker {
         Ok(())
     }
 
-    fn finished(mut self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
+        let mut spill = self.spill.into_inner().map_err(|_| refused())?;
         // A spill that never reached its bound keeps its words in memory: it has no file to write them to.
-        if matches!(self.spill.file, SpillFile::Open(_)) {
-            flush(&mut self.spill)?;
+        if matches!(spill.file, SpillFile::Open(_)) {
+            flush(&mut spill)?;
         }
         Ok(Box::new(SpillFinish {
-            spilled: vec![self.spill],
+            spilled: vec![spill],
         }))
     }
 }
@@ -232,8 +245,8 @@ struct SpillFinish {
 }
 
 impl FactsFinish for SpillFinish {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        let mut words = KeptWords::default();
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let mut words = KeptBucket::default();
         for spill in &self.spilled {
             let Some(stretches) = spill.stretches.get(&bucket) else {
                 continue;
@@ -242,11 +255,17 @@ impl FactsFinish for SpillFinish {
                 let length = usize::try_from(stretch.length.0).unwrap_or(usize::MAX);
                 match &spill.file {
                     SpillFile::Open(file) => {
-                        let start = words.0.0.len();
-                        words.0.0.resize(start.saturating_add(length), 0);
-                        let room = words.0.0.get_mut(start..).ok_or_else(refused)?;
+                        let start = words.words.0.0.len();
+                        words.words.0.0.resize(start.saturating_add(length), 0);
+                        let room = words.words.0.0.get_mut(start..).ok_or_else(refused)?;
                         read_exact_at(file, RoomToFill(room), stretch.offset)
                             .map_err(|error| spilled(&error))?;
+                        words.sources.push(BucketSource {
+                            file: stretch.file,
+                            start,
+                            length,
+                            proof: stretch.proof.clone(),
+                        });
                     }
                     SpillFile::Missing => {
                         let start = usize::try_from(stretch.offset.0).unwrap_or(usize::MAX);
@@ -255,7 +274,14 @@ impl FactsFinish for SpillFinish {
                             .0
                             .get(start..start.saturating_add(length))
                             .ok_or_else(refused)?;
-                        words.0.0.extend_from_slice(held);
+                        let start = words.words.0.0.len();
+                        words.words.0.0.extend_from_slice(held);
+                        words.sources.push(BucketSource {
+                            file: stretch.file,
+                            start,
+                            length,
+                            proof: stretch.proof.clone(),
+                        });
                     }
                 }
             }
@@ -271,10 +297,18 @@ struct Joined {
 }
 
 impl FactsFinish for Joined {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        let mut words = KeptWords::default();
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let mut words = KeptBucket::default();
         for part in &self.parts {
-            words.0.0.extend(part.kept(bucket)?.0.0);
+            let each = part.kept(bucket)?;
+            let offset = words.words.0.0.len();
+            words.words.0.0.extend(each.words.0.0);
+            words
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start += offset;
+                    source
+                }));
         }
         Ok(words)
     }
@@ -289,7 +323,7 @@ impl FactsPort for FactsSpillAdapter {
                 .iter()
                 .map(|relation| vec![FactColumn::default(); columns(*relation).len()])
                 .collect(),
-            spill: Spill::default(),
+            spill: Mutex::new(Spill::default()),
         }))
     }
 

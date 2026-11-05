@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the contract holds the corpus builders (file IO through the language port) and the run-based measuring that the use-case-fixtures template fixes as contract::{allocation, call_count, corpus, fake_corpus}; each of the four is one measurement over the same corpus, so they share its builders.
+// the contract holds the corpus builders (file IO through the language port) and the run-based measuring that the use-case-fixtures template fixes as contract::{allocation, call_count, corpus, fake_corpus}; each of the four is one measurement over the same corpus, so they share its builders.
 //! What every implementation of the `lint` use case must pass, and what the whole per-file path must pass: `lint` over the corpus the
 //! fixtures state, with the real store and real queries and the language the caller brings. Every relation item the language lists and
 //! every operator item the product lists is read from its fixtures, so a new item is covered without anyone editing a test.
@@ -18,12 +18,12 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::service::{column_name, columns, name, provenance_of};
-use ryo_language::domain::relations::types::{Integer, Provenance};
 use ryo_language::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures, Point};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
+use ryo_relations::domain::relations::service::{column_name, columns, name, provenance_of};
+use ryo_relations::domain::relations::types::{Integer, Provenance};
 use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::plan_parts::types::{LiteralText, ParameterName, QueryText};
 use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
@@ -44,10 +44,8 @@ use crate::domain::corpus_copies::service::copied;
 use crate::domain::corpus_copies::types::{
     CopyCount, CopyDigits, CopyNaming, CorpusInputs, Extension, ItemName, ListShape, Repeat,
 };
-use crate::domain::operator::constants::{OPERATORS, describe};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
-use crate::outbound::facts::interface::FactsPort;
 use crate::outbound::language::fixtures::fake::{LanguageFake, READ};
 use crate::outbound::language::{interface::LanguagePort, types::Absence};
 use crate::outbound::lint_store::interface::LintStorePort;
@@ -57,6 +55,9 @@ use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::scheduler::fixtures::fake::{CountingSchedulerFake, SchedulerFake};
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::{facts, matching, query_language, rows};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// What a row of the contract is given: the request to lint.
@@ -96,8 +97,10 @@ fn fixture_parameters(query: &str) -> Vec<RuleParameter> {
 /// A rule of this id and query over the files these globs name.
 fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
     Rule {
+        observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: fixture_parameters(query),
         include,
         exclude: Vec::new(),
@@ -107,9 +110,12 @@ fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
 /// A request to lint the repository at the working directory with rules of these ids, whose queries are never run.
 fn asking(ids: &[&str]) -> LintRequest {
     LintRequest {
+        source_language: None,
         answer: AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(".".into()),
         },
@@ -249,8 +255,8 @@ fn compared(cell: Option<&Typed>) -> String {
         Some(Typed::File(text) | Typed::Text(text)) => text.to_string(),
         Some(Typed::Number(number)) => number.0.to_string(),
         Some(Typed::Span(span))
-            if ryo_language::domain::relations::service::location(*span)
-                == ryo_language::domain::relations::types::Locatedness::Absent =>
+            if ryo_relations::domain::relations::service::location(*span)
+                == ryo_relations::domain::relations::types::Locatedness::Absent =>
         {
             "unlocated".to_owned()
         }
@@ -353,9 +359,14 @@ pub fn fake_corpus() -> Corpus {
             .0
             .insert(ItemName("function".to_owned()), function),
     );
-    for operator in OPERATORS {
+    for &operator in MetadataUseCaseImpl.operators() {
+        // This fake parser has no semantic-rendering session. The language
+        // capability is exercised by the Python provider's actual case run.
+        if matches!(operator, QueryOperator::RenderSyntax) {
+            continue;
+        }
         let governs = format!("function/*.{}", extension.0);
-        let (id, rule) = operator_rule(&describe(operator).name.0, &governs);
+        let (id, rule) = operator_rule(&MetadataUseCaseImpl.describe(operator).name.0, &governs);
         assert!(
             found.rules.insert(id, rule).is_none(),
             "every operator has one rule"
@@ -435,8 +446,16 @@ pub fn corpus(
     }
     let function = ItemName("function".to_owned());
     let text = found.inputs.0.get(&function).cloned().unwrap_or_default();
-    for operator in OPERATORS {
-        let (id, rule) = operator_rule(&describe(operator).name.0, "function/*.rs");
+    for &operator in MetadataUseCaseImpl.operators() {
+        // The Rust fixture parser deliberately has no semantic-rendering
+        // session; its other generic operators remain in this corpus.
+        if matches!(operator, QueryOperator::RenderSyntax) {
+            continue;
+        }
+        let (id, rule) = operator_rule(
+            &MetadataUseCaseImpl.describe(operator).name.0,
+            "function/*.rs",
+        );
         let shown = FilePath("function/input.rs".into());
         let stated = expected(operator);
         assert!(!stated.is_empty(), "every operator states its findings");
@@ -512,6 +531,7 @@ fn lint_keeping(
     let rules =
         rules.map(|(id, (query, governs))| rule(id, query, vec![Glob(governs.as_str().into())]));
     let request = LintRequest {
+        source_language: None,
         rules: rules.collect(),
         ..asking(&[])
     };
@@ -540,8 +560,9 @@ fn use_case_over(
         let analysis_language: Arc<dyn LanguagePort> = Arc::clone(&corpus.language);
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn crate::outbound::digest::interface::DigestPort> =
-            Arc::new(crate::outbound::digest::fixtures::fake::DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(crate::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -549,7 +570,7 @@ fn use_case_over(
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus)),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             facts,
             Arc::clone(&analysis_language),
@@ -559,6 +580,12 @@ fn use_case_over(
                 Arc::new(typecheck()),
             )),
             Arc::clone(&analysis_memory),
+            Arc::new(crate::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            )),
             scheduler,
             crate::outbound::scheduler::types::WorkerCount(1),
             rows,
@@ -798,6 +825,7 @@ fn run_query(corpus: &Corpus, copies: u32, times: usize, limit: u64, written: Ar
     );
     let text = "let a = select * from \"syntax-tree\"; emit a subject file key(span);";
     let request = LintRequest {
+        source_language: None,
         rules: vec![rule("query", text, Vec::new())],
         answer: AnswerShape::Rows(RowTotal(limit)),
         ..asking(&[])
@@ -875,6 +903,16 @@ pub(crate) fn output_path(corpus: &Corpus, library: &dyn Fn(&[u8])) {
 /// `tests/fixtures/operators/<item>/expected.rs` states them.
 fn expected(operator: QueryOperator) -> Vec<Finding> {
     match operator {
+        QueryOperator::Replace => replace::expected(),
+        QueryOperator::SpanBetween => span_between::expected(),
+        QueryOperator::SourceMatches => source_matches::expected(),
+        QueryOperator::RenderSyntax => {
+            unreachable!("a language without semantic rendering does not register this fixture")
+        }
+        QueryOperator::FitsRendered => fits_rendered::expected(),
+        QueryOperator::SpanBounds => span_bounds::expected(),
+        QueryOperator::OrderedMatch => ordered_match::expected(),
+        QueryOperator::OrderedDfs => ordered_dfs::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
         QueryOperator::Axis => axis::expected(),
         QueryOperator::Capture => capture::expected(),
@@ -978,4 +1016,33 @@ mod union {
 /// The findings `tests/fixtures/operators/words/expected.rs` states for the `words` operator.
 mod words {
     include!("../../../../../tests/fixtures/operators/words/expected.rs");
+}
+
+/// Literal replacement fixture, independent expected transformed names.
+mod replace {
+    include!("../../../../../tests/fixtures/operators/replace/expected.rs");
+}
+
+/// Independent byte span projection fixture.
+mod span_between {
+    include!("../../../../../tests/fixtures/operators/span_between/expected.rs");
+}
+/// Independent physical occurrence spans, including the duplicate nested occurrence.
+mod source_matches {
+    include!("../../../../../tests/fixtures/operators/source_matches/expected.rs");
+}
+mod fits_rendered {
+    include!("../../../../../tests/fixtures/operators/fits_rendered/expected.rs");
+}
+mod span_bounds {
+    include!("../../../../../tests/fixtures/operators/span_bounds/expected.rs");
+}
+/// Ordered request/reply fixture, preserving explicit output projection.
+mod ordered_match {
+    include!("../../../../../tests/fixtures/operators/ordered_match/expected.rs");
+}
+
+/// The ordered DFS fixture's complete expected visits.
+mod ordered_dfs {
+    include!("../../../../../tests/fixtures/operators/ordered_dfs/expected.rs");
 }

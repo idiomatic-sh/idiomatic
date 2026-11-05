@@ -1,0 +1,130 @@
+//! Exact prepared equivalence and independent native result identity.
+
+use super::value::PreparedWalk;
+use crate::domain::{
+    coverage::types::RuleIndex,
+    positions::types::ClassPlace,
+    shared_walk::service_test::{add_pattern, evaluate_plans, plans},
+};
+use ryo_values::domain::plan_parts::types::LiteralText;
+
+#[test]
+fn equivalent_rules_share_one_ordered_class_without_retaining_plans() {
+    let plans = plans();
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    assert_eq!(prepared.classes().len(), 3);
+    assert_eq!(prepared.classes()[0].members.len(), 2);
+    assert_eq!(
+        prepared.class_of(RuleIndex(2)).unwrap()[0],
+        Some(ClassPlace(0))
+    );
+    let batch = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
+    );
+    assert_eq!(batch.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
+    assert_eq!(batch.visits(ClassPlace(0)).0, 2);
+    assert_eq!(batch.visits(ClassPlace(1)).0, 1);
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
+    // Nodes have no token text; the ordinary Select contract reads that as empty.
+    // The inbound kinds control independently checks root-only empty text selection.
+    assert_eq!(batch.class(ClassPlace(2)).unwrap().positions.0, [0]);
+}
+
+#[test]
+fn only_referenced_bindings_affect_class_equivalence() {
+    let plans = plans();
+    let mut bindings = vec![Vec::new(); plans.len()];
+    bindings[0] = vec![ParameterBinding::Text(LiteralText("[".into()))];
+    bindings[2] = vec![
+        ParameterBinding::Text(LiteralText("[".into())),
+        ParameterBinding::Numbers(Vec::new()),
+    ];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    assert_eq!(prepared.classes()[0].members.len(), 2);
+    assert_eq!(
+        evaluate_plans(
+            &prepared,
+            &bindings,
+            &[ClassPlace(0), ClassPlace(1), ClassPlace(2)]
+        )
+        .class(ClassPlace(0))
+        .unwrap()
+        .positions
+        .0,
+        [1, 3]
+    );
+}
+
+#[test]
+fn a_missing_referenced_binding_cannot_be_shared_as_a_value() {
+    let mut plans = plans();
+    add_pattern(&mut plans, 3);
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    assert_eq!(prepared.classes().len(), 4);
+    assert!(
+        prepared
+            .classes()
+            .iter()
+            .all(|class| class.members.len() == 1)
+    );
+    let batch = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2), ClassPlace(3)],
+    );
+    assert!(matches!(
+        batch.class(ClassPlace(0)).map(|result| &result.completion),
+        Some(Err(_))
+    ));
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
+    assert!(matches!(
+        batch.class(ClassPlace(2)).map(|result| &result.completion),
+        Some(Err(_))
+    ));
+}
+
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+
+#[test]
+fn sparse_cohorts_merge_only_reached_results_and_reject_overlap_atomically() {
+    use super::value::NativeBatch;
+    let plans = plans();
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    let mut accumulated = NativeBatch::for_program(&prepared);
+    assert_eq!(accumulated.counts().result_slots.0, 0);
+    accumulated
+        .merge(evaluate_plans(&prepared, &bindings, &[ClassPlace(0)]))
+        .unwrap();
+    assert_eq!(accumulated.counts().scratch_classes.0, 1);
+    assert_eq!(accumulated.counts().result_slots.0, 1);
+    assert!(accumulated.class(ClassPlace(1)).is_none());
+    accumulated
+        .merge(evaluate_plans(&prepared, &bindings, &[ClassPlace(1)]))
+        .unwrap();
+    assert_eq!(accumulated.counts().scratch_classes.0, 2);
+    assert_eq!(accumulated.counts().result_slots.0, 2);
+    let before = accumulated.counts();
+    // Class 2 is new but must not be committed when another entry overlaps.
+    assert!(
+        accumulated
+            .merge(evaluate_plans(
+                &prepared,
+                &bindings,
+                &[ClassPlace(1), ClassPlace(2)]
+            ))
+            .is_err()
+    );
+    assert!(accumulated.class(ClassPlace(2)).is_none());
+    assert_eq!(accumulated.counts().result_slots, before.result_slots);
+    assert_eq!(accumulated.counts().passes, before.passes);
+    assert_eq!(
+        accumulated.class(ClassPlace(0)).unwrap().positions.0,
+        [1, 3]
+    );
+    assert_eq!(accumulated.class(ClassPlace(1)).unwrap().positions.0, [2]);
+}

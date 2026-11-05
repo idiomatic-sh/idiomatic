@@ -1,0 +1,69 @@
+[[cases]]
+name = "upstream-UP046_0.py"
+files = { "UP046_0.py" = "from typing import Any, AnyStr, Generic, ParamSpec, TypeVar, TypeVarTuple\n\nfrom somewhere import SupportsRichComparisonT\n\nS = TypeVar(\"S\", str, bytes)  # constrained type variable\nT = TypeVar(\"T\", bound=float)\nTs = TypeVarTuple(\"Ts\")\nP = ParamSpec(\"P\")\n\n\nclass A(Generic[T]):\n    # Comments in a class body are preserved\n    var: T\n\n\nclass B(Generic[*Ts]):\n    var: tuple[*Ts]\n\n\nclass C(Generic[P]):\n    var: P\n\n\nclass Constrained(Generic[S]):\n    var: S\n\n\n# This case gets a diagnostic but not a fix because we can't look up the bounds\n# or constraints on the TypeVar imported from another module\nclass ExternalType(Generic[T, SupportsRichComparisonT]):\n    var: T\n    compare: SupportsRichComparisonT\n\n\n# typing.AnyStr is a common external type variable, so treat it specially as a\n# known TypeVar\nclass MyStr(Generic[AnyStr]):\n    s: AnyStr\n\n\nclass MultipleGenerics(Generic[S, T, *Ts, P]):\n    var: S\n    typ: T\n    tup: tuple[*Ts]\n    pep: P\n\n\nclass MultipleBaseClasses(list, Generic[T]):\n    var: T\n\n\n# these are just for the MoreBaseClasses and MultipleBaseAndGenerics cases\nclass Base1: ...\n\n\nclass Base2: ...\n\n\nclass Base3: ...\n\n\nclass MoreBaseClasses(Base1, Base2, Base3, Generic[T]):\n    var: T\n\n\nclass MultipleBaseAndGenerics(Base1, Base2, Base3, Generic[S, T, *Ts, P]):\n    var: S\n    typ: T\n    tup: tuple[*Ts]\n    pep: P\n\n\nclass A(Generic[T]): ...\n\n\nclass B(A[S], Generic[S]):\n    var: S\n\n\nclass C(A[S], Generic[S, T]):\n    var: tuple[S, T]\n\n\nclass D(A[int], Generic[T]):\n    var: T\n\n\nclass NotLast(Generic[T], Base1):\n    var: T\n\n\nclass Sandwich(Base1, Generic[T], Base2):\n    var: T\n\n\n# runtime `TypeError` to inherit from `Generic` multiple times, but we still\n# emit a diagnostic\nclass TooManyGenerics(Generic[T], Generic[S]):\n    var: T\n    var: S\n\n\n# These cases are not handled\nclass D(Generic[T, T]):  # duplicate generic variable, runtime error\n    pass\n\n\n# TODO(brent) we should also apply the fix to methods, but it will need a\n# little more work. these should be left alone for now but be fixed eventually.\nclass NotGeneric:\n    # -> generic_method[T: float](t: T)\n    def generic_method(t: T) -> T:\n        return t\n\n\n# This one is strange in particular because of the mix of old- and new-style\n# generics, but according to the PEP, this is okay \"if the class, function, or\n# type alias does not use the new syntax.\" `more_generic` doesn't use the new\n# syntax, so it can use T from the module and U from the class scope.\nclass MixedGenerics[U]:\n    def more_generic(u: U, t: T) -> tuple[U, T]:\n        return (u, t)\n\n\n# default requires 3.13\nV = TypeVar(\"V\", default=Any, bound=str)\n\n\nclass DefaultTypeVar(Generic[V]):  # -> [V: str = Any]\n    var: V\n\n\n# Test case for TypeVar with default but no bound\nW = TypeVar(\"W\", default=int)\n\n\nclass DefaultOnlyTypeVar(Generic[W]):  # -> [W = int]\n    var: W\n\n\n# nested classes and functions are skipped\nclass Outer:\n    class Inner(Generic[T]):\n        var: T\n" }
+expected = [{ rule = "invalid-syntax", file = "UP046_0.py", start = 350, end = 353 }, { rule = "invalid-syntax", file = "UP046_0.py", start = 372, end = 375 }, { rule = "invalid-syntax", file = "UP046_0.py", start = 883, end = 886 }, { rule = "invalid-syntax", file = "UP046_0.py", start = 930, end = 933 }, { rule = "invalid-syntax", file = "UP046_0.py", start = 1272, end = 1275 }, { rule = "invalid-syntax", file = "UP046_0.py", start = 1319, end = 1322 }, { rule = "invalid-syntax", file = "UP046_0.py", start = 2468, end = 2471 }]
+
+[[cases]]
+name = "upstream-UP046_1.py"
+files = { "UP046_1.py" = "\"\"\"Replacing AnyStr requires specifying the constraints `bytes` and `str`, so\nit can't be replaced if these have been shadowed. This test is in a separate\nfixture because it doesn't seem possible to restore `str` to its builtin state\n\"\"\"\n\nfrom typing import AnyStr, Generic\n\nstr = \"string\"\n\n\nclass BadStr(Generic[AnyStr]):\n    var: AnyStr\n" }
+expected = []
+
+[[cases]]
+name = "upstream-UP046_2.py"
+files = { "UP046_2.py" = "\"\"\"This is placed in a separate fixture as `TypeVar` needs to be imported\nfrom `typing_extensions` to support default arguments in Python version < 3.13.\nWe verify that UP046 doesn't apply in this case.\n\"\"\"\n\nfrom typing import Generic\nfrom typing_extensions import TypeVar\n\nT = TypeVar(\"T\", default=str)\n\n\nclass DefaultTypeVar(Generic[T]):\n    var: T\n\n\nclass KeywordArguments(Generic[T], metaclass=type):\n    var: T\n" }
+expected = []
+
+[[cases]]
+name = "positive"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nclass C(Generic[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from typing import Generic as G, TypeVar as V\nT=V(\"T\")\nclass C(G[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import typing as t\nT=t.TypeVar(\"T\")\nclass C(t.Generic[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "shadow-generic"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nGeneric=list\nclass C(Generic[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "duplicate"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nclass C(Generic[T,T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "default"
+files = { "case.py" = "from typing_extensions import Generic, TypeVar\nT=TypeVar(\"T\", default=int)\nclass C(Generic[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "external"
+files = { "case.py" = "from typing import Generic\nfrom elsewhere import T\nclass C(Generic[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f():\n class C(Generic[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nclass C(Generic[T]): ... # noqa: UP046\n" }
+expected = []
+
+[[cases]]
+name = "already-pep695"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nclass C[S](Generic[T]): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.py", start = 68, end = 71 }]
+
+[[cases]]
+name = "not-last"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nclass C(Generic[T,T], object): ...\n" }
+expected = []

@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::types::{Drawn, Examination, Link, Linked, Packaged, Placed, Run, UnplacedLink};
+use super::types::{Drawn, Examination, SourceDependencyLink, Linked, Packaged, Placed, Run, UnplacedLink};
 use crate::domain::fact_notes::service::facts_of;
 use crate::domain::fact_notes::types::{Naming, Note};
 use crate::domain::module_tree::constants::SOURCE;
@@ -28,7 +28,7 @@ pub(crate) fn file_id(place: ListIndex) -> languages::FileId {
 
 /// Where the path of a link is written.
 #[must_use]
-pub(crate) fn link_span(link: &Link) -> languages::Span {
+pub(crate) fn link_span(link: &SourceDependencyLink) -> languages::Span {
     languages::Span {
         start: link.start,
         end: link.end,
@@ -210,7 +210,7 @@ pub(crate) fn examine(
                  end,
                  written,
              }| {
-                place_of(run.files, target).map(|target| Link {
+                place_of(run.files, target).map(|target| SourceDependencyLink {
                     source: place,
                     target,
                     start,

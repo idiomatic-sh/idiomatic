@@ -1,0 +1,23 @@
+{
+  "schema": "full-candidate-report-equivalence/v1",
+  "candidate_summary": "/tmp/django-demand-graph-full-20261101/runs/cold-20261101T215406/summary.json",
+  "prior_summary": "/tmp/django-corpus-execution-full-20261101/runs/cold-20261101T202715/summary.json",
+  "candidate_report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+  "prior_report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f",
+  "diagnostic_multisets_equal": true,
+  "files_equal": true,
+  "coverage_equal": true,
+  "skips_equal": true,
+  "extra_vs_prior": [],
+  "missing_vs_prior": [],
+  "coverage": {
+    "selected": 891250,
+    "evaluated": 890943,
+    "skipped": 307,
+    "unknown_or_unread": 0
+  },
+  "skip_records": 307,
+  "finding_count": 2327,
+  "files": 2875,
+  "limits": "Two separate candidate observations, not an alternating full-corpus timing pair. Prior5364 precedes the compiler-feature producer update; current3ee24 matches8eabb provider in paired sanity."
+}

@@ -1,12 +1,13 @@
 //! The `project` service: free functions named by verb over what the rules read of the project, with no IO and no ports.
 
 use super::types::PlanReads;
-use crate::domain::storing::types::MadeAgain;
-use ryo_language::domain::relations::service::provenance_of;
-use ryo_language::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};
+use ryo_values::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// Whether the cross-file steps of a plan read what the project writes - the manifests and how the files link to one another.
 #[must_use]
@@ -24,11 +25,8 @@ pub(crate) fn reads_project(plan: &Plan) -> PlanReads {
 
 /// Whether the cross-file steps of any of the plans read what the project writes.
 #[must_use]
-pub(crate) fn reads_any(plans: &[Plan]) -> PlanReads {
-    if plans
-        .iter()
-        .any(|plan| reads_project(plan) == PlanReads::Reads)
-    {
+pub(crate) fn reads_any(metadata: &[RuleMetadata]) -> PlanReads {
+    if metadata.iter().any(|rule| rule.reads_project) {
         PlanReads::Reads
     } else {
         PlanReads::DoesNotRead
@@ -37,11 +35,11 @@ pub(crate) fn reads_any(plans: &[Plan]) -> PlanReads {
 
 /// The rules that read what the project writes, by their place among `plans`, in order.
 #[must_use]
-pub(crate) fn project_rules(plans: &[Plan]) -> Vec<PlacedRule> {
-    plans
+pub(crate) fn project_rules(metadata: &[RuleMetadata]) -> Vec<PlacedRule> {
+    metadata
         .iter()
         .enumerate()
-        .filter(|(_, plan)| reads_project(plan) == PlanReads::Reads)
+        .filter(|(_, rule)| rule.reads_project)
         .map(|(place, _)| PlacedRule(u32::try_from(place).unwrap_or(u32::MAX)))
         .collect()
 }
@@ -68,4 +66,27 @@ pub(crate) fn with_consulted(
             MadeAgain::These(rules)
         }
     }
+}
+
+/// A primary manifest read failure makes demanded project relations incomplete, without
+/// attributing its disk error to the unrelated source paths those relations describe.
+pub(crate) fn unread_manifest_partials(
+    wanted: &[ryo_relations::domain::relations::types::Relation],
+    path: &ryo_language::domain::files::types::FilePath,
+    detail: &str,
+) -> Vec<ryo_execution::inbound::use_cases::metadata::interface::Partial> {
+    wanted
+        .iter()
+        .filter(|relation| provenance_of(**relation) == Provenance::Manifests)
+        .map(
+            |relation| ryo_execution::inbound::use_cases::metadata::interface::Partial {
+                relation: *relation,
+                cause: ryo_values::domain::stored_facts::types::PartialCause(
+                    format!("cannot read primary manifest `{}`: {detail}", path.0).into(),
+                ),
+                lacking: ryo_execution::inbound::use_cases::metadata::interface::Lacking::Any,
+                at: None,
+            },
+        )
+        .collect()
 }

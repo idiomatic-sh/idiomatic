@@ -1,0 +1,125 @@
+[[cases]]
+name = "logging-module-call"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure %s\", error)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 98 }, { "rule" = "TRY401", "file" = "case.py", "start" = 92, "end" = 97 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import logging as log\ntry:\n    pass\nexcept Exception as error:\n    log.exception(f\"{error}\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 67, "end" = 92 }, { "rule" = "TRY401", "file" = "case.py", "start" = 84, "end" = 89 }]
+
+[[cases]]
+name = "from-import-alias"
+comparison = "full"
+files = { "case.py" = "from logging import exception as log_exception\ntry:\n    pass\nexcept Exception as error:\n    log_exception(\"failure\", error)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 92, "end" = 123 }, { "rule" = "TRY401", "file" = "case.py", "start" = 117, "end" = 122 }]
+
+[[cases]]
+name = "nested-expression"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", str(error))\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 100 }, { "rule" = "TRY401", "file" = "case.py", "start" = 93, "end" = 98 }]
+
+[[cases]]
+name = "nested-handler-outer-binding"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as outer:\n    try:\n        pass\n    except ValueError:\n        logging.exception(\"failure\", outer)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 109, "end" = 144 }, { "rule" = "TRY401", "file" = "case.py", "start" = 138, "end" = 143 }]
+
+[[cases]]
+name = "nested-handler-inner-binding"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as outer:\n    try:\n        pass\n    except ValueError as inner:\n        logging.exception(\"failure\", inner)\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 49, "end" = 54 }, { "rule" = "LOG015", "file" = "case.py", "start" = 118, "end" = 153 }, { "rule" = "TRY401", "file" = "case.py", "start" = 147, "end" = 152 }]
+
+[[cases]]
+name = "attribute-reference-is-not-read"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error.field)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 101 }]
+
+[[cases]]
+name = "no-target"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception:\n    logging.exception(\"failure\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 51, "end" = 79 }]
+
+[[cases]]
+name = "outside-handler"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.exception(\"failure\", error)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 44, "end" = 49 }, { "rule" = "LOG015", "file" = "case.py", "start" = 15, "end" = 50 }]
+
+[[cases]]
+name = "wrong-level"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.error(\"failure\", error)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 91 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)  # noqa: TRY401\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 95 }]
+
+[[cases]]
+name = "unicode-prefix"
+comparison = "full"
+files = { "case.py" = "import logging\n名 = 1\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 68, "end" = 103 }, { "rule" = "TRY401", "file" = "case.py", "start" = 97, "end" = 102 }]
+
+[[cases]]
+name = "unbound-logger-name"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept Exception as error:\n    logger.exception(\"failure\", error)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 45, "end" = 51 }, { "rule" = "TRY401", "file" = "case.py", "start" = 73, "end" = 78 }]
+
+[[cases]]
+name = "unrecognized-logger-name"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept Exception as error:\n    worker.exception(\"failure\", error)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 45, "end" = 51 }]
+
+[[cases]]
+name = "noqa-code-list"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)  # noqa: F401, TRY401\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 95 }]
+
+[[cases]]
+name = "noqa-other-code"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)  # noqa: F401\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 95 }, { "rule" = "TRY401", "file" = "case.py", "start" = 89, "end" = 94 }]
+
+[[cases]]
+name = "noqa-near-code-suffix"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)  # noqa: TRY4010\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 95 }, { "rule" = "TRY401", "file" = "case.py", "start" = 89, "end" = 94 }]
+
+[[cases]]
+name = "noqa-near-code-prefix"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)  # noqa: XTRY401\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 95 }, { "rule" = "TRY401", "file" = "case.py", "start" = 89, "end" = 94 }]
+
+[[cases]]
+name = "noqa-tab-separator"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    pass\nexcept Exception as error:\n    logging.exception(\"failure\", error)  # noqa:\tTRY401\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 60, "end" = 95 }]
+
+[[cases]]
+name = "local-logger-object-name"
+comparison = "full"
+files = { "case.py" = "logger = object()\ntry:\n    pass\nexcept Exception as error:\n    logger.exception(\"failure\", error)\n" }
+expected = [{ "rule" = "TRY401", "file" = "case.py", "start" = 91, "end" = 96 }]
+
+[[cases]]
+name = "imported-unrecognized-logger"
+comparison = "full"
+files = { "case.py" = "from random import logger\ntry:\n    pass\nexcept Exception as error:\n    logger.exception(\"failure\", error)\n" }
+expected = []

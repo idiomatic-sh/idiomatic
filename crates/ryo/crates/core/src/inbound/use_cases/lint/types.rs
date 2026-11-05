@@ -2,36 +2,36 @@
 
 use crate::application::file_analysis::types::FileVisit;
 use crate::domain::admission::errors::AdmissionError;
-use crate::domain::coverage::types::Unknown;
-use crate::domain::features::types::FeatureRows;
 use crate::domain::ordering::types::Ordered;
-use crate::domain::placement::types::PlacedScopes;
 use crate::domain::render::types::Answering;
-use crate::domain::rules::types::RuleParameters;
-use crate::domain::rules::types::{Given, RuleSpec};
-use crate::domain::storing::types::Reuse;
-use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
-use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::Wants;
 use crate::outbound::lint_store::interface::ReadStore;
+use ryo_execution::inbound::use_cases::metadata::interface::FeatureRows;
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
+use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
-use ryo_values::domain::files::types::{CorpusEntry, Glob};
+use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plan_parts::types::{
-    FlagState, LiteralText, ParameterName, QueryText, WholeNumber,
-};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
+use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::records::types::{RowTotal, Unread};
-use ryo_values::domain::runs::types::{AnswerShape, MemoryBytes, RuleId, Session};
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use ryo_values::domain::runs::types::{
+    AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
+};
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded, StoredRule};
+use ryo_values::domain::stores::types::Reuse;
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, StoredRule};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
 
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
+    /// Explicit provider for these sources; none preserves ordinary path recognition.
+    pub source_language: Option<ryo_values::domain::descriptions::types::LanguageName>,
     /// The session `open` returned.
     pub session: Session,
     /// Only findings in these files are reported; none means every file.
@@ -51,10 +51,14 @@ pub struct TaskIndex(pub usize);
 /// One rule: a query whose rows are violations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rule {
+    /// Explicit named producer outputs consumed by this rule.
+    pub observations: Vec<ryo_values::domain::observations::types::ObservationBinding>,
     /// The rule's id, named in every finding.
     pub id: RuleId,
     /// The RyoQL text.
-    pub query: QueryText,
+    pub query: QueryBundle,
+    /// Whether the rule runs on every parse or only files whose syntax the provider accepted.
+    pub applicability: RuleApplicability,
     /// What the query's parameters are bound to.
     pub parameters: Vec<RuleParameter>,
     /// The globs of the files the rule governs; none means every file.
@@ -137,15 +141,37 @@ impl From<ParameterValue> for ParameterBinding {
 /// What a lint answers once its findings have all been written: the files nothing read, and what the rules could not decide.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LintReport {
+    /// Project dependencies observed in this run, including dependencies retained from a reused project.
+    pub dependencies: Vec<ProjectDependency>,
     /// The files no linked language read, with why.
     pub unread: Vec<Unread>,
     /// What the rules could not decide, because a relation they trust the absence of rows of was read only in part.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped because a file's syntax was rejected.
+    pub skipped: Vec<Skipped>,
     /// How many rows each feature of the language was fed over the run, in the catalog's order: what says every feature is exercised.
     pub features: Vec<FeatureFed>,
     /// The work of each rule, in the order of the rules: the rows each of its steps was fed. A count, the same on any machine at any
     /// load, so a test can hold a rule to it. Empty unless the run counts.
     pub work: Vec<RuleWork>,
+}
+
+/// One required project lookup, whether the file was present or absent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectDependency {
+    /// Repository-relative path; `../` may refer to a dependency above the run root.
+    pub path: FilePath,
+    /// The observed content identity, or the fact that no file was present.
+    pub state: ProjectDependencyState,
+}
+
+/// Content state of an observed project dependency.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectDependencyState {
+    /// Opaque identity of the bytes read by the project.
+    Present(ryo_values::domain::stored_facts::types::Digest),
+    /// The project looked for the path and found no file.
+    Missing,
 }
 
 /// The work of one rule: the rows each of its steps was fed, over the files and the cross-file finish.
@@ -175,42 +201,6 @@ pub struct FeatureFed {
     pub rows: RowTotal,
 }
 
-/// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the
-/// same rules compiles each rule once. A rule id keeps one plan: the one of its latest query; past `COMPILED_PLANS` the plan that
-/// has been kept longest is dropped, whatever the request in progress names: a run holds the plans it compiled or found, so
-/// dropping one never changes an answer.
-#[derive(Clone, Debug, Default)]
-pub struct CompiledPlans(pub Arc<Mutex<PlanCache>>);
-
-/// The plans compiled so far, and the order they were first kept in.
-#[derive(Debug, Default)]
-pub struct PlanCache {
-    /// The plan of each rule id.
-    pub plans: std::collections::HashMap<RuleId, CachedPlan>,
-    /// The rule ids of `plans`, the one kept longest first, each once.
-    pub order: std::collections::VecDeque<RuleId>,
-}
-
-/// The plan a rule's query compiled to, kept with the query it was compiled from: a rule whose query changed is compiled again.
-#[derive(Clone, Debug)]
-pub struct CachedPlan {
-    /// The RyoQL text the plan was compiled from.
-    pub query: QueryText,
-    /// The relations the host declared when it was: a plan that names one is another plan when they are others.
-    pub hosted: Vec<ryo_values::domain::hosted::types::HostedRelation>,
-    /// The plan.
-    pub plan: Plan,
-}
-
-/// The plans of the rules, and what each binds its parameters to.
-#[derive(Clone, Debug)]
-pub(crate) struct Compiled {
-    /// The plans, in the order of the rules.
-    pub plans: Vec<Plan>,
-    /// What each rule binds its parameters to, in the order of the plan's parameters.
-    pub bindings: Vec<Vec<ParameterBinding>>,
-}
-
 /// Where the rules govern, and what they read.
 pub(crate) struct Wanting {
     /// Which rule governs which file.
@@ -222,7 +212,7 @@ pub(crate) struct Wanting {
 /// The repository as this run finds it, and what the last run kept of it.
 pub(crate) struct RepositoryListing {
     /// The files, in the order of their paths.
-    pub files: Vec<CorpusEntry>,
+    pub files: Vec<CorpusInput>,
     /// What the last run of this build kept; empty when it kept nothing.
     pub stored: Stored,
     /// The store those tables were read from, none when the run reads none: what this run reads of it later, and keeps against, is of
@@ -258,7 +248,7 @@ pub enum ProviderFault {
 #[derive(Debug)]
 pub(crate) enum Listed<E> {
     /// The files under the root.
-    Files(Result<Vec<CorpusEntry>, E>),
+    Files(Result<Vec<CorpusInput>, E>),
     /// What the last run of this build kept, boxed: it is far larger than a list of files.
     Stored(Result<Option<Arc<dyn ReadStore>>, E>),
 }
@@ -267,7 +257,7 @@ pub(crate) enum Listed<E> {
 /// turn and how many were written.
 pub(crate) struct Course<'a> {
     /// The files, in the order of their paths.
-    pub files: &'a [CorpusEntry],
+    pub files: &'a [CorpusInput],
     /// What every visit reads.
     pub visit: &'a FileVisit<'a>,
     /// Where the findings wait for their turn.
@@ -283,6 +273,7 @@ impl From<&Rule> for RuleSpec {
         Self {
             id: RuleId(rule.id.0.clone()),
             query: rule.query.clone(),
+            applicability: rule.applicability,
             given: rule
                 .parameters
                 .iter()
@@ -291,7 +282,10 @@ impl From<&Rule> for RuleSpec {
                     value: parameter.value.clone().into(),
                 })
                 .collect(),
-            spelled: RuleParameters(format!("{:?}", rule.parameters).into()),
+            observations: rule.observations.clone(),
+            spelled: RuleParameters(
+                format!("{:?}|{:?}", rule.parameters, rule.applicability).into(),
+            ),
             include: rule.include.clone(),
             exclude: rule.exclude.clone(),
         }
@@ -320,14 +314,17 @@ impl From<AdmissionError> for ProviderFault {
 
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
+    /// Required file applicability for both per-file and cross-file diagnostic Emit.
+    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
+    /// The sole request-prepared executable program and its required application capabilities.
+    pub program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    pub services: &'a ryo_execution::inbound::use_cases::execution::types::RequestExecution,
     /// What the caller asked.
     pub request: &'a LintRequest,
     /// The rules, compiled.
     pub rules: &'a [RuleSpec],
-    /// The rules' plans.
-    pub plans: &'a [Plan],
-    /// The rules' bindings, by rule.
-    pub bindings: &'a [Vec<ParameterBinding>],
+    /// Pure rule facts retained for source demand, frontier and work accounting.
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
     /// The rules' ids.
     pub ids: &'a [RuleId],
     /// What the rules read of the files.
@@ -353,8 +350,14 @@ pub(super) struct LintRun<'a> {
     pub read_again: &'a [FilePath],
     /// What the rules could not decide in the changed files, read before the run to see whether what they show other files changed.
     pub alone: &'a [Unknown],
+    /// Rules skipped for unchanged or separately reread files.
+    pub skipped: &'a [Skipped],
     /// What the files handed the last run, as far as the run read it.
-    pub handed: &'a StoredHanded,
+    pub handed: &'a ReadHanded,
     /// The buckets of what the files handed that the run read.
     pub wanted: &'a BucketsWanted,
 }
+
+use ryo_values::domain::rule_requests::types::{Given, RuleSpec};
+
+use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};

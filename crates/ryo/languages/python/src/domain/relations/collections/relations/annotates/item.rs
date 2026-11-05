@@ -13,7 +13,12 @@ pub(crate) struct AnnotatesItem;
 
 ryo::reads! {
     AnnotatesItem => languages::Annotates, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Arg), Kind::Node(Node::FunctionDef), Kind::Node(Node::AnnAssign)] as kind_bits,
+        kinds: [
+            Kind::Node(Node::Arg),
+            Kind::Node(Node::FunctionDef),
+            Kind::Node(Node::AsyncFunctionDef),
+            Kind::Node(Node::AnnAssign),
+        ] as kind_bits,
         given annotated = annotation_of(tree, at)?;
         row {
             occurrence: node(annotated.annotation),

@@ -1,0 +1,101 @@
+[[cases]]
+name = "direct-module"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([\"cmd\"], universal_newlines=True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }, { "rule" = "UP021", "file" = "case.py", "start" = 42, "end" = 60 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import subprocess as sp\nsp.run([], universal_newlines=False)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 24, "end" = 30 }, { "rule" = "UP021", "file" = "case.py", "start" = 35, "end" = 53 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from subprocess import run\nrun([], universal_newlines=True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 27, "end" = 30 }, { "rule" = "UP021", "file" = "case.py", "start" = 35, "end" = 53 }]
+
+[[cases]]
+name = "from-alias"
+comparison = "full"
+files = { "case.py" = "from subprocess import run as execute\nexecute([], universal_newlines=True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 38, "end" = 45 }, { "rule" = "UP021", "file" = "case.py", "start" = 50, "end" = 68 }]
+
+[[cases]]
+name = "with-text-already-present"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], universal_newlines=True, text=True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }, { "rule" = "UP021", "file" = "case.py", "start" = 37, "end" = 55 }]
+
+[[cases]]
+name = "no-value-constraint"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], universal_newlines=None)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }, { "rule" = "UP021", "file" = "case.py", "start" = 37, "end" = 55 }]
+
+[[cases]]
+name = "keyword-only-others"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], cwd=\".\", universal_newlines=True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }, { "rule" = "UP021", "file" = "case.py", "start" = 46, "end" = 64 }]
+
+[[cases]]
+name = "no-keyword"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([])\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }]
+
+[[cases]]
+name = "wrong-callable"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.Popen([], universal_newlines=True)\n" }
+expected = []
+
+[[cases]]
+name = "wrong-method"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.call([], universal_newlines=True)\n" }
+expected = []
+
+[[cases]]
+name = "other-function"
+comparison = "full"
+files = { "case.py" = "def run(*args, **kwargs): pass\nrun([], universal_newlines=True)\n" }
+expected = []
+
+[[cases]]
+name = "wrong-module"
+comparison = "full"
+files = { "case.py" = "import os as subprocess\nsubprocess.run([], universal_newlines=True)\n" }
+expected = []
+
+[[cases]]
+name = "kwargs-expansion"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], **{\"universal_newlines\": True})\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], universal_newlines=True)  # noqa: UP021\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP021\nimport subprocess\nsubprocess.run([], universal_newlines=True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 38, "end" = 52 }]
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run(\n    [],\n    universal_newlines=True,\n)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }, { "rule" = "UP021", "file" = "case.py", "start" = 46, "end" = 64 }]
+
+[[cases]]
+name = "identifier-spacing"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], universal_newlines = True)\n" }
+expected = [{ "rule" = "PLW1510", "file" = "case.py", "start" = 18, "end" = 32 }, { "rule" = "UP021", "file" = "case.py", "start" = 37, "end" = 55 }]

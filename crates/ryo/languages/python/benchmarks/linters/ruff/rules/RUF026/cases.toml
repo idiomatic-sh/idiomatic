@@ -1,0 +1,289 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\n\n# Violation cases: RUF026\n\n\ndef func():\n    defaultdict(default_factory=None)  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=int)  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=float)  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=dict)  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=list)  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=tuple)  # RUF026\n\n\ndef func():\n    def foo():\n        pass\n\n    defaultdict(default_factory=foo)  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=lambda: 1)  # RUF026\n\n\ndef func():\n    from collections import deque\n\n    defaultdict(default_factory=deque)  # RUF026\n\n\ndef func():\n    class MyCallable:\n        def __call__(self):\n            pass\n\n    defaultdict(default_factory=MyCallable())  # RUF026\n\n\ndef func():\n    defaultdict(default_factory=tuple, member=1)  # RUF026\n\n\ndef func():\n    defaultdict(member=1, default_factory=tuple)  # RUF026\n\n\ndef func():\n    defaultdict(member=1, default_factory=tuple,)  # RUF026\n\n\ndef func():\n    defaultdict(\n        member=1,\n        default_factory=tuple,\n    )  # RUF026\n\n\ndef func():\n    defaultdict(\n        default_factory=tuple,\n        member=1,\n    )  # RUF026\n\n\n# Non-violation cases: RUF026\n\n\ndef func():\n    defaultdict(default_factory=1)  # OK\n\n\ndef func():\n    defaultdict(default_factory=\"wdefwef\")  # OK\n\n\ndef func():\n    defaultdict(default_factory=[1, 2, 3])  # OK\n\n\ndef func():\n    defaultdict()  # OK\n\n\ndef func():\n    defaultdict(int)  # OK\n\n\ndef func():\n    defaultdict(list)  # OK\n\n\ndef func():\n    defaultdict(dict)  # OK\n\n\ndef func():\n    defaultdict(dict, default_factory=list)  # OK\n\n\ndef func():\n    def constant_factory(value):\n        return lambda: value\n\n    defaultdict(constant_factory(\"<missing>\"))\n\ndef func():\n    pass  # py314-only upstream t-string excluded at pinned target py310: defaultdict(default_factory=t\"\")\n\n\ndef func():\n    pass  # py314-only upstream t-string excluded at pinned target py310: defaultdict(default_factory=t\"hello\")\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 143, end = 175 }, { rule = "RUF026", file = "case.py", start = 204, end = 238 }, { rule = "RUF026", file = "case.py", start = 267, end = 300 }, { rule = "RUF026", file = "case.py", start = 329, end = 362 }, { rule = "RUF026", file = "case.py", start = 391, end = 425 }, { rule = "RUF026", file = "case.py", start = 483, end = 515 }, { rule = "RUF026", file = "case.py", start = 544, end = 582 }, { rule = "RUF026", file = "case.py", start = 646, end = 680 }, { rule = "RUF026", file = "case.py", start = 777, end = 818 }, { rule = "RUF026", file = "case.py", start = 847, end = 891 }, { rule = "RUF026", file = "case.py", start = 920, end = 964 }, { rule = "RUF026", file = "case.py", start = 993, end = 1038 }, { rule = "RUF026", file = "case.py", start = 1067, end = 1134 }, { rule = "RUF026", file = "case.py", start = 1163, end = 1230 }]
+
+[[cases]]
+name = "factory-shapes-0"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=list)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 71 }]
+
+[[cases]]
+name = "factory-shapes-1"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=unknown)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 74 }]
+
+[[cases]]
+name = "factory-shapes-2"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=obj.factory)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 78 }]
+
+[[cases]]
+name = "factory-shapes-3"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=lambda: 1)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 76 }]
+
+[[cases]]
+name = "factory-shapes-4"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=factory())\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 76 }]
+
+[[cases]]
+name = "factory-shapes-5"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=None)\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-6"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=...)\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-7"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=True)\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-8"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=1)\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-9"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=1.0)\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-10"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=1j)\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-11"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-12"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=b\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-13"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=f\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-14"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=f\"{x}\")\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-15"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=[])\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-16"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory={})\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-17"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=set())\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 72 }]
+
+[[cases]]
+name = "factory-shapes-18"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory={1})\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-19"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=())\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-20"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=(unknown,))\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-21"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=[x for x in xs])\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-22"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory={x for x in xs})\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-23"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory={x:x for x in xs})\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-24"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=(x for x in xs))\n" }
+expected = []
+
+[[cases]]
+name = "factory-shapes-25"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=-1)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 69 }]
+
+[[cases]]
+name = "factory-shapes-26"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=+1)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 69 }]
+
+[[cases]]
+name = "factory-shapes-27"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=not True)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 75 }]
+
+[[cases]]
+name = "factory-shapes-28"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=1+2)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 70 }]
+
+[[cases]]
+name = "factory-shapes-29"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=a if p else b)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 80 }]
+
+[[cases]]
+name = "factory-shapes-30"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=(x := factory))\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 81 }]
+
+[[cases]]
+name = "positional-blocks"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict as D\nD(list,default_factory=unknown)\nD(*xs,default_factory=unknown)\nD(*[],default_factory=unknown)\n" }
+expected = []
+
+[[cases]]
+name = "other-keywords"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict as D\nD(a=1,default_factory=list)\nD(default_factory=list,**kw)\nD(**kw,default_factory=unknown)\nD(**{\"default_factory\":list})\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 41, end = 68 }, { rule = "RUF026", file = "case.py", start = 69, end = 97 }, { rule = "RUF026", file = "case.py", start = 98, end = 129 }]
+
+[[cases]]
+name = "import-paths"
+comparison = "full"
+files = { "case.py" = "import collections as c\nfrom collections import defaultdict as D\nx=c.defaultdict(default_factory=list)\ny=D(default_factory=list)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 67, end = 102 }, { rule = "RUF026", file = "case.py", start = 105, end = 128 }]
+
+[[cases]]
+name = "non-collections"
+comparison = "full"
+files = { "case.py" = "from other import defaultdict\nx=defaultdict(default_factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "not-imported"
+comparison = "full"
+files = { "case.py" = "x=collections.defaultdict(default_factory=list)\ny=defaultdict(default_factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-constructor"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\ndef f(defaultdict):\n    return defaultdict(default_factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "assignment-alias"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nD=defaultdict\nx=D(default_factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "unicode-identifier"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict as Ｄ\nx=Ｄ(ｄｅｆａｕｌｔ＿ｆａｃｔｏｒｙ=list)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 45, end = 100 }]
+
+[[cases]]
+name = "different-keyword"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=(defaultdict)(default_factory=(list))\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 75 }]
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\né=defaultdict(\n    default_factory=lambda: \"🙂é\",\n)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 39, end = 91 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=list)  # noqa: RUF026\n" }
+expected = []
+
+[[cases]]
+name = "blanket-suppression"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=list)  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RUF026\nfrom collections import defaultdict\nx=defaultdict(default_factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "wrong-code-unsuppressed"
+comparison = "full"
+files = { "case.py" = "from collections import defaultdict\nx=defaultdict(default_factory=list)  # noqa: F401\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 38, end = 71 }]
+
+[[cases]]
+name = "block-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[RUF026]\nfrom collections import defaultdict\nx=defaultdict(default_factory=list)\n# ruff: enable[RUF026]\nfrom collections import defaultdict\nx=defaultdict(default_factory=list)\n" }
+expected = [{ rule = "RUF026", file = "case.py", start = 157, end = 190 }]

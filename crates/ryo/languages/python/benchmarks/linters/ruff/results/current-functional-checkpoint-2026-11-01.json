@@ -1,0 +1,79 @@
+{
+  "schema": "functional-checkpoint/v1",
+  "receipts": [
+    {
+      "status": "complete",
+      "passed": true,
+      "command": [
+        "python3",
+        "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py",
+        "--self-test"
+      ],
+      "cwd": "/workspaces/idiomatic-benchmark-guards",
+      "started_utc": "2026-11-01T19:40:53.807761+00:00",
+      "completed_utc": "2026-11-01T19:41:40.576944+00:00",
+      "exit_code": 0,
+      "source_stable": true,
+      "stdout_sha256": "c5b5aed3b20fad130bcaa49d410d8cdc2f99cd7cbf47398e45dd5ca7a74e9002",
+      "stderr_sha256": "94ab79a480217f0a61ee613390e0732bb10ba43d6becd0cb3a9c4232b2e5c650",
+      "raw_receipt": "/tmp/current-discrepancy-verifier-selftest-2-20261101/result.json",
+      "raw_receipt_sha256": "d2696838983e1072a9356a6fa05e8802fb0c8c56dd396f451593d0e265572d6c",
+      "source_head": "97b497e8b453ab493630bff98ad432cde039a2f2",
+      "source_tree_sha256": "7c8be69d56ca0e5723e28dd03bda3eb2916d1ca2c91e0521bbcff91bd073c9e3"
+    },
+    {
+      "status": "complete",
+      "passed": true,
+      "command": [
+        "python3",
+        "/tmp/run-pure-layout-essential-gate-2-20261101.py"
+      ],
+      "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+      "started_utc": "2026-11-01T19:33:55.491082+00:00",
+      "completed_utc": "2026-11-01T19:34:13.101891+00:00",
+      "exit_code": 0,
+      "source_stable": true,
+      "stdout_sha256": "300e3f7def434b8dc6d10931cdc86471836537da817a0e84c26646873c35e367",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_receipt": "/tmp/pure-layout-essential-gate-2-20261101/result.json",
+      "raw_receipt_sha256": "10f6ab47f32515fa7a7d64b332b484cb94972c5b0a6c57b940232d8b0f6e843f",
+      "source_head": "97b497e8b453ab493630bff98ad432cde039a2f2",
+      "source_tree_sha256": "c3ac490a53238e6f09e9897d0744540e0bba38decadfcf3a8442580b4b7d42da"
+    },
+    {
+      "status": "complete",
+      "passed": true,
+      "command": [
+        "flock",
+        "/workspaces/.cargo-build.lock",
+        "cargo",
+        "bench",
+        "--no-run",
+        "--locked",
+        "-j6",
+        "-p",
+        "idiomatic-sh-ryo-python",
+        "--bench",
+        "ruff",
+        "--message-format=json"
+      ],
+      "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+      "started_utc": "2026-11-01T19:36:14.650752+00:00",
+      "completed_utc": "2026-11-01T19:37:58.825540+00:00",
+      "exit_code": 0,
+      "source_stable": true,
+      "stdout_sha256": "0f59a92b108bb0b40e5f5f34d151d82bca87ebab0bfedb75eca1e74e01281c16",
+      "stderr_sha256": "f8eb709024b52192b7f498dd3e13bdd0a9d59bcda93c67751f8e9fc71e5029a6",
+      "raw_receipt": "/tmp/pure-layout-candidate-worker-build-20261101/result.json",
+      "raw_receipt_sha256": "75de8411bb4b780e9d2579dbdde85959219a3a5bd2061c425202fa511c2edf12",
+      "source_head": "97b497e8b453ab493630bff98ad432cde039a2f2",
+      "source_tree_sha256": "c3ac490a53238e6f09e9897d0744540e0bba38decadfcf3a8442580b4b7d42da"
+    }
+  ],
+  "limitations": [
+    "Not a whole-workspace quality certificate.",
+    "Current broadRust performance verdict remains unavailable.",
+    "Immutable324 combined correctness remains running.",
+    "Currenthistorical actualproof asset admission remains pending where helper identities changed."
+  ]
+}

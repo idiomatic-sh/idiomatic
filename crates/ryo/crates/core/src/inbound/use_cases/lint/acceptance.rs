@@ -24,7 +24,7 @@ use ryo_core::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_core::outbound::rows;
 use ryo_core::outbound::rows::interface::RowsPort;
 use ryo_core::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::QueryText;
@@ -34,6 +34,7 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScop
 /// A file of the corpus at `path`, holding one function.
 fn file(path: &str) -> CorpusFile {
     CorpusFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         bytes: FileBytes(b"fn main() {}".to_vec()),
     }
@@ -42,6 +43,8 @@ fn file(path: &str) -> CorpusFile {
 /// A plan that keeps every row of the `function` relation.
 fn every_function() -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {
@@ -58,6 +61,7 @@ fn every_function() -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -106,13 +110,19 @@ fn runs(world: &mut Behavior) {
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            )),
+            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(ryo_core::outbound::facts::factory::memory()),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
             Arc::new(query_language),
             Arc::clone(&analysis_memory),
+            Arc::new(ryo_core::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            )),
             Arc::new(SchedulerFake::default()),
             ryo_core::outbound::scheduler::types::WorkerCount(1),
             Arc::clone(&kept),
@@ -126,16 +136,21 @@ fn runs(world: &mut Behavior) {
         "a query"
     };
     let request = LintRequest {
+        source_language: None,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(".".into()),
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("rule".into()),
-            query: QueryText(query.into()),
+            query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

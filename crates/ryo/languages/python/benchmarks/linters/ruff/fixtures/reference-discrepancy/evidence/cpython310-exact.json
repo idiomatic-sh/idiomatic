@@ -1,0 +1,28 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "executable": "/home/vscode/.local/share/uv/python/cpython-3.10.19-linux-aarch64-gnu/bin/python3.10",
+  "dont_inherit": true,
+  "cases": [
+    {
+      "name": "plain-stub-annotation",
+      "filename": "case.pyi",
+      "source": "def f(x:(value:=object)): ...\n",
+      "accepted": true
+    },
+    {
+      "name": "postponed-module-annotation",
+      "filename": "case.py",
+      "source": "from __future__ import annotations\nx:(value:=object)\n",
+      "accepted": false,
+      "error": {
+        "message": "'named expression' can not be used within an annotation",
+        "line": 2,
+        "column": 4,
+        "end_line": 2,
+        "end_column": 17
+      }
+    }
+  ],
+  "executable_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "script_sha256": "15a3ffc8a61b96cbe7d6511c47ab060bae19d1ae1076c7b6b1dae7f384394b26"
+}

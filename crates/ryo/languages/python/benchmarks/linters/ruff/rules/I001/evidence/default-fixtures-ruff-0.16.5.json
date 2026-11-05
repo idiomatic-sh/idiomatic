@@ -1,0 +1,275 @@
+{
+  "source_module_sha256": "5a8f20aaaac0f392b922c17e84b7a473c18a5c990fb6b3f4595b9f5b78158298",
+  "fixtures": {
+    "add_newline_before_comments.py": {
+      "sha256": "e99c6f4e0dff2a77cdf284a1bb9e86e8ae6a9a977e9bcb3ffba0d77b9307f513",
+      "bytes": 231,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/add_newline_before_comments.py"
+    },
+    "as_imports_comments.py": {
+      "sha256": "ffa927639d823faf82fabbd51e4d78d0f7df05b2676c5c060982cbc2fe9e3517",
+      "bytes": 317,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/as_imports_comments.py"
+    },
+    "bom_sorted.py": {
+      "sha256": "41ae57792d6d93a5b7d88a130251bbcea22708f5b32f1712048ca61478bcfdfa",
+      "bytes": 25,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/bom_sorted.py"
+    },
+    "bom_unsorted.py": {
+      "sha256": "1ac0fdb37d305178cd6cfb7ca512c8b22066f2095813b3a3dc08b0bbf160128b",
+      "bytes": 25,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/bom_unsorted.py"
+    },
+    "combine_as_imports.py": {
+      "sha256": "066d72199ff18f93156f272658f4ecc432074df5f1bc5b7c110e56e01c14ecf4",
+      "bytes": 119,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/combine_as_imports.py"
+    },
+    "combine_import_from.py": {
+      "sha256": "018335075aba12528db0f5540e46c9f116007da2527ebf75bd599c75a1ce9414",
+      "bytes": 196,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/combine_import_from.py"
+    },
+    "comments.py": {
+      "sha256": "df4fa781cb64d736a81d6a7ebe61f4db064667cb34819674a0dfe19663b85484",
+      "bytes": 482,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/comments.py"
+    },
+    "deduplicate_imports.py": {
+      "sha256": "98124cbb90d785c11f907c01553a7d7f95e51535a7a6c8a5a218220f912c5d97",
+      "bytes": 54,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/deduplicate_imports.py"
+    },
+    "fit_line_length.py": {
+      "sha256": "c98872419401998ae982bfa5c41f64a1ef8d7a84b1e5a52768647fb3ff82ad07",
+      "bytes": 768,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/fit_line_length.py"
+    },
+    "fit_line_length_comment.py": {
+      "sha256": "ffd133023d4a41123c0f0a59b737ec2b737c13d1ef9e26795ccbf12e7b24fb33",
+      "bytes": 569,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/fit_line_length_comment.py"
+    },
+    "force_sort_within_sections.py": {
+      "sha256": "4d53d4463dcb9ea786c0d0179b06e903d5f29e6473828bb5e7e44a1edd098eba",
+      "bytes": 269,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/force_sort_within_sections.py"
+    },
+    "force_to_top.py": {
+      "sha256": "cbd30b89bc8d08490bc502804f1d6425f723a50dfc11942b8a6a60aa644c655b",
+      "bytes": 395,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/force_to_top.py"
+    },
+    "force_wrap_aliases.py": {
+      "sha256": "165eaf446c2b79c3099cecd0a91b21fdfdd9451aa95c3393ec8954ae0deb5d7f",
+      "bytes": 76,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/force_wrap_aliases.py"
+    },
+    "future_from.py": {
+      "sha256": "bf892769ac423265c88bb6512854b5323ed16dfde571a2d190aa68b79d855192",
+      "bytes": 53,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/future_from.py"
+    },
+    "if_elif_else.py": {
+      "sha256": "ccd6c1e78c724c5ea63a993e25bd9862442d37d9da65e5ae114a3e2535ca0a18",
+      "bytes": 257,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/if_elif_else.py"
+    },
+    "import_from_after_import.py": {
+      "sha256": "41588c43f4315508bdc5850a1b0666fa832e783e160dec5b17bb50434efee316",
+      "bytes": 45,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/import_from_after_import.py"
+    },
+    "inline_comments.py": {
+      "sha256": "81a4b821aea6e116d5377fff7d0f7e8fd121ffd8f0314abb2395ccb8b432d350",
+      "bytes": 422,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/inline_comments.py"
+    },
+    "insert_empty_lines.py": {
+      "sha256": "bdab2cc4de45e7bec2b8427cac253df7b0c1d797f160e3e21793786d02931787",
+      "bytes": 598,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/insert_empty_lines.py"
+    },
+    "insert_empty_lines.pyi": {
+      "sha256": "bdab2cc4de45e7bec2b8427cac253df7b0c1d797f160e3e21793786d02931787",
+      "bytes": 598,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/insert_empty_lines.pyi"
+    },
+    "isort_skip_file.py": {
+      "sha256": "5b96151f05ba434fbc94b12d2c49145d0c08cbcc839229e00c2d277f52e1cea5",
+      "bytes": 90,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/isort_skip_file.py"
+    },
+    "lazy_imports.py": {
+      "sha256": "0148b095622e1233ddbae994b2996f75bcc19e12a2794117ad451919a805e2db",
+      "bytes": 70,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/lazy_imports.py"
+    },
+    "leading_prefix.py": {
+      "sha256": "2a5e94e6a565603f937063d593cd9c4be65d4d2720a96a9417ec296bb6c39c57",
+      "bytes": 135,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/leading_prefix.py"
+    },
+    "magic_trailing_comma.py": {
+      "sha256": "ddc01d98ef2d4dd5eea89c01786d1e70911312ac3e73c3d2a679953e6366ca08",
+      "bytes": 737,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/magic_trailing_comma.py"
+    },
+    "match_case.py": {
+      "sha256": "545494def8ea173f890e14a5497e524d38f904df29f3d1e1a40622460f8876a0",
+      "bytes": 116,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/match_case.py"
+    },
+    "natural_order.py": {
+      "sha256": "5123912d58f7a21a1657ea9400b509454c46c4e4b46211e0039da3fcc35ca10a",
+      "bytes": 182,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/natural_order.py"
+    },
+    "no_lines_before.py": {
+      "sha256": "7df9995fa9bf56d915b05aa45dbe3af93a2c7810f2a25f417f33cb6507862842",
+      "bytes": 177,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/no_lines_before.py"
+    },
+    "no_reorder_within_section.py": {
+      "sha256": "1e1e451ff760529a7258a18b401b7f8cd6e712723c20a22c88746860fef193d6",
+      "bytes": 26,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/no_reorder_within_section.py"
+    },
+    "no_wrap_star.py": {
+      "sha256": "04e11d72c77b9286185bcc9fb2ae60a44e1e29709dd2b09943914585b5d94120",
+      "bytes": 109,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/no_wrap_star.py"
+    },
+    "order_by_type.py": {
+      "sha256": "649141d70c68ae9d7263b6554bc8cf7b2d6285e2017a84b821a0536778d846de",
+      "bytes": 226,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/order_by_type.py"
+    },
+    "order_by_type_with_custom_classes.py": {
+      "sha256": "8b9f00ff872b2faa0a13ef6229f6fce1c32a95ef03478d8956411d008fa407f3",
+      "bytes": 212,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/order_by_type_with_custom_classes.py"
+    },
+    "order_by_type_with_custom_constants.py": {
+      "sha256": "d83e033c2197ae06dfe72dfd7625ee79d6d5f9794c27e741829c866f00710f29",
+      "bytes": 148,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/order_by_type_with_custom_constants.py"
+    },
+    "order_by_type_with_custom_variables.py": {
+      "sha256": "9fa4ac96eefc74df7b9aa79842b83c5d3bdbbb2e8fdf8490ec9d68427dc1054d",
+      "bytes": 124,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/order_by_type_with_custom_variables.py"
+    },
+    "order_relative_imports_by_level.py": {
+      "sha256": "b405df749f4ddd3070a6f53d7e44517652aa942045a64097b642bfd51fc30f0a",
+      "bytes": 70,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/order_relative_imports_by_level.py"
+    },
+    "preserve_comment_order.py": {
+      "sha256": "2be48e93fcbc04bde21add532e0a11d594f3c0f778adc25d90810d8a2e9bd29e",
+      "bytes": 243,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/preserve_comment_order.py"
+    },
+    "preserve_import_star.py": {
+      "sha256": "8d1c9fc4025144c59cc338d7f641a8cf5d37b380892f45d45d64a1260a1efd18",
+      "bytes": 168,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/preserve_import_star.py"
+    },
+    "preserve_indentation.py": {
+      "sha256": "d40fee075eba5a825cf802749194e2491dac8c5eb22c63cc951ca2b9d7f9446b",
+      "bytes": 73,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/preserve_indentation.py"
+    },
+    "preserve_tabs.py": {
+      "sha256": "23ed3c2b45ecac8a24b5887ff638d4b724992859064db2b532c84a4b09f9cfb3",
+      "bytes": 258,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/preserve_tabs.py"
+    },
+    "preserve_tabs_2.py": {
+      "sha256": "e964d2953757cdfd8c9e39c1a65af4159064a6e427290ff2b7570324929b4e2c",
+      "bytes": 106,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/preserve_tabs_2.py"
+    },
+    "relative_imports_order.py": {
+      "sha256": "db475dd8c1209392f9aaf003b55aa6f4fbdf1202c733894f633f039342a1187c",
+      "bytes": 51,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/relative_imports_order.py"
+    },
+    "reorder_within_section.py": {
+      "sha256": "72d9af51e86edc62ddaceacde1f74442cda3eb7fc006b21582892064ca23ee77",
+      "bytes": 21,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/reorder_within_section.py"
+    },
+    "ruff_skip_file.py": {
+      "sha256": "5a9c913ecb237c83c323119556306945af212e07508610debb001a495ae0e165",
+      "bytes": 96,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/ruff_skip_file.py"
+    },
+    "separate_first_party_imports.py": {
+      "sha256": "db039c658889dec463895755e02a4e17da91141a9a25e028c773da63536d60fc",
+      "bytes": 95,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/separate_first_party_imports.py"
+    },
+    "separate_future_imports.py": {
+      "sha256": "523b3a1288bb4d19130886c49517db2ece410b8cf88a64240a1f5f3e25ff80d1",
+      "bytes": 56,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/separate_future_imports.py"
+    },
+    "separate_local_folder_imports.py": {
+      "sha256": "66cf71841be430032150a3b871dd9271c8c4315c8f817b47acfadd6e046e6e98",
+      "bytes": 138,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/separate_local_folder_imports.py"
+    },
+    "separate_third_party_imports.py": {
+      "sha256": "6bb199b59cee6deee21608af321e50a69695e778ce7df6109d6365b55b650a15",
+      "bytes": 60,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/separate_third_party_imports.py"
+    },
+    "skip.py": {
+      "sha256": "09afd5566a1df4e0b6cd17481b7d885874b25d35129ef6a0ecd2e7bcd44bcd02",
+      "bytes": 518,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/skip.py"
+    },
+    "sort_similar_imports.py": {
+      "sha256": "f79e21b493e22fc156da9c9144fb442a08f37333d37e8694140d5cf4642ce1db",
+      "bytes": 410,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/sort_similar_imports.py"
+    },
+    "split.py": {
+      "sha256": "e69f4f2c3abb236da5c4a49bb761f77256f83b943ec43b5be81ce90f75090b7a",
+      "bytes": 241,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/split.py"
+    },
+    "star_before_others.py": {
+      "sha256": "288c5818592d2c3556ae6f8917cd3d38372f8e178c01d870e62d2295868214b5",
+      "bytes": 86,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/star_before_others.py"
+    },
+    "trailing_comment.py": {
+      "sha256": "fac4dea2b10688453f668d394ff23206b7113c4ee883c25c9c24590684da2fa8",
+      "bytes": 540,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/trailing_comment.py"
+    },
+    "trailing_suffix.py": {
+      "sha256": "12506660d837fc9868b7b1f83de05397d3deb7bde4c2a9f387ff32b9af5cc327",
+      "bytes": 74,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/trailing_suffix.py"
+    },
+    "two_space.py": {
+      "sha256": "63632a8403919e605c1510f528343aad7fef36cb7d9cc1f714684d98ad3b0a32",
+      "bytes": 194,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/two_space.py"
+    },
+    "type_comments.py": {
+      "sha256": "44c5a6d483d980d5823c942399d107200d4bb22ba335b2ba376a1eac776c730c",
+      "bytes": 57,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/type_comments.py"
+    },
+    "unicode.py": {
+      "sha256": "5f559c78ad62649da6d4f9b85b262c36b16d8f2aa95811c1a5332c5e699315e7",
+      "bytes": 220,
+      "source": "https://raw.githubusercontent.com/astral-sh/ruff/0.16.5/crates/ruff_linter/resources/test/fixtures/isort/unicode.py"
+    }
+  }
+}

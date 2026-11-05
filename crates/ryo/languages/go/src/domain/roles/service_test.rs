@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one row for each role of the vocabulary, the check that every role has one, and go/ast's roles of every pinned file: the table is the proof, and splitting it would split that check
+// one row for each role of the vocabulary, the check that every role has one, and go/ast's roles of every pinned file: the table is the proof, and splitting it would split that check
 //! The `roles` service's cases: the role of an edge of the tree under its parent, one row for each role of the vocabulary, on source
 //! read through the parse; and, for every file the fixtures pin, the role of every element is the field of `go/ast` that holds it, as
 //! `tests/fixtures/standard/dump.go` reads it with `reflect` and `output.txt` pins it.

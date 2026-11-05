@@ -1,0 +1,167 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "exec(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 5, "end" = 9 }, { "rule" = "S102", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.exec(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 34 }, { "rule" = "S102", "file" = "case.py", "start" = 16, "end" = 29 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from builtins import exec as execute\nexecute(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 45, "end" = 49 }, { "rule" = "S102", "file" = "case.py", "start" = 37, "end" = 44 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(exec):\n    exec(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "exec = custom\nexec(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 19, "end" = 23 }]
+
+[[cases]]
+name = "attribute"
+comparison = "full"
+files = { "case.py" = "obj.exec(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 13 }]
+
+[[cases]]
+name = "bare"
+comparison = "full"
+files = { "case.py" = "value = exec\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "exec()\n" }
+expected = [{ "rule" = "S102", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "exec(source=code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 16 }, { "rule" = "S102", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "exec(code) # noqa: S102\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 5, "end" = 9 }]
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[S102]\nexec(code)\n# ruff: enable[S102]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 31 }]
+
+[[cases]]
+name = "nested"
+comparison = "full"
+files = { "case.py" = "result = wrapper(exec(code))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }, { "rule" = "S102", "file" = "case.py", "start" = 17, "end" = 21 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+comparison = "full"
+files = { "case.py" = "ｅｘｅｃ(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 17 }, { "rule" = "S102", "file" = "case.py", "start" = 0, "end" = 12 }]
+
+[[cases]]
+name = "wildcard-preserves-known-origin"
+comparison = "full"
+files = { "case.py" = "from m import *\nexec(code)\n" }
+expected = [{ "rule" = "S102", "file" = "case.py", "start" = 16, "end" = 20 }]
+
+[[cases]]
+name = "explicit-shadow-after-wildcard"
+comparison = "full"
+files = { "case.py" = "from m import *\nexec = custom\nexec(code)\n" }
+expected = []
+
+[[cases]]
+name = "explicit-shadow-before-wildcard"
+comparison = "full"
+files = { "case.py" = "exec = custom\nfrom m import *\nexec(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 13 }]
+
+[[cases]]
+name = "runtime-lambda-shadow"
+comparison = "full"
+files = { "case.py" = "(lambda exec: exec(code))(f)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 19, "end" = 23 }, { "rule" = "F821", "file" = "case.py", "start" = 26, "end" = 27 }, { "rule" = "PLC3002", "file" = "case.py", "start" = 0, "end" = 28 }]
+
+[[cases]]
+name = "embedded-lambda-shadow"
+comparison = "full"
+files = { "case.py" = "x: \"(lambda exec: exec(code))(f)\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 27 }, { "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 31 }, { "rule" = "PLC3002", "file" = "case.py", "start" = 4, "end" = 32 }]
+
+[[cases]]
+name = "runtime-lambda-builtin"
+comparison = "full"
+files = { "case.py" = "(lambda value: exec(value))(code)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 32 }, { "rule" = "PLC3002", "file" = "case.py", "start" = 0, "end" = 33 }, { "rule" = "S102", "file" = "case.py", "start" = 15, "end" = 19 }]
+
+[[cases]]
+name = "embedded-lambda-builtin"
+comparison = "full"
+files = { "case.py" = "x: \"(lambda value: exec(value))(code)\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 32, "end" = 36 }, { "rule" = "PLC3002", "file" = "case.py", "start" = 4, "end" = 37 }, { "rule" = "S102", "file" = "case.py", "start" = 19, "end" = 23 }]
+
+[[cases]]
+name = "runtime-comprehension-shadow"
+comparison = "full"
+files = { "case.py" = "[exec(code) for exec in values]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 24, "end" = 30 }]
+
+[[cases]]
+name = "embedded-comprehension-shadow"
+comparison = "full"
+files = { "case.py" = "x: \"[exec(code) for exec in values]\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 34 }]
+
+[[cases]]
+name = "runtime-comprehension-builtin"
+comparison = "full"
+files = { "case.py" = "[exec(value) for value in values]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 26, "end" = 32 }, { "rule" = "S102", "file" = "case.py", "start" = 1, "end" = 5 }]
+
+[[cases]]
+name = "embedded-comprehension-builtin"
+comparison = "full"
+files = { "case.py" = "x: \"[exec(value) for value in values]\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 36 }, { "rule" = "S102", "file" = "case.py", "start" = 5, "end" = 9 }]
+
+[[cases]]
+name = "runtime-walrus-shadow"
+comparison = "full"
+files = { "case.py" = "((exec := custom), exec(code))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 24, "end" = 28 }]
+
+[[cases]]
+name = "embedded-walrus-shadow"
+comparison = "full"
+files = { "case.py" = "x: \"((exec := custom), exec(code))\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 20 }, { "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 32 }]
+
+[[cases]]
+name = "runtime-lambda-default-builtin"
+comparison = "full"
+files = { "case.py" = "(lambda exec=exec(code): exec)(f)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 31, "end" = 32 }, { "rule" = "PLC3002", "file" = "case.py", "start" = 0, "end" = 33 }, { "rule" = "S102", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "embedded-lambda-default-builtin"
+comparison = "full"
+files = { "case.py" = "x: \"(lambda exec=exec(code): exec)(f)\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 36 }, { "rule" = "PLC3002", "file" = "case.py", "start" = 4, "end" = 37 }, { "rule" = "S102", "file" = "case.py", "start" = 17, "end" = 21 }]

@@ -1,0 +1,17 @@
+import observation_matches from "python/ruff/suppress-matches";
+import suppress from "python/ruff/suppress";
+let statements = select id from "semantic-syntax" where kind = "import";
+let children = select r.child as child from statements as l join "semantic-child" as r on l.id = r.parent;
+let renamed = select parent from "semantic-child" where field = "asname";
+let imports = select occurrence as id, binding, target, file, span from "static-import";
+let explicit_aliases = select l.id as id, l.binding as binding, l.target as target, l.file as file, l.span as span from imports as l join renamed as r on l.id = r.parent;
+let split = capture(from=explicit_aliases, path="target", pattern="{*module}.{member}", captures=["module", "member"]);
+let matching = select id, file, span from split where member = binding;
+let reportable = select l.id as id, l.file as file, l.span as span from matching as l join children as r on l.id = r.child;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLR0402(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLR0402)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLR0402(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLR0402)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLR0402"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

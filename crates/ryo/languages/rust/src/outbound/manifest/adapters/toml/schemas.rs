@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one manifest wire format: the sections of Cargo.toml mirror one schema family (package, targets, dependencies, workspace, lints, config), converted together into one Manifest; the spec places one schemas.rs for an adapter.
+// one manifest wire format: the sections of Cargo.toml mirror one schema family (package, targets, dependencies, workspace, lints, config), converted together into one Manifest; the spec places one schemas.rs for an adapter.
 //! The shape of a `Cargo.toml` and of a `.cargo/config.toml`, which the language does not control, and their conversion into the
 //! port's own types.
 
@@ -38,7 +38,7 @@ use super::constants::{CRATES_IO, REPLACED_VERSION};
 
 /// A `Cargo.toml`.
 #[derive(Debug, Default, Deserialize)]
-// ignore: idiomatic.arch/no-deep-stored-types - the shape is the tables of Cargo.toml, read table for table: a flatter shape reads a different file
+// the shape is the tables of Cargo.toml, read table for table: a flatter shape reads a different file
 pub(super) struct ManifestSchema {
     /// The `[package]` table, absent from a virtual workspace manifest.
     package: Option<PackageSchema>,

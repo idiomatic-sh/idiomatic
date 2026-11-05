@@ -1,0 +1,605 @@
+{
+  "schema": "django-142-bounded-tail-diagnostics/v1",
+  "benchmark_measurement": false,
+  "raw_summary_path": "/tmp/django-142-tail-diagnostics-20261101/run-20261101T164003/summary.json",
+  "raw_summary_sha256": "ca8cb746bf090f74da604e8a4c57e91f484bef36547396a85b327231d308f3f1",
+  "plan": {
+    "benchmark_measurement": false,
+    "manifest_sha256": "208961e45c66df99e45ae8c03ebac2ce0c412a0a5123aec27df7cce6fa6a6c6f",
+    "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+    "script_sha256": "43268dfa501195fe71265859a836abac12235f4a6886fc8729d9388a7f8d1f2f",
+    "files": [
+      {
+        "file": "tests/admin_views/tests.py",
+        "bytes": 381804,
+        "mode": 438,
+        "sha256": "1cba22a611d2d3c1ddb40f569ccd4dd5e2ad40ae71ab61f41a6c1c4731265703",
+        "index": 1028
+      },
+      {
+        "file": "tests/migrations/test_operations.py",
+        "bytes": 290600,
+        "mode": 438,
+        "sha256": "019496cec7ade9bf187e0cdfb332e712e906b40c3d58bf1b72635de637d210e8",
+        "index": 2119
+      },
+      {
+        "file": "tests/schema/tests.py",
+        "bytes": 241530,
+        "mode": 438,
+        "sha256": "832320133b729e827ade09eda52b4fcb6b23a6a1952c6c459365b8e45f7f45d4",
+        "index": 2353
+      },
+      {
+        "file": "tests/forms_tests/tests/test_forms.py",
+        "bytes": 237770,
+        "mode": 438,
+        "sha256": "66cf613351538074c7bc8b8ff9682408659ac6b79b3cf724e4583478cbd49baf",
+        "index": 1555
+      }
+    ],
+    "cap_seconds_per_file": 15,
+    "controls": "Reuse existing fixed-eight receipts; no control reruns.",
+    "load_start": {
+      "utc": "2026-11-01T16:40:03.207904+00:00",
+      "load": [
+        1.21435546875,
+        1.8310546875,
+        1.97265625
+      ]
+    },
+    "other_processes": [],
+    "limitation": "Largest four files beyond first648file profile, not statisticallyrepresentative; capped rule intervals are not assumedculprits."
+  },
+  "summary": {
+    "benchmark_measurement": false,
+    "results": [
+      {
+        "file": "tests/admin_views/tests.py",
+        "index": 1028,
+        "bytes": 381804,
+        "benchmark_measurement": false,
+        "censored": true,
+        "collector_status": 0,
+        "termination": [
+          {
+            "pid": 406441,
+            "signal": "SIGTERM"
+          }
+        ],
+        "request_sha256": "c097ae382ec2e5a4a69768a86214260335efe9307df62c76484be6f4209c0826",
+        "load_start": {
+          "utc": "2026-11-01T16:40:03.209606+00:00",
+          "load": [
+            1.21435546875,
+            1.8310546875,
+            1.97265625
+          ]
+        },
+        "load_end": {
+          "utc": "2026-11-01T16:40:18.249757+00:00",
+          "load": [
+            1.166015625,
+            1.78955078125,
+            1.95654296875
+          ]
+        },
+        "report_complete": false,
+        "child_status": -15,
+        "wall_seconds": 15.038993423,
+        "cpu_seconds": 15.037459,
+        "peak_rss_bytes": 2282323968,
+        "completed_selected_pairs": 140,
+        "completed_auxiliary_pairs": 0,
+        "sum_completed_rule_interval_seconds": 12.417247397,
+        "open_intervals": [
+          {
+            "rule": "PLC0206",
+            "file": "tests/admin_views/tests.py",
+            "count": 1,
+            "censored": true,
+            "culprit_inference": false
+          }
+        ],
+        "top_completed_intervals": [
+          {
+            "event": "rule_file_end",
+            "rule": "PIE794",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 1557771914,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F821",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 1496218033,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B008",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 813370939,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B023",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 796697347,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B020",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 784143861,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B030",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 773084883,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F402",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 755759705,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "C419",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 735496426,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F401",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 163380400,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PIE790",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 158435497,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B018",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 109332894,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F811",
+            "file": "tests/admin_views/tests.py",
+            "elapsed_ns": 97569246,
+            "outcome": "ok"
+          }
+        ],
+        "events_sha256": "4dbd207f03e0d077ef63d23c824e3ad08c8c0b4d6128cdb5cca09328796c5e70"
+      },
+      {
+        "file": "tests/migrations/test_operations.py",
+        "index": 2119,
+        "bytes": 290600,
+        "benchmark_measurement": false,
+        "censored": true,
+        "collector_status": 0,
+        "termination": [
+          {
+            "pid": 406581,
+            "signal": "SIGTERM"
+          }
+        ],
+        "request_sha256": "9b94cca206a587f18a56cc81d772bc840b3d1b0eef648577f01a7e9351d98912",
+        "load_start": {
+          "utc": "2026-11-01T16:40:18.252212+00:00",
+          "load": [
+            1.166015625,
+            1.78955078125,
+            1.95654296875
+          ]
+        },
+        "load_end": {
+          "utc": "2026-11-01T16:40:33.337108+00:00",
+          "load": [
+            1.20263671875,
+            1.76708984375,
+            1.9462890625
+          ]
+        },
+        "report_complete": false,
+        "child_status": -15,
+        "wall_seconds": 15.051984411,
+        "cpu_seconds": 15.047436,
+        "peak_rss_bytes": 3391594496,
+        "completed_selected_pairs": 273,
+        "completed_auxiliary_pairs": 0,
+        "sum_completed_rule_interval_seconds": 12.439309185,
+        "open_intervals": [
+          {
+            "rule": "T100",
+            "file": "tests/migrations/test_operations.py",
+            "count": 1,
+            "censored": true,
+            "culprit_inference": false
+          }
+        ],
+        "top_completed_intervals": [
+          {
+            "event": "rule_file_end",
+            "rule": "PYI034",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 747208282,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F821",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 605689128,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PIE794",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 585478350,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "RUF059",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 419815354,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B018",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 366339060,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PLR1708",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 364187506,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B008",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 324857122,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B020",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 317896085,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PLR1704",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 312189136,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B023",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 309591789,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F402",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 306418396,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "C419",
+            "file": "tests/migrations/test_operations.py",
+            "elapsed_ns": 303388629,
+            "outcome": "ok"
+          }
+        ],
+        "events_sha256": "d33d09652b4db56ea6d0ee82d1cc1bcd397ef42a805af26980b7a2fddc1f9b76"
+      },
+      {
+        "file": "tests/schema/tests.py",
+        "index": 2353,
+        "bytes": 241530,
+        "benchmark_measurement": false,
+        "censored": true,
+        "collector_status": 0,
+        "termination": [
+          {
+            "pid": 406696,
+            "signal": "SIGTERM"
+          }
+        ],
+        "request_sha256": "9105983bac2d9b6ee5574c0976f3f6ae2af09680d4c551ac3ea98064156efc34",
+        "load_start": {
+          "utc": "2026-11-01T16:40:33.339464+00:00",
+          "load": [
+            1.20263671875,
+            1.76708984375,
+            1.9462890625
+          ]
+        },
+        "load_end": {
+          "utc": "2026-11-01T16:40:48.415080+00:00",
+          "load": [
+            1.3798828125,
+            1.77880859375,
+            1.94775390625
+          ]
+        },
+        "report_complete": false,
+        "child_status": -15,
+        "wall_seconds": 15.054176673,
+        "cpu_seconds": 15.050458,
+        "peak_rss_bytes": 3412348928,
+        "completed_selected_pairs": 303,
+        "completed_auxiliary_pairs": 0,
+        "sum_completed_rule_interval_seconds": 12.895846759,
+        "open_intervals": [
+          {
+            "rule": "YTT201",
+            "file": "tests/schema/tests.py",
+            "count": 1,
+            "censored": true,
+            "culprit_inference": false
+          }
+        ],
+        "top_completed_intervals": [
+          {
+            "event": "rule_file_end",
+            "rule": "PYI034",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 926521937,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "C419",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 530137461,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F821",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 518523565,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PIE794",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 518432022,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PT026",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 322965238,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PT025",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 313401143,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PT020",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 309425413,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PLR1704",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 302367248,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PLR1708",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 299141815,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B023",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 297100011,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "RUF059",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 292186818,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B008",
+            "file": "tests/schema/tests.py",
+            "elapsed_ns": 278826036,
+            "outcome": "ok"
+          }
+        ],
+        "events_sha256": "561af5c6a14976af3c9a3012e19329c2f58f85f36e32af1cbdae48c68781ba94"
+      },
+      {
+        "file": "tests/forms_tests/tests/test_forms.py",
+        "index": 1555,
+        "bytes": 237770,
+        "benchmark_measurement": false,
+        "censored": false,
+        "collector_status": 0,
+        "termination": [],
+        "request_sha256": "7e7ab0a9bf4ff4bad4e74171c0b3f371f922654ef99861bc122fd9ebd2053d35",
+        "load_start": {
+          "utc": "2026-11-01T16:40:48.417529+00:00",
+          "load": [
+            1.3798828125,
+            1.77880859375,
+            1.94775390625
+          ]
+        },
+        "load_end": {
+          "utc": "2026-11-01T16:40:57.500576+00:00",
+          "load": [
+            1.4296875,
+            1.78271484375,
+            1.9482421875
+          ]
+        },
+        "report_complete": true,
+        "child_status": 0,
+        "wall_seconds": 9.071900721,
+        "cpu_seconds": 9.039687,
+        "peak_rss_bytes": 2154950656,
+        "coverage": {
+          "selected": 310,
+          "evaluated": 310,
+          "skipped": 0,
+          "unknown_or_unread": 0
+        },
+        "diagnostics": 16,
+        "completed_selected_pairs": 310,
+        "completed_auxiliary_pairs": 1,
+        "sum_completed_rule_interval_seconds": 6.585649649,
+        "open_intervals": [],
+        "top_completed_intervals": [
+          {
+            "event": "rule_file_end",
+            "rule": "PYI034",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 391114780,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F821",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 201939571,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PIE794",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 198487510,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PYI019",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 148828528,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PLC0206",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 134155405,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B023",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 130334427,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B020",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 126952075,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "PLR1708",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 121247209,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B008",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 119647201,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "B030",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 115130551,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "C419",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 104730286,
+            "outcome": "ok"
+          },
+          {
+            "event": "rule_file_end",
+            "rule": "F402",
+            "file": "tests/forms_tests/tests/test_forms.py",
+            "elapsed_ns": 99900675,
+            "outcome": "ok"
+          }
+        ],
+        "events_sha256": "6ea0c43ff6bfb148d19e9f082bfbeec43fe3193c2dc278fd9c1ff0db7f6d927d"
+      }
+    ],
+    "load_end": {
+      "utc": "2026-11-01T16:40:57.502806+00:00",
+      "load": [
+        1.4296875,
+        1.78271484375,
+        1.9482421875
+      ]
+    },
+    "other_processes_end": [],
+    "plan_sha256": "a4e300614e07a546ea8b7593e9c50e00850b7c19af01aa95c7f71cf92d46a2e2"
+  },
+  "scope": "Four largest source files outside648fileprofileprefix; same2ea/142migrationprofile/all310/py310;15secondindependentcaps;existingfixedslicecontrolsreused.",
+  "limitation": "Three censored requests have no report; lastopenrule is not inferred culprit. No corpus timing or parity claim."
+}

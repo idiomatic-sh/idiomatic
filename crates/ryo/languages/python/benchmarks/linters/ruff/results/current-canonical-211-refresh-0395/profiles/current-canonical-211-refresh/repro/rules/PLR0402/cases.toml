@@ -1,0 +1,95 @@
+[[cases]]
+name = "module-member"
+comparison = "full"
+files = { "case.py" = "import os.path as path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 18, "end" = 22 }, { "rule" = "PLR0402", "file" = "case.py", "start" = 7, "end" = 22 }]
+
+[[cases]]
+name = "deep"
+comparison = "full"
+files = { "case.py" = "import a.b.c as c\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 16, "end" = 17 }, { "rule" = "PLR0402", "file" = "case.py", "start" = 7, "end" = 17 }]
+
+[[cases]]
+name = "different-alias"
+comparison = "full"
+files = { "case.py" = "import os.path as p\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 18, "end" = 19 }]
+
+[[cases]]
+name = "no-alias"
+comparison = "full"
+files = { "case.py" = "import os.path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 14 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from os import path as path\n" }
+expected = [{ "rule" = "PLC0414", "file" = "case.py", "start" = 15, "end" = 27 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "import os.path as path, sys\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 18, "end" = 22 }, { "rule" = "F401", "file" = "case.py", "start" = 24, "end" = 27 }, { "rule" = "PLR0402", "file" = "case.py", "start" = 7, "end" = 22 }]
+
+[[cases]]
+name = "simple"
+comparison = "full"
+files = { "case.py" = "import os as os\n" }
+expected = [{ "rule" = "PLC0414", "file" = "case.py", "start" = 7, "end" = 15 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import os.path as path # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "import os.path as path # noqa: PLR0402\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 18, "end" = 22 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "import os.path as path # noqa: F401\n" }
+expected = [{ "rule" = "PLR0402", "file" = "case.py", "start" = 7, "end" = 22 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nimport os.path as path\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLR0402]\nimport os.path as path\n\n# ruff: enable[PLR0402]\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 43, "end" = 47 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLR0402]\n# ruff: enable[PLR0402]\nimport os.path as path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 67, "end" = 71 }, { "rule" = "PLR0402", "file" = "case.py", "start" = 56, "end" = 71 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLR0402]\nimport os.path as path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 43, "end" = 47 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nimport os.path as path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 40, "end" = 44 }, { "rule" = "PLR0402", "file" = "case.py", "start" = 29, "end" = 44 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[PLR0402]\nimport os.path as path\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 47, "end" = 51 }]

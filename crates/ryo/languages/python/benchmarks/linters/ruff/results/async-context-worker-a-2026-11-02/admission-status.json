@@ -1,0 +1,7 @@
+{
+  "status": "pending-canonical-profile-refresh",
+  "source_only": true,
+  "native_raw_arrays_preserved": true,
+  "staging_owner": "benchmark_integration_sol",
+  "reason": "Strict canonical helper/profile/module/target/phase guards must verify before any admission; hand-authored requests are smoke only."
+}

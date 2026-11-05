@@ -1,0 +1,18 @@
+{
+  "name": "nested-uppercase-child-root-policy",
+  "comparison": "full",
+  "files": {
+    "outer/BadName/__init__.py": ""
+  },
+  "context": {
+    "logical-root": "inventory",
+    "auxiliary-files": {
+      "inventory/outer/__init__.py": ""
+    },
+    "missing": [
+      "__init__.py",
+      "inventory/__init__.py"
+    ]
+  },
+  "expected": []
+}

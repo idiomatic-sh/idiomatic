@@ -1,11 +1,11 @@
 //! The types of the `definitions` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::signatures::types::Refinement;
+use crate::domain::signatures::types::SignatureRefinement;
 use ryo::languages::{DeclarationKind, Position};
 
 /// What the element a reader is given declares, by its kind: the readers branch on it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Shape {
+pub(crate) enum DeclarationShape {
     /// A function or a method.
     Function,
     /// A type.
@@ -41,7 +41,7 @@ pub(crate) struct Defined {
     /// The shared kind.
     pub kind: DeclarationKind,
     /// The same in Go's own words.
-    pub word: Refinement,
+    pub word: SignatureRefinement,
 }
 
 /// A name a file declares, as the `defines` relation says it.
@@ -63,7 +63,7 @@ pub(crate) struct Meaning {
     /// The shared kind.
     pub kind: DeclarationKind,
     /// The same in Go's own words.
-    pub word: Refinement,
+    pub word: SignatureRefinement,
     /// What owns them.
     pub owner: Position,
 }

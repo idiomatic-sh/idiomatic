@@ -1,0 +1,104 @@
+{
+  "script_sha256": "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2",
+  "results": [
+    {
+      "version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+      "rows": [
+        {
+          "name": "unicode-width",
+          "value": "  1",
+          "error": null
+        },
+        {
+          "name": "ascii-width",
+          "value": "  1",
+          "error": null
+        },
+        {
+          "name": "unicode-precision",
+          "value": "1.20",
+          "error": null
+        },
+        {
+          "name": "ascii-precision",
+          "value": "1.20",
+          "error": null
+        },
+        {
+          "name": "custom-q",
+          "value": "accepted:q",
+          "error": null
+        },
+        {
+          "name": "builtin-q",
+          "value": null,
+          "error": "ValueError",
+          "message": "Unknown format code 'q' for object of type 'int'"
+        },
+        {
+          "name": "converted-custom-q",
+          "value": null,
+          "error": "ValueError",
+          "message": "Unknown format code 'q' for object of type 'str'"
+        },
+        {
+          "name": "zero-coercion",
+          "value": null,
+          "error": "ValueError",
+          "message": "Invalid format specifier"
+        }
+      ],
+      "tool": "/home/vscode/.local/bin/python3.10",
+      "tool_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27"
+    },
+    {
+      "version": "3.14.0 (main, Nov 19 2025, 22:47:19) [Clang 21.1.4 ]",
+      "rows": [
+        {
+          "name": "unicode-width",
+          "value": "  1",
+          "error": null
+        },
+        {
+          "name": "ascii-width",
+          "value": "  1",
+          "error": null
+        },
+        {
+          "name": "unicode-precision",
+          "value": "1.20",
+          "error": null
+        },
+        {
+          "name": "ascii-precision",
+          "value": "1.20",
+          "error": null
+        },
+        {
+          "name": "custom-q",
+          "value": "accepted:q",
+          "error": null
+        },
+        {
+          "name": "builtin-q",
+          "value": null,
+          "error": "ValueError",
+          "message": "Unknown format code 'q' for object of type 'int'"
+        },
+        {
+          "name": "converted-custom-q",
+          "value": null,
+          "error": "ValueError",
+          "message": "Unknown format code 'q' for object of type 'str'"
+        },
+        {
+          "name": "zero-coercion",
+          "value": "0.00",
+          "error": null
+        }
+      ],
+      "tool": "/home/vscode/.local/bin/python3.14",
+      "tool_sha256": "87bc29693866a567a3a6263c374c51a16b6745810b67200a319bbe9bf8e6d51e"
+    }
+  ]
+}

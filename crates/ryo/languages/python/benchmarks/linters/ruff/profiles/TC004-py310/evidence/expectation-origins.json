@@ -1,0 +1,481 @@
+[
+  {
+    "name": "upstream-full-TC004_1.py",
+    "files": {
+      "TC004_1.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from datetime import datetime\nx = datetime\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_1.py",
+        "start": 77,
+        "end": 85
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_10.py",
+    "files": {
+      "TC004_10.py": "from __future__ import annotations\n\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Tuple, List, Dict\n\nx: Tuple\n\n\nclass C:\n    x: List\n\n\ndef f():\n    x: Dict\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_11.py",
+    "files": {
+      "TC004_11.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import List\n\n__all__ = (\"List\",)\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_11.py",
+        "start": 75,
+        "end": 79
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_12.py",
+    "files": {
+      "TC004_12.py": "from __future__ import annotations\n\nfrom typing import Any, TYPE_CHECKING, TypeAlias\n\nif TYPE_CHECKING:\n    from collections.abc import Callable\n\nAnyCallable: TypeAlias = Callable[..., Any]\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_12.py",
+        "start": 136,
+        "end": 144
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_13.py",
+    "files": {
+      "TC004_13.py": "from __future__ import annotations\n\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Final, Literal, TypeAlias\n\n    RatingKey: TypeAlias = Literal[\"good\", \"fair\", \"poor\"]\n\nRATING_KEYS: Final[tuple[RatingKey, ...]] = (\"good\", \"fair\", \"poor\")\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_14.pyi",
+    "files": {
+      "TC004_14.pyi": "from typing import Tuple\n\nx: Tuple\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_15.py",
+    "files": {
+      "TC004_15.py": "from __future__ import annotations\n\nfrom collections.abc import Callable\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from .foo import Record\n\ntype RecordOrThings = Record | int | str\ntype RecordCallback[R: Record] = Callable[[R], None]\n\n\ndef process_record[R: Record](record: R) -> None:\n    ...\n\n\nclass RecordContainer[R: Record]:\n    def add_record(self, record: R) -> None:\n        ...\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_16.py",
+    "files": {
+      "TC004_16.py": "from __future__ import annotations\n\nfrom typing_extensions import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from pandas import DataFrame\n\n\ndef example() -> DataFrame:\n    pass\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_17.py",
+    "files": {
+      "TC004_17.py": "from __future__ import annotations\n\nfrom typing_extensions import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from pandas import DataFrame\n\n\ndef example() -> DataFrame:\n    x = DataFrame()\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_17.py",
+        "start": 122,
+        "end": 131
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_2.py",
+    "files": {
+      "TC004_2.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from datetime import date\n\n\ndef example():\n    return date()\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_2.py",
+        "start": 77,
+        "end": 81
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_3.py",
+    "files": {
+      "TC004_3.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Any\n\n    CustomType = Any\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_4.py",
+    "files": {
+      "TC004_4.py": "from typing import TYPE_CHECKING, Type\n\nif TYPE_CHECKING:\n    from typing import Any\n\n\ndef example(*args: Any, **kwargs: Any):\n    return\n\n\nmy_type: Type[Any] | Any\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_4.py",
+        "start": 81,
+        "end": 84
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_5.py",
+    "files": {
+      "TC004_5.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import List, Sequence, Set\n\n\ndef example(a: List[int], /, b: Sequence[int], *, c: Set[int]):\n    return\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_5.py",
+        "start": 75,
+        "end": 79
+      },
+      {
+        "rule": "TC004",
+        "file": "TC004_5.py",
+        "start": 81,
+        "end": 89
+      },
+      {
+        "rule": "TC004",
+        "file": "TC004_5.py",
+        "start": 91,
+        "end": 94
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_6.py",
+    "files": {
+      "TC004_6.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from pandas import DataFrame\n\n\ndef example():\n    from pandas import DataFrame\n\n    x = DataFrame\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_7.py",
+    "files": {
+      "TC004_7.py": "from __future__ import annotations\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import AsyncIterator, List\n\n\nclass Example:\n    async def example(self) -> AsyncIterator[List[str]]:\n        yield 0\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_8.py",
+    "files": {
+      "TC004_8.py": "from typing import TYPE_CHECKING\nfrom weakref import WeakKeyDictionary\n\nif TYPE_CHECKING:\n    from typing import Any\n\nd = WeakKeyDictionary[\"Any\", \"Any\"]()\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "upstream-full-TC004_9.py",
+    "files": {
+      "TC004_9.py": "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Tuple, List, Dict\n\nx: Tuple\n\n\nclass C:\n    x: List\n\n\ndef f():\n    x: Dict\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "TC004_9.py",
+        "start": 75,
+        "end": 80
+      },
+      {
+        "rule": "TC004",
+        "file": "TC004_9.py",
+        "start": 82,
+        "end": 86
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "value-use",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "unreferenced",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "quoted-annotation",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:\"Foo\"\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "eager-annotation",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "postponed-annotation",
+    "files": {
+      "case.py": "from __future__ import annotations\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "local-annotation",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n x:Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "guard-only-use",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\n x=Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "guard-alias",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING as TC\nif TC:\n from external import Foo\nx=Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 68,
+        "end": 71
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "qualified-guard",
+    "files": {
+      "case.py": "import typing as t\nif t.TYPE_CHECKING:\n from external import Foo\nx=Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 61,
+        "end": 64
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "shadowed-true",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nTYPE_CHECKING=True\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "runtime-fallback",
+    "files": {
+      "case.py": "class Foo: ...\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "local-shadow",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n Foo=1\n return Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "deferred-function-use",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n return Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "two-imports",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo, Bar\nx=Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "import-alias",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo as Bar\nx=Bar\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 80,
+        "end": 83
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "plain-import",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n import external\nx=external.foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 59,
+        "end": 67
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "export",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\n__all__=[\"Foo\"]\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "getattr-export",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef __getattr__(name): return 1\n__all__=[\"Foo\"]\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "noqa",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo # noqa: TC004\nx=Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "stub",
+    "files": {
+      "case.pyi": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "explicit-alias",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nfrom typing import TypeAlias\nAlias:TypeAlias=Foo\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "pep695-alias",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ntype Alias=Foo\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "class-export-is-not-module-export",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nclass C:\n __all__=[\"Foo\"]\n"
+    },
+    "expected": [],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  },
+  {
+    "name": "class-getattr-does-not-resolve-module-export",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nclass C:\n def __getattr__(self,name): return 1\n__all__=[\"Foo\"]\n"
+    },
+    "expected": [
+      {
+        "rule": "TC004",
+        "file": "case.py",
+        "start": 73,
+        "end": 76
+      }
+    ],
+    "origin": "Independent rule contract and AST alias coordinates; explicit bound asname token for import aliases. Full pinned source preserved. No candidate-output-derived expectation."
+  }
+]

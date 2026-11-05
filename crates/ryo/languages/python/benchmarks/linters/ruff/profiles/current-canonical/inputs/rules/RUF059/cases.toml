@@ -1,0 +1,29 @@
+[[cases]]
+name = "unused_unpacked_component"
+files = { "case.py" = "def f():\n    first, second = values\n    return first\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 20, end = 26 }]
+
+[[cases]]
+name = "all_unpacked_components_used"
+files = { "case.py" = "def f():\n    first, second = values\n    return first, second\n" }
+expected = []
+
+[[cases]]
+name = "ordinary_unused_assignment_is_f841"
+files = { "case.py" = "def f():\n    first = values\n" }
+expected = []
+
+[[cases]]
+name = "dummy_unpacked_component_is_ignored"
+files = { "case.py" = "def f():\n    first, _ = values\n    return first\n" }
+expected = []
+
+[[cases]]
+name = "unused_unpacked_assignment_in_nested_function"
+files = { "case.py" = "def f():\n    def nested():\n        first, second = values\n        return first\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 42, end = 48 }]
+
+[[cases]]
+name = "unpacked_component_used_by_nested_closure"
+files = { "case.py" = "def f():\n    first, second = values\n    def nested():\n        return second\n    return first\n" }
+expected = []

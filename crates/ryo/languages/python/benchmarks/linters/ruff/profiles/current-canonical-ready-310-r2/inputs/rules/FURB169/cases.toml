@@ -1,0 +1,241 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "foo = None\n\n# Error.\n\ntype(foo) is type(None)\n\ntype(None) is type(foo)\n\ntype(None) is type(None)\n\ntype(foo) is not type(None)\n\ntype(None) is not type(foo)\n\ntype(None) is not type(None)\n\ntype(foo) == type(None)\n\ntype(None) == type(foo)\n\ntype(None) == type(None)\n\ntype(foo) != type(None)\n\ntype(None) != type(foo)\n\ntype(None) != type(None)\n\ntype(a.b) is type(None)\n\ntype(\n    a(\n        # Comment\n    )\n) != type(None)\n\ntype(\n    a := 1\n) == type(None)\n\ntype(\n    a for a in range(0)\n) is not type(None)\n\n\n# Ok.\n\nfoo is None\n\nfoo is not None\n\nNone is foo\n\nNone is not foo\n\nNone is None\n\nNone is not None\n\nfoo is type(None)\n\ntype(foo) is None\n\ntype(None) is None\n\nfoo is not type(None)\n\ntype(foo) is not None\n\ntype(None) is not None\n\nfoo == type(None)\n\ntype(foo) == None\n\ntype(None) == None\n\nfoo != type(None)\n\ntype(foo) != None\n\ntype(None) != None\n\ntype(foo) > type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 22, end = 45 }, { rule = "FURB169", file = "case.py", start = 47, end = 70 }, { rule = "FURB169", file = "case.py", start = 72, end = 96 }, { rule = "FURB169", file = "case.py", start = 98, end = 125 }, { rule = "FURB169", file = "case.py", start = 127, end = 154 }, { rule = "FURB169", file = "case.py", start = 156, end = 184 }, { rule = "FURB169", file = "case.py", start = 186, end = 209 }, { rule = "FURB169", file = "case.py", start = 211, end = 234 }, { rule = "FURB169", file = "case.py", start = 236, end = 260 }, { rule = "FURB169", file = "case.py", start = 262, end = 285 }, { rule = "FURB169", file = "case.py", start = 287, end = 310 }, { rule = "FURB169", file = "case.py", start = 312, end = 336 }, { rule = "FURB169", file = "case.py", start = 338, end = 361 }, { rule = "FURB169", file = "case.py", start = 363, end = 415 }, { rule = "FURB169", file = "case.py", start = 417, end = 449 }, { rule = "FURB169", file = "case.py", start = 451, end = 500 }]
+
+[[cases]]
+name = "comparison-op-0"
+comparison = "full"
+files = { "case.py" = "x=type(value) is type(None)\ny=type(None) is type(value)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 27 }, { rule = "FURB169", file = "case.py", start = 30, end = 55 }]
+
+[[cases]]
+name = "comparison-op-1"
+comparison = "full"
+files = { "case.py" = "x=type(value) is not type(None)\ny=type(None) is not type(value)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 31 }, { rule = "FURB169", file = "case.py", start = 34, end = 63 }]
+
+[[cases]]
+name = "comparison-op-2"
+comparison = "full"
+files = { "case.py" = "x=type(value) == type(None)\ny=type(None) == type(value)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 27 }, { rule = "FURB169", file = "case.py", start = 30, end = 55 }]
+
+[[cases]]
+name = "comparison-op-3"
+comparison = "full"
+files = { "case.py" = "x=type(value) != type(None)\ny=type(None) != type(value)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 27 }, { rule = "FURB169", file = "case.py", start = 30, end = 55 }]
+
+[[cases]]
+name = "comparison-op-4"
+comparison = "full"
+files = { "case.py" = "x=type(value) < type(None)\ny=type(None) < type(value)\n" }
+expected = []
+
+[[cases]]
+name = "comparison-op-5"
+comparison = "full"
+files = { "case.py" = "x=type(value) > type(None)\ny=type(None) > type(value)\n" }
+expected = []
+
+[[cases]]
+name = "comparison-op-6"
+comparison = "full"
+files = { "case.py" = "x=type(value) <= type(None)\ny=type(None) <= type(value)\n" }
+expected = []
+
+[[cases]]
+name = "comparison-op-7"
+comparison = "full"
+files = { "case.py" = "x=type(value) >= type(None)\ny=type(None) >= type(value)\n" }
+expected = []
+
+[[cases]]
+name = "comparison-op-8"
+comparison = "full"
+files = { "case.py" = "x=type(value) in type(None)\ny=type(None) in type(value)\n" }
+expected = []
+
+[[cases]]
+name = "comparison-op-9"
+comparison = "full"
+files = { "case.py" = "x=type(value) not in type(None)\ny=type(None) not in type(value)\n" }
+expected = []
+
+[[cases]]
+name = "type-argument-0"
+comparison = "full"
+files = { "case.py" = "x=type(value) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 27 }]
+
+[[cases]]
+name = "type-argument-1"
+comparison = "full"
+files = { "case.py" = "x=type(unknown()) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 31 }]
+
+[[cases]]
+name = "type-argument-2"
+comparison = "full"
+files = { "case.py" = "x=type(None) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 26 }]
+
+[[cases]]
+name = "type-argument-3"
+comparison = "full"
+files = { "case.py" = "x=type(True) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 26 }]
+
+[[cases]]
+name = "type-argument-4"
+comparison = "full"
+files = { "case.py" = "x=type(0) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 23 }]
+
+[[cases]]
+name = "type-argument-5"
+comparison = "full"
+files = { "case.py" = "x=type(\"é\") is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 26 }]
+
+[[cases]]
+name = "type-argument-6"
+comparison = "full"
+files = { "case.py" = "x=type([x for x in xs]) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 37 }]
+
+[[cases]]
+name = "type-argument-7"
+comparison = "full"
+files = { "case.py" = "x=type((x:=None)) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 31 }]
+
+[[cases]]
+name = "type-argument-8"
+comparison = "full"
+files = { "case.py" = "x=type(*args) is type(None)\n" }
+expected = []
+
+[[cases]]
+name = "type-argument-9"
+comparison = "full"
+files = { "case.py" = "x=type(*[None]) is type(None)\n" }
+expected = []
+
+[[cases]]
+name = "call-arity"
+comparison = "full"
+files = { "case.py" = "x=type() is type(None)\nx=type(a,b,c) is type(None)\nx=type(a,other=1) is type(None)\nx=type(object=a) is type(None)\nx=type(a,**{}) is type(None)\nx=type(a) is type(None,**{})\n" }
+expected = []
+
+[[cases]]
+name = "comparison-chain"
+comparison = "full"
+files = { "case.py" = "x=type(a) is type(None) is type(b)\ny=type(a)==type(None)==type(None)\nz=type(a) is (type(b) is type(None))\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 83, end = 104 }]
+
+[[cases]]
+name = "one-sided-type"
+comparison = "full"
+files = { "case.py" = "x=type(a) is None\ny=a is type(None)\nz=type(a)==None\n" }
+expected = []
+
+[[cases]]
+name = "builtin-import-aliases"
+comparison = "full"
+files = { "case.py" = "import builtins as b\nfrom builtins import type as T\nx=b.type(a) is T(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 54, end = 74 }]
+
+[[cases]]
+name = "shadowed-type"
+comparison = "full"
+files = { "case.py" = "type=unknown\nx=type(a) is type(None)\n" }
+expected = []
+
+[[cases]]
+name = "local-shadowing"
+comparison = "full"
+files = { "case.py" = "def f(type):\n    return type(a)==type(None)\n" }
+expected = []
+
+[[cases]]
+name = "assignment-alias"
+comparison = "full"
+files = { "case.py" = "T=type\nx=T(a) is T(None)\n" }
+expected = []
+
+[[cases]]
+name = "nonbuiltins"
+comparison = "full"
+files = { "case.py" = "from other import type\nx=type(a) is type(None)\n" }
+expected = []
+
+[[cases]]
+name = "not-imported"
+comparison = "full"
+files = { "case.py" = "x=builtins.type(a) is builtins.type(None)\n" }
+expected = []
+
+[[cases]]
+name = "unicode-callee"
+comparison = "full"
+files = { "case.py" = "x=ｔｙｐｅ(a) is ｔｙｐｅ(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 39 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "x=(type)((a)) is ((type)((None)))\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 33 }]
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "é=(\n    type(\"🙂é\")\n    is not\n    type(None)\n)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 9, end = 49 }]
+
+[[cases]]
+name = "split-identity-operators"
+comparison = "full"
+files = { "case.py" = "x=type(a) is    not type(None)\ny=type(a) is\\\nnot type(None)\nz=(type(a) is # comment\nnot type(None))\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 30 }, { rule = "FURB169", file = "case.py", start = 33, end = 59 }, { rule = "FURB169", file = "case.py", start = 63, end = 98 }]
+
+[[cases]]
+name = "none-on-both-sides"
+comparison = "full"
+files = { "case.py" = "x=type(None) is type(None)\ny=type(None)==type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 26 }, { rule = "FURB169", file = "case.py", start = 29, end = 51 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "x=type(a) is type(None)  # noqa: FURB169\n" }
+expected = []
+
+[[cases]]
+name = "blanket-suppression"
+comparison = "full"
+files = { "case.py" = "x=type(a) is type(None)  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: FURB169\nx=type(a) is type(None)\n" }
+expected = []
+
+[[cases]]
+name = "wrong-code-unsuppressed"
+comparison = "full"
+files = { "case.py" = "x=type(a) is type(None)  # noqa: F401\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 2, end = 23 }]
+
+[[cases]]
+name = "block-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[FURB169]\nx=type(a) is type(None)\n# ruff: enable[FURB169]\nx=type(a) is type(None)\n" }
+expected = [{ rule = "FURB169", file = "case.py", start = 75, end = 96 }]

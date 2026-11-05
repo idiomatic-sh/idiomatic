@@ -1,0 +1,119 @@
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 16, "end" = 41 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import datetime as alias\nalias.datetime.today()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 25, "end" = 47 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from datetime.datetime import today as target\ntarget()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 46, "end" = 54 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "datetime.datetime.today()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    datetime.datetime.today()\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 15 }, { "rule" = "F811", "file" = "case.py", "start" = 22, "end" = 30 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime = other\ndatetime.datetime.today()\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 16, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 32 }]
+
+[[cases]]
+name = "before-import"
+comparison = "full"
+files = { "case.py" = "datetime.datetime.today()\nimport datetime\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 33, "end" = 41 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "deferred-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    datetime.datetime.today()\nimport datetime\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 13, "end" = 38 }]
+
+[[cases]]
+name = "ordinary-call"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(x):\n    x()\n    datetime.datetime.today()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 38, "end" = 63 }]
+
+[[cases]]
+name = "attribute-only"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 39 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today() # noqa: DTZ002\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "import datetime\n# ruff: disable[DTZ002]\ndatetime.datetime.today()\n# ruff: enable[DTZ002]\n" }
+expected = []
+
+[[cases]]
+name = "converted"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today().astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "timezone-attribute"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today().astimezone\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 52 }]
+
+[[cases]]
+name = "replace-chain"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today().replace(hour=1).replace(minute=2).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "replace-only"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today().replace(hour=1)\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 16, "end" = 41 }]
+
+[[cases]]
+name = "wrong-chain"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.today().other().astimezone()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 16, "end" = 41 }]
+
+[[cases]]
+name = "argument-not-receiver"
+comparison = "full"
+files = { "case.py" = "import datetime\nobj.replace(datetime.datetime.today().replace).astimezone()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 28, "end" = 53 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 19 }]
+
+[[cases]]
+name = "wrapped"
+comparison = "full"
+files = { "case.py" = "import datetime\nwrapper(datetime.datetime.today()).astimezone()\n" }
+expected = [{ "rule" = "DTZ002", "file" = "case.py", "start" = 24, "end" = 49 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 23 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "import datetime\n(datetime.datetime.today()).astimezone()\n" }
+expected = []

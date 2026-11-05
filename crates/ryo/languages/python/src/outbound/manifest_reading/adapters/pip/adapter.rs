@@ -6,11 +6,12 @@ use ryo::languages::{FilePath, ManifestFile, ManifestName};
 
 use super::constants::{DIRECTORY, NAMES, PREFIX, SUFFIX};
 use super::schemas::declared;
-use crate::domain::packages::types::{Declared, ManifestPath};
+use crate::domain::manifest_validation::types::MetadataDemand;
+use crate::domain::packages::types::ManifestPath;
 use crate::domain::patterns::constants::SEPARATOR;
-use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
+use crate::outbound::manifest_reading::types::Reading;
 
 /// The `pip` manifest reading adapter, over every manifest of the run's repository: the files a requirements file includes are read from them.
 #[derive(Debug)]
@@ -45,11 +46,20 @@ impl ManifestReadingPort for ManifestReadingPipAdapter {
         }
     }
 
-    fn declared(&self, manifest: &ManifestFile) -> Result<Declared, ManifestReadingError> {
-        declared(
-            &ManifestPath(manifest.path.0.clone()),
-            &manifest.text,
-            &self.available,
-        )
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading {
+        if demand == MetadataDemand::Diagnostics {
+            return Reading {
+                declaration: None,
+                validation: None,
+            };
+        }
+        Reading {
+            declaration: Some(declared(
+                &ManifestPath(manifest.path.0.clone()),
+                &manifest.text,
+                &self.available,
+            )),
+            validation: None,
+        }
     }
 }

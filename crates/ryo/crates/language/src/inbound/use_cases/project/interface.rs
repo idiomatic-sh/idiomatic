@@ -17,9 +17,7 @@ macro_rules! manifest_methods {
     ) => {
         $(
             #[doc = stringify!($module)]
-            fn $module(
-                &self,
-            ) -> Support<ManifestReader<$crate::domain::relations::collections::relations::$module::item::$variant, Self::Derived>>;
+            fn $module(&self) -> Support<ManifestReader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::Derived>>;
         )*
     };
 }
@@ -33,6 +31,19 @@ pub trait ProjectUseCase: Send + Sync {
     /// The names of the files the language reads as manifests; a language without any answers none.
     fn manifests(&self) -> &'static [ManifestName];
 
+    /// Classify an explicitly requested primary without IO. This selects source versus project semantics,
+    /// independently of whether a particular metadata relation is implemented.
+    fn primary_role(
+        &self,
+        path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole;
+
+    /// Candidate entry paths needed for the demanded project facts, without observing the filesystem.
+    fn project_entries(
+        &self,
+        request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath>;
+
     /// Reads the manifests through the language's own tools and answers what the readers below read their
     /// rows from, and the manifests the tools refused; nothing of it is kept for another run. A manifest that does not
     /// parse is refused and the others are read: it is a finding of the run, as a syntax error is.
@@ -42,5 +53,5 @@ pub trait ProjectUseCase: Send + Sync {
     /// `Manifest` when the tools cannot run at all.
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Self::Derived>, ProjectError>;
 
-    crate::each_relation!(manifest_methods);
+    ryo_relations::each_relation!(manifest_methods);
 }

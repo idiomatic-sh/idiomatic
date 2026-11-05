@@ -13,6 +13,6 @@ use ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCa
 pub fn use_case(
     compile: Arc<dyn CompileUseCase>,
     typecheck: Arc<dyn TypecheckUseCase>,
-) -> impl crate::outbound::query_language::interface::QueryLanguagePort {
+) -> impl ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort {
     super::adapters::use_case::adapter::QueryLanguageUseCaseAdapter::new(compile, typecheck)
 }

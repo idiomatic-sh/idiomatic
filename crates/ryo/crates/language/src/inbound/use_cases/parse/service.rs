@@ -1,21 +1,19 @@
-//! The `parse` service: free functions that drive an implementation of the contract. They read a file's
-//! rows with the readers the implementation answers, and say what it answers for a relation. The
-//! implementation builds a tree; the engine reads it, once, for every relation wanted, and gives each
-//! reader the rows of its own relation to write and no other.
+//! Drive a provider's parse contract, then dispatch each requested relation through its own reader.
+//! The table is traversed once; optional capability promises gate both absence answers and reads.
 
 use super::constants::{COUNT, WORDS};
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::types::{ParseEngine, ParseRequest};
-use crate::domain::answers::types::{AbsenceCause, Answer, Expansions, Reader, Reads};
+use super::types::{ParseEngine, ParseRequest, Slot};
+use crate::domain::answers::types::{Answer, Expansions, Reads};
+use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::completion::service::completion;
 use crate::domain::elements::service::{discarding_builder, engine_mut, kind_at};
 use crate::domain::elements::service::{expanded_positions, positions, table_builder};
 use crate::domain::elements::types::{Elements, Tree};
-use crate::domain::relations::service::{KIND_LIMIT, all, number_of};
-use crate::domain::relations::types::{Count, FileId, KindBits, Relation, RowWriter};
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
+use ryo_relations::domain::relations::types::{Count, FileId, KindBits, Relation, RowWriter};
+use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::parse::types::Recognition;
 
 /// A set of relations, a bit for each, by the relation's number.
@@ -29,14 +27,12 @@ macro_rules! syntax_slots {
         manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident ; )* }
         engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident ; )* }
     ) => {
-        /// The reader of one syntax relation, whichever it is.
-        #[derive(Clone, Copy)]
-        enum Slot<M: 'static> {
-            $( $variant(Reader<$crate::domain::relations::collections::relations::$module::item::$variant, M>), )*
-        }
-
         /// What the language answers for `relation`: its reader when it reads it from a tree.
         fn slot_of<L>(language: &L, relation: Relation) -> Option<Slot<L::FileModel>> where L: ParseUseCase + ?Sized {
+            if optional_capability(relation)
+                .is_some_and(|capability| !language.capabilities().contains(&capability)) {
+                return None;
+            }
             match relation {
                 $( Relation::$variant => match language.$module().as_ref() {
                     Answer::Reads(reader) => Some(Slot::$variant(*reader)),
@@ -44,6 +40,15 @@ macro_rules! syntax_slots {
                 }, )*
                 $( Relation::$manifest_variant => None, )*
                 $( Relation::$engine_variant => None, )*
+            }
+        }
+
+        fn unsupported(relation: Relation, file: FileId, out: &mut dyn RowWriter) {
+            match relation {
+                $( Relation::$variant => <dyn RowWriter as ryo_relations::domain::relations::types::Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row>>::partial_at(
+                    out, file, ryo_relations::domain::relations::types::ReportText(super::constants::UNAVAILABLE_CAPABILITY), ryo_relations::domain::relations::types::Missing::Any), )*
+                $( Relation::$manifest_variant => {}, )*
+                $( Relation::$engine_variant => {}, )*
             }
         }
 
@@ -60,7 +65,7 @@ macro_rules! syntax_slots {
             tree: &Tree<'_>,
             model: &M,
             symbols: &mut Symbols,
-            position: crate::domain::relations::types::Position,
+            position: ryo_relations::domain::relations::types::Position,
             out: &mut dyn RowWriter,
         ) where M: 'static {
             match slot {
@@ -79,6 +84,10 @@ macro_rules! syntax_slots {
         /// relation is not one of the trees'.
         #[must_use]
         pub fn absence_in<L>(language: &L, relation: Relation) -> Option<AbsenceCause> where L: ParseUseCase + ?Sized {
+            if optional_capability(relation)
+                .is_some_and(|capability| !language.capabilities().contains(&capability)) {
+                return Some(AbsenceCause::NotYetRead);
+            }
             match relation {
                 $( Relation::$variant => match language.$module().as_ref() {
                     Answer::Reads(_) => None,
@@ -90,8 +99,7 @@ macro_rules! syntax_slots {
         }
     };
 }
-
-crate::each_relation!(syntax_slots);
+ryo_relations::each_relation!(syntax_slots);
 
 /// The kinds the readers of the language look at, every reader's declared `kinds:` together. A reader of every element names none: it
 /// reads all and models nothing, so it does not count.
@@ -136,11 +144,24 @@ where
     if language.recognizes(&request) == Recognition::Declines {
         return Err(ParseError::Unsupported);
     }
+    build_recognized(language, request, table, symbols)
+}
+
+fn build_recognized<L: ParseUseCase + ?Sized>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
     language.read_tree(&request, &mut builder)?;
-    language.complete(
-        &request,
-        &mut completion(table, symbols, request.bytes, request.file),
+    crate::application::completion::service::complete::<L::FileModel>(
+        completion(table, symbols, request.bytes, request.file),
+        language.configuration_identity().0,
+        language.completion_requirement(),
+        |tree, model| language.file_model(tree, model),
+        |completed| language.complete(&request, completed),
+        |tree, from, model| language.extend_file_model(tree, from, model),
     );
     Ok(())
 }
@@ -190,6 +211,31 @@ where
     Ok(())
 }
 
+/// Drive the same parser and relation readers after validated explicit provider selection.
+pub(crate) fn read_explicit_in<L: ParseUseCase + ?Sized>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+    wanted: &[Relation],
+    out: &mut dyn RowWriter,
+) -> Result<(), ParseError> {
+    if language.recognizes_explicit(&request) == Recognition::Declines {
+        return Err(ParseError::Unsupported);
+    }
+    build_recognized(language, request, table, symbols)?;
+    walk_in(
+        language,
+        table,
+        symbols,
+        request.bytes,
+        request.file,
+        wanted,
+        out,
+    );
+    Ok(())
+}
+
 /// Writes the rows of the wanted relations for the file whose table is `elements`: every element
 /// is given, in order, to the readers that look at its kind. The table is only read. The model of the language is the worker's own: it
 /// is made once, kept with the table and given back to the language to refill for each file.
@@ -204,11 +250,18 @@ pub(crate) fn walk_in<L>(
 ) where
     L: ParseUseCase + ?Sized,
 {
-    let mut model: Box<L::FileModel> = take_scratch(elements);
+    let mut model: Box<L::FileModel> =
+        crate::application::completion::service::take_model(elements);
+    if wanted.contains(&Relation::SourceLocation) {
+        crate::domain::location::service::index(
+            &mut engine_mut(elements).line_starts,
+            crate::domain::location::types::SourceLineBytes(source.0),
+        );
+    }
     walk_with(
         language, elements, &mut model, symbols, source, file, wanted, out,
     );
-    keep_scratch(elements, model);
+    crate::application::completion::service::keep_model(elements, model);
 }
 
 /// Writes the rows of the wanted relations for the file whose table is `elements`, given the model the worker keeps for the language.
@@ -218,7 +271,7 @@ pub(crate) fn walk_in<L>(
 )]
 fn walk_with<L>(
     language: &L,
-    elements: &Elements,
+    elements: &mut Elements,
     model: &mut L::FileModel,
     symbols: &mut Symbols,
     source: ByteSlice<'_>,
@@ -232,6 +285,12 @@ fn walk_with<L>(
     let mut masks: [Mask; KIND_LIMIT] = [[0; WORDS]; KIND_LIMIT];
     let mut reads_any = false;
     for relation in wanted {
+        if optional_capability(*relation).is_some()
+            && absence_in(language, *relation) == Some(AbsenceCause::NotYetRead)
+        {
+            unsupported(*relation, file, out);
+            continue;
+        }
         let place = number_of(*relation);
         let Some(each) = slot_of(language, *relation) else {
             continue;
@@ -254,14 +313,43 @@ fn walk_with<L>(
     if !reads_any {
         return;
     }
+    if language.completion_requirement()
+        == crate::domain::elements::types::CompletionRequirement::PreparedModel
+    {
+        crate::application::completion::service::prepare(
+            elements,
+            source,
+            file,
+            language.configuration_identity().0,
+            model,
+            |tree, model| language.file_model(tree, model),
+        );
+    } else {
+        crate::application::completion::service::initialize(
+            elements,
+            source,
+            file,
+            model,
+            |tree, model| language.file_model(tree, model),
+        );
+    }
     let tree = Tree {
         elements,
         source,
         file,
     };
-    language.file_model(&tree, model);
-    // Everything below this line reads the table once; nothing scans it again.
-    for position in positions(elements) {
+    // Preserve native-before-expanded ordering through one dispatch loop. No added table
+    // is traversed unless at least one requested reader opted into added occurrences.
+    let expanded = slots
+        .iter()
+        .flatten()
+        .any(|each| expands(each) == Expansions::Included);
+    let occurrences = positions(elements).map(|position| (position, false)).chain(
+        expanded_positions(elements)
+            .take(if expanded { usize::MAX } else { 0 })
+            .map(|position| (position, true)),
+    );
+    for (position, added) in occurrences {
         let Some(mask) = masks.get(usize::from(kind_at(elements, position).0)) else {
             continue;
         };
@@ -271,33 +359,10 @@ fn walk_with<L>(
                 let place =
                     word * 64 + usize::try_from(bits.trailing_zeros()).unwrap_or(usize::MAX);
                 bits &= bits - 1;
-                if let Some(Some(each)) = slots.get(place) {
+                if let Some(Some(each)) = slots.get(place)
+                    && (!added || expands(each) == Expansions::Included)
+                {
                     visit(each, &tree, model, symbols, position, out);
-                }
-            }
-        }
-    }
-    // The elements the language added for reading go to the readers that ask for them.
-    if slots
-        .iter()
-        .flatten()
-        .any(|each| expands(each) == Expansions::Included)
-    {
-        for position in expanded_positions(elements) {
-            let Some(mask) = masks.get(usize::from(kind_at(elements, position).0)) else {
-                continue;
-            };
-            for (word, bits) in mask.iter().enumerate() {
-                let mut bits = *bits;
-                while bits != 0 {
-                    let place =
-                        word * 64 + usize::try_from(bits.trailing_zeros()).unwrap_or(usize::MAX);
-                    bits &= bits - 1;
-                    if let Some(Some(each)) = slots.get(place)
-                        && expands(each) == Expansions::Included
-                    {
-                        visit(each, &tree, model, symbols, position, out);
-                    }
                 }
             }
         }
@@ -366,29 +431,4 @@ pub fn walk(
 /// What the language's library says of a file it refuses.
 pub fn baseline(language: &dyn ParseEngine, request: &ParseRequest<'_>) -> Result<(), ParseError> {
     language.baseline_file(request)
-}
-
-/// The model the worker keeps for the language, or a new one the first time and when another language used the table last.
-#[expect(
-    clippy::unnecessary_box_returns,
-    reason = "the box is the model's room, kept between files so that a file allocates none"
-)]
-fn take_scratch<M>(elements: &mut Elements) -> Box<M>
-where
-    M: Default + Send + 'static,
-{
-    engine_mut(elements)
-        .scratch
-        .0
-        .take()
-        .and_then(|kept| kept.downcast::<M>().ok()) // ignore: idiomatic.arch/no-ok-on-result - a scratch of another file model is none of this one: the model starts afresh
-        .unwrap_or_default()
-}
-
-/// Keeps the model with the table for the next file.
-fn keep_scratch<M>(elements: &mut Elements, model: Box<M>)
-where
-    M: Send + 'static,
-{
-    engine_mut(elements).scratch.0 = Some(model);
 }

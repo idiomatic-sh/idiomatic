@@ -1,0 +1,116 @@
+{
+  "source": "7a097013",
+  "rules": {
+    "E902": {
+      "rule": "E902",
+      "status": "COMPLETED_UNCERTIFIED",
+      "cap_seconds": 30,
+      "capped": false,
+      "started_utc": "2026-11-04T01:40:32.373546+00:00",
+      "ended_utc": "2026-11-04T01:40:33.136568+00:00",
+      "worker_sha256": "d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166",
+      "request_sha256": "f089cc7de1c055779a19639f7abf9d800221525c8e4233e6cb8f80e09d816faf",
+      "reference_parity_certified": false,
+      "orchestration_wall_seconds": 0.7632460080058081,
+      "wall_seconds": 0.760414869,
+      "cpu_seconds": 0.756405,
+      "peak_rss_bytes": 56528896,
+      "worker_exit": 0,
+      "coverage": {
+        "selected": 2875,
+        "evaluated": 2875,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      },
+      "diagnostics": 2,
+      "complete_report": true,
+      "receipt_path": "/tmp/django-current411-extra2-20261104/E902/attempt-30/result.json",
+      "attempts": [
+        {
+          "rule": "E902",
+          "status": "COMPLETED_UNCERTIFIED",
+          "cap_seconds": 30,
+          "capped": false,
+          "started_utc": "2026-11-04T01:40:32.373546+00:00",
+          "ended_utc": "2026-11-04T01:40:33.136568+00:00",
+          "worker_sha256": "d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166",
+          "request_sha256": "f089cc7de1c055779a19639f7abf9d800221525c8e4233e6cb8f80e09d816faf",
+          "reference_parity_certified": false,
+          "orchestration_wall_seconds": 0.7632460080058081,
+          "wall_seconds": 0.760414869,
+          "cpu_seconds": 0.756405,
+          "peak_rss_bytes": 56528896,
+          "worker_exit": 0,
+          "coverage": {
+            "selected": 2875,
+            "evaluated": 2875,
+            "skipped": 0,
+            "unknown_or_unread": 0
+          },
+          "diagnostics": 2,
+          "complete_report": true
+        }
+      ],
+      "source": "7a097013",
+      "timing_cohort": "current411-extra2",
+      "different_source_not_pooled": true
+    },
+    "RUF200": {
+      "rule": "RUF200",
+      "status": "COMPLETED_UNCERTIFIED",
+      "cap_seconds": 30,
+      "capped": false,
+      "started_utc": "2026-11-04T01:43:33.324643+00:00",
+      "ended_utc": "2026-11-04T01:43:34.119749+00:00",
+      "worker_sha256": "d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166",
+      "request_sha256": "eb9d62089f28b885f0118deaa2f3ec175a87377b564b7f05e93711f571d7888c",
+      "reference_parity_certified": false,
+      "orchestration_wall_seconds": 0.7953147509979317,
+      "wall_seconds": 0.773268438,
+      "cpu_seconds": 0.769309,
+      "peak_rss_bytes": 56688640,
+      "worker_exit": 0,
+      "coverage": {
+        "selected": 2875,
+        "evaluated": 2875,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      },
+      "diagnostics": 2,
+      "complete_report": true,
+      "receipt_path": "/tmp/django-current411-extra2-20261104/RUF200/attempt-30/result.json",
+      "attempts": [
+        {
+          "rule": "RUF200",
+          "status": "COMPLETED_UNCERTIFIED",
+          "cap_seconds": 30,
+          "capped": false,
+          "started_utc": "2026-11-04T01:43:33.324643+00:00",
+          "ended_utc": "2026-11-04T01:43:34.119749+00:00",
+          "worker_sha256": "d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166",
+          "request_sha256": "eb9d62089f28b885f0118deaa2f3ec175a87377b564b7f05e93711f571d7888c",
+          "reference_parity_certified": false,
+          "orchestration_wall_seconds": 0.7953147509979317,
+          "wall_seconds": 0.773268438,
+          "cpu_seconds": 0.769309,
+          "peak_rss_bytes": 56688640,
+          "worker_exit": 0,
+          "coverage": {
+            "selected": 2875,
+            "evaluated": 2875,
+            "skipped": 0,
+            "unknown_or_unread": 0
+          },
+          "diagnostics": 2,
+          "complete_report": true
+        }
+      ],
+      "source": "7a097013",
+      "timing_cohort": "current411-extra2",
+      "different_source_not_pooled": true
+    }
+  },
+  "distinct_source_not_pooled": true,
+  "raw_collector_observations_retained_locally": "/tmp/django-current411-extra2-20261104/RULE/attempt-N/observation.json",
+  "certified_reference_parity": false
+}

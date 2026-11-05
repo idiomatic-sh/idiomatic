@@ -23,6 +23,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),

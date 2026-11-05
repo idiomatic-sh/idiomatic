@@ -1,0 +1,69 @@
+[[cases]]
+name = "bare"
+files = { "case.py" = "try:\n    f()\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 29 }]
+
+[[cases]]
+name = "exception"
+files = { "case.py" = "try:\n    f()\nexcept Exception:\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 39 }]
+
+[[cases]]
+name = "base"
+files = { "case.py" = "try:\n    f()\nexcept BaseException:\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 43 }]
+
+[[cases]]
+name = "tuple"
+files = { "case.py" = "try:\n    f()\nexcept (ValueError, Exception):\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 53 }]
+
+[[cases]]
+name = "nested-tuple"
+files = { "case.py" = "try:\n    f()\nexcept ((Exception,),):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "specific"
+files = { "case.py" = "try:\n    f()\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "empty-tuple"
+files = { "case.py" = "try:\n    f()\nexcept ():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\ntry:\n    f()\nexcept builtins.Exception:\n    pass\n" }
+expected = [{ file = "case.py", start = 29, end = 64 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import Exception as Error\ntry:\n    f()\nexcept Error:\n    pass\n" }
+expected = [{ file = "case.py", start = 53, end = 75 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def wrapper(Exception):\n    try:\n        f()\n    except Exception:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "called-exception"
+files = { "case.py" = "try:\n    f()\nexcept Exception():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "two-statements"
+files = { "case.py" = "try:\n    f()\nexcept Exception:\n    pass\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "try:\n    f()\nexcept Exception: # noqa: S110\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis"
+files = { "case.py" = "try:\n    f()\nexcept Exception:\n    ...\n" }
+expected = []

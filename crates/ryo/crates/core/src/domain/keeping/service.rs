@@ -1,20 +1,18 @@
 //! The `keeping` service: free functions named by verb that turn what a run came to into what the next
 //! can use, with no IO and no ports.
 
-use ryo_language::domain::relations::service::{node_file, node_id, node_position};
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{Bits, NamePlace, Offset, Origin, Value, Words};
 use ryo_language::domain::words::service::{
     decode_kind, decode_places, decode_value, encode_kind, encode_places, encode_value,
 };
+use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{Bits, NamePlace, Offset, Origin, Value, Words};
 
 use super::types::{Configuration, DigestInput, DigestPart, Remap};
 
 use crate::domain::finish::service::{column_cell, line_cell};
-use crate::domain::finish::types::{ColumnNumber, FileLine, Point, RuleNumber};
 use crate::domain::render::service::{finding_parts, key_count, row_cells};
 use crate::domain::render::types::{KeyCount, Rendered, RowNumber, RowOrder};
-use crate::domain::table_words::service::unpacked;
 use ryo_values::domain::program::types::ColumnName;
 use ryo_values::domain::records::service::{keep, lent, owned};
 use ryo_values::domain::records::types::RenderedText;
@@ -27,6 +25,11 @@ use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stores::types::{
     FindingMade, FindingPlace, StoredCell, StoredFinding, StoredPlace, StoredValue,
+};
+use ryo_values::domain::table_words::service::unpacked;
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    crate::domain::finish::types::Point, ryo_values::domain::runs::types::RuleNumber,
 };
 
 /// The findings of a file as a record keeps them.
@@ -179,8 +182,32 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
     );
     for rule in configuration.rules {
         put(&mut out, DigestPart(&rule.id.0));
-        put(&mut out, DigestPart(&rule.query.0));
+        put(
+            &mut out,
+            DigestPart(match rule.applicability {
+                ryo_values::domain::runs::types::RuleApplicability::Always => "always",
+                ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => {
+                    "accepted-syntax"
+                }
+            }),
+        );
+        put(&mut out, DigestPart(&rule.query.root.id.0));
+        put(&mut out, DigestPart(&rule.query.root.text));
+        out.0.extend_from_slice(
+            &u64::try_from(rule.query.modules.len())
+                .unwrap_or(u64::MAX)
+                .to_le_bytes(),
+        );
+        for (id, source) in rule.query.modules.iter() {
+            put(&mut out, DigestPart(&id.0));
+            put(&mut out, DigestPart(&source.text));
+        }
         put(&mut out, DigestPart(&rule.spelled.0));
+        // Ordinary rules retain their historical bytes; declared dependency contracts
+        // carry a versioned frame including producer IDs, output names and schema.
+        out.0.extend_from_slice(
+            &ryo_values::domain::observations::service::identity(&rule.observations).0,
+        );
         for globs in [&rule.include, &rule.exclude] {
             out.0
                 .extend_from_slice(&u64::try_from(globs.len()).unwrap_or(0).to_le_bytes());

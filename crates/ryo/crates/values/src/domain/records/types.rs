@@ -9,7 +9,7 @@ use crate::domain::stored_facts::types::ReadFailure;
 use crate::domain::stored_facts::types::{ArenaBytes, FileNotes, StoredPartial};
 use crate::domain::stored_facts::types::{KeptWords, PackedWords};
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{Integer, Span};
+use ryo_relations::domain::relations::types::{Integer, Span};
 
 /// One value of a row of the answer, typed: a row of a rule's own columns and a finding's row are these, and only the command line
 /// writes them as text. `T` holds the text of a file or a text cell: `Box<str>` where the cell is owned, `&str` where a row is lent,
@@ -101,6 +101,8 @@ pub struct PlacedColumn(pub u32);
 /// What a run kept of one file.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Record {
+    /// The exact executable-permission observation used to produce this file outcome.
+    pub executable: crate::domain::files::types::ExecutablePermission,
     /// The path, relative to the root.
     pub path: FilePath,
     /// The file's size when it was read.
@@ -172,6 +174,8 @@ pub enum Handing {
 /// in part with the rules that govern it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Handed {
+    /// Independently versioned readiness of demanded per-file named frontiers.
+    pub observations: Option<std::sync::Arc<FrontierReadiness>>,
     /// Its words in each bucket, as if it were the first file read by the first worker.
     pub buckets: Vec<HandedWords>,
     /// The text its names made, from the start of its own.
@@ -194,13 +198,80 @@ pub enum HandedNotes {
     Nothing,
 }
 
+/// The per-run store snapshot that owns a temporary normalized-word span.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StagingSession(pub u64);
+
+/// A checked byte range in a temporary spool owned by one live ReadStore snapshot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StagedWords {
+    /// Foreign or stale sessions are never resolved by another snapshot.
+    pub session: StagingSession,
+    /// Byte offset from the start of this session's spool.
+    pub offset: u64,
+    /// Exact packed payload length, with no framing bytes.
+    pub length: u64,
+}
+
+/// Normalized fresh words are either inline or a descriptor, never a domain-owned file handle.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RecordWords {
+    /// Memory/discard/custom stores may retain an owned inline payload.
+    Inline(PackedWords),
+    /// The same run's store snapshot owns these bytes until final publication or drop.
+    Staged(StagedWords),
+}
+
+impl From<PackedWords> for RecordWords {
+    fn from(words: PackedWords) -> Self {
+        Self::Inline(words)
+    }
+}
+
 /// The words a file handed the steps that read across files in one bucket, packed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandedWords {
     /// The bucket.
     pub bucket: Bucket,
+    /// Source-bound coverage and root identity for this exact bucket.
+    pub proof: FrontierProof,
     /// The words.
-    pub words: PackedWords,
+    pub words: RecordWords,
+}
+
+/// The physical absence scope retained with a per-file frontier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FrontierAffected {
+    /// This frontier's containing file is incomplete.
+    CurrentFile,
+    /// The source reported a repository-wide incomplete relation.
+    Repository,
+}
+
+/// A complete frontier or the precise physical scopes still uncertain.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FrontierCoverage {
+    /// Every physical input needed by this frontier was complete.
+    Complete,
+    /// A nonempty, distinct set of affected scopes; validated at admission.
+    Partial(Vec<FrontierAffected>),
+}
+
+/// Persisted root identity. The containing file and bucket remain part of the
+/// enclosing record; a new owner validates this proof against its current rule
+/// digest, frontier ordinal, physical file and observed coverage before use.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FrontierProof {
+    /// Proof layout version; unknown versions are refused.
+    pub version: u32,
+    /// Producer rule ordinal in the request that wrote this bucket.
+    pub rule: u32,
+    /// Original frontier ordinal within that rule.
+    pub input: u32,
+    /// Current compiled rule identity, compared with the stored rule contract.
+    pub rule_digest: Digest,
+    /// The exact physical coverage of this frontier.
+    pub coverage: FrontierCoverage,
 }
 
 /// The rules that govern a file, by their place among the rules.
@@ -230,6 +301,8 @@ pub struct Unread {
 pub struct Kept {
     /// The bucket.
     pub bucket: Bucket,
+    /// Proof of this bucket's producer and physical coverage.
+    pub proof: FrontierProof,
     /// The words, as the store keeps them.
     pub words: KeptWords,
 }
@@ -275,3 +348,56 @@ pub enum Freshness {
 /// A count of rows, to be written as a number.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RowTotal(pub u64);
+
+/// Compact actual readiness beside existing frontier words. Slots are bound to the stable semantic layout identity.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FrontierReadiness {
+    /// Encoding version; old versions cannot establish completion.
+    pub version: crate::domain::observations::types::ObservationReadinessVersion,
+    /// Stable ordered producer/output/query/config identity for these bits.
+    pub layout: crate::domain::observations::types::ObservationReadinessLayout,
+    /// Exact number of logical roots represented.
+    pub slots: crate::domain::observations::types::ObservationReadinessCount,
+    /// Successful production bits, including actual complete zero-row outputs.
+    pub complete: Vec<u64>,
+    /// Explicit not-applicable bits; empty storage means no skips, never completion.
+    pub skipped: Vec<u64>,
+    /// Only explicit failures need owned detail. An unset slot is Unknown, never Complete.
+    pub refusals: Vec<FrontierRefusal>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// One explicitly unavailable root; ordinary pending slots need no owned reason.
+pub struct FrontierRefusal {
+    /// Position in the enclosing validated map.
+    pub slot: crate::domain::observations::types::ObservationReadinessSlot,
+    /// Why production cannot establish complete rows.
+    pub reason: FrontierRefusalReason,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// A typed unavailable state, never an empty successful population.
+pub enum FrontierRefusalReason {
+    /// A real provider, dependency or retention refusal.
+    Unknown(crate::domain::observations::types::ObservationReason),
+    /// The selected producer has no executable query.
+    NoQuery,
+}
+
+/// Canonical read-only retention measurements over portable payloads.
+pub mod retention;
+
+/// A portable named output. Readiness and words agree: only Complete carries words.
+#[derive(Clone, Debug)]
+pub struct PackedObservedRoot {
+    pub output: crate::domain::observations::types::ObservationIndex,
+    pub words: Option<crate::domain::stored_facts::types::KeptWords>,
+    pub readiness: crate::domain::observations::types::ProducerReadiness,
+    /// Every arena actually referenced by encoded places, including inherited re-exports.
+    pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,
+}
+/// One closure owns its reserved arena and returns only owned bytes/words.
+#[derive(Clone, Debug)]
+pub struct CrossPublicationTransfer {
+    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
+    pub arena: ArenaBytes,
+    pub roots: Vec<PackedObservedRoot>,
+}

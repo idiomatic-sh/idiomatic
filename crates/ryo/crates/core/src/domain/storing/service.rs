@@ -1,22 +1,23 @@
 //! The `storing` service: free functions named by verb over what a run keeps in its store and what the next uses again, with no IO
 //! and no ports.
 
-use super::types::{Decision, MadeAgain, ToKeep, ToStore};
-use crate::domain::coverage::types::{Message, Unknown};
+use super::types::{Decision, ToKeep, ToStore};
 use crate::domain::handing::service::{hand_into, handed_in, rows_of_file};
 use crate::domain::keeping::service::{findings_of, rows_from};
 use crate::domain::workers::types::FileOrder;
+use ryo_execution::inbound::use_cases::metadata::interface::{Message, Unknown};
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileNumber, Nanoseconds};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileNumber, Nanoseconds};
 use ryo_values::domain::records::types::{
     Cell, FileOutcome, FindingRows, Freshness, Handing, PlacedRule, Ran, Record, RuleFrontier,
 };
-use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::{RuleId, Skipped};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
+use ryo_values::domain::stores::types::MadeAgain;
 use ryo_values::domain::stores::types::{
     BucketsWanted, Crossing, FileAgain, FindingMade, KeptRows, Stored, StoredCell, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredRule, StoredUnknown,
-    StoredUnread, UnknownText,
+    StoredFileNumber, StoredFinding, StoredFrontier, StoredRule, StoredUnknown, StoredUnread,
+    UnknownText,
 };
 
 /// The stored file at `path`: the files are kept in the order of their paths.
@@ -32,7 +33,11 @@ fn stored_at<'a>(stored: &'a Stored, path: &FilePath) -> Option<&'a StoredFile> 
 #[must_use]
 pub(crate) fn as_kept(kept: &StoredFile, file: &CorpusEntry) -> Freshness {
     // A time the system does not know says nothing of the file.
-    if kept.size == file.size && kept.modified == file.modified && file.modified != Nanoseconds(0) {
+    if kept.size == file.size
+        && kept.modified == file.modified
+        && kept.executable == file.executable
+        && file.modified != Nanoseconds(0)
+    {
         Freshness::AsItWas
     } else {
         Freshness::Changed
@@ -43,25 +48,35 @@ pub(crate) fn as_kept(kept: &StoredFile, file: &CorpusEntry) -> Freshness {
 /// other rules, or for other files while a rule reads across files; the files as they were again when nothing changed that a rule
 /// reading across files could see; a check of what the changed files show otherwise.
 #[must_use]
-pub(crate) fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusEntry]) -> Decision {
+pub(crate) fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusInput]) -> Decision {
     if *stored == Stored::default() || stored.rules != rules {
         return Decision::Whole;
     }
     let across = rules.iter().any(|rule| rule.crossing == Crossing::Across);
+    // A failed primary input has no reusable fresh record to compare with its old interface.
+    // Recompute current cross-file rows/coverage rather than infer an unchanged empty delta.
+    if across
+        && files
+            .iter()
+            .any(|input| !matches!(input, CorpusInput::Available(_)))
+    {
+        return Decision::Whole;
+    }
     let same_files = files.len() == stored.files.len()
         && files
             .iter()
             .zip(&stored.files)
-            .all(|(file, kept)| file.path == kept.path);
+            .all(|(file, kept)| ryo_values::domain::files::service::input_path(file) == &kept.path);
     if across && !same_files {
         return Decision::Cross;
     }
     let changed: Vec<FileOrder> = files
         .iter()
         .enumerate()
-        .filter(|(_, file)| {
-            stored_at(stored, &file.path)
-                .is_none_or(|kept| as_kept(kept, file) == Freshness::Changed)
+        .filter(|(_, input)| match input {
+            CorpusInput::Available(file) => stored_at(stored, &file.path)
+                .is_none_or(|kept| as_kept(kept, file) == Freshness::Changed),
+            CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => true,
         })
         .map(|(place, _)| FileOrder(place))
         .collect();
@@ -117,6 +132,12 @@ pub(crate) fn made_again(
                 .iter()
                 .map(|each| (each.path.clone(), place_of(&each.rule))),
         )
+        .chain(
+            stored
+                .skipped
+                .iter()
+                .map(|each| (each.path.clone(), place_of(&each.rule))),
+        )
         .collect();
     held.sort_unstable_by(|left, right| left.0.cmp(&right.0));
     let mut rules = Vec::new();
@@ -130,6 +151,9 @@ pub(crate) fn made_again(
         let Some(kept) = stored.files.get(place) else {
             return MadeAgain::All;
         };
+        if record.executable != kept.executable {
+            return MadeAgain::All;
+        }
         if record.digest == kept.digest {
             continue;
         }
@@ -226,6 +250,7 @@ pub(crate) fn records_from(stored: &Stored, ids: &[RuleId]) -> Option<Vec<Record
                 noted: file.noted,
             };
             Some(Record {
+                executable: file.executable,
                 path: file.path.clone(),
                 size: file.size,
                 modified: file.modified,
@@ -276,6 +301,17 @@ pub(crate) fn unknowns_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Unk
         .collect()
 }
 
+/// What the rules explicitly skipped, as the store kept it, but not for files read again.
+#[must_use]
+pub(crate) fn skipped_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Skipped> {
+    stored
+        .skipped
+        .iter()
+        .filter(|each| read_again.binary_search(&each.path).is_err())
+        .cloned()
+        .collect()
+}
+
 /// The records the store kept, with those of `fresh` in place of the ones of the same path and among them by path: both in the order
 /// of their paths.
 #[must_use]
@@ -298,10 +334,10 @@ pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
 /// What a run keeps in its store: its rules, a row for each file, the findings, why a file was not read, the manifests refused, what
 /// the rules could not decide, the files the lookup read, and the words as they were: the buckets `unchanged` and the files used again.
 #[must_use]
-pub(crate) fn stored_of(
+pub(crate) fn stored_of<W>(
     keeping: ToKeep<'_>,
     last: &Stored,
-    last_handed: &StoredHanded,
+    last_handed: &ryo_values::domain::stores::types::HandedRows<W>,
     rebuilt: &BucketsWanted,
     unchanged: Vec<Bucket>,
 ) -> ToStore {
@@ -311,14 +347,17 @@ pub(crate) fn stored_of(
         later,
         refused,
         unknowns,
+        skipped,
         consulted,
         consulted_absent,
+        project_observations,
     } = keeping;
     let mut stored = Stored {
         rules,
         refused: refused.to_vec(),
         consulted: consulted.to_vec(),
         consulted_absent: consulted_absent.to_vec(),
+        project_observations: project_observations.to_vec(),
         unknowns: unknowns
             .iter()
             .map(|each| StoredUnknown {
@@ -327,6 +366,7 @@ pub(crate) fn stored_of(
                 message: UnknownText(each.message.0.clone()),
             })
             .collect(),
+        skipped: skipped.to_vec(),
         ..Stored::default()
     };
     let mut kept = KeptRows {
@@ -345,7 +385,9 @@ pub(crate) fn stored_of(
             FileOutcome::Unread { ran: None, .. } => None,
         };
         match handing {
-            Some(Handing::Made(handed)) => hand_into(&mut stored.handed, file, handed, rebuilt),
+            Some(Handing::Made(handed)) => {
+                hand_into(&mut stored.handed, file, handed, rebuilt, &mut kept.staged)
+            }
             Some(Handing::Kept) => {
                 // Its words stay where the store keeps them, moved to its number now.
                 if let Ok(was) = last
@@ -362,6 +404,7 @@ pub(crate) fn stored_of(
                     file,
                     handed_in(last, last_handed, &record.path),
                     rebuilt,
+                    &mut kept.staged,
                 );
             }
             None => {}
@@ -377,6 +420,7 @@ pub(crate) fn stored_of(
                 }));
         }
         stored.files.push(StoredFile {
+            executable: record.executable,
             path: record.path,
             digest: record.digest,
             noted: ran.map_or(Digest([0; 16]), |ran| ran.noted),

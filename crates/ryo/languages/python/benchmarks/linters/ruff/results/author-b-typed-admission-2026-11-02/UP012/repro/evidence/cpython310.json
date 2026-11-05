@@ -1,0 +1,1905 @@
+{
+  "version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "executable": "/home/vscode/.local/share/uv/python/cpython-3.10.19-linux-aarch64-gnu/bin/python3",
+  "interpreter_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "probe_sha256": "a17bde37231f98aaf6a304cbfda865066209e8d068d1019adf4cf41a18e1a887",
+  "target_configuration": "python-target=3.10",
+  "dont_inherit": true,
+  "rows": [
+    {
+      "name": "outer-runtime-history-2",
+      "source": "if TYPE_CHECKING:\n    x=0\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n",
+      "source_sha256": "9e698766a95c59eb236d98762b36f6508e1863c85c593b38dd394216883f7ab3",
+      "alternate": "if TYPE_CHECKING:\n    x = 0\n\ndef fn():\n    f = open('x')\n    f.writelines((x for x in rows))\n",
+      "target": "x",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {
+                "x": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {
+                "x": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-0-0",
+      "source": "f=open(\"x\")\nfor list in rows:\n    f.write(list)\n",
+      "source_sha256": "fe928e8cc28bb996fb019c836f1b27f4c058b64f035ecc0c521620a27827132e",
+      "alternate": "f = open('x')\nf.writelines((list for list in rows))\n",
+      "target": "list",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-0-1",
+      "source": "def fn():\n    f=open(\"x\")\n    for list in rows:\n        f.write(list)\n",
+      "source_sha256": "e0b9013a4b19f02dfa8199a2669c97a6cef825c4efaf48c83f4c7be6b5eca3c7",
+      "alternate": "def fn():\n    f = open('x')\n    f.writelines((list for list in rows))\n",
+      "target": "list",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "list": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "list": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-1-0",
+      "source": "f=open(\"x\")\nfor print in rows:\n    f.write(print)\n",
+      "source_sha256": "2b489d6701cdb43d094bab7c49d41bf9a553eb0ccac699fdc699082d5c9fd1fe",
+      "alternate": "f = open('x')\nf.writelines((print for print in rows))\n",
+      "target": "print",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-1-1",
+      "source": "def fn():\n    f=open(\"x\")\n    for print in rows:\n        f.write(print)\n",
+      "source_sha256": "eaca010e89236d37ee10a9e7952e5191a46136ebcecdcc01d6265806c643bda0",
+      "alternate": "def fn():\n    f = open('x')\n    f.writelines((print for print in rows))\n",
+      "target": "print",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "print": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "print": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-2-0",
+      "source": "f=open(\"x\")\nfor Exception in rows:\n    f.write(Exception)\n",
+      "source_sha256": "5dc85647906f8f490fe8829f6293c42428afcb8f88f8ac6869edf12b9f500ec3",
+      "alternate": "f = open('x')\nf.writelines((Exception for Exception in rows))\n",
+      "target": "Exception",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-2-1",
+      "source": "def fn():\n    f=open(\"x\")\n    for Exception in rows:\n        f.write(Exception)\n",
+      "source_sha256": "41fc4f60da3e660c6501638a100b03e073c0429414fb244a8ae04b98241221fc",
+      "alternate": "def fn():\n    f = open('x')\n    f.writelines((Exception for Exception in rows))\n",
+      "target": "Exception",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "Exception": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "Exception": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-3-0",
+      "source": "f=open(\"x\")\nfor WindowsError in rows:\n    f.write(WindowsError)\n",
+      "source_sha256": "1767ceeb35d8afa4602a3f3b452966f9a29cf4a830376b001351086832bcb30e",
+      "alternate": "f = open('x')\nf.writelines((WindowsError for WindowsError in rows))\n",
+      "target": "WindowsError",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-3-1",
+      "source": "def fn():\n    f=open(\"x\")\n    for WindowsError in rows:\n        f.write(WindowsError)\n",
+      "source_sha256": "35c1d1c4d3dfeb988ffec573e010855d4e79af7c10dc72fd13428d626c58ab49",
+      "alternate": "def fn():\n    f = open('x')\n    f.writelines((WindowsError for WindowsError in rows))\n",
+      "target": "WindowsError",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {
+                "WindowsError": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {
+                "WindowsError": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-5-0",
+      "source": "f=open(\"x\")\nfor __name__ in rows:\n    f.write(__name__)\n",
+      "source_sha256": "3a816f3ee538ee75da16516ac5c3302e4db50587bc294db075440c0b5fb166bc",
+      "alternate": "f = open('x')\nf.writelines((__name__ for __name__ in rows))\n",
+      "target": "__name__",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-5-1",
+      "source": "def fn():\n    f=open(\"x\")\n    for __name__ in rows:\n        f.write(__name__)\n",
+      "source_sha256": "7dd51ed65353902456a3218b5e7401c27e37d6afe3606d1e32ecedae0a5e3a59",
+      "alternate": "def fn():\n    f = open('x')\n    f.writelines((__name__ for __name__ in rows))\n",
+      "target": "__name__",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "__name__": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {
+                "__name__": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": true,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-6-0",
+      "source": "f=open(\"x\")\nfor __file__ in rows:\n    f.write(__file__)\n",
+      "source_sha256": "2f0f3609d9a8b216546a9e7f0ec6a297933d152615127c9df58748b801a14d6e",
+      "alternate": "f = open('x')\nf.writelines((__file__ for __file__ in rows))\n",
+      "target": "__file__",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-builtin-6-1",
+      "source": "def fn():\n    f=open(\"x\")\n    for __file__ in rows:\n        f.write(__file__)\n",
+      "source_sha256": "6775f8f53b1096ae3bdf09813a41d01b5fd891b79be3bf2774bfb57e43b94ccf",
+      "alternate": "def fn():\n    f = open('x')\n    f.writelines((__file__ for __file__ in rows))\n",
+      "target": "__file__",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {
+                "__file__": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {
+                "__file__": "'B'"
+              }
+            ]
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": [
+              {}
+            ]
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-shadow-history-0",
+      "source": "f=open(\"x\")\nx=0\ndel x\nfor x in rows:\n    f.write(x)\n",
+      "source_sha256": "c2b7e92e7573989a4e4aa4587f4cd52edc515a62569d259b0204d646bef737b9",
+      "alternate": "f = open('x')\nx = 0\ndel x\nf.writelines((x for x in rows))\n",
+      "target": "x",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-shadow-history-1",
+      "source": "f=open(\"x\")\ntry: pass\nexcept Exception as x: pass\nfor x in rows:\n    f.write(x)\n",
+      "source_sha256": "9b6751525354b05ec3952fda5cdd6c9128c417eb984a64379bfae15592a04049",
+      "alternate": "f = open('x')\ntry:\n    pass\nexcept Exception as x:\n    pass\nf.writelines((x for x in rows))\n",
+      "target": "x",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-shadow-history-4",
+      "source": "f=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n",
+      "source_sha256": "0d14122e538099d068dffdeeeadccd0c33fb1941f13ceb012c014b762e3784a3",
+      "alternate": "f = open('x')\nif TYPE_CHECKING:\n    x = 0\nf.writelines((x for x in rows))\n",
+      "target": "x",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-shadow-history-5",
+      "source": "f=open(\"x\")\nif unknown.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n",
+      "source_sha256": "8732786a253dc587ebf98cee79e74b29e445afe8786cbc3583b46d0cdd659949",
+      "alternate": "f = open('x')\nif unknown.TYPE_CHECKING:\n    x = 0\nf.writelines((x for x in rows))\n",
+      "target": "x",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "runtime-shadow-history-6",
+      "source": "f=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nelse:\n    pass\nfor x in rows:\n    f.write(x)\n",
+      "source_sha256": "8be9d58f65b482abba7f6040e956b0eb0a4d8d995885a020f396f1e577e32b8d",
+      "alternate": "f = open('x')\nif TYPE_CHECKING:\n    x = 0\nelse:\n    pass\nf.writelines((x for x in rows))\n",
+      "target": "x",
+      "setup": "open is explicitly substituted with a fresh actual io.StringIO; rows and TYPE_CHECKING are declared inputs; returned frame locals are observational instrumentation, not program reads",
+      "observations": [
+        {
+          "rows": [],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": false,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": null,
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        },
+        {
+          "rows": [
+            "A",
+            "B"
+          ],
+          "TYPE_CHECKING": true,
+          "original": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "'B'",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "rewritten": {
+            "written": "AB",
+            "error": null,
+            "explicit_module_target": "0",
+            "fallback_builtin": false,
+            "returned_function_target_locals": []
+          },
+          "written_and_error_equal": true
+        }
+      ],
+      "limitation": "Matching writes/exceptions in these inputs is not proof of unrestricted rewrite equivalence. Module/frame target binding differences are recorded, not automatically classified as unsafe if the variable is dead."
+    },
+    {
+      "name": "late-annotation-2",
+      "source": "from __future__ import annotations\ndef f(fp: T):\n    for line in fp.readlines():\n        pass\nfrom pathlib import Path as T\n",
+      "source_sha256": "1a81d042cb9fed3039660d6a4d462f41cae1a79c139d876ac900602f97f6d77c",
+      "error": null,
+      "annotation_module": "pathlib",
+      "annotation_name": "Path",
+      "annotation_defines_readlines": false,
+      "annotation_defines_iter": false
+    },
+    {
+      "name": "late-annotation-cache-0",
+      "source": "from dataclasses import dataclass\n@dataclass\nclass C:\n    x: ClassVar[list[int]] = []\nfrom typing import ClassVar\n",
+      "source_sha256": "10cde06a168fc58336d704df00c04533544fa5b7d7f0ef28b56d4a84505f7e46",
+      "error": {
+        "type": "NameError",
+        "message": "name 'ClassVar' is not defined"
+      }
+    },
+    {
+      "name": "tagged-UP012",
+      "source_sha256": "7ba6c313e2e3bc23f3ce163dd2d080f5174708f98b3a69c5637375846532aa5b",
+      "scope": "five exact constant-only source subexpressions; whole tagged file is not executed and includes independently preserved syntax errors",
+      "expressions": [
+        {
+          "span": [
+            2712,
+            2736
+          ],
+          "expression": "\"\\N{DIGIT ONE}\".encode()",
+          "decoded_value": "1",
+          "result_hex": "31",
+          "bytes_replacement": "b'1'",
+          "equivalent": true
+        },
+        {
+          "span": [
+            2737,
+            2754
+          ],
+          "expression": "\"\\u0031\".encode()",
+          "decoded_value": "1",
+          "result_hex": "31",
+          "bytes_replacement": "b'1'",
+          "equivalent": true
+        },
+        {
+          "span": [
+            2755,
+            2776
+          ],
+          "expression": "\"\\U00000031\".encode()",
+          "decoded_value": "1",
+          "result_hex": "31",
+          "bytes_replacement": "b'1'",
+          "equivalent": true
+        },
+        {
+          "span": [
+            2795,
+            2817
+          ],
+          "expression": "\"\\\n\" \"\\u0001\".encode()",
+          "decoded_value": "\u0001",
+          "result_hex": "01",
+          "bytes_replacement": "b'\\x01'",
+          "equivalent": true
+        },
+        {
+          "span": [
+            2952,
+            2980
+          ],
+          "expression": "\"\\000\\N{DIGIT ONE}\".encode()",
+          "decoded_value": "\u00001",
+          "result_hex": "0031",
+          "bytes_replacement": "b'\\x001'",
+          "equivalent": true
+        }
+      ]
+    }
+  ]
+}

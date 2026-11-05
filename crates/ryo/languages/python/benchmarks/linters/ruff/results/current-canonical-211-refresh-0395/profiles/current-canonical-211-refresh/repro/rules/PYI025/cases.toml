@@ -1,0 +1,107 @@
+[[cases]]
+name = "set"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 28, "end" = 31 }, { "rule" = "PYI025", "file" = "case.pyi", "start" = 28, "end" = 31 }]
+
+[[cases]]
+name = "recommended"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set as AbstractSet\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 35, "end" = 46 }]
+
+[[cases]]
+name = "other-alias"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set as Other\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 35, "end" = 40 }, { "rule" = "PYI025", "file" = "case.pyi", "start" = 35, "end" = 40 }]
+
+[[cases]]
+name = "same-alias"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set as Set\n" }
+expected = [{ "rule" = "PYI025", "file" = "case.pyi", "start" = 35, "end" = 38 }]
+
+[[cases]]
+name = "python"
+comparison = "full"
+files = { "case.py" = "from collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 28, "end" = 31 }, { "rule" = "PYI025", "file" = "case.py", "start" = 28, "end" = 31 }]
+
+[[cases]]
+name = "relative"
+comparison = "full"
+files = { "case.pyi" = "from .collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 29, "end" = 32 }]
+
+[[cases]]
+name = "other-set"
+comparison = "full"
+files = { "case.pyi" = "from typing import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 19, "end" = 22 }]
+
+[[cases]]
+name = "module-import"
+comparison = "full"
+files = { "case.pyi" = "import collections.abc.Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 7, "end" = 26 }]
+
+[[cases]]
+name = "nested"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    from collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 41, "end" = 44 }, { "rule" = "PYI010", "file" = "case.pyi", "start" = 13, "end" = 44 }, { "rule" = "PYI025", "file" = "case.pyi", "start" = 41, "end" = 44 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set # noqa: PYI025\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 28, "end" = 31 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import Set # noqa: F401\n" }
+expected = [{ "rule" = "PYI025", "file" = "case.pyi", "start" = 28, "end" = 31 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.pyi" = "# ruff: noqa\nfrom collections.abc import Set\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI025]\nfrom collections.abc import Set\n\n# ruff: enable[PYI025]\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 52, "end" = 55 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI025]\n# ruff: enable[PYI025]\nfrom collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 75, "end" = 78 }, { "rule" = "PYI025", "file" = "case.pyi", "start" = 75, "end" = 78 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI025]\nfrom collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 52, "end" = 55 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[E501]\nfrom collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 50, "end" = 53 }, { "rule" = "PYI025", "file" = "case.pyi", "start" = 50, "end" = 53 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.pyi" = "# ruff: file-ignore[PYI025]\nfrom collections.abc import Set\n" }
+expected = [{ "rule" = "F401", "file" = "case.pyi", "start" = 56, "end" = 59 }]

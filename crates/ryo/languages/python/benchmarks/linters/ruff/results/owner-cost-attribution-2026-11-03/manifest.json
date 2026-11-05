@@ -1,0 +1,35 @@
+{
+  "summary.json": {
+    "sha256": "ef9c6634b95790435f73720b475847d11d1cec865d61e6fd9a5572a5e7bee5c9",
+    "bytes": 4611
+  },
+  "cpu-functions.txt": {
+    "sha256": "dd3b129b3589a4f15ca07315b53aff4e458488e4d19a5944ea34917711da751d",
+    "bytes": 58153
+  },
+  "cpu-calltree.txt": {
+    "sha256": "794e2f457605b253393e8b8222a023bb75c4b268ba3c65309431dc2226c657b2",
+    "bytes": 2714064
+  },
+  "cpu-receipt.json": {
+    "sha256": "07ba67d05822264ef27283d2909f18643d5eb6869254d207c64533d7bb09da00",
+    "bytes": 957
+  },
+  "allocation-stacks.json": {
+    "sha256": "8665e4a9cf85d58aca9a5400e035ea6036bd9f97453704a8efd2a153368c6a2b",
+    "bytes": 34499
+  },
+  "peak-stacks.json": {
+    "sha256": "4da143c68c672ec0724c5d383d3e5d962ef44ec3d4ce111cf9bbb5c00c8e6875",
+    "bytes": 46684
+  },
+  "heap-receipt.json": {
+    "sha256": "4325004857158d642c6676c30d380e2dd892c1e06c57535c1d9934bafbe04ea5",
+    "bytes": 1033
+  },
+  "raw_heap": {
+    "path": "/tmp/ryo-cost-attribution-symbolized-1e3-20261103/heap-options/profile.heaptrack.gz",
+    "sha256": "ce6587ef75fb61bd7b3ad911055e4856862d56107be67d79da609e7c0f50262c",
+    "bytes": 43222762
+  }
+}

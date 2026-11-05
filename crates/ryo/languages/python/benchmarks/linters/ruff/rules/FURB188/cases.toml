@@ -1,0 +1,247 @@
+[[cases]]
+name = "pinned-full-FURB188"
+comparison = "full"
+files = { "FURB188.py" = "# Test suite from Refurb\n# See https://github.com/dosisod/refurb/blob/db02242b142285e615a664a8d3324470bb711306/test/data/err_188.py\n\n# these should match\n\ndef remove_extension_via_slice(filename: str) -> str:\n    if filename.endswith(\".txt\"):\n        filename = filename[:-4]\n\n    return filename\n\n\ndef remove_extension_via_slice_len(filename: str, extension: str) -> str:\n    if filename.endswith(extension):\n        filename = filename[:-len(extension)]\n\n    return filename\n\n\ndef remove_extension_via_ternary(filename: str) -> str:\n    return filename[:-4] if filename.endswith(\".txt\") else filename\n\n\ndef remove_extension_via_ternary_with_len(filename: str, extension: str) -> str:\n    return filename[:-len(extension)] if filename.endswith(extension) else filename\n\n\ndef remove_prefix(filename: str) -> str:\n    return filename[4:] if filename.startswith(\"abc-\") else filename\n\n\ndef remove_prefix_via_len(filename: str, prefix: str) -> str:\n    return filename[len(prefix):] if filename.startswith(prefix) else filename\n\n\n# these should not\n\ndef remove_extension_with_mismatched_len(filename: str) -> str:\n    if filename.endswith(\".txt\"):\n        filename = filename[:3]\n\n    return filename\n\n\ndef remove_extension_assign_to_different_var(filename: str) -> str:\n    if filename.endswith(\".txt\"):\n        other_var = filename[:-4]\n\n    return filename\n\n\ndef remove_extension_with_multiple_stmts(filename: str) -> str:\n    if filename.endswith(\".txt\"):\n        print(\"do some work\")\n\n        filename = filename[:-4]\n\n    if filename.endswith(\".txt\"):\n        filename = filename[:-4]\n\n        print(\"do some work\")\n\n    return filename\n\n\ndef remove_extension_from_unrelated_var(filename: str) -> str:\n    xyz = \"abc.txt\"\n\n    if filename.endswith(\".txt\"):\n        filename = xyz[:-4]\n\n    return filename\n\n\ndef remove_extension_in_elif(filename: str) -> str:\n    if filename:\n        pass\n\n    elif filename.endswith(\".txt\"):\n        filename = filename[:-4]\n\n    return filename\n\n\ndef remove_extension_in_multiple_elif(filename: str) -> str:\n    if filename:\n        pass\n\n    elif filename:\n        pass\n\n    elif filename.endswith(\".txt\"):\n        filename = filename[:-4]\n\n    return filename\n\n\ndef remove_extension_in_if_with_else(filename: str) -> str:\n    if filename.endswith(\".txt\"):\n        filename = filename[:-4]\n\n    else:\n        pass\n\n    return filename\n\n\ndef remove_extension_ternary_name_mismatch(filename: str):\n    xyz = \"\"\n\n    _ = xyz[:-4] if filename.endswith(\".txt\") else filename\n    _ = filename[:-4] if xyz.endswith(\".txt\") else filename\n    _ = filename[:-4] if filename.endswith(\".txt\") else xyz\n\n\ndef remove_extension_slice_amount_mismatch(filename: str) -> None:\n    extension = \".txt\"\n\n    _ = filename[:-1] if filename.endswith(\".txt\") else filename\n    _ = filename[:-1] if filename.endswith(extension) else filename\n    _ = filename[:-len(\"\")] if filename.endswith(extension) else filename\n\n\ndef remove_prefix_size_mismatch(filename: str) -> str:\n    return filename[3:] if filename.startswith(\"abc-\") else filename\n\n\ndef remove_prefix_name_mismatch(filename: str) -> None:\n    xyz = \"\"\n\n    _ = xyz[4:] if filename.startswith(\"abc-\") else filename\n    _ = filename[4:] if xyz.startswith(\"abc-\") else filename\n    _ = filename[4:] if filename.startswith(\"abc-\") else xyz\n\n# ---- End of refurb test suite ---- #\n\n# ---- Begin ruff specific test suite --- #\n\n# these should be linted\n\ndef remove_suffix_multiple_attribute_expr() -> None:\n    import foo.bar\n\n    SUFFIX = \"suffix\"\n\n    x = foo.bar.baz[:-len(SUFFIX)] if foo.bar.baz.endswith(SUFFIX) else foo.bar.baz\n\ndef remove_prefix_comparable_literal_expr() -> None:\n    return (\"abc\" \"def\")[3:] if (\"abc\" \"def\").startswith(\"abc\") else \"abc\" \"def\"\n\ndef shadow_builtins(filename: str, extension: str) -> None:\n    from builtins import len as builtins_len\n\n    return filename[:-builtins_len(extension)] if filename.endswith(extension) else filename\n\ndef okay_steps():\n    text = \"!x!y!z\"\n    if text.startswith(\"!\"):\n        text = text[1::1]\n    if text.startswith(\"!\"):\n        text = text[1::True]\n    if text.startswith(\"!\"):\n        text = text[1::None]\n    print(text)\n\n\n# this should be skipped\ndef ignore_step():\n    text = \"!x!y!z\"\n    if text.startswith(\"!\"):\n        text = text[1::2]\n    print(text)\n\ndef handle_unicode():\n    # should be skipped!\n    text = \"řetězec\"\n    if text.startswith(\"ř\"): \n        text = text[2:]\n\n    # should be linted\n    # with fix `text = text.removeprefix(\"ř\")`\n    text = \"řetězec\"\n    if text.startswith(\"ř\"): \n        text = text[1:]\n\n\ndef handle_surrogates():\n    # should be linted\n    text = \"\\ud800\\udc00heythere\"\n    if text.startswith(\"\\ud800\\udc00\"):\n        text = text[2:]\n    text = \"\\U00010000heythere\"\n    if text.startswith(\"\\U00010000\"):\n        text = text[1:]\n    \n    # should not be linted\n    text = \"\\ud800\\udc00heythere\"\n    if text.startswith(\"\\ud800\\udc00\"):\n        text = text[1:]\n\n# Regression test for\n# https://github.com/astral-sh/ruff/issues/16231\ndef func():\n    a = \"sjdfaskldjfakljklfoo\"\n    if a.endswith(\"foo\"):\n        a = a[: -len(\"foo\")]\n    print(a)\n\n\ndef example(filename: str, text: str):\n    filename = (\n        filename[:-4]  # text\n        if filename.endswith(\".txt\")  # text\n        else filename\n    )\n\n" }
+expected = [{ "rule" = "FURB188", "file" = "FURB188.py", "start" = 213, "end" = 275 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 377, "end" = 455 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 546, "end" = 602 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 697, "end" = 769 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 824, "end" = 881 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 957, "end" = 1024 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 3528, "end" = 3603 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 3669, "end" = 3738 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 3857, "end" = 3938 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 3982, "end" = 4032 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 4037, "end" = 4090 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 4095, "end" = 4148 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 4527, "end" = 4577 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 4666, "end" = 4725 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 4762, "end" = 4819 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 5069, "end" = 5119 }, { "rule" = "FURB188", "file" = "FURB188.py", "start" = 5199, "end" = 5287 }]
+
+[[cases]]
+name = "prefix-statement"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"pre\"):\n    text = text[3:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 46 }]
+
+[[cases]]
+name = "suffix-statement"
+comparison = "full"
+files = { "case.py" = "if text.endswith(\".txt\"):\n    text = text[:-4]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 46 }]
+
+[[cases]]
+name = "prefix-ternary"
+comparison = "full"
+files = { "case.py" = "result = text[3:] if text.startswith(\"pre\") else text\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 9, "end" = 53 }]
+
+[[cases]]
+name = "suffix-ternary"
+comparison = "full"
+files = { "case.py" = "result = text[:-4] if text.endswith(\".txt\") else text\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 9, "end" = 53 }]
+
+[[cases]]
+name = "unicode-scalar-length"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"é😀\"):\n    text = text[2:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 49 }]
+
+[[cases]]
+name = "unicode-not-byte-length"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"é😀\"):\n    text = text[6:]\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-literal"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\" \"é\"):\n    text = text[2:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 49 }]
+
+[[cases]]
+name = "escaped-newline-length"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\\nb\"):\n    text = text[3:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 47 }]
+
+[[cases]]
+name = "len-prefix"
+comparison = "full"
+files = { "case.py" = "if text.startswith(prefix):\n    text = text[len(prefix):]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 57 }]
+
+[[cases]]
+name = "len-suffix"
+comparison = "full"
+files = { "case.py" = "if text.endswith(suffix):\n    text = text[:-len(suffix)]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 56 }]
+
+[[cases]]
+name = "aliased-builtin-len"
+comparison = "full"
+files = { "case.py" = "from builtins import len as size\nif text.endswith(suffix):\n    text = text[:-size(suffix)]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 33, "end" = 90 }]
+
+[[cases]]
+name = "shadowed-len"
+comparison = "full"
+files = { "case.py" = "def f(len):\n    if text.startswith(prefix):\n        text = text[len(prefix):]\n" }
+expected = []
+
+[[cases]]
+name = "different-target"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"pre\"):\n    other = text[3:]\n" }
+expected = []
+
+[[cases]]
+name = "different-receiver"
+comparison = "full"
+files = { "case.py" = "if other.startswith(\"pre\"):\n    text = text[3:]\n" }
+expected = []
+
+[[cases]]
+name = "different-else"
+comparison = "full"
+files = { "case.py" = "result = text[3:] if text.startswith(\"pre\") else other\n" }
+expected = []
+
+[[cases]]
+name = "wrong-prefix-count"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"pre\"):\n    text = text[2:]\n" }
+expected = []
+
+[[cases]]
+name = "step-one"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1::1]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 46 }]
+
+[[cases]]
+name = "step-true"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1::True]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 49 }]
+
+[[cases]]
+name = "step-none"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1::None]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 49 }]
+
+[[cases]]
+name = "step-two"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1::2]\n" }
+expected = []
+
+[[cases]]
+name = "step-false"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1::False]\n" }
+expected = []
+
+[[cases]]
+name = "negative-prefix-bound"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[-1:]\n" }
+expected = []
+
+[[cases]]
+name = "positive-suffix-bound"
+comparison = "full"
+files = { "case.py" = "if text.endswith(\"a\"):\n    text = text[:1]\n" }
+expected = []
+
+[[cases]]
+name = "explicit-upper-none"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1:None]\n" }
+expected = []
+
+[[cases]]
+name = "two-body-statements"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1:]\n    consume(text)\n" }
+expected = []
+
+[[cases]]
+name = "has-else"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = text[1:]\nelse:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "chained-assignment"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text = other = text[1:]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-assignment"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\"):\n    text: str = text[1:]\n" }
+expected = []
+
+[[cases]]
+name = "wrong-affix-method"
+comparison = "full"
+files = { "case.py" = "if text.strip(\"a\"):\n    text = text[1:]\n" }
+expected = []
+
+[[cases]]
+name = "multiple-positional"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"a\", 0):\n    text = text[1:]\n" }
+expected = []
+
+[[cases]]
+name = "len-keyword"
+comparison = "full"
+files = { "case.py" = "if text.startswith(prefix):\n    text = text[len(obj=prefix):]\n" }
+expected = []
+
+[[cases]]
+name = "empty-prefix"
+comparison = "full"
+files = { "case.py" = "if text.startswith(\"\"):\n    text = text[0:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 43 }]
+
+[[cases]]
+name = "parenthesized-equivalence"
+comparison = "full"
+files = { "case.py" = "if (text).startswith(\"a\"):\n    text = (text)[1:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 48 }]
+
+[[cases]]
+name = "unrelated-dynamic-string"
+comparison = "full"
+files = { "case.py" = "unrelated = f\"{value}\"\nif text.startswith(\"a\"):\n    text = text[1:]\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 23, "end" = 67 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "result = text[1:] if text.startswith(\"a\") else text  # noqa: FURB188\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: FURB188\nif text.startswith(\"a\"):\n    text = text[1:]\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-suppression"
+comparison = "full"
+files = { "case.py" = "result = text[1:] if text.startswith(\"a\") else text  # noqa: B005\n" }
+expected = [{ "rule" = "FURB188", "file" = "case.py", "start" = 9, "end" = 51 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "" }
+expected = []
+
+[[cases]]
+name = "known-empty-suffix-literal-zero"
+comparison = "full"
+files = { "case.py" = "if text.endswith(\"\"):\n    text = text[:-0]\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 42 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "0f0a0cd80ec9a88af4e80db8e28e96569f6397e5cfe148f6b25b392bb0ba3f36", "settings-sha256" = "dcd7fca647d9e95e05e9d5d978762821ea07e9a38c4b79bfb50762091fa9dda8", "source-sha256" = "fed19dc80dd5e2a542ff037e3b974c1e8e91300ca96cc417630c84abf56d27af", "reference-output-sha256" = "a0dcd536dd5fef3390774211240e87665cd8e999ba045ff2385cbe8eb971aeec", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/exact_python_semantics.py", "sha256" = "52fa5c62dd3207acc55faf24497b372fcb0b7236f4fbdb6bcab848f9f821bd03", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython 3.10.19 executes these exact unchanged conditional-source bytes and the exact safe replacement emitted by pinned Ruff. Empty suffix changes the result; independent nonempty-suffix and empty-prefix controls preserve it. This matches the configured Python3.10 runtime semantics." }, { "path" = "evidence/exact-python-results.json", "sha256" = "3ca9f013889b531bf3a3bcebfc325193273b64b9fae77675ce11be9b887c4b77", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython 3.10.19 executes these exact unchanged conditional-source bytes and the exact safe replacement emitted by pinned Ruff. Empty suffix changes the result; independent nonempty-suffix and empty-prefix controls preserve it. This matches the configured Python3.10 runtime semantics." }], "reason" = "Exact known-empty-string suffix discrepancy: pinned rule documentation promises same-behavior replacement and the actual emitted fix is marked safe. Actual CPython3.10 executing these unchanged source bytes yields empty text, while Ruff's exact removesuffix(\"\") replacement preserves the original nonempty text. The intended diagnostic excludes this statically known counterexample only; dynamic affixes are not blanket-exempted. Preserve the original reference FURB188 finding and independent equal nonempty-suffix/empty-prefix controls." }
+
+[[cases]]
+name = "known-empty-suffix-literal-len"
+comparison = "full"
+files = { "case.py" = "if text.endswith(\"\"):\n    text = text[:-len(\"\")]\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "rule" = "FURB188", "file" = "case.py", "start" = 0, "end" = 48 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "0f0a0cd80ec9a88af4e80db8e28e96569f6397e5cfe148f6b25b392bb0ba3f36", "settings-sha256" = "dcd7fca647d9e95e05e9d5d978762821ea07e9a38c4b79bfb50762091fa9dda8", "source-sha256" = "083d94e802e12376add4f7f3697891b558afe31f6ea6935be3b2f8b3967c868a", "reference-output-sha256" = "b8347b7c4caa728cb21887b8b0de19eafd3ab8b860a96a0573ac0a82cb8e47cc", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/exact_python_semantics.py", "sha256" = "52fa5c62dd3207acc55faf24497b372fcb0b7236f4fbdb6bcab848f9f821bd03", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython 3.10.19 executes these exact unchanged conditional-source bytes and the exact safe replacement emitted by pinned Ruff. Empty suffix changes the result; independent nonempty-suffix and empty-prefix controls preserve it. This matches the configured Python3.10 runtime semantics." }, { "path" = "evidence/exact-python-results.json", "sha256" = "3ca9f013889b531bf3a3bcebfc325193273b64b9fae77675ce11be9b887c4b77", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython 3.10.19 executes these exact unchanged conditional-source bytes and the exact safe replacement emitted by pinned Ruff. Empty suffix changes the result; independent nonempty-suffix and empty-prefix controls preserve it. This matches the configured Python3.10 runtime semantics." }], "reason" = "Exact known-empty-string suffix discrepancy: pinned rule documentation promises same-behavior replacement and the actual emitted fix is marked safe. Actual CPython3.10 executing these unchanged source bytes yields empty text, while Ruff's exact removesuffix(\"\") replacement preserves the original nonempty text. The intended diagnostic excludes this statically known counterexample only; dynamic affixes are not blanket-exempted. Preserve the original reference FURB188 finding and independent equal nonempty-suffix/empty-prefix controls." }

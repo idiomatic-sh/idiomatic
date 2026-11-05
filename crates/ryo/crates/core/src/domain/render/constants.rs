@@ -23,3 +23,15 @@ pub(crate) const fn key_heading() -> &'static str {
 pub(crate) const fn columns_heading() -> &'static str {
     "columns"
 }
+
+/// The source line of a finding.
+#[must_use]
+pub(crate) const fn line_heading() -> &'static str {
+    "line"
+}
+
+/// The source column of a finding.
+#[must_use]
+pub(crate) const fn column_heading() -> &'static str {
+    "column"
+}

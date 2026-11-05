@@ -1,0 +1,9 @@
+import suppress from "python/ruff/suppress";
+import literal_members from "python/ruff/literal-members";
+let members = literal_members();
+let nulls = select id, file from "literal-properties" where kind = "null";
+let reportable = select l.member as id, l.file as file from members as l join nulls as r on l.member = r.id and l.file = r.file;
+let locations = select id, span, "start-line", file from "source-location";
+let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
+let violations = suppress(candidates=candidates, inline-pattern="PYI061($|[, #])", range-pattern="(?:^|,)PYI061(?:,|$)");
+emit violations subject file key(id);

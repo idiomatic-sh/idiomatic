@@ -1,0 +1,17 @@
+{
+  "schema": "ruff-fixed-counterpart/v1",
+  "reference_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "source": "from m import (\n    a\n    as b,\n)\n",
+  "source_sha256": "de3eab82a4ee21e45bc510d123aeae8609f0d1d7e6e2884e5f925a4f5a1b6569",
+  "expected": [
+    {
+      "rule": "I001",
+      "file": "input.py",
+      "start": 0,
+      "end": 33
+    }
+  ],
+  "fixed": "from m import (\n    a as b,\n)\n",
+  "fixed_sha256": "e6d4656a60c79ebaf0ef1b43db0a29376a6dfc9cc44a68f6b86d4f54d1f2995c",
+  "fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+}

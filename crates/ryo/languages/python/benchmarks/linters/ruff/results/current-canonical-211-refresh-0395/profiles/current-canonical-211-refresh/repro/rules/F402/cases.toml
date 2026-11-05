@@ -1,0 +1,35 @@
+[[cases]]
+name = "import-shadowed-by-for-target"
+comparison = "full"
+files = { "case.py" = "import os\nfor os in range(3):\n    pass\n" }
+expected = [{ "rule" = "F402", "file" = "case.py", "start" = 14, "end" = 16 }]
+
+[[cases]]
+name = "aliased-import-shadowed-by-for-target"
+comparison = "full"
+files = { "case.py" = "import os.path as path\nfor path in range(2):\n    pass\n" }
+expected = [{ "rule" = "F402", "file" = "case.py", "start" = 27, "end" = 31 }, { "rule" = "PLR0402", "file" = "case.py", "start" = 7, "end" = 22 }]
+
+[[cases]]
+name = "ordinary-assignment-is-not-a-loop-shadow"
+comparison = "full"
+files = { "case.py" = "import os\nos = 2\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 10, "end" = 12 }]
+
+[[cases]]
+name = "different-branch-import-and-loop-do-not-shadow"
+comparison = "full"
+files = { "case.py" = "if flag:\n    import os\nelse:\n    for os in range(2):\n        pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 7 }]
+
+[[cases]]
+name = "same-branch-import-shadowed-by-for-target"
+comparison = "full"
+files = { "case.py" = "if flag:\n    import os\n    for os in range(2):\n        pass\n" }
+expected = [{ "rule" = "F402", "file" = "case.py", "start" = 31, "end" = 33 }, { "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 7 }]
+
+[[cases]]
+name = "noqa-suppresses-loop-shadow"
+comparison = "full"
+files = { "case.py" = "import os\nfor os in range(2):  # noqa: F402\n    pass\n" }
+expected = []

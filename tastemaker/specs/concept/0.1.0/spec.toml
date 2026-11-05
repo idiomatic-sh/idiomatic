@@ -5,8 +5,12 @@ specs = [
   { spec = "idiomatic.arch/collection@0.1.0", include = ["collections/{collection}"], count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The collections of this part: each a collection of items sharing one trait." },
 ]
 templates = [
+  { template = "idiomatic.arch/value-module@0.1.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning value module with its adjacent implementation and proof." },
+  { template = "idiomatic.arch/value@0.1.0", file = "types/{value}/value.rs", count = { min = 0 }, description = "A value owns private representation and pure behavior, including checked construction." },
+  { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Every behavior-owning value has its independent adjacent proof." },
   { template = "service", file = "service.rs", count = { min = 0 }, description = "The concept's service: free functions named by verb over the domain's types, with no port and no IO." },
   { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test.rs", count = { when = { condition = "has-service" }, then = 1, else = 0 }, params = { kind = "concept" }, description = "The proof of the concept's service, on values alone." },
+  { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{group}_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A declared behavioral group of the service's cases, with its own case rows and runners." },
   { template = "concept-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The concept's test support, when its tests or the tests of the concepts that read through it need more than literals: declared by the module file under the `fixtures` gate." },
   { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The part's own plain types when it has any (a command's or an entry's: the dependencies its composition is given)." },
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The error the part produces, when it has one." },
@@ -15,13 +19,14 @@ templates = [
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
 ]
 rules = [
+  { rule = "idiomatic.arch/value-companions@0.1.0", include = ["types/**"], description = "Every behavior value has its module, implementation and adjacent proof; arbitrary helpers remain closed." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the concept is a module the crate reaches: a file its module files do not declare is never compiled." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "service-has-fn", include = ["service.rs"], description = "A service declares at least one free function: a concept that declares none has no service.rs." },
   { rule = "fns-only-in-service", include = ["types.rs", "errors.rs"], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test." },
   { rule = "service-shape", include = ["service.rs"], description = "A concept's service is free functions only: no struct, enum, union, trait or impl." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
-  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs"], description = "A part's types.rs declares at least one type." },
+  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs", "types/*.rs", "types/*/value.rs"], description = "A part owns a nominal type directly or through its declared canonical behavior value." },
   { rule = "idiomatic.arch/public-fields@0.1.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
@@ -1598,3 +1603,202 @@ fn succeeds() {
 then.findings = [
   { rule = 'idiomatic.arch/collection(collection-module)#template', path = 'src/domain/polite/collections/shapes.rs' },
 ]
+
+
+[[scenarios]]
+id = "behavior-value-files-are-placed"
+scenario = "A private domain value and its adjacent proof use the established value templates."
+given.files.'src/domain/greeting/types/token.rs' = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+pub mod value;
+#[cfg(test)]
+mod value_test;
+'''
+given.files.'src/domain/greeting/types/token/value.rs' = '''
+//! One value: its declaration and its hand-written impls, trait impls included.
+pub struct Token(String);
+'''
+given.files.'src/domain/greeting/types/token/value_test.rs' = '''
+//! Proves one value's behaviour.
+'''
+then.only = ['idiomatic.arch/concept#closed']
+
+[[scenarios]]
+id = "behavior-value-rejects-arbitrary-helper"
+scenario = "The value role does not open the directory to arbitrary implementation helpers."
+given.files.'src/domain/greeting/types/token/helper.rs' = 'pub fn bypass() {}'
+then.only = ['idiomatic.arch/concept#closed']
+then.findings = [{ rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/types/token/helper.rs' }]
+
+[[scenarios]]
+id = "behavior-value-requires-proof"
+scenario = "A declared value module cannot omit its adjacent proof."
+given.files.'src/domain/greeting/types/token.rs' = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+pub mod value;
+#[cfg(test)]
+mod value_test;
+'''
+given.files.'src/domain/greeting/types/token/value.rs' = '''
+//! One value: its declaration and its hand-written impls, trait impls included.
+pub struct Token(String);
+'''
+then.only = ['idiomatic.arch/value-companions']
+then.findings = [{ rule = 'idiomatic.arch/value-companions', path = 'src/domain/greeting/types/token/value.rs' }]
+
+[[scenarios]]
+id = 'declared-service-test-group'
+scenario = 'A service may declare a nested behavioral test group with its own real cases and runner.'
+given.files.'src/domain/polite/service_test.rs' = '''
+//! What the `polite` service promises, on values alone.
+
+mod coverage_test;
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase that opens politely",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/domain/polite/service_test/coverage_test.rs' = '''
+//! A declared group of the `polite` service cases, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase in the coverage group",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/orphan-rust-files']
+
+[[scenarios]]
+id = 'undeclared-service-test-group'
+scenario = 'A nested test group without its normal parent module declaration remains orphaned.'
+given.files.'src/domain/polite/service_test.rs' = '''
+//! What the `polite` service promises, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase that opens politely",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/domain/polite/service_test/coverage_test.rs' = '''
+//! A declared group of the `polite` service cases, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase in the coverage group",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/orphan-rust-files']
+then.findings = [{ rule = 'idiomatic.arch/orphan-rust-files', path = 'src/domain/polite/service_test/coverage_test.rs' }]

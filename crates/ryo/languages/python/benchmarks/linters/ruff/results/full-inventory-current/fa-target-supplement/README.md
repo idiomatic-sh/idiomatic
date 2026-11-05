@@ -1,0 +1,5 @@
+# FA100 and FA102 target proof
+
+The [shared collector summary](summary.json) records FA100 27/27 and FA102 22/22 raw-exact PASS on sealed worker `e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a` with explicit Python 3.7 profiles. [Raw receipts](raw-receipts.tar.gz) retain current source, settings, helpers, and both native sides. [Proof metadata](proof.json) binds this separate run to the immutable full inventory and three earlier supplements.
+
+The [Python 3.10 control receipt](py310-controls.json) covers the same 49 fixtures through the supported `run-ryo --request-file` command and pinned Ruff 0.16.5 with explicit py310 settings. All 49 candidate and reference reports match their exact expectations, all candidate executions are complete, and neither FA rule emits a finding. The one independent `union-star` syntax error remains present. [Inputs and request bytes](py310-inputs.tar.gz) are retained for reproduction. The ordinary `verify-cases` command requires a positive and a negative case, so it refused these all-negative configuration controls before case execution; that refusal is preserved and was not counted as a pass.

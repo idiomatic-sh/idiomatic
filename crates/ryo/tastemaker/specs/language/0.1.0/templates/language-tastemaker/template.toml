@@ -1,16 +1,19 @@
-description = "A language's own placement, `tastemaker.toml` in its directory: the parser and tool crates it reads with, declared once by the language."
+description = "A language's own placement, `tastemaker.toml` at the language root: the parser and tool crates it reads with, declared once by the language."
 why = "A language declares the crates it reads with in its own placement, once: `imports-allow` adds them to the allow-list of its imports, and its own `client-at-adapter` placement, with the same libraries, keeps them in its syntax adapter (a language with `imports-allow` and no such placement is a template finding). A language without the file has the entry's deny-list for its imports, and learns of it only when an import is refused; with the file placed, its absence is a finding (orchestrator ruling on the review of 62952e0aa7)."
 content = '''
+closed = false
 {%- set library = captures.library | default(["library"]) | first -%}
 # The {{ lang }} language's own placement (paths are directory-relative).
 # The parser crates {{ lang }} reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { libraries = ["{{ library }}::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["{{ library }}::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 
 [params]
@@ -24,12 +27,15 @@ params = { lang = 'demo' }
 id = 'language-declares-own-placement'
 scenario = 'The language declares its own placement.'
 given.files.'own.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
-variables = { libraries = ["library::*"] }
-imports-allow = [{ variable = "libraries" }]
+variables = { domain-libraries = [], libraries = ["library::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 
 [[scenarios]]
@@ -43,10 +49,22 @@ then.findings = [
 id = 'without-client'
 scenario = 'A language with imports-allow and no client-at-adapter placement.'
 given.files.'own.toml' = '''
+closed = false
 # The demo language's own placement (paths are directory-relative).
 imports-allow = ["demo_parser::*"]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 then.findings = [
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
+  { rule = 'language-tastemaker#template', path = 'own.toml' },
   { rule = 'language-tastemaker#template', path = 'own.toml' },
   { rule = 'language-tastemaker#template', path = 'own.toml' },
   { rule = 'language-tastemaker#template', path = 'own.toml' },

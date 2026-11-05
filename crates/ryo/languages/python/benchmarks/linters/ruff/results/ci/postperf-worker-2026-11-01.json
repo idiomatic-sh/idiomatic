@@ -1,0 +1,58 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "flock",
+    "/workspaces/.cargo-build.lock",
+    "cargo",
+    "bench",
+    "--no-run",
+    "--locked",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-python",
+    "--bench",
+    "ruff",
+    "--message-format=json"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "runner_sha256": "cae1bd2dab71fa97efbab336a5ecc97c9fe831eab581af3fff28decfcca62cd6",
+  "started_utc": "2026-11-01T13:08:28.981210+00:00",
+  "completed_utc": "2026-11-01T13:09:22.527342+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "46a013e9c13c16dc0b350fad94717a7e9ddfce72a72ce51bd85bec097585138b",
+  "stderr_sha256": "bf1b66a9c7f2d18f2ad861b78d9c9db0fd749bccd56beef0edeec1170b1fc644",
+  "source_tree_sha256": "963c1b8e33b4ea589e7147265483f580636b6f43933e2c7a552c705c96428008",
+  "worker": {
+    "executable": "/tmp/postperf-worker-build-20261101/worker/ruff-097f5c059b42c4a9856b80aeb8ca3520fbcf774ebcc19d16432cd64328d72d63",
+    "sha256": "097f5c059b42c4a9856b80aeb8ca3520fbcf774ebcc19d16432cd64328d72d63",
+    "cargo_artifact": "/workspaces/idiomatic-benchmark-guards/crates/ryo/target/release/deps/ruff-8ab409cff5211101",
+    "profile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": true
+    },
+    "source_bound_receipt_sha256": "0ea128d91bbe5bffa0fbd30fe3793a42a84eef562326407502e2a4482e203cd9",
+    "messages": [],
+    "target": {
+      "kind": [
+        "bench"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "ruff",
+      "src_path": "/workspaces/idiomatic-benchmark-guards/crates/ryo/languages/python/benchmarks/linters/ruff/bench.rs",
+      "edition": "2024",
+      "doc": false,
+      "doctest": false,
+      "test": false
+    }
+  },
+  "raw_receipt_sha256": "0ea128d91bbe5bffa0fbd30fe3793a42a84eef562326407502e2a4482e203cd9"
+}

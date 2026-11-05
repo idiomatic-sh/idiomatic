@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the adapter is the parser's event receiver, one callback for each event of the library, and the tree it writes from them; splitting it would make a second file no adapter template places
+// the adapter is the parser's event receiver, one callback for each event of the library, and the tree it writes from them; splitting it would make a second file no adapter template places
 //! The syntax port, implemented with `toml_parser`, the parser of the `toml` crate, for TOML 1.1: its events are written straight
 //! into the element table, with no document built. The parser gives a flat stream of events, every byte of the file in one of them;
 //! the adapter opens a node for each construct the events open (a table, a key-value, a key, an array, an inline table) and closes it
@@ -26,7 +26,7 @@ use crate::outbound::syntax::types::SourceText;
 
 use super::constants::{DIGIT_SEPARATOR, NESTING, NOT_UTF8};
 use super::schemas::{event_kind, reports, scalar_kind, string_kind};
-use super::types::{Decoded, Decoding, Held, Opened, Part, Reading, Scratch, TomlText};
+use super::types::{Decoded, Decoding, Held, Opened, Part, TableReadPhase, Scratch, TomlText};
 
 /// The `toml_parser` syntax adapter.
 #[derive(Debug)]
@@ -64,7 +64,7 @@ struct Writer<'b, 'w, 's> {
     /// White space and text the parser could not read, met after a part of a key.
     held: Vec<Held>,
     /// Whether a header is being read, so a key opens no key-value.
-    reading: Reading,
+    reading: TableReadPhase,
     /// An empty token that waits for the next one.
     empty: Option<Held>,
     /// How many arrays and inline tables are open.
@@ -196,7 +196,7 @@ impl Writer<'_, '_, '_> {
         self.close_all();
         self.enter(kind, start_of(span));
         self.token(bracket, span);
-        self.reading = Reading::Header;
+        self.reading = TableReadPhase::Header;
     }
 
     /// Writes the bracket of `kind` that ends a header, after closing its key.
@@ -206,7 +206,7 @@ impl Writer<'_, '_, '_> {
         }
         self.release();
         self.token(kind, span);
-        self.reading = Reading::Entries;
+        self.reading = TableReadPhase::Entries;
     }
 
     /// Opens an array or an inline table, or, past the nesting the library reads, writes its opening as text the parser could not
@@ -300,18 +300,18 @@ impl Writer<'_, '_, '_> {
         let value = match classified {
             ScalarKind::Boolean(value) => Some(value.to_string()),
             ScalarKind::Integer(radix) => i64::from_str_radix(&self.scratch.0, radix.value())
-                .ok() // ignore: idiomatic.arch/no-ok-on-result - an integer TOML refuses (out of range) has no value: the token keeps its text and gets no decoded value
+                .ok() // an integer TOML refuses (out of range) has no value: the token keeps its text and gets no decoded value
                 .map(|value| value.to_string()),
             ScalarKind::Float => written
                 .chars()
                 .filter(|each| *each != DIGIT_SEPARATOR)
                 .collect::<String>()
                 .parse::<f64>()
-                .ok() // ignore: idiomatic.arch/no-ok-on-result - a float that does not read has no value: the token keeps its text and gets no decoded value
+                .ok() // a float that does not read has no value: the token keeps its text and gets no decoded value
                 .map(|value| format!("{value:?}")),
             ScalarKind::DateTime => written
                 .parse::<toml::value::Datetime>()
-                .ok() // ignore: idiomatic.arch/no-ok-on-result - a date-time that does not read has no value: the token keeps its text and gets no decoded value
+                .ok() // a date-time that does not read has no value: the token keeps its text and gets no decoded value
                 .map(|value| value.to_string()),
             ScalarKind::String => None,
         };
@@ -386,7 +386,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
         let Decoding { said, .. } = self.decode(span, encoding, Part::Key);
         if self.top() == Kind::Node(Node::Key) {
             self.release();
-        } else if self.reading == Reading::Header {
+        } else if self.reading == TableReadPhase::Header {
             self.enter(Kind::Node(Node::Key), start_of(span));
         } else {
             self.enter(Kind::Node(Node::Keyval), start_of(span));
@@ -465,7 +465,7 @@ impl SyntaxPort for SyntaxTomlParserAdapter {
             source,
             open: vec![Kind::Node(Node::Toml)],
             held: Vec::new(),
-            reading: Reading::Entries,
+            reading: TableReadPhase::Entries,
             empty: None,
             depth: Count(0),
             refused: Count(0),

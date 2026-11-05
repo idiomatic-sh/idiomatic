@@ -63,6 +63,8 @@ fn subject((catalog, memory_fails, budget): Input) -> Result<Value, Failure> {
         .open(OpenRequest {
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(".".into()),
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
         })
         .map(|report| usize::from(report.session.root == RootPath(".".into())))
 }
@@ -70,6 +72,40 @@ fn subject((catalog, memory_fails, budget): Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn opening_preserves_declared_project_authority() {
+    use ryo_language::domain::files::types::FilePath;
+    use ryo_language::domain::project_context::types::{
+        EntryObservation, EntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+        ProjectSearchScope,
+    };
+
+    let scope = ProjectSearchScope::Declared(vec![FilePath("src".into()), FilePath("".into())]);
+    let inventory = GivenProjectInventory {
+        entries: vec![EntryObservation {
+            path: FilePath("src/local.py".into()),
+            state: EntryState::File,
+        }],
+        completeness: ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
+    };
+    let use_case = OpenUseCaseImpl::new(
+        Arc::new(LanguageFake::default()),
+        Arc::new(MemoryFake {
+            asked: Budget::Bytes(MemoryBytes(1024)),
+            ..MemoryFake::default()
+        }),
+    );
+    let report = use_case.open(OpenRequest {
+        root: RootPath(".".into()),
+        repository: ryo_language::inbound::use_cases::project::types::Repository::Given,
+        search_scope: scope.clone(),
+        given_inventory: inventory.clone(),
+    });
+    assert!(
+        matches!(report, Ok(ref opened) if opened.session.search_scope == scope && opened.session.given_inventory == inventory)
+    );
 }
 
 #[test]

@@ -48,7 +48,7 @@ impl language::interface::LanguagePort for Counting {
 
     fn supports(
         &self,
-        relation: ryo_language::domain::relations::types::Relation,
+        relation: ryo_relations::domain::relations::types::Relation,
     ) -> language::types::Answers {
         self.language.supports(relation)
     }
@@ -65,7 +65,7 @@ impl language::interface::LanguagePort for Counting {
         file: language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> language::types::FileReading {
         let _before = self
             .reads
@@ -73,11 +73,18 @@ impl language::interface::LanguagePort for Counting {
         self.language.parse(file, table, symbols, out)
     }
 
+    fn project_entries(
+        &self,
+        input: &language::types::ProjectInput<'_>,
+    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+        self.language.project_entries(input)
+    }
+
     fn project(
         &self,
         input: &language::types::ProjectInput<'_>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> Result<language::types::ProjectAnswer, language::errors::LanguageError> {
         let _before = self
             .projects
@@ -179,8 +186,9 @@ pub(crate) fn lint_observing<T>(
         });
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
-        let analysis_digest: Arc<dyn digest::interface::DigestPort> =
-            Arc::new(digest::factory::blake3());
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(digest::factory::blake3());
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -190,7 +198,7 @@ pub(crate) fn lint_observing<T>(
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            )),
+            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(facts::factory::memory()),
             Arc::clone(&analysis_language),
@@ -203,6 +211,12 @@ pub(crate) fn lint_observing<T>(
                 )),
             )),
             Arc::clone(&analysis_memory),
+            Arc::new(ryo_core::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            )),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
                 ryo_values::domain::runs::types::WorkersAsked(workers),
             ))),
@@ -218,9 +232,12 @@ pub(crate) fn lint_observing<T>(
         use_case
     };
     let request = LintRequest {
+        source_language: None,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
         },

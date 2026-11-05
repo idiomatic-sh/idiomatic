@@ -1,0 +1,7 @@
+# Isolated UP034 candidate: full Ruff inventory
+
+[Run 41590760770](https://github.com/idiomatic-sh/idiomatic/actions/runs/41590760770), `ruff-all-defaults` job 125766709104, tested source [`fae3a75d`](https://github.com/idiomatic-sh/idiomatic/commit/fae3a75d14b895a52f2f88eef01f236026297bb6): **400 PASS / 13 FAIL / 413**. UP034 passed all 17 cases with raw exact outputs; its full pinned fixture remains included. Compared with the prior isolated `4e9eab4e` run (399/14), UP034 alone changed from FAIL to PASS. The job remains red for the 13 [listed failures](triage.json).
+
+The [summary](summary.json), [registration](registration.json.gz), [worker seal](worker-seal.json), [runner seal](inventory-runner-seal.json), [raw profile receipts](raw-receipts.tar.gz), and [hash manifest](metadata.json) bind this result to that exact combined UP031, UP034, and N999 candidate. The accepted public inventory remains at its earlier source and count; this result does not replace its RULES pointer or claim acceptance of the other staged changes.
+
+The first local N999 focused gate was **invalid**: a shared Cargo target reused a newer binary from another worktree and ran only nine old Python module-context tests. Its [log](n999-invalid-local-gate.log.gz) is retained. After package source invalidation, the [corrected log](n999-verified-local-gate.log.gz) explicitly runs both new tests and verifies 19 focused language, Python, SDK, and core tests. The Fable N999 source review is separate from this inventory result.

@@ -1,0 +1,111 @@
+{
+  "ruff": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "python": "/home/vscode/.local/share/uv/python/cpython-3.10.19-linux-aarch64-gnu/bin/python3.10",
+  "python_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "python_version": "Python 3.10.19",
+  "rows": [
+    {
+      "name": "function-repr",
+      "source": "\"{0!r}|{0!r}\".format(lambda: 0)\n",
+      "replacement": "\"{0!r}|{0!r}\".format(lambda: 0)",
+      "reference_exit": 1,
+      "fix_exit": 0,
+      "runtime_exit": 0,
+      "runtime": {
+        "fixed": "<function <lambda> at 0xffffa85f79a0>|<function <lambda> at 0xffffa85f79a0>",
+        "fixed_fields_equal": true,
+        "original": "<function <lambda> at 0xffffa85f79a0>|<function <lambda> at 0xffffa85f79a0>",
+        "original_fields_equal": true
+      },
+      "reference": [
+        {
+          "cell": null,
+          "code": "UP032",
+          "end_location": {
+            "column": 32,
+            "row": 1
+          },
+          "filename": "/tmp/lambda-allocation-evidence-20261103/function-repr/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "f\"{lambda: 0!r}|{lambda: 0!r}\"",
+                "end_location": {
+                  "column": 32,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Convert to f-string"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Use f-string instead of `format` call",
+          "name": "f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/f-string"
+        }
+      ]
+    },
+    {
+      "name": "code-repr",
+      "source": "\"{0.__code__!r}|{0.__code__!r}\".format(lambda: 0)\n",
+      "replacement": "f\"{(lambda: 0).__code__!r}|{(lambda: 0).__code__!r}\"",
+      "reference_exit": 1,
+      "fix_exit": 0,
+      "runtime_exit": 0,
+      "runtime": {
+        "fixed": "<code object <lambda> at 0xffff9bfb9bb0, file \"/tmp/lambda-allocation-evidence-20261103/code-repr/runtime.py\", line 3>|<code object <lambda> at 0xffff9bfb9bb0, file \"/tmp/lambda-allocation-evidence-20261103/code-repr/runtime.py\", line 3>",
+        "fixed_fields_equal": true,
+        "original": "<code object <lambda> at 0xffff9bf7b680, file \"/tmp/lambda-allocation-evidence-20261103/code-repr/runtime.py\", line 2>|<code object <lambda> at 0xffff9bf7b680, file \"/tmp/lambda-allocation-evidence-20261103/code-repr/runtime.py\", line 2>",
+        "original_fields_equal": true
+      },
+      "reference": [
+        {
+          "cell": null,
+          "code": "UP032",
+          "end_location": {
+            "column": 50,
+            "row": 1
+          },
+          "filename": "/tmp/lambda-allocation-evidence-20261103/code-repr/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "f\"{(lambda: 0).__code__!r}|{(lambda: 0).__code__!r}\"",
+                "end_location": {
+                  "column": 50,
+                  "row": 1
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Convert to f-string"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Use f-string instead of `format` call",
+          "name": "f-string",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/f-string"
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -141,7 +142,7 @@ def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, m
 CHECKED: list[str] = []
 
 
-def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict) -> list:
+def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict, *, rustdoc_exit: int = 0) -> list:
     (tmp_path / "crates/demo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "crates/demo/Cargo.toml").write_text(MANIFEST)
     (tmp_path / "crates/demo/api.txt").write_text("pub fn demo::lint()\n")
@@ -153,6 +154,8 @@ def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict) -> list:
     def fake(argv, **options):
         calls.append(argv)
         out = ""
+        if "rustdoc" in argv and rustdoc_exit:
+            raise subprocess.CalledProcessError(rustdoc_exit, argv)
         if argv[:2] == ["git", "rev-parse"]:
             out = f"{tmp_path}\n"
         elif argv[:2] == ["cargo", "metadata"]:
@@ -201,9 +204,37 @@ def test_a_leak_fails_the_check(tmp_path, monkeypatch) -> None:
         run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "ryo_core"))
 
 
-def test_a_listing_that_is_not_the_recorded_one_fails_the_check(tmp_path, monkeypatch) -> None:
+def test_a_listing_that_is_not_the_recorded_one_fails_the_check(
+    tmp_path, monkeypatch
+) -> None:
     with pytest.raises(RuntimeError, match="not the one recorded"):
-        run_check(tmp_path, monkeypatch, "pub fn demo::other()\n", document("lint", "serde"))
+        run_check(
+            tmp_path, monkeypatch, "pub fn demo::other()\n", document("lint", "serde")
+        )
+    evidence = tmp_path / "crates/demo/target/sdk-api"
+    assert (evidence / "actual.txt").read_text() == "pub fn demo::other()\n"
+    assert (evidence / "recorded.txt").read_text() == "pub fn demo::lint()\n"
+    assert (tmp_path / "crates/demo/api.txt").read_text() == "pub fn demo::lint()\n"
+    assert "-pub fn demo::lint()" in (evidence / "diff.txt").read_text()
+    assert "+pub fn demo::other()" in (evidence / "diff.txt").read_text()
+    metadata = json.loads((evidence / "metadata.json").read_text())
+    assert metadata["actual_sha256"] == hashlib.sha256((evidence / "actual.txt").read_bytes()).hexdigest()
+    assert metadata["comparison"] == "mismatch"
+    assert metadata["nightly"] == "nightly-2026-08-01"
+
+
+def test_an_early_tool_failure_cannot_upload_a_stale_comparison(
+    tmp_path, monkeypatch
+) -> None:
+    evidence = tmp_path / "crates/demo/target/sdk-api"
+    evidence.mkdir(parents=True)
+    for name in ("actual.txt", "recorded.txt", "diff.txt", "metadata.json"):
+        (evidence / name).write_text("stale previous run")
+    with pytest.raises(subprocess.CalledProcessError):
+        run_check(
+            tmp_path, monkeypatch, "unused", document("lint", "serde"), rustdoc_exit=1
+        )
+    assert list(evidence.iterdir()) == []
 
 
 def test_the_top_level_is_asked_of_git_without_the_variables_a_hook_exports(tmp_path, monkeypatch) -> None:

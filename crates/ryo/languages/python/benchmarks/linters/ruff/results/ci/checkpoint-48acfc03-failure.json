@@ -1,0 +1,102 @@
+{
+  "schema": "ci-checkpoint-failure/v1",
+  "source_commit": "48acfc0321046a0a3d0c44b5d122dbe09eb51cc6",
+  "run_id": 41310175494,
+  "linux_job": 124858706508,
+  "artifact_id": 13085695601,
+  "denied_error": "core lint/use_case Component wildcard arm492",
+  "source_fix": "explicit Prefix/RootDir/Normal variants;targetedClippy pendingcurrentbatch",
+  "warnings_inventory": [
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/core/src/domain/operator/collections/operators/closure/item.rs:116:70"
+    },
+    {
+      "diagnostic": "warning: these match arms have identical bodies",
+      "location": "crates/language/src/inbound/use_cases/parse/fixtures/judgments.rs:43:9"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (102/100)",
+      "location": "crates/query_language/src/domain/inlining/service.rs:64:1"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (101/100)",
+      "location": "crates/query_language/src/domain/inlining/service.rs:329:1"
+    },
+    {
+      "diagnostic": "warning: slicing may panic",
+      "location": "crates/query_language/src/domain/traversing/service.rs:129:16"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (113/100)",
+      "location": "crates/query_language/src/domain/traversing/service.rs:177:1"
+    },
+    {
+      "diagnostic": "warning: slicing may panic",
+      "location": "crates/query_language/src/domain/traversing/service.rs:270:12"
+    },
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/query_language/src/domain/traversing/service.rs:270:58"
+    },
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/query_language/src/domain/traversing/service.rs:272:23"
+    },
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/query_language/src/domain/traversing/service.rs:276:9"
+    },
+    {
+      "diagnostic": "warning: slicing may panic",
+      "location": "crates/query_language/src/domain/substituting/service.rs:25:14"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (131/100)",
+      "location": "crates/core/src/application/file_analysis/service.rs:295:5"
+    },
+    {
+      "diagnostic": "warning: `acceptance` shadows a previous, unrelated binding",
+      "location": "crates/core/src/application/file_analysis/service.rs:710:25"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (125/100)",
+      "location": "crates/core/src/inbound/use_cases/lint/use_case.rs:1210:5"
+    },
+    {
+      "diagnostic": "warning: this expression creates a reference which is immediately dereferenced by the compiler",
+      "location": "crates/core/src/outbound/language/fixtures/fake.rs:163:63"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (108/100)",
+      "location": "crates/core/src/outbound/lint_store/adapters/postcard/schemas.rs:569:5"
+    },
+    {
+      "diagnostic": "warning: these match arms have identical bodies",
+      "location": "crates/core/src/domain/coverage/service.rs:152:9"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (102/100)",
+      "location": "crates/core/src/domain/fragment/service.rs:41:1"
+    },
+    {
+      "diagnostic": "warning: this function has too many lines (135/100)",
+      "location": "crates/core/src/domain/operator/collections/operators/closure/item.rs:24:5"
+    },
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/core/src/domain/operator/collections/operators/closure/item.rs:77:43"
+    },
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/core/src/domain/operator/collections/operators/closure/item.rs:86:46"
+    },
+    {
+      "diagnostic": "warning: indexing may panic",
+      "location": "crates/core/src/domain/operator/collections/operators/closure/item.rs:116:70"
+    }
+  ],
+  "raw_stderr_sha256": "d6778c958626546cd6e56e0cd6cbbe19b488e0519e4bafd95b74f75c229a7c7f",
+  "quality_passed": false,
+  "rust_speed_passed": false
+}

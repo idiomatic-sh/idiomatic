@@ -1,8 +1,8 @@
 //! What every `digest` adapter must pass.
 
-use super::super::interface::DigestPort;
-use super::super::types::{DigestBytes, DigestWords};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+use ryo_execution::inbound::use_cases::execution::types::digest::{DigestBytes, DigestWords};
 
 /// What a row of the contract is given: which question to ask of the adapter.
 type Input = Question;

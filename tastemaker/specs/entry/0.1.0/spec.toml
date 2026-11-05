@@ -2610,6 +2610,7 @@ impl TryFrom<FormatSchema> for Format {
 }
 '''
 then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'src/resources/greeting/show/schemas.rs' },
   { rule = 'idiomatic.arch/orphan-rust-files#unknown', path = 'src/resources/greeting/show/schemas.rs' },
   { rule = 'tastemaker.toml#unknown', path = 'src/resources/greeting/show/schemas.rs' },
   { rule = 'idiomatic.arch/schemas-test#count', path = 'src/resources/greeting/show' },

@@ -1,0 +1,94 @@
+[[cases]]
+name = "decimal"
+files = { "case.py" = "from decimal import Decimal\nDecimal(1.5)\n" }
+expected = [{ file = "case.py", start = 36, end = 39 }]
+
+[[cases]]
+name = "signed"
+files = { "case.py" = "from decimal import Decimal\nDecimal(-+-1.5)\n" }
+expected = [{ file = "case.py", start = 36, end = 42 }]
+
+[[cases]]
+name = "exponent"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1e3)\n" }
+expected = [{ file = "case.py", start = 31, end = 34 }]
+
+[[cases]]
+name = "overflow-float"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1e9999)\n" }
+expected = [{ file = "case.py", start = 31, end = 37 }]
+
+[[cases]]
+name = "underscores"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1_000.0_5)\n" }
+expected = [{ file = "case.py", start = 31, end = 40 }]
+
+[[cases]]
+name = "leading-dot"
+files = { "case.py" = "import decimal\ndecimal.Decimal(.5)\n" }
+expected = [{ file = "case.py", start = 31, end = 33 }]
+
+[[cases]]
+name = "trailing-dot"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1.)\n" }
+expected = [{ file = "case.py", start = 31, end = 33 }]
+
+[[cases]]
+name = "hex-integer"
+files = { "case.py" = "import decimal\ndecimal.Decimal(0x1e3)\n" }
+expected = []
+
+[[cases]]
+name = "integer"
+files = { "case.py" = "import decimal\ndecimal.Decimal(123)\n" }
+expected = []
+
+[[cases]]
+name = "complex"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1.5j)\n" }
+expected = []
+
+[[cases]]
+name = "string"
+files = { "case.py" = "import decimal\ndecimal.Decimal(\"1.5\")\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "import decimal\ndecimal.Decimal(value=1.5)\n" }
+expected = []
+
+[[cases]]
+name = "second"
+files = { "case.py" = "import decimal\ndecimal.Decimal(\"1\", 1.5)\n" }
+expected = []
+
+[[cases]]
+name = "binary"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1.0 + 2.0)\n" }
+expected = []
+
+[[cases]]
+name = "not-unary"
+files = { "case.py" = "import decimal\ndecimal.Decimal(not 1.5)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "from decimal import Decimal\ndef f(Decimal):\n    Decimal(1.5)\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from decimal import Decimal as D\nD(1.5)\n" }
+expected = [{ file = "case.py", start = 35, end = 38 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import decimal\ndecimal.Decimal(1.5) # noqa: RUF032\n" }
+expected = []
+
+[[cases]]
+name = "quoted-annotation-numeric-literal"
+files = { "case.py" = "from decimal import Decimal\nx: \"Decimal(1.2)\"\n" }
+expected = [{ file = "case.py", start = 40, end = 43 }]

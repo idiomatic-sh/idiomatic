@@ -1,0 +1,652 @@
+{
+  "schema": "native-tastemaker-heap-policy-proof/v1",
+  "rule": "tastemaker/rules/no-heap-accounting/0.1.0/rule.toml",
+  "rule_sha256": "4be278b9c0821f4f4702dbc58dc95e7bc93463f21d37aad3c86b10d07001c435",
+  "validation": {
+    "status": "passed",
+    "definition_count": 1,
+    "scenario_count": 13,
+    "proof_source_stable": true,
+    "proof_source_tree_sha256": "a78b2aed464452bb45343d5d1feaccb75d2b3a820c6c7b336ea91ce68406cb1d",
+    "stdout": {
+      "proven": 1,
+      "kept": 0,
+      "failed": []
+    }
+  },
+  "production_audit": {
+    "status": "errors-remain",
+    "exit_code": 1,
+    "source_stable": true,
+    "source_tree_sha256": "549a89da511016a983635b5fb006a21ebb4e483f0367f5760fcad189b452903d",
+    "scope": "EntireRyo workspaceunderexistingrootwideidiomatic-rustplacement;no new productionpath exemptions",
+    "matched_expression_count": 24,
+    "matched_file_count": 14,
+    "results": [
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/graph_cache/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 37,
+                "endLine": 220,
+                "startColumn": 16,
+                "startLine": 217
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/graph_cache/types/reclamation/value.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 51,
+                "endLine": 98,
+                "startColumn": 9,
+                "startLine": 95
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/recording/types/retention/value.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 53,
+                "endLine": 207,
+                "startColumn": 5,
+                "startLine": 207
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_graph/types/footprint/value.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 53,
+                "endLine": 153,
+                "startColumn": 5,
+                "startLine": 153
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_indexes/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 76,
+                "endLine": 40,
+                "startColumn": 22,
+                "startLine": 40
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_indexes/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 51,
+                "endLine": 99,
+                "startColumn": 26,
+                "startLine": 97
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_indexes/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 80,
+                "endLine": 250,
+                "startColumn": 24,
+                "startLine": 250
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_indexes/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 59,
+                "endLine": 261,
+                "startColumn": 17,
+                "startLine": 259
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_selection/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 77,
+                "endLine": 80,
+                "startColumn": 17,
+                "startLine": 80
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_selection/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 46,
+                "endLine": 193,
+                "startColumn": 15,
+                "startLine": 190
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_selection/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 97,
+                "endLine": 197,
+                "startColumn": 45,
+                "startLine": 197
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/stored_selection/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 90,
+                "endLine": 198,
+                "startColumn": 45,
+                "startLine": 198
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/table_scratch/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 53,
+                "endLine": 11,
+                "startColumn": 5,
+                "startLine": 11
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/table_scratch/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 46,
+                "endLine": 67,
+                "startColumn": 9,
+                "startLine": 63
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/table_scratch/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 63,
+                "endLine": 139,
+                "startColumn": 21,
+                "startLine": 139
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/table_scratch/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 50,
+                "endLine": 145,
+                "startColumn": 17,
+                "startLine": 143
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/domain/working_set/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 98,
+                "endLine": 142,
+                "startColumn": 17,
+                "startLine": 137
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/inbound/use_cases/lint/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 95,
+                "endLine": 128,
+                "startColumn": 13,
+                "startLine": 128
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/crates/core/src/outbound/facts/adapters/memory/adapter.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 77,
+                "endLine": 90,
+                "startColumn": 25,
+                "startLine": 90
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/languages/python/src/domain/brace_format/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 73,
+                "endLine": 162,
+                "startColumn": 46,
+                "startLine": 159
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/languages/python/src/domain/format_parsing/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 17,
+                "endLine": 79,
+                "startColumn": 46,
+                "startLine": 74
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/languages/python/src/domain/grammar_cache/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 83,
+                "endLine": 18,
+                "startColumn": 13,
+                "startLine": 16
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/languages/python/src/domain/grammar_cache/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 56,
+                "endLine": 83,
+                "startColumn": 8,
+                "startLine": 83
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      },
+      {
+        "level": "error",
+        "locations": [
+          {
+            "physicalLocation": {
+              "artifactLocation": {
+                "uri": "crates/ryo/languages/python/src/domain/literal_expression_parsing/service.rs",
+                "uriBaseId": "SOURCE_ROOT"
+              },
+              "region": {
+                "endColumn": 51,
+                "endLine": 41,
+                "startColumn": 8,
+                "startLine": 38
+              }
+            }
+          }
+        ],
+        "message": {
+          "markdown": "```\nCustom memory management indicates an ownership or lifetime design problem.\n\nto fix: Restructure ownership so Rust releases temporary data at the appropriate scope; do not add heap-accounting or reclamation machinery to compensate. This expression estimates retained allocation bytes. Use scoped owners for temporary work, keep genuinely shared state with its owning operation, and use ordinary bounded buffers without a second heap-accounting system.\n```",
+          "text": "Custom memory management indicates an ownership or lifetime design problem."
+        },
+        "ruleId": "idiomatic.arch/no-heap-accounting",
+        "suppressions": []
+      }
+    ],
+    "matched_file_sha256": {
+      "crates/ryo/crates/core/src/domain/graph_cache/service.rs": "f619b1102a9762151805db268eda0e2af137255f44e1dea0e5bf585fc5c28e09",
+      "crates/ryo/crates/core/src/domain/graph_cache/types/reclamation/value.rs": "0754a107adf01eeb1f82e069c286a11441db6e6f1d14e59a1ae9b827587e55b5",
+      "crates/ryo/crates/core/src/domain/recording/types/retention/value.rs": "c5210e96366d2a5849a4ba2bb8940ad321e24f5e26af8a5e5dfd2fbcd034741e",
+      "crates/ryo/crates/core/src/domain/stored_graph/types/footprint/value.rs": "2a948a8b4f6c8788eb00fbe36633aeed93247514a90edb0cfb27431e2e4ceed0",
+      "crates/ryo/crates/core/src/domain/stored_indexes/service.rs": "cd352719c60a46f932004ca852174491ca5e3667bb209033c14a5da5a8c25f6e",
+      "crates/ryo/crates/core/src/domain/stored_selection/service.rs": "b42276f54555dcf27c067769959a98d4234ba3f44759500977d6ebc30603540c",
+      "crates/ryo/crates/core/src/domain/table_scratch/service.rs": "9451d6f397cff4303c739c635d80410eda7fb45916f898957263a6c83c3286dd",
+      "crates/ryo/crates/core/src/domain/working_set/service.rs": "b654915b42357d6ae448aa67b3bf1b3b4975b83299747d86c35b935eff8ac11c",
+      "crates/ryo/crates/core/src/inbound/use_cases/lint/service.rs": "fdba5b17bb8b7c226b45b3bb30d8fc6c5f5041a44b66f48c9f65a22736bcf555",
+      "crates/ryo/crates/core/src/outbound/facts/adapters/memory/adapter.rs": "08da727fb2038b577142d75ea41065e122c81ef26ffbf332294af582bcf05383",
+      "crates/ryo/languages/python/src/domain/brace_format/service.rs": "e2f0b61f7c0bc27fa8176a999c34f691a3bc7051bb53678b6512487cef2b5c9b",
+      "crates/ryo/languages/python/src/domain/format_parsing/service.rs": "d67f81595f984f9f703a73cedb38e7bd81a1adb9139d080fa58c3c16564dce4a",
+      "crates/ryo/languages/python/src/domain/grammar_cache/service.rs": "50b998bf3855d2d0344734912efe6c7a8d9b9d0fd7fc26de6da6a4a792a6c010",
+      "crates/ryo/languages/python/src/domain/literal_expression_parsing/service.rs": "f90838027c5077481f2c871c7bd84b44fa0167712c255e08459967d56db623f5"
+    },
+    "other_rule_findings": 6468,
+    "classification": "Matchesareerrors; readonlyobservation/simpleboundsversusretentionframeworkclassificationremainsopen.Notarchitectureclean."
+  },
+  "intended_product_bindings": [
+    "crates/asymptote/tastemaker.toml",
+    "crates/ryo/tastemaker.toml",
+    "crates/tastemaker/tastemaker.toml"
+  ],
+  "limitations": "If reaching for custom memory management seems necessary, the ownership or lifetime design needs correction. Computing retained heap bytes by multiplying capacity by a type's layout, summing allocator footprints, or saving those estimates in a reclamation ledger adds another memory-management system beside Rust. The observed regression spent its CPU walking reusable scratch and estimating its bytes. This rule connects sizing calls through the syntax of one arithmetic expression or aggregate; it does not depend on a helper, field, or module being named bytes, budget, retire, or ledger. It catches direct and checked/saturating capacity-times-layout expressions and arithmetic or sum/fold aggregation of memory_usage calls, including nested closures. Standard size_of aliases imported from core::mem or std::mem are followed by their import binding. Ordinary allocation/reserve, capacity bounds, scoped RAII/drop, and length-based wire-format planning are allowed. Tests, fixtures, and benches can measure memory and are outside this production policy. This is not typed interprocedural taint analysis: estimates hidden across arbitrary helpers, custom allocator APIs, unresolved aliases and macro expansions are not proven. No exception or baseline is supplied."
+}

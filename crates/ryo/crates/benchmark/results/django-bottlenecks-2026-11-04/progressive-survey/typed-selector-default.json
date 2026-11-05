@@ -1,0 +1,21 @@
+{
+  "source": "cba73884bf4351eab25630e2c4a57b2a6580fd85",
+  "worker_sha256": "880b283e9418a334e1fadefeeb66a3b66c0d7f76a470cea9827588ce79b55ec6",
+  "instrumented_not_timing": true,
+  "results": [
+    {
+      "name": "omitted-performance-default",
+      "exit": 0,
+      "request_sha256": "5f4ab18c8eb5c5eaaa298cb5432ac28c9ca33549a4a87154c13faa40efbf2967",
+      "complete": true,
+      "coverage": {
+        "selected": 1,
+        "evaluated": 1,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      },
+      "diagnostics_equal": true,
+      "skips_equal": true
+    }
+  ]
+}

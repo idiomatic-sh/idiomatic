@@ -87,3 +87,103 @@ fn subject(files: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[test]
+fn invalid_author_retains_valid_dependency_projection() {
+    use super::super::schemas::read;
+    use crate::domain::manifest_validation::types::{MetadataDemand, Phase};
+    let text = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{name = 'author', email = 1}]\ndependencies = ['requests>=2; python_version > \"3.8\"']\n";
+    let result = read(text, MetadataDemand::Both);
+    let declaration = result
+        .declaration
+        .expect("projection requested")
+        .expect("unrelated metadata must not erase dependencies");
+    assert_eq!(declaration.requirements.len(), 1);
+    assert_eq!(
+        declaration.requirements[0].written.0.as_ref(),
+        "requests>=2; python_version > \"3.8\""
+    );
+    let validation = result.validation.expect("requested metadata validation");
+    assert_eq!(validation.diagnostics.len(), 1);
+    assert_eq!(validation.diagnostics[0].phase, Phase::Validation);
+    assert!(validation.incomplete.is_none());
+}
+
+#[test]
+fn invalid_dependency_shape_never_publishes_a_fabricated_requirement() {
+    use super::super::schemas::read;
+    use crate::domain::manifest_validation::types::MetadataDemand;
+    let result = read(
+        "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n",
+        MetadataDemand::Both,
+    );
+    assert!(result.declaration.expect("projection requested").is_err());
+    assert!(
+        !result
+            .validation
+            .expect("requested validation")
+            .diagnostics
+            .is_empty()
+    );
+}
+
+#[test]
+fn cloned_document_preserves_unicode_error_span_without_reparsing() {
+    use serde::Deserialize;
+    let text = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{name = 'é\\\\author', email = 1}]\n";
+    let document = toml::de::DeTable::parse(text).expect("valid TOML");
+    let first =
+        pyproject_toml::PyProjectToml::deserialize(toml::de::Deserializer::from(document.clone()))
+            .expect_err("invalid email");
+    let second = pyproject_toml::PyProjectToml::deserialize(toml::de::Deserializer::from(document))
+        .expect_err("invalid email");
+    assert_eq!(first.span(), second.span());
+    assert_eq!(first.message(), second.message());
+    let span = first
+        .span()
+        .expect("schema error retains a real source range");
+    let expected_start = text
+        .find("[{")
+        .expect("the invalid author belongs to the authors array");
+    let expected_end = text.rfind(']').expect("authors array closes") + 1;
+    assert_eq!(span, expected_start..expected_end);
+    assert_eq!(text.get(span), text.get(expected_start..expected_end));
+}
+
+#[test]
+fn invalid_requirement_text_is_not_a_projected_dependency() {
+    use super::super::schemas::read;
+    use crate::domain::manifest_validation::types::MetadataDemand;
+    let result = read(
+        "[project]\nname = 'example'\nversion = '1.0'\ndependencies = ['...']\n",
+        MetadataDemand::Both,
+    );
+    assert!(result.declaration.expect("projection requested").is_err());
+    assert_eq!(
+        result
+            .validation
+            .expect("metadata requested")
+            .diagnostics
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn metadata_only_does_not_project_rejected_dependencies() {
+    use super::super::schemas::read;
+    use crate::domain::manifest_validation::types::MetadataDemand;
+    let result = read(
+        "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n",
+        MetadataDemand::Diagnostics,
+    );
+    assert!(result.declaration.is_none());
+    assert_eq!(
+        result
+            .validation
+            .expect("requested metadata read")
+            .diagnostics
+            .len(),
+        1
+    );
+}

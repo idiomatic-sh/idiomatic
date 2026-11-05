@@ -2,14 +2,19 @@
 //! and no inherent impl.
 
 use super::errors::ParseError;
-use crate::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::types::FileId;
-use crate::domain::relations::types::{Count, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{Count, KindBits, Relation, RowWriter};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
+use crate::domain::semantics::interface::SemanticSession;
+
+/// The canonical, immutable identity of parser settings that can change the tree or diagnostics.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ParseConfigurationIdentity<'a>(pub &'a str);
 
 /// One file to read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -133,11 +138,24 @@ pub struct SkippedDirectory(pub &'static str);
 
 /// The names of the kinds a language's trees have, each once.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KindNames(pub Vec<crate::domain::terms::types::NameText<'static>>);
+pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'static>>);
 
 /// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
+    /// Explicit optional promises, preserved across the erased provider boundary.
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
+
+    /// Canonical parser settings included in persisted-result cache identity.
+    fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
+
+    /// Begin this provider's owned semantic session for one built file.
+    fn begin_semantics(
+        &self,
+        request: &ParseRequest<'_>,
+        tree: &Elements,
+    ) -> Option<Box<dyn SemanticSession>>;
+
     /// Whether the language reads the file in `request`.
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition;
 
@@ -189,6 +207,22 @@ pub trait ParseEngine: Send + Sync {
         out: &mut dyn RowWriter,
     ) -> Result<(), ParseError>;
 
+    /// Reads a file explicitly assigned to this provider, without rewriting its path.
+    /// Providers must opt in; unsupported selection is never normal path fallback.
+    ///
+    /// # Errors
+    /// `Unsupported` unless the provider supports explicit selection.
+    fn read_file_explicit(
+        &self,
+        _request: ParseRequest<'_>,
+        _table: &mut Elements,
+        _symbols: &mut Symbols,
+        _wanted: &[Relation],
+        _out: &mut dyn RowWriter,
+    ) -> Result<(), ParseError> {
+        Err(ParseError::Unsupported)
+    }
+
     /// Writes the rows of the wanted relations for the file whose table is `elements`.
     fn walk_file(
         &self,
@@ -203,3 +237,17 @@ pub trait ParseEngine: Send + Sync {
     /// Why the language does not read `relation` from a tree, or nothing when it does or when the relation is not one of the trees'.
     fn absence_of(&self, relation: Relation) -> Option<AbsenceCause>;
 }
+
+/// The catalog defines the exact set of reader slots held by one parse invocation.
+macro_rules! reader_slots {
+    (syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+     manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
+        /// The reader of one syntax relation, whichever it is.
+        #[derive(Clone, Copy)]
+        pub(super) enum Slot<M: 'static> {
+            $( $variant(crate::domain::answers::types::Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, M>), )*
+        }
+
+    };
+}
+ryo_relations::each_relation!(reader_slots);

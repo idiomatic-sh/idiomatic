@@ -6,7 +6,7 @@ use crate::outbound::matching::fixtures::contract::{CASES as CONTRACT, answer};
 
 type Input = (&'static [&'static str], &'static str);
 type Value = usize;
-type Failure = crate::outbound::matching::errors::MatchingError;
+type Failure = ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {

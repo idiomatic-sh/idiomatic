@@ -1,0 +1,2 @@
+let witness = select * from "literal-properties";
+emit witness subject file key(id);

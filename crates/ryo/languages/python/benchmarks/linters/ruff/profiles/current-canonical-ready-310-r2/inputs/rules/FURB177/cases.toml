@@ -1,0 +1,223 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "import pathlib\nfrom pathlib import Path\n\n# Errors\n_ = Path().resolve()\n_ = pathlib.Path().resolve()\n\n_ = Path(\"\").resolve()\n_ = pathlib.Path(\"\").resolve()\n\n_ = Path(\".\").resolve()\n_ = pathlib.Path(\".\").resolve()\n\n_ = Path(\"\", **kwargs).resolve()\n_ = pathlib.Path(\"\", **kwargs).resolve()\n\n_ = Path(\".\", **kwargs).resolve()\n_ = pathlib.Path(\".\", **kwargs).resolve()\n\n# OK\n_ = Path.cwd()\n_ = pathlib.Path.cwd()\n\n_ = Path(\"foo\").resolve()\n_ = pathlib.Path(\"foo\").resolve()\n\n_ = Path(\".\", \"foo\").resolve()\n_ = pathlib.Path(\".\", \"foo\").resolve()\n\n_ = Path(*args).resolve()\n_ = pathlib.Path(*args).resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 54, end = 70 }, { rule = "FURB177", file = "case.py", start = 75, end = 99 }, { rule = "FURB177", file = "case.py", start = 105, end = 123 }, { rule = "FURB177", file = "case.py", start = 128, end = 154 }, { rule = "FURB177", file = "case.py", start = 160, end = 179 }, { rule = "FURB177", file = "case.py", start = 184, end = 211 }, { rule = "FURB177", file = "case.py", start = 217, end = 245 }, { rule = "FURB177", file = "case.py", start = 250, end = 286 }, { rule = "FURB177", file = "case.py", start = 292, end = 321 }, { rule = "FURB177", file = "case.py", start = 326, end = 363 }]
+
+[[cases]]
+name = "path-arguments-0"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path().resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 43 }]
+
+[[cases]]
+name = "path-arguments-1"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\".\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 46 }]
+
+[[cases]]
+name = "path-arguments-2"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\"\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 45 }]
+
+[[cases]]
+name = "path-arguments-3"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\"\\x2e\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 49 }]
+
+[[cases]]
+name = "path-arguments-4"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(r\".\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 47 }]
+
+[[cases]]
+name = "path-arguments-5"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\"\" \".\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 49 }]
+
+[[cases]]
+name = "path-arguments-6"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(f\".\").resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-7"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(b\".\").resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-8"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(unknown).resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-9"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\"./\").resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-10"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\"..\").resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-11"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\"foo\").resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-12"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\".\",\"\").resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-13"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(*[]).resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-14"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(*args).resolve()\n" }
+expected = []
+
+[[cases]]
+name = "path-arguments-15"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(path=\".\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 51 }]
+
+[[cases]]
+name = "path-arguments-16"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(foo=unknown).resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 54 }]
+
+[[cases]]
+name = "path-arguments-17"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(\".\",foo=unknown).resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 58 }]
+
+[[cases]]
+name = "path-arguments-18"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(**{}).resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 47 }]
+
+[[cases]]
+name = "path-arguments-19"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path(**{\"path\":\".\"}).resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 57 }]
+
+[[cases]]
+name = "resolve-arguments"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nPath().resolve(True)\nPath().resolve(strict=True)\nPath().resolve(**{})\nPath().resolve(*[])\nPath().resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 115, end = 131 }]
+
+[[cases]]
+name = "other-methods"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nPath().absolute()\nPath().cwd()\nPath().resolve\nPath.cwd().resolve()\nPath().resolve().resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 92, end = 108 }]
+
+[[cases]]
+name = "import-paths"
+comparison = "full"
+files = { "case.py" = "import pathlib as p\nfrom pathlib import Path as P\nx=p.Path().resolve()\ny=P(\".\").resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 52, end = 70 }, { rule = "FURB177", file = "case.py", start = 73, end = 89 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "x=pathlib.Path().resolve()\ny=Path().resolve()\n" }
+expected = []
+
+[[cases]]
+name = "non-pathlib"
+comparison = "full"
+files = { "case.py" = "from other import Path\nx=Path().resolve()\n" }
+expected = []
+
+[[cases]]
+name = "other-path-types"
+comparison = "full"
+files = { "case.py" = "from pathlib import PosixPath,WindowsPath,PurePath\nPosixPath().resolve()\nWindowsPath().resolve()\nPurePath().resolve()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(Path):\n    return Path().resolve()\n" }
+expected = []
+
+[[cases]]
+name = "assignment-alias"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nP=Path\nx=P().resolve()\n" }
+expected = []
+
+[[cases]]
+name = "unicode-identifiers"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path as Ｐ\nx=Ｐ().ｒｅｓｏｌｖｅ()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 34, end = 63 }]
+
+[[cases]]
+name = "parentheses"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=((Path)((\".\"))).resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 52 }]
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\né=(\n    Path(\n        \".\",\n        ignored=\"🙂é\",\n    )\n    .resolve()\n)\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 34, end = 99 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path().resolve()  # noqa: FURB177\n" }
+expected = []
+
+[[cases]]
+name = "blanket-suppression"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path().resolve()  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: FURB177\nfrom pathlib import Path\nx=Path().resolve()\n" }
+expected = []
+
+[[cases]]
+name = "wrong-code-unsuppressed"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nx=Path().resolve()  # noqa: F401\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 27, end = 43 }]
+
+[[cases]]
+name = "block-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[FURB177]\nfrom pathlib import Path\nx=Path().resolve()\n# ruff: enable[FURB177]\nfrom pathlib import Path\nx=Path().resolve()\n" }
+expected = [{ rule = "FURB177", file = "case.py", start = 120, end = 136 }]

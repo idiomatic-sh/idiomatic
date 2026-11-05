@@ -1,0 +1,101 @@
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "assert (True, False)\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 0, "end" = 20 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "assert ()\n" }
+expected = []
+
+[[cases]]
+name = "message"
+comparison = "full"
+files = { "case.py" = "assert (True,), \"message\"\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 0, "end" = 25 }]
+
+[[cases]]
+name = "list"
+comparison = "full"
+files = { "case.py" = "assert [False]\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "assert (*items,)\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 0, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 14 }]
+
+[[cases]]
+name = "nested"
+comparison = "full"
+files = { "case.py" = "def f():\n    assert ((False,),)\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 13, "end" = 31 }]
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "assert (\n    False,\n)\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 0, "end" = 21 }]
+
+[[cases]]
+name = "multiline-string-noqa"
+comparison = "full"
+files = { "case.py" = "assert (\"\"\"bad\nmore\"\"\",) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "assert (True, False) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "assert (True, False) # noqa: F631\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "assert (True, False) # noqa: F401\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 0, "end" = 20 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nassert (True, False)\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F631]\nassert (True, False)\n\n# ruff: enable[F631]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F631]\n# ruff: enable[F631]\nassert (True, False)\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 43, "end" = 63 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F631]\nassert (True, False)\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nassert (True, False)\n" }
+expected = [{ "rule" = "F631", "file" = "case.py", "start" = 22, "end" = 42 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[F631]\nassert (True, False)\n" }
+expected = []

@@ -1,0 +1,755 @@
+{
+  "historical_source": "d55db0182c2736cba2e9cbd7254a48fbeac96203",
+  "cases": "all non-I001 active discrepancy certificates; historical control-profile identities untouched",
+  "profiles": [
+    {
+      "rule": "B031",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/B031/benchmark.toml",
+      "old_matches": {
+        "d966da3b0e544948ca83605ba513d5f4af209480d6e6fa7780fb6bf79c0ad3d0": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "52a2a6b3e739503fc01f7d47d6711278a22285002f6f3a1b23daebb67bf595cd",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"B031\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"B031\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "3128ed4d7f1d2a29643a4eeba69c81687ef9c6a1bc68f506aba07ed0fd0f56c8",
+        "historical-source-raw": "3128ed4d7f1d2a29643a4eeba69c81687ef9c6a1bc68f506aba07ed0fd0f56c8",
+        "historical-normal-stage": "d966da3b0e544948ca83605ba513d5f4af209480d6e6fa7780fb6bf79c0ad3d0"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "F621",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F621/benchmark.toml",
+      "old_matches": {
+        "3cc9ad33cc66f04f2bc909a28ac2dd2760f64516bfb23e4e15473de4edc16cca": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "b6bcb629eae9965c3cf9420315b5ec8dd9fdee0edf8e9fa363e3030832457ce1",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"F621\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"F621\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "3cc9ad33cc66f04f2bc909a28ac2dd2760f64516bfb23e4e15473de4edc16cca",
+        "historical-source-raw": "3cc9ad33cc66f04f2bc909a28ac2dd2760f64516bfb23e4e15473de4edc16cca",
+        "historical-normal-stage": "3cc9ad33cc66f04f2bc909a28ac2dd2760f64516bfb23e4e15473de4edc16cca"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "F811",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F811/benchmark.toml",
+      "old_matches": {
+        "58a22f2220902b875f3940f9f7f3f96b4c12848717dbed342e1bf8a301ffaff5": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "8ebcf525924284963f66b6c0a8b97fa4b2a0ab2986faba9785c04ccf06b0c076",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"F811\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/deferred-read-events\" = \"fragments/deferred-read-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-read-events\" = \"fragments/lookup-read-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"F811\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "58a22f2220902b875f3940f9f7f3f96b4c12848717dbed342e1bf8a301ffaff5",
+        "historical-source-raw": "58a22f2220902b875f3940f9f7f3f96b4c12848717dbed342e1bf8a301ffaff5",
+        "historical-normal-stage": "58a22f2220902b875f3940f9f7f3f96b4c12848717dbed342e1bf8a301ffaff5"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "F821",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821-stub-annotation-context/benchmark.toml",
+      "old_matches": {
+        "8db4fc64c302e8a35db23361506e4d0a82274b717bcd996aa97eeb75b31dfaa9": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "b52d08d86bb2e4fdb7d0f43abbb429a71bad60f3939037c1188e4679a07ec7aa",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"F821\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/deferred-read-resolutions\" = \"fragments/deferred-read-resolutions.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/eager-before-future\" = \"fragments/eager-before-future.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-read-events\" = \"fragments/lookup-read-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"F821\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "8db4fc64c302e8a35db23361506e4d0a82274b717bcd996aa97eeb75b31dfaa9",
+        "historical-source-raw": "8db4fc64c302e8a35db23361506e4d0a82274b717bcd996aa97eeb75b31dfaa9",
+        "historical-normal-stage": "8db4fc64c302e8a35db23361506e4d0a82274b717bcd996aa97eeb75b31dfaa9"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "F841",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F841/benchmark.toml",
+      "old_matches": {
+        "0f1806bcb00befc04a69fbbdb41a0cc0d66b657dadf167d4ad5f454555cea8cd": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "85a65cf659ba1587999bb00c617749dc5b9d38f16d0b69998be5a7a63eded907",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"F841\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/checker-namespace-events\" = \"fragments/checker-namespace-events.ryoql\", \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/deferred-read-events\" = \"fragments/deferred-read-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-read-events\" = \"fragments/lookup-read-events.ryoql\", \"python/ruff/nonlocal-bindings\" = \"fragments/nonlocal-bindings.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"F841\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "0f1806bcb00befc04a69fbbdb41a0cc0d66b657dadf167d4ad5f454555cea8cd",
+        "historical-source-raw": "0f1806bcb00befc04a69fbbdb41a0cc0d66b657dadf167d4ad5f454555cea8cd",
+        "historical-normal-stage": "0f1806bcb00befc04a69fbbdb41a0cc0d66b657dadf167d4ad5f454555cea8cd"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "FURB122",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FURB122/benchmark.toml",
+      "old_matches": {
+        "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "4dfe4940917dd33a1dd122c2234805708c3a6027946fae1f2092e68998f961cd",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"FURB122\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/annotation-origins\" = \"fragments/annotation-origins.ryoql\", \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/io-base-annotation\" = \"fragments/io-base-annotation.ryoql\", \"python/ruff/io-base-binding\" = \"fragments/io-base-binding.ryoql\", \"python/ruff/io-base-initializer\" = \"fragments/io-base-initializer.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"FURB122\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd",
+        "historical-source-raw": "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd",
+        "historical-normal-stage": "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "FURB129",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FURB129/benchmark.toml",
+      "old_matches": {
+        "55c316b34290df5cde4686bd247ed71144091f0eb22c92039303d8897032a40e": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "a0e721b40753c5009c62631ae89e504f1225f6113c6090e6b3bf694a9618aae7",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"FURB129\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/annotation-origins\" = \"fragments/annotation-origins.ryoql\", \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/io-base-annotation\" = \"fragments/io-base-annotation.ryoql\", \"python/ruff/io-base-binding\" = \"fragments/io-base-binding.ryoql\", \"python/ruff/io-base-initializer\" = \"fragments/io-base-initializer.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"FURB129\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "55c316b34290df5cde4686bd247ed71144091f0eb22c92039303d8897032a40e",
+        "historical-source-raw": "55c316b34290df5cde4686bd247ed71144091f0eb22c92039303d8897032a40e",
+        "historical-normal-stage": "55c316b34290df5cde4686bd247ed71144091f0eb22c92039303d8897032a40e"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "FURB132",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FURB132/benchmark.toml",
+      "old_matches": {
+        "e1aeec3190ecb426587fc4afaea0db86940340c837e664dc730a2482a8a96822": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "85df8bd1636a3c77fe8a1ba001b63f9e87f07964e5a9e046393c4271b3ba1ab0",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"FURB132\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/binding-type\" = \"fragments/binding-type.ryoql\", \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/type-match-at-check\" = \"fragments/type-match-at-check.ryoql\", \"python/ruff/evaluated-targets\" = \"fragments/evaluated-targets.ryoql\", \"python/ruff/without-effect\" = \"fragments/without-effect.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"FURB132\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "e1aeec3190ecb426587fc4afaea0db86940340c837e664dc730a2482a8a96822",
+        "historical-source-raw": "e1aeec3190ecb426587fc4afaea0db86940340c837e664dc730a2482a8a96822",
+        "historical-normal-stage": "e1aeec3190ecb426587fc4afaea0db86940340c837e664dc730a2482a8a96822"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "FURB188",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FURB188/benchmark.toml",
+      "old_matches": {
+        "46e7102d7aabd94e318fa6327b14f3292f50d41382b971ebbdac225d4a56931c": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "0f0a0cd80ec9a88af4e80db8e28e96569f6397e5cfe148f6b25b392bb0ba3f36",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"FURB188\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"FURB188\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "46e7102d7aabd94e318fa6327b14f3292f50d41382b971ebbdac225d4a56931c",
+        "historical-source-raw": "46e7102d7aabd94e318fa6327b14f3292f50d41382b971ebbdac225d4a56931c",
+        "historical-normal-stage": "46e7102d7aabd94e318fa6327b14f3292f50d41382b971ebbdac225d4a56931c"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PERF101",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PERF101/benchmark.toml",
+      "old_matches": {
+        "a649b0ff9cea8fed951010f0e2323486eae4739321088e1f3579ede91ba2e883": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "ac5c798bb6044bee5b0acf260b871be737b2a05bcdf4f31875e50777c6bfd264",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PERF101\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PERF101\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "a649b0ff9cea8fed951010f0e2323486eae4739321088e1f3579ede91ba2e883",
+        "historical-source-raw": "a649b0ff9cea8fed951010f0e2323486eae4739321088e1f3579ede91ba2e883",
+        "historical-normal-stage": "a649b0ff9cea8fed951010f0e2323486eae4739321088e1f3579ede91ba2e883"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PERF402",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PERF402/benchmark.toml",
+      "old_matches": {
+        "9c5617d195a8da4be01ed9a4ebb5c7f372b0cc75ff9eda94945a01c16804d365": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "baf4505c3b03c90fbb66bbea2b23e3efac22b4744a88fc4d1b7d0b895eb1d2bd",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PERF402\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/binding-type\" = \"fragments/binding-type.ryoql\", \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/type-match-at-check\" = \"fragments/type-match-at-check.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PERF402\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "9c5617d195a8da4be01ed9a4ebb5c7f372b0cc75ff9eda94945a01c16804d365",
+        "historical-source-raw": "9c5617d195a8da4be01ed9a4ebb5c7f372b0cc75ff9eda94945a01c16804d365",
+        "historical-normal-stage": "9c5617d195a8da4be01ed9a4ebb5c7f372b0cc75ff9eda94945a01c16804d365"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLC0206",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLC0206/benchmark.toml",
+      "old_matches": {
+        "5ee17d193221b6cfd8b95a1a5e61aea378cc7940b6b51ac0ce26a8a2b777c41c": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "a8567e28befd4c0d43e04f861c23019d93c0cf7d0a92b0d84b876775c166db0b",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLC0206\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/qualified-origins\" = \"fragments/qualified-origins.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PLC0206\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "5ee17d193221b6cfd8b95a1a5e61aea378cc7940b6b51ac0ce26a8a2b777c41c",
+        "historical-source-raw": "5ee17d193221b6cfd8b95a1a5e61aea378cc7940b6b51ac0ce26a8a2b777c41c",
+        "historical-normal-stage": "5ee17d193221b6cfd8b95a1a5e61aea378cc7940b6b51ac0ce26a8a2b777c41c"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLE0115",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0115/benchmark.toml",
+      "old_matches": {
+        "1b718a5b16288f8ad52695108da2af375af7926678acb31c02201f2de5811556": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "3186841e254fc796f9e737600d64369c1d8fd55532d0832505af5fae524c0bb7",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLE0115\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PLE0115\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "1b718a5b16288f8ad52695108da2af375af7926678acb31c02201f2de5811556",
+        "historical-source-raw": "1b718a5b16288f8ad52695108da2af375af7926678acb31c02201f2de5811556",
+        "historical-normal-stage": "1b718a5b16288f8ad52695108da2af375af7926678acb31c02201f2de5811556"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLE0117",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0117/benchmark.toml",
+      "old_matches": {
+        "aa830b1383bc15a96074878ac002f6e797367e81195facfb288375dacdc221ca": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "411dd5b483e7fe20d4f56c7190a20298d7b204fb6a0e389f7a15d8f13db269b4",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLE0117\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PLE0117\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "aa830b1383bc15a96074878ac002f6e797367e81195facfb288375dacdc221ca",
+        "historical-source-raw": "aa830b1383bc15a96074878ac002f6e797367e81195facfb288375dacdc221ca",
+        "historical-normal-stage": "aa830b1383bc15a96074878ac002f6e797367e81195facfb288375dacdc221ca"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLE0643",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0643/benchmark.toml",
+      "old_matches": {
+        "7aaaa6bc32568b0cfbb562696e15ead6cad788f1464e134e3cf0a00644fb9ca5": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "0ad7e3ce38a5c5f5889e90f631e2b3565b5755ee90c64910bd18cb0030eaadb3",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLE0643\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"PLE0643\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "cb842b134c950a1d53d06766c6bbf7bb6be9000c3281a5616bda056c2b4b03fa",
+        "historical-source-raw": "9d4d5c26810203512d0fb7c30e192e802cf5970fec2b6ecaa971f88198e223cf",
+        "historical-normal-stage": "7aaaa6bc32568b0cfbb562696e15ead6cad788f1464e134e3cf0a00644fb9ca5"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLE1142",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE1142/benchmark.toml",
+      "old_matches": {
+        "ef45a7b638abe183ff2e5956c9336fa91a49d1c4fedfa6a2f289c58d20bc3b0a": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "f19c8e406a4f20cded8d61490ec7708c24c89f3cfae399e0a8b9d2ca42530153",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLE1142\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/python-evaluation-regions\" = \"fragments/python-evaluation-regions.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"PLE1142\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "24903c9a1ca4d16b3322457b51282312cdcfe9d975c559882d4d9a229a416cdb",
+        "historical-source-raw": "950768f476cf5328c1a7716e58b026543c40acd95d68a77f5315b724eedf321a",
+        "historical-normal-stage": "ef45a7b638abe183ff2e5956c9336fa91a49d1c4fedfa6a2f289c58d20bc3b0a"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLE1300",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE1300/benchmark.toml",
+      "old_matches": {
+        "87afb013e8cc778609729d851dded1bf9375c9820002c9a52de5baca3e8cb444": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "d1637405d3991593258b6b166909f52d6c51fb960733d75916d8af68ae5616bd",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLE1300\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PLE1300\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "87afb013e8cc778609729d851dded1bf9375c9820002c9a52de5baca3e8cb444",
+        "historical-source-raw": "87afb013e8cc778609729d851dded1bf9375c9820002c9a52de5baca3e8cb444",
+        "historical-normal-stage": "87afb013e8cc778609729d851dded1bf9375c9820002c9a52de5baca3e8cb444"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLE1700",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE1700/benchmark.toml",
+      "old_matches": {
+        "3e57d7b66a289901fa86fd7ddd915b1b796c2d4c4423d21749c9af09258b402e": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "4eb744baca3ad036bfd6d192df35f8c6352bedfbf740072e68dfc546807e0ba5",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLE1700\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/python-evaluation-regions\" = \"fragments/python-evaluation-regions.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"PLE1700\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "19985d9289f6228e200637797aa831dd2b287f51feadeb5fb76732a61fcc8947",
+        "historical-source-raw": "70c0f2cf6468a5476ffeffbb3ef52151f6933a5e8034e12731abc0403f4cc63c",
+        "historical-normal-stage": "3e57d7b66a289901fa86fd7ddd915b1b796c2d4c4423d21749c9af09258b402e"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLW0602",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLW0602/benchmark.toml",
+      "old_matches": {
+        "d0105c00594d694e0e62323bbec8da7697a3ca4c919f895eeb641e4e86acb0de": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "bf9265f53fc8a3b7bd410c8a8dd20674e82cdde8f0b777652dcfc50db66111ef",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLW0602\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/checker-namespace-events\" = \"fragments/checker-namespace-events.ryoql\", \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/nonlocal-bindings\" = \"fragments/nonlocal-bindings.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PLW0602\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "d0105c00594d694e0e62323bbec8da7697a3ca4c919f895eeb641e4e86acb0de",
+        "historical-source-raw": "d0105c00594d694e0e62323bbec8da7697a3ca4c919f895eeb641e4e86acb0de",
+        "historical-normal-stage": "d0105c00594d694e0e62323bbec8da7697a3ca4c919f895eeb641e4e86acb0de"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PLW2101",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLW2101/benchmark.toml",
+      "old_matches": {
+        "6ae83fce4f01371a58ba7297dfd79ba12f4d78922cd75d7aab591373828c82c0": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "83a342b74376fee50a4804e4f14d6e2884113eab1e7067bdd306950c865f902b",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PLW2101\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"PLW2101\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "da69792b9614c245746339dea82c0714c70473eac58c3350a716d582ecbd5026",
+        "historical-source-raw": "54ce61e99bb0f1ba2c5f4f5b25b037d9c4c919d1d0eea55996865264a9afa4c5",
+        "historical-normal-stage": "6ae83fce4f01371a58ba7297dfd79ba12f4d78922cd75d7aab591373828c82c0"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PYI019",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI019/benchmark.toml",
+      "old_matches": {
+        "6d979221eb649ab8f5323e39ee0b5357d2c726e436d40783d179518c7c494440": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "b4c659c6448843e0a27cdf813c6cb593c0d2d7faf70af348050d7a230e2898b9",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PYI019\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/class-bases\" = \"fragments/class-bases.ryoql\", \"python/ruff/deferred-class-origins\" = \"fragments/deferred-class-origins.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-attribute\" = \"fragments/lookup-attribute.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/metaclass\" = \"fragments/metaclass.ryoql\", \"python/ruff/qualified-origins\" = \"fragments/qualified-origins.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PYI019\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "6d979221eb649ab8f5323e39ee0b5357d2c726e436d40783d179518c7c494440",
+        "historical-source-raw": "6d979221eb649ab8f5323e39ee0b5357d2c726e436d40783d179518c7c494440",
+        "historical-normal-stage": "6d979221eb649ab8f5323e39ee0b5357d2c726e436d40783d179518c7c494440"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "PYI034",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI034/benchmark.toml",
+      "old_matches": {
+        "46ede830c42df60762d86c9c8266c198bfe8c4794d25e9d39f4fc7cdde3e738f": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "032e0cd93a1f595a7a3a7a3ff67dfce1cb87c875124789dee0b287d16c86d87e",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"PYI034\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/class-bases\" = \"fragments/class-bases.ryoql\", \"python/ruff/deferred-class-origins\" = \"fragments/deferred-class-origins.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-attribute\" = \"fragments/lookup-attribute.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/metaclass\" = \"fragments/metaclass.ryoql\", \"python/ruff/qualified-origins\" = \"fragments/qualified-origins.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"PYI034\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "46ede830c42df60762d86c9c8266c198bfe8c4794d25e9d39f4fc7cdde3e738f",
+        "historical-source-raw": "46ede830c42df60762d86c9c8266c198bfe8c4794d25e9d39f4fc7cdde3e738f",
+        "historical-normal-stage": "46ede830c42df60762d86c9c8266c198bfe8c4794d25e9d39f4fc7cdde3e738f"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF007",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF007/benchmark.toml",
+      "old_matches": {
+        "aa1a83a336d712c6f4356b221e0bfe265cdd693aa13077f9922e59cacea54662": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "985e45a3f387dc7003eec463ab940994717e9cf9272547385956173bfb551518",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF007\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"RUF007\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "0ad74dda1ca27d6070f18b16d3abcd5ba144e5626c81b02bf6e0aaf89589cb6c",
+        "historical-source-raw": "eb860ae3fcd1db74e64ede60c8d000c289c97744d714f6c279561b09c3a2f87e",
+        "historical-normal-stage": "aa1a83a336d712c6f4356b221e0bfe265cdd693aa13077f9922e59cacea54662"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF008",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF008/benchmark.toml",
+      "old_matches": {
+        "d51ddf1c3e79ca00036145ea23ec4c9dc24a3838c2a01ddfb3f7c041816ad9c7": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "81922a2946f631276d658c9f91a47a445e0d779fbeab03c2f4bfddffbd3f8283",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF008\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/annotation-origins\" = \"fragments/annotation-origins.ryoql\", \"python/ruff/dataclass-decorators\" = \"fragments/dataclass-decorators.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/immutable-annotation\" = \"fragments/immutable-annotation.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"RUF008\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "911ece2eed5ce4498bdbfd7c4ee2ba48feb7d377656d0b00a9f58935d966e651",
+        "historical-source-raw": "166d00e0ea664973cabb7124015e165c6369564bebd6fe41ea82f1042da95457",
+        "historical-normal-stage": "d51ddf1c3e79ca00036145ea23ec4c9dc24a3838c2a01ddfb3f7c041816ad9c7"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF019",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF019/benchmark.toml",
+      "old_matches": {
+        "09ad86f3f64f7c1a714e2d6958f35341f0dc8d9ec8c398c337b23021e7edebf1": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "dfab01d1d174d6f53abd35cdf547ba915ad1c4487729ac1de632b7b5fd56e97c",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF019\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/boolean-test-context\" = \"fragments/boolean-test-context.ryoql\", \"python/ruff/in-comparison\" = \"fragments/in-comparison.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/evaluated-targets\" = \"fragments/evaluated-targets.ryoql\", \"python/ruff/without-effect\" = \"fragments/without-effect.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"RUF019\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "712f8d671d83893404adb0279e216ee280a2dba90a45f1a9a3b7632522b16a10",
+        "historical-source-raw": "2deaaa24e8398a77a9f756a5776ef29beb49718db70050603e7034a6aa6c0338",
+        "historical-normal-stage": "09ad86f3f64f7c1a714e2d6958f35341f0dc8d9ec8c398c337b23021e7edebf1"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF020",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF020/benchmark.toml",
+      "old_matches": {
+        "3695c5f5d8748e85bf1346dee83ab35180eb79a2ebc1b696e67f2be0cde07521": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "b20d044b6437f621fe58326081a44770b26ba6efa5ef77988f6d9cb2b953b5ff",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF020\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-attribute\" = \"fragments/lookup-attribute.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/type-match-at-check\" = \"fragments/type-match-at-check.ryoql\", \"python/ruff/typing-match-at-visit\" = \"fragments/typing-match-at-visit.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"RUF020\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "3695c5f5d8748e85bf1346dee83ab35180eb79a2ebc1b696e67f2be0cde07521",
+        "historical-source-raw": "3695c5f5d8748e85bf1346dee83ab35180eb79a2ebc1b696e67f2be0cde07521",
+        "historical-normal-stage": "3695c5f5d8748e85bf1346dee83ab35180eb79a2ebc1b696e67f2be0cde07521"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF028",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF028/benchmark.toml",
+      "old_matches": {
+        "1eddb3bc82381cc84c2541b9a7e0c79b86e09d4d2e07ea52707500d768daf7c8": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "1d20ece05f14fb118ea19358b07ab34ddc404aa4fdd463814c211141c6977101",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF028\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"RUF028\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "a0dd3a9235103ab41ab5183cafeec60db0037bad8415cd3b85d7cee900e7b483",
+        "historical-source-raw": "1fcf7e5600a1de77f30656a600289f48fc88ac3efdbdeedbfa2ae87371148c0b",
+        "historical-normal-stage": "1eddb3bc82381cc84c2541b9a7e0c79b86e09d4d2e07ea52707500d768daf7c8"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF041",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF041/benchmark.toml",
+      "old_matches": {
+        "ed36b9e69bc8b45983a4e63eb3eaefa3aaeab2f5c26f6ce19c6a05d9198b6117": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "753ebff9ae1a936e2922deb3beb3fbdbedce00190fe6f8d916f8c38c6643bc67",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF041\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/lookup-attribute\" = \"fragments/lookup-attribute.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/type-match-at-check\" = \"fragments/type-match-at-check.ryoql\", \"python/ruff/typing-match-at-visit\" = \"fragments/typing-match-at-visit.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"RUF041\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "ed36b9e69bc8b45983a4e63eb3eaefa3aaeab2f5c26f6ce19c6a05d9198b6117",
+        "historical-source-raw": "ed36b9e69bc8b45983a4e63eb3eaefa3aaeab2f5c26f6ce19c6a05d9198b6117",
+        "historical-normal-stage": "ed36b9e69bc8b45983a4e63eb3eaefa3aaeab2f5c26f6ce19c6a05d9198b6117"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF051",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF051/benchmark.toml",
+      "old_matches": {
+        "833a34e07f713a42e18c5a4b1f593f8e87a8f2776cb9990fd7b1017ba8bb4458": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "16680e9b44cd44556ee6369453f818d398203899662443ddcb565ac33c03c88a",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF051\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/binding-type\" = \"fragments/binding-type.ryoql\", \"python/ruff/checker-type-scope-events\" = \"fragments/checker-type-scope-events.ryoql\", \"python/ruff/deferred-type-reads\" = \"fragments/deferred-type-reads.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/in-comparison\" = \"fragments/in-comparison.ryoql\", \"python/ruff/lookup-symbol-events\" = \"fragments/lookup-symbol-events.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/type-definition-context\" = \"fragments/type-definition-context.ryoql\", \"python/ruff/type-match-at-check\" = \"fragments/type-match-at-check.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"RUF051\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "833a34e07f713a42e18c5a4b1f593f8e87a8f2776cb9990fd7b1017ba8bb4458",
+        "historical-source-raw": "833a34e07f713a42e18c5a4b1f593f8e87a8f2776cb9990fd7b1017ba8bb4458",
+        "historical-normal-stage": "833a34e07f713a42e18c5a4b1f593f8e87a8f2776cb9990fd7b1017ba8bb4458"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "RUF200",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF200/benchmark.toml",
+      "old_matches": {
+        "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"RUF200\"]\nparser-configuration = \"python-target=3.10\"\nsource-language = \"python\"\nproject-context-mode = \"listed-disk\"\nrule-applicability = { \"RUF200\" = \"always\" }\n",
+      "variants": {
+        "source-raw": "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05",
+        "historical-source-raw": "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05",
+        "historical-normal-stage": "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "SIM113",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM113/benchmark.toml",
+      "old_matches": {
+        "872466a780757e3aa70395159a0c10a93e1d106cf8036c91743f6288e5c6172e": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "9558014fdc581c04edf1e9c0feaa1ca0f58335513a21b3b55a625a997e725344",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"SIM113\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/assigned-values\" = \"fragments/assigned-values.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"SIM113\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "b78791c07d3f89893cb69f30949214c34be44094db33ad7371a8efcea312149c",
+        "historical-source-raw": "b1dd08d5e846b8bdf5eefcc4298c17c379bdbe4bd5b83f0cefd3f55850aa37b4",
+        "historical-normal-stage": "872466a780757e3aa70395159a0c10a93e1d106cf8036c91743f6288e5c6172e"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "TC004",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/TC004/benchmark.toml",
+      "old_matches": {
+        "c36febabeaf195c6b2019c9dfc5e763e65d7f10a3db9bc528b8899fc1a655a4a": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "fd57ec3de71474cf6dfd4889d9a3aa44462e0236120250c9f6b8731f9ca8cb3f",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"TC004\"]\nparser-configuration = \"python-target=3.12\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"TC004\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "c36febabeaf195c6b2019c9dfc5e763e65d7f10a3db9bc528b8899fc1a655a4a",
+        "historical-source-raw": "c36febabeaf195c6b2019c9dfc5e763e65d7f10a3db9bc528b8899fc1a655a4a",
+        "historical-normal-stage": "c36febabeaf195c6b2019c9dfc5e763e65d7f10a3db9bc528b8899fc1a655a4a"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "TC005",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/TC005/benchmark.toml",
+      "old_matches": {
+        "d69d9a861c55d9d0949719aa57e9e147c96a276620e2c12b4d7f25bf549a43f6": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "96fc814db6c39b9f9981109b646b7714638959b387bef5fefa644fa143690a80",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"TC005\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"TC005\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "9a44ebafb91e89481397affd51f2714c26d003205200ad23a2e67cd2eea706cc",
+        "historical-source-raw": "e40bd89c190d563199a909b494a7307b7c03db11e16f4598346050e594c3a9ae",
+        "historical-normal-stage": "d69d9a861c55d9d0949719aa57e9e147c96a276620e2c12b4d7f25bf549a43f6"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "TC007",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/TC007/benchmark.toml",
+      "old_matches": {
+        "296dbb30fdd28269909c75195be64510a44fc42c2e6dd39bf1887cbf5f19e3fd": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "97f979d2843466a135f46c2e3f19e06f939b34d7674b350a9f3beeb565363a67",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"TC007\"]\nparser-configuration = \"python-target=3.12\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"TC007\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "296dbb30fdd28269909c75195be64510a44fc42c2e6dd39bf1887cbf5f19e3fd",
+        "historical-source-raw": "296dbb30fdd28269909c75195be64510a44fc42c2e6dd39bf1887cbf5f19e3fd",
+        "historical-normal-stage": "296dbb30fdd28269909c75195be64510a44fc42c2e6dd39bf1887cbf5f19e3fd"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP007",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP007/benchmark.toml",
+      "old_matches": {
+        "3e2fe6e00a1fc7fbbb5bf5c552102161e4359f22d63783320ecd7df95deb46af": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "f07bdd09d7306eea90c5c83ec48f57f3d92e06600ee22f4b04f025b88a6589fb",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP007\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/pep604-candidates\" = \"fragments/pep604-candidates.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"UP007\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "eb06b26c9e1120524bfd37daf493c51eeb64ca2d849c3cd1845d30c8452b48a9",
+        "historical-source-raw": "06e1be71f0c425b93258fe2f1d874bae0e39f6b90a74249e9c0b7ddbc31a2e95",
+        "historical-normal-stage": "3e2fe6e00a1fc7fbbb5bf5c552102161e4359f22d63783320ecd7df95deb46af"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP008",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP008/benchmark.toml",
+      "old_matches": {
+        "2145a85c459a7ceb16db4de5e601f20980742cce6ae2dcfa2bece794e240944d": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP008\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/type-match-at-check\" = \"fragments/type-match-at-check.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"UP008\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "2145a85c459a7ceb16db4de5e601f20980742cce6ae2dcfa2bece794e240944d",
+        "historical-source-raw": "2145a85c459a7ceb16db4de5e601f20980742cce6ae2dcfa2bece794e240944d",
+        "historical-normal-stage": "2145a85c459a7ceb16db4de5e601f20980742cce6ae2dcfa2bece794e240944d"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP012",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP012/benchmark.toml",
+      "old_matches": {
+        "b450e5a1665116e500a0514333cf67e3da7ca57acf4a4533d4b158290e05213c": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "0b2b162c58b7281c0632266cdffdef7d542febca76549820817eb012ad2caba2",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP012\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"UP012\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "e756021fb8603012902da4adf3900486cbc6acc91fe1c2c2640288bfd53b96f4",
+        "historical-source-raw": "361feffd637ab8a4417741515157a530ce3c10155c112eb1e0f4b021e66577f1",
+        "historical-normal-stage": "b450e5a1665116e500a0514333cf67e3da7ca57acf4a4533d4b158290e05213c"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP031",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP031/benchmark.toml",
+      "old_matches": {
+        "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "26b273ef64f63ef1b9ab7d4215d8f1a90e43f100eb240d3ebff5daee896eeffa",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP031\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"UP031\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e",
+        "historical-source-raw": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e",
+        "historical-normal-stage": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP036",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP036/benchmark.toml",
+      "old_matches": {
+        "7f50bdc113dd22eaa11245a5d6c1f72b2edca44e974666a5bb1b86ca85499e2e": [
+          "source-raw",
+          "historical-source-raw",
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "072f060d98125da47037643136217e9ea0f60874ef8f85f60795ee7335f6d8ed",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP036\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\", \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\" }\nrule-applicability = { \"UP036\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "7f50bdc113dd22eaa11245a5d6c1f72b2edca44e974666a5bb1b86ca85499e2e",
+        "historical-source-raw": "7f50bdc113dd22eaa11245a5d6c1f72b2edca44e974666a5bb1b86ca85499e2e",
+        "historical-normal-stage": "7f50bdc113dd22eaa11245a5d6c1f72b2edca44e974666a5bb1b86ca85499e2e"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP045",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP045/benchmark.toml",
+      "old_matches": {
+        "845946ce1982b4c940a51a9296fb2f1dc0ce7cac02cd6db74fcd1c859a651e3c": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "a6a2d2ef51d5a8eb510c1a325d5b4fedd81ba324554528c17dc386f89848286e",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP045\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/annotation-evaluation-context\" = \"fragments/annotation-evaluation-context.ryoql\", \"python/ruff/future-annotation-context\" = \"fragments/future-annotation-context.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/pep604-candidates\" = \"fragments/pep604-candidates.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"UP045\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "86c76a03fd5e7776e65966172b8c7d3631a30a1f28283fbbdc04f83638a36657",
+        "historical-source-raw": "c845cb1f8b64776ff8d41e53962438b4852c137a2979c15d3a92fdf97b4956e7",
+        "historical-normal-stage": "845946ce1982b4c940a51a9296fb2f1dc0ce7cac02cd6db74fcd1c859a651e3c"
+      },
+      "status": "proven"
+    },
+    {
+      "rule": "UP050",
+      "source_profile": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP050/benchmark.toml",
+      "old_matches": {
+        "2f5051764126d5468fa8d2fdf9adf04ce3adfeffa8c06b7504e5cd54289882ce": [
+          "historical-normal-stage"
+        ]
+      },
+      "new_sha256": "da2e353ccf25bd9ec67aa84e325385e90fa03187b2f12558de755cc7cb004026",
+      "new_profile": "tool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\", \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\", \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\", \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\", \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\"]\ndefaults = [\"UP050\"]\nparser-configuration = \"python-target=3.10\"\nquery-modules = { \"python/ruff/noqa-line-map\" = \"fragments/noqa-line-map.ryoql\", \"python/ruff/noqa-locations\" = \"fragments/noqa-locations.ryoql\", \"python/ruff/noqa-additional-locations\" = \"fragments/noqa-additional-locations.ryoql\", \"python/ruff/suppression-edges\" = \"fragments/suppression-edges.ryoql\", \"python/ruff/modernization-symbols\" = \"fragments/modernization-symbols.ryoql\", \"python/ruff/suppress\" = \"fragments/suppress.ryoql\", \"python/ruff/suppress-directives\" = \"fragments/suppress-directives.ryoql\", \"python/ruff/suppress-matches\" = \"fragments/suppress-matches.ryoql\" }\nrule-applicability = { \"UP050\" = \"accepted-syntax\" }\n",
+      "variants": {
+        "source-raw": "a63ebfec88fb485ac80d506bb58bd64e946924b4cb12012aeae79447e6219334",
+        "historical-source-raw": "fd7766959c6152a88ca7cb98eef0730eb698bb5e5106c6e4be76db622f10045d",
+        "historical-normal-stage": "2f5051764126d5468fa8d2fdf9adf04ce3adfeffa8c06b7504e5cd54289882ce"
+      },
+      "status": "proven"
+    }
+  ]
+}

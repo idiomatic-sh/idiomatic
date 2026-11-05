@@ -1,0 +1,191 @@
+{
+  "baseline": {
+    "receipt": {
+      "worker_sha256": "10c69096c33482ef165ec381d8d0830b1e7388faac8b52c4f2777820dc092c17",
+      "request_sha256": "9c67adfcb244dd73c120df84db2d4d4112c9a36ab9d3911e37476ab157790e06",
+      "exit_code": 0,
+      "capped": false,
+      "wall_seconds_diagnostic": 5.413062084000558,
+      "events_bytes": 344856410,
+      "measurement": false
+    },
+    "raw_events_sha256": "2f54bf9e3141471fdd27d071d56388356b5bea596f5141c20b1785558aecdee5",
+    "file_program_extract_sha256": "b065c9e0be69748155c43694e18686774fcae439928fb6fcd3f56254ceee165d",
+    "plc0206_plan_extract_sha256": "c300cb07e413f81342a1a3e7121677f6b8dabc76b3849f253b2f65d45426eb32",
+    "file_program_events": {
+      "native_tree_admission": 1,
+      "complete_relations": 1,
+      "dag_node": 5780,
+      "dag_file": 1
+    },
+    "unique_dag_nodes": 4160,
+    "top_node_executions": [
+      [
+        933,
+        110
+      ],
+      [
+        705,
+        104
+      ],
+      [
+        1913,
+        98
+      ],
+      [
+        634,
+        25
+      ],
+      [
+        145,
+        24
+      ],
+      [
+        148,
+        21
+      ],
+      [
+        146,
+        19
+      ],
+      [
+        788,
+        19
+      ]
+    ],
+    "top_dag_event_rules": [
+      [
+        null,
+        5780
+      ]
+    ],
+    "plc0206_plan_records": 906,
+    "last_dag_node": {
+      "timestamp": "2026-11-02T19:09:36.181119Z",
+      "node": 5453,
+      "executions": 1,
+      "cells": 0,
+      "span": {
+        "invocation_id": 50298,
+        "nested": false,
+        "operation": "project",
+        "operation_details": "Some(Project { from: Step(StepId(6)), columns: [ColumnIndex(0), ColumnIndex(5), ColumnIndex(6)], distinct: Dropped })",
+        "parent_invocation_id": "None",
+        "parent_step_index": 7,
+        "plan_identity": 187651237044896,
+        "step_index": 7,
+        "name": "rule_step"
+      }
+    }
+  },
+  "candidate": {
+    "receipt": {
+      "worker_sha256": "28a3e2cd296bc0ae523797203cb32d15ce155b340d640b72d712a2faf80ac2a6",
+      "request_sha256": "fae938064f7031289972b78b1631b4e88e839765c725b0ce14ed17ff6fb5592c",
+      "exit_code": -15,
+      "capped": true,
+      "wall_seconds_diagnostic": 60.029653428999154,
+      "events_bytes": 104129969,
+      "measurement": false
+    },
+    "raw_events_sha256": "80cb7044d4ad74a923b53697eaea69fb1264f0d7ba0be5f87e8b3f43d4ac6a47",
+    "file_program_extract_sha256": "7df36cda5b0db3590ef74fd67910611c30f1eca21e17fcbb9b94ef01754ac871",
+    "plc0206_plan_extract_sha256": "25195d994eea83e57d4e334162b2f65281d0e0cf6e0526580c5e6bff86f7a791",
+    "file_program_events": {
+      "native_tree_admission": 1,
+      "complete_relations": 1,
+      "dag_node": 68175
+    },
+    "unique_dag_nodes": 5456,
+    "top_node_executions": [
+      [
+        26506,
+        11970
+      ],
+      [
+        36622,
+        2838
+      ],
+      [
+        36623,
+        2838
+      ],
+      [
+        36621,
+        2837
+      ],
+      [
+        36625,
+        2648
+      ],
+      [
+        36626,
+        2648
+      ],
+      [
+        36627,
+        2648
+      ],
+      [
+        36630,
+        2459
+      ]
+    ],
+    "top_dag_event_rules": [
+      [
+        "PLC0206",
+        61342
+      ],
+      [
+        "F811",
+        619
+      ],
+      [
+        "FURB168",
+        337
+      ],
+      [
+        "B020",
+        230
+      ],
+      [
+        "F823",
+        211
+      ],
+      [
+        "F841",
+        177
+      ],
+      [
+        "F507",
+        175
+      ],
+      [
+        "B023",
+        155
+      ]
+    ],
+    "plc0206_plan_records": 906,
+    "last_dag_node": {
+      "timestamp": "2026-11-02T19:10:36.317932Z",
+      "node": 26506,
+      "executions": 11970,
+      "cells": 91053,
+      "span": {
+        "file": "django/contrib/admin/options.py",
+        "rule": "PLC0206",
+        "name": "rule_file"
+      }
+    },
+    "node_26506": {
+      "executions": 11970,
+      "total_emitted_cells": 1089904410,
+      "distinct_cells_per_execution": [
+        91053
+      ]
+    }
+  },
+  "schema": "all24-options-diagnostic/v1",
+  "measurement": false,
+  "archive_sha256": "1a92b781cef50e92a16527167552e6db7e51e9d6cd57febf11455a7076c8164f"
+}

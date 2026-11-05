@@ -1,0 +1,197 @@
+[[cases]]
+name = "unused-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 13, "end" = 14 }]
+
+[[cases]]
+name = "used-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "unused-async-with-target"
+comparison = "full"
+files = { "case.py" = "async def f(cm):\n    async with cm as unused:\n        pass\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 38, "end" = 44 }]
+
+[[cases]]
+name = "unused-sync-with-target-control"
+comparison = "full"
+files = { "case.py" = "def f(cm):\n    with cm as unused:\n        pass\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 26, "end" = 32 }]
+
+[[cases]]
+name = "module-assignment"
+comparison = "full"
+files = { "case.py" = "x = 1\n" }
+expected = []
+
+[[cases]]
+name = "class-assignment"
+comparison = "full"
+files = { "case.py" = "class C:\n    x = 1\n" }
+expected = []
+
+[[cases]]
+name = "dummy-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    _unused = 1\n" }
+expected = []
+
+[[cases]]
+name = "literal-unpacking-targets"
+comparison = "full"
+files = { "case.py" = "def f():\n    x, y = (1, 2)\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 13, "end" = 14 }, { "rule" = "F841", "file" = "case.py", "start" = 16, "end" = 17 }]
+
+[[cases]]
+name = "closure-use"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    return lambda: x\n" }
+expected = []
+
+[[cases]]
+name = "deferred-closure-later-assignment"
+comparison = "full"
+files = { "case.py" = "def f():\n    g = lambda: x\n    x = 1\n    return g\n" }
+expected = []
+
+[[cases]]
+name = "deleted-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    del x\n" }
+expected = []
+
+[[cases]]
+name = "normalized-local-use"
+comparison = "full"
+files = { "case.py" = "def f():\n    ｘ = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "side-effectful-unused-assignment"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = effect()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 23 }, { "rule" = "F841", "file" = "case.py", "start" = 13, "end" = 14 }]
+
+[[cases]]
+name = "noqa-unused-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1  # noqa: F841\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-unpacked-targets"
+comparison = "full"
+files = { "case.py" = "def f(values):\n    x, y = values\n" }
+expected = [{ "rule" = "RUF059", "file" = "case.py", "start" = 19, "end" = 20 }, { "rule" = "RUF059", "file" = "case.py", "start" = 22, "end" = 23 }]
+
+[[cases]]
+name = "shadowed-locals-name-still-suppresses-function"
+comparison = "full"
+files = { "case.py" = "def f(locals):\n    x = 1\n    locals()\n" }
+expected = []
+
+[[cases]]
+name = "lambda-locals-call-does-not-suppress"
+comparison = "full"
+files = { "case.py" = "f = lambda: ((x := 1), locals())\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 14, "end" = 15 }]
+
+[[cases]]
+name = "unused-module-exception-name"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 13 }, { "rule" = "F841", "file" = "case.py", "start" = 36, "end" = 41 }, { "rule" = "S110", "file" = "case.py", "start" = 16, "end" = 51 }]
+
+[[cases]]
+name = "with-list-targets-are-not-tuple-unpacking"
+comparison = "full"
+files = { "case.py" = "def f():\n    with manager as [x, y]:\n        pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 25 }, { "rule" = "F841", "file" = "case.py", "start" = 30, "end" = 31 }, { "rule" = "F841", "file" = "case.py", "start" = 33, "end" = 34 }]
+
+[[cases]]
+name = "previous-read-is-inherited-on-replacement"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    print(x)\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "delete-breaks-inherited-reference-chain"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    print(x)\n    del x\n    x = 2\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 46, "end" = 47 }]
+
+[[cases]]
+name = "later-annotation-does-not-replace-value"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    x: int\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 13, "end" = 14 }]
+
+[[cases]]
+name = "file-flake8-noqa-unused-local"
+comparison = "full"
+files = { "case.py" = "# flake8: noqa\ndef f():\n    value = 1\n" }
+expected = []
+
+[[cases]]
+name = "unused-lambda-vararg-is-not-a-local-assignment"
+comparison = "full"
+files = { "case.py" = "factory = lambda *values: []\n" }
+expected = []
+
+[[cases]]
+name = "deferred-string-annotation-does-not-use-later-local"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    y: \"x\"\n    x = 2\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 30, "end" = 31 }, { "rule" = "F842", "file" = "case.py", "start" = 19, "end" = 20 }]
+
+[[cases]]
+name = "unused-async-local"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 19, "end" = 20 }]
+
+[[cases]]
+name = "unused-callback-in-async-function"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    callback = lambda: os.wait()\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 29, "end" = 37 }]
+
+[[cases]]
+name = "unused-callback-in-sync-function"
+comparison = "full"
+files = { "case.py" = "import os\ndef f():\n    callback = lambda: os.wait()\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 23, "end" = 31 }]
+
+[[cases]]
+name = "locals-call-suppresses-async-local"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x = 1\n    locals()\n" }
+expected = []
+
+[[cases]]
+name = "locals-call-suppresses-sync-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    locals()\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-declaration-uses-enclosing-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value = 1\n    def inner():\n        nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-through-class-uses-enclosing-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value = 1\n    class C:\n        def inner():\n            nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nearest-nonlocal-binding-only"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value = 1\n    def middle():\n        value = 2\n        def inner():\n            nonlocal value\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 17, "end" = 22 }]

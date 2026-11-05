@@ -1,0 +1,59 @@
+[[cases]]
+name = "getenv-integer"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", 0)\n" }
+expected = [{ "rule" = "PLW1508", "file" = "case.py", "start" = 27, "end" = 28 }]
+
+[[cases]]
+name = "getenv-bool"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", default=False)\n" }
+expected = [{ "rule" = "PLW1508", "file" = "case.py", "start" = 35, "end" = 40 }]
+
+[[cases]]
+name = "getenv-bytes"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", b\"x\")\n" }
+expected = [{ "rule" = "PLW1508", "file" = "case.py", "start" = 27, "end" = 31 }]
+
+[[cases]]
+name = "getenv-string-valid"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", \"fallback\")\n" }
+expected = []
+
+[[cases]]
+name = "getenv-none-valid"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", None)\n" }
+expected = []
+
+[[cases]]
+name = "getenv-container"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", [])\n" }
+expected = [{ "rule" = "PLW1508", "file" = "case.py", "start" = 27, "end" = 29 }]
+
+[[cases]]
+name = "getenv-dynamic-unknown"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", compute())\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 34 }]
+
+[[cases]]
+name = "environ-get-integer"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"KEY\", 1)\n" }
+expected = [{ "rule" = "PLW1508", "file" = "case.py", "start" = 32, "end" = 33 }]
+
+[[cases]]
+name = "positional-default"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", 1, 2)\n" }
+expected = [{ "rule" = "PLW1508", "file" = "case.py", "start" = 27, "end" = 28 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\", 1)  # noqa: PLW1508\n" }
+expected = []

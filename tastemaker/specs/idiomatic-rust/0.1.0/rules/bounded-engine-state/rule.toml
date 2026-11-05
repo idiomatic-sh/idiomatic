@@ -1,5 +1,5 @@
-description = "A use case or an adapter holds no interior-mutable state but a named cache whose bound is a constant, and a test of its hex names both the cache and the constant: a `Mutex`, `RwLock`, `RefCell` or `Cell` in the struct of a use case or an adapter, or in a type of its `types.rs` the struct holds, is in a type with a `const` of the same name in the hex's `constants.rs`, and a test of the hex names that type and that constant. An atomic (a counter) is not such state, and neither is a `OnceCell`, `OnceLock`, `LazyCell` or `LazyLock` (a set-once cell) that holds nothing from a crate the package depends on: nothing grows with the calls that use them. A set-once cell that holds a type from a dependency is reported at the cell, because what that type keeps inside cannot be read."
-why = "A use case or an adapter is built once and called again and again: a program that lints many projects keeps one, and calls on it run one after another and side by side. Whatever it keeps from one call is still there at the next, so a bare `Mutex<HashMap<..>>` on it grows with every new key and lets one call's state reach another's answer (the compiled-plan map that concurrent lint calls evicted from each other). State kept across calls is a cache named for what it keeps (`CompiledPlans`), its size bounded by the constant of that name (`COMPILED_PLANS` in the hex's `constants.rs`), and a test of the hex (a `*_test.rs` beside it) names the cache and the constant, so the bound is proved by a test that exercises the cache and not only reads its number. A counter holds one number and a set-once cell is written once, so neither grows with calls; a lock inside a set-once cell is still a lock the rule reads, and a type from a dependency inside one is a type whose own state this rule cannot see, so the cell is reported until the one place that proves the bound says so. Found from the structs of a `use_case.rs` whose name ends in `UseCaseImpl` and of an `adapter.rs` whose name ends in `Adapter`, and the structs of the hex's `types.rs` they name."
+description = "Retained interior-mutable state in a use case, adapter or application operation requires an owning named cache, bound constant and colocated test reference. This is structural evidence, not proof that a cap is enforced."
+why = "Operations can live across invocations, workers or sessions. Retained state needs an explicit owner and lifetime; an invocation-local lock is not retained state. Roots are use-case implementations, adapters and every struct in application/<operation>/service.rs, including FileAnalysis and CrossFile rather than only names ending in Service. Follow their own types.rs transitively. Named cache/constant/test references provide structural evidence only: executed cap, error and concurrency tests remain required, and naming alone does not prove memory safety, a numerical bound or speed. Atomic counters and owned set-once cells retain their existing exemptions; opaque foreign state in a set-once cell remains reported."
 
 query = '''
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
@@ -8,7 +8,10 @@ let structs = select d."id" as "id", d."name" as "name", d."file" as "file", d."
 let placed = capture(from=structs, path="file", pattern="{*dir}/{base}.rs", captures=["dir", "base"]);
 let use-cases = select u."id" as "id", u."name" as "name", u."file" as "file", u."span" as "span", u."dir" as "dir", u."base" as "base" from placed as u where u."base" = "use_case" and ends_with(u."name", "UseCaseImpl");
 let adapters = select a."id" as "id", a."name" as "name", a."file" as "file", a."span" as "span", a."dir" as "dir", a."base" as "base" from placed as a where a."base" = "adapter" and ends_with(a."name", "Adapter");
-let engines = union(left=use-cases, right=adapters);
+let service-placed = capture(from=placed, path="file", pattern="{*root}/application/{operation}/service.rs", captures=["root", "operation"]);
+let services = select s."id" as "id", s."name" as "name", s."file" as "file", s."span" as "span", s."dir" as "dir", s."base" as "base" from service-placed as s;
+let edge-engines = union(left=use-cases, right=adapters);
+let engines = union(left=edge-engines, right=services);
 let kept-types = select * from placed where base = "types";
 let engine-nodes = select e."id" as "id", e."name" as "name", e."dir" as "dir" from engines as e;
 let type-nodes = select k."id" as "id", k."name" as "name", k."dir" as "dir" from kept-types as k;
@@ -56,11 +59,11 @@ emit found subject "file" key("span");
 
 [diagnostic]
 primary = "span"
-message = "a use case or an adapter holds this interior-mutable state outside a bounded cache a test proves"
-help = "Keep per-call state in a local of the call. State kept across calls goes in a type named for what it keeps, in the hex's `types.rs`, bounded by a constant of the same name in its `constants.rs` (`CompiledPlans` and `COMPILED_PLANS`), and a test of the hex names the cache and the constant."
+message = "this operation retains interior-mutable state without an owning named cache, bound and colocated test reference"
+help = "Keep per-call state in a local of the call. State kept across calls goes in a type named for what it keeps, in the hex's `types.rs`, bounded by a constant of the same name in its `constants.rs` (`CompiledPlans` and `COMPILED_PLANS`), and a colocated test names the cache and the constant. These names are structural evidence only; execute cap, error and concurrency tests to prove the bound."
 
 [given]
-include = ['**/src/inbound/use_cases/*/*.rs', '**/src/outbound/*/adapters/*/*.rs']
+include = ['**/src/inbound/use_cases/*/*.rs', '**/src/outbound/*/adapters/*/*.rs', '**/src/application/*/*.rs']
 files.'Cargo.toml' = '''
 [package]
 name = "fixture"
@@ -475,4 +478,47 @@ fn the_slot_holds_one_set() {
     let slot = super::types::Unwritten::default();
     assert!(usize::from(slot.0.lock().unwrap().is_some()) <= super::constants::UNWRITTEN);
 }
+'''
+
+
+[[scenarios]]
+id = 'application-operation-without-service-suffix-retains-a-bare-map'
+scenario = 'All structs in an application service are checked, without requiring a Service suffix.'
+given.files.'src/application/rules/service.rs' = '''
+pub struct RuleCompilation { plans: std::sync::Mutex<Vec<u64>> }
+'''
+then.findings = [{ path = 'src/application/rules/service.rs', line = 1 }]
+
+[[scenarios]]
+id = 'application-operation-owned-cache-has-structural-evidence'
+scenario = 'The owning operation names its cache, bound and test; this does not itself prove runtime enforcement.'
+given.files.'src/application/rules/service.rs' = '''
+pub struct RuleCompilation { plans: super::types::CompiledPlans }
+'''
+given.files.'src/application/rules/types.rs' = '''
+pub struct CompiledPlans(pub std::sync::Mutex<Vec<u64>>);
+'''
+given.files.'src/application/rules/constants.rs' = 'pub const COMPILED_PLANS: usize = 16;'
+given.files.'src/application/rules/service_test.rs' = '''
+use super::types::CompiledPlans;
+use super::constants::COMPILED_PLANS;
+#[test] fn names_the_owned_bound() { let _ = COMPILED_PLANS; let _ = std::mem::size_of::<CompiledPlans>(); }
+'''
+
+[[scenarios]]
+id = 'application-operation-transitive-owned-state-is-checked'
+scenario = 'A lock hidden behind multiple owning types remains retained state.'
+given.files.'src/application/rules/service.rs' = 'pub struct RuleCompilation { kept: super::types::Kept }'
+given.files.'src/application/rules/types.rs' = '''
+pub struct Kept { inner: Inner }
+pub struct Inner { values: std::sync::Mutex<Vec<u64>> }
+'''
+then.findings = [{ path = 'src/application/rules/types.rs', line = 2 }]
+
+[[scenarios]]
+id = 'application-operation-invocation-local-lock-is-not-retained'
+scenario = 'A local of a method is not state held by the operation across calls.'
+given.files.'src/application/rules/service.rs' = '''
+pub struct RuleCompilation;
+impl RuleCompilation { pub fn run(&self) { let scratch = std::sync::Mutex::new(Vec::<u64>::new()); drop(scratch); } }
 '''

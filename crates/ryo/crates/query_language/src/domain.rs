@@ -8,6 +8,7 @@ pub(crate) mod fusing;
 pub(crate) mod idioms;
 pub(crate) mod inlining;
 pub(crate) mod joining;
+pub(crate) mod linking;
 pub(crate) mod lowering;
 pub(crate) mod planning;
 pub(crate) mod pruning;
@@ -20,3 +21,7 @@ pub(crate) mod syntax;
 pub(crate) mod traversing;
 pub(crate) mod validation;
 pub(crate) mod walking;
+
+pub(crate) mod substituting;
+
+pub(crate) mod observation_inputs;

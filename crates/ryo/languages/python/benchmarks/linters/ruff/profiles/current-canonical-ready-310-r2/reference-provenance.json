@@ -1,0 +1,63 @@
+{
+  "schema": "reused-reference-provenance/v1",
+  "prior_oracle_sha256": "3069d8e92d20db6becf02e224eeeb8f01fc9fe30aead1e459f21e583c602f9c9",
+  "prior_reference_cases_sha256": "2b59c5818a9b5c20b6e22f2ae88462a0e00e87bc40e48d4de5d6043514d05f5d",
+  "prior_reference_run_sha256": "c5a0be4525a60237770a17363bff2ba57d9810406854164d52010c0d956a4271",
+  "reused_case_count": 6542,
+  "new_case_count": 11,
+  "new_cases": [
+    {
+      "rule": "F841",
+      "case": "crossrule-ASYNC100-yield-nested-def-checkpoint"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-0-False"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-0-True"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-1-False"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-1-True"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-2-False"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-2-True"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-3-False"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-3-True"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-4-False"
+    },
+    {
+      "rule": "F841",
+      "case": "root-statement-with-4-True"
+    }
+  ],
+  "identity_checks": [
+    "exact prior source/settings/expected case objects",
+    "pinned Ruff executable SHA256",
+    "target py310",
+    "identical ordered selection of 310 rules",
+    "per-case source SHA256",
+    "raw reference records unchanged"
+  ],
+  "candidate_query_changes_require_no_reference_invocation": true
+}

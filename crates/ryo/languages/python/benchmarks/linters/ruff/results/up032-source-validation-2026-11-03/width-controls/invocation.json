@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--select",
+    "UP032",
+    "--target-version",
+    "py310",
+    "--output-format",
+    "json",
+    "/tmp/up032-fable-width-falsifier-20261103/case.py"
+  ],
+  "exit_code": 1,
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "source_sha256": "c39ad7aec03f530ad443309ed81384ca4fadd9678b52cfe8a0198722e96cc410"
+}

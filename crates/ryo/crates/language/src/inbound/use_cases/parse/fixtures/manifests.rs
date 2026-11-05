@@ -9,13 +9,13 @@ use super::findings::{Findings, folders_in};
 use super::rows::{Read, compare, rows_of_relation};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::service::{all, folder_of, provenance_of};
-use crate::domain::relations::types::Provenance;
-use crate::domain::relations::types::{Bytes, FileId};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 use crate::inbound::use_cases::project::types::ProjectEngine;
+use ryo_relations::domain::relations::service::{all, folder_of, provenance_of};
+use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::types::{Bytes, FileId};
 
 use crate::domain::files::types::FilePath;
 use crate::inbound::use_cases::project::types::{
@@ -131,6 +131,9 @@ pub(super) fn manifest_rows(
             .collect();
         let notes = notes_of(parse, &root, &files);
         let request = ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Default::default(),
             repository: crate::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
             manifests,

@@ -1,14 +1,15 @@
 //! The types of the `program` concept: the shape of RyoQL text once it is read. Plain data, public
 //! fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
+use std::collections::BTreeMap;
 
 /// A place in the query text, counted in bytes from its start.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ByteOffset(pub usize);
 
 /// A stretch of the query text, in bytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QuerySpan {
     /// Where it starts.
     pub start: ByteOffset,
@@ -20,6 +21,28 @@ pub struct QuerySpan {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QueryView<'a>(pub &'a str);
 
+/// Stable logical identity of one source in a query bundle.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QuerySourceId(pub Box<str>);
+
+/// One exact source in a query bundle, with its logical identity retained for diagnostics.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryDocumentSource {
+    /// The stable logical identity used by imports and diagnostics.
+    pub id: QuerySourceId,
+    /// Exact immutable UTF-8 bytes, shared by snapshots without copying source text.
+    pub text: std::sync::Arc<str>,
+}
+
+/// The in-memory root and immutable named module sources for one query.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryBundle {
+    /// The entry document compiled for this query.
+    pub root: QueryDocumentSource,
+    /// Explicitly registered immutable modules, shared by root queries and cache snapshots.
+    pub modules: std::sync::Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
+}
+
 /// The name of a parameter, as the query writes it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct WrittenParameter(pub Box<str>);
@@ -28,9 +51,13 @@ pub struct WrittenParameter(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeName(pub Box<str>);
 
-/// The name a `let` gives a step, or a step is read under.
+/// A stable identity for one step definition within a linked query bundle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StepIdentity(pub u64);
+
+/// The name a `let` gives a step, or a step is read under; identity is separate from spelling.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct StepName(pub Box<str>);
+pub struct StepName(pub Box<str>, pub Option<StepIdentity>);
 
 /// The name of a column, as the query writes it or keeps it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -76,12 +103,157 @@ pub struct QuerySpelling<'a>(pub &'a str);
 /// A whole query: its parameters, its steps and the one `emit`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Program {
+    /// Whether source-local identities and imports have been linked for a complete query bundle.
+    pub linked: bool,
+    /// The imported modules available to root-level calls.
+    pub imports: Vec<ImportDeclaration>,
+    /// Source attribution for original and linked syntax nodes.
+    pub origins: Vec<QueryOrigin>,
+    /// Typed signatures retained for every linked fragment invocation.
+    pub fragment_contracts: Vec<FragmentContract>,
+    /// Original source and call trace for each linked step definition.
+    pub step_origins: BTreeMap<StepIdentity, QueryOrigin>,
+    /// Original source for the root emit statement.
+    pub emit_origin: Option<QueryOrigin>,
     /// The `param` lines.
     pub parameters: Vec<ParameterDeclaration>,
     /// The `let` lines, in order.
     pub steps: Vec<LetStep>,
+    /// Explicit named observation roots, separate from diagnostics.
+    pub observations: Vec<WrittenObservation>,
     /// The `emit` line.
     pub emit: WrittenEmit,
+}
+
+/// A fragment invocation's typed input/output contract after hygienic linking.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContract {
+    /// The first expanded definition, before which inputs are available.
+    pub first: StepIdentity,
+    /// The returned definition, whose columns must match the declared output.
+    pub result: StepIdentity,
+    /// Inputs bound at the call site.
+    pub inputs: Vec<FragmentContractInput>,
+    /// Declared output relation shape.
+    pub output: RelationSignature,
+    /// Where the output signature is written.
+    pub output_span: QuerySpan,
+    /// Original fragment identity and import/call trace.
+    pub origin: QueryOrigin,
+}
+
+/// One input relation and the source actual bound at its call site.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContractInput {
+    /// The fragment's input name.
+    pub name: WrittenName,
+    /// The source actual passed to that input.
+    pub value: ArgumentValue,
+    /// The required relation shape.
+    pub relation: RelationSignature,
+    /// Where the input is declared.
+    pub span: QuerySpan,
+}
+
+/// Where a linked syntax node came from, including the import and call path used to reach it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryOrigin {
+    /// The source document that wrote the node.
+    pub source_id: QuerySourceId,
+    /// The original byte span in that document.
+    pub span: QuerySpan,
+    /// Import and call sites from the root to this source.
+    pub trace: Vec<QueryTraceSite>,
+}
+
+/// One source boundary crossed while linking a fragment.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryTraceSite {
+    /// The source containing this import or call.
+    pub source_id: QuerySourceId,
+    /// The imported or invoked source.
+    pub target_id: QuerySourceId,
+    /// The original byte span of the import or invocation.
+    pub span: QuerySpan,
+}
+
+/// `import suppress from "python/ruff/suppress";`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportDeclaration {
+    /// The local name of the imported module.
+    pub alias: WrittenName,
+    /// Its logical id in the immutable query bundle.
+    pub module: WrittenLiteral,
+    /// Where the import is written.
+    pub span: QuerySpan,
+}
+
+/// A relation shape written in a fragment signature.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RelationSignature {
+    /// Columns in their declared order.
+    pub columns: Vec<SignatureColumn>,
+    /// Where the `relation<...>` type is written.
+    pub span: QuerySpan,
+}
+
+/// One named column and its RyoQL cell type in a relation signature.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SignatureColumn {
+    /// The column name.
+    pub name: ColumnName,
+    /// The cell type name.
+    pub kind: TypeName,
+    /// Where the name and type are written.
+    pub span: QuerySpan,
+}
+
+/// A fragment input relation declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FragmentInput {
+    /// The name the fragment body uses as its relation source.
+    pub name: WrittenName,
+    /// The required relation shape.
+    pub relation: RelationSignature,
+    /// Where the declaration is written.
+    pub span: QuerySpan,
+}
+
+/// A reusable RyoQL fragment module, parsed without treating it as a root query.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentProgram {
+    /// Modules visible to calls from this fragment.
+    pub imports: Vec<ImportDeclaration>,
+    /// Relation-valued inputs.
+    pub inputs: Vec<FragmentInput>,
+    /// Scalar parameters.
+    pub parameters: Vec<ParameterDeclaration>,
+    /// The declared output shape.
+    pub output: RelationSignature,
+    /// Where the output declaration is written.
+    pub output_span: QuerySpan,
+    /// The fragment's local steps.
+    pub steps: Vec<LetStep>,
+    /// The step returned as the fragment result.
+    pub result: FragmentReturn,
+}
+
+/// Parsed root and module syntax before query-language linking runs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedQueryBundle {
+    /// Parsed root query.
+    pub root: Program,
+    /// Parsed module documents keyed by their bundle ids.
+    pub fragments: BTreeMap<QuerySourceId, FragmentProgram>,
+}
+
+/// The step returned by a fragment and the source location of its declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FragmentReturn {
+    /// The local result step.
+    pub step: StepName,
+    /// Where the return declaration is written.
+    pub span: QuerySpan,
 }
 
 /// `param max-lines: integer;`.
@@ -271,6 +443,15 @@ pub enum WrittenTest {
     StartsWith,
     /// `ends_with(text, suffix)`.
     EndsWith,
+    /// `matches(text, pattern)`: a regular expression searches the text.
+    Matches,
+    /// `numeric_gte(left, right)`: exact integer and binary64 numeric ordering.
+    NumericGreaterThanOrEqual,
+    /// `integer_successor(left, right)`: right is exactly left plus one; integers only.
+    IntegerSuccessor,
+    /// `natural_lt(left, right)`: case-sensitive natural text order; ASCII digit runs,
+    /// fraction-style zero prefixes, Unicode whitespace separators, no normalization.
+    NaturalLessThan,
 }
 
 /// One side of a filter.
@@ -301,6 +482,8 @@ pub enum WrittenFunction {
     Snake,
     /// `kebab(text)`.
     Kebab,
+    /// `lower(text)`: Unicode lowercase text without changing separators.
+    Lower,
 }
 
 /// `concat(pascal(pkg), "Service")`: a function and the operands it is applied to.
@@ -343,6 +526,8 @@ pub enum ArgumentValue {
     Number(Integer),
     /// A bare word: a column, a step or a keyword such as `descendant`.
     Word(WordText),
+    /// A relation input resolved to one exact step definition by the linker.
+    Step(StepName),
     /// `$name`.
     Parameter(WrittenParameter),
     /// `[a, b]`.
@@ -362,4 +547,17 @@ pub struct WrittenEmit {
     pub key: Vec<ColumnName>,
     /// Where it is written.
     pub span: QuerySpan,
+}
+
+/// An explicit top-level named-output declaration. Linking resolves its source identity once.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WrittenObservation {
+    /// The actual source step.
+    pub step: StepName,
+    /// The exported name.
+    pub name: crate::domain::observations::types::ObservationName,
+    /// The complete declaration's source range.
+    pub span: QuerySpan,
+    /// Attribution preserved through hygienic fragment expansion.
+    pub origin: Option<QueryOrigin>,
 }

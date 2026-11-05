@@ -2,7 +2,7 @@
 
 use ryo_language::domain::elements::service::notes_mut;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Relation, Value as Cell, Words, WorkerNumber,
 };
 use ryo_values::domain::descriptions::types::RelationName;
@@ -16,34 +16,35 @@ use ryo_values::domain::stored_facts::types::{
     ArenaBase, Bucket, Digest, KeptWords, LanguageNumber,
 };
 
-use super::service::{cover, finish_file, frontier_flat, made_ran, moved_words, replay, stored_of};
-use super::types::{BucketWords, Flat};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::coverage::types::{Lacking, LackingKind, Partial, RuleIndex};
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::TreeSteps;
-use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
-use crate::domain::table_words::service::{encode_table, pack};
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::types::{Needs, RelationRead};
+use crate::domain::recording::service::{
+    cover, finish_file, frontier_flat, made_ran, moved_words, replay, stored_of,
+};
+use crate::domain::recording::types::{BucketWords, Flat};
+use crate::domain::workers::types::VisitSetting;
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Lacking, LackingKind, Partial, RuleIndex,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes, ScopePlacement};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::rows::service::push_row;
+
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
-use crate::domain::workers::types::{FileOrder, Tables, VisitSetting};
-use crate::outbound::matching::fixtures::fake::MatchingFake;
-use crate::outbound::matching::interface::MatchingPort as _;
+use crate::domain::workers::types::{FileOrder, Tables};
+use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
 use ryo_values::domain::runs::types::MemoryBytes;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PartialCause;
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::WordSlice;
 
 /// What the last run kept, for a run that uses nothing of it.
 static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
 
 /// What the files of the last run handed, for a run that uses nothing of it.
-static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::StoredHanded> =
-    std::sync::LazyLock::new(ryo_values::domain::stores::types::StoredHanded::default);
+static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 
 /// No bucket of what the files handed, for a run that reads none.
 static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
@@ -79,30 +80,27 @@ fn count(number: usize) -> u64 {
 }
 
 fn tables() -> Tables {
-    tables_for(
-        WorkerNumber(2),
-        &[],
-        TreeSteps::Lowered,
-        Counting::DoesNotCount,
-    )
+    tables_for(WorkerNumber(2), &[])
 }
 
 fn placed() -> Result<PlacedScopes, Failure> {
     Ok(PlacedScopes {
         placement: ScopePlacement::default(),
-        matcher: MatchingFake.compile(&[]).map_err(drop)?,
+        matcher: matcher(&[]).map_err(drop)?,
     })
 }
 
 fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
     VisitSetting {
         unknown: &[],
-        plans: &[],
-        bindings: &[],
+        metadata: &[],
+
         wanted: &[],
         paths: &[],
         first_bucket: &[],
         ids: &[],
+        applicability: &[],
+        applicability_can_gate: true,
         placed,
         records: &[],
         replaying: crate::domain::workers::types::Replaying::Findings,
@@ -152,6 +150,7 @@ fn words_of_numbers() -> Words {
 
 fn entry() -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath("a.rs".into()),
         size: FileSize(10),
         modified: Nanoseconds(5),
@@ -177,6 +176,8 @@ fn ran() -> Ran {
 
 fn plan_with_a_frontier() -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Project {
@@ -193,6 +194,7 @@ fn plan_with_a_frontier() -> Plan {
             headings: Vec::new(),
         },
         frontier: vec![PlanInput::Step(StepId(0))],
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -208,12 +210,19 @@ fn cover_scenario(partials: Vec<Partial>, mask: Mask) -> Result<Value, Failure> 
     let mut worker = tables();
     worker.partials = partials;
     worker.mask = mask;
-    cover(&mut worker, &setting, FileId(3), &FilePath("a.rs".into()));
+    cover(
+        &mut worker,
+        &setting,
+        FileId(3),
+        &FilePath("a.rs".into()),
+        ryo_language::domain::elements::types::SyntaxAcceptance::Accepted,
+    );
     Ok(count(worker.unknowns.len()) * 10 + count(worker.covered.len()))
 }
 
 fn replay_scenario(outcome: FileOutcome) -> Value {
     let record = Record {
+        executable: Default::default(),
         path: FilePath("a.rs".into()),
         size: FileSize(1),
         modified: Nanoseconds(1),
@@ -242,7 +251,6 @@ fn finish_scenario() -> Result<Value, Failure> {
         ..setting(&placed)
     };
     let mut worker = tables();
-    worker.pool.partial = vec![partial()];
     notes_mut(&mut worker.elements).0.push(9);
     worker.language = Some(LanguageNumber(0));
     finish_file(
@@ -256,7 +264,7 @@ fn finish_scenario() -> Result<Value, Failure> {
     );
     Ok(count(worker.fresh.len()) * 100
         + count(worker.notes.len()) * 10
-        + count(worker.pool.partial.len()))
+        + count(worker.partials.len()))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -274,36 +282,59 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut worker = tables();
             worker.captured = vec![Kept {
                 bucket: Bucket(1),
+                proof: ryo_values::domain::records::types::FrontierProof {
+                    version: 1,
+                    rule: 0,
+                    input: 0,
+                    rule_digest: Digest([17; 16]),
+                    coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                },
                 words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
             }];
             let moved = moved_words(&worker, FileId(3), ArenaBase(0)).unwrap_or_default();
             Ok(count(moved.len()) * 10
                 + u64::from(
-                    moved.first().map(|each| pack(WordSlice(&each.words.0)))
+                    moved.first().map(|each| each.words.clone())
                         == Some(worker.captured[0].words.0.clone()),
                 ))
         }
         Scenario::FrontierFlat => {
             let placed = placed()?;
-            let plans = [plan_with_a_frontier()];
-            let first = [Bucket(1)];
+            let plans = [plan_with_a_frontier(), plan_with_a_frontier()];
+            let first = [Bucket(1), Bucket(9)];
             let setting = VisitSetting {
-                plans: &plans,
+                metadata: &from_plans(&plans),
                 first_bucket: &first,
                 ..setting(&placed)
             };
             let moved = [
                 BucketWords {
                     bucket: Bucket(1),
-                    words: Words(vec![5, 6]),
+                    proof: ryo_values::domain::records::types::FrontierProof {
+                        version: 1,
+                        rule: 0,
+                        input: 0,
+                        rule_digest: Digest([17; 16]),
+                        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                    },
+                    word_count: 2,
+                    words: pack(WordSlice(&[5, 6])),
                 },
                 BucketWords {
                     bucket: Bucket(9),
-                    words: Words(vec![7]),
+                    proof: ryo_values::domain::records::types::FrontierProof {
+                        version: 1,
+                        rule: 1,
+                        input: 0,
+                        rule_digest: Digest([18; 16]),
+                        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                    },
+                    word_count: 1,
+                    words: pack(WordSlice(&[7])),
                 },
             ];
             let mut flat = Flat(vec![99]);
-            frontier_flat(&moved, &setting, RuleIndex(0), &mut flat);
+            frontier_flat(&moved, None, &[], &setting, RuleIndex(0), &mut flat);
             Ok(flat.0.iter().sum())
         }
         Scenario::MadeRan => {
@@ -373,3 +404,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};
+
+use ryo_values::domain::run_metadata::service::from_plans;
+
+#[cfg(test)]
+mod coverage_test;
+#[cfg(test)]
+mod normalization_test;
+
+use super::fixtures::matcher;

@@ -1,0 +1,23 @@
+{
+  "scope": "TC004 checks imports required for runtime use whose value has only a definition in a nonexecuted type-checking block. It is not a general undefined-name or import-style checker.",
+  "discrepancies": {
+    "runtime-fallback": "An earlier class Foo is a real runtime fallback because the typing guard is False. Exact original CPython3.10 execution verifies x is Foo without importing external. Guard-only control raises NameError; local shadow and runtime fallback controls establish value availability independently. This exact import is not the only definition, contrary to the documented diagnostic precondition.",
+    "shadowed-true": "The name TYPE_CHECKING is explicitly rebound True. With the explicit import prerequisite supplied as a real external module with Foo, unchanged original execution verifies x is Foo. Reference intentionally treats the spelling as a typing guard conservatively. This is a case-specific availability false positive from that heuristic, not a general claim that conservative static policies are Python bugs."
+  },
+  "basis": [
+    {
+      "url": "https://docs.astral.sh/ruff/rules/runtime-import-in-type-checking-block/",
+      "claim": "Rule concerns runtime-required imports only defined inside nonexecuted type-checking blocks; also retained verbatim in pinned source."
+    },
+    {
+      "url": "https://docs.python.org/3.12/library/typing.html#typing.TYPE_CHECKING",
+      "claim": "The imported standard constant is False at runtime; an explicitly rebound local name is not that constant."
+    },
+    {
+      "url": "https://docs.python.org/3.12/reference/simple_stmts.html#assignment-statements",
+      "claim": "Assignment rebinds the target."
+    }
+  ],
+  "versions": "Canonical Python3.12 target; exact certified source programs use only Python3.10 syntax and execute under CPython3.10.19. Ordinary assignment and conditional import binding semantics are unchanged in3.12. Full fixture PEP695 syntax is not claimed to execute under3.10.",
+  "limits": "Only two complete exact diagnostic multisets for unchanged source programs. No unavailable candidate accounting, incomplete source or arbitrary runtime failure is waived. Import model explicitly supplies external.Foo only for independent execution; it does not alter the canonical source."
+}

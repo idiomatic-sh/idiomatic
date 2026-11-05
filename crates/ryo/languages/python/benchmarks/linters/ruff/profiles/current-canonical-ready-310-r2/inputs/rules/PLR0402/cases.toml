@@ -1,0 +1,79 @@
+[[cases]]
+name = "module-member"
+files = { "case.py" = "import os.path as path\n" }
+expected = [{ file = "case.py", start = 7, end = 22 }]
+
+[[cases]]
+name = "deep"
+files = { "case.py" = "import a.b.c as c\n" }
+expected = [{ file = "case.py", start = 7, end = 17 }]
+
+[[cases]]
+name = "different-alias"
+files = { "case.py" = "import os.path as p\n" }
+expected = []
+
+[[cases]]
+name = "no-alias"
+files = { "case.py" = "import os.path\n" }
+expected = []
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from os import path as path\n" }
+expected = []
+
+[[cases]]
+name = "multiple"
+files = { "case.py" = "import os.path as path, sys\n" }
+expected = [{ file = "case.py", start = 7, end = 22 }]
+
+[[cases]]
+name = "simple"
+files = { "case.py" = "import os as os\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import os.path as path # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "import os.path as path # noqa: PLR0402\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "import os.path as path # noqa: F401\n" }
+expected = [{ file = "case.py", start = 7, end = 22 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nimport os.path as path\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[PLR0402]\nimport os.path as path\n\n# ruff: enable[PLR0402]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[PLR0402]\n# ruff: enable[PLR0402]\nimport os.path as path\n" }
+expected = [{ file = "case.py", start = 56, end = 71 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[PLR0402]\nimport os.path as path\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nimport os.path as path\n" }
+expected = [{ file = "case.py", start = 29, end = 44 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[PLR0402]\nimport os.path as path\n" }
+expected = []

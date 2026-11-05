@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use ryo_language::domain::relations::types::{CellKind, Offset, Span};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
+use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
 use ryo_values::domain::descriptions::types::{StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery};
@@ -15,11 +15,12 @@ use super::interface::ValidateUseCase as _;
 use super::types::ValidateRequest;
 use super::use_case::ValidateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::operator::constants::describe;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::query_language::errors::QueryLanguageError;
-use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 const VALID: &str =
     "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";
@@ -308,11 +309,12 @@ fn subject((text, declared, linked, compiler): Input) -> Result<Value, Failure> 
     };
     let text: Box<str> = match text {
         Text::Written(written) => written.into(),
-        Text::ExampleOf(operator) => describe(operator).example.0,
+        Text::ExampleOf(operator) => MetadataUseCaseImpl.describe(operator).example.0,
     };
     ValidateUseCaseImpl::new(compiling, language)
         .validate(ValidateRequest {
-            text: QueryText(text),
+            observations: Vec::new(),
+            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(text)),
             hosted,
         })
         .map(|report| report.relations.len())
@@ -325,8 +327,9 @@ struct CompilesNothing;
 impl QueryLanguagePort for CompilesNothing {
     fn validate(
         &self,
-        _text: &QueryText,
+        _text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
         Ok(ValidateReport {
             relations: Vec::new(),
@@ -337,8 +340,9 @@ impl QueryLanguagePort for CompilesNothing {
 
     fn compile(
         &self,
-        _text: &QueryText,
+        _text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
         Err(QueryLanguageError::Refused {
             error: RefusedQuery {
@@ -348,6 +352,7 @@ impl QueryLanguagePort for CompilesNothing {
                     start: Offset(0),
                     end: Offset(0),
                 },
+                origin: None,
             },
         })
     }

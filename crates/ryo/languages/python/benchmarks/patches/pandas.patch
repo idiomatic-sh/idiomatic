@@ -1,0 +1,8 @@
+diff --git a/pandas/__init__.py b/pandas/__init__.py
+--- a/pandas/__init__.py
++++ b/pandas/__init__.py
+@@ -184,3 +184,3 @@
+     _built_with_meson = True
+-except ImportError:
++except:
+     from pandas._version import get_versions

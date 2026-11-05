@@ -1,0 +1,368 @@
+{
+  "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "version": "0.16.5",
+  "target": "py310",
+  "records": [
+    {
+      "name": "root-name-self-reference",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = x\n    x = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 10,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 33,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "name": "lambda-default-intermediate-nodes",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = lambda arg=x: 0\n    x = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 10,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 47,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "name": "lambda-parameter-is-not-name-expression",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = lambda x: 0\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 20,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 4\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 3\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 3,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 23,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "name": "lambda-shadowed-body-still-syntactic-self-reference",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = lambda x: x\n    x = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 10,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 43,
+          "end": 48
+        }
+      ]
+    },
+    {
+      "name": "comprehension-target-self-reference",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = [1 for x in values]\n    x = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 10,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 51,
+          "end": 56
+        }
+      ]
+    },
+    {
+      "name": "comprehension-nonself-name",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = [value for other in values]\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 36,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 4\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 3\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 3,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 23,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "name": "fstring-format-spec-self-reference",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = f\"{1:{x}}\"\n    x = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 10,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 42,
+          "end": 47
+        }
+      ]
+    },
+    {
+      "name": "fstring-literal-format-is-not-name",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = f\"{1:x}\"\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 17,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 4\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 3\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 3,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 23,
+          "end": 35
+        }
+      ]
+    },
+    {
+      "name": "breadth-order-does-not-change-existence",
+      "files": {
+        "case.py": "class C:\n    x = 1\n    x = call(deep(other(1 + x)), shallow)\n    x = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 10,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 65,
+          "end": 70
+        }
+      ]
+    },
+    {
+      "name": "unicode-multiline",
+      "files": {
+        "case.py": "class C:\n    caf\u00e9 = 1\n    caf\u00e9 = (\n        call(\n            caf\u00e9, other\n        )\n    )\n    caf\u00e9 = 2\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 13,\n      \"row\": 8\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 9\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 8\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `caf\u00e9`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 8\n    },\n    \"message\": \"Class field `caf\u00e9` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 8,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 96,
+          "end": 105
+        }
+      ]
+    },
+    {
+      "name": "annotated-no-value-root-and-self-reference",
+      "files": {
+        "case.py": "class C:\n    x: int\n    x: int = x\n    x: int\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 11,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 4\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 39,
+          "end": 45
+        }
+      ]
+    },
+    {
+      "name": "distinct-class-owners",
+      "files": {
+        "case.py": "class A:\n    x = 1\n    x = call(other)\nclass B:\n    x = 1\n    x = call(deep(x))\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PIE794",
+        "--output-format",
+        "json",
+        "/tmp/tmphwse5oh2/case.py"
+      ],
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"PIE794\",\n    \"end_location\": {\n      \"column\": 20,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/tmphwse5oh2/case.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 1,\n            \"row\": 4\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Remove duplicate field definition for `x`\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 3\n    },\n    \"message\": \"Class field `x` is defined multiple times\",\n    \"name\": \"duplicate-class-field-definition\",\n    \"noqa_row\": 3,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/duplicate-class-field-definition\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "PIE794",
+          "file": "case.py",
+          "start": 23,
+          "end": 38
+        }
+      ]
+    }
+  ],
+  "two_file_case_policy": "Disjoint rename of two already queried independent files; reference codes have no cross-file policy."
+}
