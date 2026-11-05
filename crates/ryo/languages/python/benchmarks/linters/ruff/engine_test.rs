@@ -1434,9 +1434,9 @@ fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay
     let producer = RuleId::try_from("I001").unwrap();
     let independent = RuleId::try_from("INDEPENDENT").unwrap();
     let dependent = RuleId::try_from("DEPENDENT").unwrap();
+    let modules = ryo::query::QueryModuleCatalog::try_new(modules).unwrap();
     let rule = |query: &str, observations| Rule {
-        query: ryo::query::RyoQlQuery::with_modules("test/readiness", query, modules.clone())
-            .unwrap(),
+        query: ryo::query::RyoQlQuery::with_modules("test/readiness", query, &modules).unwrap(),
         observations,
         applicability: RuleApplicability::Always,
         parameters: BTreeMap::new(),

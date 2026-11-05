@@ -100,7 +100,7 @@ fn rule() -> RuleSpec {
                 id: QuerySourceId("distinct-integration".into()),
                 text: "".into(),
             },
-            modules: BTreeMap::new(),
+            modules: Default::default(),
         },
         applicability: RuleApplicability::Always,
         given: vec![],

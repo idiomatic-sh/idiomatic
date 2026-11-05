@@ -153,10 +153,11 @@ return pairs;";
             RyoQlQuery::with_modules(
                 "test/root",
                 &root_text,
-                [
+                &crate::domain::query::types::QueryModuleCatalog::try_new([
                     crate::domain::query::types::QueryModuleSource::try_new("test/repeat", module)
                         .expect("module id is not blank"),
-                ],
+                ])
+                .expect("module identities are unique"),
             )
             .expect("fragment bundle has unique, nonblank source ids")
         }

@@ -49,7 +49,7 @@ fn rule(index: usize) -> RuleSpec {
                 id: QuerySourceId(format!("union-{index}").into()),
                 text: "".into(),
             },
-            modules: BTreeMap::new(),
+            modules: Default::default(),
         },
         applicability: RuleApplicability::Always,
         given: vec![],

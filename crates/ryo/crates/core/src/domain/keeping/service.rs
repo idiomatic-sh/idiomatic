@@ -198,7 +198,7 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
                 .unwrap_or(u64::MAX)
                 .to_le_bytes(),
         );
-        for (id, source) in &rule.query.modules {
+        for (id, source) in rule.query.modules.iter() {
             put(&mut out, DigestPart(&id.0));
             put(&mut out, DigestPart(&source.text));
         }

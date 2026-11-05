@@ -266,33 +266,91 @@ fn fails() {
 
 #[test]
 fn query_bundle_retains_module_identity_and_exact_source() {
-    use crate::domain::query::types::{QueryModuleSource, RyoQlQuery};
+    use crate::domain::query::types::{QueryModuleCatalog, QueryModuleSource, RyoQlQuery};
+    use std::sync::Arc;
 
-    let module = QueryModuleSource::try_new("python/ruff/suppress", "fragment body\n")
+    let module = QueryModuleSource::try_new("python/ruff/suppress", "fragment body\nλ🦀\n")
         .expect("module identity is nonblank");
-    let first = RyoQlQuery::with_modules("rules/F401", "root query\n", [module.clone()])
+    let modules = QueryModuleCatalog::try_new([module.clone()]).expect("unique module ids");
+    let first = RyoQlQuery::with_modules("rules/F401", "root query\n", &modules)
         .expect("bundle identities are unique");
-    let same = RyoQlQuery::with_modules("rules/F401", "root query\n", [module])
+    let same_catalog = modules.clone();
+    let same = RyoQlQuery::with_modules("rules/F401", "root query\n", &same_catalog)
         .expect("bundle identities are unique");
-    let changed_source = RyoQlQuery::with_modules(
-        "rules/F401",
-        "root query\n",
-        [
-            QueryModuleSource::try_new("python/ruff/suppress", "fragment body")
-                .expect("module identity is nonblank"),
-        ],
+    let other_root = RyoQlQuery::with_modules("rules/F822", "another root\n", &modules)
+        .expect("one immutable catalog supports different roots");
+    let changed_modules = QueryModuleCatalog::try_new([QueryModuleSource::try_new(
+        "python/ruff/suppress",
+        "fragment body",
     )
-    .expect("bundle identities are unique");
-
+    .expect("module identity is nonblank")])
+    .expect("unique module ids");
+    let changed_source = RyoQlQuery::with_modules("rules/F401", "root query\n", &changed_modules)
+        .expect("bundle identities are unique");
+    let independently_allocated = QueryModuleCatalog::try_new([QueryModuleSource::try_new(
+        "python/ruff/suppress",
+        "fragment body\nλ🦀\n",
+    )
+    .unwrap()])
+    .unwrap();
+    let same_contents =
+        RyoQlQuery::with_modules("rules/F401", "root query\n", &independently_allocated).unwrap();
+    assert_eq!(first, same_contents);
+    assert_eq!(first.cmp(&same_contents), std::cmp::Ordering::Equal);
+    let hashed = |query: &RyoQlQuery| {
+        use std::hash::{Hash, Hasher};
+        let mut digest = std::collections::hash_map::DefaultHasher::new();
+        query.hash(&mut digest);
+        digest.finish()
+    };
+    assert_eq!(hashed(&first), hashed(&same_contents));
+    let empty = QueryModuleCatalog::try_new([]).unwrap();
+    let empty_root = RyoQlQuery::with_modules("root/empty", "root query\n", &empty)
+        .unwrap()
+        .into_bundle();
+    assert!(empty_root.modules.is_empty());
+    assert_eq!(empty_root.root.id.0.as_ref(), "root/empty");
+    assert_eq!(empty_root.root.text.as_ref(), "root query\n");
     assert_eq!(first, same);
     assert_ne!(first, changed_source);
     assert_eq!(first.root_text(), "root query\n");
+    let original = first.clone().into_bundle();
+    let cloned = first.into_bundle();
+    let other_root = other_root.into_bundle();
+    drop(modules);
+    drop(same_catalog);
+    assert!(Arc::ptr_eq(&original.modules, &cloned.modules));
+    assert!(Arc::ptr_eq(&original.root.text, &cloned.root.text));
+    assert!(Arc::ptr_eq(&original.modules, &other_root.modules));
+    let id = ryo_values::domain::program::service::source_id(module.id()).unwrap();
+    assert!(Arc::ptr_eq(
+        &original.modules[&id].text,
+        &cloned.modules[&id].text
+    ));
+    assert!(std::ptr::eq(
+        module.text(),
+        original.modules[&id].text.as_ref()
+    ));
+    let mut edited = original.clone();
+    Arc::make_mut(&mut edited.modules)
+        .get_mut(&id)
+        .unwrap()
+        .text = Arc::from("edited module");
+    assert_eq!(original.modules[&id].text.as_ref(), "fragment body\nλ🦀\n");
+    assert_eq!(
+        other_root.modules[&id].text.as_ref(),
+        "fragment body\nλ🦀\n"
+    );
+    assert_ne!(original, edited);
+    assert!(!Arc::ptr_eq(&original.modules, &edited.modules));
     let _blank_module_error =
         QueryModuleSource::try_new(" \t", "body").expect_err("blank module ids must be rejected");
-    let _duplicate_id_error = RyoQlQuery::with_modules(
-        "rules/F401",
-        "root query",
-        [QueryModuleSource::try_new("rules/F401", "body").expect("module id is nonblank")],
-    )
-    .expect_err("a module cannot reuse the root source id");
+    let _duplicate_module_error = QueryModuleCatalog::try_new([module.clone(), module])
+        .expect_err("duplicate module ids are rejected before root construction");
+    let collision = QueryModuleCatalog::try_new([
+        QueryModuleSource::try_new("rules/F401", "body").expect("module id is nonblank")
+    ])
+    .expect("unique module id");
+    let _duplicate_id_error = RyoQlQuery::with_modules("rules/F401", "root query", &collision)
+        .expect_err("a module cannot reuse the root source id");
 }

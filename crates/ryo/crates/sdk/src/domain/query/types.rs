@@ -1,5 +1,8 @@
 //! The types of the `query` concept: RyoQL text, and a stretch of it.
 
+use ryo_values::domain::program::types::{QueryDocumentSource, QuerySourceId};
+use std::{collections::BTreeMap, sync::Arc};
+
 /// A place in the query text, counted in bytes from its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ByteOffset(pub usize);
@@ -17,18 +20,23 @@ pub struct QuerySpan {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QueryModuleSource {
     /// The validated logical identity used by imports in the bundle.
-    id: ryo_values::domain::program::types::QuerySourceId,
+    id: QuerySourceId,
     /// Exact module source bytes interpreted as UTF-8 text.
-    text: Box<str>,
+    text: Arc<str>,
 }
 
 impl QueryModuleSource {
     /// Construct a module value from already checked components.
-    pub(crate) const fn from_parts(
-        id: ryo_values::domain::program::types::QuerySourceId,
-        text: Box<str>,
-    ) -> Self {
+    pub(crate) const fn from_parts(id: QuerySourceId, text: Arc<str>) -> Self {
         Self { id, text }
+    }
+
+    /// Transfer already checked identity and shared bytes into the neutral catalog.
+    pub(crate) fn into_document(self) -> QueryDocumentSource {
+        QueryDocumentSource {
+            id: self.id,
+            text: self.text,
+        }
     }
 
     /// The stable logical module id.
@@ -41,6 +49,30 @@ impl QueryModuleSource {
     #[must_use]
     pub fn text(&self) -> &str {
         &self.text
+    }
+}
+
+/// One checked immutable module catalog, reusable by any number of root queries.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QueryModuleCatalog(Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>);
+
+impl QueryModuleCatalog {
+    /// Construct from documents checked at the SDK schema boundary.
+    pub(crate) const fn from_catalog(
+        catalog: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
+    ) -> Self {
+        Self(catalog)
+    }
+
+    /// Borrow the checked immutable catalog for a root's checked construction.
+    pub(crate) fn catalog(&self) -> &Arc<BTreeMap<QuerySourceId, QueryDocumentSource>> {
+        &self.0
+    }
+
+    /// Whether this catalog declares no modules.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
