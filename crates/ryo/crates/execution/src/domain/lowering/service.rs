@@ -249,11 +249,16 @@ fn axis_shape(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<
 fn shape_of(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<LoweredShape> {
     match operation {
         Operation::Select {
-            from: Input::Relation(Relation::SyntaxTree),
+            from: Input::Relation(relation @ (Relation::SyntaxTree | Relation::SyntaxChild)),
             kept,
             ..
         } => {
-            let all: Vec<LoweredColumn> = ELEMENT
+            let fields = match relation {
+                Relation::SyntaxTree => &ELEMENT,
+                Relation::SyntaxChild => &EDGE,
+                _ => unreachable!(),
+            };
+            let all: Vec<LoweredColumn> = fields
                 .iter()
                 .map(|field| LoweredColumn {
                     slot: RowPosition(0),

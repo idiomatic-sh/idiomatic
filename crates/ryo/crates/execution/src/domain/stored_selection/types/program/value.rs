@@ -46,10 +46,8 @@ impl<'a> SelectionProgram<'a> {
                 .as_deref()
                 .filter(|selector| !selector.distinct)
                 .cloned(),
-            Input::Relation(
-                ryo_relations::domain::relations::types::Relation::SyntaxTree
-                | ryo_relations::domain::relations::types::Relation::SyntaxChild,
-            ) => None,
+            // A relation name does not determine its physical representation.
+            // The owner admits this alternative only for actual Stored rows.
             Input::Relation(relation) => Some(Selector {
                 relation,
                 identity: Arc::new(Default::default()),

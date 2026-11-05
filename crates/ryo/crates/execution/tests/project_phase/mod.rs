@@ -300,7 +300,11 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
         scope.finish().expect("release project publications");
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         request.finish();
-        assert_eq!(file_reads.get(), 3, "project work cannot reread file facts");
+        assert_eq!(
+            file_reads.get(),
+            resolved,
+            "project work cannot reread the file facts after their captured frontier"
+        );
     }
 }
 

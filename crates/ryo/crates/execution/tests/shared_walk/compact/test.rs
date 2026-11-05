@@ -203,9 +203,15 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             let reads_after_run = reads.get();
             let mut escaped = Vec::new();
             for rule in [RuleIndex(0), RuleIndex(1)] {
+                let before_delivery = reads.get();
                 let outcome = file.rule(rule, demand(), &mut symbols).unwrap();
                 assert_eq!(outcome.counts.fed.as_ref(), counts.as_slice());
                 assert_eq!(complete(outcome), expected);
+                assert_eq!(
+                    reads.get(),
+                    before_delivery,
+                    "publication replay does not borrow a provider"
+                );
                 let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
                 let captures = file
                     .capture_frontiers(
@@ -221,6 +227,18 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                     )
                     .unwrap();
                 assert_eq!(captures.len(), 1);
+                assert_eq!(
+                    reads.get(),
+                    before_delivery + 1,
+                    "explicit capture reacquires the selected publication's exact backing once"
+                );
+                assert_eq!(
+                    file.readiness_counts(),
+                    work,
+                    "capture cannot reevaluate the selection or Join"
+                );
+                assert_eq!(file.walk_counts(), walks);
+                assert_eq!(file.counts(rule).unwrap().fed.as_ref(), counts.as_slice());
                 escaped.extend(captures.into_iter().map(|capture| capture.outcome.unwrap()));
             }
             assert_eq!(
@@ -228,8 +246,8 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                 work,
                 "delivery must not re-execute dependencies"
             );
-            assert_eq!(file.walk_counts().passes, walks.passes);
-            assert_eq!(reads.get(), reads_after_run);
+            assert_eq!(file.walk_counts(), walks);
+            assert_eq!(reads.get(), reads_after_run + escaped.len());
             file.finish().unwrap();
             // The actual encoded publication must survive its file execution owner.
             for frontier in escaped {
