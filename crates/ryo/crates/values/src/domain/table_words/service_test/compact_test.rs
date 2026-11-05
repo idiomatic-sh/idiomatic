@@ -293,10 +293,98 @@ fn permissive_mixed_width_frames_preserve_flat_rows_and_name_places() {
     differential(packed(&[a, b, c]), DecodeMode::Permissive);
 }
 
+fn cross_file_symbol_indices_survive_frame_local_rebasing() {
+    use ryo_language::domain::symbols::{
+        service::{hash_of, intern_derived, name_made_across},
+        types::Symbols,
+    };
+    use ryo_relations::domain::relations::types::{ByteSlice, NameText};
+    let mut symbols = Symbols::default();
+    let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("global"));
+    let global = name_made_across(&symbols, symbol).expect("real cross-file symbol");
+    let local = Name {
+        hash: hash_of(ByteSlice(b"local")),
+        place: PlaceNumber(0),
+    };
+    let frame = Table {
+        kinds: vec![CellKind::Symbol, CellKind::Symbol],
+        count: RowCount(1),
+        cells: vec![Cell::Name(global), Cell::Name(local)],
+    };
+    let mut words = Words::default();
+    service::encode_table(&frame, &[place(1)], &mut words);
+    service::encode_table(&frame, &[place(2)], &mut words);
+    let input = Arc::new(KeptWords(service::pack(WordSlice(&words.0))));
+    let expected = Table {
+        kinds: frame.kinds,
+        count: RowCount(2),
+        cells: vec![
+            Cell::Name(global),
+            Cell::Name(Name {
+                hash: local.hash,
+                place: PlaceNumber(2),
+            }),
+            Cell::Name(global),
+            Cell::Name(Name {
+                hash: local.hash,
+                place: PlaceNumber(3),
+            }),
+        ],
+    };
+    for mode in [DecodeMode::Complete, DecodeMode::Permissive] {
+        let seed = vec![place(8), place(9)];
+        let mut decoded_places = seed.clone();
+        let decoded = match mode {
+            DecodeMode::Complete => {
+                service::decode_complete(&input.0, &mut decoded_places).unwrap()
+            }
+            DecodeMode::Permissive => service::decode_combined(&input.0, &mut decoded_places),
+        };
+        let mut compact_places = seed;
+        let (compact, names) =
+            service::admit_compact(Arc::clone(&input), &mut compact_places, mode).unwrap();
+        let compact_cells = (0..2)
+            .flat_map(|row| (0..2).map(move |column| (row, column)))
+            .map(|(row, column)| service::compact_cell(&compact, row, column).unwrap())
+            .collect::<Vec<_>>();
+        // Both actual codec routes execute before comparison; agreement between
+        // two routes is insufficient if they both renumber the global symbol.
+        assert_eq!(
+            (decoded.cells, compact_cells),
+            (expected.cells.clone(), expected.cells.clone())
+        );
+        same(&compact, &expected);
+        assert_eq!(decoded_places, compact_places);
+        assert_eq!(compact_places.len(), 4);
+        assert_eq!(
+            names,
+            expected
+                .cells
+                .iter()
+                .filter_map(|cell| match cell {
+                    Cell::Name(name) => Some(*name),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
 type Input = fn() -> Result<(), Failure>;
 type Value = ();
 type Failure = crate::domain::table_words::errors::WordsDecodeError;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("cross_file_symbol_indices_survive_frame_local_rebasing"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                cross_file_symbol_indices_survive_frame_local_rebasing();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("multiple_frames_repeated_columns_and_name_rebase_match_production_decoder"),
         word: Word::Succeeds,
