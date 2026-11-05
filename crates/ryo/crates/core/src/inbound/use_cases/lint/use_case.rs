@@ -926,7 +926,6 @@ impl LintUseCaseImpl {
             covered: handed.covered,
             skipped: handed.skipped,
             project: &now.partials,
-            hosted: &run.request.hosted,
             answering: run.answering,
             unknown: &unknown.0,
         };

@@ -5,7 +5,6 @@ use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::CorpusInput;
-use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -34,8 +33,6 @@ pub(crate) struct CrossingInput<'a> {
     pub skipped: &'a [Skipped],
     /// The relations the project wrote that are read in part.
     pub project: &'a [Partial],
-    /// The relations the host declares, with their rows.
-    pub hosted: &'a [HostRelation],
     /// How the rows the rules emit are answered.
     pub answering: &'a crate::domain::render::types::Answering,
     /// What the reasons of the languages linked are called.
@@ -49,15 +46,6 @@ pub(crate) enum Placeability {
     Placeable,
     /// It cannot, so the file is not read.
     Unplaceable,
-}
-
-/// Pure cross-file evaluation before source placement or rendering.
-#[derive(Default)]
-pub(crate) struct Evaluated {
-    /// Actual Emit and independent named roots for this phase.
-    pub roots: PhaseRoots,
-    /// Work performed by each step.
-    pub fed: Vec<ryo_execution::inbound::use_cases::execution::types::RowsFed>,
 }
 
 /// Independently demanded named output from one actual execution phase.
@@ -84,9 +72,3 @@ pub(crate) struct PhaseRoots {
     pub observations: Vec<ObservedRoot>,
 }
 
-/// One required source that cannot provide rows; never represented by an empty Table.
-#[derive(Clone, Debug)]
-pub(crate) struct RefusedFrontier {
-    pub input: ryo_values::domain::plan_parts::types::Input,
-    pub error: ryo_execution::inbound::use_cases::execution::types::OperatingError,
-}
