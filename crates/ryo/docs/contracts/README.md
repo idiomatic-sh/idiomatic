@@ -1,41 +1,41 @@
 # Extension ownership contracts
 
-**Full categories: Relations INCOMPLETE (69 public catalog members, and framework routes); operators INCOMPLETE (26 kinds); derived views INCOMPLETE (13 required mechanisms: 12 public registered kinds plus `RawKeyOrder`).** The member and route checklists below are the acceptance scope.
+**No full category is complete:** relations (69 catalog members plus framework routes), operators (26 kinds), and derived views (13 mechanisms). The inventories below define acceptance; code moved is not a checked boundary.
 
-**Latest library/public runtime: `90322d3b84`; full rule-fixture CI: PR head `3cd3249a2` (2026-11-05).** Core runtime remains unverified. No ownership category is complete.
+**Order: 2 → 3 → 4 → 5 → 6 → 1 → 7.** Consolidate first; no more performance tuning or benchmark runs during phases 2–6. Engine ownership, required contracts, Rust boundaries and TM remain mandatory. Output-correctness repairs follow consolidation.
 
-- Public boundaries221/222: **71/71 pass**. Restoring whole-program scratch sizing makes the dormant-class control fail **257 versus 1**; restoring the candidate passes all 71. This proves the bounded allocation-work guard, not whole-program memory performance.
-- [Full rule inventory in CI](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/job/127558257740): **413 PASS / 0 FAIL**, 11,185 cases, complete on PR head `3cd3249a2` (executed merge `0e452f939`). Worker SHA256 `4b56d69eb81d7ca60af016f0a650abf7b0744ca712ac9e4b2c35d2ffc98ea54c`; [raw artifact](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/artifacts/13456499079). This verifies registered fixtures, not Django timing, mixed-syntax completeness, or the unmerged population/partial-data batches.
-- Full-Django213 **failed** after **3,039.41 s / 5.30 GB**, with I001 frontier proof mismatch and no report. Warm was cancelled after the correctness failure; edit did not run. Rust214 refused pending recorded rules before timing.
-- Tiny mixed-syntax224 passes the repaired transport boundary but still fails with **nine unknowns**. RUF100 incorrectly becomes unavailable for the valid file too. Partition-aware named availability and absence-sensitive consumption remain open; do not label this case fixed.
-- Tiny valid-file225: **10.59 → 9.88 s**, **1.988 → 1.985 GB**, exactly equal complete reports for 413 rules. One diagnostic comparison only. Profile217 attributed **6.272 s** to compilation and left **2.567 s** of preparation unaccounted.
-- Current runtime257: **620/620 library tests pass** (execution422; other six198), and **75/75 public boundaries pass**. Full core test compilation improved from33 errors to2 unused test factories; those were removed in `d3096ec13`, not yet rerun. No core-runtime or shared-walk completion claim. Full-Django256 on immutable worker `8214313ccd` **failed after 2,986.06 s wall / 2,984.89 s CPU / 6.01 GB peak RSS**. It examined 1,187,375 rule-file pairs but returned 2,880 unknowns: RUF100 on all 2,875 files, plus one each for I001/PLW0406/PT020/PT025/PT026. No unread files; no complete report or acceptance speedup.
-- Full-product TM in [CI run42116738222](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222), PR head `3cd3249a2`, reports **10,208 findings, zero suppressed**: benchmark2,921, execution2,818, Python2,040, core705, remaining areas1,724. This broader scope is not comparable to the earlier 235-finding scoped check. The review gate also fails for lack of a valid complete source-bound review; runtime and performance jobs run independently. No enforcement closure is claimed.
-- Shared-position diagnostic248: three alternating pairs, one valid file and all 413 rules. Median wall **9.997 → 9.759 s (2.4% lower)**; CPU **9.984 → 9.756 s**; peak RSS **1.236 → 1.237 GB (unchanged)**. All six complete reports match exactly, with zero unknowns. This is a small-input check, not a Django speedup. [Source identities and measurements](evidence/shared-positions/measurements.json).
-- Previous combined245 on `b67594e51`: execution **399 pass / 19 fail**; current257 is **422 / 0**. The complete 413-rule CI fixture pass now covers the pushed engine. Ordinary project evaluation reuses its admitted scope within each rule; shared ownership across ordinary rules and its two-rule proof remain open.
-- Shared query catalog232: three alternating runs, one valid file and all 413 rules. Median peak RSS **1.984 → 1.236 GB (37.7% lower)**; wall **10.112 → 10.110 s (unchanged)**. All six complete reports match exactly. This removes preparation copies, not the unfinished shared walk. [Source identities and measurements](evidence/query-catalog/measurements.json).
+| Phase | Status | Current scope |
+|---|---|---|
+| 1 | QUEUED | Deferred output correctness |
+| 2 | ACTIVE | Scheduling integration and remaining enforcement proofs |
+| 3 | ACTIVE | Shared-walk source batch using the compiled common scheduler |
+| 4 | QUEUED | Derived acquisition and lifetime |
+| 5 | QUEUED | Fusion and redundant machinery removal |
+| 6 | QUEUED | Cold/warm/edit reuse and invalidation |
+| 7 | QUEUED | Final enforcement, review and acceptance |
 
-Evidence and granular tasks **A1–A9, B1–B5, C1–C7** are tracked in Beads `ryo-7tkn.19`. Shared project ownership and sparse runtime state are integrated in `c6e4db059c`; runtime verification is pending. Phase 2 now assigns the entire remaining scheduling batch: project-root admission (B4b), per-file preparation (B4c), and all-route contract tests (B4d/B5). No scheduling or ownership category is complete.
+The bounded 2/3 overlap keeps Phase 3 source work moving while Phase 2 finishes proof; neither is VERIFIED. Beads `ryo-7tkn.19` holds process handles, source identities and raw evidence.
 
-Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and final acceptance (7)**. Temporary output regressions are recorded and repaired afterward unless they prevent execution. **Complete consolidation in phases 2–6 before performance tuning or further benchmark runs.** Architecture and contracts remain mandatory throughout: engine-owned scheduling/sharing/invalidation/data/lifetime, private boundaries, required owners, and one pipeline. Keep structural TM and contract tests with each migration; do not weaken them to permit progress.
+- [413-rule CI fixtures](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/job/127558257740): 413 PASS / 0 FAIL on older public `3cd3249a2`, 11,185 cases. This is not proof of the current unmerged engine or Django.
+- Latest full Django256: **failed**, 2,986.06 seconds / 6.009 GB / 2,880 unknowns. Rust guards remain unverified.
+- [Last diagnostic comparison](evidence/phase2-scheduling/measurements.json): one valid file/all413, identical complete outputs, but wall 10.024 → 15.708 seconds and peak 1.224 → 1.329 GB. Cause unproven; further measurement is deferred.
+- Historical diagnostics: [query catalogs](evidence/query-catalog/measurements.json), [shared positions](evidence/shared-positions/measurements.json). Different source/scope; do not pool results.
+- Full-product TM on public `3cd3249a2`: 10,208 findings. Scoped276 on `d8d7c637ad`: 511 findings, zero suppressed. These scopes are not comparable. Runtime-authority scenarios pass; full enforcement does not.
 
-- [ ] Deferred output correction: foreign File/Node keys do not prove physical partition lineage (LP-2); preserve the counterexample for Phase 1.
-- [ ] Deferred Rust-output correction: CI42116738222/job127558258069 fails before timing when `duplicate-function-bodies` reports a frontier-source proof mismatch. No Rust performance pass.
-- [ ] Final benchmark infrastructure: the same CI speed job rejects unused historical TM asset versions in its scratch workspace before measuring the TM check. No speed result from that job.
-
-**Query source ownership:** shared immutable catalogs are integrated. Diagnostic232 proves the scoped memory reduction above; combined245 passes SDK43, query-language89 and values21 tests. Public API snapshot/semver checks, unresolved TM findings, all-route sharing and full-Django acceptance remain open.
-
-Internal authority followup `25dae5fd4a` requires a runtime-issued `KernelAdmission` for all three kernel-permit constructors and rejects contradictory producer-scope rebinding. The placed `runtime-authority` TM rule checks private fields, declaration owners and direct record issuance, with eight bad/good scenarios. TM263 validated these eight scenarios, and its actual source check found no runtime-authority violations. Aliases, macros, new constructors and unsafe code still require Rust boundaries and review. The actual in-crate sibling compile-fail control is missing; external private-import failures are not substitute proof. B5.2/B5.4/B5.6 remain unchecked.
+- [ ] Phase 1: resolve foreign File/Node partition lineage and the recorded output failures.
+- [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
+- [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
 ### Phase 2 completion checklist
 
 Inventory audit: `bf525425c7`, retained Astra/Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. All 83 rows below require evidence for their entire scope; authored or integrated code is not a completed boundary.
 
-Current implementation checkpoint: `9be31ba264`. Project-root scheduling, sparse preparation, required runtime authority, all four reviewed source corrections, and removal of obsolete per-rule drain/test routes are integrated. No phase is verified.
+Current implementation checkpoint: `fe8d3c7c1a`. Project-root scheduling, sparse preparation, required runtime authority, all four reviewed source corrections, and removal of obsolete per-rule drain/test routes are integrated. No phase is verified.
 
 - Build272 on `39f2b7fa9b` passed across eight crates and their test targets. Execution **430/430**, SDK **43/43**, and five other libraries **155/155** passed. Core **167 passed / 11 failed**; public boundaries **84 passed / 2 failed**.
-- Five Core failures are stale rendering oracles that prevented the later ownership assertions; their source repair is integrated. Two public fixtures now assert both real retained frontiers. Contract273 rerun is pending.
-- Six real inbound budget scenarios now cover ordinary and named coordinator routes, exact BudgetError/MemoryError, and sufficient-budget success; source written, unrun. Internal sibling Rust bypass proof is still missing.
+- Corrected production-schema fixture oracles; Core project contracts273 **14/14 pass**. Corrected retained named-frontier fixtures; public boundaries274 **86/86 pass**.
+- Six real inbound budget scenarios are authored. Their first fixture incorrectly grouped Hosted-only roots into one cohort; the replacement uses real distinct frontiers and is being checked in277. No budget-route pass yet.
+- Internal authority275 **passes** on `d8d7c637ad`: one authorized case and five same-crate sibling failures against actual production sources. Lead review accepts that scope; paired review remains pending. Inner compilation uses default features; this is not proof against every future constructor/mutator.
 - Astra/Opus accepted the four source corrections; acceptance remains blocked on proof and structural gaps. Artifact: `/tmp/ryo-shared-walk-review-4351-correction-evidence.json`.
 - TM264: `file_demand` **24 → 0**; broader eight-file scope **140 findings, zero suppressed**. No full TM pass.
 - [Diagnostic271](evidence/phase2-scheduling/measurements.json), one file/all413/one pair: complete identical outputs, wall **10.024 → 15.708 s**, CPU **10.012 → 15.694 s**, peak **1.224 → 1.329 GB**. Cause unproven. Further performance work is deferred until consolidation finishes by explicit user instruction.
@@ -142,7 +142,7 @@ Current implementation checkpoint: `9be31ba264`. Project-root scheduling, sparse
 | ☐ | B5.1 | Keep one production interpreter; kernels cannot resolve dependencies. | final audit pending |
 | ☐ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | integrated; current proof pending |
 | ☐ | B5.3 | Only actual ready gates may submit shared-walk classes. | integrated; boundary proof pending |
-| ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | proof pending |
+| ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | six real-source cases pass275; paired review pending |
 | ☐ | B5.5 | Require owner, generation, partition, root and population scope at all lifecycle boundaries. | current proof pending |
 | ☐ | B5.6 | Reject scope rebinding that would retain one scope and index another. | negative control written |
 | ☐ | B5.7 | Retry delivery only after sink refusal; preserve terminal failures and generation isolation. | tests integrated |
