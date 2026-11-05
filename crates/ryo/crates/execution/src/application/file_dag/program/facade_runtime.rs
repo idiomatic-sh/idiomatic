@@ -69,10 +69,24 @@ pub(crate) struct PublicationScope {
     program: Arc<crate::domain::executable_program::types::ExecutableProgram>,
     owner: Rc<RelationOwner>,
     execution: std::cell::OnceCell<ProgramExecution>,
-    populations: std::cell::RefCell<super::project_population::service::Populations>,
+    populations: std::cell::RefCell<
+        super::project_population::service::Populations<
+            super::project_population::types::ProjectFrontierPopulation<AvailableInput>,
+            super::project_population::types::ProjectInvocationKey<
+                super::restored::ValidatedFrontier,
+            >,
+            super::super::derived::owner::PopulationId,
+        >,
+    >,
     symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,
 }
 impl PublicationScope {
+    pub(crate) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
+        self.execution
+            .get()
+            .map_or_else(Default::default, ProgramExecution::readiness_counts)
+    }
+
     pub(crate) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {
         self.execution
             .get()
@@ -182,7 +196,9 @@ mod file_execution;
 mod project_execution;
 use file_execution::{FileRoot, classify, outcome_of};
 pub(crate) use file_execution::{FileRun, open_file};
-pub(crate) use project_execution::{ProjectRun, open_project};
+pub(crate) use project_execution::{
+    ProjectRootDeclaration, ProjectRun, evaluate_roots, open_project,
+};
 
 #[cfg(test)]
 mod compiled_parity;

@@ -17,6 +17,7 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_walk.rs", description = "Application-owned shared native pass admission and publication." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_population/mod.rs", description = "Private project input/invocation population namespace; normal Rust registration remains required." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_population/service.rs", description = "Phase-owned canonical input backing and population-qualified invocation identity; admission remains demand-driven." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_population/types.rs", description = "Neutral structural source and invocation records; no facade or session dependency." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_identity.rs", description = "One request's source and generation identity." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/restored.rs", description = "Validated deferred restoration." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/selection.rs", description = "Admitted compact selection construction and publication proof." },
@@ -50,9 +51,10 @@ given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_j
 given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
-given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service;"
+given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
 
+given.files."src/application/file_dag/program/project_population/types.rs" = "pub(super) struct ProjectInvocationKey { identity: usize }"
 [[scenarios]]
 id = "missing-owner"
 scenario = "An absent owner cannot satisfy required program parts."
@@ -83,8 +85,9 @@ given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_j
 given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
-given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service;"
+given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 
+given.files."src/application/file_dag/program/project_population/types.rs" = "pub(super) struct ProjectInvocationKey { identity: usize }"
 then.findings = [{ rule = "idiomatic.ryo/executable-program-part#count", path = "src/application/file_dag" }]
 
 
@@ -113,4 +116,5 @@ given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish(
 given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
 given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
 
+given.files."src/application/file_dag/program/project_population/types.rs" = "pub(super) struct ProjectInvocationKey { identity: usize }"
 then.findings = [{ rule = "idiomatic.ryo/executable-program-part#count", path = "src/application/file_dag" }]

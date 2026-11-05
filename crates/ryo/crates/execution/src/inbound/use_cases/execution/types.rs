@@ -155,6 +155,12 @@ pub struct ProjectInput<'a> {
     pub bound: &'a [BoundInput],
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
 }
+/// Actual, already prepared inputs and declared roots for one project task.
+pub struct ProjectTask<'a> {
+    pub rule: RuleIndex,
+    pub demand: RuleDemand,
+    pub input: ProjectInput<'a>,
+}
 pub struct ProjectSession<'a> {
     pub(super) inner: crate::application::file_dag::program::facade_runtime::ProjectRun<'a>,
 }

@@ -113,7 +113,16 @@ pub trait ProjectExecution {
 }
 
 pub use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
-pub trait ProjectStage {
+pub trait ProjectRootExecution {
+    /// Bind all actual tasks, prepare compatible root cohorts, then deliver in declaration order.
+    fn evaluate(
+        &self,
+        tasks: Vec<ProjectTask<'_>>,
+        symbols: &mut Symbols,
+    ) -> Vec<Result<ProjectRuleOutcome, OperatingError>>;
+    fn readiness_counts(&self) -> ReadinessCounts;
+}
+pub trait ProjectStage: ProjectRootExecution {
     fn state_counts(&self) -> InvocationStateCounts;
     fn project_scope(
         &self,

@@ -104,25 +104,43 @@ impl CrossFile {
                     program: std::sync::Arc::clone(&run.program),
                     domain: run.domain.clone(),
                 };
-                tasks
-                    .iter()
-                    .map(|task| {
-                        let frontier = prepare_frontiers(
-                            &run,
-                            &task.todo,
-                            &task.scope,
-                            &task.frontier_ready,
-                            &mut symbols,
-                        )?;
-                        self.evaluate_phase(
-                            &crossing,
-                            &task.todo,
-                            frontier,
-                            &mut symbols,
-                            &task.bindings,
-                            task.slot,
-                            &task.scope,
-                        )
+                let mut prepared = Vec::with_capacity(tasks.len());
+                let mut errors = Vec::with_capacity(tasks.len());
+                for task in &tasks {
+                    match prepare_frontiers(
+                        &run,
+                        &task.todo,
+                        &task.scope,
+                        &task.frontier_ready,
+                        &mut symbols,
+                    ) {
+                        Ok(frontier) => {
+                            errors.push(None);
+                            prepared.push(super::types::ProjectTask {
+                                todo: &task.todo,
+                                frontier,
+                                bound: &task.bindings,
+                                slot: task.slot,
+                                scope: &task.scope,
+                            });
+                        }
+                        Err(error) => errors.push(Some(error)),
+                    }
+                }
+                let mut evaluated = self
+                    .evaluate_batch(&crossing, prepared, &stage, &mut symbols)
+                    .into_iter();
+                errors
+                    .into_iter()
+                    .zip(&tasks)
+                    .map(|(error, task)| match error {
+                        Some(error) => Err(error),
+                        None => evaluated.next().unwrap_or_else(|| {
+                            Err(crate::domain::rules::service::failed(
+                                &task.todo.id,
+                                &OperatingError::NotRun,
+                            ))
+                        }),
                     })
                     .collect::<Vec<_>>()
             };

@@ -20,7 +20,7 @@ pub(crate) enum ReadinessOutcome {
 /// Actual canonical readiness interpreter events, independently of row work.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReadinessEvents(pub u64);
-/// Work performed by the file owner's bound-root preparation.
+/// Work performed by the canonical file/project owner's bound-root preparation.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReadinessCounts {
     pub preparations: ReadinessEvents,

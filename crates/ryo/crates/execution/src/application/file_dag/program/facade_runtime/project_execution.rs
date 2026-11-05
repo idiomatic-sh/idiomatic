@@ -1,17 +1,143 @@
 //! Project execution over deferred frontier sources and one publication scope.
+use super::super::project_population::types::{
+    BoundKey, Payload, ProjectFrontierPopulation, ProjectInvocationKey, ProjectRefusal,
+};
 use super::source_admission::ProjectSources;
 use super::*;
+use crate::application::file_dag::{derived::owner::PopulationId, frontiers::types::FrontierInput};
+use crate::domain::executable_program::types::InputSource;
+impl ProjectFrontierPopulation<AvailableInput> {
+    pub(super) fn source(&self) -> &Result<InputSource, OperatingError> {
+        &self.source
+    }
+    pub(super) fn supply(
+        &self,
+        owner: &Rc<RelationOwner>,
+        partition: &Partition,
+    ) -> Result<AvailableInput, OperatingError> {
+        self.admitted
+            .get_or_init(|| {
+                let source = self.source.clone()?;
+                let publication = match &self.payload {
+                    Payload::Flat(table) => owner.source_shared_computed(Arc::clone(table)),
+                    Payload::Compact(table) => owner.source_compact(Arc::clone(table)),
+                }?;
+                let unavailable = |_| Err(OperatingError::NotRead);
+                let rows = owner.resolve(publication.as_ref(), &unavailable)?;
+                AvailableInput::source(
+                    Rc::clone(owner),
+                    publication.clone(),
+                    match source {
+                        InputSource::Region(id) => ProducerRoot::Region(id),
+                        _ => ProducerRoot::Input(source),
+                    },
+                    partition.clone(),
+                    self.coverage.clone(),
+                    rows,
+                )
+            })
+            .clone()
+    }
+}
+
+impl PublicationScope {
+    fn sources(
+        &self,
+        owner: &Rc<RelationOwner>,
+        sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
+        rows: Vec<crate::application::file_dag::frontiers::types::FrontierInput>,
+    ) -> Result<Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>, OperatingError> {
+        rows.into_iter()
+            .map(|row| {
+                let (input, coverage, payload) = match row {
+                    FrontierInput::Decoded { frontier, coverage } => (
+                        frontier.input,
+                        coverage,
+                        Payload::Flat(Arc::new(frontier.table)),
+                    ),
+                    FrontierInput::Compact {
+                        input,
+                        table,
+                        coverage,
+                        ..
+                    } => (input, coverage, Payload::Compact(Arc::new(table))),
+                };
+                let source = sources
+                    .iter()
+                    .find(|source| source.input == input)
+                    .ok_or(OperatingError::NotRead)?
+                    .root
+                    .clone();
+                let populations = &mut *self.populations.borrow_mut();
+                populations.source(
+                    |found| {
+                        found.source == source
+                            && found.coverage == coverage
+                            && found.payload == payload
+                    },
+                    || {
+                        Ok(ProjectFrontierPopulation {
+                            id: owner.project_identity()?,
+                            source: source.clone(),
+                            coverage: coverage.clone(),
+                            payload: payload.clone(),
+                            admitted: std::cell::OnceCell::new(),
+                        })
+                    },
+                )
+            })
+            .collect()
+    }
+    fn invocation(
+        &self,
+        owner: &Rc<RelationOwner>,
+        sources: &[Rc<ProjectFrontierPopulation<AvailableInput>>],
+        refused: &[crate::domain::crossing::types::RefusedFrontier],
+        bound: &[Option<crate::application::file_dag::frontiers::types::BoundInput>],
+        policy: CompletionPolicy,
+    ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
+        let mut bindings = Vec::new();
+        for binding in bound.iter().flatten() {
+            bindings.push(BoundKey::Input(binding.input));
+            match &binding.members {
+                Err(error) => bindings.push(BoundKey::Refused(error.clone())),
+                Ok(members) => {
+                    for member in members {
+                        bindings.push(match member {
+                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.admitted().population(owner)?, publication.admitted().coverage()?),
+                        crate::application::file_dag::frontiers::types::BoundMember::Restored(token) => BoundKey::Restored(token.clone()),
+                    });
+                    }
+                }
+            }
+        }
+        let key = ProjectInvocationKey {
+            sources: sources.iter().map(|source| source.id).collect(),
+            refused: refused
+                .iter()
+                .map(|entry| ProjectRefusal {
+                    input: entry.input,
+                    error: entry.error.clone(),
+                })
+                .collect(),
+            policy,
+            bound: bindings,
+        };
+        self.populations
+            .borrow_mut()
+            .invocation(key, || owner.project_identity())
+    }
+}
 
 pub(crate) struct ProjectRun<'a> {
     program: &'a Arc<PreparedProgram>,
     services: Arc<ProgramServices>,
     execution: &'a ProgramExecution,
     owner: Rc<RelationOwner>,
-    required: RequiredPartitions,
     partials: ScopePartials<'a>,
     frontier_producer: RuleIndex,
     frontier_sources: Box<[crate::application::file_dag::frontiers::types::FrontierSource]>,
-    ordinary: Vec<Rc<super::super::project_population::service::ProjectFrontierPopulation>>,
+    ordinary: Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
     cache: Vec<(
@@ -24,7 +150,6 @@ pub(crate) struct ProjectRun<'a> {
 }
 pub(crate) fn open_project<'a>(
     program: &'a Arc<PreparedProgram>,
-    required: RequiredPartitions,
     partials: ScopePartials<'a>,
     mut frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
@@ -76,17 +201,12 @@ pub(crate) fn open_project<'a>(
             .map_err(|_| OperatingError::WrongOperation)?;
     }
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
-    let ordinary = scope.populations.borrow_mut().sources(
-        &owner,
-        &frontiers.ordinary.sources,
-        frontiers.ordinary.rows,
-    )?;
+    let ordinary = scope.sources(&owner, &frontiers.ordinary.sources, frontiers.ordinary.rows)?;
     Ok(ProjectRun {
         program,
         services: Arc::clone(&services),
         execution,
         owner,
-        required,
         partials,
         frontier_producer: frontiers.ordinary.producer,
         frontier_sources: frontiers.ordinary.sources,
@@ -104,36 +224,98 @@ pub(crate) fn open_project<'a>(
     })
 }
 impl ProjectRun<'_> {
-    pub(crate) fn rule(
-        &mut self,
+    fn identity(
+        &self,
         rule: RuleIndex,
-        demand: RuleDemand,
-        symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<ProjectRuleOutcome, OperatingError> {
+    ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
         crate::application::file_dag::frontiers::types::validate_consumer_sources(
             self.program,
             self.frontier_producer,
             &self.frontier_sources,
             rule,
         )?;
-        let mut context = self.context.borrow(symbols, self.program, rule)?;
-        let context = &mut context;
-        let metadata = self.program.rule_metadata(rule)?;
-        let completion = match &self.partials {
-            ScopePartials::Project {
-                evaluation,
-                publication,
-            } => CompletionPolicy::project_inputs(rule, evaluation, publication),
-            ScopePartials::File { .. } => return Err(OperatingError::WrongOperation),
-        };
-        let identity = self.publication.populations.borrow_mut().invocation(
+        self.publication.invocation(
             &self.owner,
             &self.ordinary,
             &self.refused,
             &self.bound,
-            completion.for_rule(RuleIndex(0)),
-        )?;
+            self.completion(rule)?.for_rule(RuleIndex(0)),
+        )
+    }
+    fn completion(&self, rule: RuleIndex) -> Result<CompletionPolicy, OperatingError> {
+        match &self.partials {
+            ScopePartials::Project {
+                evaluation,
+                publication,
+            } => Ok(CompletionPolicy::project_inputs(
+                rule,
+                evaluation,
+                publication,
+            )),
+            ScopePartials::File { .. } => Err(OperatingError::WrongOperation),
+        }
+    }
+    fn roots(
+        &self,
+        rule: RuleIndex,
+        demand: RuleDemand,
+    ) -> Result<Vec<crate::domain::executable_program::types::RegionId>, OperatingError> {
+        use crate::domain::executable_program::types::InputSource;
+        let metadata = self.program.rule_metadata(rule)?;
+        let mut roots = Vec::new();
+        if demand.emit == EmitDemand::Enabled {
+            if let Ok(id) = &metadata.emit_root {
+                if self.program.program().regions()[id.0].phase
+                    == ryo_values::domain::plans::types::StepScope::CrossFile
+                {
+                    roots.push(*id);
+                }
+            }
+        }
+        if demand.observations == ObservationDemand::Required {
+            for root in &metadata.observations {
+                if root.phase != ryo_values::domain::plans::types::StepScope::CrossFile {
+                    continue;
+                }
+                match &root.source {
+                    Ok(InputSource::Region(id)) => roots.push(*id),
+                    Ok(InputSource::Observation(slot)) => {
+                        if let Some(Ok(id)) =
+                            self.program.program().observation_regions().get(*slot)
+                        {
+                            roots.push(*id);
+                        }
+                    }
+                    // Direct supplied members have no speculative producer traversal.
+                    _ => {}
+                }
+            }
+        }
+        Ok(roots)
+    }
+    pub(crate) fn rule(
+        &mut self,
+        rule: RuleIndex,
+        demand: RuleDemand,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<ProjectRuleOutcome, OperatingError> {
+        let roots = self.roots(rule, demand)?;
+        let identity = self.identity(rule)?;
         let state = self.execution.project_state(identity);
+        self.deliver(&state, rule, demand, &roots, symbols)
+    }
+    fn deliver(
+        &mut self,
+        state: &super::super::runtime::RuntimeState,
+        rule: RuleIndex,
+        demand: RuleDemand,
+        roots: &[crate::domain::executable_program::types::RegionId],
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<ProjectRuleOutcome, OperatingError> {
+        let completion = self.completion(rule)?;
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let context = &mut context;
+        let metadata = self.program.rule_metadata(rule)?;
         let unavailable = |_relation| Err(OperatingError::NotRead);
         let kernels = super::super::kernel_session::KernelSession::new(
             self.services.kernels(),
@@ -142,11 +324,10 @@ impl ProjectRun<'_> {
             &unavailable,
             None,
         );
-        let partition = Partition::Project(self.required.clone());
         let mut absent = HashMap::new();
         let mut sources = SourceInputs {
             execution: self.execution,
-            state: &state,
+            state,
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read: &unavailable,
@@ -166,6 +347,17 @@ impl ProjectRun<'_> {
                 publication: self.publication,
             }),
         };
+        // One ready cohort contains all actual roots of this compatible population.
+        if !roots.is_empty() {
+            self.execution.prepare_roots(
+                state,
+                roots,
+                &mut sources,
+                &kernels,
+                &completion,
+                context,
+            )?;
+        }
         let emit = match demand.emit {
             EmitDemand::Disabled => RootOutcome::NoQuery,
             EmitDemand::Enabled => match &metadata.emit_root {
@@ -178,14 +370,8 @@ impl ProjectRun<'_> {
                     }
                 }
                 Ok(id) => outcome_of(
-                    self.execution.invoke(
-                        &state,
-                        *id,
-                        &mut sources,
-                        &kernels,
-                        &completion,
-                        context,
-                    ),
+                    self.execution
+                        .invoke(state, *id, &mut sources, &kernels, &completion, context),
                     &self.owner,
                     &unavailable,
                 ),
@@ -203,7 +389,7 @@ impl ProjectRun<'_> {
                     .clone()
                     .and_then(|source| {
                         self.execution.admit_root(
-                            &state,
+                            state,
                             rule,
                             source,
                             &mut sources,
@@ -245,7 +431,74 @@ impl ProjectRun<'_> {
         Ok(ProjectRuleOutcome {
             emit,
             observations,
-            counts: self.execution.logical_counts(&state, rule)?,
+            counts: self.execution.logical_counts(state, rule)?,
         })
     }
+}
+
+/// Cohort binding never reads source geometry. Exact immutable source/policy identity
+/// selects a shared state; the existing interpreter remains the only evaluator.
+#[derive(Clone, Copy)]
+pub(crate) struct ProjectRootDeclaration {
+    pub(crate) rule: RuleIndex,
+    pub(crate) demand: RuleDemand,
+}
+pub(crate) fn evaluate_roots(
+    mut runs: Vec<Result<ProjectRun<'_>, OperatingError>>,
+    declarations: &[ProjectRootDeclaration],
+    symbols: &mut ryo_language::domain::symbols::types::Symbols,
+) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+    use crate::domain::executable_program::types::RegionId;
+    enum RootSet {
+        Pending(Vec<RegionId>),
+        Prepared,
+    }
+    struct Cohort {
+        state: Rc<super::super::runtime::RuntimeState>,
+        roots: RootSet,
+    }
+    let mut cohorts = Vec::new();
+    let mut by_identity: HashMap<PopulationId, usize> = HashMap::new();
+    let mut memberships = Vec::with_capacity(runs.len());
+    for (run, declaration) in runs.iter_mut().zip(declarations) {
+        let ProjectRootDeclaration { rule, demand } = *declaration;
+        let membership = match run {
+            Ok(run) => (|| {
+                let identity = run.identity(rule)?;
+                let roots = run.roots(rule, demand)?;
+                let at = match by_identity.get(&identity) {
+                    Some(&at) => at,
+                    None => {
+                        let at = cohorts.len();
+                        cohorts.push(Cohort {
+                            state: run.execution.project_state(identity),
+                            roots: RootSet::Pending(Vec::new()),
+                        });
+                        by_identity.insert(identity, at);
+                        at
+                    }
+                };
+                if let RootSet::Pending(all) = &mut cohorts[at].roots {
+                    all.extend(roots);
+                }
+                Ok(at)
+            })(),
+            Err(error) => Err(error.clone()),
+        };
+        memberships.push(membership);
+    }
+    runs.into_iter()
+        .zip(declarations)
+        .zip(memberships)
+        .map(|((run, declaration), membership)| {
+            let ProjectRootDeclaration { rule, demand } = *declaration;
+            let mut run = run?;
+            let cohort = &mut cohorts[membership?];
+            let roots = match std::mem::replace(&mut cohort.roots, RootSet::Prepared) {
+                RootSet::Pending(roots) => roots,
+                RootSet::Prepared => Vec::new(),
+            };
+            run.deliver(&cohort.state, rule, demand, &roots, symbols)
+        })
+        .collect()
 }

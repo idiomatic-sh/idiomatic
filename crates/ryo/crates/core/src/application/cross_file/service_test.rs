@@ -11,7 +11,7 @@ use ryo_execution::inbound::use_cases::execution::{
     interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution, ProjectStage},
     types::{
         FrontierDemand, FrontierRequest, ObservationIdentity, PreparedFrontiers, PreparedRequest,
-        ProjectPhase, ProjectScope,
+        ProjectPhase, ProjectScope, PublicationSlot,
     },
     use_case::ExecutionUseCaseImpl,
 };
@@ -1175,4 +1175,196 @@ fn many_distinct_project_populations_allocate_only_reached_region_state() {
     assert_eq!(calls.reductions.load(Ordering::SeqCst), POPULATIONS);
     assert_eq!(calls.aggregates.load(Ordering::SeqCst), POPULATIONS * 2);
     phase.finish().unwrap();
+}
+
+#[test]
+fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() {
+    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+    use std::sync::atomic::Ordering;
+    for order in [[0, 1, 0], [1, 0, 1]] {
+        let calls = Arc::new(ProjectCalls::default());
+        let plan = counting_plan(1, vec![]);
+        let rules = world_with(vec![plan.clone(), plan], calls.clone());
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let mut scopes = Vec::new();
+        let mut frontiers = Vec::new();
+        let mut todos = Vec::new();
+        for rule in order {
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                &frontier_rows(),
+                &mut symbols,
+            )
+            .unwrap();
+            scopes.push(scope);
+            frontiers.push(frontier);
+            todos.push(Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            });
+        }
+        let tasks = todos
+            .iter()
+            .zip(&scopes)
+            .zip(frontiers)
+            .map(|((todo, scope), frontier)| super::types::ProjectTask {
+                todo,
+                scope,
+                frontier,
+                bound: &[],
+                slot: PublicationSlot::Unused,
+            })
+            .collect::<Vec<_>>();
+        let results = service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols);
+        let mut previous = None;
+        for result in results {
+            let result = result.unwrap().crossed;
+            assert!(result.unknowns.is_empty());
+            let rendered = result.rendered.unwrap();
+            assert_eq!([rendered.order.len(), rendered.cells.len()], [2, 4]);
+            if let Some(previous) = &previous {
+                assert_eq!(&rendered, previous);
+            }
+            previous = Some(rendered);
+        }
+        let counts = phase.readiness_counts();
+        assert_eq!(
+            counts.preparations.0, 1,
+            "one canonical root, including duplicate logical roots"
+        );
+        assert_eq!(counts.evaluations.0, 1);
+        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
+        assert_eq!(phase.state_counts().slots.0, 1);
+        let before_replay = phase.readiness_counts();
+        let mut again_scopes = Vec::new();
+        let mut again_frontiers = Vec::new();
+        for todo in &todos {
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                todo.rule,
+                &rules.covered,
+                &frontier_rows(),
+                &mut symbols,
+            )
+            .unwrap();
+            again_scopes.push(scope);
+            again_frontiers.push(frontier);
+        }
+        let again = todos
+            .iter()
+            .zip(&again_scopes)
+            .zip(again_frontiers)
+            .map(|((todo, scope), frontier)| super::types::ProjectTask {
+                todo,
+                scope,
+                frontier,
+                bound: &[],
+                slot: PublicationSlot::Unused,
+            })
+            .collect();
+        for result in service().evaluate_batch(&crossing(&rules), again, &phase, &mut symbols) {
+            assert_eq!(result.unwrap().crossed.rendered.as_ref(), previous.as_ref());
+        }
+        assert_eq!(
+            phase.readiness_counts(),
+            before_replay,
+            "delivery adds no hidden fallback polls"
+        );
+        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
+        drop(again_scopes);
+        drop(scopes);
+        phase.finish().unwrap();
+    }
+}
+
+#[test]
+fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders() {
+    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
+    use std::sync::atomic::Ordering;
+    for order in [[0, 1], [1, 0]] {
+        let calls = Arc::new(ProjectCalls::default());
+        let plan = counting_plan(1, vec![]);
+        let mut rules = world_with_applicability(
+            vec![plan.clone(), plan],
+            calls.clone(),
+            &[RuleApplicability::AcceptedSyntax, RuleApplicability::Always],
+        );
+        rules.skipped.push(Skipped {
+            rule: rules.ids[0].clone(),
+            path: rules.paths[1].clone(),
+            reason: SkipReason::SyntaxRejected,
+        });
+        rules.covered = vec![
+            Covered {
+                file: FileId(0),
+                rules: vec![RuleIndex(0), RuleIndex(1)],
+                partial: vec![],
+            },
+            Covered {
+                file: FileId(1),
+                rules: vec![RuleIndex(1)],
+                partial: vec![],
+            },
+        ];
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let rows = frontier_rows();
+        let mut scopes = Vec::new();
+        let mut frontiers = Vec::new();
+        let mut todos = Vec::new();
+        for rule in order {
+            let source = if rule == 0 { &rows[..1] } else { &rows[..] };
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                source,
+                &mut symbols,
+            )
+            .unwrap();
+            scopes.push(scope);
+            frontiers.push(frontier);
+            todos.push(Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            });
+        }
+        let tasks = todos
+            .iter()
+            .zip(&scopes)
+            .zip(frontiers)
+            .map(|((todo, scope), frontier)| super::types::ProjectTask {
+                todo,
+                scope,
+                frontier,
+                bound: &[],
+                slot: PublicationSlot::Unused,
+            })
+            .collect();
+        let results = service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols);
+        for (rule, result) in order.into_iter().zip(results) {
+            let result = result.unwrap().crossed;
+            assert_eq!(result.unknowns.len(), usize::from(rule == 0));
+            let rendered = result.rendered.unwrap();
+            assert_eq!(
+                [rendered.order.len(), rendered.cells.len()],
+                if rule == 0 { [1, 2] } else { [2, 4] }
+            );
+        }
+        assert_eq!(phase.readiness_counts().evaluations.0, 2);
+        assert_eq!(phase.state_counts().populations.0, 2);
+        assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
+        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
+        drop(scopes);
+        phase.finish().unwrap();
+    }
 }

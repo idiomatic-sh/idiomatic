@@ -1,9 +1,14 @@
 //! Project root delivery through the same prepared executable invocation.
 use crate::domain::crossing::types::{ObservedRoot, PhaseRoots};
+#[cfg(test)]
 use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
+#[cfg(test)]
 use ryo_execution::inbound::use_cases::execution::types::{
-    EmitDemand, ObservationDemand, ObservedPublication, PreparedFrontiers, ProjectInput,
-    ProjectObservation, ProjectScope, RequestExecution, RootOutcome, RuleDemand,
+    EmitDemand, ObservationDemand, PreparedFrontiers, ProjectInput, ProjectScope, RequestExecution,
+    RuleDemand,
+};
+use ryo_execution::inbound::use_cases::execution::types::{
+    ObservedPublication, ProjectObservation, RootOutcome,
 };
 use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
 
@@ -17,6 +22,7 @@ pub(crate) struct ProgramEvaluated {
     )>,
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_cross_roots(
     request: &RequestExecution,
     rule: RuleIndex,
@@ -48,6 +54,11 @@ pub(crate) fn evaluate_cross_roots(
         symbols,
     )?;
     run.finish();
+    collected(outcome)
+}
+pub(crate) fn collected(
+    outcome: ryo_execution::inbound::use_cases::execution::types::ProjectRuleOutcome,
+) -> Result<ProgramEvaluated, OperatingError> {
     let mut roots = PhaseRoots::default();
     match outcome.emit {
         RootOutcome::Complete(table) => roots.emit = Some(table),
@@ -109,4 +120,6 @@ pub(crate) fn evaluate_cross_roots(
     })
 }
 
-use ryo_execution::inbound::use_cases::execution::types::{OperatingError, RuleIndex};
+use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+#[cfg(test)]
+use ryo_execution::inbound::use_cases::execution::types::RuleIndex;

@@ -252,6 +252,35 @@ impl ProjectExecution for ProjectSession<'_> {
     }
 }
 
+impl ProjectRootExecution for ProjectPhase<'_> {
+    fn evaluate(
+        &self,
+        tasks: Vec<ProjectTask<'_>>,
+        symbols: &mut Symbols,
+    ) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+        let mut opened = Vec::with_capacity(tasks.len());
+        let mut declarations = Vec::with_capacity(tasks.len());
+        for task in tasks {
+            declarations.push(facade_runtime::ProjectRootDeclaration {
+                rule: task.rule,
+                demand: task.demand,
+            });
+            if !std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {
+                opened.push(Err(OperatingError::NotRead));
+                continue;
+            }
+            opened.push(
+                self.request
+                    .open_project(task.input, symbols)
+                    .map(|session| session.inner),
+            );
+        }
+        facade_runtime::evaluate_roots(opened, &declarations, symbols)
+    }
+    fn readiness_counts(&self) -> ReadinessCounts {
+        self.publication.readiness_counts()
+    }
+}
 impl ProjectStage for ProjectPhase<'_> {
     fn state_counts(&self) -> InvocationStateCounts {
         self.publication.state_counts()
@@ -284,6 +313,19 @@ impl ProjectStage for ProjectPhase<'_> {
                 Err(OperatingError::NotRead)
             }
         }
+    }
+}
+
+impl ProjectRootExecution for ObservationStage<'_> {
+    fn evaluate(
+        &self,
+        tasks: Vec<ProjectTask<'_>>,
+        symbols: &mut Symbols,
+    ) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+        self.phase.evaluate(tasks, symbols)
+    }
+    fn readiness_counts(&self) -> ReadinessCounts {
+        self.phase.readiness_counts()
     }
 }
 

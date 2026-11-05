@@ -1,4 +1,5 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
+#[cfg(test)]
 use crate::application::run_coordination::crossing::cross_rule_with_inputs;
 use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::answering::types::{Crossed, Todo};
@@ -18,8 +19,10 @@ use crate::domain::rules::service::failed;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::types::PublicationSlot;
+#[cfg(test)]
 use ryo_execution::inbound::use_cases::execution::types::{
-    BoundInput, PreparedFrontiers, ProjectScope, PublicationSlot,
+    BoundInput, PreparedFrontiers, ProjectScope,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
@@ -69,6 +72,7 @@ impl CrossFile {
     /// Evaluate, place and render one cross-file rule without publishing it.
     /// Reuse the scope that admitted these frontiers. Demanded observation phases
     /// use the explicit reserved-slot entry.
+    #[cfg(test)]
     pub(crate) fn evaluate(
         &self,
         crossing: &CrossingInput<'_>,
@@ -88,7 +92,8 @@ impl CrossFile {
         )
         .map(|result| result.crossed)
     }
-    pub(crate) fn evaluate_phase(
+    #[cfg(test)]
+    fn evaluate_phase(
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
@@ -98,12 +103,104 @@ impl CrossFile {
         publication: PublicationSlot,
         scope: &ProjectScope,
     ) -> Result<super::types::CrossedWithPublications, RulesError> {
+        let evaluated =
+            cross_rule_with_inputs(crossing, todo, frontier, bound_inputs, cross, scope)?;
+        self.complete_phase(crossing, todo, evaluated, cross, publication)
+    }
+    /// One application call submits all currently available tasks to the engine stage.
+    pub(crate) fn evaluate_batch(
+        &self,
+        crossing: &CrossingInput<'_>,
+        tasks: Vec<super::types::ProjectTask<'_>>,
+        stage: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
+        symbols: &mut Symbols,
+    ) -> Vec<Result<super::types::CrossedWithPublications, RulesError>> {
+        use ryo_execution::inbound::use_cases::execution::types::{
+            EmitDemand, ObservationDemand, ProjectInput, ProjectTask, RuleDemand,
+        };
+        let partials = tasks
+            .iter()
+            .map(|task| {
+                let evaluation = match crossing.answering {
+                    Answering::Findings => crate::domain::crossing::service::partials_for(
+                        &crossing.domain,
+                        task.todo.rule,
+                    ),
+                    Answering::Rows(_) => Default::default(),
+                };
+                crossing
+                    .program
+                    .observation_reads(task.todo.rule)
+                    .map(|reads| {
+                        (
+                            evaluation,
+                            crate::domain::crossing::service::partials_for_reads(
+                                &crossing.domain,
+                                task.todo.rule,
+                                &reads,
+                            ),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+        let mut targets = Vec::with_capacity(tasks.len());
+        let mut inputs = Vec::with_capacity(tasks.len());
+        let mut failures = Vec::with_capacity(tasks.len());
+        for (task, partials) in tasks.into_iter().zip(&partials) {
+            targets.push((task.todo, task.slot));
+            match partials {
+                Ok((evaluation, publication)) => {
+                    failures.push(None);
+                    inputs.push(ProjectTask {
+                        rule: task.todo.rule,
+                        demand: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::Required,
+                        },
+                        input: ProjectInput {
+                            scope: task.scope,
+                            evaluation,
+                            publication,
+                            ordinary: task.frontier,
+                            bound: task.bound,
+                            arenas: crossing.arenas,
+                        },
+                    });
+                }
+                Err(error) => failures.push(Some(failed(&task.todo.id, error))),
+            }
+        }
+        let mut evaluated = stage.evaluate(inputs, symbols).into_iter();
+        targets
+            .into_iter()
+            .zip(failures)
+            .map(|((todo, slot), failure)| {
+                if let Some(error) = failure {
+                    return Err(error);
+                }
+                let outcome = evaluated
+                    .next()
+                    .ok_or_else(|| failed(&todo.id, &"project root outcome missing"))?
+                    .map_err(|error| failed(&todo.id, &error))?;
+                let evaluated =
+                    crate::application::run_coordination::cross_execution::collected(outcome)
+                        .map_err(|error| failed(&todo.id, &error))?;
+                self.complete_phase(crossing, todo, evaluated, symbols, slot)
+            })
+            .collect()
+    }
+    fn complete_phase(
+        &self,
+        crossing: &CrossingInput<'_>,
+        todo: &Todo,
+        evaluated: crate::application::run_coordination::cross_execution::ProgramEvaluated,
+        cross: &mut Symbols,
+        publication: PublicationSlot,
+    ) -> Result<super::types::CrossedWithPublications, RulesError> {
         let emit = crossing
             .program
             .emit(todo.rule)
             .map_err(|error| failed(&todo.id, &error))?;
-        let evaluated =
-            cross_rule_with_inputs(crossing, todo, frontier, bound_inputs, cross, scope)?;
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let roots = evaluated.roots;
         if let Some(error) = &roots.emit_error

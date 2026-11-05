@@ -20,3 +20,12 @@ pub(crate) struct ObservationRun<'a> {
     pub project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
     pub todo: &'a [crate::domain::answering::types::Todo],
 }
+
+/// One declared task; the scope and bindings belong to the shared project stage.
+pub(crate) struct ProjectTask<'a> {
+    pub todo: &'a crate::domain::answering::types::Todo,
+    pub frontier: ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers,
+    pub bound: &'a [ryo_execution::inbound::use_cases::execution::types::BoundInput],
+    pub slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot,
+    pub scope: &'a ryo_execution::inbound::use_cases::execution::types::ProjectScope,
+}

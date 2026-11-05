@@ -1008,7 +1008,24 @@ impl ProgramExecution {
         use crate::domain::readiness::types::{
             ReadinessAction, ReadinessOutcome, RegionCount, ready_queue::value::ReadyQueue,
         };
-        let mut queue = ReadyQueue::new(RegionCount(self.program.regions().len()), roots)?;
+        // Publication delivery and retries must not re-enter readiness work.
+        let mut pending = Vec::with_capacity(roots.len());
+        for &root in roots {
+            self.program
+                .regions()
+                .get(root.0)
+                .ok_or(OperatingError::NotRun)?;
+            let terminal = state.slots.borrow().get(&root.0).is_some_and(|slot| {
+                matches!(
+                    slot.state,
+                    State::Published(_) | State::Failed(_) | State::Retired
+                )
+            });
+            if !terminal && state.dormant.borrow().get(&root) != Some(&0) {
+                pending.push(root);
+            }
+        }
+        let mut queue = ReadyQueue::new(RegionCount(self.program.regions().len()), &pending)?;
         let result = (|| {
             while let Some(action) = queue.next()? {
                 let (id, prepare) = match action {
@@ -1024,7 +1041,29 @@ impl ProgramExecution {
                         Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
                         // A failed producer wakes its dependants so each resumes its
                         // actual admission action, records the same failure and retires.
-                        Ok(_) | Err(_) => ReadinessOutcome::Terminal,
+                        Ok(_) => ReadinessOutcome::Terminal,
+                        Err(error) => {
+                            // Some contract refusals occur before the kernel/Invocation guard
+                            // is entered. Retain that same error as a terminal publication
+                            // outcome so ordered delivery never has to re-run a failed poll.
+                            let retained = state.slots.borrow().get(&id.0).is_some_and(|slot| {
+                                matches!(
+                                    slot.state,
+                                    State::Published(_) | State::Failed(_) | State::Retired
+                                )
+                            });
+                            if !retained {
+                                Slot::touched(
+                                    state,
+                                    &mut state.slots.borrow_mut(),
+                                    &self.program,
+                                    id,
+                                )?
+                                .state = State::Failed(error);
+                                let _cleanup = self.release_inputs(state, id);
+                            }
+                            ReadinessOutcome::Terminal
+                        }
                     };
                 queue.observe(id, outcome)?;
             }
@@ -1096,60 +1135,35 @@ impl ProgramExecution {
         context: &mut OperatorContext<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
         self.validate_state(state)?;
-        loop {
-            match self.poll(state, id, inputs, kernels, completion, context, false)? {
-                InvocationOutcome::Suspended(dependency) => {
-                    let mut pending = vec![id, dependency];
-                    self.resolve_dependencies(
-                        state,
-                        &mut pending,
-                        inputs,
-                        kernels,
-                        completion,
-                        context,
-                    )?;
-                }
-                InvocationOutcome::Ready => return Err(OperatingError::NotRun),
-                outcome => return Ok(outcome),
-            }
+        if inputs.population_scope() != state.scope {
+            return Err(OperatingError::NotRead);
         }
-    }
-    fn resolve_dependencies(
-        &self,
-        state: &RuntimeState,
-        pending: &mut Vec<RegionId>,
-        inputs: &mut dyn Inputs,
-        kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
-        context: &mut OperatorContext<'_>,
-    ) -> Result<(), OperatingError> {
-        while pending.len() > 1 {
-            let current = *pending.last().ok_or(OperatingError::NotRun)?;
-            match self.poll(state, current, inputs, kernels, completion, context, false) {
-                Ok(InvocationOutcome::Suspended(dependency)) => {
-                    if pending.contains(&dependency) {
-                        {
-                            let mut slots = state.slots.borrow_mut();
-                            let slot = Slot::touched(state, &mut slots, &self.program, current)?;
-                            slot.state = State::Failed(OperatingError::NotRun);
-                            slot.admission = AdmissionProgress::default();
-                        }
-                        self.release_inputs(state, current)?;
-                        pending.pop();
-                        continue;
-                    }
-                    pending.push(dependency);
-                }
-                Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
-                // A producer failure is consumed by its waiting parent at the
-                // same suspended admission action. Unwind through every parent
-                // so each records terminal failure and settles its obligations.
-                Ok(_) | Err(_) => {
-                    pending.pop();
-                }
-            }
+        self.cleanup_status()?;
+        let producer = self
+            .program
+            .regions()
+            .get(id.0)
+            .ok_or(OperatingError::NotRun)?
+            .producer;
+        if state
+            .slots
+            .borrow()
+            .get(&id.0)
+            .and_then(|slot| slot.completion.as_ref())
+            .is_some_and(|bound| bound != &completion.for_rule(producer))
+        {
+            return Err(OperatingError::NotRead);
         }
-        Ok(())
+        if let Some(input) = self.published(state, id)? {
+            return Ok(InvocationOutcome::Published(input));
+        }
+        // Singleton demand is the same root-set scheduler, never a recursive evaluator.
+        self.prepare_roots(state, &[id], inputs, kernels, completion, context)?;
+        let published = self.published(state, id)?;
+        self.cleanup_status()?;
+        published
+            .map(InvocationOutcome::Published)
+            .ok_or(OperatingError::NotRun)
     }
     pub(in crate::application::file_dag::program) fn poll(
         &self,
