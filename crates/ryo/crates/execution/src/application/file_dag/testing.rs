@@ -1,7 +1,5 @@
 //! Pure borrowed-value and preparation fixtures; no executor or admission alternative.
 use ryo_relations::domain::relations::types::{CellKind, Value};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::rows::types::Table;
 /// Composition of the actual portable derived use case for current engine tests.
 pub(crate) fn program_derived_port()
 -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
@@ -40,26 +38,4 @@ impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {
         .get(column.0 as usize)
         .copied()
     }
-}
-
-pub(crate) fn same_rows(table: &Table, rows: &[Vec<Value>]) -> bool {
-    table.count.0 == rows.len()
-        && rows.iter().all(|row| row.len() == table.kinds.len())
-        && table.cells == rows.iter().flatten().copied().collect::<Vec<_>>()
-}
-
-pub(crate) fn request_fixture(
-    plans: &[ryo_values::domain::plans::types::Plan],
-    bindings: &[Vec<ParameterBinding>],
-    hosted: &[ryo_values::domain::hosted::types::HostRelation],
-) -> std::sync::Arc<crate::domain::operator::contract::types::RequestOperators> {
-    std::sync::Arc::new(
-        crate::domain::operator::contract::types::RequestOperators::prepare(
-            plans,
-            bindings,
-            hosted,
-            program_derived_port(),
-        )
-        .expect("fixture metadata"),
-    )
 }

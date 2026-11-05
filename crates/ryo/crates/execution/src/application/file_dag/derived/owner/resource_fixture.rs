@@ -11,9 +11,6 @@ use ryo_values::domain::{plan_parts::types::ColumnIndex, plans::types::Plan};
 use std::rc::Rc;
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Snapshot {
-    pub builds: u64,
-    pub reuses: u64,
-    pub entries: usize,
     pub graph_builds: u64,
     pub graph_reuses: u64,
     pub graph_early_stops: u64,
@@ -157,9 +154,6 @@ impl ResourceFixture {
     }
     pub(crate) fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
         self.owner.derived.first_index_weak()
-    }
-    pub(crate) fn first_index_owners(&self) -> Option<usize> {
-        self.owner.derived.first_index_owners()
     }
 }
 /// Observe backing lifetime without retaining a lease or exposing mutable storage.

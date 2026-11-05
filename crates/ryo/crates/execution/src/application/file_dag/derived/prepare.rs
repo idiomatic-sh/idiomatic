@@ -1,27 +1,5 @@
 //! Standalone application preparation uses the same required declarations as request preparation.
-use crate::domain::{
-    operating::errors::OperatingError,
-    operation_schema::types::InputShape,
-    operator::{contract::types::OperatorContract, service::PreparationRoute},
-};
-use ryo_values::domain::plans::types::Operation;
-
-#[cfg(test)]
-pub(crate) fn operator(
-    item: PreparationRoute,
-    operation: &Operation,
-    schemas: &[InputShape<'_>],
-    bindings: &[ParameterBinding],
-) -> Result<OperatorContract, OperatingError> {
-    let mut contract = item.prepare(operation, schemas, bindings)?;
-    super::request::RequestViews::new(
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    )
-    .bind(&mut contract)?;
-    Ok(contract)
-}
+use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 
 /// All preparation routes delegate semantic metadata to the injected capability.
 pub(in crate::application::file_dag) fn view(
@@ -153,5 +131,3 @@ pub(in crate::application::file_dag) fn view(
         semantic: prepared,
     })
 }
-
-use ryo_values::domain::query_bindings::types::ParameterBinding;

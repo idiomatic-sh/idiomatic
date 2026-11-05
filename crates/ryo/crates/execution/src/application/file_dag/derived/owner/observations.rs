@@ -6,8 +6,6 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 #[derive(Clone, Copy, Debug, Default)]
 pub(in crate::application::file_dag) struct IndexObservation {
     pub available: bool,
-    pub builds: u64,
-    pub reuses: u64,
 }
 impl DerivedOwner {
     #[cfg(test)]
@@ -37,37 +35,18 @@ impl DerivedOwner {
         let backend = self.backend.borrow();
         let cache = backend.as_ref().expect("configured actual owner");
         super::resource_fixture::Snapshot {
-            builds: cache.builds,
-            reuses: cache.reuses,
-            entries: self.retained_index_count(),
             graph_builds: cache.graph_counts.builds,
             graph_reuses: cache.graph_counts.reuses,
             graph_early_stops: cache.graph_counts.early_stops,
         }
     }
     #[cfg(test)]
-    pub(crate) fn index_fixture_state(&self) -> (u64, u64, usize, bool) {
-        self.backend
-            .borrow()
-            .as_ref()
-            .map_or((0, 0, 0, true), |cache| {
-                (
-                    cache.builds,
-                    cache.reuses,
-                    self.retained_index_count(),
-                    self.no_invocation_index_handles(),
-                )
-            })
-    }
-    #[cfg(test)]
     pub(in crate::application::file_dag) fn index_observation(&self) -> IndexObservation {
         self.backend
             .borrow()
             .as_ref()
-            .map_or_else(IndexObservation::default, |cache| IndexObservation {
+            .map_or_else(IndexObservation::default, |_| IndexObservation {
                 available: true,
-                builds: cache.builds,
-                reuses: cache.reuses,
             })
     }
     #[cfg(test)]
@@ -76,18 +55,6 @@ impl DerivedOwner {
             .borrow()
             .as_ref()
             .is_some_and(|cache| cache.eligible.contains(&relation))
-    }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn can_retain_equality(
-        &self,
-        relation: Relation,
-        rows: ColumnsView<'_>,
-        columns: &[ColumnIndex],
-    ) -> bool {
-        self.backend.borrow().as_ref().is_some_and(|cache| {
-            self.has_live_equality(rows, columns)
-                || super::super::indexes::can_retain(cache, relation, rows, columns)
-        })
     }
     pub(super) fn has_live_equality(&self, rows: ColumnsView<'_>, columns: &[ColumnIndex]) -> bool {
         let count = rows.columns.first().map_or(0, |column| column.0.len());
@@ -107,25 +74,6 @@ impl DerivedOwner {
             .values()
             .filter(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some())
             .count()
-    }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn selection_counts(&self) -> (u64, u64) {
-        self.backend.borrow().as_ref().map_or((0, 0), |cache| {
-            (cache.selection_counts.builds, cache.selection_counts.reuses)
-        })
-    }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn retained_predicate_rows(&self) -> Option<usize> {
-        self.state.borrow().entries.values().find_map(|entry| {
-            if entry._plan.kind != DerivedKind::PredicateMatches {
-                return None;
-            }
-            let storage = &entry.retained.as_ref()?.storage;
-            match storage.view().ok()? {
-                ryo_derived::domain::contract::types::DerivedView::RowIds(rows) => Some(rows.len()),
-                _ => None,
-            }
-        })
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn no_invocation_index_handles(&self) -> bool {
@@ -153,10 +101,6 @@ impl DerivedOwner {
                 .share_equality()
                 .map(|index| Arc::downgrade(&index))
         })
-    }
-    #[cfg(test)]
-    pub(super) fn first_index_owners(&self) -> Option<usize> {
-        self.first_index_weak().map(|index| index.strong_count())
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {

@@ -56,13 +56,3 @@ pub(crate) fn appended_values(
     }
     Ok(())
 }
-
-#[cfg(test)]
-thread_local! {
-    static RESOURCE_SETUP: std::cell::Cell<Option<(bool, bool)>> = const { std::cell::Cell::new(None) };
-}
-
-#[cfg(test)]
-pub(crate) fn take_resource_setup() -> Option<(bool, bool)> {
-    RESOURCE_SETUP.with(std::cell::Cell::take)
-}

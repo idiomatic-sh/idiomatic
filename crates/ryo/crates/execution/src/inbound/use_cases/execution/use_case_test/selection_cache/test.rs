@@ -41,8 +41,10 @@ enum Scenario {
     EmptyColumns,
     /// Refused cache retention still returns the complete local result.
     Budget,
-    /// Incomplete provider columns retain ordinary execution.
+    /// Unequal column lengths retain readable ordinary fallback.
     Ragged,
+    /// A schema width unlike the supplied physical columns is rejected.
+    Malformed,
     /// A population outside the eligibility set bypasses compact execution.
     Ineligible,
     /// Referenced parameter values distinguish successful results.
@@ -253,22 +255,40 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         memo: &mut Vec::new(),
         scratch: &mut OperatorScratch::default(),
     };
-    if matches!(scenario, Scenario::Ragged | Scenario::Ineligible) {
-        let input = if matches!(scenario, Scenario::Ragged) {
-            ColumnsView {
+    if matches!(
+        scenario,
+        Scenario::Ragged | Scenario::Malformed | Scenario::Ineligible
+    ) {
+        let mut ragged_columns = columns
+            .iter()
+            .map(|column| FactColumn(column.0.clone()))
+            .collect::<Vec<_>>();
+        ragged_columns[1].0.pop();
+        let input = match scenario {
+            Scenario::Ragged => ColumnsView {
+                columns: &ragged_columns,
+                ..source
+            },
+            Scenario::Malformed => ColumnsView {
                 columns: &columns[..2],
                 ..source
-            }
-        } else {
-            source
+            },
+            _ => source,
         };
-        assert!(fixture.select(&first, input, &mut context)?.is_none());
+        let selected = fixture.select(&first, input, &mut context);
         assert_eq!(
             fixture.owner().checks.get(),
             1,
             "the actual owner inspects the backing before declining optional selection"
         );
         assert_eq!(fixture.snapshot(None).counts.builds, 0);
+        if matches!(scenario, Scenario::Malformed) {
+            return match selected {
+                Err(error) => Err(error),
+                Ok(_) => panic!("schema/column-count mismatch must be refused by owner admission"),
+            };
+        }
+        assert!(selected?.is_none());
         return Ok(1);
     }
     if matches!(scenario, Scenario::EmptyColumns) {
@@ -965,6 +985,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("schema_width_mismatch_is_refused_before_selection"),
+        word: Word::Refuses,
+        input: || Scenario::Malformed,
+        expect: Expect::Error(OperatingError::ShapeMismatch),
+    },
+    Case {
         name: CaseName("ragged_views_fall_back_without_cached_rows"),
         word: Word::Succeeds,
         input: || Scenario::Ragged,
@@ -1000,6 +1026,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 
 /// Distinct projections keep independent first representatives while sharing only predicate matches.

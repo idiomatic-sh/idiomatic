@@ -83,6 +83,9 @@ impl Driver<'_, '_> {
         let index = self.index.ok_or(OperatingError::NotRun)?;
         let probe = self.probe.get_or_insert_with(|| index.probe(key));
         self.current = index.next_match(key, probe);
+        if self.current.is_some() {
+            self.lease.found(1, 1);
+        }
         #[cfg(feature = "diagnostic-row-progress")]
         if self.current.is_some() {
             self.lease.progress(

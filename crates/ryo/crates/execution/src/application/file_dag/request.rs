@@ -192,18 +192,3 @@ impl RequestOperators {
         Ok(request)
     }
 }
-
-#[cfg(test)]
-pub(crate) fn compile(plans: &[Plan]) -> crate::domain::file_program::types::RequestGraph {
-    let bindings = vec![Vec::new(); plans.len()];
-    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
-        plans,
-        &bindings,
-        &[],
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    )
-    .expect("fixture request metadata");
-    crate::domain::file_program::service::compile_prepared(plans, &request)
-}
