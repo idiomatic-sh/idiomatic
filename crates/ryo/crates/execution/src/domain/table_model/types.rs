@@ -137,3 +137,5 @@ pub(crate) enum Verdict {
 }
 
 use ryo_values::domain::rows::types::RowIndex;
+
+use ryo_values::domain::query_bindings::types::ParameterBinding;

@@ -12,7 +12,7 @@ use crate::domain::{
     },
     operating::errors::OperatingError,
     operator::{contract::types::RequestOperators, types::RowsFed},
-    rules::types::table_model::types::trust::types::RelationRead,
+    trust::types::RelationRead,
 };
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::{CellKind, Words};
@@ -248,7 +248,7 @@ impl PreparedProgram {
             .copied()
             .ok_or(OperatingError::NotRun)
     }
-    pub(super) fn program(&self) -> &Arc<ExecutableProgram> {
+    pub(in crate::application::file_dag) fn program(&self) -> &Arc<ExecutableProgram> {
         &self.program
     }
     pub(super) fn derived(&self) -> &super::super::derived::prepared::PreparedDerived {
@@ -689,6 +689,6 @@ fn source(
     }
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-use ryo_values::domain::rule_requests::types::{RuleSpec};
+use ryo_values::domain::rule_requests::types::RuleSpec;

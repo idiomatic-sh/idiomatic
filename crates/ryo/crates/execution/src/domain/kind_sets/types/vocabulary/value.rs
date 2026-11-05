@@ -5,17 +5,18 @@ use crate::domain::table_scratch::types::KindSet;
 /// Exact ordered kind names of one prepared vocabulary and its finite literal masks.
 /// These values own no file source, symbols, rows, or provider references.
 #[derive(Debug)]
-pub(crate) struct PreparedVocabulary {
+pub struct PreparedVocabulary {
     /// Exact names in kind-number order, including the unnamed sentinel.
-    pub names: Vec<Option<Box<str>>>,
+    pub(crate) names: Vec<Option<Box<str>>>,
     /// Lazy immutable masks for the request's literal comparisons only.
-    pub masks: std::sync::Mutex<hashbrown::HashMap<PreparedKindTest, std::sync::Arc<KindSet>>>,
+    pub(crate) masks:
+        std::sync::Mutex<hashbrown::HashMap<PreparedKindTest, std::sync::Arc<KindSet>>>,
     /// Metadata-lock acquisitions during setup, absent from production.
     #[cfg(test)]
-    pub lookups: std::sync::atomic::AtomicUsize,
+    pub(crate) lookups: std::sync::atomic::AtomicUsize,
     /// Vocabulary scans to construct literal masks, absent from production.
     #[cfg(test)]
-    pub builds: std::sync::atomic::AtomicUsize,
+    pub(crate) builds: std::sync::atomic::AtomicUsize,
 }
 
 /// A literal comparison's identity within the prepared request.

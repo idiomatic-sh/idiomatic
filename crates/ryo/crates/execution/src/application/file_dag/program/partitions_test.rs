@@ -1,9 +1,9 @@
 use super::*;
-use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_relations::domain::relations::{
     service::{ALL, provenance_of},
     types::Provenance,
 };
+use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::{
     hosted::types::HostName,
     observations::types::{

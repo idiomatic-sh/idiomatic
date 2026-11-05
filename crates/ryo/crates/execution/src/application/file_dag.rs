@@ -43,7 +43,7 @@ pub(in crate::application) mod observations;
 mod ordered_existence;
 
 pub(in crate::application) mod completion;
-pub(in crate::application) mod scope;
+pub(crate) mod scope;
 
 pub(crate) mod program;
 

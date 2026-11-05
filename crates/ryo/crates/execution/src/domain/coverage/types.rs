@@ -8,7 +8,7 @@ use ryo_values::domain::stored_facts::types::PartialCause;
 
 /// Which rows of a relation could be missing from a file that is read in part.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Lacking {
+pub enum Lacking {
     /// Any row could be.
     #[default]
     Any,
@@ -18,11 +18,11 @@ pub(crate) enum Lacking {
 
 /// The kind of the rows that could be missing, as the reader names it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct LackingKind(pub Box<str>);
+pub struct LackingKind(pub Box<str>);
 
 /// A relation a file is read in part, why, and which rows could be missing.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Partial {
+pub struct Partial {
     /// The relation.
     pub relation: Relation,
     /// Why, as the reader says it.
@@ -35,7 +35,7 @@ pub(crate) struct Partial {
 
 /// The relations of the files of a run that are read only in part, by file.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Partials {
+pub struct Partials {
     /// Each partly read relation of each file, in no particular order.
     pub entries: Vec<FilePartial>,
     /// Files explicitly skipped for a rule before its cross-file steps; these must not look like clean empty inputs.
@@ -44,7 +44,7 @@ pub(crate) struct Partials {
 
 /// A relation read in part, and the file it is read in part in.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct FilePartial {
+pub struct FilePartial {
     /// The file; none for the repository as a whole.
     pub file: Option<FileId>,
     /// The relation read in part there.
@@ -53,7 +53,7 @@ pub(crate) struct FilePartial {
 
 /// The place of a rule among the rules of a run: an index into their needs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct RuleIndex(pub usize);
+pub struct RuleIndex(pub usize);
 
 /// What is partial in a file's relation, and why, for a human.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -90,7 +90,7 @@ pub(crate) enum Keying {
 
 /// A file of which some relations are read in part: its place among the files, the rules that govern it and what is partial.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Covered {
+pub struct Covered {
     /// The file's place among the files of the run.
     pub file: FileId,
     /// The rules that govern the file, by their place.

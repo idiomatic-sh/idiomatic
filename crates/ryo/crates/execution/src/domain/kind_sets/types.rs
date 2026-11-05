@@ -14,4 +14,5 @@ pub(crate) struct KindScratch {
 
 pub(crate) mod vocabulary;
 
-pub(crate) use vocabulary::value::{PreparedKindTest, PreparedVocabulary};
+pub(crate) use vocabulary::value::PreparedKindTest;
+pub use vocabulary::value::PreparedVocabulary;

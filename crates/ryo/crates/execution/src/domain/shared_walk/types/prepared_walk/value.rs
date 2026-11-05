@@ -8,7 +8,7 @@ use crate::domain::{
         service::merge,
         types::{Merge, StepClass},
     },
-    table_model::types::};
+};
 use ryo_values::domain::plans::types::Plan;
 
 /// Number of rules whose preparations the native pass covers.
@@ -102,4 +102,4 @@ impl NativeBatch {
     }
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

@@ -8,7 +8,6 @@ use crate::domain::ordering::types::Ordered;
 use crate::domain::placement::types::PlacedScopes;
 use crate::domain::render::types::Answering;
 use ryo_values::domain::rule_requests::types::RuleParameters;
-use crate::domain::rules::types::{};
 use crate::domain::storing::types::Reuse;
 use crate::domain::table_model::types::{};
 use crate::domain::trust::types::Needs;

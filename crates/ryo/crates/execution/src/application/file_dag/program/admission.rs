@@ -696,7 +696,7 @@ impl Partition {
     }
 }
 impl RequiredPartitions {
-    pub(super) fn same_request(&self, other: &Self) -> bool {
+    pub(in crate::application::file_dag) fn same_request(&self, other: &Self) -> bool {
         self == other
     }
 }

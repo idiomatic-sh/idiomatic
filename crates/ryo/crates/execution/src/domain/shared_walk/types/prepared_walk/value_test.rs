@@ -8,7 +8,7 @@ use crate::domain::{
         service_test::{add_pattern, evaluate_plans, plans},
         types::RuleActivity,
     },
-    table_model::types::};
+};
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 #[test]
@@ -76,4 +76,4 @@ fn a_missing_referenced_binding_cannot_be_shared_as_a_value() {
     );
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

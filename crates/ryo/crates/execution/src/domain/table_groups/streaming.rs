@@ -212,4 +212,4 @@ mod tests {
     }
 }
 
-use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+use ryo_values::domain::rows::types::RowCount;
