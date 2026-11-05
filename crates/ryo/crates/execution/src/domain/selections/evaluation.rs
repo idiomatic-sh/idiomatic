@@ -9,7 +9,7 @@ use crate::domain::kind_sets::service::{candidates_of, kind_tests, passes};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNarrowing;
-use crate::domain::operating::types::{Emit, InputPlace, Memo, NameCount, OperatorContext, Supply};
+use crate::domain::operating::types::{Emit, InputPlace, Memo, NameCount, OperatorContext};
 use crate::domain::replay::types::Collect;
 use crate::domain::table_cells::service::{read_cells, read_tree_cells};
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
