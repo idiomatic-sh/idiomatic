@@ -28,7 +28,7 @@ let children-directory = union(left=directory-flat-children, right=directory-nes
 let children-root = union(left=children-beside, right=children-library);
 let all-children = union(left=children-root, right=children-directory);
 let mod-children = select * from all-children where glob_any(child, "mod");
-let declarable = antijoin(left=all-children, right=mod-children, left-on=["child-path"], right-on=["child-path"]);
+let declarable = antijoin(left=all-children, right=mod-children, left-on=["module-path", "child-path"], right-on=["module-path", "child-path"]);
 let source-files = select * from tree-nodes where kind = "source-file";
 let top-edges = select r."child" as "child" from source-files as l join "syntax-child" as r on l."id" = r."parent";
 let top-items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from top-edges as l join tree-nodes as r on l."child" = r."id";
