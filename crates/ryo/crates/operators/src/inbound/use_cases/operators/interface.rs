@@ -58,6 +58,27 @@ pub use crate::domain::words::types::WordOutput;
 /// use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
 /// let _: Option<&dyn OperatorsPort> = None;
 /// ```
+/// Implementations must supply the semantic evaluator.
+///
+/// ```compile_fail,E0046
+/// use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+/// struct MissingEvaluator;
+/// impl OperatorsUseCase for MissingEvaluator {}
+/// ```
+///
+/// A borrowed request cannot retain its input beyond the invocation.
+///
+/// ```compile_fail
+/// use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
+/// use ryo_relations::domain::relations::types::Value;
+/// fn retain(call: OperatorCall<'_>) -> &'static [Value] {
+///     match call {
+///         OperatorCall::Project { row, .. } => row,
+///         _ => &[],
+///     }
+/// }
+/// ```
+///
 /// Pure row semantics without scheduling, retained storage or publication authority.
 pub trait OperatorsUseCase: Sync {
     /// Evaluate one borrowed request into caller-owned scratch.
