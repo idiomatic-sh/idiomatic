@@ -76,7 +76,7 @@ fn semantic_failure_discards_every_after_success_row() {
                     exposed.extend_from_slice(row);
                     Ok(())
                 });
-                assert_eq!(result.unwrap_err(), OperatingError::InvalidSpan);
+                assert!(matches!(result, Err(OperatingError::InvalidSpan)));
                 assert!(
                     exposed.is_empty(),
                     "a later semantic refusal discards the entire batch"
@@ -135,7 +135,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
             Ok(())
         });
         if refuse {
-            assert_eq!(result.unwrap_err(), OperatingError::WrongBinding);
+            assert!(matches!(result, Err(OperatingError::WrongBinding)));
             assert_eq!(exposed, table.cells[..table.kinds.len()]);
             exposed.clear();
             file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
