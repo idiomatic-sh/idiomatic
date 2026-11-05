@@ -438,7 +438,19 @@ impl FileRun<'_> {
         if (RuleDemand { emit, observations }) != demand {
             return Err(OperatingError::NotRun);
         }
-        self.prepare_walk(read, symbols)?;
+        let metadata = self.program.rule_metadata(rule)?;
+        let owns_file_root = (demand.emit == EmitDemand::Enabled
+            && metadata.emit_root.as_ref().is_ok_and(|id| {
+                self.program.program().regions()[id.0].phase
+                    == ryo_values::domain::plans::types::StepScope::PerFile
+            }))
+            || (demand.observations == ObservationDemand::Required
+                && metadata.observations.iter().any(|root| {
+                    root.phase == ryo_values::domain::plans::types::StepScope::PerFile
+                }));
+        if owns_file_root {
+            self.prepare_walk(read, symbols)?;
+        }
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,
@@ -859,6 +871,16 @@ impl FileRun<'_> {
     ) -> Result<super::super::facade::RowEmission, OperatingError> {
         if self.declared(rule)?.0 != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
+        }
+        let id = *self
+            .program
+            .rule_metadata(rule)?
+            .emit_root
+            .as_ref()
+            .map_err(Clone::clone)?;
+        let phase = self.program.program().regions()[id.0].phase;
+        if phase != ryo_values::domain::plans::types::StepScope::PerFile {
+            return Ok(super::super::facade::RowEmission::Deferred { phase });
         }
         self.prepare_walk(read, symbols)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
