@@ -16,7 +16,7 @@ enum Question {
     /// Each name and the string it is bound to.
     Assignments,
     /// What each is, by its shape.
-    DeclarationShape,
+    Shape,
 }
 
 type Input = (&'static str, GoNode, Question);
@@ -137,7 +137,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_function_a_type_and_a_field_have_their_shapes"),
         word: Word::Succeeds,
-        input: || ("package p\nfunc f() {}\n", GoNode::FuncDecl, Question::DeclarationShape),
+        input: || ("package p\nfunc f() {}\n", GoNode::FuncDecl, Question::Shape),
         expect: Expect::Value("Function"),
     },
 ];
@@ -183,7 +183,7 @@ fn subject((source, node, question): Input) -> Value {
                             )
                         })
                         .collect(),
-                    Question::DeclarationShape => vec![format!("{:?}", shape(tree, at))],
+                    Question::Shape => vec![format!("{:?}", shape(tree, at))],
                 }
             })
             .collect::<Vec<_>>()

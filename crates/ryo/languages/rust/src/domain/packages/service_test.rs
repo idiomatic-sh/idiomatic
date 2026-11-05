@@ -22,7 +22,7 @@ enum Scenario {
     /// The number of the file of each manifest its manifests name, when the run lists these files.
     Number(Files, &'static [&'static str]),
     /// Whether each manifest refused leaves which workspace holds it unread.
-    WorkspacePackageMembership(Files),
+    Membership(Files),
 }
 
 /// What a row of the cases asks.
@@ -119,7 +119,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Scenario::Read(files) => (files, None),
         Scenario::ListIndex(files, candidate) => (files, Some(candidate)),
         Scenario::Number(files, listed) => return Ok(numbers(files, listed)),
-        Scenario::WorkspacePackageMembership(files) => return Ok(memberships(files)),
+        Scenario::Membership(files) => return Ok(memberships(files)),
     };
     if let Some(candidate) = candidate {
         let path = RepoPath(candidate.into());
@@ -306,13 +306,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_package_in_no_workspace_is_known_to_be_in_none"),
         word: Word::Succeeds,
-        input: || Scenario::WorkspacePackageMembership(NOT_A_MEMBER),
+        input: || Scenario::Membership(NOT_A_MEMBER),
         expect: Expect::Value("z/Cargo.toml: Analyzed"),
     },
     Case {
         name: CaseName("a_package_refused_for_another_reason_leaves_its_workspace_unread"),
         word: Word::Succeeds,
-        input: || Scenario::WorkspacePackageMembership(STRANDED),
+        input: || Scenario::Membership(STRANDED),
         expect: Expect::Value("b/Cargo.toml: Unanalyzed"),
     },
     Case {
