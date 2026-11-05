@@ -49,3 +49,5 @@ pub(crate) mod tree_join_service_test;
 pub(crate) mod workers_service_test;
 
 pub(crate) mod compiled_span_fixture;
+
+pub(crate) mod observed_replay_test;

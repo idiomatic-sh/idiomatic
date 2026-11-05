@@ -119,9 +119,9 @@ fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::derived::owner::{DerivedOwner, PopulationId, ViewContext};
     use crate::domain::{
         derived_views::types::*, operation_schema::types::InputShape,
-        operator::contract::views::BorrowedRows, operator::types::PreparedPool,
+        operator::contract::views::BorrowedRows,
     };
-    use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
+    use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     use std::sync::Arc;
     let columns = [FactColumn(vec![3, 1, 3])];
@@ -146,16 +146,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let state = capture(|| {
         let _rule = rule(2, "query-two");
         let _node = node(41);
-        let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
-        owner.prepare_file(
-            true,
-            &[Relation::Function],
-            &[],
-            &[Relation::Function],
-            &[],
-            &PreparedPool::default(),
-            |_| true,
-        );
+        let owner = DerivedOwner::new(1, crate::outbound::derived::factory::test_port());
         let held = owner
             .acquire_stored(
                 &plan,
@@ -163,20 +154,11 @@ fn owner_routes_count_each_physical_equality_build_once() {
                 ViewContext::default(),
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),
-                Some((Relation::Function, rows)),
+                None,
             )
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
-        let selector_owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
-        selector_owner.prepare_file(
-            true,
-            &[Relation::Function],
-            &[],
-            &[Relation::Function],
-            &[],
-            &PreparedPool::default(),
-            |_| true,
-        );
+        let selector_owner = DerivedOwner::new(1, crate::outbound::derived::factory::test_port());
         let first = selector_owner
             .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
@@ -185,7 +167,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
                 ViewContext::default(),
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),
-                Some((Relation::Function, rows)),
+                None,
             )
             .unwrap();
         assert!(first.was_built());
@@ -197,7 +179,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
                 ViewContext::default(),
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),
-                Some((Relation::Function, rows)),
+                None,
             )
             .unwrap();
         assert!(!second.was_built());

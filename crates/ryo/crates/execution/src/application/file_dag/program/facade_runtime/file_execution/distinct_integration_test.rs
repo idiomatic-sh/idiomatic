@@ -341,3 +341,7 @@ mod selected_join_test;
 mod producer_lifetime_test;
 
 mod replay_test;
+
+mod scratch_owner_test;
+
+mod execution_boundary_test;

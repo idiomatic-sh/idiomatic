@@ -6,8 +6,6 @@ use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::types::{ProjectInput, ProjectNotes};
@@ -19,10 +17,15 @@ use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestTex
 use std::sync::{Arc, atomic::Ordering};
 
 use crate::application::run_coordination::settings::VisitSetting;
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::TreeSteps;
 use crate::domain::workers::service::tables_for;
+use ryo_execution::inbound::use_cases::execution::types::Counting;
+use ryo_execution::inbound::use_cases::execution::types::TreeSteps;
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
+use ryo_execution::inbound::use_cases::execution::{
+    interface::ExecutionUseCase,
+    types::{ObservationIdentity, PreparedRequest},
+    use_case::ExecutionUseCaseImpl,
+};
 use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes, ScopePlacement};
 use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
@@ -31,13 +34,73 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::{Emit, Plan};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 
+fn prepared_test_program(
+    plans: &[Plan],
+    ids: &[RuleId],
+    corpus: &[ryo_values::domain::files::types::CorpusInput],
+) -> (
+    Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    ryo_execution::inbound::use_cases::execution::types::RequestExecution,
+) {
+    use ryo_values::domain::{
+        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        rule_requests::types::{RuleParameters, RuleSpec},
+        stored_facts::types::Digest,
+    };
+    let engine = ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let program = Arc::new(
+        engine
+            .prepare(PreparedRequest {
+                plans: plans.to_vec(),
+                bindings: vec![Vec::new(); plans.len()],
+                rules: ids
+                    .iter()
+                    .map(|id| RuleSpec {
+                        id: id.clone(),
+                        query: QueryBundle {
+                            root: QueryDocumentSource {
+                                id: QuerySourceId(id.0.clone()),
+                                text: "".into(),
+                            },
+                            modules: std::collections::BTreeMap::new(),
+                        },
+                        applicability: RuleApplicability::Always,
+                        given: Vec::new(),
+                        observations: Vec::new(),
+                        spelled: RuleParameters("".into()),
+                        include: Vec::new(),
+                        exclude: Vec::new(),
+                    })
+                    .collect(),
+                digests: vec![Digest([0; 16]); plans.len()],
+                hosted: Vec::new(),
+                observations: ObservationIdentity::Independent,
+            })
+            .expect("valid prepared test request"),
+    );
+    let request = engine.begin(&program, corpus);
+    (program, request)
+}
+
 #[test]
 fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     let plan = Plan {
         observation_inputs: Vec::new(),
         observations: Vec::new(),
         parameters: Vec::new(),
-        steps: Vec::new(),
+        steps: vec![ryo_values::domain::plans::types::PlanStep {
+            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            operation: ryo_values::domain::plans::types::Operation::Select {
+                from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
+                comparisons: Vec::new(),
+                kept: vec![ColumnIndex(0)],
+            },
+        }],
         comparison_origins: Vec::new(),
         emit: Emit {
             step: StepId(0),
@@ -57,18 +120,14 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             .compile(&[])
             .expect("empty matcher"),
     };
-    let operators = crate::application::file_dag::testing::request_fixture(&plans, &[], &[]);
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let setting = VisitSetting {
         source_language: None,
-        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        graph: Arc::new(crate::domain::file_program::service::compile_prepared(
-            &plans, &operators,
-        )),
-        operators,
+        program,
+        services: &request,
         domain: crate::domain::workers::types::VisitSetting {
-            observations: crate::domain::file_program::types::ObservationRequest::Independent,
-            plans: &plans,
-            bindings: &[],
+            metadata: &metadata,
             wanted: &[Relation::Function, Relation::Identifier],
             paths: &paths,
             first_bucket: &[],
@@ -123,12 +182,7 @@ fn assert_gated_acceptance(
     acceptance: SyntaxAcceptance,
     expected_reason: &str,
 ) {
-    let mut tables = tables_for(
-        WorkerNumber(0),
-        setting.plans,
-        TreeSteps::Lowered,
-        Counting::DoesNotCount,
-    );
+    let mut tables = tables_for(WorkerNumber(0), setting.metadata);
     tables.mask = Mask(vec![0b11]);
     let skipped = FileAnalysis::gate_rules(
         &mut tables,
@@ -163,12 +217,7 @@ fn assert_gated_acceptance(
 
 /// Accepted syntax keeps enabled rules; absent applicability metadata still records unknowns.
 fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
-    let mut tables = tables_for(
-        WorkerNumber(0),
-        setting.plans,
-        TreeSteps::Lowered,
-        Counting::DoesNotCount,
-    );
+    let mut tables = tables_for(WorkerNumber(0), setting.metadata);
     tables.mask = Mask(vec![0b11]);
     assert_eq!(
         FileAnalysis::gate_rules(
@@ -186,14 +235,8 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
     );
     let always_setting = VisitSetting {
         source_language: None,
-        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: crate::application::file_dag::testing::request_fixture(
-            &setting.plans[1..],
-            &[],
-            &[],
-        ),
         domain: crate::domain::workers::types::VisitSetting {
-            plans: &setting.plans[1..],
+            metadata: &setting.metadata[1..],
             ids: &setting.ids[1..],
             applicability: &setting.applicability[1..],
             applicability_can_gate: false,
@@ -228,12 +271,7 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
         &missing_policy,
         SyntaxAcceptance::Accepted
     ));
-    let mut missing_tables = tables_for(
-        WorkerNumber(0),
-        setting.plans,
-        TreeSteps::Lowered,
-        Counting::DoesNotCount,
-    );
+    let mut missing_tables = tables_for(WorkerNumber(0), setting.metadata);
     missing_tables.mask = Mask(vec![0b11]);
     assert_eq!(
         FileAnalysis::gate_rules(
@@ -563,23 +601,43 @@ fn visited_inputs_with_rule_demands(
         matcher: MatchingFake.compile(&[]).expect("empty glob set"),
     };
     let records: Vec<_> = files.iter().map(|_| kept).collect();
-    let operators = crate::application::file_dag::testing::request_fixture(&[], &[], &[]);
-    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
-        &[],
-        &operators,
-    ));
+    let plans = ids
+        .iter()
+        .map(|_| Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
+            parameters: Vec::new(),
+            steps: vec![ryo_values::domain::plans::types::PlanStep {
+                scope: ryo_values::domain::plans::types::StepScope::PerFile,
+                operation: ryo_values::domain::plans::types::Operation::Select {
+                    from: ryo_values::domain::plan_parts::types::Input::Relation(
+                        Relation::Function,
+                    ),
+                    comparisons: Vec::new(),
+                    kept: vec![ColumnIndex(0)],
+                },
+            }],
+            comparison_origins: Vec::new(),
+            emit: Emit {
+                step: StepId(0),
+                subject: ColumnIndex(0),
+                key: Vec::new(),
+                headings: Vec::new(),
+            },
+            frontier: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let (program, request) = prepared_test_program(&plans, ids, files);
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
             source_language: None,
-            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-            operators,
-            graph,
+            program,
+            services: &request,
             domain: crate::domain::workers::types::VisitSetting {
-                observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 unknown: &[],
-                plans: &[],
-                bindings: &[],
+                metadata: &metadata,
                 wanted,
                 paths: &[],
                 first_bucket: &[],
@@ -602,12 +660,7 @@ fn visited_inputs_with_rule_demands(
         },
     };
     let mut worker = Worker {
-        tables: tables_for(
-            WorkerNumber(0),
-            &[],
-            TreeSteps::Lowered,
-            Counting::DoesNotCount,
-        ),
+        tables: tables_for(WorkerNumber(0), &[]),
         facts,
         old_rows: None,
         failure: None,
@@ -875,90 +928,10 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
     }
 }
 
-fn prepared_resource_state(
-    enabled: bool,
-    partial: &[ryo_execution::inbound::use_cases::metadata::interface::Partial],
-) -> (bool, bool) {
-    use crate::application::file_dag::types::FileDagExecution;
-    use crate::domain::file_program::types::RequestGraph;
-    use crate::domain::operator::types::PreparedPool;
-    let graph = RequestGraph {
-        program_nodes: Vec::new(),
-        ordered_existence: Vec::new(),
-        observations: None,
-        derived_sources: Vec::new(),
-        nodes: Vec::new(),
-    };
-    let owner = std::rc::Rc::new(
-        crate::application::file_dag::relations::RelationOwner::for_request(
-            true,
-            1,
-            crate::outbound::derived::factory::test_port(),
-        ),
-    );
-    let dag = FileDagExecution::new_for_population(Arc::new(graph), |_| true, &[], owner);
-    dag.prepare_resources(
-        enabled,
-        &[Relation::Function],
-        partial,
-        &[Relation::Function],
-        &[],
-        &PreparedPool::default(),
-        |_| true,
-    );
-    dag.resource_eligibility(Relation::Function)
-}
-
 #[test]
-fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_coverage() {
-    use ryo_execution::inbound::use_cases::metadata::interface::{Lacking, LackingKind, Partial};
-    use ryo_values::domain::stored_facts::types::{LanguageNumber, PartialCause};
-    let mut tables = tables_for(
-        WorkerNumber(0),
-        &[],
-        TreeSteps::AsOperators,
-        Counting::DoesNotCount,
-    );
-    tables.language = Some(LanguageNumber(0));
-    tables.partials.push(Partial {
-        relation: Relation::Function,
-        cause: PartialCause("missing one physical kind".into()),
-        lacking: Lacking::Kind(LackingKind("async".into())),
-        at: None,
-    });
-
-    let facts = FactsFake::default().worker().expect("facts");
-    let enabled = FileAnalysis::resource_generation_enabled(&tables, facts.as_ref());
-    let findings = prepared_resource_state(enabled, &tables.partials);
-    let rows = prepared_resource_state(enabled, &tables.partials);
-    assert_eq!(findings, rows);
-    assert_eq!(
-        rows,
-        (true, false),
-        "partial physical rows cannot be eligible"
-    );
-    tables.language = None;
-    assert_eq!(
-        prepared_resource_state(
-            FileAnalysis::resource_generation_enabled(&tables, facts.as_ref()),
-            &[]
-        ),
-        (false, false)
-    );
-}
-
-#[test]
-fn unstable_same_shape_resident_populations_decline_generation_reuse() {
+fn unstable_same_shape_resident_populations_remain_distinct() {
     use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
-    use ryo_values::domain::stored_facts::types::LanguageNumber;
-    let mut tables = tables_for(
-        WorkerNumber(0),
-        &[],
-        TreeSteps::AsOperators,
-        Counting::DoesNotCount,
-    );
-    tables.language = Some(LanguageNumber(0));
     let facts = UnstableResidentFacts {
         inner: FactsFake::default().worker().expect("inner"),
         alternatives: [
@@ -985,8 +958,10 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         .expect("first column")
         .0
         .clone();
-    let enabled = FileAnalysis::resource_generation_enabled(&tables, &facts);
-    assert_eq!(prepared_resource_state(enabled, &[]), (false, false));
+    assert_eq!(
+        facts.resident_stability(),
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Unstable
+    );
     let second = facts
         .rows(Relation::Function)
         .expect("changed population")
@@ -1002,12 +977,10 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
 }
 
 #[test]
-fn actual_file_visit_admits_only_stable_resource_generation() {
-    use crate::application::file_dag::resources::take_resource_setup;
+fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes() {
     use crate::domain::render::types::Answering;
     use crate::domain::visit::types::Keeping;
     use ryo_relations::domain::relations::types::FactColumn;
-    let _previous = take_resource_setup();
     let (stable, _) = visited_as(
         &["stable.rs"],
         LanguageFake::default(),
@@ -1017,7 +990,6 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     )
     .expect("stable file visit");
     assert!(stable.failure.is_none());
-    assert_eq!(take_resource_setup(), Some((true, true)));
 
     let alternate = |value| (0..4).map(|_| FactColumn(vec![value])).collect();
     let facts = UnstableResidentFacts {
@@ -1035,14 +1007,7 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     )
     .expect("unstable file visit");
     assert!(unstable.failure.is_none());
-    assert_eq!(
-        take_resource_setup(),
-        Some((false, false)),
-        "parse calls {}, language {:?}, unread {}",
-        unstable_language.parses.load(Ordering::Relaxed),
-        unstable.tables.language,
-        unstable.tables.unread.len(),
-    );
+    assert!(unstable_language.parses.load(Ordering::Relaxed) > 0);
 
     // The corpus fake refuses this path before parsing; no owner is prepared.
     let (unread, _) = visited_as(
@@ -1055,7 +1020,6 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     .expect("unread file visit");
     assert!(unread.failure.is_none());
     assert_eq!(unread.tables.unread.len(), 1);
-    assert_eq!(take_resource_setup(), None);
 }
 
 #[test]
@@ -1076,7 +1040,14 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         observation_inputs: Vec::new(),
         observations: Vec::new(),
         parameters: vec![],
-        steps: vec![],
+        steps: vec![ryo_values::domain::plans::types::PlanStep {
+            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            operation: ryo_values::domain::plans::types::Operation::Select {
+                from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
+                comparisons: Vec::new(),
+                kept: vec![ColumnIndex(0)],
+            },
+        }],
         comparison_origins: vec![],
         emit: Emit {
             step: StepId(0),
@@ -1084,36 +1055,33 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
             key: vec![],
             headings: vec![],
         },
-        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(
-            0,
-        ))],
+        frontier: vec![
+            ryo_values::domain::plan_parts::types::Input::Step(StepId(0)),
+            ryo_values::domain::plan_parts::types::Input::Step(StepId(0)),
+        ],
     };
     let plans = [plan];
+    let ids = [RuleId("capture".into())];
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
         matcher: crate::outbound::matching::fixtures::fake::MatchingFake
             .compile(&[])
             .expect("matcher"),
     };
-    let operators = crate::application::file_dag::testing::request_fixture(&plans, &[], &[]);
-    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
-        &plans, &operators,
-    ));
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
             source_language: None,
-            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-            operators,
-            graph,
+            program,
+            services: &request,
             domain: crate::domain::workers::types::VisitSetting {
-                observations: crate::domain::file_program::types::ObservationRequest::Independent,
-                plans: &plans,
-                bindings: &[],
+                metadata: &metadata,
                 wanted: &[],
                 paths: &[],
                 first_bucket: &[Bucket(0)],
-                ids: &[],
+                ids: &ids,
                 applicability: &[],
                 applicability_can_gate: true,
                 placed: &placed,
@@ -1140,12 +1108,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         Arc::new(MemoryFake::default()),
     );
     let mut worker = Worker {
-        tables: tables_for(
-            WorkerNumber(0),
-            &plans,
-            TreeSteps::Lowered,
-            Counting::DoesNotCount,
-        ),
+        tables: tables_for(WorkerNumber(0), &metadata),
         facts: FactsFake::default().worker().expect("facts worker"),
         old_rows: None,
         failure: None,
@@ -1170,8 +1133,16 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         );
         KeptWords(pack(WordSlice(&words.0)))
     };
+    let proof = |input| ryo_values::domain::records::types::FrontierProof {
+        version: 1,
+        rule: 0,
+        input,
+        rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
+        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+    };
     let good = Kept {
         bucket: Bucket(0),
+        proof: proof(0),
         words: packed(Value::Number(Integer(7)), &[]),
     };
     for (value, places) in [
@@ -1205,6 +1176,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
             good.clone(),
             Kept {
                 bucket: Bucket(1),
+                proof: proof(1),
                 words: packed(value, &places),
             },
         ];
@@ -1356,12 +1328,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     });
     let snapshot = store.stored().expect("read snapshot");
     let new_worker = || Worker {
-        tables: tables_for(
-            WorkerNumber(0),
-            &[],
-            TreeSteps::Lowered,
-            Counting::DoesNotCount,
-        ),
+        tables: tables_for(WorkerNumber(0), &[]),
         facts: FactsFake::default().worker().expect("worker"),
         old_rows: None,
         failure: None,
@@ -1430,22 +1397,15 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             .expect("matcher"),
     };
     let wanted = BucketsWanted::These(vec![Bucket(0)]);
-    let operators = crate::application::file_dag::testing::request_fixture(&[], &[], &[]);
-    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
-        &[],
-        &operators,
-    ));
+    let (program, request) = prepared_test_program(&[], &[], &[]);
     let visit = FileVisit {
         store: Some(snapshot.as_ref()),
         setting: VisitSetting {
             source_language: None,
-            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-            operators,
-            graph,
+            program,
+            services: &request,
             domain: crate::domain::workers::types::VisitSetting {
-                observations: crate::domain::file_program::types::ObservationRequest::Independent,
-                plans: &[],
-                bindings: &[],
+                metadata: &[],
                 wanted: &[],
                 paths: &[],
                 first_bucket: &[],
@@ -1987,3 +1947,7 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
         vec!["a.py", "z.py"]
     );
 }
+
+use ryo_execution::inbound::use_cases::metadata::{
+    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
+};

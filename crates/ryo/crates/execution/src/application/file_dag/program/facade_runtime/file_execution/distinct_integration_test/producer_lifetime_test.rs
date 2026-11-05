@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::rows::errors::TableModelError;
 
-fn shared_plan(swapped: bool, invalid_terminal: bool) -> Plan {
+fn shared_plan(swapped: bool, invalid_terminal: bool, refuse_provider: bool) -> Plan {
     let mut steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
@@ -47,6 +47,19 @@ fn shared_plan(swapped: bool, invalid_terminal: bool) -> Plan {
             },
         },
     ];
+    if refuse_provider {
+        if let Operation::Join {
+            left,
+            left_on,
+            right_on,
+            ..
+        } = &mut steps[2].operation
+        {
+            *left = PlanInput::Relation(Relation::CompilerFeature);
+            *left_on = vec![ColumnIndex(0)];
+            *right_on = vec![ColumnIndex(0)];
+        }
+    }
     if invalid_terminal {
         steps.push(PlanStep {
             scope: StepScope::PerFile,
@@ -82,7 +95,16 @@ fn numbers(table: &Table) -> Vec<i64> {
         })
         .collect()
 }
-fn exercise(invalid_terminal: bool) -> Result<(), OperatingError> {
+#[derive(Clone, Copy)]
+enum FinalConsumer {
+    Completes,
+    InvalidTerminal,
+    Skipped,
+    RefusingProvider,
+}
+fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
+    let invalid_terminal = matches!(final_consumer, FinalConsumer::InvalidTerminal);
+    let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
     let derived = crate::application::file_dag::testing::program_derived_port();
     let mut second = rule();
     second.id = RuleId("second-derived-consumer".into());
@@ -91,8 +113,8 @@ fn exercise(invalid_terminal: bool) -> Result<(), OperatingError> {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![], vec![]],
             plans: vec![
-                shared_plan(false, false),
-                shared_plan(true, invalid_terminal),
+                shared_plan(false, false, false),
+                shared_plan(true, invalid_terminal, refuse_provider),
             ],
             bindings: vec![vec![], vec![]],
         },
@@ -158,8 +180,10 @@ fn exercise(invalid_terminal: bool) -> Result<(), OperatingError> {
             to_bits(Cell::Number(Integer(7))).0,
         ]),
     ];
+    let source_reads = std::cell::Cell::new(0);
     let read = |relation| {
         if relation == Relation::LanguageTarget {
+            source_reads.set(source_reads.get() + 1);
             Ok(Rows::Stored(ColumnsView {
                 kinds: kinds(relation),
                 columns: &columns,
@@ -185,32 +209,58 @@ fn exercise(invalid_terminal: bool) -> Result<(), OperatingError> {
     assert_eq!(after_first.attempt, AttemptCheckpoint::Published);
     assert_eq!(after_first.remaining.0, 1);
     let first_counts = file.owner.derived.counts();
-    let second = file.rule(RuleIndex(1), demand(), &read, &mut symbols)?;
-    if invalid_terminal {
-        assert!(
-            matches!(
-                second.emit,
-                RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
-                    index: 99
-                }))
-            ),
-            "the terminal schema failure must preserve its exact error while cancelling the unread shared dependency"
-        );
+    assert_eq!(first_counts.0, 1, "one actual equality construction");
+    let weak = file
+        .owner
+        .derived
+        .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
+        .expect("actual index backing from the first compiled consumer");
+    assert!(weak.upgrade().is_some());
+    assert_eq!(file.owner.derived.retained_bytes(), 0);
+    let reads_before_final = source_reads.get();
+    if matches!(final_consumer, FinalConsumer::Skipped) {
+        file.skip_rule(RuleIndex(1), crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable)?;
     } else {
-        let RootOutcome::Complete(second) = second.emit else {
-            return Err(OperatingError::NotRun);
-        };
-        assert_eq!(numbers(&second), [9, 2, 7, 3]);
-        let final_counts = file.owner.derived.counts();
-        assert_eq!(
-            final_counts.0, first_counts.0,
-            "the shared producer index is built once"
-        );
-        assert!(
-            final_counts.1 > first_counts.1,
-            "the second consumer must reuse that same live index"
-        );
+        let second = file.rule(RuleIndex(1), demand(), &read, &mut symbols)?;
+        match final_consumer {
+            FinalConsumer::InvalidTerminal => {
+                assert!(
+                    matches!(
+                        second.emit,
+                        RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                            index: 99
+                        }))
+                    ),
+                    "terminal schema failure preserves its exact error while cancelling the unread shared dependency"
+                );
+            }
+            FinalConsumer::RefusingProvider => assert!(
+                matches!(second.emit, RootOutcome::Failed(OperatingError::NotRead)),
+                "the real provider's original refusal must survive consumer cleanup"
+            ),
+            FinalConsumer::Completes => {
+                let RootOutcome::Complete(second) = second.emit else {
+                    return Err(OperatingError::NotRun);
+                };
+                assert_eq!(numbers(&second), [9, 2, 7, 3]);
+                let final_counts = file.owner.derived.counts();
+                assert_eq!(
+                    final_counts.0, first_counts.0,
+                    "shared producer index is built once"
+                );
+                assert!(
+                    final_counts.1 > first_counts.1,
+                    "second consumer reuses the same live index"
+                );
+            }
+            FinalConsumer::Skipped => unreachable!(),
+        }
     }
+    assert_eq!(
+        source_reads.get(),
+        reads_before_final,
+        "the shared source is not reread for a cache hit, skipped consumer or refusing final consumer"
+    );
     let final_state = file.execution.retry_checkpoint(producer)?;
     assert_eq!(final_state.attempt, AttemptCheckpoint::Terminal);
     assert_eq!(final_state.remaining.0, 0);
@@ -224,14 +274,26 @@ fn exercise(invalid_terminal: bool) -> Result<(), OperatingError> {
         [2, 9, 3, 7],
         "transferred output survives producer retirement"
     );
+    assert!(
+        weak.upgrade().is_none(),
+        "last actual consumer releases the unretained physical index"
+    );
+    assert_eq!(file.owner.derived.owned_bytes(), 0);
     file.finish()?;
     Ok(())
 }
 #[test]
 fn shared_published_producer_keeps_index_until_its_final_real_consumer() {
-    exercise(false).expect("actual compiled producer lifetime");
+    exercise(FinalConsumer::Completes).expect("actual compiled producer lifetime");
 }
 #[test]
 fn failed_terminal_cancels_the_shared_producer_and_releases_its_index() {
-    exercise(true).expect("actual compiled failure cancellation");
+    exercise(FinalConsumer::InvalidTerminal).expect("actual compiled failure cancellation");
+}
+
+#[test]
+fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_reading_sources() {
+    for final_consumer in [FinalConsumer::Skipped, FinalConsumer::RefusingProvider] {
+        exercise(final_consumer).expect("actual compiled final consumer cancellation");
+    }
 }

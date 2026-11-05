@@ -126,6 +126,8 @@ pub(super) struct RetryCheckpoint {
 }
 struct Slot {
     #[cfg(test)]
+    observed: crate::domain::operating::types::ExecutionObservation,
+    #[cfg(test)]
     native_positions: usize,
     #[cfg(test)]
     registered_calls: usize,
@@ -176,6 +178,8 @@ impl ProgramExecution {
             .regions()
             .iter()
             .map(|region| Slot {
+                #[cfg(test)]
+                observed: Default::default(),
                 #[cfg(test)]
                 native_positions: 0,
                 #[cfg(test)]
@@ -264,7 +268,7 @@ impl ProgramExecution {
         Ok(crate::domain::operating::types::ExecutionObservation {
             native_positions: slot.native_positions,
             registered_calls: slot.registered_calls,
-            ..Default::default()
+            ..slot.observed
         })
     }
     #[cfg(test)]
