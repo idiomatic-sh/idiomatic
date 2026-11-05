@@ -717,3 +717,39 @@ mod fragment_refusal_test;
 
 #[cfg(test)]
 mod validation_test;
+
+#[cfg(test)]
+mod assembling_test;
+
+#[cfg(test)]
+mod calling_test;
+
+#[cfg(test)]
+mod combining_test;
+
+#[cfg(test)]
+mod comparing_test;
+
+#[cfg(test)]
+mod idioms_test;
+
+#[cfg(test)]
+mod joining_test;
+
+#[cfg(test)]
+mod planning_test;
+
+#[cfg(test)]
+mod reshaping_test;
+
+#[cfg(test)]
+mod resolving_test;
+
+#[cfg(test)]
+mod selecting_test;
+
+#[cfg(test)]
+mod substituting_test;
+
+#[cfg(test)]
+mod traversing_test;

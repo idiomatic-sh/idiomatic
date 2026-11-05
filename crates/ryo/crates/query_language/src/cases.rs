@@ -118,3 +118,27 @@ where
         );
     }
 }
+
+/// Typed lowering inputs shared by domain tests; no text is parsed here.
+pub(crate) fn lowering_builder() -> crate::domain::lowering::types::Builder<'static> {
+    use ryo_relations::domain::relations::types::Relation;
+    crate::domain::lowering::types::Builder {
+        catalog: &[
+            Relation::Function,
+            Relation::SyntaxChild,
+            Relation::SemanticChild,
+        ],
+        hosted_steps: Vec::new(),
+        observation_inputs: &[],
+        parameters: &[],
+        kinds: Vec::new(),
+        steps: Vec::new(),
+        lowered: Vec::new(),
+        span: ryo_values::domain::program::types::QuerySpan {
+            start: ryo_values::domain::program::types::ByteOffset(7),
+            end: ryo_values::domain::program::types::ByteOffset(19),
+        },
+        origin: None,
+        comparison_origins: Vec::new(),
+    }
+}
