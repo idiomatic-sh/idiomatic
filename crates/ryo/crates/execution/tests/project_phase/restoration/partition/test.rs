@@ -30,6 +30,7 @@ enum Mode {
     PartialLeft { difference: bool },
     Rekey { file_key: bool },
     Current,
+    CurrentRekey { file_key: bool },
 }
 
 #[test]
@@ -65,6 +66,13 @@ fn empty_rekeying_join_widens_uncertainty_but_file_equality_keeps_good_files_kno
 fn current_partial_project_publication_retains_owner_provenance_through_real_consumer() {
     for project_away_file in [false, true] {
         exercise(true, project_away_file, false, Mode::Current);
+    }
+}
+
+#[test]
+fn current_project_relation_coverage_precedes_rekeying_and_survives_named_handover() {
+    for file_key in [false, true] {
+        exercise(true, false, false, Mode::CurrentRekey { file_key });
     }
 }
 
@@ -115,7 +123,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             relation: HostedNumber(0),
         },
     }];
-    if matches!(mode, Mode::Current) {
+    if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
         let column = kinds(Relation::ModuleIdentity)
             .iter()
             .position(|kind| *kind == CellKind::File)
@@ -135,9 +143,40 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             },
         });
     }
+    if let Mode::CurrentRekey { file_key } = mode {
+        let key = ColumnIndex(if file_key { 0 } else { 1 });
+        authored.plans[1].steps.push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Hosted {
+                relation: HostedNumber(2),
+            },
+        });
+        authored.plans[1].steps.push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Join {
+                left: Input::Step(StepId(1)),
+                right: Input::Step(StepId(2)),
+                left_on: vec![key],
+                right_on: vec![key],
+                output: vec![
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(0),
+                    },
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(1),
+                    },
+                ],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
+        });
+    }
     authored.plans[1].observations = vec![PlanObservation {
         name: ObservationName("files".into()),
-        source: Input::Step(StepId(if matches!(mode, Mode::Current) { 1 } else { 0 })),
+        source: Input::Step(StepId((authored.plans[1].steps.len() - 1) as u32)),
         columns: columns.clone(),
         scope: StepScope::CrossFile,
     }];
@@ -230,7 +269,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             },
         });
     }
-    if matches!(mode, Mode::Current) {
+    if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
         if let Operation::Antijoin {
             left_on, right_on, ..
         } = &mut authored.plans[2].steps[1].operation
@@ -299,7 +338,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             rows: vec![row],
         });
     }
-    if matches!(mode, Mode::Current) {
+    if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
         authored.hosted[1].rows = [
             ("second.py", 7),
             ("input.py", 7),
@@ -315,6 +354,18 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             ])
         })
         .collect();
+    }
+    if matches!(mode, Mode::CurrentRekey { .. }) {
+        let row = HostRow(vec![
+            HostCell::File(FilePath("input.py".into())),
+            HostCell::Number(Integer(7)),
+        ]);
+        authored.hosted[1].rows = vec![row.clone()];
+        authored.hosted.push(HostRelation {
+            name: HostName("current-rekey-targets".into()),
+            columns: authored.hosted[1].columns.clone(),
+            rows: vec![row],
+        });
     }
     authored.observations =
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([97; 16])));
@@ -409,9 +460,13 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         captures,
         reads: AtomicUsize::new(0),
     };
-    let project_facts = ProjectFacts::new(Relation::ModuleIdentity);
+    let project_facts = if matches!(mode, Mode::CurrentRekey { .. }) {
+        ProjectFacts::empty(Relation::ModuleIdentity)
+    } else {
+        ProjectFacts::new(Relation::ModuleIdentity)
+    };
     let project_symbols = Symbols::default();
-    let publication_partials = if matches!(mode, Mode::Current) {
+    let publication_partials = if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
         use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Lacking};
         Partials {
             entries: vec![FilePartial {
@@ -489,11 +544,22 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         .unwrap();
     let (output, observed) = outcome.observations.pop().unwrap();
     let (table, publication, readiness) = match (mode, observed) {
-        (Mode::Current, ProjectObservation::Partial { table, publication }) => {
-            assert_eq!(
-                table.cells,
-                vec![Value::File(FileId(0)), Value::Number(Integer(7))]
-            );
+        (
+            Mode::Current | Mode::CurrentRekey { .. },
+            ProjectObservation::Partial { table, publication },
+        ) => {
+            if matches!(mode, Mode::CurrentRekey { .. }) {
+                assert_eq!(
+                    table.count,
+                    RowCount(0),
+                    "the actual incomplete project source has no known row"
+                );
+            } else {
+                assert_eq!(
+                    table.cells,
+                    vec![Value::File(FileId(0)), Value::Number(Integer(7))]
+                );
+            }
             (
                 table,
                 publication,
@@ -526,7 +592,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             arenas: vec![],
         }],
     };
-    if matches!(mode, Mode::Current) {
+    if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
         let mut forged = transfer.clone();
         forged.roots[0].readiness = ProducerReadiness::Complete;
         assert!(
@@ -592,19 +658,28 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         else {
             panic!("only the bad physical partition must remain explicitly unknown")
         };
-        assert_eq!(
-            affected,
-            if matches!(mode, Mode::Rekey { file_key: false }) {
-                vec![None]
-            } else {
-                vec![Some(FileId(1))]
-            }
-        );
+        if matches!(mode, Mode::CurrentRekey { file_key: false }) {
+            assert!(
+                affected.contains(&None),
+                "late physical tagging must not narrow re-keyed uncertainty back to file 1"
+            );
+        } else {
+            assert_eq!(
+                affected,
+                if matches!(mode, Mode::Rekey { file_key: false }) {
+                    vec![None]
+                } else {
+                    vec![Some(FileId(1))]
+                }
+            );
+        }
         let values = match mode {
             Mode::PartialLeft { .. } => vec![7],
             Mode::Rekey { file_key: true } => vec![7],
             Mode::Rekey { file_key: false } => vec![],
             Mode::Current => vec![8, 8],
+            Mode::CurrentRekey { file_key: false } => vec![],
+            Mode::CurrentRekey { file_key: true } => vec![7],
             Mode::PartialRight if empty => vec![20, 20, 30],
             Mode::PartialRight => vec![],
         };
@@ -626,7 +701,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
     }
     assert_eq!(
         project_facts.reads.load(Ordering::SeqCst),
-        usize::from(matches!(mode, Mode::Current))
+        usize::from(matches!(mode, Mode::Current | Mode::CurrentRekey { .. }))
     );
     project.finish();
     drop(bound);

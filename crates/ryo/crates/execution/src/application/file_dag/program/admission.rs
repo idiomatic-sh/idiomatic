@@ -84,6 +84,30 @@ enum AvailableBody {
     },
 }
 impl AvailableInput {
+    /// Attach the demand's physical evidence without re-reading the cached
+    /// source or forcing its deferred admission/geometry refusal.
+    pub(super) fn with_coverage(
+        self,
+        coverage: crate::domain::completion::types::CoverageState,
+    ) -> Self {
+        let body = match self.body {
+            AvailableBody::Published(input) => {
+                AvailableBody::Published(input.with_coverage(coverage))
+            }
+            AvailableBody::Source {
+                owner,
+                publication,
+                partition,
+                admission,
+            } => AvailableBody::Source {
+                owner,
+                publication,
+                partition,
+                admission: admission.map(|input| input.with_coverage(coverage)),
+            },
+        };
+        Self { body }
+    }
     pub(super) fn published(input: AdmittedInput) -> Self {
         Self {
             body: AvailableBody::Published(input),

@@ -305,7 +305,19 @@ impl Inputs for SourceInputs<'_, '_> {
         use crate::domain::executable_program::types::InputSource;
         if let Some(project) = &mut self.project {
             if let Some(provided) = project.supply(source, partition, context, &self.owner) {
-                return provided;
+                return provided.map(|input| match source {
+                    // Shared project facts need the same physical certificate
+                    // as a direct provider, before any operator can re-key them.
+                    InputSource::Relation(relation) => {
+                        input.with_coverage(self.completion.coverage(&[
+                            crate::domain::trust::types::RelationRead {
+                                relation,
+                                kinds: vec![],
+                            },
+                        ]))
+                    }
+                    _ => input,
+                });
             }
         }
         let admitted = match source {
