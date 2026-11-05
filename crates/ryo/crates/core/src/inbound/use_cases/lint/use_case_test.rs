@@ -2111,13 +2111,19 @@ fn project_memory_guards_stop_real_lint_cohorts_and_preserve_the_first_error() {
             let mut second_host = first_host.clone();
             second_host.name = HostName("host.second".into());
             let given = Given {
-                files: vec![("a.rs", "fn a() {}")],
+                files: vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")],
                 rules: vec!["first", "second"],
                 ids: vec!["first", "second"],
                 hosted: vec![first_host, second_host],
                 ..violations()
             };
             let mut asked = request(&given);
+            if !named {
+                // Distinct covered file populations force two actual cohorts;
+                // different Hosted operations alone still share one cohort.
+                asked.rules[0].include = vec![Glob("a.rs".into())];
+                asked.rules[1].include = vec![Glob("b.rs".into())];
+            }
             if named {
                 asked.rules[1].observations = vec![ObservationBinding {
                     name: ObservationBindingName("counts".into()),

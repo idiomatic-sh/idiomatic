@@ -119,7 +119,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 Input::Step(StepId(0))
             ]
         );
-        assert!(!program.captures_observation(RuleIndex(1), 0).unwrap());
+        assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
         assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
         let corpus = corpus();
         let request = engine.begin(&program, &corpus);
@@ -240,7 +240,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
             Input::Step(StepId(0))
         ]
     );
-    assert!(!program.captures_observation(RuleIndex(1), 0).unwrap());
+    assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
     assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
