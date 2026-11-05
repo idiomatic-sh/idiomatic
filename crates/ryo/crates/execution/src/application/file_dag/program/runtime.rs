@@ -352,11 +352,11 @@ impl Slot {
         id: RegionId,
     ) -> Result<&'a mut Slot, OperatingError> {
         let region = program.regions().get(id.0).ok_or(OperatingError::NotRun)?;
-        let settled = if slots.contains_key(&id.0) {
-            None
-        } else {
-            state.dormant.borrow_mut().remove(&id)
+        let vacant = match slots.entry(id.0) {
+            std::collections::hash_map::Entry::Occupied(entry) => return Ok(entry.into_mut()),
+            std::collections::hash_map::Entry::Vacant(entry) => entry,
         };
+        let settled = state.dormant.borrow_mut().remove(&id);
         let remaining = match settled {
             Some(remaining) => remaining,
             None => state.initial_remaining(program, id)?,
@@ -365,7 +365,7 @@ impl Slot {
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
-        Ok(slots.entry(id.0).or_insert_with(|| Self {
+        Ok(vacant.insert(Self {
             #[cfg(test)]
             observed: Default::default(),
             #[cfg(test)]
@@ -403,6 +403,8 @@ pub(super) struct RuntimeState {
     slots: RefCell<std::collections::HashMap<usize, Slot>>,
     dormant: RefCell<std::collections::HashMap<RegionId, usize>>,
     retirement: RefCell<RetirementWork>,
+    #[cfg(test)]
+    reader_initializations: std::cell::Cell<usize>,
 }
 impl RuntimeState {
     fn new(scope: super::super::relations::ProducerScope, generation: Arc<()>) -> Self {
@@ -410,6 +412,8 @@ impl RuntimeState {
             generation,
             scope,
             roots: RefCell::new(RootReaders::Declared),
+            #[cfg(test)]
+            reader_initializations: std::cell::Cell::new(0),
             slots: RefCell::new(std::collections::HashMap::new()),
             dormant: RefCell::new(std::collections::HashMap::new()),
             retirement: RefCell::new(RetirementWork {
@@ -426,6 +430,9 @@ impl RuntimeState {
         program: &ExecutableProgram,
         id: RegionId,
     ) -> Result<usize, OperatingError> {
+        #[cfg(test)]
+        self.reader_initializations
+            .set(self.reader_initializations.get() + 1);
         match &*self.roots.borrow() {
             RootReaders::Declared => program
                 .regions()

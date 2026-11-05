@@ -175,3 +175,19 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
         "delivery retry replays the same publication without repeating semantic work"
     );
 }
+
+#[test]
+fn reached_slots_initialize_reader_obligations_once() {
+    let CompiledCase { execution, roots } = compiled();
+    execution.activate_file_roots(&roots).unwrap();
+    let state = execution.file_state();
+    let before = state.reader_initializations.get();
+    let mut slots = state.slots.borrow_mut();
+    for _ in 0..64 {
+        Slot::touched(state, &mut slots, &execution.program, roots[0]).unwrap();
+    }
+    assert_eq!(state.reader_initializations.get() - before, 1);
+    Slot::touched(state, &mut slots, &execution.program, roots[1]).unwrap();
+    assert_eq!(state.reader_initializations.get() - before, 2);
+    assert_eq!(slots.len(), 2);
+}
