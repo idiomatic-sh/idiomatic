@@ -1,7 +1,5 @@
 //! Read-only metadata and preflight decisions for an execution request.
 #[cfg(test)]
-mod acceptance;
-#[cfg(test)]
 mod fixtures;
 pub mod interface;
 pub mod types;

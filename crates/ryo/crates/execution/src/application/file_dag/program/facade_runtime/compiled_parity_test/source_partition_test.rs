@@ -1,4 +1,5 @@
 //! Producer declarations and actual source scope govern ordinary admission.
+use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use super::*;
 use crate::application::file_dag::program::{
     admission::{FileGeneration, Inputs, Partition, ProducerRoot, contributor_readiness},

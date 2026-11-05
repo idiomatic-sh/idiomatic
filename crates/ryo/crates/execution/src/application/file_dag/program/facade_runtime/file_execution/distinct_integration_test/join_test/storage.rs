@@ -1,4 +1,5 @@
 //! Stored/compact decoding and ordinary equality bag order through the compiled owner.
+use ryo_values::domain::rows::service::push_row;
 use super::cases::{node, stretch, table_of};
 use super::*;
 use ryo_values::domain::rows::service::row_in;
