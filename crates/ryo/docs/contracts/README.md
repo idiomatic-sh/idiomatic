@@ -17,7 +17,7 @@
 
 Evidence and granular tasks **A1–A9, B1–B5, C1–C7** are tracked in Beads `ryo-7tkn.19`. Shared project ownership and sparse runtime state are integrated in `c6e4db059c`; runtime verification is pending. Phase 2 now assigns the entire remaining scheduling batch: project-root admission (B4b), per-file preparation (B4c), and all-route contract tests (B4d/B5). No scheduling or ownership category is complete.
 
-Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and final acceptance (7)**. Temporary output regressions are recorded and repaired afterward unless they prevent execution or useful diagnostic measurement. Architecture and contracts remain mandatory throughout: engine-owned scheduling/sharing/invalidation/data/lifetime, private boundaries, required owners, and one pipeline. Keep structural TM and contract tests with each migration; do not weaken them to permit progress.
+Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and final acceptance (7)**. Temporary output regressions are recorded and repaired afterward unless they prevent execution. **Complete consolidation in phases 2–6 before performance tuning or further benchmark runs.** Architecture and contracts remain mandatory throughout: engine-owned scheduling/sharing/invalidation/data/lifetime, private boundaries, required owners, and one pipeline. Keep structural TM and contract tests with each migration; do not weaken them to permit progress.
 
 - [ ] Deferred output correction: foreign File/Node keys do not prove physical partition lineage (LP-2); preserve the counterexample for Phase 1.
 - [ ] Deferred Rust-output correction: CI42116738222/job127558258069 fails before timing when `duplicate-function-bodies` reports a frontier-source proof mismatch. No Rust performance pass.
@@ -25,18 +25,21 @@ Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and 
 
 **Query source ownership:** shared immutable catalogs are integrated. Diagnostic232 proves the scoped memory reduction above; combined245 passes SDK43, query-language89 and values21 tests. Public API snapshot/semver checks, unresolved TM findings, all-route sharing and full-Django acceptance remain open.
 
-Internal authority followup `25dae5fd4a` requires a runtime-issued `KernelAdmission` for all three kernel-permit constructors and rejects contradictory producer-scope rebinding. The placed `runtime-authority` TM rule checks private fields, declaration owners and direct record issuance, with eight bad/good scenarios. These checks are authored, not executed. Aliases, macros, new constructors and unsafe code still require Rust boundaries and review. The actual in-crate sibling compile-fail control is missing; external private-import failures are not substitute proof. B5.2/B5.4/B5.6 remain unchecked.
+Internal authority followup `25dae5fd4a` requires a runtime-issued `KernelAdmission` for all three kernel-permit constructors and rejects contradictory producer-scope rebinding. The placed `runtime-authority` TM rule checks private fields, declaration owners and direct record issuance, with eight bad/good scenarios. TM263 validated these eight scenarios, and its actual source check found no runtime-authority violations. Aliases, macros, new constructors and unsafe code still require Rust boundaries and review. The actual in-crate sibling compile-fail control is missing; external private-import failures are not substitute proof. B5.2/B5.4/B5.6 remain unchecked.
 
 ### Phase 2 completion checklist
 
 Inventory audit: `bf525425c7`, retained Astra/Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. All 83 rows below require evidence for their entire scope; authored or integrated code is not a completed boundary.
 
-Current candidate: `1d1cdf431`. Project-root scheduling, sparse file preparation, route controls, mandatory runtime authority, and all four reviewed source corrections are integrated. Combined build268 reached Core test setup: obsolete singleton test routing and its operator adapter remain to migrate. Execution/domain and public-boundary tests269 are running. No phase is verified.
+Current implementation checkpoint: `9be31ba264`. Project-root scheduling, sparse preparation, required runtime authority, all four reviewed source corrections, and removal of obsolete per-rule drain/test routes are integrated. No phase is verified.
 
-- Source review of `4351e1f409`: retained Astra and Opus accepted the four corrections; current runtime/structural proof remains incomplete.
-- TM264 on `ebd264c06b`: `file_demand` findings **24 → 0**; the broader eight-file check still fails with **140 findings, zero suppressed**.
-- Internal sibling Rust bypass proof remains missing. Existing external privacy tests do not prove that boundary.
-- No new performance measurement. Full Django256 failed at 2,986.06 seconds and 6.009 GB; it is not acceptance evidence.
+- Build272 on `39f2b7fa9b` passed across eight crates and their test targets. Execution **430/430**, SDK **43/43**, and five other libraries **155/155** passed. Core **167 passed / 11 failed**; public boundaries **84 passed / 2 failed**.
+- Five Core failures are stale rendering oracles that prevented the later ownership assertions; their source repair is integrated. Two public fixtures now assert both real retained frontiers. Contract273 rerun is pending.
+- Six real inbound budget scenarios now cover ordinary and named coordinator routes, exact BudgetError/MemoryError, and sufficient-budget success; source written, unrun. Internal sibling Rust bypass proof is still missing.
+- Astra/Opus accepted the four source corrections; acceptance remains blocked on proof and structural gaps. Artifact: `/tmp/ryo-shared-walk-review-4351-correction-evidence.json`.
+- TM264: `file_demand` **24 → 0**; broader eight-file scope **140 findings, zero suppressed**. No full TM pass.
+- [Diagnostic271](evidence/phase2-scheduling/measurements.json), one file/all413/one pair: complete identical outputs, wall **10.024 → 15.708 s**, CPU **10.012 → 15.694 s**, peak **1.224 → 1.329 GB**. Cause unproven. Further performance work is deferred until consolidation finishes by explicit user instruction.
+- Other Core failures remain recorded for output/persistence phases: relation inventory expectation, changed configuration replay, staged frontier source proof, and three store-proof fixtures. Do not weaken proof admission to clear them.
 
 **Unchecked means unverified complete.** Many implementations and tests are integrated; remaining work includes actual defects, enforcement gaps, and validation. Beads `ryo-7tkn.19` holds live process and artifact details.
 
