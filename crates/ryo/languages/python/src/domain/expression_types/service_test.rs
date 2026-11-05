@@ -1,7 +1,7 @@
 //! The expression-type index is lazy, memoized and cleared on source replacement.
 use super::{
     service::prepare,
-    types::{BasicType, IndexState, Resolution},
+    types::{BasicType, ExpressionTypeState, Resolution},
 };
 use crate::domain::model::types::Declarations;
 use crate::fixtures::reading::{initialize_model, parsed};
@@ -16,9 +16,12 @@ fn is_lazy_retained_and_invalidated_between_files() {
     };
     let mut model = Declarations::default();
     initialize_model(&first_tree, &mut model);
-    assert_eq!(model.expression_types.borrow().state, IndexState::Fresh);
+    assert_eq!(
+        model.expression_types.borrow().state,
+        ExpressionTypeState::Fresh
+    );
     let index = prepare(&first_tree, &model);
-    assert_eq!(index.state, IndexState::Complete);
+    assert_eq!(index.state, ExpressionTypeState::Complete);
     assert!(
         index
             .entries
@@ -36,7 +39,10 @@ fn is_lazy_retained_and_invalidated_between_files() {
         file: languages::FileId(0),
     };
     initialize_model(&second_tree, &mut model);
-    assert_eq!(model.expression_types.borrow().state, IndexState::Fresh);
+    assert_eq!(
+        model.expression_types.borrow().state,
+        ExpressionTypeState::Fresh
+    );
     let replacement = prepare(&second_tree, &model);
     assert!(replacement.entries.capacity() >= capacity);
     assert!(

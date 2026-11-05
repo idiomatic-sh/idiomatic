@@ -5,7 +5,6 @@ use crate::fixtures::reading::reading;
 
 use ryo::languages::contract::Want;
 
-#[test]
 fn classifies_literals_unions_unknowns_and_type_errors() {
     check::<ExpressionTypeItem>();
     let report = reading::<ExpressionTypeItem>(
@@ -74,7 +73,6 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
     }
 }
 
-#[test]
 fn validation_diagnostics_do_not_make_basic_types_partial() {
     check::<ExpressionTypeItem>();
     let report = reading::<ExpressionTypeItem>("nonlocal x\n1 if flag else 'x'\n");
@@ -82,7 +80,6 @@ fn validation_diagnostics_do_not_make_basic_types_partial() {
     assert!(report.rows.iter().any(|row| row[1] == Want::Name("union")));
 }
 
-#[test]
 fn percent_formatting_keeps_the_left_operand_type_when_the_right_is_unknown() {
     check::<ExpressionTypeItem>();
     let report = reading::<ExpressionTypeItem>("'%s' % unknown\nb'%s' % unknown\n");
@@ -110,9 +107,47 @@ fn percent_formatting_keeps_the_left_operand_type_when_the_right_is_unknown() {
     }
 }
 
-#[test]
 fn parser_recovery_keeps_type_rows_partial() {
     check::<ExpressionTypeItem>();
     let report = reading::<ExpressionTypeItem>("value = 1 +\n");
     assert!(!report.causes.is_empty());
+}
+
+use crate::cases::{Case, CaseName, Expect, Word, run};
+type Input = fn();
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("classifies_literals_unions_unknowns_and_type_errors"),
+        word: Word::Succeeds,
+        input: || classifies_literals_unions_unknowns_and_type_errors,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("validation_diagnostics_do_not_make_basic_types_partial"),
+        word: Word::Succeeds,
+        input: || validation_diagnostics_do_not_make_basic_types_partial,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("percent_formatting_keeps_the_left_operand_type_when_the_right_is_unknown"),
+        word: Word::Succeeds,
+        input: || percent_formatting_keeps_the_left_operand_type_when_the_right_is_unknown,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("parser_recovery_keeps_type_rows_partial"),
+        word: Word::Succeeds,
+        input: || parser_recovery_keeps_type_rows_partial,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(check: Input) -> Result<Value, Failure> {
+    check();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

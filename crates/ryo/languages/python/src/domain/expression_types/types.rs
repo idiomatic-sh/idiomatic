@@ -18,12 +18,12 @@ pub(crate) struct ExpressionTypeIndex {
     /// Classification by parser position; only expression nodes receive entries.
     pub entries: Vec<Option<Resolution>>,
     /// Whether the current parse was represented completely.
-    pub state: IndexState,
+    pub state: ExpressionTypeState,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// Whether a retained expression-type index belongs to the current source.
-pub(crate) enum IndexState {
+pub(crate) enum ExpressionTypeState {
     #[default]
     /// No relation reader has requested a build since the last source reset.
     Fresh,
@@ -64,4 +64,17 @@ pub(crate) enum BasicType {
     Ellipsis,
     /// The `unknown` classification.
     Unrecognized,
+}
+
+/// Whether one known type is included in another under Python numeric coercion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TypeInclusion {
+    Included,
+    Separate,
+}
+/// A complete expression fact or a missing required literal payload.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ExpressionClassification {
+    Complete(Resolution),
+    MissingPayload,
 }

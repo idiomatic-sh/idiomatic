@@ -1,6 +1,9 @@
 //! One bottom-up pass for basic expression-type classification.
 use crate::domain::{
-    expression_types::types::{BasicType, ExpressionTypeIndex, IndexState, Resolution},
+    expression_types::types::{
+        BasicType, ExpressionClassification, ExpressionTypeIndex, ExpressionTypeState, Resolution,
+        TypeInclusion,
+    },
     fields::service::field_of,
     labels::types::Field,
     literal_properties::service::{Classification, classify as classify_literal},
@@ -18,7 +21,7 @@ use std::cell::Ref;
 /// Reset the retained classifications before a fresh tree is processed.
 pub(crate) fn clear(index: &mut ExpressionTypeIndex) {
     index.entries.clear();
-    index.state = IndexState::Fresh;
+    index.state = ExpressionTypeState::Fresh;
 }
 
 /// Return a resolved value with one known type label.
@@ -31,8 +34,8 @@ fn numeric(kind: BasicType) -> Resolution {
 }
 
 /// Check whether the left type is included in the right type.
-fn subtype(left: BasicType, right: BasicType) -> bool {
-    left == right
+fn subtype(left: BasicType, right: BasicType) -> TypeInclusion {
+    if left == right
         || matches!(
             (left, right),
             (
@@ -41,6 +44,11 @@ fn subtype(left: BasicType, right: BasicType) -> bool {
             ) | (BasicType::Integer, BasicType::Float | BasicType::Complex)
                 | (BasicType::Float, BasicType::Complex)
         )
+    {
+        TypeInclusion::Included
+    } else {
+        TypeInclusion::Separate
+    }
 }
 
 /// Combine branch results while preserving known subtype relationships.
@@ -49,9 +57,9 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         (Resolution::TypeError, _) | (_, Resolution::TypeError) => Resolution::TypeError,
         (Resolution::Unknown, _) | (_, Resolution::Unknown) => Resolution::Unknown,
         (Resolution::Atom(left_kind), Resolution::Atom(right_kind)) => {
-            if subtype(left_kind, right_kind) {
+            if subtype(left_kind, right_kind) == TypeInclusion::Included {
                 atom(right_kind)
-            } else if subtype(right_kind, left_kind) {
+            } else if subtype(right_kind, left_kind) == TypeInclusion::Included {
                 atom(left_kind)
             } else {
                 Resolution::Union(vec![left_kind, right_kind])
@@ -60,7 +68,7 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         (Resolution::Atom(left_kind), Resolution::Union(mut right_types)) => {
             if !right_types
                 .iter()
-                .any(|candidate| subtype(left_kind, *candidate))
+                .any(|candidate| subtype(left_kind, *candidate) == TypeInclusion::Included)
             {
                 right_types.push(left_kind);
             }
@@ -69,7 +77,7 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         (Resolution::Union(mut left_types), Resolution::Atom(right_kind)) => {
             if !left_types
                 .iter()
-                .any(|candidate| subtype(right_kind, *candidate))
+                .any(|candidate| subtype(right_kind, *candidate) == TypeInclusion::Included)
             {
                 left_types.push(right_kind);
             }
@@ -77,7 +85,10 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         }
         (Resolution::Union(mut left_types), Resolution::Union(right_types)) => {
             for candidate in right_types {
-                if !left_types.iter().any(|known| subtype(candidate, *known)) {
+                if !left_types
+                    .iter()
+                    .any(|known| subtype(candidate, *known) == TypeInclusion::Included)
+                {
                     left_types.push(candidate);
                 }
             }
@@ -96,11 +107,11 @@ fn child(tree: &Tree<'_>, at: Position, field: Field) -> Option<Position> {
 /// Read a child classification, returning unknown when it is unavailable.
 fn child_resolution(index: &ExpressionTypeIndex, at: Option<Position>) -> Resolution {
     at.and_then(|position| {
-        index
-            .entries
-            .get(usize::try_from(position.0).ok()?)
-            .cloned()
-            .flatten()
+        let Ok(slot) = usize::try_from(position.0) else {
+            // A nonrepresentable position cannot identify an entry in this index.
+            return None;
+        };
+        index.entries.get(slot).cloned().flatten()
     })
     .unwrap_or(Resolution::Unknown)
 }
@@ -268,7 +279,7 @@ fn classify_expression(
     tree: &Tree<'_>,
     index: &ExpressionTypeIndex,
     at: Position,
-) -> (Resolution, bool) {
+) -> ExpressionClassification {
     let result = match kind(tree, at) {
         Kind::Node(Node::Dict | Node::DictComp) => atom(BasicType::Dict),
         Kind::Node(Node::Set | Node::SetComp) => atom(BasicType::Set),
@@ -280,8 +291,10 @@ fn classify_expression(
             Classification::Known(properties) => atom(super::constants::literal_type(
                 languages::NameText(properties.kind),
             )),
-            Classification::MissingPayload => return (Resolution::Unknown, true),
-            Classification::NotPrimitive => return (Resolution::Unknown, false),
+            Classification::MissingPayload => return ExpressionClassification::MissingPayload,
+            Classification::NotPrimitive => {
+                return ExpressionClassification::Complete(Resolution::Unknown);
+            }
         },
         Kind::Node(Node::NamedExpr) => child_resolution(index, child(tree, at, Field::Value)),
         Kind::Node(Node::IfExp) => union(
@@ -339,44 +352,47 @@ fn classify_expression(
         }
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => Resolution::Unknown,
     };
-    (result, false)
+    ExpressionClassification::Complete(result)
 }
 
 /// Populate one expression classification per source position.
 fn build(tree: &Tree<'_>, retained: &mut ExpressionTypeIndex) {
-    if retained.state != IndexState::Fresh {
+    if retained.state != ExpressionTypeState::Fresh {
         return;
     }
     retained.entries.clear();
     let length = usize::try_from(languages::end_of(tree.elements).0).unwrap_or(0);
     if retained.entries.try_reserve(length).is_err() {
-        retained.state = IndexState::Partial;
+        retained.state = ExpressionTypeState::Partial;
         return;
     }
     retained.entries.resize(length, None);
     retained.state = if languages::has_incomplete_syntax(tree.elements) {
-        IndexState::Partial
+        ExpressionTypeState::Partial
     } else {
-        IndexState::Complete
+        ExpressionTypeState::Complete
     };
     for raw in (0..length).rev() {
         let slot = raw;
         let Ok(position) = u32::try_from(slot) else {
-            retained.state = IndexState::Partial;
+            retained.state = ExpressionTypeState::Partial;
             break;
         };
         let at = Position(position);
         if category(tree, at) != Category::Expression {
             continue;
         }
-        let (value, missing) = classify_expression(tree, retained, at);
-        if missing {
-            retained.state = IndexState::Partial;
-        } else if let Some(entry) = retained.entries.get_mut(slot) {
-            *entry = Some(value);
-        } else {
-            retained.state = IndexState::Partial;
-            break;
+        match classify_expression(tree, retained, at) {
+            ExpressionClassification::MissingPayload => {
+                retained.state = ExpressionTypeState::Partial
+            }
+            ExpressionClassification::Complete(value) => {
+                let Some(entry) = retained.entries.get_mut(slot) else {
+                    retained.state = ExpressionTypeState::Partial;
+                    break;
+                };
+                *entry = Some(value);
+            }
         }
     }
 }
@@ -386,7 +402,7 @@ pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
     model: &'a Declarations,
 ) -> Ref<'a, ExpressionTypeIndex> {
-    if model.expression_types.borrow().state == IndexState::Fresh {
+    if model.expression_types.borrow().state == ExpressionTypeState::Fresh {
         build(tree, &mut model.expression_types.borrow_mut());
     }
     Ref::map(model.expression_types.borrow(), |index| index)
