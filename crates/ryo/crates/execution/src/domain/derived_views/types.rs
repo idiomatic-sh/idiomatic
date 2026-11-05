@@ -143,8 +143,7 @@ pub(crate) struct PreparedViewGroup {
 }
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DerivedSlots {
-    pub streaming: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
-    pub collected: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
+    pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
 }
 
 use ryo_values::domain::rows::types::RowIndex;

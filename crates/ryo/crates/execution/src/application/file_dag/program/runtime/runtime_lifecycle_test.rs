@@ -27,14 +27,7 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
     let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
     assert!(matches!(
-        execution.invoke(
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-            Delivery::Retain
-        ),
+        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
         Err(OperatingError::WrongBinding)
     ));
     let slots = execution.slots.borrow();
@@ -54,14 +47,7 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     }
     drop(slots);
     assert!(matches!(
-        execution.invoke(
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-            Delivery::Retain
-        ),
+        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
         Err(OperatingError::WrongBinding)
     ));
     assert_eq!(
@@ -85,26 +71,12 @@ fn same_region_reentry_refuses_without_corrupting_successful_publication() {
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
     let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
     assert!(matches!(
-        execution.invoke(
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-            Delivery::Retain
-        ),
+        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
         Ok(InvocationOutcome::Published(_))
     ));
     assert_eq!(probe.reentry.get(), Reentry::Refused);
     assert!(matches!(
-        execution.invoke(
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-            Delivery::Retain
-        ),
+        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
         Ok(InvocationOutcome::Published(_))
     ));
     assert_eq!(
@@ -115,7 +87,7 @@ fn same_region_reentry_refuses_without_corrupting_successful_publication() {
 }
 
 #[test]
-fn downstream_error_restores_frame_and_allows_same_scope_retry() {
+fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
     let CompiledCase { execution, roots } = compiled();
     let probe = RuntimeProbe::new(Rc::clone(&execution), RuntimeProbeMode::Plain);
     let mut input = TestInputs::new(&execution);
@@ -128,41 +100,36 @@ fn downstream_error_restores_frame_and_allows_same_scope_retry() {
         mode: SinkMode::Reject,
         rows: vec![],
     };
+    let InvocationOutcome::Published(published) = execution
+        .invoke(roots[0], &mut input, &probe, &policy, &mut context)
+        .unwrap()
+    else {
+        panic!("canonical completed publication")
+    };
     assert!(matches!(
-        execution.invoke(
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-            Delivery::Forward(RuleIndex(0), &mut fail)
-        ),
+        input.replay(&published, &mut context, &mut fail),
         Err(OperatingError::WrongBinding)
     ));
     {
         let slots = execution.slots.borrow();
-        assert!(matches!(slots[roots[0].0].state, State::Dormant));
+        assert!(matches!(slots[roots[0].0].state, State::Published(_)));
         assert_eq!(slots[roots[0].0].scratch[0].ordered_row.len(), 1);
     }
     let mut accept = Sink {
         mode: SinkMode::Accept,
         rows: vec![],
     };
-    assert!(matches!(
-        execution.invoke(
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-            Delivery::Forward(RuleIndex(0), &mut accept)
-        ),
-        Ok(InvocationOutcome::Published(_))
-    ));
+    let InvocationOutcome::Published(repeated) = execution
+        .invoke(roots[0], &mut input, &probe, &policy, &mut context)
+        .unwrap()
+    else {
+        panic!("retry retains canonical publication")
+    };
+    input.replay(&repeated, &mut context, &mut accept).unwrap();
     assert_eq!(accept.rows.len(), 1);
     assert_eq!(
         probe.calls.get(),
-        EvaluationCount(2),
-        "delivery retry reruns without losing its scratch owner"
+        EvaluationCount(1),
+        "delivery retry replays the same publication without repeating semantic work"
     );
 }

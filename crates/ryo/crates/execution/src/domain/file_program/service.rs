@@ -22,7 +22,6 @@ struct CanonicalNode {
     scope: Option<usize>,
     phase: StepScope,
     input_supply: Vec<crate::domain::operating::types::Supply>,
-    native_join_right_first: bool,
     operation: Operation,
     inputs: Vec<NodeInput>,
     schema_valid: bool,
@@ -222,7 +221,7 @@ pub(crate) fn compile_prepared_observations(
         let physical_plan = Arc::new(plan.clone());
         let layout = operators.rules[rule]
             .iter()
-            .map(|contract| contract.collected_kinds.clone())
+            .map(|contract| contract.output_kinds.clone())
             .collect::<Result<Vec<_>, _>>()
             .ok()
             .map(|kinds| {
@@ -311,7 +310,6 @@ pub(crate) fn compile_prepared_observations(
                         scope,
                         phase: step.scope,
                         input_supply,
-                        native_join_right_first: false,
                         operation,
                         inputs,
                         schema_valid,
@@ -376,13 +374,7 @@ pub(crate) fn compile_prepared_observations(
                 continue;
             };
             let inputs = inputs_of(&operation.operation);
-            for group in contract
-                .derived
-                .streaming
-                .iter()
-                .chain(&contract.derived.collected)
-                .flatten()
-            {
+            for group in contract.derived.slots.iter().flatten() {
                 for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
                     for place in &use_.inputs[..usize::from(use_.len)] {
                         if let Some(Input::Step(id)) = named(&inputs).get(*place)
@@ -417,10 +409,6 @@ pub(crate) fn compile_prepared_observations(
     }
     for node in &mut nodes {
         let native_left = native_join_left_publication(node);
-        let original_left_stream = node.phase == StepScope::PerFile
-            && matches!(node.inputs.first(), Some(NodeInput::Node(child)) if
-                resolved_readers[child.0] == 1 && !canonical_roots[child.0]);
-        node.native_join_right_first = native_left && original_left_stream;
         node.input_supply = node
             .inputs
             .iter()
@@ -545,7 +533,6 @@ pub(crate) fn compile_prepared_observations(
                 needs: node.needs,
                 phase: node.phase,
                 input_supply: node.input_supply,
-                native_join_right_first: node.native_join_right_first,
                 contract: node.contract,
                 operation: node.operation,
                 inputs: node.inputs,

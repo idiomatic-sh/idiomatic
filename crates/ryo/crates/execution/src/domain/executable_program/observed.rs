@@ -1,9 +1,8 @@
 //! Named distinct-set combinations are ordinary prepared program instructions.
 use super::types::*;
 use crate::domain::{
-    coverage::types::RuleIndex,
-    file_program::types::GraphObservations,
-    operating::{errors::OperatingError, types::Supply},
+    coverage::types::RuleIndex, file_program::types::GraphObservations,
+    operating::errors::OperatingError,
 };
 use std::sync::Arc;
 
@@ -68,30 +67,17 @@ pub(super) fn compile_unions(
                         column: None,
                         selection: None,
                         native_positions: None,
-                        publishes: true,
                         instructions: vec![Instruction {
                             logical,
                             producer: rule,
                             operation: contract.identity.clone(),
                             contract: Arc::clone(contract),
-                            input_delivery: vec![Supply::AtHand, Supply::AtHand].into_boxed_slice(),
                             inputs: vec![
                                 OperandSource::Boundary(InputId(0)),
                                 OperandSource::Boundary(InputId(1)),
                             ]
                             .into_boxed_slice(),
-                            streaming_demand: super::service::demand(
-                                contract.streaming,
-                                2,
-                                HeldJoinOrder::LeftWithEmptyGate,
-                                &[Supply::AtHand, Supply::AtHand],
-                            ),
-                            collected_demand: super::service::demand(
-                                contract.collected,
-                                2,
-                                HeldJoinOrder::LeftWithEmptyGate,
-                                &[Supply::AtHand, Supply::AtHand],
-                            ),
+                            demand: super::service::demand(contract.semantics, 2),
                             partition,
                         }]
                         .into_boxed_slice(),

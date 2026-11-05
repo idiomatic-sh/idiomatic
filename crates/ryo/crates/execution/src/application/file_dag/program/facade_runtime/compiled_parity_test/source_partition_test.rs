@@ -1,5 +1,4 @@
 //! Producer declarations and actual source scope govern ordinary admission.
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use super::*;
 use crate::application::file_dag::program::{
     admission::{FileGeneration, Inputs, Partition, ProducerRoot, contributor_readiness},
@@ -7,6 +6,7 @@ use crate::application::file_dag::program::{
     kernel_session::KernelSession,
     runtime::{Delivery, InvocationOutcome, ProgramExecution},
 };
+use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -197,14 +197,8 @@ fn subject(case: Input) -> Result<Value, Failure> {
             .emit
             .as_ref()
             .map_err(Clone::clone)?;
-        let InvocationOutcome::Published(admitted) = execution.invoke(
-            root,
-            &mut sources,
-            &kernels,
-            &completion,
-            &mut context,
-            Delivery::Retain,
-        )?
+        let InvocationOutcome::Published(admitted) =
+            execution.invoke(root, &mut sources, &kernels, &completion, &mut context)?
         else {
             return Err(OperatingError::NotRun);
         };

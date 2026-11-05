@@ -14,7 +14,7 @@ use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::{
     join::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
-    types::{EvaluationMode, OperatorContract},
+    types::OperatorContract,
     views::{BorrowedRows, IndexedRows},
 };
 use crate::domain::table_groups::types::Group;
@@ -101,9 +101,7 @@ impl<'f> InvocationResources<'f> {
         contract: &OperatorContract,
     ) -> Result<Self, OperatingError> {
         if !matches!(contract.resources, ResourceProgram::None)
-            || !matches!(contract.collected_resources, ResourceProgram::None)
-            || contract.derived.streaming.iter().any(Option::is_some)
-            || contract.derived.collected.iter().any(Option::is_some)
+            || contract.derived.slots.iter().any(Option::is_some)
         {
             return Err(OperatingError::WrongOperation);
         }
@@ -130,7 +128,6 @@ impl<'f> InvocationResources<'f> {
         contract: &OperatorContract,
         inputs: &[BorrowedRows<'f>],
         context: &mut OperatorContext<'_>,
-        mode: EvaluationMode,
         originals: &[crate::domain::table_model::types::Rows<'f>],
         admission: &super::workspace::InvocationWorkspace,
         semantics: &super::execution::PrimitiveSemanticsBridge<'_>,
@@ -152,15 +149,12 @@ impl<'f> InvocationResources<'f> {
                 groups: None,
             },
         };
-        let program = match mode {
-            EvaluationMode::Streaming => &contract.resources,
-            EvaluationMode::Collected => &contract.collected_resources,
-        };
+        let program = &contract.resources;
         let admitted = admission.inputs(inputs);
         // Empty contributing domain gates retain their ordinary typed resource
         // shortcut; no traversal request or memo is made for them.
         let empty_domain = contract
-            .collected_empty
+            .empty_results
             .iter()
             .find(|gate| {
                 gate.input > 0
@@ -181,7 +175,7 @@ impl<'f> InvocationResources<'f> {
             resources.cached_graph = admission
                 .owner()
                 .derived
-                .prepare_graph(contract, admission, mode, program, originals)?;
+                .prepare_graph(contract, admission, program, originals)?;
             if resources.cached_graph.is_some() {
                 return Ok(resources);
             }
@@ -209,7 +203,6 @@ impl<'f> InvocationResources<'f> {
                 let skip_empty = matches!(columns, IndexColumns::ColumnsUnlessEmpty(_));
                 resources.inputs.index = Some(IndexResource::acquired(
                     contract,
-                    mode,
                     originals.get(*place),
                     &admitted,
                     context,
@@ -226,7 +219,7 @@ impl<'f> InvocationResources<'f> {
             }) => {
                 let right = input(inputs, 1)?;
                 if let Some(reach) = reach {
-                    let mut cursor = partitioned(contract, mode, right, &admitted, context)?;
+                    let mut cursor = partitioned(contract, right, &admitted, context)?;
                     while cursor.advance()? {
                         resources.inputs.closure.push(cursor.take_current()?);
                     }
@@ -234,7 +227,6 @@ impl<'f> InvocationResources<'f> {
                     let native = if let BorrowedRows::Tree(tree) = right {
                         let use_ = prepared(
                             contract,
-                            mode,
                             ryo_derived::domain::contract::types::DerivedKind::NativeLookup,
                         )?;
                         admitted
@@ -261,7 +253,6 @@ impl<'f> InvocationResources<'f> {
                         }
                         resources.inputs.index = Some(IndexResource::acquired(
                             contract,
-                            mode,
                             originals.get(1),
                             &admitted,
                             context,
@@ -279,7 +270,6 @@ impl<'f> InvocationResources<'f> {
                     None,
                     context,
                     contract,
-                    mode,
                     &admitted,
                     semantics,
                 )?);
@@ -292,7 +282,6 @@ impl<'f> InvocationResources<'f> {
                     Some(*over),
                     context,
                     contract,
-                    mode,
                     &admitted,
                     semantics,
                 )?);
@@ -300,7 +289,6 @@ impl<'f> InvocationResources<'f> {
             ResourceProgram::Closure { .. } => {
                 resources.inputs.partitioned_closure = Some(partitioned(
                     contract,
-                    mode,
                     input(inputs, 0)?,
                     &admitted,
                     context,
@@ -309,7 +297,6 @@ impl<'f> InvocationResources<'f> {
             ResourceProgram::Cycles { .. } => {
                 let use_ = prepared(
                     contract,
-                    mode,
                     ryo_derived::domain::contract::types::DerivedKind::CycleAdjacency,
                 )?;
                 resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
@@ -317,7 +304,7 @@ impl<'f> InvocationResources<'f> {
             ResourceProgram::Ordered { .. } => {
                 use crate::domain::derived_views::types::DerivedInputs;
                 use ryo_derived::domain::contract::types::DerivedKind;
-                let use_ = prepared(contract, mode, DerivedKind::OrderedKeys)?;
+                let use_ = prepared(contract, DerivedKind::OrderedKeys)?;
                 let texts = Texts {
                     symbols: context.symbols.as_ref(),
                     source: context.source,
@@ -333,7 +320,7 @@ impl<'f> InvocationResources<'f> {
             ResourceProgram::Dfs(_) => {
                 use crate::domain::derived_views::types::DerivedInputs;
                 use ryo_derived::domain::contract::types::DerivedKind;
-                let use_ = prepared(contract, mode, DerivedKind::OrderedDfs)?;
+                let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
                 resources.inputs.dfs = Some(admitted.acquire_derived(
                     use_,
                     super::derived::owner::ViewContext::default(),
@@ -355,10 +342,7 @@ impl<'f> InvocationResources<'f> {
                 let edges = input(inputs, 1)?;
                 let domain = input(inputs, 2)?;
                 let mode_axis = classify(program, edges, domain)?;
-                let slots = match mode {
-                    EvaluationMode::Streaming => &contract.derived.streaming,
-                    EvaluationMode::Collected => &contract.derived.collected,
-                };
+                let slots = &contract.derived.slots;
                 let equality = if matches!(mode_axis, AxisMode::Indexed { .. }) {
                     Some(
                         admitted.acquire_rows(
@@ -411,13 +395,9 @@ impl<'f> InvocationResources<'f> {
 
 pub(super) fn prepared(
     contract: &OperatorContract,
-    mode: EvaluationMode,
     kind: ryo_derived::domain::contract::types::DerivedKind,
 ) -> Result<&crate::domain::derived_views::types::PreparedViewUse, OperatingError> {
-    let slots = match mode {
-        EvaluationMode::Streaming => &contract.derived.streaming,
-        EvaluationMode::Collected => &contract.derived.collected,
-    };
+    let slots = &contract.derived.slots;
     slots[crate::domain::derived_views::service::slot(kind)]
         .as_ref()
         .map(|group| group.primary.as_ref())
@@ -426,14 +406,13 @@ pub(super) fn prepared(
 
 fn partitioned<'f>(
     contract: &OperatorContract,
-    mode: EvaluationMode,
     input: BorrowedRows<'f>,
     admitted: &super::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
 ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
     use ryo_derived::domain::contract::types::DerivedKind;
-    let order = prepared(contract, mode, DerivedKind::PartitionOrder)?;
-    let closure = prepared(contract, mode, DerivedKind::ClosureAdjacency)?;
+    let order = prepared(contract, DerivedKind::PartitionOrder)?;
+    let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
     let storage = admitted.acquire_rows(order, context)?;
     super::closure_partitions::PartitionedClosure::from_prepared(
         input,

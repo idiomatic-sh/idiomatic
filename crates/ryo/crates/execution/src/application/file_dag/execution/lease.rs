@@ -116,9 +116,7 @@ fn evaluate_once(
     let row = match input {
         PreparedInputs::Row { input, sides, row } => {
             if input.0 >= contract.inputs.used.0
-                || ((contract.streaming.row_inputs.0 | contract.collected.row_inputs.0)
-                    & (1 << input.0))
-                    == 0
+                || (contract.semantics.row_inputs.0 & (1 << input.0)) == 0
                 || sides.len() > contract.inputs.used.0
             {
                 return Err(OperatingError::WrongOperation);

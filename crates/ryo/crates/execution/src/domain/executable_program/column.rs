@@ -5,7 +5,7 @@ use crate::domain::{
     column_kernel::types::Chain,
     coverage::types::RuleIndex,
     derived_views::types::ViewRequest,
-    executable_program::types::{HeldJoinOrder, RegionId},
+    executable_program::types::RegionId,
     file_program::types::{NodeId, RequestGraph},
 };
 use ryo_derived::domain::contract::types::DerivedKind;
@@ -22,7 +22,6 @@ struct OriginalColumn {
     join: NodeId,
     left: NodeId,
     chain: Chain,
-    order: HeldJoinOrder,
 }
 
 /// Immutable original-coordinate candidates. The compiler uses these nodes as
@@ -40,7 +39,6 @@ pub(crate) struct ColumnAlternative {
     join: RegionId,
     filter: RegionId,
     chain: Chain,
-    order: HeldJoinOrder,
 }
 
 impl ColumnAlternative {
@@ -62,10 +60,6 @@ impl ColumnAlternative {
 
     pub(crate) fn chain(&self) -> &Chain {
         &self.chain
-    }
-
-    pub(crate) fn order(&self) -> HeldJoinOrder {
-        self.order
     }
 }
 
@@ -151,7 +145,7 @@ impl ColumnCandidates {
                     continue;
                 };
                 let Some(equality) =
-                    join_node.contract.derived.collected[DerivedKind::Equality.ordinal()].as_ref()
+                    join_node.contract.derived.slots[DerivedKind::Equality.ordinal()].as_ref()
                 else {
                     continue;
                 };
@@ -169,18 +163,12 @@ impl ColumnCandidates {
                 }
                 let mut chain = chain.clone();
                 chain.index = Some(Arc::clone(&primary.plan));
-                let order = if join_node.native_join_right_first {
-                    HeldJoinOrder::RightBeforeLeft
-                } else {
-                    HeldJoinOrder::LeftWithEmptyGate
-                };
                 candidates.push(OriginalColumn {
                     target,
                     filter,
                     join,
                     left,
                     chain,
-                    order,
                 });
             }
         }
@@ -221,7 +209,6 @@ impl ColumnCandidates {
                     join,
                     filter,
                     chain: each.chain.clone(),
-                    order: each.order,
                 })
             })
             .collect()

@@ -65,8 +65,9 @@ pub trait ExecutionRequest {
 pub trait FileExecution {
     /// Actual shared native pass work already performed by this file owner.
     fn walk_counts(&self) -> WalkCounts;
-    /// Deliver only a diagnostic root declared `DiagnosticDelivery::Forwarded` at file open.
-    /// A different declaration is refused before source admission.
+    /// Deliver the already committed canonical publication to the callback.
+    /// Sink refusal does not repeat admission or semantic evaluation.
+    /// A different file-start delivery declaration is refused before source admission.
     fn emit_rows(
         &mut self,
         rule: RuleIndex,

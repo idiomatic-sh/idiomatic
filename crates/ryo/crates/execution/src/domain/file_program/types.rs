@@ -36,7 +36,6 @@ pub(crate) struct FileProgramNode {
     pub input_supply: Vec<crate::domain::operating::types::Supply>,
     /// A native right relation forced a formerly streamed left publication;
     /// preserve the Join's original right-before-left refusal order.
-    pub native_join_right_first: bool,
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     /// Executable registered operation with normalized local input numbers.
     pub operation: ryo_values::domain::plans::types::Operation,

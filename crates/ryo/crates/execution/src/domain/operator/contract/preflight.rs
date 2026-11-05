@@ -61,7 +61,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
 }
 
 /// A row-lazy operand refusal does not erase the schema of an empty collected result.
-pub(crate) fn collected_layout(
+pub(crate) fn output_layout(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     checked: &Result<

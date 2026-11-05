@@ -69,14 +69,7 @@ impl PreparedDerived {
                     .iter()
                     .find(|instruction| instruction.logical == origin.logical)
                     .ok_or(OperatingError::NotRun)?;
-                for group in instruction
-                    .contract
-                    .derived
-                    .streaming
-                    .iter()
-                    .chain(instruction.contract.derived.collected.iter())
-                    .flatten()
-                {
+                for group in instruction.contract.derived.slots.iter().flatten() {
                     for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
                         for relation in use_.relations.iter().flatten() {
                             if !reads.contains(relation) {

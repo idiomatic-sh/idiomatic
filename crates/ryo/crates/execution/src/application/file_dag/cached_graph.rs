@@ -53,18 +53,13 @@ impl CachedGraph {
     pub(in crate::application::file_dag) fn prepare(
         contract: &crate::domain::operator::contract::types::OperatorContract,
         admission: &super::workspace::InvocationWorkspace,
-        mode: crate::domain::operator::contract::types::EvaluationMode,
         program: &ResourceProgram,
         original_inputs: &[Rows<'_>],
         mut cache: Option<&mut CacheBackend>,
     ) -> Result<Option<Self>, OperatingError> {
         use crate::domain::derived_views::service::slot;
-        use crate::domain::operator::contract::types::EvaluationMode;
         use ryo_derived::domain::contract::types::DerivedKind;
-        let slots = match mode {
-            EvaluationMode::Streaming => &contract.derived.streaming,
-            EvaluationMode::Collected => &contract.derived.collected,
-        };
+        let slots = &contract.derived.slots;
         let adjacency = || {
             slots[slot(DerivedKind::Adjacency)]
                 .as_ref()

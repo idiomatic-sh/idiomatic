@@ -135,17 +135,8 @@ impl FileRun<'_> {
                 capture,
             } = intent
             {
-                match diagnostic {
-                    DiagnosticDelivery::Disabled => {}
-                    DiagnosticDelivery::Collected => enabled.extend(prepared.emit.iter().copied()),
-                    DiagnosticDelivery::Forwarded => {
-                        enabled.extend(prepared.forward_emit.iter().copied())
-                    }
-                }
-                if diagnostic == DiagnosticDelivery::Forwarded {
-                    if let Ok(id) = &prepared.forward_emit {
-                        self.execution.declare_forwarder(*id, rule)?;
-                    }
+                if diagnostic != DiagnosticDelivery::Disabled {
+                    enabled.extend(prepared.emit.iter().copied());
                 }
                 if observations == ObservationDemand::Required {
                     enabled.extend(metadata.observations.iter().filter_map(|root| {
@@ -248,7 +239,6 @@ impl FileRun<'_> {
         if self.walk_prepared {
             return Ok(());
         }
-        use crate::domain::operator::contract::types::EvaluationMode;
         let mut queued = Vec::new();
         for (index, intent) in self.intents.iter().enumerate() {
             let FileRuleIntent::Run {
@@ -260,7 +250,7 @@ impl FileRun<'_> {
                 continue;
             };
             let metadata = self.program.rule_metadata(RuleIndex(index))?;
-            let mut append = |source: &Result<InputSource, OperatingError>, mode| {
+            let mut append = |source: &Result<InputSource, OperatingError>| {
                 let id = match source {
                     Ok(InputSource::Region(id)) => Some(*id),
                     Ok(InputSource::Observation(slot)) => self
@@ -276,30 +266,14 @@ impl FileRun<'_> {
                     if self.program.program().regions()[id.0].phase
                         == ryo_values::domain::plans::types::StepScope::PerFile
                     {
-                        if let Some((_, existing)) =
-                            queued.iter_mut().find(|(found, _)| *found == id)
-                        {
-                            debug_assert_eq!(*existing, mode);
-                        } else {
-                            queued.push((id, mode));
+                        if !queued.contains(&id) {
+                            queued.push(id);
                         }
                     }
                 }
             };
             if *diagnostic != DiagnosticDelivery::Disabled {
-                append(
-                    &match diagnostic {
-                        DiagnosticDelivery::Forwarded => {
-                            self.program.program().rules()[index].forward_emit.clone()
-                        }
-                        _ => metadata.emit_root.clone(),
-                    }
-                    .map(InputSource::Region),
-                    match diagnostic {
-                        DiagnosticDelivery::Forwarded => EvaluationMode::Streaming,
-                        _ => EvaluationMode::Collected,
-                    },
-                );
+                append(&metadata.emit_root.clone().map(InputSource::Region));
             }
             if *observations == ObservationDemand::Required {
                 let policy = match &self.partials {
@@ -318,7 +292,7 @@ impl FileRun<'_> {
                     if policy.observation_admission(&root.reads)
                         == crate::domain::completion::types::ObservationAdmission::Ready
                     {
-                        append(&root.source, EvaluationMode::Collected);
+                        append(&root.source);
                     }
                 }
             }
@@ -334,11 +308,11 @@ impl FileRun<'_> {
                     CaptureIntent::DiagnosticAndObservations => true,
                 };
                 if wanted {
-                    append(source, EvaluationMode::Collected);
+                    append(source);
                 }
             }
         }
-        let Some((first, _)) = queued.first() else {
+        let Some(first) = queued.first() else {
             self.walk_prepared = true;
             return Ok(());
         };
@@ -509,14 +483,8 @@ impl FileRun<'_> {
                     }
                 }
                 Ok(id) => outcome_of(
-                    self.execution.invoke(
-                        *id,
-                        &mut sources,
-                        &kernels,
-                        &completion,
-                        context,
-                        Delivery::Retain,
-                    ),
+                    self.execution
+                        .invoke(*id, &mut sources, &kernels, &completion, context),
                     &self.owner,
                     read,
                 ),
@@ -852,11 +820,9 @@ pub(super) fn outcome_of<'facts>(
             },
             Err(error) => classify(error),
         },
-        Ok(
-            InvocationOutcome::Forwarded(_)
-            | InvocationOutcome::Ready
-            | InvocationOutcome::Suspended(_),
-        ) => RootOutcome::Failed(OperatingError::NotRun),
+        Ok(InvocationOutcome::Ready | InvocationOutcome::Suspended(_)) => {
+            RootOutcome::Failed(OperatingError::NotRun)
+        }
         Err(error) => classify(error),
     }
 }
@@ -872,7 +838,7 @@ impl FileRun<'_> {
 }
 
 impl FileRun<'_> {
-    /// Stream through the same prepared slot, admission, completion and retry owner.
+    /// Deliver the canonical publication; callbacks never participate in evaluation.
     pub(crate) fn emit_rows<'facts>(
         &mut self,
         rule: RuleIndex,
@@ -891,7 +857,7 @@ impl FileRun<'_> {
             .rules()
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?
-            .forward_emit
+            .emit
             .as_ref()
             .map_err(Clone::clone)?;
         let phase = self.program.program().regions()[id.0].phase;
@@ -945,29 +911,20 @@ impl FileRun<'_> {
                 (self.0)(row)
             }
         }
-        let id = self.program.program().rules()[rule.0]
-            .forward_emit
-            .as_ref()
-            .map_err(Clone::clone)?;
-        let phase = self.program.program().regions()[id.0].phase;
-        if phase != ryo_values::domain::plans::types::StepScope::PerFile {
-            return Ok(super::super::facade::RowEmission::Deferred { phase });
-        }
-        let mut output = ForwardRows(each);
-        let coverage = match self.execution.invoke(
-            *id,
-            &mut sources,
-            &kernels,
-            &completion,
-            context,
-            Delivery::Forward(rule, &mut output),
-        )? {
-            InvocationOutcome::Published(input) => input.coverage()?,
-            InvocationOutcome::Forwarded(coverage) => coverage,
-            InvocationOutcome::Ready | InvocationOutcome::Suspended(_) => {
-                return Err(OperatingError::NotRun);
-            }
-        };
+        let published =
+            match self
+                .execution
+                .invoke(id, &mut sources, &kernels, &completion, context)?
+            {
+                InvocationOutcome::Published(input) => input,
+                InvocationOutcome::Ready | InvocationOutcome::Suspended(_) => {
+                    return Err(OperatingError::NotRun);
+                }
+            };
+        let coverage = published.coverage()?;
+        // Delivery begins only after semantic evaluation has committed. A sink
+        // refusal leaves that publication intact for replay without reevaluation.
+        sources.replay(&published, context, &mut ForwardRows(each))?;
         Ok(match coverage {
             crate::domain::completion::types::CoverageState::Complete => {
                 super::super::facade::RowEmission::Complete

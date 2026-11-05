@@ -41,16 +41,13 @@ impl RequestViews {
         self.logical.clear();
         self.logical
             .extend_from_slice(ryo_values::domain::plans::service::named(&contract.inputs));
-        let streaming = self.bind_mode(&contract.resources, &contract.input_kinds)?;
-        let collected = self.bind_mode(&contract.collected_resources, &contract.input_kinds)?;
         contract.derived = DerivedSlots {
-            streaming,
-            collected,
+            slots: self.bind_resources(&contract.resources, &contract.input_kinds)?,
         };
         Ok(())
     }
 
-    fn bind_mode(
+    fn bind_resources(
         &mut self,
         program: &ResourceProgram,
         kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],

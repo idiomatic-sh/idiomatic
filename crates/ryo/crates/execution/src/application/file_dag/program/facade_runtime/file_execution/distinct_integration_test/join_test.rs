@@ -272,18 +272,7 @@ fn execute(
     let region = program.logical_regions()[logical.0];
     let native_prepared = program.regions()[region.0].native_positions.is_some();
     let column_prepared = program.regions()[region.0].column.is_some();
-    let right_before_left =
-        program.regions()[region.0]
-            .instructions
-            .iter()
-            .any(|instruction| {
-                instruction.streaming_demand.actions().iter().any(|action| {
-                    matches!(action,
-            crate::domain::executable_program::types::DemandAction::JoinInputs {
-                held: crate::domain::executable_program::types::HeldJoinOrder::RightBeforeLeft
-            })
-                })
-            });
+    let right_before_left = false; // Canonical semantic admission is left then right.
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),
         derived,

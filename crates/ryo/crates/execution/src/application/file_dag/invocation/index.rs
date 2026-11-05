@@ -16,7 +16,6 @@ pub(in crate::application::file_dag) enum IndexResource<'f> {
 impl<'f> IndexResource<'f> {
     pub(super) fn acquired(
         contract: &OperatorContract,
-        mode: EvaluationMode,
         original: Option<&crate::domain::table_model::types::Rows<'f>>,
         admission: &super::super::workspace::InputAdmissions<'_, 'f>,
         context: &mut OperatorContext<'_>,
@@ -24,7 +23,7 @@ impl<'f> IndexResource<'f> {
     ) -> Result<Self, OperatingError> {
         use crate::application::file_dag::derived::storage::DerivedStorage;
         use ryo_derived::domain::contract::types::DerivedKind;
-        let use_ = prepared(contract, mode, DerivedKind::Equality)?;
+        let use_ = prepared(contract, DerivedKind::Equality)?;
         let place = use_.inputs[0];
         let source = admission.input(place)?;
         // Absence's established empty-RHS gate precedes key interpretation.

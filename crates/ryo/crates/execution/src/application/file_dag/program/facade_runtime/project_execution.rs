@@ -70,15 +70,6 @@ pub(crate) fn open_project<'a>(
             Partition::Project(required.clone()),
             Rc::clone(&owner),
         );
-        // The project API is collected. Its unselected streaming terminal roles
-        // release their own reader edges before any restored source admission.
-        let cancelled = program
-            .program()
-            .rules()
-            .iter()
-            .filter_map(|rule| rule.forward_emit.as_ref().ok().copied())
-            .collect::<Vec<_>>();
-        execution.cancel_roots(&cancelled)?;
         scope
             .execution
             .set(execution)
@@ -173,14 +164,8 @@ impl ProjectRun<'_> {
                     }
                 }
                 Ok(id) => outcome_of(
-                    self.execution.invoke(
-                        *id,
-                        &mut sources,
-                        &kernels,
-                        &completion,
-                        context,
-                        Delivery::Retain,
-                    ),
+                    self.execution
+                        .invoke(*id, &mut sources, &kernels, &completion, context),
                     &self.owner,
                     &unavailable,
                 ),

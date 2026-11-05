@@ -40,23 +40,8 @@ pub(crate) enum PartitionRequirement {
     InputLineage,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum HeldJoinOrder {
-    LeftWithEmptyGate,
-    RightBeforeLeft,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum DemandAction {
     Admit(InputId),
-    /// Return without touching subsequent inputs when the admitted population is empty.
-    EmptyGate(InputId),
-    /// Application selects the admitted transport, never the semantic kernel.
-    JoinInputs {
-        held: HeldJoinOrder,
-    },
-    AxisInputs,
-    ValidateBeforeInputs,
-    ValidateFirstRow,
-    PublishAfterSuccess,
 }
 /// Closed, ordered code interpreted only by the common application invocation.
 #[derive(Clone, Debug)]
@@ -74,11 +59,9 @@ pub(crate) struct Instruction {
     pub logical: LogicalInstruction,
     pub producer: RuleIndex,
     pub operation: Operation,
-    pub input_delivery: Box<[crate::domain::operating::types::Supply]>,
     pub contract: Arc<OperatorContract>,
     pub inputs: Box<[OperandSource]>,
-    pub streaming_demand: DemandProgram,
-    pub collected_demand: DemandProgram,
+    pub demand: DemandProgram,
     pub partition: PartitionRequirement,
 }
 #[derive(Clone, Debug)]
@@ -110,7 +93,6 @@ pub(crate) struct Region {
     pub column: Option<super::column::ColumnAlternative>,
     pub selection: Option<super::selection::SelectionAlternative>,
     pub native_positions: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
-    pub publishes: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Origin {
@@ -126,7 +108,6 @@ pub(crate) struct RuleProgram {
     /// Collected semantic root shared only with collected frontier/observation aliases.
     pub emit: Result<RegionId, OperatingError>,
     /// Private diagnostic delivery boundary; no ordinary dependency or persisted alias targets it.
-    pub forward_emit: Result<RegionId, OperatingError>,
     pub frontier: Box<[Result<InputSource, OperatingError>]>,
 }
 /// There is no retained RequestGraph, PhysicalRegion, PlanLayout or per-plan evaluator here.

@@ -9,15 +9,6 @@ use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-/// This affects error/publication timing, not which primitive implementation runs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EvaluationMode {
-    /// Emit rows as they are computed.
-    Streaming,
-    /// Consume a complete input before evaluating.
-    Collected,
-}
-
 /// The finite existing semantic input shapes; dependency acquisition is engine work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InputShape {
@@ -41,21 +32,6 @@ pub(crate) enum DemandOrder {
     Unary,
     /// Read left input before right input.
     LeftThenRight,
-    /// Acquire join input at its declared transport boundary.
-    JoinTransport,
-    /// Acquire axis input at its declared transport boundary.
-    AxisTransport,
-    /// Skip right input when the left input proves empty.
-    LeftThenRightUnlessEmptyLeft,
-}
-
-/// A complete-view algorithm may fail before any output is observable.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Publication {
-    /// Emit successful rows incrementally.
-    Incremental,
-    /// Publish rows only after complete success.
-    AfterSuccess,
 }
 
 /// Resource declarations are semantic needs, never primitive-controlled cache policy.
@@ -98,26 +74,13 @@ pub(crate) enum Effects {
     RequestSource,
 }
 
-/// Mode-specific failure and demand behavior is prepared once, never per row.
+/// One prepared semantic dependency and input contract for every output consumer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ModeContract {
-    /// Semantic form of inputs seen by the operator.
+pub(crate) struct SemanticContract {
     pub(crate) shape: InputShape,
-    /// Upstream demand order.
     pub(crate) demand: DemandOrder,
-    /// Visibility boundary for ordinary evaluation.
-    pub(crate) publication: Publication,
-    /// Visibility boundary when input is held.
-    pub(crate) held_publication: Publication,
-    /// When schema validation is observable.
-    pub(crate) schema_boundary: SchemaBoundary,
-    /// When acquired resources are observable.
     pub(crate) acquisition: AcquisitionBoundary,
-    /// Input positions read in row mode.
     pub(crate) row_inputs: RowInputMask,
-    /// Whether the mode streams or collects.
-    pub(crate) evaluation: EvaluationMode,
-    /// Order of collected-mode preflight checks.
     pub(crate) preflight: PreflightOrder,
 }
 
@@ -132,16 +95,6 @@ pub(crate) enum AcquisitionBoundary {
     BeforeRows,
     /// At the first applicable input row.
     FirstRow,
-}
-
-/// Collection validates the complete schema before reading; streaming row transforms
-/// retain their first-applicable-row error boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SchemaBoundary {
-    /// Before upstream demand.
-    BeforeDemand,
-    /// At the first row that uses the schema.
-    FirstApplicableRow,
 }
 
 /// Physical source validation precedes resource acquisition for SourceMatches.
@@ -193,18 +146,16 @@ pub(crate) struct OperatorContract {
     pub kind: OperationKind,
     pub inputs: Inputs,
     pub input_kinds: Vec<Vec<CellKind>>,
-    pub streaming: ModeContract,
-    pub collected: ModeContract,
+    pub semantics: SemanticContract,
     /// Metadata errors remain deferred to the declared execution boundary.
     pub schema: Result<Vec<CellKind>, OperatingError>,
     /// Payload-independent collected layout; row-lazy refusals are not raised by it.
-    pub collected_kinds: Result<Vec<CellKind>, OperatingError>,
+    pub output_kinds: Result<Vec<CellKind>, OperatingError>,
     /// Input-position bitset: absence-dependent outputs require these populations complete.
     pub absence_inputs: u8,
     pub workspace: WorkspaceProgram,
     pub resources: super::resources::ResourceProgram,
-    pub collected_resources: super::resources::ResourceProgram,
-    pub collected_empty: Vec<EmptyResult>,
+    pub empty_results: Vec<EmptyResult>,
     pub source_gate: SourceGate,
     pub row_error: Option<OperatingError>,
     pub literal_pattern: Option<ryo_values::domain::plan_parts::types::LiteralText>,

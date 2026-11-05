@@ -70,7 +70,12 @@ pub(super) struct AdmittedInput {
 pub(super) trait Inputs {
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
-    fn dependency(&self, _input: InputSource) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> { Ok(None) }
+    fn dependency(
+        &self,
+        _input: InputSource,
+    ) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> {
+        Ok(None)
+    }
     fn bind_rule(&mut self, _rule: crate::domain::coverage::types::RuleIndex) {}
 
     fn admit(
@@ -290,7 +295,6 @@ pub(crate) struct KernelPermit<'scope> {
     live: &'scope Arc<super::super::relations::GenerationLease>,
     bindings: BoundInputs<'scope>,
     strategy: KernelStrategy,
-    evaluation: crate::domain::operator::contract::types::EvaluationMode,
 }
 impl<'scope> KernelPermit<'scope> {
     fn code(
@@ -314,7 +318,6 @@ impl<'scope> KernelPermit<'scope> {
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
         inputs: &'scope [AdmittedInput],
-        evaluation: crate::domain::operator::contract::types::EvaluationMode,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
         if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
@@ -335,14 +338,12 @@ impl<'scope> KernelPermit<'scope> {
             live: &execution.generation_live,
             bindings: BoundInputs::Ordinary(inputs),
             strategy: KernelStrategy::Registered,
-            evaluation,
         })
     }
     pub(super) fn ordered(
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
         input: &'scope AdmittedInput,
-        evaluation: crate::domain::operator::contract::types::EvaluationMode,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
         let shape = code
@@ -358,7 +359,6 @@ impl<'scope> KernelPermit<'scope> {
             live: &execution.generation_live,
             bindings: BoundInputs::Ordered(input),
             strategy: KernelStrategy::Ordered,
-            evaluation,
         })
     }
     pub(super) fn column(
@@ -382,7 +382,6 @@ impl<'scope> KernelPermit<'scope> {
             live: &execution.generation_live,
             bindings: BoundInputs::Column { left, right },
             strategy: KernelStrategy::Column,
-            evaluation: crate::domain::operator::contract::types::EvaluationMode::Collected,
         })
     }
     /// A continuation borrows the already admitted invocation; no refcount,
@@ -403,7 +402,6 @@ impl<'scope> KernelPermit<'scope> {
             live: self.live,
             bindings: self.bindings,
             strategy: self.strategy,
-            evaluation: self.evaluation,
         })
     }
     pub(super) fn native_shape(
@@ -440,10 +438,7 @@ impl<'scope> KernelPermit<'scope> {
             .native_positions
             .as_ref()
             .ok_or(OperatingError::WrongOperation)?;
-        if !Arc::ptr_eq(actual, shape)
-            || self.evaluation
-                != crate::domain::operator::contract::types::EvaluationMode::Collected
-        {
+        if !Arc::ptr_eq(actual, shape) {
             return Err(OperatingError::WrongOperation);
         }
         let mut permit = self.semantics();
@@ -560,9 +555,6 @@ impl<'scope> KernelPermit<'scope> {
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
     ) -> Result<&'a AdmittedInput, OperatingError> {
         self.validate_live()?;
-        if self.evaluation != crate::domain::operator::contract::types::EvaluationMode::Collected {
-            return Err(OperatingError::WrongOperation);
-        }
         let region = &self.program.regions()[self.region.0];
         let declared = region
             .selection
@@ -578,12 +570,12 @@ impl<'scope> KernelPermit<'scope> {
         source.publication(&source.proof.owner)?;
         Ok(source)
     }
-    pub(super) fn collected_kinds(
+    pub(super) fn output_kinds(
         &self,
     ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
         self.program.regions()[self.region.0].instructions[self.instruction]
             .contract
-            .collected_kinds
+            .output_kinds
             .as_deref()
             .map_err(Clone::clone)
     }
@@ -606,10 +598,8 @@ impl<'scope> KernelPermit<'scope> {
         }
         let left_input = self.bound_input(0)?;
         let right_input = self.bound_input(1)?;
-        let expected = region.instructions[self.instruction]
-            .contract
-            .derived
-            .collected[ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
+        let expected = region.instructions[self.instruction].contract.derived.slots
+            [ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
         .as_ref()
         .ok_or(OperatingError::WrongOperation)?;
         if !std::ptr::eq(expected.primary.plan.as_ref(), native.contract()) {
@@ -628,8 +618,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(super) fn native_join_eligibility(&self) -> super::native_join::Eligibility {
         let region = &self.program.regions()[self.region.0];
-        if self.evaluation == crate::domain::operator::contract::types::EvaluationMode::Collected
-            && region.instructions.len() == 1
+        if region.instructions.len() == 1
             && matches!(
                 self.operation(),
                 ryo_values::domain::plans::types::Operation::Join { reach: None, filter, .. } if filter.is_empty()

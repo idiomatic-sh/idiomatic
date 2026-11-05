@@ -171,41 +171,48 @@ fn exercise(refusal: Refusal) {
                 Refusal::Callback => assert!(matches!(result, Err(OperatingError::WrongBinding))),
                 _ => assert!(matches!(result, Err(OperatingError::InvalidRegex { .. }))),
             }
-            assert_eq!(
-                rows.len(),
-                1,
-                "only the first partition may deliver before refusal"
-            );
-            assert_eq!(rows[0].len(), 4);
-            assert_eq!(rows[0][0], Cell::Number(Integer(0)));
-            assert_eq!(
-                rows[0][2..],
-                [Cell::Number(Integer(1)), Cell::Number(Integer(2))]
-            );
-            let Cell::Symbol(symbol) = rows[0][1] else {
-                panic!("hosted text retains its symbol")
-            };
-            assert_eq!(
-                ryo_language::domain::symbols::service::text_of(
-                    &symbols,
-                    ryo_language::domain::symbols::types::ByteSlice(b""),
-                    symbol
-                )
-                .unwrap()
-                .0,
-                "a"
-            );
+            if matches!(refusal, Refusal::DeliveredPattern) {
+                assert!(
+                    rows.is_empty(),
+                    "a later semantic failure is atomic for callbacks too"
+                );
+            } else {
+                assert_eq!(
+                    rows.len(),
+                    1,
+                    "completed publication delivery stops at the first sink refusal"
+                );
+                assert_eq!(rows[0].len(), 4);
+                assert_eq!(rows[0][0], Cell::Number(Integer(0)));
+                assert_eq!(
+                    rows[0][2..],
+                    [Cell::Number(Integer(1)), Cell::Number(Integer(2))]
+                );
+                let Cell::Symbol(symbol) = rows[0][1] else {
+                    panic!("hosted text retains its symbol")
+                };
+                assert_eq!(
+                    ryo_language::domain::symbols::service::text_of(
+                        &symbols,
+                        ryo_language::domain::symbols::types::ByteSlice(b""),
+                        symbol
+                    )
+                    .unwrap()
+                    .0,
+                    "a"
+                );
+            }
         }
     }
     let (builds, last_backing) = owner.derived.scoped_observation();
     assert_eq!(
         builds,
         if matches!(refusal, Refusal::Callback) {
-            1
+            3
         } else {
             2
         },
-        "the third partition must not be built after the second refuses"
+        "semantic failure stops at its partition; sink refusal occurs after all semantic partitions complete"
     );
     assert!(
         last_backing.upgrade().is_none(),

@@ -2,183 +2,169 @@
 use super::types::*;
 use ryo_values::domain::plans::types::OperationKind;
 
-/// Adding a kind cannot inherit an implicit policy or enter a legacy path.
-pub(crate) fn modes(
-    kind: OperationKind,
-) -> (ModeContract, ModeContract, ResourceNeeds, Effects, u8) {
-    use DemandOrder::*;
-    use Effects::{DerivedText, PhysicalSourceText, Pure};
-    use InputShape::*;
-    use Publication::*;
-    use ResourceNeeds::*;
-    let row = |primary, demand| ModeContract {
-        shape: Row {
-            primary: ryo_values::domain::plan_parts::types::InputNumber(primary),
+/// One semantic input and dependency contract, independent of output delivery.
+pub(crate) fn semantics(kind: OperationKind) -> (SemanticContract, ResourceNeeds, Effects, u8) {
+    use OperationKind::*;
+    let (demand, resource, effects, absence) = match kind {
+        Select => (
+            DemandOrder::Unary,
+            ResourceNeeds::Predicates,
+            Effects::Pure,
+            0,
+        ),
+        Project => (
+            DemandOrder::Unary,
+            ResourceNeeds::DistinctRows,
+            Effects::Pure,
+            0,
+        ),
+        Extend => (
+            DemandOrder::Unary,
+            ResourceNeeds::None,
+            Effects::DerivedText,
+            0,
+        ),
+        Join => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::JoinKeys,
+            Effects::Pure,
+            0,
+        ),
+        Union => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::DistinctRows,
+            Effects::Pure,
+            0,
+        ),
+        Intersection => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::KeyMembership,
+            Effects::Pure,
+            0,
+        ),
+        Difference | Antijoin => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::KeyMembership,
+            Effects::Pure,
+            2,
+        ),
+        GroupCount => (
+            DemandOrder::Unary,
+            ResourceNeeds::GroupCounts,
+            Effects::Pure,
+            1,
+        ),
+        GroupDigest => (
+            DemandOrder::Unary,
+            ResourceNeeds::GroupDigest,
+            Effects::Pure,
+            1,
+        ),
+        Capture | Words | Replace => (
+            DemandOrder::Unary,
+            ResourceNeeds::LiteralPatterns,
+            Effects::DerivedText,
+            0,
+        ),
+        Rank | SpanBetween | SpanBounds => {
+            (DemandOrder::Unary, ResourceNeeds::None, Effects::Pure, 0)
+        }
+        OrderedMatch => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::OrderedKeys,
+            Effects::Pure,
+            3,
+        ),
+        Axis => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::Adjacency,
+            Effects::Pure,
+            0,
+        ),
+        Closure | Cycles => (
+            DemandOrder::Unary,
+            ResourceNeeds::Adjacency,
+            Effects::Pure,
+            0,
+        ),
+        OrderedDfs => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::OrderedAdjacency,
+            Effects::DerivedText,
+            3,
+        ),
+        Rows | Hosted => (
+            DemandOrder::None,
+            ResourceNeeds::None,
+            Effects::RequestSource,
+            0,
+        ),
+        SourceMatches => (
+            DemandOrder::Unary,
+            ResourceNeeds::LiteralPatterns,
+            Effects::PhysicalSourceText,
+            0,
+        ),
+        RenderSyntax => (
+            DemandOrder::Unary,
+            ResourceNeeds::None,
+            Effects::DerivedText,
+            0,
+        ),
+        FitsRendered => (
+            DemandOrder::Unary,
+            ResourceNeeds::None,
+            Effects::PhysicalSourceText,
+            0,
+        ),
+    };
+    let shape = match kind {
+        Rows | Hosted => InputShape::RequestSource,
+        GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | RenderSyntax => {
+            InputShape::Views
+        }
+        _ => InputShape::Row {
+            primary: ryo_values::domain::plan_parts::types::InputNumber(0),
         },
-        demand,
-        publication: Incremental,
-        held_publication: Incremental,
-        schema_boundary: SchemaBoundary::FirstApplicableRow,
-        acquisition: AcquisitionBoundary::FirstRow,
-        row_inputs: RowInputMask(1 << primary),
-        evaluation: EvaluationMode::Streaming,
-        preflight: PreflightOrder::ResourcesFirst,
     };
-    let views = |demand| ModeContract {
-        shape: Views,
-        demand,
-        publication: AfterSuccess,
-        held_publication: AfterSuccess,
-        schema_boundary: SchemaBoundary::BeforeDemand,
-        acquisition: AcquisitionBoundary::BeforeRows,
-        row_inputs: RowInputMask(0),
-        evaluation: EvaluationMode::Streaming,
-        preflight: PreflightOrder::ResourcesFirst,
+    let row_inputs = RowInputMask(match shape {
+        InputShape::Row { .. } => {
+            if kind == Union {
+                3
+            } else {
+                1
+            }
+        }
+        _ => 0,
+    });
+    let acquisition = if matches!(
+        kind,
+        Rank | Capture | Words | Replace | SpanBetween | SpanBounds | SourceMatches
+    ) {
+        AcquisitionBoundary::FirstRow
+    } else {
+        AcquisitionBoundary::BeforeRows
     };
-    let source = ModeContract {
-        shape: RequestSource,
-        demand: DemandOrder::None,
-        publication: Incremental,
-        held_publication: Incremental,
-        schema_boundary: SchemaBoundary::FirstApplicableRow,
-        acquisition: AcquisitionBoundary::FirstRow,
-        row_inputs: RowInputMask(0),
-        evaluation: EvaluationMode::Streaming,
-        preflight: PreflightOrder::ResourcesFirst,
+    let preflight = if matches!(
+        kind,
+        Select | Project | Join | Union | Intersection | Difference
+    ) {
+        PreflightOrder::SchemaFirst
+    } else {
+        PreflightOrder::ResourcesFirst
     };
-    match kind {
-        OperationKind::Select => (row(0, Unary), views(Unary), Predicates, Pure, 0),
-        OperationKind::Project => (row(0, Unary), views(Unary), DistinctRows, Pure, 0),
-        OperationKind::Extend => (
-            row(0, Unary),
-            views(Unary),
-            ResourceNeeds::None,
-            DerivedText,
-            0,
-        ),
-        OperationKind::Join => (
-            row(0, JoinTransport),
-            views(LeftThenRight),
-            JoinKeys,
-            Pure,
-            0,
-        ),
-        OperationKind::Union => (
-            ModeContract {
-                row_inputs: RowInputMask(3),
-                ..row(0, LeftThenRight)
-            },
-            views(LeftThenRight),
-            DistinctRows,
-            Pure,
-            0,
-        ),
-        OperationKind::Intersection => (
-            row(0, LeftThenRightUnlessEmptyLeft),
-            views(LeftThenRight),
-            KeyMembership,
-            Pure,
-            0,
-        ),
-        OperationKind::Difference => (
-            row(0, LeftThenRightUnlessEmptyLeft),
-            views(LeftThenRight),
-            KeyMembership,
-            Pure,
-            2,
-        ),
-        OperationKind::Antijoin => (
-            row(0, LeftThenRightUnlessEmptyLeft),
-            views(LeftThenRight),
-            KeyMembership,
-            Pure,
-            2,
-        ),
-        OperationKind::GroupCount => (views(Unary), views(Unary), GroupCounts, Pure, 1),
-        OperationKind::GroupDigest => (views(Unary), views(Unary), GroupDigest, Pure, 1),
-        OperationKind::Capture => (row(0, Unary), views(Unary), LiteralPatterns, DerivedText, 0),
-        OperationKind::Rank => (row(0, Unary), views(Unary), ResourceNeeds::None, Pure, 0),
-        OperationKind::Words => (row(0, Unary), views(Unary), LiteralPatterns, DerivedText, 0),
-        OperationKind::Replace => (
-            ModeContract {
-                publication: AfterSuccess,
-                held_publication: AfterSuccess,
-                ..row(0, Unary)
-            },
-            views(Unary),
-            LiteralPatterns,
-            DerivedText,
-            0,
-        ),
-        OperationKind::OrderedMatch => (
-            views(LeftThenRight),
-            views(LeftThenRight),
-            OrderedKeys,
-            Pure,
-            3,
-        ),
-        OperationKind::Axis => (
-            row(0, AxisTransport),
-            views(LeftThenRight),
-            Adjacency,
-            Pure,
-            0,
-        ),
-        OperationKind::Closure => (views(Unary), views(Unary), Adjacency, Pure, 0),
-        OperationKind::Cycles => (views(Unary), views(Unary), Adjacency, Pure, 0),
-        OperationKind::OrderedDfs => (
-            views(LeftThenRight),
-            views(LeftThenRight),
-            OrderedAdjacency,
-            DerivedText,
-            3,
-        ),
-        OperationKind::Rows => (
-            source,
-            source,
-            ResourceNeeds::None,
-            Effects::RequestSource,
-            0,
-        ),
-        OperationKind::Hosted => (
-            source,
-            source,
-            ResourceNeeds::None,
-            Effects::RequestSource,
-            0,
-        ),
-        OperationKind::SpanBetween => (row(0, Unary), views(Unary), ResourceNeeds::None, Pure, 0),
-        OperationKind::SourceMatches => (
-            row(0, Unary),
-            views(Unary),
-            LiteralPatterns,
-            PhysicalSourceText,
-            0,
-        ),
-        OperationKind::RenderSyntax => (
-            ModeContract {
-                publication: AfterSuccess,
-                held_publication: AfterSuccess,
-                ..views(Unary)
-            },
-            views(Unary),
-            ResourceNeeds::None,
-            DerivedText,
-            0,
-        ),
-        OperationKind::FitsRendered => (
-            ModeContract {
-                publication: AfterSuccess,
-                held_publication: AfterSuccess,
-                ..row(0, Unary)
-            },
-            views(Unary),
-            ResourceNeeds::None,
-            PhysicalSourceText,
-            0,
-        ),
-        OperationKind::SpanBounds => (row(0, Unary), views(Unary), ResourceNeeds::None, Pure, 0),
-    }
+    (
+        SemanticContract {
+            shape,
+            demand,
+            acquisition,
+            row_inputs,
+            preflight,
+        },
+        resource,
+        effects,
+        absence,
+    )
 }
 
 /// Once-per-request preparation preserves execution-timed metadata failures.
@@ -191,49 +177,7 @@ pub(crate) fn prepare_for(
     if ryo_values::domain::plans::service::kind_of(operation) != expected {
         return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
     }
-    let (mut streaming, mut collected, _resource_class, effects, absence_inputs) = modes(expected);
-    if matches!(
-        expected,
-        OperationKind::Union | OperationKind::Intersection | OperationKind::Difference
-    ) {
-        streaming.schema_boundary = SchemaBoundary::BeforeDemand;
-    }
-    if expected == OperationKind::Axis {
-        streaming.held_publication = Publication::AfterSuccess;
-    }
-    streaming.evaluation = EvaluationMode::Streaming;
-    collected.evaluation = EvaluationMode::Collected;
-    if matches!(
-        expected,
-        OperationKind::Select
-            | OperationKind::Project
-            | OperationKind::Join
-            | OperationKind::Union
-            | OperationKind::Intersection
-            | OperationKind::Difference
-    ) {
-        collected.preflight = PreflightOrder::SchemaFirst;
-    }
-    // Both modes call the same evaluator. Collection changes publication and
-    // validation timing, never primitive code or its input meaning.
-    if matches!(streaming.shape, InputShape::Row { .. }) {
-        collected.shape = streaming.shape;
-        collected.row_inputs = streaming.row_inputs;
-    }
-    // Rank bindings and simple row-only operand refusals remain row-lazy in
-    // collection; Extend alone resolves authored appended values even when empty.
-    if matches!(
-        expected,
-        OperationKind::Rank
-            | OperationKind::Capture
-            | OperationKind::Words
-            | OperationKind::Replace
-            | OperationKind::SpanBetween
-            | OperationKind::SpanBounds
-            | OperationKind::SourceMatches
-    ) {
-        collected.acquisition = AcquisitionBoundary::FirstRow;
-    }
+    let (semantics, _resource_class, effects, absence_inputs) = semantics(expected);
     let source_gate = match operation {
         ryo_values::domain::plans::types::Operation::SourceMatches {
             span, base_line, ..
@@ -285,10 +229,10 @@ pub(crate) fn prepare_for(
             .to_vec(),
     };
     let schema = crate::domain::operation_schema::service::schema_of(operation, inputs, bindings);
-    let collected_kinds = super::preflight::collected_layout(operation, inputs, &schema);
+    let output_kinds = super::preflight::output_layout(operation, inputs, &schema);
     use ryo_values::domain::plans::types::Operation;
     let resources = super::resources::prepare(operation);
-    let collected_resources = match &resources {
+    let resources = match &resources {
         super::resources::ResourceProgram::Index {
             input,
             columns: super::resources::IndexColumns::Columns(columns),
@@ -300,21 +244,19 @@ pub(crate) fn prepare_for(
         }
         _ => resources.clone(),
     };
-    let workspace = super::workspace::prepare(operation, inputs, &collected_kinds);
+    let workspace = super::workspace::prepare(operation, inputs, &output_kinds);
     Ok(OperatorContract {
         derived: Default::default(),
         kind: expected,
         inputs: ryo_values::domain::plans::service::inputs_of(operation),
         input_kinds: inputs.iter().map(|input| input.kinds.to_vec()).collect(),
-        streaming,
-        collected,
+        semantics,
         schema,
-        collected_kinds,
+        output_kinds,
         absence_inputs,
         workspace,
         resources,
-        collected_resources,
-        collected_empty: super::preflight::empty_results(operation, inputs),
+        empty_results: super::preflight::empty_results(operation, inputs),
         source_gate,
         row_error,
         literal_pattern,

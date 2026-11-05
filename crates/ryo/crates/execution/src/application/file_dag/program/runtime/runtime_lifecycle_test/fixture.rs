@@ -118,7 +118,6 @@ impl KernelInvocation for RuntimeProbe {
                     self,
                     &policy,
                     context,
-                    Delivery::Retain,
                 );
                 assert!(matches!(result, Err(OperatingError::WrongBinding)));
                 assert_eq!(
@@ -138,7 +137,6 @@ impl KernelInvocation for RuntimeProbe {
                     self,
                     &policy,
                     context,
-                    Delivery::Retain,
                 );
                 self.reentry
                     .set(if matches!(result, Err(OperatingError::NotRun)) {

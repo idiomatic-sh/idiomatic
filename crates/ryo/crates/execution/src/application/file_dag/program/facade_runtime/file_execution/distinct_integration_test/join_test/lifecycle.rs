@@ -213,7 +213,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
                 &kernels,
                 &inner_completion,
                 context,
-                Delivery::Retain,
             )?
             else {
                 return Err(OperatingError::NotRun);
@@ -247,14 +246,15 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             rule: RuleIndex(0),
             project: None,
         };
-        let result = file.execution.invoke(
-            outer_root,
-            &mut inputs,
-            &kernels,
-            &completion,
-            &mut context,
-            Delivery::Forward(RuleIndex(0), &mut sink),
-        );
+        let result = file
+            .execution
+            .invoke(outer_root, &mut inputs, &kernels, &completion, &mut context)
+            .and_then(|outcome| {
+                let InvocationOutcome::Published(input) = outcome else {
+                    return Err(OperatingError::NotRun);
+                };
+                inputs.replay(&input, &mut context, &mut sink)
+            });
         drop(sink);
         drop(each);
         if fail_after.is_some() {

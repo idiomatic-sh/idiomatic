@@ -224,7 +224,7 @@ fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows(
         .map(|node| {
             graph.nodes[node.as_ref().unwrap().0]
                 .contract
-                .collected_kinds
+                .output_kinds
                 .clone()
                 .unwrap()
         })
@@ -313,7 +313,7 @@ fn empty_native_frontier_has_the_deep_walk_schema_before_any_file_is_read() {
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
     let output = graph.program_nodes[0][0].as_ref().unwrap();
     assert_eq!(
-        graph.nodes[output.0].contract.collected_kinds,
+        graph.nodes[output.0].contract.output_kinds,
         Ok(vec![
             CellKind::Node,
             CellKind::Symbol,
@@ -370,7 +370,7 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
     )
     .unwrap();
     let prepared_kinds = operators.rules[0][1]
-        .collected_kinds
+        .output_kinds
         .as_ref()
         .unwrap()
         .as_ptr();
@@ -389,7 +389,7 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
     );
     assert_eq!(
         operators.rules[0][1]
-            .collected_kinds
+            .output_kinds
             .as_ref()
             .unwrap()
             .as_ptr(),
@@ -398,7 +398,7 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
     for graph in [first, again] {
         let output = graph.program_nodes[0][2].as_ref().unwrap();
         assert_eq!(
-            graph.nodes[output.0].contract.collected_kinds,
+            graph.nodes[output.0].contract.output_kinds,
             Ok(kinds(Relation::SyntaxChild).to_vec())
         );
     }

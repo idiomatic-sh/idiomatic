@@ -6,12 +6,12 @@ use super::{
         ProducerRoot, Readiness, RequiredPartitions,
     },
     facade::{
-        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand,
-        FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ObservedPublication,
-        PreparedProgram, ProjectFrontiers, ProjectObservation, ProjectRuleOutcome, RootOutcome,
-        RuleDemand, RuleOutcome,
+        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery,
+        EmitDemand, FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand,
+        ObservedPublication, PreparedProgram, ProjectFrontiers, ProjectObservation,
+        ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
     },
-    runtime::{Delivery, InvocationOutcome, KernelInvocation, ProgramExecution},
+    runtime::{InvocationOutcome, KernelInvocation, ProgramExecution},
 };
 use ryo_relations::domain::relations::types::{FileId, Relation, Value};
 use ryo_values::domain::{

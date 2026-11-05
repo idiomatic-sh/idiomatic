@@ -79,7 +79,7 @@ pub(in crate::application) fn validate_restored_frontier(
             .and_then(|region| region.instructions.last())
             .ok_or(OperatingError::NotRun)?
             .contract
-            .collected_kinds
+            .output_kinds
             .as_ref()
             .map_err(Clone::clone)?
             .clone(),
@@ -101,7 +101,7 @@ pub(in crate::application) fn validate_restored_frontier(
                 .and_then(|region| region.instructions.last())
                 .ok_or(OperatingError::NotRun)?
                 .contract
-                .collected_kinds
+                .output_kinds
                 .as_ref()
                 .map_err(Clone::clone)?
                 .clone()

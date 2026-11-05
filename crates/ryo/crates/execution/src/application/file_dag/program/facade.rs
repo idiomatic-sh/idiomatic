@@ -60,8 +60,8 @@ pub enum EmitDemand {
     Enabled,
     Disabled,
 }
-/// Diagnostic root transport, fixed before admission. Observation and frontier
-/// roots retain their collected contract independently of diagnostic delivery.
+/// Diagnostic output delivery, fixed before admission. Every diagnostic,
+/// observation and frontier uses the same semantic evaluation contract.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DiagnosticDelivery {
     Disabled,

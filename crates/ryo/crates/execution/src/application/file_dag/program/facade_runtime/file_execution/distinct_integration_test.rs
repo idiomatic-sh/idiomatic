@@ -192,14 +192,14 @@ fn forward<'a, 'service, 'facts>(
         rule,
         project: None,
     };
-    file.execution.invoke(
-        root,
-        &mut sources,
-        &kernels,
-        &completion,
-        &mut context,
-        Delivery::Forward(rule, sink),
-    )
+    let outcome = file
+        .execution
+        .invoke(root, &mut sources, &kernels, &completion, &mut context)?;
+    let InvocationOutcome::Published(input) = &outcome else {
+        return Err(OperatingError::NotRun);
+    };
+    sources.replay(input, &mut context, sink)?;
+    Ok(outcome)
 }
 fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
     let SmallTree {
@@ -303,11 +303,11 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
                 "the first sink refuses before publishing a row"
             );
             let refused = file.execution.retry_checkpoint(root)?;
-            assert_eq!(refused.attempt, AttemptCheckpoint::Dormant);
-            assert_eq!(refused.dependencies, DependencyCheckpoint::Pending);
+            assert_eq!(refused.attempt, AttemptCheckpoint::Published);
+            assert_eq!(refused.dependencies, DependencyCheckpoint::Consumed);
             assert_eq!(
                 refused.remaining, before.remaining,
-                "failed delivery retains reader obligations"
+                "delivery refusal retains the already completed publication"
             );
             let mut accept = RefusingSink {
                 reject: false,
@@ -330,7 +330,7 @@ fn reach_restarts_distinct_for_each_identical_left_row() {
     assert_eq!(actual, vec![1, 2, 3, 1, 2, 3]);
 }
 #[test]
-fn project_and_union_retry_rebuild_invocation_distinct_after_sink_failure() {
+fn project_and_union_retry_replay_completed_distinct_after_sink_failure() {
     for scenario in [Scenario::ProjectRetry, Scenario::UnionRetry] {
         let actual = exercise(scenario).expect("compiled retry");
         assert_eq!(actual, vec![0, 2]);

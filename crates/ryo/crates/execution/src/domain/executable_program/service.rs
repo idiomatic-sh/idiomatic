@@ -5,7 +5,7 @@ use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{
         resources::ResourceProgram,
-        types::{DemandOrder, Effects, InputShape, ModeContract, Publication, SchemaBoundary},
+        types::{DemandOrder, Effects, InputShape, SemanticContract},
     },
 };
 use ryo_values::domain::{
@@ -14,50 +14,19 @@ use ryo_values::domain::{
 };
 
 /// Explicit validation and fault points remain code, not implicit runtime defaults.
-pub(crate) fn demand(
-    mode: ModeContract,
-    used: usize,
-    join: HeldJoinOrder,
-    supplies: &[crate::domain::operating::types::Supply],
-) -> DemandProgram {
-    let mut actions = Vec::new();
-    // Collected preflight is ordered after actual admission and empty gates.
-    // Its schema/resource precedence is interpreted by the invocation owner.
-    if mode.evaluation == crate::domain::operator::contract::types::EvaluationMode::Streaming {
-        match mode.schema_boundary {
-            SchemaBoundary::BeforeDemand => actions.push(DemandAction::ValidateBeforeInputs),
-            SchemaBoundary::FirstApplicableRow => actions.push(DemandAction::ValidateFirstRow),
-        }
-    }
-    match mode.demand {
-        DemandOrder::None => {}
-        DemandOrder::Unary => actions.push(DemandAction::Admit(InputId(0))),
-        DemandOrder::LeftThenRight => {
-            actions.extend((0..used).map(|input| DemandAction::Admit(InputId(input))))
-        }
-        DemandOrder::LeftThenRightUnlessEmptyLeft => {
-            actions.push(DemandAction::Admit(InputId(0)));
-            actions.push(DemandAction::EmptyGate(InputId(0)));
-            actions.push(DemandAction::Admit(InputId(1)));
-        }
-        DemandOrder::JoinTransport => actions.push(DemandAction::JoinInputs { held: join }),
-        DemandOrder::AxisTransport => actions.push(DemandAction::AxisInputs),
-    }
-    use crate::domain::operating::types::Supply;
-    let publication = if mode.demand == DemandOrder::AxisTransport
-        && supplies != [Supply::Streamed, Supply::AtHand, Supply::AtHand]
-    {
-        mode.held_publication
-    } else {
-        mode.publication
+pub(crate) fn demand(contract: SemanticContract, used: usize) -> DemandProgram {
+    let actions = match contract.demand {
+        DemandOrder::None => Vec::new(),
+        DemandOrder::Unary => vec![DemandAction::Admit(InputId(0))],
+        DemandOrder::LeftThenRight => (0..used)
+            .map(|input| DemandAction::Admit(InputId(input)))
+            .collect(),
     };
-    if publication == Publication::AfterSuccess {
-        actions.push(DemandAction::PublishAfterSuccess);
-    }
     DemandProgram {
         actions: actions.into_boxed_slice(),
     }
 }
+
 struct DraftRegion {
     phase: StepScope,
     nodes: Vec<usize>,
@@ -69,11 +38,8 @@ fn continuation(node: &FileProgramNode) -> bool {
     node.schema_valid
         && node.contract.effects == Effects::Pure
         && matches!(node.contract.resources, ResourceProgram::None)
-        && matches!(node.contract.collected_resources, ResourceProgram::None)
-        && node.contract.derived.streaming.iter().all(Option::is_none)
-        && node.contract.derived.collected.iter().all(Option::is_none)
-        && matches!(node.contract.streaming.shape, InputShape::Row { .. })
-        && node.contract.streaming.publication == Publication::Incremental
+        && node.contract.derived.slots.iter().all(Option::is_none)
+        && matches!(node.contract.semantics.shape, InputShape::Row { .. })
         && match &node.operation {
             Operation::Select { kept, .. } => kept.is_empty(),
             Operation::Project { distinct, .. } => *distinct == RepeatedRows::Kept,
@@ -196,29 +162,12 @@ pub(crate) fn compile(
             Operation::Rows { parameter, .. } => partitions.parameter(rule, *parameter)?,
             _ => PartitionRequirement::InputLineage,
         };
-        let join = if node.native_join_right_first {
-            HeldJoinOrder::RightBeforeLeft
-        } else {
-            HeldJoinOrder::LeftWithEmptyGate
-        };
         let mut instruction = Instruction {
             logical: LogicalInstruction(logical),
             producer: rule,
             operation: node.operation,
-            streaming_demand: demand(
-                node.contract.streaming,
-                node.contract.inputs.used.0,
-                join,
-                &node.input_supply,
-            ),
-            collected_demand: demand(
-                node.contract.collected,
-                node.contract.inputs.used.0,
-                join,
-                &node.input_supply,
-            ),
+            demand: demand(node.contract.semantics, node.contract.inputs.used.0),
             partition,
-            input_delivery: node.input_supply.into_boxed_slice(),
             inputs: if fuse.is_some() {
                 vec![OperandSource::PreviousRow]
             } else {
@@ -230,15 +179,9 @@ pub(crate) fn compile(
             contract: node.contract,
         };
         if matches!(instruction.operation, Operation::Hosted { .. }) {
-            for program in [
-                &mut instruction.streaming_demand,
-                &mut instruction.collected_demand,
-            ] {
+            for program in [&mut instruction.demand] {
                 let mut actions = program.actions.to_vec();
-                let at = actions
-                    .iter()
-                    .position(|action| matches!(action, DemandAction::ValidateBeforeInputs))
-                    .map_or(0, |at| at + 1);
+                let at = 0;
                 actions.insert(at, DemandAction::Admit(InputId(0)));
                 program.actions = actions.into_boxed_slice();
             }
@@ -315,7 +258,6 @@ pub(crate) fn compile(
             column: None,
             selection: None,
             native_positions: None,
-            publishes: boundary[logical] || consumers[logical] > 1,
         });
     }
     for column in column_candidates.lower(&logical_regions) {
@@ -416,7 +358,6 @@ pub(crate) fn compile(
             .into_boxed_slice();
         rules.push(RuleProgram {
             root_readers,
-            forward_emit: emit.clone(),
             emit,
             frontier: plan
                 .frontier
@@ -515,35 +456,6 @@ pub(crate) fn compile(
         }
     }
     super::native::install(&mut executable, native_shapes);
-    // Delivery is a semantic boundary, not another graph or interpreter. Clone
-    // only the already-fused terminal region so the original logical step keeps
-    // its collected admission/error order for frontiers and observations. Doing
-    // this after lowering preserves the original input transport and fusion.
-    let mut regions = executable.regions.into_vec();
-    for rule in &mut executable.rules {
-        let Ok(original) = rule.emit.as_ref().copied() else {
-            continue;
-        };
-        let mut diagnostic = regions[original.0].clone();
-        diagnostic.id = RegionId(regions.len());
-        diagnostic.consumers = 1;
-        diagnostic.publishes = false;
-        // These alternatives are collected-only and their targets name the
-        // original semantic region. The streaming contract uses the same core
-        // row continuation and keeps its own terminal error/delivery state.
-        diagnostic.column = None;
-        diagnostic.selection = None;
-        diagnostic.native_positions = None;
-        for dependency in &diagnostic.dependencies {
-            regions[dependency.0].consumers += 1;
-        }
-        rule.forward_emit = Ok(diagnostic.id);
-        let mut readers = rule.root_readers.to_vec();
-        readers.push(diagnostic.id);
-        rule.root_readers = readers.into_boxed_slice();
-        regions.push(diagnostic);
-    }
-    executable.regions = regions.into_boxed_slice();
     Ok(executable)
 }
 

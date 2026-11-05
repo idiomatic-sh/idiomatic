@@ -1,12 +1,8 @@
 //! Demand compilation consumes actual prepared Axis publication policy for every supply tuple.
-use super::{
-    service::demand,
-    types::{DemandAction, HeldJoinOrder},
-};
+use super::{service::demand, types::DemandAction};
 use crate::domain::{
-    operating::types::Supply,
-    operation_schema::types::InputShape,
-    operator::contract::{service::prepare_for, types::Publication},
+    operating::types::Supply, operation_schema::types::InputShape,
+    operator::contract::service::prepare_for,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::{
@@ -17,56 +13,56 @@ use ryo_values::{
     },
 };
 type Input = [Supply; 3];
-type Value = Publication;
+type Value = Vec<usize>;
 type Failure = crate::domain::operating::errors::OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("athand_athand_athand"),
         word: Word::Succeeds,
         input: || [Supply::AtHand, Supply::AtHand, Supply::AtHand],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("athand_athand_streamed"),
         word: Word::Succeeds,
         input: || [Supply::AtHand, Supply::AtHand, Supply::Streamed],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("athand_streamed_athand"),
         word: Word::Succeeds,
         input: || [Supply::AtHand, Supply::Streamed, Supply::AtHand],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("athand_streamed_streamed"),
         word: Word::Succeeds,
         input: || [Supply::AtHand, Supply::Streamed, Supply::Streamed],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("streamed_athand_athand"),
         word: Word::Succeeds,
         input: || [Supply::Streamed, Supply::AtHand, Supply::AtHand],
-        expect: Expect::Value(Publication::Incremental),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("streamed_athand_streamed"),
         word: Word::Succeeds,
         input: || [Supply::Streamed, Supply::AtHand, Supply::Streamed],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("streamed_streamed_athand"),
         word: Word::Succeeds,
         input: || [Supply::Streamed, Supply::Streamed, Supply::AtHand],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
     Case {
         name: CaseName("streamed_streamed_streamed"),
         word: Word::Succeeds,
         input: || [Supply::Streamed, Supply::Streamed, Supply::Streamed],
-        expect: Expect::Value(Publication::AfterSuccess),
+        expect: Expect::Value(vec![0, 1, 2]),
     },
 ];
 fn subject(supplies: Input) -> Result<Value, Failure> {
@@ -98,22 +94,15 @@ fn subject(supplies: Input) -> Result<Value, Failure> {
         },
     ];
     let contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[])?;
-    let program = demand(
-        contract.streaming,
-        3,
-        HeldJoinOrder::LeftWithEmptyGate,
-        &supplies,
-    );
-    Ok(
-        if program
-            .actions()
-            .contains(&DemandAction::PublishAfterSuccess)
-        {
-            Publication::AfterSuccess
-        } else {
-            Publication::Incremental
-        },
-    )
+    let _physical_supplies = supplies;
+    let program = demand(contract.semantics, 3);
+    Ok(program
+        .actions()
+        .iter()
+        .map(|action| match action {
+            DemandAction::Admit(input) => input.0,
+        })
+        .collect())
 }
 #[test]
 fn succeeds() {

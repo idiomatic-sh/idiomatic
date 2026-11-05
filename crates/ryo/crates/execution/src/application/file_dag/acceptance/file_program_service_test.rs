@@ -381,7 +381,10 @@ fn ordinary_join_and_group_count_keep_single_reader_streams() {
         joined.nodes[id.0].input_supply[0],
         crate::domain::operating::types::Supply::Streamed,
     );
-    assert!(!joined.nodes[id.0].native_join_right_first);
+    assert_eq!(
+        joined.nodes[id.0].contract.semantics.demand,
+        crate::domain::operator::contract::types::DemandOrder::LeftThenRight
+    );
 
     let mut query = plan();
     query.steps.truncate(1);
@@ -402,7 +405,10 @@ fn ordinary_join_and_group_count_keep_single_reader_streams() {
         grouped.nodes[id.0].input_supply[0],
         crate::domain::operating::types::Supply::Streamed,
     );
-    assert!(!grouped.nodes[id.0].native_join_right_first);
+    assert_eq!(
+        grouped.nodes[id.0].contract.semantics.demand,
+        crate::domain::operator::contract::types::DemandOrder::Unary
+    );
 }
 
 #[test]

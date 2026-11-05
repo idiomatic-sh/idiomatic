@@ -27,7 +27,6 @@ pub(super) fn groups(
     digest: Option<ColumnIndex>,
     context: &mut OperatorContext<'_>,
     contract: &OperatorContract,
-    mode: EvaluationMode,
     admitted: &super::super::workspace::InputAdmissions<'_, '_>,
     semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
 ) -> Result<Vec<Group>, OperatingError> {
@@ -37,7 +36,6 @@ pub(super) fn groups(
     }
     let use_ = super::prepared(
         contract,
-        mode,
         ryo_derived::domain::contract::types::DerivedKind::PartitionOrder,
     )?;
     let acquired = admitted.acquire_rows(use_, context)?;

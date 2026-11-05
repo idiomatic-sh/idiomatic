@@ -269,10 +269,10 @@ fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
         }
     };
     let masks = plan.steps.iter().map(|step| {
-        crate::domain::operator::contract::service::modes(
+        crate::domain::operator::contract::service::semantics(
             ryo_values::domain::plans::service::kind_of(&step.operation),
         )
-        .4
+        .3
     });
     needs_with_masks(plan, of, masks)
 }

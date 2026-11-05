@@ -6,9 +6,7 @@ use crate::{
     domain::{
         operating::types::OperatorContext,
         operator::contract::{
-            graph_view::CachedGraphRow,
-            resources::ResourceProgram,
-            types::{EvaluationMode, OperatorContract},
+            graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
         },
         table_model::types::Rows,
     },
@@ -19,7 +17,6 @@ impl DerivedOwner {
         &self,
         contract: &OperatorContract,
         admission: &InvocationWorkspace,
-        mode: EvaluationMode,
         program: &ResourceProgram,
         rows: &[Rows<'_>],
     ) -> Result<Option<CachedGraph>, OperatingError> {
@@ -35,7 +32,7 @@ impl DerivedOwner {
         let Some(cache) = backend.as_mut().filter(|cache| cache.graph_enabled) else {
             return Ok(None);
         };
-        CachedGraph::prepare(contract, admission, mode, program, rows, Some(cache))
+        CachedGraph::prepare(contract, admission, program, rows, Some(cache))
     }
     /// Only admitted original inputs enter the physical graph adapter.
     pub(in crate::application::file_dag) fn acquire_graph(

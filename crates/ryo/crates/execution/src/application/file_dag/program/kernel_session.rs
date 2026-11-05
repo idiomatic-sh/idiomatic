@@ -15,7 +15,7 @@ use crate::{
             types::{Emit, InputPlace, OperatorContext},
         },
         operator::contract::{
-            types::{EvaluationMode, InputShape, PreparedInputs},
+            types::{InputShape, PreparedInputs},
             views::BorrowedRows,
         },
         table_model::{
@@ -281,7 +281,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             std::sync::Arc::from(
                 instruction
                     .contract
-                    .collected_kinds
+                    .output_kinds
                     .clone()
                     .map_err(InvocationFailure::Semantic)?,
             ),
@@ -441,9 +441,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             context.symbols.as_ref(),
             ryo_language::domain::symbols::types::ByteSlice(context.source.0),
             rows,
-            &permit
-                .collected_kinds()
-                .map_err(InvocationFailure::Semantic)?,
+            &permit.output_kinds().map_err(InvocationFailure::Semantic)?,
             &mut measured,
         );
         counts.join.found(0, measured.covered_rows);
@@ -525,7 +523,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                     )
                     .map_err(InvocationFailure::Semantic)
                 }
-                KernelInput::Admitted(admitted, mode) => {
+                KernelInput::Admitted(admitted) => {
                     let publications = admitted
                         .iter()
                         .map(|input| input.publication(&self.owner).cloned())
@@ -571,21 +569,17 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         }
                     }
                     let views: Vec<_> = originals.iter().map(BorrowedRows::from).collect();
-                    if mode == EvaluationMode::Collected
-                        && contract.collected.preflight
-                            == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
+                    if contract.semantics.preflight
+                        == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
                     {
                         contract
-                            .collected_kinds
+                            .output_kinds
                             .as_ref()
                             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     }
 
                     workspace.capture_admitted(publications.clone());
-                    let meaning = match mode {
-                        EvaluationMode::Streaming => &contract.streaming,
-                        EvaluationMode::Collected => &contract.collected,
-                    };
+                    let meaning = &contract.semantics;
                     let mut resources = if matches!(meaning.shape, InputShape::Row { .. })
                     && meaning.acquisition
                         == crate::domain::operator::contract::types::AcquisitionBoundary::FirstRow
@@ -594,23 +588,21 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 } else {
                     Some(
                         InvocationResources::prepare(
-                            contract, &views, context, mode, &originals, workspace, &setup_semantics,
+                            contract, &views, context, &originals, workspace, &setup_semantics,
                         )
                         .map_err(InvocationFailure::Semantic)?,
                     )
                 };
-                    if mode == EvaluationMode::Collected {
+                    {
                         contract
-                            .collected_kinds
+                            .output_kinds
                             .as_ref()
                             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     }
-                    if mode == EvaluationMode::Collected
-                        && matches!(
-                            permit.native_join_eligibility(),
-                            super::native_join::Eligibility::Native
-                        )
-                        && originals.first().is_some_and(|left| count_of(left).0 != 0)
+                    if matches!(
+                        permit.native_join_eligibility(),
+                        super::native_join::Eligibility::Native
+                    ) && originals.first().is_some_and(|left| count_of(left).0 != 0)
                         && matches!(originals.get(1), Some(Rows::Tree(_)))
                     {
                         if resources.is_none() {
@@ -619,7 +611,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                     contract,
                                     &views,
                                     context,
-                                    mode,
                                     &originals,
                                     workspace,
                                     &setup_semantics,
@@ -675,10 +666,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                             };
                         }
                     }
-                    let meaning = match mode {
-                        EvaluationMode::Streaming => &contract.streaming,
-                        EvaluationMode::Collected => &contract.collected,
-                    };
+                    let meaning = &contract.semantics;
                     match meaning.shape {
                         InputShape::Views => {
                             crate::application::file_dag::execution::lease::evaluate(
@@ -776,7 +764,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                                 contract,
                                                 &views,
                                                 context,
-                                                mode,
                                                 &originals,
                                                 workspace,
                                                 &setup_semantics,
