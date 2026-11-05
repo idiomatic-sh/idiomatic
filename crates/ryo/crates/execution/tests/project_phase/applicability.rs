@@ -150,16 +150,11 @@ fn exercise(case: Case) {
                 &mut symbols,
             )
             .unwrap();
-        let RootOutcome::Skipped(proof) = rejected
-            .rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit
-        else {
-            panic!("syntax-rejected producer must issue applicability evidence")
-        };
-        assert_eq!(proof.file(), FileId(1));
-        assert_eq!(proof.producer(), RuleIndex(0));
-        assert_eq!(proof.reason(), ApplicabilityReason::SyntaxRejected);
+        assert!(matches!(
+            rejected.rule(RuleIndex(0), demand(), &mut symbols),
+            Err(OperatingError::NotRun)
+        ));
+        assert_eq!(rejected.walk_counts().passes.0, 0);
         rejected.finish().unwrap();
     }
     let mut skipped = vec![Skipped {
@@ -275,11 +270,10 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         )
         .unwrap();
     assert!(matches!(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Skipped(_)
+        file.rule(RuleIndex(0), demand(), &mut symbols),
+        Err(OperatingError::NotRun)
     ));
+    assert_eq!(file.walk_counts().passes.0, 0);
     file.finish().unwrap();
     let skipped = [Skipped {
         rule: rule_id,
