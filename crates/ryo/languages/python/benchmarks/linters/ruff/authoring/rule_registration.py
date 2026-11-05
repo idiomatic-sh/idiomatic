@@ -55,6 +55,44 @@ def full_inventory_settings(rule: str, manifest: dict[str, object], native: dict
         raise ValueError('missing or ambiguous required singleton/cohort settings registration')
     return resolved[0]
 
+def native_execution_settings(rule: str, data: dict[str, object], native: dict[str, object], phases: dict[str, object]) -> tuple[dict[str, object], dict[str, object] | None]:
+    """Use the singleton's explicit execution scope when its source profile evolves.
+
+    The source TOML still supplies the tool pin and current query declarations.
+    It cannot replace the descriptor's declared parser/context authority.
+    """
+    entries = [entry for entry in native.get('profiles', []) if entry['rule_id'] == rule]
+    if not entries:
+        return data, None
+    if len(entries) != 1:
+        raise ValueError('duplicate native execution settings registration')
+    expected = entries[0].get('effective_settings')
+    fields = {
+        'parser_configuration': 'parser-configuration',
+        'project_context_mode': 'project-context-mode',
+        'source_language': 'source-language',
+        'project_search_roots': 'project-search-roots',
+        'file_observation': 'file-observation',
+        'rule_context_declaration': 'rule-context',
+    }
+    required = {'defaults', 'flags', 'parser_configuration', 'project_context_mode', 'rule_applicability'}
+    if not isinstance(expected, dict) or not required <= set(expected) or set(expected) - (required | set(fields)):
+        raise ValueError('native execution settings have an unsupported shape')
+    if expected['defaults'] != [rule] or expected['flags'] != {}:
+        raise ValueError('native execution selection or flags differ from the declared singleton')
+    if expected['parser_configuration'] not in profile_config.PARSER_CONFIGURATIONS.values() or expected['project_context_mode'] not in {'isolated', 'listed-disk'}:
+        raise ValueError('native parser or project context authority is unsupported')
+    phase = profile_sources.rule_phase(phases, rule)['applicability']
+    if expected['rule_applicability'] != {rule: phase}:
+        raise ValueError('native execution settings conflict with the pinned rule phase')
+    result = dict(data)
+    for key, field in fields.items():
+        if key in expected:
+            result[field] = expected[key]
+        else:
+            result.pop(field, None)
+    return result, expected
+
 def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], phases: dict[str, object], manifest: dict[str, object], native: dict[str, object]) -> tuple[Path, dict[str, object]]:
     directory = profile_config.RUFF_DIR / 'rules' / rule
     query = directory / 'query.ryoql'
@@ -74,6 +112,7 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
         raise ValueError('per-rule profile does not retain the pinned tool identity')
     if rule not in data.get('defaults', []):
         raise ValueError('settings registration does not select this rule')
+    data, native_settings = native_execution_settings(rule, data, native, phases)
     configuration = data.get('parser-configuration', profile_sources.parser_configuration(target) if target else 'python-target=3.10')
     if target and 'parser-configuration' in data and (profile_sources.parser_configuration(target) != configuration):
         raise ValueError('conflicting explicit parser target registrations')
@@ -145,7 +184,7 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
     reference_discrepancies.stage_discrepancy_artifacts(source_profile, destination, cases, rule, source_root=evidence_root)
     inventory = case_records.profile_case_inventory(destination)
     profile_proofs.check_canonical_standard_suppression(profile, {rule: query})
-    return (destination, {'query_file': query.relative_to(profile_config.RUFF_DIR).as_posix(), 'query_sha256': profile_config.sha256(query), 'cases_file': cases_path.relative_to(profile_config.RUFF_DIR).as_posix(), 'cases_sha256': profile_config.sha256(cases_path), 'case_count': len(inventory), 'settings_source': source_profile.relative_to(profile_config.REPOSITORY).as_posix(), 'settings_scope': scope, 'parser_configuration': configuration, 'settings_source_sha256': profile_config.sha256(source_profile), 'evidence_source_root': evidence_root.relative_to(profile_config.REPOSITORY).as_posix(), 'profile_sha256': profile_config.sha256(profile), 'module_sha256': {logical: profile_config.sha256(profile_config.RUFF_DIR / relative) for logical, relative in stage_registry.items()}, 'effective_settings': profile_sources.canonical_run_ryo_settings(projected, [rule], phases)})
+    return (destination, {'query_file': query.relative_to(profile_config.RUFF_DIR).as_posix(), 'query_sha256': profile_config.sha256(query), 'cases_file': cases_path.relative_to(profile_config.RUFF_DIR).as_posix(), 'cases_sha256': profile_config.sha256(cases_path), 'case_count': len(inventory), 'settings_source': source_profile.relative_to(profile_config.REPOSITORY).as_posix(), 'settings_scope': scope, 'parser_configuration': configuration, 'settings_source_sha256': profile_config.sha256(source_profile), 'native_settings': native_settings, 'native_descriptor_sha256': profile_config.sha256(profile_config.NATIVE_DESCRIPTOR_FILE) if native_settings is not None else None, 'evidence_source_root': evidence_root.relative_to(profile_config.REPOSITORY).as_posix(), 'profile_sha256': profile_config.sha256(profile), 'module_sha256': {logical: profile_config.sha256(profile_config.RUFF_DIR / relative) for logical, relative in stage_registry.items()}, 'effective_settings': profile_sources.canonical_run_ryo_settings(projected, [rule], phases)})
 
 def verify_full_inventory(arguments) -> int:
     """Bind this linter's convention/settings; the shared Rust runner owns execution."""
