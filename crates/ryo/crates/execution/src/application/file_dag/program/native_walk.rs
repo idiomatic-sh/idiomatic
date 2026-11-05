@@ -53,10 +53,11 @@ impl FileWalk {
     pub(super) fn submit(
         &self,
         prepared: &PreparedProgram,
-        permit: &KernelPermit<'_>,
+        ready: &super::runtime::ReadySelection<'_, '_>,
         relation: Relation,
         rows: &Rows<'_>,
     ) -> Result<bool, OperatingError> {
+        let permit = ready.permit();
         let Some(class) = self.class(prepared, permit.descriptor()) else {
             return Ok(false);
         };
@@ -107,9 +108,11 @@ impl FileWalk {
             relation: admitted.relation(),
         };
         let ready = {
-            let mut sources = self.batches.borrow_mut();
-            let source = sources.get_mut(&identity).ok_or(OperatingError::NotRun)?;
-            std::mem::take(&mut source.ready)
+            let sources = self.batches.borrow();
+            let source = sources.get(&identity).ok_or(OperatingError::NotRun)?;
+            // Commit queue removal only after a complete batch is accepted.
+            // A transport/permit failure must not silently discard other waiters.
+            source.ready.clone()
         };
         if !ready.is_empty() {
             let mut work = self.work.borrow_mut();
@@ -123,12 +126,10 @@ impl FileWalk {
                 }
                 _ => return Err(OperatingError::WrongOperation),
             };
-            self.batches
-                .borrow_mut()
-                .get_mut(&identity)
-                .ok_or(OperatingError::NotRun)?
-                .batch
-                .merge(batch)?;
+            let mut sources = self.batches.borrow_mut();
+            let source = sources.get_mut(&identity).ok_or(OperatingError::NotRun)?;
+            source.batch.merge(batch)?;
+            source.ready.retain(|class| !ready.contains(class));
         }
         Ref::filter_map(self.batches.borrow(), |batches| {
             batches.get(&identity).map(|source| &source.batch)
