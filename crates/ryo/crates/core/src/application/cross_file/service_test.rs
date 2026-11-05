@@ -798,6 +798,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
         let phase = rules.request.project_phase().unwrap();
         let mut symbols = Symbols::default();
         let mut first_rendered = None;
+        let mut first_payload = None;
         for rule in order {
             let (scope, frontier) = prepared_in(
                 &rules,
@@ -821,13 +822,22 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             )
             .unwrap();
             let rendered = result.rendered.expect("actual core project rendering");
-            assert_eq!(
-                [rendered.order.len(), result.fed.len(), rendered.cells.len()],
-                [2, 2, 4]
+            assert_eq!(result.fed.len(), 2);
+            let payload = assert_count_findings(
+                &rendered,
+                RuleIndex(rule),
+                &rules.ids[rule],
+                &[2, 1],
+                &[1, 0],
             );
-            if let Some(first) = &first_rendered {
-                assert_eq!(&rendered, first);
+            if let Some(first) = &first_payload {
+                assert_eq!(&payload, first);
             } else {
+                first_payload = Some(payload);
+            }
+            // Rendering carries the actual logical rule id even when its physical
+            // publication is shared. Keep rule 0's full snapshot for its fresh request.
+            if rule == 0 {
                 first_rendered = Some(rendered);
             }
             assert_eq!(
@@ -1027,9 +1037,12 @@ fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate() {
             let rendered = done
                 .rendered
                 .expect("valid population renders through the actual core route");
-            assert_eq!(
-                [rendered.order.len(), rendered.cells.len()],
-                if rule == 0 { [1, 2] } else { [2, 4] }
+            assert_count_findings(
+                &rendered,
+                RuleIndex(rule),
+                &rules.ids[rule],
+                if rule == 0 { &[2] } else { &[2, 1] },
+                if rule == 0 { &[0] } else { &[1, 0] },
             );
             assert_eq!(done.unknowns.len(), usize::from(rule == 0));
             if let Some(previous) = &results[rule] {
@@ -1152,7 +1165,13 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
             .unwrap();
             assert!(done.unknowns.is_empty());
             let rendered = done.rendered.unwrap();
-            assert_eq!([rendered.order.len(), rendered.cells.len()], [2, 4]);
+            assert_count_findings(
+                &rendered,
+                RuleIndex(rule),
+                &rules.ids[rule],
+                &[2, 1],
+                &[1, 0],
+            );
             if let Some(previous) = &results[rule] {
                 assert_eq!(&rendered, previous);
             } else {
@@ -1298,16 +1317,14 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
             &mut symbols,
             |_| Ok(()),
         ));
-        let mut previous = None;
-        for result in results {
+        assert_eq!(results.len(), todos.len());
+        let mut previous = Vec::new();
+        for (todo, result) in todos.iter().zip(results) {
             let result = result.unwrap().crossed;
             assert!(result.unknowns.is_empty());
             let rendered = result.rendered.unwrap();
-            assert_eq!([rendered.order.len(), rendered.cells.len()], [2, 4]);
-            if let Some(previous) = &previous {
-                assert_eq!(&rendered, previous);
-            }
-            previous = Some(rendered);
+            assert_count_findings(&rendered, todo.rule, &todo.id, &[2, 1], &[1, 0]);
+            previous.push(rendered);
         }
         let counts = phase.readiness_counts();
         assert_eq!(
@@ -1346,14 +1363,16 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
                 slot: PublicationSlot::Unused,
             })
             .collect();
-        for result in completed_batch(service().evaluate_batch(
+        let repeated = completed_batch(service().evaluate_batch(
             &crossing(&rules),
             again,
             &phase,
             &mut symbols,
             |_| Ok(()),
-        )) {
-            assert_eq!(result.unwrap().crossed.rendered.as_ref(), previous.as_ref());
+        ));
+        assert_eq!(repeated.len(), previous.len());
+        for (result, previous) in repeated.into_iter().zip(&previous) {
+            assert_eq!(result.unwrap().crossed.rendered.as_ref(), Some(previous));
         }
         assert_eq!(
             phase.readiness_counts(),
@@ -1441,13 +1460,17 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
             &mut symbols,
             |_| Ok(()),
         ));
+        assert_eq!(results.len(), order.len());
         for (rule, result) in order.into_iter().zip(results) {
             let result = result.unwrap().crossed;
             assert_eq!(result.unknowns.len(), usize::from(rule == 0));
             let rendered = result.rendered.unwrap();
-            assert_eq!(
-                [rendered.order.len(), rendered.cells.len()],
-                if rule == 0 { [1, 2] } else { [2, 4] }
+            assert_count_findings(
+                &rendered,
+                RuleIndex(rule),
+                &rules.ids[rule],
+                if rule == 0 { &[2] } else { &[2, 1] },
+                if rule == 0 { &[0] } else { &[1, 0] },
             );
         }
         assert_eq!(phase.readiness_counts().evaluations.0, 2);
@@ -1709,4 +1732,67 @@ fn evaluate_fixture(
         .pop()
         .expect("the exact result count was checked")
         .map(|result| result.crossed)
+}
+
+/// Independent Findings-layout oracle for the authored count emit (no keys or headings).
+/// The grouping input arrives as count 2 then count 1; the rendered presentation
+/// orders subjects numerically, retaining each rule's own header and row identity.
+fn assert_count_findings(
+    rendered: &crate::domain::render::types::Rendered,
+    rule: RuleIndex,
+    id: &RuleId,
+    counts: &[i64],
+    presentation: &[u32],
+) -> Vec<i64> {
+    use ryo_relations::domain::relations::types::Integer;
+    use ryo_values::domain::records::{
+        service::lent,
+        types::{Cell as RecordCell, CellText, RowsTextView},
+    };
+    let observed = rendered
+        .cells
+        .iter()
+        .map(|cell| cell.map(|cell| lent(RowsTextView(&rendered.text.0), cell)))
+        .collect::<Vec<_>>();
+    let expected = counts
+        .iter()
+        .flat_map(|&count| {
+            [
+                Some(RecordCell::Text(CellText(&id.0))),
+                Some(RecordCell::Number(Integer(count))),
+                Some(RecordCell::Number(Integer(0))),
+                None,
+                None,
+            ]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        observed, expected,
+        "rule, count subject, empty key, and unplaced line/column"
+    );
+    assert_eq!(rendered.text.0, id.0.repeat(counts.len()));
+    assert_eq!(
+        rendered.ends.0,
+        (1..=counts.len())
+            .map(|row| u32::try_from(row * 5).unwrap())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        rendered
+            .order
+            .iter()
+            .map(|row| [row.rule.0, row.line.0, row.column.0, row.row.0])
+            .collect::<Vec<_>>(),
+        presentation
+            .iter()
+            .map(|&row| [u32::try_from(rule.0).unwrap(), 0, 0, row])
+            .collect::<Vec<_>>()
+    );
+    observed
+        .chunks_exact(5)
+        .map(|row| match row[1] {
+            Some(RecordCell::Number(Integer(count))) => count,
+            _ => panic!("count subject must remain a typed number"),
+        })
+        .collect()
 }
