@@ -1,7 +1,7 @@
 //! Completed source data and authored requests; every execution enters the public owner.
 use crate::boundary_fixture::authored_request;
 use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionUseCase, FileExecution, WalkCounts, WalkPassCount, WalkSourceRows},
+    interface::{ExecutionUseCase, FileExecution, WalkPassCount, WalkSourceRows},
     types::*,
     use_case::ExecutionUseCaseImpl,
 };
@@ -195,13 +195,9 @@ pub(super) fn failed(outcome: RuleOutcome, expected: OperatingError) {
     assert_eq!(error, expected);
 }
 pub(super) fn counts(file: &impl FileExecution, passes: u64, rows: u64) {
-    assert_eq!(
-        file.walk_counts(),
-        WalkCounts {
-            passes: WalkPassCount(passes),
-            source_rows: WalkSourceRows(rows)
-        }
-    );
+    let actual = file.walk_counts();
+    assert_eq!(actual.passes, WalkPassCount(passes));
+    assert_eq!(actual.source_rows, WalkSourceRows(rows));
 }
 pub(super) fn regex_error(pattern: &str) -> OperatingError {
     use ryo_matching::inbound::use_cases::matching::{

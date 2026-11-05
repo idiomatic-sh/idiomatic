@@ -203,8 +203,51 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         counts(&file, 1, 4);
     }
     assert_eq!(semantics.selects(), 0);
-    // The public observer measures outer traversal, not excluded-class predicate
-    // visits. These assertions do not claim an unobserved predicate count of zero.
+    assert_eq!(
+        file.walk_counts().predicate_rows.0,
+        1,
+        "only the active other-kind row reaches a predicate"
+    );
+    file.finish().unwrap();
+    request.finish();
+}
+
+#[test]
+fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
+    let (engine, _) = engine();
+    let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let intents = [
+        FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Disabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        },
+        FileRuleIntent::Run {
+            roots: demand(),
+            capture: CaptureIntent::Disabled,
+        },
+    ];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+            &mut symbols,
+        )
+        .unwrap();
+    assert_eq!(
+        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        expected(FileId(0), &elements, &[2]),
+    );
+    counts(&file, 1, 4);
+    assert_eq!(
+        file.walk_counts().predicate_rows.0,
+        1,
+        "an enabled rule is not evidence that any of its roots were demanded"
+    );
     file.finish().unwrap();
     request.finish();
 }

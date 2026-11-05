@@ -215,6 +215,7 @@ impl NativeBatch {
 
     pub(in crate::domain::shared_walk) fn record_visit(&mut self, place: ClassPlace) {
         self.visits[place.0].0 = self.visits[place.0].0.saturating_add(1);
+        self.counts.predicate_rows.0 = self.counts.predicate_rows.0.saturating_add(1);
     }
 }
 

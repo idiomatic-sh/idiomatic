@@ -52,11 +52,15 @@ pub struct WalkPassCount(pub u64);
 /// Source positions visited by the outer traversal, independently of class visits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WalkSourceRows(pub u64);
+/// Rows actually offered to a class predicate, including its first failing row.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkPredicateRows(pub u64);
 /// Read-only work performed by the actual shared walk, never a schedule or capability.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WalkCounts {
     pub passes: WalkPassCount,
     pub source_rows: WalkSourceRows,
+    pub predicate_rows: WalkPredicateRows,
 }
 
 /// Accepted rows precede the first terminal predicate error in source order.
