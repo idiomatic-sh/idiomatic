@@ -195,6 +195,7 @@ pub(crate) struct ObservationMetadata {
 pub(crate) struct PreparedProgram {
     program: Arc<ExecutableProgram>,
     rule_ids: Box<[ryo_values::domain::runs::types::RuleId]>,
+    applicability: Box<[ryo_values::domain::runs::types::RuleApplicability]>,
     rule_digests: Box<[ryo_values::domain::stored_facts::types::Digest]>,
     bindings: Box<[Box<[ParameterBinding]>]>,
     rules: Box<[RuleMetadata]>,
@@ -238,6 +239,15 @@ impl PreparedProgram {
         rule: RuleIndex,
     ) -> Result<&ryo_values::domain::runs::types::RuleId, OperatingError> {
         self.rule_ids.get(rule.0).ok_or(OperatingError::NotRun)
+    }
+    pub(super) fn applicability(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ryo_values::domain::runs::types::RuleApplicability, OperatingError> {
+        self.applicability
+            .get(rule.0)
+            .copied()
+            .ok_or(OperatingError::NotRun)
     }
     pub(crate) fn rule_digest(
         &self,
@@ -625,6 +635,7 @@ pub(crate) fn prepare(
         program,
         native_orders,
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
+        applicability: rules.iter().map(|rule| rule.applicability).collect(),
         rule_digests: rule_digests.to_vec().into_boxed_slice(),
         bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),

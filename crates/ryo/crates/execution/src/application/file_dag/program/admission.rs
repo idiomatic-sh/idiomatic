@@ -686,6 +686,32 @@ impl RequiredPartitions {
             skipped: skipped.to_vec().into_boxed_slice(),
         })
     }
+    /// An explicit syntax rejection discharges transport, never completeness.
+    /// Missing, unreadable, or unknown files cannot acquire this evidence.
+    pub(in crate::application::file_dag) fn skipped_files(
+        &self,
+        program: &super::facade::PreparedProgram,
+        rule: RuleIndex,
+    ) -> Result<std::collections::BTreeSet<FileId>, OperatingError> {
+        use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
+        let id = program.rule_id(rule)?;
+        let mut files = std::collections::BTreeSet::new();
+        for skipped in self.skipped.iter().filter(|skipped| &skipped.rule == id) {
+            if program.applicability(rule)? != RuleApplicability::AcceptedSyntax
+                || skipped.reason != SkipReason::SyntaxRejected
+            {
+                return Err(OperatingError::NotRead);
+            }
+            let file = self
+                .request
+                .available_file(&skipped.path)
+                .ok_or(OperatingError::NotRead)?;
+            if !files.insert(file) {
+                return Err(OperatingError::NotRead);
+            }
+        }
+        Ok(files)
+    }
     pub(in crate::application) fn files(&self) -> &[FileId] {
         &self.files
     }

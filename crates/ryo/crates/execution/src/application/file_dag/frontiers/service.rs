@@ -111,6 +111,15 @@ pub(crate) fn prepare(
             ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
         let coverage = validate_bucket(program, rule, place, first, bucket, required, &words)?;
+        if words.sources.is_empty() && !required.files().is_empty() {
+            prepared.refused.push(RefusedFrontier {
+                input,
+                error: OperatingError::ObservationIncomplete {
+                    reason: "every source partition was explicitly skipped".into(),
+                },
+            });
+            continue;
+        }
         if memory {
             let bytes = ryo_values::domain::records::types::retention::value::RetainedBytes::packed(
                 &words.words,
@@ -207,24 +216,26 @@ pub(crate) fn validate_bucket(
         reason: "frontier source proof does not match the prepared program".into(),
     };
     let expected = program.rule_digest(rule)?;
+    let skipped = required.skipped_files(program, rule)?;
     if ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(input))
         != bucket
+        || program.frontiers(rule)?.get(input).is_none()
     {
         return Err(refuse());
     }
     let mut at = 0;
     let mut seen_files = std::collections::BTreeSet::new();
-    let mut affected = Vec::new();
+    let mut affected = skipped.iter().copied().map(Some).collect::<Vec<_>>();
     for source in &payload.sources {
         if source.start != at
             || source.length == 0
             || !required.files().contains(&source.file)
+            || skipped.contains(&source.file)
             || !seen_files.insert(source.file.0)
             || source.proof.version != 1
             || source.proof.rule != u32::try_from(rule.0).map_err(|_| refuse())?
             || source.proof.input != u32::try_from(input).map_err(|_| refuse())?
             || source.proof.rule_digest != expected
-            || program.frontiers(rule)?.get(input).is_none()
         {
             return Err(refuse());
         }
@@ -247,6 +258,9 @@ pub(crate) fn validate_bucket(
             }
         }
     }
+    // Account for known unavailable partitions without inventing encoded empty
+    // frames. Their identities remain attached to the admitted partial input.
+    seen_files.extend(skipped.iter().map(|file| file.0));
     if at != payload.words.0.0.len() || !exact_required_files(required.files(), &seen_files) {
         return Err(refuse());
     }

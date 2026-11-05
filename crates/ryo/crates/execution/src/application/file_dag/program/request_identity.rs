@@ -7,6 +7,10 @@ pub(super) struct RequestIdentity {
     corpus: Box<[CorpusInput]>,
     paths: Box<[ryo_language::domain::files::types::FilePath]>,
     generation: Arc<()>,
+    available: std::collections::BTreeMap<
+        ryo_language::domain::files::types::FilePath,
+        ryo_relations::domain::relations::types::FileId,
+    >,
 }
 impl RequestIdentity {
     pub(super) fn new(corpus: &[CorpusInput]) -> Self {
@@ -22,7 +26,26 @@ impl RequestIdentity {
                 })
                 .collect(),
             generation: Arc::new(()),
+            available: corpus
+                .iter()
+                .enumerate()
+                .filter_map(|(at, input)| {
+                    let CorpusInput::Available(entry) = input else {
+                        return None;
+                    };
+                    Some((
+                        entry.path.clone(),
+                        ryo_relations::domain::relations::types::FileId(u32::try_from(at).ok()?),
+                    ))
+                })
+                .collect(),
         }
+    }
+    pub(super) fn available_file(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> Option<ryo_relations::domain::relations::types::FileId> {
+        self.available.get(path).copied()
     }
     pub(super) fn paths(&self) -> &[ryo_language::domain::files::types::FilePath] {
         &self.paths
