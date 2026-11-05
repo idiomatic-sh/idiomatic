@@ -135,7 +135,6 @@ impl ProjectRun<'_> {
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read: &unavailable,
-            kernels: &kernels,
             observations: &mut absent,
             file_outputs: None,
             program: self.program,

@@ -21,6 +21,7 @@ pub(crate) struct FileRun<'a> {
     observed: HashMap<usize, AdmittedInput>,
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
+    walk_prepared: bool,
     _routes: crate::application::file_dag::route_counts::FileScope,
 }
 pub(crate) fn open_file<'a>(
@@ -110,6 +111,7 @@ pub(crate) fn open_file<'a>(
         generation,
         observed: HashMap::new(),
         walk: super::super::native_walk::FileWalk::new(file),
+        walk_prepared: false,
         context: super::super::context::RunContext::file(
             &services, source, symbols, semantic, kinds,
         ),
@@ -231,6 +233,181 @@ impl FileRun<'_> {
             _ => Err(OperatingError::NotRun),
         }
     }
+    fn prepare_walk<'facts>(
+        &mut self,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<(), OperatingError> {
+        if self.walk_prepared {
+            return Ok(());
+        }
+        use crate::domain::operator::contract::types::EvaluationMode;
+        let mut queued = Vec::new();
+        for (index, intent) in self.intents.iter().enumerate() {
+            let FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                capture,
+            } = intent
+            else {
+                continue;
+            };
+            let metadata = self.program.rule_metadata(RuleIndex(index))?;
+            let mut append = |source: &Result<InputSource, OperatingError>, mode| {
+                let id = match source {
+                    Ok(InputSource::Region(id)) => Some(*id),
+                    Ok(InputSource::Observation(slot)) => self
+                        .program
+                        .program()
+                        .observation_regions()
+                        .get(*slot)
+                        .and_then(|id| id.as_ref().ok())
+                        .copied(),
+                    _ => None,
+                };
+                if let Some(id) = id {
+                    if self.program.program().regions()[id.0].phase
+                        == ryo_values::domain::plans::types::StepScope::PerFile
+                    {
+                        if let Some((_, existing)) =
+                            queued.iter_mut().find(|(found, _)| *found == id)
+                        {
+                            if mode == EvaluationMode::Streaming {
+                                *existing = mode;
+                            }
+                        } else {
+                            queued.push((id, mode));
+                        }
+                    }
+                }
+            };
+            if *diagnostic != DiagnosticDelivery::Disabled {
+                append(
+                    &metadata.emit_root.clone().map(InputSource::Region),
+                    match diagnostic {
+                        DiagnosticDelivery::Forwarded => EvaluationMode::Streaming,
+                        _ => EvaluationMode::Collected,
+                    },
+                );
+            }
+            if *observations == ObservationDemand::Required {
+                for root in &metadata.observations {
+                    append(&root.source, EvaluationMode::Collected);
+                }
+            }
+            let prepared = &self.program.program().rules()[index];
+            for (frontier, source) in prepared.frontier.iter().enumerate() {
+                let wanted = match capture {
+                    CaptureIntent::Disabled => false,
+                    CaptureIntent::Observations => metadata
+                        .observation_frontiers
+                        .get(frontier)
+                        .copied()
+                        .unwrap_or(false),
+                    CaptureIntent::DiagnosticAndObservations => true,
+                };
+                if wanted {
+                    append(source, EvaluationMode::Collected);
+                }
+            }
+        }
+        let Some((first, _)) = queued.first() else {
+            self.walk_prepared = true;
+            return Ok(());
+        };
+        let rule = self.program.program().regions()[first.0].producer;
+        let completion = match &self.partials {
+            ScopePartials::File {
+                evaluation,
+                publication,
+            } => CompletionPolicy::file_inputs(rule, self.file, evaluation, publication),
+            ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
+        };
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let kernels = super::super::kernel_session::KernelSession::new(
+            self.services.kernels(),
+            self.program,
+            Rc::clone(&self.owner),
+            read,
+            Some(&self.walk),
+        );
+        let mut sources = SourceInputs {
+            execution: &self.execution,
+            completion: completion.clone(),
+            owner: Rc::clone(&self.owner),
+            read,
+            observations: &mut self.observed,
+            file_outputs: Some(&self.roots),
+            program: self.program,
+            rule,
+            project: None,
+        };
+        self.execution
+            .prepare_roots(&queued, &mut sources, &kernels, &completion, &mut context)?;
+        // Named roots are independent demanded roots even when the diagnostic
+        // has a forwarded delivery. Publish their readiness without requiring a
+        // collected diagnostic API call.
+        let mut named = Vec::new();
+        for (index, intent) in self.intents.iter().enumerate() {
+            let FileRuleIntent::Run {
+                observations: ObservationDemand::Required,
+                ..
+            } = intent
+            else {
+                continue;
+            };
+            let rule = RuleIndex(index);
+            let metadata = self.program.rule_metadata(rule)?;
+            let policy = completion.for_rule(rule);
+            sources.bind_rule(rule);
+            for (output, root) in metadata.observations.iter().enumerate() {
+                if root.phase != ryo_values::domain::plans::types::StepScope::PerFile {
+                    continue;
+                }
+                let result = if policy.observation_admission(&root.reads)
+                    == crate::domain::completion::types::ObservationAdmission::Ready
+                {
+                    root.source.clone().and_then(|source| {
+                        sources.admit(
+                            source,
+                            &Partition::File(self.generation.clone()),
+                            &mut context,
+                        )
+                    })
+                } else {
+                    Err(OperatingError::ObservationIncomplete {
+                        reason: "physical source facts are incomplete".into(),
+                    })
+                };
+                let result = result.and_then(|input| {
+                    if input.observation_ready()? {
+                        Ok(input)
+                    } else {
+                        Err(OperatingError::ObservationIncomplete {
+                            reason: "producer publication has incomplete physical coverage".into(),
+                        })
+                    }
+                });
+                named.push((index, output, result));
+            }
+        }
+        drop(sources);
+        for (rule, output, result) in named {
+            let root = &mut self.roots[rule][output];
+            match result {
+                Ok(input) => {
+                    root.publication = Some(input);
+                    root.readiness =
+                        Some(ryo_values::domain::observations::types::ProducerReadiness::Complete);
+                }
+                Err(error) => {
+                    root.readiness = readiness_of(&classify(error));
+                }
+            }
+        }
+        self.walk_prepared = true;
+        Ok(())
+    }
     pub(crate) fn rule<'facts>(
         &mut self,
         rule: RuleIndex,
@@ -247,6 +424,7 @@ impl FileRun<'_> {
         if (RuleDemand { emit, observations }) != demand {
             return Err(OperatingError::NotRun);
         }
+        self.prepare_walk(read, symbols)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,
@@ -274,7 +452,6 @@ impl FileRun<'_> {
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read,
-            kernels: &kernels,
             observations: &mut self.observed,
             file_outputs: Some(&self.roots),
             program: self.program,
@@ -368,6 +545,7 @@ impl FileRun<'_> {
         if capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);
         }
+        self.prepare_walk(read, symbols)?;
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {
@@ -400,7 +578,6 @@ impl FileRun<'_> {
             completion,
             owner: Rc::clone(&self.owner),
             read,
-            kernels: &kernels,
             observations: &mut self.observed,
             file_outputs: Some(&self.roots),
             program: self.program,
@@ -636,7 +813,11 @@ pub(super) fn outcome_of<'facts>(
             },
             Err(error) => classify(error),
         },
-        Ok(InvocationOutcome::Forwarded(_)) => RootOutcome::Failed(OperatingError::NotRun),
+        Ok(
+            InvocationOutcome::Forwarded(_)
+            | InvocationOutcome::Ready
+            | InvocationOutcome::Suspended(_),
+        ) => RootOutcome::Failed(OperatingError::NotRun),
         Err(error) => classify(error),
     }
 }
@@ -665,6 +846,7 @@ impl FileRun<'_> {
         if self.declared(rule)?.0 != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
         }
+        self.prepare_walk(read, symbols)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,
@@ -692,7 +874,6 @@ impl FileRun<'_> {
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read,
-            kernels: &kernels,
             observations: &mut self.observed,
             file_outputs: Some(&self.roots),
             program: self.program,
@@ -729,6 +910,9 @@ impl FileRun<'_> {
         )? {
             InvocationOutcome::Published(input) => input.coverage()?,
             InvocationOutcome::Forwarded(coverage) => coverage,
+            InvocationOutcome::Ready | InvocationOutcome::Suspended(_) => {
+                return Err(OperatingError::NotRun);
+            }
         };
         Ok(match coverage {
             crate::domain::completion::types::CoverageState::Complete => {

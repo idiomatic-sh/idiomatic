@@ -6,10 +6,10 @@ use super::{
         ProducerRoot, Readiness, RequiredPartitions,
     },
     facade::{
-        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery,
-        EmitDemand, FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand,
-        ObservedPublication, PreparedProgram, ProjectFrontiers, ProjectObservation,
-        ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
+        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand,
+        FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ObservedPublication,
+        PreparedProgram, ProjectFrontiers, ProjectObservation, ProjectRuleOutcome, RootOutcome,
+        RuleDemand, RuleOutcome,
     },
     runtime::{Delivery, InvocationOutcome, KernelInvocation, ProgramExecution},
 };

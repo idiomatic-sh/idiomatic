@@ -186,7 +186,6 @@ fn forward<'a, 'service, 'facts>(
         completion: completion.clone(),
         owner: Rc::clone(&file.owner),
         read,
-        kernels: &kernels,
         observations: &mut file.observed,
         file_outputs: Some(&file.roots),
         program: file.program,

@@ -176,7 +176,6 @@ pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) completion: CompletionPolicy,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    pub(super) kernels: &'a dyn KernelInvocation,
     pub(super) observations: &'a mut HashMap<usize, AdmittedInput>,
     pub(super) file_outputs: Option<&'a [Vec<FileRoot>]>,
     pub(super) program: &'a PreparedProgram,
@@ -184,6 +183,84 @@ pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) project: Option<ProjectSources<'a>>,
 }
 impl Inputs for SourceInputs<'_, '_> {
+    fn bind_rule(&mut self, rule: RuleIndex) {
+        self.completion = self.completion.for_rule(rule);
+        self.rule = rule;
+    }
+    fn dependency(
+        &self,
+        source: crate::domain::executable_program::types::InputSource,
+    ) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> {
+        use crate::domain::executable_program::types::InputSource;
+        if self.project.is_some() && !matches!(source, InputSource::Region(_)) {
+            return Ok(None);
+        }
+        let region = match source {
+            InputSource::Region(id) => Some(id),
+            InputSource::Observation(slot) => Some(
+                *self
+                    .program
+                    .program()
+                    .observation_regions()
+                    .get(slot)
+                    .ok_or(OperatingError::NotRun)?
+                    .as_ref()
+                    .map_err(Clone::clone)?,
+            ),
+            InputSource::ObservationMember { slot, member } => {
+                let named = self
+                    .program
+                    .observation_metadata()
+                    .ok_or(OperatingError::NotRun)?;
+                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                if declaration.rule != self.rule.0 {
+                    return Err(OperatingError::NotRead);
+                }
+                let producer = named
+                    .bindings
+                    .get(declaration.rule)
+                    .and_then(|bindings| bindings.get(declaration.input.0 as usize))
+                    .and_then(|binding| binding.producers.get(member))
+                    .ok_or(OperatingError::NotRun)?;
+                match producer {
+                    crate::domain::file_program::types::ResolvedObservationProducer::Output {
+                        rule,
+                        output,
+                    } => {
+                        let metadata = self.program.rule_metadata(*rule)?;
+                        match metadata
+                            .observations
+                            .get(output.0 as usize)
+                            .ok_or(OperatingError::NotRun)?
+                            .source
+                            .as_ref()
+                            .map_err(Clone::clone)?
+                        {
+                            InputSource::Region(id) => Some(*id),
+                            InputSource::Observation(slot) => Some(
+                                *self
+                                    .program
+                                    .program()
+                                    .observation_regions()
+                                    .get(*slot)
+                                    .ok_or(OperatingError::NotRun)?
+                                    .as_ref()
+                                    .map_err(Clone::clone)?,
+                            ),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        match region {
+            Some(id) if self.execution.published(id)?.is_none() => Ok(Some(id)),
+            _ => Ok(None),
+        }
+    }
+
     fn admit(
         &mut self,
         source: crate::domain::executable_program::types::InputSource,
@@ -244,28 +321,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 let publication = self.owner.computed(table)?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
-            InputSource::Region(id) => {
-                let producer = self
-                    .execution
-                    .program
-                    .regions()
-                    .get(id.0)
-                    .ok_or(OperatingError::NotRun)?
-                    .producer;
-                let completion = self.completion.for_rule(producer);
-                let kernels = self.kernels;
-                match self.execution.invoke(
-                    id,
-                    self,
-                    kernels,
-                    &completion,
-                    context,
-                    Delivery::Retain,
-                )? {
-                    InvocationOutcome::Published(input) => Ok(input),
-                    InvocationOutcome::Forwarded(_) => Err(OperatingError::NotRun),
-                }
-            }
+            InputSource::Region(id) => self.execution.published(id)?.ok_or(OperatingError::NotRun),
             InputSource::Observation(slot) => {
                 if let Some(input) = self.observations.get(&slot) {
                     return Ok(input.clone());
@@ -278,26 +334,10 @@ impl Inputs for SourceInputs<'_, '_> {
                     .ok_or(OperatingError::NotRun)?
                     .as_ref()
                     .map_err(Clone::clone)?;
-                let producer = self
+                let input = self
                     .execution
-                    .program
-                    .regions()
-                    .get(union.0)
-                    .ok_or(OperatingError::NotRun)?
-                    .producer;
-                let completion = self.completion.for_rule(producer);
-                let kernels = self.kernels;
-                let input = match self.execution.invoke(
-                    union,
-                    self,
-                    kernels,
-                    &completion,
-                    context,
-                    Delivery::Retain,
-                )? {
-                    InvocationOutcome::Published(input) => input,
-                    InvocationOutcome::Forwarded(_) => return Err(OperatingError::NotRun),
-                };
+                    .published(union)?
+                    .ok_or(OperatingError::NotRun)?;
                 let admitted = super::super::admission::alias_observation(
                     self.program.program(),
                     slot,
@@ -336,18 +376,36 @@ impl Inputs for SourceInputs<'_, '_> {
                         reason: "named producer has no executable query".into(),
                     });
                 };
-                let admitted = outputs
+                let published = outputs
                     .get(rule.0)
                     .and_then(|roots| roots.get(output.0 as usize))
-                    .and_then(|root| root.publication.as_ref())
-                    .ok_or_else(|| OperatingError::ObservationIncomplete {
-                        reason: "named producer root is not complete".into(),
-                    })?;
+                    .and_then(|root| root.publication.clone());
+                let admitted = match published {
+                    Some(input) => input,
+                    None => {
+                        let metadata = self.program.rule_metadata(*rule)?;
+                        let root = metadata
+                            .observations
+                            .get(output.0 as usize)
+                            .ok_or(OperatingError::NotRun)?;
+                        match root.source.as_ref().map_err(Clone::clone)? {
+                            InputSource::Region(id) => self
+                                .execution
+                                .published(*id)?
+                                .ok_or(OperatingError::NotRun)?,
+                            _ => {
+                                return Err(OperatingError::ObservationIncomplete {
+                                    reason: "named producer root is not complete".into(),
+                                });
+                            }
+                        }
+                    }
+                };
                 super::super::admission::alias_member(
                     self.program,
                     slot,
                     member,
-                    admitted,
+                    &admitted,
                     partition,
                     &self.owner,
                 )

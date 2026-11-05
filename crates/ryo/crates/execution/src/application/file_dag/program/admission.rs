@@ -68,6 +68,11 @@ pub(super) struct AdmittedInput {
 }
 /// Private to the common invocation. A semantic kernel cannot import this trait.
 pub(super) trait Inputs {
+    /// A dependency is polled without entering another invocation. The owner
+    /// resumes this same admission action after its producer reaches a terminal state.
+    fn dependency(&self, _input: InputSource) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> { Ok(None) }
+    fn bind_rule(&mut self, _rule: crate::domain::coverage::types::RuleIndex) {}
+
     fn admit(
         &mut self,
         input: InputSource,
