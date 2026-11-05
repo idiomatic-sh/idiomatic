@@ -13,10 +13,6 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::Value;
 use std::{cell::RefCell, sync::Arc};
 
-enum Retirement<'a> {
-    Consumer(RegionId),
-    Roots(&'a [RegionId]),
-}
 pub(super) enum InvocationFailure {
     Semantic(OperatingError),
     Delivery(OperatingError),
@@ -844,7 +840,7 @@ impl ProgramExecution {
     ) -> Result<(), OperatingError> {
         #[cfg(test)]
         self.observe_consumer_release(state, consumer, ConsumerReleasePoint::Before);
-        let result = self.retire(state, Retirement::Consumer(consumer));
+        let result = self.retire(state, consumer);
         if let Err(error) = &result {
             self.cleanup_failure
                 .borrow_mut()
@@ -854,37 +850,20 @@ impl ProgramExecution {
         self.observe_consumer_release(state, consumer, ConsumerReleasePoint::After);
         result
     }
-    pub(super) fn cancel_roots(
-        &self,
-        state: &RuntimeState,
-        roots: &[RegionId],
-    ) -> Result<(), OperatingError> {
-        self.validate_state(state)?;
-        self.retire(state, Retirement::Roots(roots))
-    }
-    fn retire(
-        &self,
-        state: &RuntimeState,
-        retirement: Retirement<'_>,
-    ) -> Result<(), OperatingError> {
+    fn retire(&self, state: &RuntimeState, consumer: RegionId) -> Result<(), OperatingError> {
         let mut work = state.retirement.borrow_mut();
         work.reset();
         let mut slots = state.slots.borrow_mut();
-        match retirement {
-            Retirement::Consumer(consumer) => {
-                let slot = slots.get(&consumer.0).ok_or(OperatingError::NotRun)?;
-                if slot.dependencies_consumed {
-                    return Err(OperatingError::NotRun);
-                }
-                work.pending.extend(
-                    self.program.regions()[consumer.0]
-                        .dependencies
-                        .iter()
-                        .copied(),
-                );
-            }
-            Retirement::Roots(roots) => work.pending.extend(roots.iter().copied()),
+        let slot = slots.get(&consumer.0).ok_or(OperatingError::NotRun)?;
+        if slot.dependencies_consumed {
+            return Err(OperatingError::NotRun);
         }
+        work.pending.extend(
+            self.program.regions()[consumer.0]
+                .dependencies
+                .iter()
+                .copied(),
+        );
         let planned = (|| {
             while let Some(id) = work.pending.pop() {
                 self.program
@@ -926,10 +905,6 @@ impl ProgramExecution {
             }
             Ok(Some(blocker)) => {
                 work.reset();
-                let Retirement::Consumer(consumer) = retirement else {
-                    // File-level cancellation cannot race an active invocation.
-                    return Err(OperatingError::NotRun);
-                };
                 if Slot::touched(state, &mut slots, &self.program, consumer)?
                     .waiting_on
                     .is_none()
@@ -942,10 +917,8 @@ impl ProgramExecution {
             }
             Ok(None) => {}
         }
-        if let Retirement::Consumer(consumer) = retirement {
-            Slot::touched(state, &mut slots, &self.program, consumer)?.dependencies_consumed = true;
-            Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on = None;
-        }
+        Slot::touched(state, &mut slots, &self.program, consumer)?.dependencies_consumed = true;
+        Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on = None;
         for at in 0..work.touched.len() {
             let id = work.touched[at];
             let Some(slot) = slots.get_mut(&id.0) else {

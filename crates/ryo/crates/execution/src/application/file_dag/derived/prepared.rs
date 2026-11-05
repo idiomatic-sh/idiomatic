@@ -10,7 +10,6 @@ use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
 pub(in crate::application::file_dag) struct SelectorUse {
-    pub rule: RuleIndex,
     pub selector: Arc<Selector>,
 }
 pub(in crate::application::file_dag) struct PreparedDerived {
@@ -88,7 +87,6 @@ impl PreparedDerived {
                 );
                 if let Some(selector) = &selected.steps[at] {
                     selectors.push(SelectorUse {
-                        rule: RuleIndex(rule),
                         selector: Arc::clone(selector),
                     });
                 }
