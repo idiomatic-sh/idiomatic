@@ -247,3 +247,79 @@ fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal()
     file.finish().unwrap();
     request.finish();
 }
+
+#[test]
+fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let (engine, _) = engine();
+    let mut authored = authored_request(2);
+    authored.plans[0].steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::Kind("absent-kind")),
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::BadRegex),
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Join {
+                left: Input::Step(StepId(0)),
+                right: Input::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(0),
+                }],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
+        },
+    ];
+    authored.plans[0].emit.step = StepId(2);
+    authored.plans[1].steps[0].operation = Operation::Select {
+        from: Input::Relation(Relation::SyntaxTree),
+        comparisons: selection(Selector::Kind("other")),
+        kept: vec![],
+    };
+    let program = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let intents = [FileRuleIntent::Run {
+        roots: demand(),
+        capture: CaptureIntent::Disabled,
+    }; 2];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+            &mut symbols,
+        )
+        .unwrap();
+    assert_eq!(
+        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        expected(FileId(0), &elements, &[2]),
+    );
+    assert_eq!(
+        complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()).count,
+        RowCount(0),
+    );
+    assert_eq!(
+        file.walk_counts().predicate_rows.0,
+        1,
+        "only the independent other-kind selector may evaluate a row; a requested rule does not make its gated RHS ready"
+    );
+    file.finish().unwrap();
+    request.finish();
+}
