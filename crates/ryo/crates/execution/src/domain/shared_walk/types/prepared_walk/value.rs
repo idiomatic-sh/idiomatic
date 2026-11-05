@@ -11,10 +11,6 @@ use crate::domain::{
 };
 use ryo_values::domain::plans::types::Plan;
 
-/// Number of rules whose preparations the native pass covers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WalkRuleCount(pub usize);
-
 /// Number of equivalence classes in one prepared request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ClassCount(pub usize);
@@ -131,10 +127,6 @@ impl PreparedWalk {
 
     pub(crate) fn classes(&self) -> &[StepClass] {
         &self.classes.classes
-    }
-
-    pub(crate) fn rule_count(&self) -> WalkRuleCount {
-        WalkRuleCount(self.classes.class_of.len())
     }
 
     pub(crate) fn class_of(&self, rule: RuleIndex) -> Option<&[Option<ClassPlace>]> {

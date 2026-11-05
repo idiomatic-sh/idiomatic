@@ -218,9 +218,6 @@ impl FileRun<'_> {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag::program) fn file_intents(&self) -> &[FileRuleIntent] {
-        &self.intents
-    }
     fn declared(
         &self,
         rule: RuleIndex,
