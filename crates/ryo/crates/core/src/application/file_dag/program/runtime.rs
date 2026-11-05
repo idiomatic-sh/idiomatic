@@ -281,6 +281,33 @@ impl ProgramExecution {
             fed: fed.into_boxed_slice(),
         })
     }
+    /// Producer truth comes from the compiled declaration and this run's actual
+    /// source scope. The consumer's requested partition is never an input.
+    pub(super) fn source_partition(
+        &self,
+        root: super::admission::ProducerRoot,
+    ) -> Result<Partition, OperatingError> {
+        use crate::domain::executable_program::types::{InputSource, PartitionRequirement};
+        if !self.owner.matches_generation(&self.generation) || !self.generation_live.is_live() {
+            return Err(OperatingError::NotRead);
+        }
+        let source = match root {
+            super::admission::ProducerRoot::Input(source) => source,
+            super::admission::ProducerRoot::Region(id) => InputSource::Region(id),
+        };
+        let declaration = self.program.source_partition(source)?;
+        match (declaration, &self.partition) {
+            (PartitionRequirement::RequestInvariant, _) => Ok(Partition::RequestInvariant),
+            (PartitionRequirement::CurrentFile, Partition::File(file)) => {
+                Ok(Partition::File(file.clone()))
+            }
+            (PartitionRequirement::Project, Partition::Project(project)) => {
+                Ok(Partition::Project(project.clone()))
+            }
+            (PartitionRequirement::InputLineage, actual) => Ok(actual.clone()),
+            _ => Err(OperatingError::NotRead),
+        }
+    }
     pub(super) fn partition(&self) -> &Partition {
         &self.partition
     }

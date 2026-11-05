@@ -46,6 +46,13 @@ impl ProjectSources<'_> {
             }
         }
         if let Some(at) = pending {
+            let actual_partition = match self.publication.execution.get() {
+                Some(execution) => execution.partition(),
+                None => return Some(Err(OperatingError::NotRead)),
+            };
+            if let Err(error) = actual_partition.require_supply(partition) {
+                return Some(Err(error));
+            }
             let input = self.ordinary[at]
                 .take()
                 .expect("demanded source was present");
@@ -58,7 +65,9 @@ impl ProjectSources<'_> {
                 } => (owner.compact(Arc::new(table)), coverage),
             };
             let result = publication
-                .and_then(|publication| admit_published(owner, publication, source, partition))
+                .and_then(|publication| {
+                    admit_published(owner, publication, source, actual_partition)
+                })
                 .map(|admitted| admitted.with_coverage(coverage));
             if let Ok(input) = &result {
                 self.cache.push((source, input.clone()));
@@ -178,22 +187,36 @@ impl Inputs for SourceInputs<'_, '_> {
         }
         match source {
             InputSource::Relation(relation) => {
+                let actual_partition = self
+                    .execution
+                    .source_partition(ProducerRoot::Input(source))?;
+                actual_partition.require_supply(partition)?;
                 let rows = (self.read)(relation)?;
                 let publication = self.owner.source(relation, &rows)?;
                 let checked = self.owner.admit(
                     publication.as_ref(),
                     crate::domain::operator::contract::views::BorrowedRows::from(&rows),
                 )?;
-                AdmittedInput::from_publication(
+                let admitted = AdmittedInput::from_publication(
                     Rc::clone(&self.owner),
                     publication.clone(),
                     &checked,
                     ProducerRoot::Input(source),
-                    partition.clone(),
+                    actual_partition,
                     Readiness::Complete,
-                )
+                )?;
+                Ok(admitted.with_coverage(self.completion.coverage(&[
+                    crate::domain::trust::types::RelationRead {
+                        relation,
+                        kinds: vec![],
+                    },
+                ])))
             }
             InputSource::Hosted { rule, relation } => {
+                let actual_partition = self
+                    .execution
+                    .source_partition(ProducerRoot::Input(source))?;
+                actual_partition.require_supply(partition)?;
                 // The compiler owns the request-source declaration. Admission uses
                 // the immutable prepared snapshot and the current numbered corpus.
                 self.program.rule_metadata(rule)?;
@@ -208,7 +231,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     &mut context.symbols,
                 );
                 let publication = self.owner.computed(table)?;
-                admit_published(&self.owner, publication, source, partition)
+                admit_published(&self.owner, publication, source, &actual_partition)
             }
             InputSource::Region(id) => {
                 let producer = self
@@ -331,8 +354,10 @@ impl Inputs for SourceInputs<'_, '_> {
         inputs: &[AdmittedInput],
         rows: Table,
     ) -> Result<AdmittedInput, OperatingError> {
+        let actual_partition = self.execution.source_partition(root)?;
+        actual_partition.require_supply(partition)?;
         let readiness =
-            super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
+            super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
         let publication = self.owner.computed(rows)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
@@ -344,7 +369,7 @@ impl Inputs for SourceInputs<'_, '_> {
             publication.clone(),
             &checked,
             root,
-            partition.clone(),
+            actual_partition,
             readiness,
         )
     }
@@ -355,8 +380,10 @@ impl Inputs for SourceInputs<'_, '_> {
         inputs: &[AdmittedInput],
         publication: PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
+        let actual_partition = self.execution.source_partition(root)?;
+        actual_partition.require_supply(partition)?;
         let readiness =
-            super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
+            super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -367,7 +394,7 @@ impl Inputs for SourceInputs<'_, '_> {
             publication.clone(),
             &checked,
             root,
-            partition.clone(),
+            actual_partition,
             readiness,
         )
     }
@@ -378,8 +405,10 @@ impl Inputs for SourceInputs<'_, '_> {
         inputs: &[AdmittedInput],
         publication: PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
+        let actual_partition = self.execution.source_partition(root)?;
+        actual_partition.require_supply(partition)?;
         let readiness =
-            super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
+            super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -390,7 +419,7 @@ impl Inputs for SourceInputs<'_, '_> {
             publication.clone(),
             &checked,
             root,
-            partition.clone(),
+            actual_partition,
             readiness,
         )
     }

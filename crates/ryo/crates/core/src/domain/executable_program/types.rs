@@ -90,6 +90,11 @@ pub(crate) struct OrderedExistence {
     pub extremum: crate::domain::ordered_existence::types::Extremum,
     pub output: Box<[ryo_values::domain::plan_parts::types::JoinColumn]>,
 }
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SourcePartition {
+    pub source: InputSource,
+    pub requirement: PartitionRequirement,
+}
 #[derive(Debug)]
 pub(crate) struct Region {
     pub id: RegionId,
@@ -98,6 +103,7 @@ pub(crate) struct Region {
     pub phase: StepScope,
     pub instructions: Box<[Instruction]>,
     pub inputs: Box<[InputSource]>,
+    pub source_partitions: Box<[SourcePartition]>,
     pub consumers: usize,
     pub dependencies: Box<[RegionId]>,
     pub ordered_existence: Option<OrderedExistence>,
@@ -127,6 +133,21 @@ pub(crate) struct ExecutableProgram {
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
 }
 impl ExecutableProgram {
+    pub(crate) fn source_partition(
+        &self,
+        source: InputSource,
+    ) -> Result<PartitionRequirement, OperatingError> {
+        match source {
+            InputSource::Relation(_) => self.regions.iter().flat_map(|region| region.source_partitions.iter()).find(|declaration| declaration.source == source).map(|declaration| declaration.requirement).ok_or(OperatingError::NotRead),
+            InputSource::Region(id) => self.regions.get(id.0).and_then(|region| region.instructions.last()).map(|instruction| instruction.partition).ok_or(OperatingError::NotRead),
+            InputSource::Hosted { rule, relation } => {
+                self.regions.iter().flat_map(|region| region.instructions.iter())
+                    .find(|instruction| instruction.producer == rule && matches!(instruction.operation, Operation::Hosted { relation: actual } if actual == relation))
+                    .map(|instruction| instruction.partition).ok_or(OperatingError::NotRead)
+            }
+            _ => Err(OperatingError::NotRead),
+        }
+    }
     pub(crate) fn regions(&self) -> &[Region] {
         &self.regions
     }

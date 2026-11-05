@@ -279,3 +279,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[cfg(test)]
+mod source_partition_test;

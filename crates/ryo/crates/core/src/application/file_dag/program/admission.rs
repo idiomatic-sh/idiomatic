@@ -678,6 +678,11 @@ impl RequiredPartitions {
 }
 
 impl Partition {
+    pub(super) fn require_supply(&self, required: &Self) -> Result<(), OperatingError> {
+        self.supplies(required)
+            .then_some(())
+            .ok_or(OperatingError::NotRead)
+    }
     fn supplies(&self, required: &Self) -> bool {
         match (self, required) {
             (Self::RequestInvariant, _) => true,

@@ -271,6 +271,7 @@ pub(crate) fn compile(
             });
         }
         regions.push(Region {
+            source_partitions: Box::new([]),
             id: RegionId(dense[at]),
             producer: draft
                 .instructions
@@ -430,6 +431,19 @@ pub(crate) fn compile(
         if let Ok(root) = root {
             regions[root.0].consumers = named_readers[slot];
         }
+    }
+    for region in &mut regions {
+        region.source_partitions = region
+            .inputs
+            .iter()
+            .filter_map(|source| match source {
+                InputSource::Relation(relation) => Some(SourcePartition {
+                    source: *source,
+                    requirement: partitions.relation(*relation),
+                }),
+                _ => None,
+            })
+            .collect();
     }
     let mut executable = ExecutableProgram {
         regions: regions.into_boxed_slice(),

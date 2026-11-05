@@ -56,6 +56,7 @@ pub(super) fn compile_unions(
                         }
                     }
                     regions.push(Region {
+                        source_partitions: Box::new([]),
                         id,
                         producer: rule,
                         needs: Ok(Box::new([])),
@@ -66,7 +67,7 @@ pub(super) fn compile_unions(
                         ordered_existence: None,
                         column: None,
                         selection: None,
-            native_positions: None,
+                        native_positions: None,
                         publishes: true,
                         instructions: vec![Instruction {
                             logical,
