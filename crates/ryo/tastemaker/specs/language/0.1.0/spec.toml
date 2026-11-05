@@ -4678,6 +4678,8 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'demo/src/inbound/contracts/project.rs' },
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'demo/src/inbound/contracts/project.rs' },
   { rule = 'idiomatic.ryo/contract(project-contract)#count', path = 'demo' },
 ]
 

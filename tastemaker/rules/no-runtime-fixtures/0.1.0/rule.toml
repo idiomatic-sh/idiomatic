@@ -1,9 +1,54 @@
 description = "Production code never names a `fixtures` module or imports colocated acceptance steps: a path segment `fixtures` in a use or an expression outside test code is a finding."
-why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. The entry leaves out test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
+why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. A reached concept/test.rs normally declared as #[cfg(test)] mod test; by its reached concept/mod.rs is test code; module syntax, exact cfg metadata and analyzed-source establish this role, never its filename alone. Mixed ungated declarations refuse this exception. As module membership is not a resolved fact, production include! or an explicit path/cfg_attr literal naming a generic test.rs conservatively refuses the new exception across all candidate roles, since cross-package redirection cannot be resolved from these facts; decoded literals handle escaped and raw spelling without pretending to normalize paths. Existing module-declares and test-directory-layout placements enforce the surrounding ownership. Legacy test/support placement exclusions remain as before. The entry leaves out other test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let role-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
+let role-owners = capture(from=role-files, path="file", pattern="{*dir}/mod.rs", captures=["dir"]);
+let role-tests = capture(from=role-files, path="file", pattern="{*dir}/test.rs", captures=["dir"]);
+let role-pairs = select l."file" as "owner", r."file" as "file" from role-owners as l join role-tests as r on l."dir" = r."dir";
+let role-roots = select * from tree-nodes where kind = "source-file";
+let role-top-edges = select r."child" as "id" from role-roots as l join "syntax-child" as r on l."id" = r."parent";
+let role-modules = select r."id" as "id", r."file" as "file" from role-top-edges as l join tree-nodes as r on l."id" = r."id" where r."kind" = "module";
+let role-kids = select l."id" as "decl", l."file" as "owner", r."child" as "child" from role-modules as l join "syntax-child" as r on l."id" = r."parent";
+let role-bodies = select * from tree-nodes where kind = "item-list";
+let role-inline = select l."decl" as "decl" from role-kids as l join role-bodies as r on l."child" = r."id";
+let role-names = select * from tree-nodes where kind = "name";
+let role-name-nodes = select l."decl" as "decl", l."owner" as "owner", r."id" as "name" from role-kids as l join role-names as r on l."child" = r."id";
+let role-name-edges = select l."decl" as "decl", l."owner" as "owner", r."child" as "token" from role-name-nodes as l join "syntax-child" as r on l."name" = r."parent";
+let role-named = select l."decl" as "decl", l."owner" as "owner" from role-name-edges as l join tree-tokens as r on l."token" = r."id" where r."text" = "test";
+let role-external = antijoin(left=role-named, right=role-inline, left-on=["decl"], right-on=["decl"]);
+let role-paths = select l."declaration" as "decl" from "decorates" as l where l."target" = "path";
+let role-normal = antijoin(left=role-external, right=role-paths, left-on=["decl"], right-on=["decl"]);
+let role-cfgs = select l."declaration" as "decl" from "decorates" as l where l."target" = "cfg" and l."arguments" = "test";
+let role-ungated = antijoin(left=role-external, right=role-cfgs, left-on=["decl"], right-on=["decl"]);
+let role-gated-all = select l."owner" as "owner" from role-normal as l join role-cfgs as r on l."decl" = r."decl";
+let role-gated = antijoin(left=role-gated-all, right=role-ungated, left-on=["owner"], right-on=["owner"]);
+let role-registered = select l."file" as "file", l."owner" as "owner" from role-pairs as l join role-gated as r on l."owner" = r."owner";
+let role-reached = select l."path" as "file" from "analyzed-source" as l;
+let role-live-owners = select l."file" as "file" from role-registered as l join role-reached as r on l."owner" = r."file";
+let role-candidates = select l."file" as "file" from role-live-owners as l join role-reached as r on l."file" = r."file";
+let role-literals = select * from tree-nodes where kind = "literal";
+let role-literal-values = select l."id" as "id", r."value" as "value" from role-literals as l join "string-literal" as r on l."file" = r."file" and l."span" = r."span";
+let role-test-targets = select * from role-literal-values where glob_any(value, "{test.rs,**/test.rs}");
+let role-attrs = select * from tree-nodes where kind = "attr";
+let role-target-attrs = axis(from=role-test-targets, relation="syntax-child", direction=ancestor, domain=role-attrs);
+let role-redirections = select r."declaration" as "decl", r."file" as "file" from role-target-attrs as l join "decorates" as r on l."related" = r."occurrence" where glob_any(r."target", "{path,cfg_attr}");
+let role-production-paths = antijoin(left=role-redirections, right=role-cfgs, left-on=["decl"], right-on=["decl"]);
+let role-macros = select * from tree-nodes where kind = "macro-call";
+let role-path-nodes = select * from tree-nodes where kind = "path";
+let role-macro-edges = select l."id" as "macro", l."file" as "file", r."child" as "child" from role-macros as l join "syntax-child" as r on l."id" = r."parent";
+let role-macro-paths = select l."macro" as "macro", l."file" as "file", r."id" as "id" from role-macro-edges as l join role-path-nodes as r on l."child" = r."id";
+let role-include-names = select * from tree-tokens where text = "include";
+let role-includes = axis(from=role-macro-paths, relation="syntax-child", direction=descendant, domain=role-include-names);
+let role-path-files = project(from=role-production-paths, columns=["file"]);
+let role-include-files = project(from=role-includes, columns=["file"]);
+let role-uncertain-files = union(left=role-path-files, right=role-include-files);
+let role-production-files = select * from role-uncertain-files where not glob_any(file, "{tests/**,benches/**,**/tests/**,**/benches/**,**/*_test.rs,**/fixtures.rs,**/fixtures/**}");
+let role-uncertain = extend(from=role-production-files, values={"guard": 1});
+let role-guarded = extend(from=role-candidates, values={"guard": 1});
+let test-roles = antijoin(left=role-guarded, right=role-uncertain, left-on=["guard"], right-on=["guard"]);
 let name-refs = select * from tree-nodes where kind = "name-ref";
 let paths = select * from tree-nodes where kind = "path";
 let segments = select * from tree-nodes where kind = "path-segment";
@@ -104,13 +149,14 @@ let local-include-rows = select r."file" as "file", r."span" as "span" from loca
 let declared-acceptance = union(left=direct-rows, right=imported-rows);
 let acceptance-found = union(left=declared-acceptance, right=local-include-rows);
 let findings = union(left=spans, right=acceptance-found);
-emit findings subject "file" key("span");
+let production = antijoin(left=findings, right=test-roles, left-on=["file"], right-on=["file"]);
+emit production subject "file" key("span");
 '''
 
 [diagnostic]
 primary = "span"
 message = "production code names test support (`fixtures` or colocated acceptance steps)"
-help = "Test data stays in tests: move what production needs (a probe, a case) into a `types.rs` value or a use case's input, and name `fixtures` only from `_test.rs` files, `tests/` and `benches/`. An ignore is never the fix."
+help = "Test data stays in tests: move what production needs (a probe, a case) into a `types.rs` value or a use case's input, and name `fixtures` only from registered cfg(test) test roles, `_test.rs` files, `tests/` and `benches/`. An ignore is never the fix."
 
 [given]
 include = ['**']
@@ -133,6 +179,7 @@ pub mod interface;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 '''
+given.files.'src/greeting/interface.rs' = ''
 given.files.'src/greeting/fixtures.rs' = '''
 pub const EXPECTED: &str = "hello";
 '''
@@ -166,6 +213,7 @@ pub mod interface;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 '''
+given.files.'src/greeting/interface.rs' = ''
 given.files.'src/greeting/fixtures.rs' = '''
 pub const EXPECTED: &str = "hello";
 '''
@@ -381,4 +429,545 @@ pub mod acceptance;
 '''
 then.findings = [
   { path = 'app/src/inbound/use_cases/greet.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'registered-grouped-test-role'
+scenario = 'Normal registered directory tests may use test values.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+
+[[scenarios]]
+id = 'misleading-test-role-filename'
+scenario = 'A production module named test is production code.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'negated-test-cfg-is-production'
+scenario = 'A negated test cfg does not establish test ownership.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(not(test))]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'feature-enabled-test-name-is-production'
+scenario = 'A cfg that can enable a module in production is no test authority.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(any(test, feature = "runtime"))]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'cfg-on-another-declaration'
+scenario = 'A cfg on a different module cannot authorize this test filename.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)]
+mod other;
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+given.files.'src/concept/other.rs' = ''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'unregistered-test-owner'
+scenario = 'An orphan directory and its cfg cannot establish ownership.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'inline-test-module-is-not-registration'
+scenario = 'An inline test module does not register a sibling test file.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)]
+mod test {}
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'path-redirect-is-not-normal-registration'
+scenario = 'A cfg test declaration redirected elsewhere does not register the role.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)]
+#[path = "other.rs"]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+given.files.'src/concept/other.rs' = ''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'nested-cfg-is-not-sibling-ownership'
+scenario = 'A nested test declaration cannot authorize its production sibling.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+mod test;
+mod nested { #[cfg(test)] mod test; }
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+given.files.'src/concept/nested/test.rs' = '''
+
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'mixed-test-production-registrations'
+scenario = 'A complementary production declaration prevents test exemption.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+#[cfg(not(test))] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-path-alias-of-test-role'
+scenario = 'A production path alias makes the same test file production code.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+#[path = "test.rs"] mod runtime;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-cross-owner-path-alias'
+scenario = 'A path alias elsewhere in the package refuses uncertain test ownership.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[path = "concept/test.rs"] mod runtime;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-raw-path-alias'
+scenario = 'A raw relative path alias cannot borrow the test exception.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[path = r#"./concept/../concept/test.rs"#] mod runtime;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-escaped-path-alias'
+scenario = 'A decoded escaped path alias cannot borrow the test exception.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[path = "concept/te\x73t.rs"] mod runtime;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-cfg-attr-path-alias'
+scenario = 'Conditional path redirection prevents a package test exception.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[cfg_attr(not(test), path = "concept/test.rs")] mod runtime;
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+given.files.'src/runtime.rs' = '''
+
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-include-of-test-role'
+scenario = 'A production include can compile otherwise test-owned source.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+mod runtime { include!("concept/test.rs"); }
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-computed-include'
+scenario = 'A computed production include refuses uncertain package ownership.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+mod runtime { include!(concat!("concept/", "test.rs")); }
+'''
+given.files.'src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+  { path = 'src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'cross-package-production-path-alias'
+scenario = 'Unknown cross-package incoming ownership fails the new exception closed.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["crate_a", "crate_b"]
+resolver = "3"
+'''
+given.files.'crate_a/Cargo.toml' = '''
+[package]
+name = "crate_a"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_b/Cargo.toml' = '''
+[package]
+name = "crate_b"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_a/src/lib.rs' = '''
+#[path = "../../crate_b/src/concept/test.rs"] mod runtime;
+'''
+given.files.'crate_b/src/lib.rs' = '''
+mod concept;
+'''
+given.files.'crate_b/src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'crate_b/src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'crate_b/src/concept/test.rs', line = 1 },
+  { path = 'crate_b/src/concept/test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'cross-package-production-include'
+scenario = 'Unknown cross-package incoming ownership fails the new exception closed.'
+given.exclude = ['**/fixtures.rs']
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["crate_a", "crate_b"]
+resolver = "3"
+'''
+given.files.'crate_a/Cargo.toml' = '''
+[package]
+name = "crate_a"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_b/Cargo.toml' = '''
+[package]
+name = "crate_b"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_a/src/lib.rs' = '''
+include!("../../crate_b/src/concept/test.rs");
+'''
+given.files.'crate_b/src/lib.rs' = '''
+mod concept;
+'''
+given.files.'crate_b/src/concept/mod.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'crate_b/src/concept/test.rs' = '''
+use crate::fixtures::VALUE as input;
+pub fn value() { let _value = crate::fixtures::VALUE; }
+'''
+then.findings = [
+  { path = 'crate_b/src/concept/test.rs', line = 1 },
+  { path = 'crate_b/src/concept/test.rs', line = 2 },
 ]

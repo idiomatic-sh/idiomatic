@@ -947,6 +947,7 @@ pub struct NamesFileSettings {
 }
 '''
 then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'src/names/adapters/file/schemas.rs' },
   { rule = 'idiomatic.arch/adapter/adapter-owns-no-adapter#unknown', path = 'src/names/adapters/file/schemas.rs' },
   { rule = 'idiomatic.arch/adapter/adapter-scope#unknown', path = 'src/names/adapters/file/schemas.rs' },
   { rule = 'idiomatic.arch/adapter/schemas-members', path = 'src/names/adapters/file/schemas.rs' },
