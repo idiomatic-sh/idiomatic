@@ -120,6 +120,7 @@ where
 }
 
 /// Typed lowering inputs shared by domain tests; no text is parsed here.
+#[cfg(test)]
 pub(crate) fn lowering_builder() -> crate::domain::lowering::types::Builder<'static> {
     use ryo_relations::domain::relations::types::Relation;
     crate::domain::lowering::types::Builder {
