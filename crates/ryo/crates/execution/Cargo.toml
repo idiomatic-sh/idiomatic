@@ -49,7 +49,7 @@ name = "bdd"
 harness = false
 
 [features]
-fixtures = []
+fixtures = ["ryo_values/fixtures"]
 diagnostic-row-progress = []
 
 [lints]
