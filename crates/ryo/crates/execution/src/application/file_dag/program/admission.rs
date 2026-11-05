@@ -477,7 +477,7 @@ impl<'scope> KernelPermit<'scope> {
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
         rows: &'call crate::domain::table_model::types::Rows<'call>,
-    ) -> Result<AdmittedWalkSource<'call>, OperatingError> {
+    ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
         use crate::domain::{
             operator::contract::views::BorrowedRows,
             table_model::{service::kinds_of, types::Rows},
@@ -497,14 +497,6 @@ impl<'scope> KernelPermit<'scope> {
         if *authored != relation {
             return Err(OperatingError::WrongOperation);
         }
-        if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation) {
-            return Err(OperatingError::ShapeMismatch);
-        }
-        if let Rows::Tree(tree) = rows {
-            if crate::domain::table_cells::service::native_form(relation) != Some(tree.form) {
-                return Err(OperatingError::WrongOperation);
-            }
-        }
         if !Arc::ptr_eq(&source.proof.generation, self.generation) {
             return Err(OperatingError::NotRead);
         }
@@ -517,19 +509,25 @@ impl<'scope> KernelPermit<'scope> {
         if population != source.proof.population || actual_relation != Some(relation) {
             return Err(OperatingError::NotRead);
         }
-        Ok(AdmittedWalkSource {
+        // Identity failures are terminal; physical optimization eligibility is not.
+        if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation)
+            || matches!(rows, Rows::Tree(tree) if crate::domain::table_cells::service::native_form(relation) != Some(tree.form))
+        {
+            return Ok(None);
+        }
+        Ok(Some(AdmittedWalkSource {
             source,
             rows,
             relation,
             population,
-        })
+        }))
     }
     pub(super) fn walk<'call, 'context>(
         &'call self,
         prepared: &'call super::facade::PreparedProgram,
         source: AdmittedWalkSource<'call>,
         context: &'call mut crate::domain::operating::types::OperatorContext<'context>,
-        active: &'call [crate::domain::shared_walk::types::RuleActivity],
+        ready: &'call [crate::domain::positions::types::ClassPlace],
         work: &'call mut crate::domain::shared_walk::types::WalkWork,
     ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
         self.validate_live()?;
@@ -548,7 +546,7 @@ impl<'scope> KernelPermit<'scope> {
             prepared,
             source,
             context,
-            active,
+            ready,
             work,
         })
     }

@@ -151,6 +151,41 @@ pub(crate) struct NativeBatch {
 }
 
 impl NativeBatch {
+    pub(crate) fn for_program(program: &PreparedWalk) -> Self {
+        Self::empty(ClassCount(program.classes().len()))
+    }
+
+    /// A later ready cohort fills only previously unevaluated classes.
+    pub(crate) fn merge(&mut self, next: Self) -> Result<(), OperatingError> {
+        if self.classes.len() != next.classes.len()
+            || self
+                .classes
+                .iter()
+                .zip(&next.classes)
+                .any(|(a, b)| a.is_some() && b.is_some())
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+        for (at, result) in next.classes.into_iter().enumerate() {
+            if result.is_some() {
+                self.classes[at] = result;
+                self.visits[at] = next.visits[at];
+            }
+        }
+        self.counts.passes.0 = self.counts.passes.0.saturating_add(next.counts.passes.0);
+        self.counts.source_rows.0 = self
+            .counts
+            .source_rows
+            .0
+            .saturating_add(next.counts.source_rows.0);
+        self.counts.predicate_rows.0 = self
+            .counts
+            .predicate_rows
+            .0
+            .saturating_add(next.counts.predicate_rows.0);
+        Ok(())
+    }
+
     pub(crate) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.counts
     }

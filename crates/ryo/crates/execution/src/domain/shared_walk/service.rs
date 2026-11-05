@@ -2,7 +2,7 @@
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
-    ClassWork, Eligibility, KindCount, RuleActivity, WalkWork,
+    ClassWork, Eligibility, KindCount, WalkWork,
     prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
 };
 use crate::domain::{
@@ -120,20 +120,23 @@ pub(crate) fn evaluate(
     rows: &Rows<'_>,
     bindings: &[Box<[ParameterBinding]>],
     context: &mut OperatorContext<'_>,
-    active: &[RuleActivity],
+    ready: &[ClassPlace],
     scratch: &mut WalkWork,
 ) -> NativeBatch {
     let mut batch = NativeBatch::empty(ClassCount(program.classes().len()));
-    if active.len() != program.rule_count().0
-        || !program.classes().iter().any(|class| {
-            class.source == relation
-                && class
-                    .members
-                    .iter()
-                    .any(|member| active[member.rule.0] == RuleActivity::Active)
+    if ready.is_empty()
+        || ready.iter().any(|place| {
+            program
+                .classes()
+                .get(place.0)
+                .is_none_or(|class| class.source != relation)
         })
     {
         return batch;
+    }
+    let mut selected = vec![false; program.classes().len()];
+    for place in ready {
+        selected[place.0] = true;
     }
     let source_kinds = kinds_of(rows);
     let count = count_of(rows).0;
@@ -191,14 +194,8 @@ pub(crate) fn evaluate(
     };
 
     for (at, class) in program.classes().iter().enumerate() {
-        // Distinct predicates share the source traversal too. Duplicate consumers
-        // are not required; only a class with no demanded member is excluded.
-        if class.source != relation
-            || !class
-                .members
-                .iter()
-                .any(|member| active[member.rule.0] == RuleActivity::Active)
-        {
+        // Only heads admitted by the engine's actual demand interpreter participate.
+        if !selected[at] {
             continue;
         }
         let (Some(bound), Some(each)) = (bindings.get(class.first.rule.0), work.get_mut(at)) else {
