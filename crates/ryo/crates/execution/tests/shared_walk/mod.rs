@@ -5,6 +5,8 @@ mod fixture;
 mod cohort;
 #[cfg(test)]
 mod order;
+#[cfg(test)]
+mod readiness;
 use crate::boundary_fixture::{corpus, demand};
 use fixture::*;
 use ryo_execution::inbound::use_cases::execution::{
