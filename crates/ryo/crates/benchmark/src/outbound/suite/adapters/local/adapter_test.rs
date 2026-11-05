@@ -42,8 +42,10 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
 }
 
 type Scenario = fn();
+type Input = Scenario;
+type Value = ();
 type Failure = std::convert::Infallible;
-const CASES: &[Case<Scenario, (), Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("physical_contract"),
         word: Word::Succeeds,
@@ -67,7 +69,7 @@ const CASES: &[Case<Scenario, (), Failure>] = &[
         expect: Expect::Value(()),
     },
 ];
-fn subject(scenario: Scenario) -> Result<(), Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario();
     Ok(())
 }

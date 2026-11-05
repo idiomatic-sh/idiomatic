@@ -4,7 +4,7 @@ use crate::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo::cases::{Case, CaseName, Expect, Word, run};
 use std::{borrow::Cow, collections::BTreeMap};
 #[derive(Clone, Copy)]
-enum Input {
+enum Scenario {
     Display,
     Unspecified,
     Empty,
@@ -14,37 +14,38 @@ enum Input {
     Unordered,
     Duplicate,
 }
+type Input = Scenario;
 type Value = Option<Cow<'static, str>>;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unordered metadata is refused"),
         word: Word::Refuses,
-        input: || Input::Unordered,
+        input: || Scenario::Unordered,
         expect: Expect::Error(()),
     },
     Case {
         name: CaseName("duplicate metadata is refused"),
         word: Word::Refuses,
-        input: || Input::Duplicate,
+        input: || Scenario::Duplicate,
         expect: Expect::Error(()),
     },
     Case {
         name: CaseName("digest display preserves exact identity"),
         word: Word::Succeeds,
-        input: || Input::Display,
+        input: || Scenario::Display,
         expect: Expect::Value(Some(Cow::Borrowed("pin"))),
     },
     Case {
         name: CaseName("unspecified observations have no identity"),
         word: Word::Succeeds,
-        input: || Input::Unspecified,
+        input: || Scenario::Unspecified,
         expect: Expect::Value(None),
     },
     Case {
         name: CaseName("declared empty observations retain an exact identity"),
         word: Word::Succeeds,
-        input: || Input::Empty,
+        input: || Scenario::Empty,
         expect: Expect::Value(Some(Cow::Borrowed(
             "34603e92af5a7e5008c383e4521c7cef56f8a2d16e8f31435eced3558f138134",
         ))),
@@ -52,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("UTF8 path and known false are bound"),
         word: Word::Succeeds,
-        input: || Input::KnownFalse,
+        input: || Scenario::KnownFalse,
         expect: Expect::Value(Some(Cow::Borrowed(
             "d56ce6c48ee649323396fbad9d896ba6fa793aef6fda082db766163850b62194",
         ))),
@@ -60,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("known true has a distinct exact identity"),
         word: Word::Succeeds,
-        input: || Input::KnownTrue,
+        input: || Scenario::KnownTrue,
         expect: Expect::Value(Some(Cow::Borrowed(
             "f364429fc2978f01f5c9f0cbc97d0831b85617e6467001bc92c5bd119b997d04",
         ))),
@@ -68,18 +69,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("path boundaries are framed independently"),
         word: Word::Succeeds,
-        input: || Input::Framing,
+        input: || Scenario::Framing,
         expect: Expect::Value(Some(Cow::Borrowed("framed"))),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     use ryo::linter::RelativePath;
     let metadata = match input {
-        Input::Unordered | Input::Duplicate => {
+        Scenario::Unordered | Scenario::Duplicate => {
             let first = RelativePath("a".into());
             let second = RelativePath("b".into());
             let paths = match input {
-                Input::Unordered => [&second, &first],
+                Scenario::Unordered => [&second, &first],
                 _ => [&first, &first],
             };
             return ArtifactDigest::file_metadata(Some(paths.map(|path| FileMetadataEntry {
@@ -95,16 +96,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 ()
             });
         }
-        Input::Display => return Ok(Some(ArtifactDigest("pin".into()).to_string().into())),
-        Input::Unspecified => {
+        Scenario::Display => return Ok(Some(ArtifactDigest("pin".into()).to_string().into())),
+        Scenario::Unspecified => {
             return ArtifactDigest::file_metadata(None::<std::iter::Empty<FileMetadataEntry<'_>>>)
                 .map(|value| value.map(|value| value.0.into()))
                 .map_err(|_| ());
         }
-        Input::Empty => BTreeMap::new(),
-        Input::KnownFalse => BTreeMap::from([(RelativePath("λ.py".into()), false)]),
-        Input::KnownTrue => BTreeMap::from([(RelativePath("λ.py".into()), true)]),
-        Input::Framing => {
+        Scenario::Empty => BTreeMap::new(),
+        Scenario::KnownFalse => BTreeMap::from([(RelativePath("λ.py".into()), false)]),
+        Scenario::KnownTrue => BTreeMap::from([(RelativePath("λ.py".into()), true)]),
+        Scenario::Framing => {
             let first = BTreeMap::from([
                 (RelativePath("ab".into()), true),
                 (RelativePath("c".into()), false),
