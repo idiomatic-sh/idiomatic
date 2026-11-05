@@ -417,6 +417,16 @@ impl Inputs for SourceInputs<'_, '_> {
                     .get(rule.0)
                     .and_then(|roots| roots.get(output.0 as usize))
                     .and_then(|root| root.publication.clone());
+                if published.is_none()
+                    && outputs
+                        .get(rule.0)
+                        .and_then(|roots| roots.get(output.0 as usize))
+                        .is_some_and(|root| root.readiness.is_some())
+                {
+                    return Err(OperatingError::ObservationIncomplete {
+                        reason: "named producer root is not complete".into(),
+                    });
+                }
                 let admitted = match published {
                     Some(input) => input,
                     None => {
