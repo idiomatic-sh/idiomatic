@@ -441,6 +441,32 @@ fn scheduled_world_with_query_kernel(
     >,
     column_kernel: bool,
 ) -> World {
+    let memory = Arc::new(given.memory);
+    let operators = Arc::new(crate::outbound::operators::factory::use_case(
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+    ));
+    scheduled_world_with_query_kernel_resources(
+        given,
+        scheduler,
+        workers,
+        query_language,
+        column_kernel,
+        memory,
+        operators,
+    )
+}
+
+fn scheduled_world_with_query_kernel_resources(
+    given: Given,
+    scheduler: Arc<dyn SchedulerPort>,
+    workers: WorkerCount,
+    query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    >,
+    column_kernel: bool,
+    analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
+    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
+) -> World {
     let collected = rows::types::Collector::default();
     let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
     let ports: Arc<dyn RowsPort> = if given.ends == Ends::Well {
@@ -478,8 +504,6 @@ fn scheduled_world_with_query_kernel(
             });
         let analysis_language: Arc<dyn crate::outbound::language::interface::LanguagePort> =
             Arc::<LanguageFake>::clone(&language);
-        let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
-            Arc::new(given.memory);
         let analysis_digest: Arc<
             dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
         > = Arc::new(DigestFake);
@@ -498,9 +522,7 @@ fn scheduled_world_with_query_kernel(
             Arc::new(MatchingFake),
             query_language,
             Arc::clone(&analysis_memory),
-            Arc::new(crate::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-            )),
+            operators,
             std::sync::Arc::new(crate::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
@@ -1925,6 +1947,235 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
                 usize::from(changed),
                 "consulted metadata must invalidate even when source digest is equal"
             );
+        }
+    }
+}
+
+/// Exercise ordinary lint project scheduling and the named coordinator through
+/// the same real inbound pipeline; pressure starts only after semantic work.
+/// Private engine lease release is covered by execution's lifecycle controls;
+/// the lint result intentionally exposes no lease handle or liveness counter.
+#[test]
+fn project_memory_guards_stop_real_lint_cohorts_and_preserve_the_first_error() {
+    use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
+    use ryo_execution::inbound::use_cases::execution::types::query_language::{
+        QueryLanguageError, QueryLanguagePort,
+    };
+    use ryo_operators::inbound::use_cases::operators::interface::{
+        OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
+    };
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::{
+        descriptions::types::ValidateReport,
+        hosted::types::HostedRelation,
+        observations::types::{
+            BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+            ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+        },
+        program::types::QueryBundle,
+        runs::types::MemoryBytes,
+    };
+    use std::sync::atomic::AtomicUsize;
+
+    #[derive(Clone, Copy, Debug)]
+    enum Pressure {
+        Budget,
+        Unreadable,
+        Allowed,
+    }
+    #[derive(Debug)]
+    struct ProjectPressure {
+        reductions: AtomicUsize,
+        pressure: Pressure,
+    }
+    impl OperatorsUseCase for ProjectPressure {
+        fn operators(
+            &self,
+            call: OperatorCall<'_>,
+        ) -> Result<OperatorAnswer, PortableOperatorFault> {
+            let reduction = matches!(&call, OperatorCall::ReduceCount { .. });
+            let answer =
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+                    .operators(call)?;
+            if reduction {
+                self.reductions.fetch_add(1, Ordering::SeqCst);
+            }
+            Ok(answer)
+        }
+    }
+    impl MemoryPort for ProjectPressure {
+        fn budget(&self) -> Result<MemoryBytes, MemoryError> {
+            Ok(MemoryBytes(match self.pressure {
+                Pressure::Allowed => 4_000_000,
+                _ => 1_000_000,
+            }))
+        }
+        fn resident_bytes(&self) -> Result<MemoryBytes, MemoryError> {
+            if self.reductions.load(Ordering::SeqCst) == 0 {
+                return Ok(MemoryBytes(0));
+            }
+            match self.pressure {
+                Pressure::Unreadable => Err(MemoryError::Unreadable {
+                    reason: "after first project reduction".into(),
+                }),
+                _ => Ok(MemoryBytes(2_000_000)),
+            }
+        }
+    }
+    struct ProjectQueries {
+        named: bool,
+    }
+    impl QueryLanguagePort for ProjectQueries {
+        fn validate(
+            &self,
+            bundle: &QueryBundle,
+            hosted: &[HostedRelation],
+            observations: &[BoundObservationInput],
+        ) -> Result<ValidateReport, QueryLanguageError> {
+            QueryLanguageFake::selecting().validate(bundle, hosted, observations)
+        }
+        fn compile(
+            &self,
+            bundle: &QueryBundle,
+            _hosted: &[HostedRelation],
+            observations: &[BoundObservationInput],
+        ) -> Result<Plan, QueryLanguageError> {
+            let first = bundle.root.text.as_ref() == "first";
+            let mut plan = QueryLanguageFake::selecting().plan;
+            plan.observation_inputs = observations.to_vec();
+            let from = if self.named && !first {
+                PlanInput::BoundObservation(
+                    ryo_values::domain::observations::types::ObservationBindingId(0),
+                )
+            } else {
+                PlanInput::Step(StepId(0))
+            };
+            plan.steps = if self.named && !first {
+                Vec::new()
+            } else {
+                vec![PlanStep {
+                    scope: StepScope::CrossFile,
+                    operation: Operation::Hosted {
+                        relation: HostedNumber(if first { 0 } else { 1 }),
+                    },
+                }]
+            };
+            plan.steps.push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::GroupCount {
+                    from,
+                    keys: vec![ColumnIndex(0)],
+                    distinct: None,
+                },
+            });
+            plan.emit = Emit {
+                step: StepId((plan.steps.len() - 1) as u32),
+                subject: ColumnIndex(0),
+                key: vec![ColumnIndex(1)],
+                headings: vec![],
+            };
+            if self.named && first {
+                plan.observations = vec![PlanObservation {
+                    name: ObservationName("counts".into()),
+                    source: PlanInput::Step(plan.emit.step),
+                    columns: count_columns(),
+                    scope: StepScope::CrossFile,
+                }];
+            }
+            Ok(plan)
+        }
+    }
+    fn count_columns() -> Vec<ObservationColumn> {
+        vec![
+            ObservationColumn {
+                name: ObservationColumnName("file".into()),
+                kind: CellKind::File,
+            },
+            ObservationColumn {
+                name: ObservationColumnName("count".into()),
+                kind: CellKind::Number,
+            },
+        ]
+    }
+    for named in [false, true] {
+        for pressure in [Pressure::Budget, Pressure::Unreadable, Pressure::Allowed] {
+            let effect = Arc::new(ProjectPressure {
+                reductions: AtomicUsize::new(0),
+                pressure,
+            });
+            let mut first_host = host_placed();
+            first_host.rows = vec![HostRow(vec![
+                Typed::File("a.rs".into()),
+                Typed::Text("docs".into()),
+            ])];
+            let mut second_host = first_host.clone();
+            second_host.name = HostName("host.second".into());
+            let given = Given {
+                files: vec![("a.rs", "fn a() {}")],
+                rules: vec!["first", "second"],
+                ids: vec!["first", "second"],
+                hosted: vec![first_host, second_host],
+                ..violations()
+            };
+            let mut asked = request(&given);
+            if named {
+                asked.rules[1].observations = vec![ObservationBinding {
+                    name: ObservationBindingName("counts".into()),
+                    columns: count_columns(),
+                    producers: vec![ObservationProducer::Output {
+                        rule: RuleId("first".into()),
+                        output: ObservationName("counts".into()),
+                    }],
+                }];
+            }
+            let world = scheduled_world_with_query_kernel_resources(
+                given,
+                Arc::new(crate::outbound::scheduler::factory::sequential()),
+                WorkerCount(1),
+                Arc::new(ProjectQueries { named }),
+                false,
+                effect.clone(),
+                effect.clone(),
+            );
+            let result = world.use_case.lint(asked);
+            match pressure {
+                Pressure::Budget => {
+                    assert_eq!(
+                        result.unwrap_err(),
+                        LintError::MemoryBudgetExceeded {
+                            used: 2_000_000,
+                            budget: 1_000_000,
+                            plans: vec!["second".into()]
+                        }
+                    );
+                    assert_eq!(
+                        effect.reductions.load(Ordering::SeqCst),
+                        1,
+                        "later project cohort must not execute"
+                    );
+                }
+                Pressure::Unreadable => {
+                    assert_eq!(
+                        result.unwrap_err(),
+                        LintError::from(MemoryError::Unreadable {
+                            reason: "after first project reduction".into()
+                        })
+                    );
+                    assert_eq!(
+                        effect.reductions.load(Ordering::SeqCst),
+                        1,
+                        "memory read failure must stop the next cohort"
+                    );
+                }
+                Pressure::Allowed => {
+                    result.expect("both project cohorts fit the actual memory budget");
+                    assert_eq!(
+                        effect.reductions.load(Ordering::SeqCst),
+                        2,
+                        "both distinct project populations perform real reductions"
+                    );
+                }
+            }
         }
     }
 }
