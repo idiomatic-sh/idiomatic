@@ -34,6 +34,7 @@ pub(in crate::application::file_dag) fn publish(
     owner.publication(Arc::new(RelationResult {
         population: owner.allocate_population()?,
         producer: OnceLock::new(),
+        producer_scope: OnceLock::new(),
         generation: Arc::clone(&owner.generation.borrow()),
 
         body: RelationBody::Positioned {

@@ -253,6 +253,9 @@ impl ProjectExecution for ProjectSession<'_> {
 }
 
 impl ProjectStage for ProjectPhase<'_> {
+    fn state_counts(&self) -> InvocationStateCounts {
+        self.publication.state_counts()
+    }
     fn project_scope(
         &self,
         rule: RuleIndex,

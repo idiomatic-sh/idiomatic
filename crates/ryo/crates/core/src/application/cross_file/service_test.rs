@@ -76,6 +76,7 @@ struct World {
     needs: Vec<Needs>,
     arenas: Vec<ArenaBytes>,
     covered: Vec<Covered>,
+    skipped: Vec<ryo_values::domain::runs::types::Skipped>,
     project: Vec<Partial>,
 }
 
@@ -125,6 +126,15 @@ fn world(plan: Plan) -> World {
 fn world_with(
     plans: Vec<Plan>,
     operators: Arc<dyn ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase>,
+) -> World {
+    let applicability =
+        vec![ryo_values::domain::runs::types::RuleApplicability::Always; plans.len()];
+    world_with_applicability(plans, operators, &applicability)
+}
+fn world_with_applicability(
+    plans: Vec<Plan>,
+    operators: Arc<dyn ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase>,
+    applicability: &[ryo_values::domain::runs::types::RuleApplicability],
 ) -> World {
     use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
     use ryo_values::domain::{
@@ -180,7 +190,8 @@ fn world_with(
                 bindings: vec![Vec::new(); plans.len()],
                 rules: ids
                     .iter()
-                    .map(|id| RuleSpec {
+                    .enumerate()
+                    .map(|(rule, id)| RuleSpec {
                         id: id.clone(),
                         query: QueryBundle {
                             root: QueryDocumentSource {
@@ -189,7 +200,7 @@ fn world_with(
                             },
                             modules: Default::default(),
                         },
-                        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+                        applicability: applicability[rule],
                         given: Vec::new(),
                         observations: Vec::new(),
                         spelled: RuleParameters("".into()),
@@ -219,6 +230,7 @@ fn world_with(
         files,
         arenas: Vec::new(),
         covered: Vec::new(),
+        skipped: Vec::new(),
         project: Vec::new(),
     }
 }
@@ -237,7 +249,7 @@ fn crossing(world: &World) -> CrossingInput<'_> {
             paths: &world.paths,
             files: &world.files,
             covered: &world.covered,
-            skipped: &[],
+            skipped: &world.skipped,
             project: &world.project,
             answering: &crate::domain::render::types::Answering::Findings,
             unknown: &[],
@@ -299,7 +311,7 @@ fn prepared_in(
         .expect("facts finish");
     let project = facts_port.worker().expect("project facts");
     let scope = phase
-        .project_scope(rule, &world.files, covered, &[])
+        .project_scope(rule, &world.files, covered, &world.skipped)
         .expect("project scope");
     let frontiers = world
         .request
@@ -919,4 +931,248 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
         drop(scope);
         phase.finish().unwrap();
     }
+}
+
+#[test]
+fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate() {
+    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
+    use std::sync::atomic::Ordering;
+    for order in [[0, 1, 0, 1], [1, 0, 1, 0]] {
+        let calls = Arc::new(ProjectCalls::default());
+        let plan = counting_plan(1, vec![]);
+        let mut rules = world_with_applicability(
+            vec![plan.clone(), plan],
+            calls.clone(),
+            &[RuleApplicability::AcceptedSyntax, RuleApplicability::Always],
+        );
+        rules.skipped.push(Skipped {
+            rule: rules.ids[0].clone(),
+            path: rules.paths[1].clone(),
+            reason: SkipReason::SyntaxRejected,
+        });
+        rules.covered = vec![
+            Covered {
+                file: FileId(0),
+                rules: vec![RuleIndex(0), RuleIndex(1)],
+                partial: vec![],
+            },
+            Covered {
+                file: FileId(1),
+                rules: vec![RuleIndex(1)],
+                partial: vec![],
+            },
+        ];
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let rows = frontier_rows();
+        let mut results = vec![None, None];
+        for (at, rule) in order.into_iter().enumerate() {
+            // Both scopes receive the same complete request table. Only A has
+            // positive skip provenance; B must retain the second file's rows.
+            let source = if rule == 0 { &rows[..1] } else { &rows[..] };
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                source,
+                &mut symbols,
+            )
+            .unwrap();
+            let done = service()
+                .evaluate(
+                    &crossing(&rules),
+                    &Todo {
+                        rule: RuleIndex(rule),
+                        id: rules.ids[rule].clone(),
+                    },
+                    frontier,
+                    &mut symbols,
+                    &scope,
+                )
+                .unwrap();
+            let rendered = done
+                .rendered
+                .expect("valid population renders through the actual core route");
+            assert_eq!(
+                [rendered.order.len(), rendered.cells.len()],
+                if rule == 0 { [1, 2] } else { [2, 4] }
+            );
+            assert_eq!(done.unknowns.len(), usize::from(rule == 0));
+            if let Some(previous) = &results[rule] {
+                assert_eq!(&rendered, previous);
+            } else {
+                results[rule] = Some(rendered);
+            }
+            if at >= 1 {
+                assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
+                assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
+            }
+        }
+        phase.finish().unwrap();
+    }
+}
+
+#[test]
+fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
+    use ryo_relations::domain::relations::{service::node_id, types::Position};
+    use std::sync::atomic::Ordering;
+    for order in [[0, 1, 0], [1, 0, 1]] {
+        let calls = Arc::new(ProjectCalls::default());
+        let plan = counting_plan(1, vec![]);
+        let rules = world_with(vec![plan.clone(), plan], calls.clone());
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let original = frontier_rows();
+        let mut changed = original.clone();
+        for cell in &mut changed[0].1.cells {
+            *cell = Cell::Node(node_id(FileId(0), Position(9)));
+        }
+        let mut results = vec![None, None];
+        for (at, rule) in order.into_iter().enumerate() {
+            let source = if rule == 0 { &original } else { &changed };
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                source,
+                &mut symbols,
+            )
+            .unwrap();
+            let raw = crate::application::run_coordination::crossing::cross_rule_with_inputs(
+                &crossing(&rules),
+                &Todo {
+                    rule: RuleIndex(rule),
+                    id: rules.ids[rule].clone(),
+                },
+                frontier,
+                &[],
+                &mut symbols,
+                &scope,
+            )
+            .unwrap();
+            let table = raw.roots.emit.expect("the actual prepared population");
+            let first = if rule == 0 { 1 } else { 9 };
+            assert_eq!(
+                table.cells,
+                [
+                    Cell::Node(node_id(FileId(0), Position(first))),
+                    Cell::Number(ryo_relations::domain::relations::types::Integer(2)),
+                    Cell::Node(node_id(FileId(1), Position(2))),
+                    Cell::Number(ryo_relations::domain::relations::types::Integer(1)),
+                ]
+            );
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                source,
+                &mut symbols,
+            )
+            .unwrap();
+            let done = service()
+                .evaluate(
+                    &crossing(&rules),
+                    &Todo {
+                        rule: RuleIndex(rule),
+                        id: rules.ids[rule].clone(),
+                    },
+                    frontier,
+                    &mut symbols,
+                    &scope,
+                )
+                .unwrap();
+            assert!(done.unknowns.is_empty());
+            let rendered = done.rendered.unwrap();
+            assert_eq!([rendered.order.len(), rendered.cells.len()], [2, 4]);
+            if let Some(previous) = &results[rule] {
+                assert_eq!(&rendered, previous);
+            } else {
+                results[rule] = Some(rendered);
+            }
+            if at >= 1 {
+                assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
+                assert_eq!(calls.aggregates.load(Ordering::SeqCst), 4);
+            }
+        }
+        phase.finish().unwrap();
+    }
+}
+
+#[test]
+fn many_distinct_project_populations_allocate_only_reached_region_state() {
+    use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+    use std::sync::atomic::Ordering;
+    const POPULATIONS: usize = 8;
+    let calls = Arc::new(ProjectCalls::default());
+    let mut plans = Vec::new();
+    for seed in 0..96 {
+        let mut plan = counting_plan(1, vec![]);
+        if seed != 0 {
+            // Separate dormant regions, with a semantically valid literal predicate.
+            plan.steps.push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Select {
+                    from: PlanInput::Step(StepId(1)),
+                    comparisons: vec![Comparison {
+                        test: Test::Equal,
+                        left: Operand::Column(ColumnIndex(1)),
+                        right: Operand::Literal(QueryLiteral::Number(
+                            ryo_relations::domain::relations::types::Integer(seed),
+                        )),
+                        origin: None,
+                    }],
+                    kept: vec![],
+                },
+            });
+            plan.emit.step = StepId(2);
+        }
+        plans.push(plan);
+    }
+    let rules = world_with(plans, calls.clone());
+    let phase = rules.request.project_phase().unwrap();
+    assert_eq!(phase.state_counts(), Default::default());
+    let mut symbols = Symbols::default();
+    for population in 0..POPULATIONS {
+        let mut rows = frontier_rows();
+        // Distinct legitimate transport payloads force distinct input populations.
+        let repeated = rows[0].1.cells[0];
+        rows[0].1.cells.push(repeated);
+        rows[0].1.count.0 += 1;
+        for _ in 0..population {
+            rows[0].1.cells.push(repeated);
+            rows[0].1.count.0 += 1;
+        }
+        let (scope, frontier) = prepared_in(
+            &rules,
+            &phase,
+            RuleIndex(0),
+            &rules.covered,
+            &rows,
+            &mut symbols,
+        )
+        .unwrap();
+        let result = service()
+            .evaluate(&crossing(&rules), &todo(0), frontier, &mut symbols, &scope)
+            .unwrap();
+        assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
+        let state = phase.state_counts();
+        assert_eq!(state.populations.0, population + 1);
+        assert_eq!(
+            state.slots.0,
+            population + 1,
+            "only the demanded GroupCount region owns mutable state"
+        );
+        assert_eq!(
+            state.instruction_counters.0,
+            population + 1,
+            "dormant authored selectors allocate no counter arrays"
+        );
+        assert!(state.dormant_obligations.0 <= population + 1);
+    }
+    assert_eq!(calls.reductions.load(Ordering::SeqCst), POPULATIONS);
+    assert_eq!(calls.aggregates.load(Ordering::SeqCst), POPULATIONS * 2);
+    phase.finish().unwrap();
 }

@@ -191,6 +191,9 @@ impl TestInputs {
     }
 }
 impl Inputs for TestInputs {
+    fn population_scope(&self) -> crate::application::file_dag::relations::ProducerScope {
+        crate::application::file_dag::relations::ProducerScope::File
+    }
     fn supply(
         &mut self,
         source: InputSource,

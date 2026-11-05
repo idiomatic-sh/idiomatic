@@ -5,8 +5,7 @@ pub(super) struct ProjectSources<'a> {
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
     pub(super) sources: &'a [crate::application::file_dag::frontiers::types::FrontierSource],
-    pub(super) ordinary:
-        &'a mut [Option<crate::application::file_dag::frontiers::types::FrontierInput>],
+    pub(super) ordinary: &'a [Rc<super::super::project_population::service::Population>],
     pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
@@ -22,21 +21,11 @@ impl ProjectSources<'_> {
         &self,
         source: crate::domain::executable_program::types::InputSource,
     ) -> Option<usize> {
-        use crate::application::file_dag::frontiers::types::FrontierInput;
-        self.ordinary.iter().enumerate().find_map(|(at, input)| {
-            let original = match input.as_ref()? {
-                FrontierInput::Decoded { frontier, .. } => frontier.input,
-                FrontierInput::Compact { input, .. } => *input,
-            };
-            self.sources
-                .iter()
-                .any(|binding| {
-                    binding.input == original
-                        && matches!(&binding.root, Ok(actual) if *actual == source)
-                })
-                .then_some(at)
-        })
+        self.ordinary
+            .iter()
+            .position(|input| input.provides(source))
     }
+
     fn provides(&self, source: crate::domain::executable_program::types::InputSource) -> bool {
         matches!(
             source,
@@ -59,10 +48,7 @@ impl ProjectSources<'_> {
         context: &mut OperatorContext<'_>,
         owner: &Rc<RelationOwner>,
     ) -> Option<Result<AvailableInput, OperatingError>> {
-        use crate::{
-            application::file_dag::frontiers::types::FrontierInput,
-            domain::executable_program::types::InputSource,
-        };
+        use crate::domain::executable_program::types::InputSource;
         if let Some((_, admitted)) = self.cache.iter().find(|(key, _)| *key == source) {
             return Some(Ok(admitted.clone()));
         }
@@ -76,32 +62,7 @@ impl ProjectSources<'_> {
             if let Err(error) = actual_partition.require_supply(partition) {
                 return Some(Err(error));
             }
-            let input = self.ordinary[at]
-                .take()
-                .expect("demanded source was present");
-            let (publication, coverage) = match input {
-                FrontierInput::Decoded { frontier, coverage } => {
-                    (owner.source_computed(frontier.table), coverage)
-                }
-                FrontierInput::Compact {
-                    table, coverage, ..
-                } => (owner.source_compact(Arc::new(table)), coverage),
-            };
-            let result = publication.and_then(|publication| {
-                let unavailable = |_| Err(OperatingError::NotRead);
-                let rows = owner.resolve(publication.as_ref(), &unavailable)?;
-                AvailableInput::source(
-                    Rc::clone(owner),
-                    publication.clone(),
-                    match source {
-                        InputSource::Region(id) => ProducerRoot::Region(id),
-                        _ => ProducerRoot::Input(source),
-                    },
-                    actual_partition.clone(),
-                    coverage,
-                    rows,
-                )
-            });
+            let result = self.ordinary[at].supply(owner, actual_partition);
             if let Ok(input) = &result {
                 self.cache.push((source, input.clone()));
             }
@@ -201,6 +162,7 @@ fn admit_published(
 /// to a generation-checked publication. It has no second scheduler.
 pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) execution: &'a ProgramExecution,
+    pub(super) state: &'a super::super::runtime::RuntimeState,
     pub(super) completion: CompletionPolicy,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
@@ -222,6 +184,9 @@ impl SourceInputs<'_, '_> {
     }
 }
 impl Inputs for SourceInputs<'_, '_> {
+    fn population_scope(&self) -> super::super::super::relations::ProducerScope {
+        self.state.population_scope()
+    }
     fn bind_rule(&mut self, rule: RuleIndex) {
         self.completion = self.completion.for_rule(rule);
         self.rule = rule;
@@ -326,7 +291,7 @@ impl Inputs for SourceInputs<'_, '_> {
             _ => None,
         };
         match region {
-            Some(id) if self.execution.published(id)?.is_none() => Ok(Some(id)),
+            Some(id) if self.execution.published(self.state, id)?.is_none() => Ok(Some(id)),
             _ => Ok(None),
         }
     }
@@ -386,7 +351,10 @@ impl Inputs for SourceInputs<'_, '_> {
                 let publication = self.owner.computed(table)?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
-            InputSource::Region(id) => self.execution.published(id)?.ok_or(OperatingError::NotRun),
+            InputSource::Region(id) => self
+                .execution
+                .published(self.state, id)?
+                .ok_or(OperatingError::NotRun),
             InputSource::Observation(slot) => {
                 if let Some(input) = self.observations.get(&slot) {
                     return Ok(AvailableInput::published(input.clone()));
@@ -401,7 +369,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     .map_err(Clone::clone)?;
                 let input = self
                     .execution
-                    .published(union)?
+                    .published(self.state, union)?
                     .ok_or(OperatingError::NotRun)?;
                 let admitted = super::super::admission::alias_observation(
                     self.program.program(),
@@ -564,6 +532,7 @@ impl Inputs for SourceInputs<'_, '_> {
         let readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
         let publication = self.owner.computed(rows)?;
+        self.state.bind(&self.owner, root, &publication)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -589,6 +558,7 @@ impl Inputs for SourceInputs<'_, '_> {
         actual_partition.require_supply(partition)?;
         let readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
+        self.state.bind(&self.owner, root, &publication)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -614,6 +584,7 @@ impl Inputs for SourceInputs<'_, '_> {
         actual_partition.require_supply(partition)?;
         let readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
+        self.state.bind(&self.owner, root, &publication)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),

@@ -183,6 +183,7 @@ fn forward<'a, 'service, 'facts>(
     );
     let mut sources = SourceInputs {
         execution: &file.execution,
+        state: file.execution.file_state(),
         completion: completion.clone(),
         owner: Rc::clone(&file.owner),
         read,
@@ -192,9 +193,14 @@ fn forward<'a, 'service, 'facts>(
         rule,
         project: None,
     };
-    let outcome = file
-        .execution
-        .invoke(root, &mut sources, &kernels, &completion, &mut context)?;
+    let outcome = file.execution.invoke(
+        file.execution.file_state(),
+        root,
+        &mut sources,
+        &kernels,
+        &completion,
+        &mut context,
+    )?;
     let InvocationOutcome::Published(input) = &outcome else {
         return Err(OperatingError::NotRun);
     };
@@ -287,7 +293,9 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
                 .rule_metadata(RuleIndex(0))?
                 .emit_root
                 .clone()?;
-            let before = file.execution.retry_checkpoint(root)?;
+            let before = file
+                .execution
+                .retry_checkpoint(file.execution.file_state(), root)?;
             assert_eq!(before.attempt, AttemptCheckpoint::Dormant);
             assert_eq!(before.dependencies, DependencyCheckpoint::Pending);
             let mut fail = RefusingSink {
@@ -302,7 +310,9 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
                 fail.rows.is_empty(),
                 "the first sink refuses before publishing a row"
             );
-            let refused = file.execution.retry_checkpoint(root)?;
+            let refused = file
+                .execution
+                .retry_checkpoint(file.execution.file_state(), root)?;
             assert_eq!(refused.attempt, AttemptCheckpoint::Published);
             assert_eq!(refused.dependencies, DependencyCheckpoint::Consumed);
             assert_eq!(
@@ -317,7 +327,9 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
                 forward(&mut file, &read, &mut symbols, &mut accept),
                 Ok(InvocationOutcome::Published(_))
             ));
-            let complete = file.execution.retry_checkpoint(root)?;
+            let complete = file
+                .execution
+                .retry_checkpoint(file.execution.file_state(), root)?;
             assert_eq!(complete.attempt, AttemptCheckpoint::Published);
             assert_eq!(complete.dependencies, DependencyCheckpoint::Consumed);
             Ok(accept.rows.iter().flat_map(|row| nodes(row)).collect())

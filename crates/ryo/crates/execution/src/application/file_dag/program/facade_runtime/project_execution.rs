@@ -11,7 +11,7 @@ pub(crate) struct ProjectRun<'a> {
     partials: ScopePartials<'a>,
     frontier_producer: RuleIndex,
     frontier_sources: Box<[crate::application::file_dag::frontiers::types::FrontierSource]>,
-    ordinary: Vec<Option<crate::application::file_dag::frontiers::types::FrontierInput>>,
+    ordinary: Vec<Rc<super::super::project_population::service::Population>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
     cache: Vec<(
@@ -76,6 +76,11 @@ pub(crate) fn open_project<'a>(
             .map_err(|_| OperatingError::WrongOperation)?;
     }
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
+    let ordinary = scope.populations.borrow_mut().sources(
+        &owner,
+        &frontiers.ordinary.sources,
+        frontiers.ordinary.rows,
+    )?;
     Ok(ProjectRun {
         program,
         services: Arc::clone(&services),
@@ -85,7 +90,7 @@ pub(crate) fn open_project<'a>(
         partials,
         frontier_producer: frontiers.ordinary.producer,
         frontier_sources: frontiers.ordinary.sources,
-        ordinary: frontiers.ordinary.rows.into_iter().map(Some).collect(),
+        ordinary,
         refused: frontiers.ordinary.refused,
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
@@ -121,6 +126,14 @@ impl ProjectRun<'_> {
             } => CompletionPolicy::project_inputs(rule, evaluation, publication),
             ScopePartials::File { .. } => return Err(OperatingError::WrongOperation),
         };
+        let identity = self.publication.populations.borrow_mut().invocation(
+            self.publication,
+            &self.ordinary,
+            &self.refused,
+            &self.bound,
+            completion.for_rule(RuleIndex(0)),
+        )?;
+        let state = self.execution.project_state(identity);
         let unavailable = |_relation| Err(OperatingError::NotRead);
         let kernels = super::super::kernel_session::KernelSession::new(
             self.services.kernels(),
@@ -133,6 +146,7 @@ impl ProjectRun<'_> {
         let mut absent = HashMap::new();
         let mut sources = SourceInputs {
             execution: self.execution,
+            state: &state,
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read: &unavailable,
@@ -164,8 +178,14 @@ impl ProjectRun<'_> {
                     }
                 }
                 Ok(id) => outcome_of(
-                    self.execution
-                        .invoke(*id, &mut sources, &kernels, &completion, context),
+                    self.execution.invoke(
+                        &state,
+                        *id,
+                        &mut sources,
+                        &kernels,
+                        &completion,
+                        context,
+                    ),
                     &self.owner,
                     &unavailable,
                 ),
@@ -183,6 +203,7 @@ impl ProjectRun<'_> {
                 {
                     root.source.clone().and_then(|source| {
                         self.execution.admit_root(
+                            &state,
                             rule,
                             source,
                             &mut sources,
@@ -216,7 +237,7 @@ impl ProjectRun<'_> {
         Ok(ProjectRuleOutcome {
             emit,
             observations,
-            counts: self.execution.logical_counts(rule)?,
+            counts: self.execution.logical_counts(&state, rule)?,
         })
     }
 }

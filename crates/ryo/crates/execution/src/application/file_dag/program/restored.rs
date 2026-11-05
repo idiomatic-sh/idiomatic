@@ -32,6 +32,19 @@ pub(crate) struct ValidatedFrontier {
     payload: Arc<crate::outbound::facts::types::KeptBucket>,
 }
 
+impl PartialEq for ValidatedFrontier {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.program, &other.program)
+            && Arc::ptr_eq(&self.generation, &other.generation)
+            && self.root == other.root
+            && self.partition == other.partition
+            && self.coverage == other.coverage
+            && self.kinds == other.kinds
+            && self.payload == other.payload
+    }
+}
+impl Eq for ValidatedFrontier {}
+
 pub(in crate::application) fn validate_restored_frontier(
     prepared: &Arc<PreparedProgram>,
     producer: RuleIndex,

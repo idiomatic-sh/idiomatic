@@ -113,6 +113,7 @@ impl KernelInvocation for RuntimeProbe {
                     Ok(outer)
                 );
                 let result = self.execution.invoke(
+                    self.execution.file_state(),
                     inner,
                     &mut *self.nested.borrow_mut(),
                     self,
@@ -132,6 +133,7 @@ impl KernelInvocation for RuntimeProbe {
             }
             RuntimeProbeMode::Reenter { root } => {
                 let result = self.execution.invoke(
+                    self.execution.file_state(),
                     root,
                     &mut *self.nested.borrow_mut(),
                     self,

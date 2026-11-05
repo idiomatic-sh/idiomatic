@@ -14,7 +14,7 @@ pub enum DecodeMode {
 
 /// Admitted offsets into immutable compact backing. Source-name mappings were
 /// bound before any query borrow; materialization never mutates symbols.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompactTable {
     pub(super) words: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
     pub(super) kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
@@ -23,7 +23,7 @@ pub struct CompactTable {
     pub(super) cells: usize,
     pub(super) row_offsets: Vec<usize>,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompactFrame {
     pub(super) bytes: std::ops::Range<usize>,
     pub(super) cells: usize,

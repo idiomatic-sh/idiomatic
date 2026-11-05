@@ -85,12 +85,18 @@ impl GenerationLease {
         self.live.load(std::sync::atomic::Ordering::Acquire)
     }
 }
+/// A typed invocation namespace; publications retain their actual population after it ends.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::application::file_dag) enum ProducerScope {
+    File,
+    Project(PopulationId),
+}
 pub(crate) struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<u64>,
     pub(super) derived: super::derived::owner::DerivedOwner,
     next_population: Cell<usize>,
-    producer_populations: RefCell<HashMap<usize, (usize, PopulationId)>>,
+    producer_populations: RefCell<HashMap<(ProducerScope, usize), (usize, PopulationId)>>,
     generation: RefCell<Arc<()>>,
     generation_live: RefCell<Arc<GenerationLease>>,
     stable: bool,
@@ -212,6 +218,7 @@ impl RelationOwner {
         let result = Arc::new(RelationResult {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
+            producer_scope: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
 
             body: RelationBody::Source(identity::describe(relation, raw)),
@@ -247,6 +254,7 @@ impl RelationOwner {
         self.publication(Arc::new(RelationResult {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
+            producer_scope: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
             body: RelationBody::Compact(table),
             inspected: OnceLock::new(),
@@ -255,11 +263,18 @@ impl RelationOwner {
     }
     /// Custody of a supplied flat source, preserving exact geometry for first-borrow inspection.
     pub(super) fn source_computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
+        self.source_shared_computed(Arc::new(table))
+    }
+    pub(super) fn source_shared_computed(
+        &self,
+        table: Arc<Table>,
+    ) -> Result<PublishedInput, OperatingError> {
         self.publication(Arc::new(RelationResult {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
+            producer_scope: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
-            body: RelationBody::Computed(Arc::new(table)),
+            body: RelationBody::Computed(table),
             inspected: OnceLock::new(),
             normalized: OnceLock::new(),
         }))
@@ -271,6 +286,7 @@ impl RelationOwner {
         self.publication(Arc::new(RelationResult {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
+            producer_scope: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
 
             body: RelationBody::Computed(Arc::new(table)),
@@ -501,6 +517,11 @@ impl RelationOwner {
 mod owner_test;
 
 impl RelationOwner {
+    pub(in crate::application::file_dag) fn project_identity(
+        &self,
+    ) -> Result<PopulationId, OperatingError> {
+        self.allocate_population().map(PopulationId)
+    }
     fn allocate_population(&self) -> Result<usize, OperatingError> {
         let id = self.next_population.get();
         self.next_population
@@ -510,14 +531,16 @@ impl RelationOwner {
     /// One canonical DAG producer has one population identity across rules and safe recomputation.
     pub(super) fn bind_producer(
         &self,
+        scope: ProducerScope,
         node: RegionId,
         result: &RelationResult,
     ) -> Result<(), OperatingError> {
         self.generation(result)?;
+        let _origin = result.producer_scope.set(scope);
         if matches!(result.body, RelationBody::Source(_)) || result.producer.get().is_some() {
             self.producer_populations
                 .borrow_mut()
-                .entry(node.0)
+                .entry((scope, node.0))
                 .or_insert((
                     self.result_population(result).0,
                     self.backing_population(result),
@@ -526,7 +549,7 @@ impl RelationOwner {
         }
         let mut known = self.producer_populations.borrow_mut();
         let (id, _) = *known
-            .entry(node.0)
+            .entry((scope, node.0))
             .or_insert((result.population, self.backing_population(result)));
         let _installed = result.producer.set(id);
         Ok(())
@@ -569,10 +592,14 @@ impl RelationOwner {
     /// A generation clear has already released all pins and removed this map.
     pub(super) fn release_derived_producer(
         &self,
+        scope: ProducerScope,
         node: crate::domain::executable_program::types::RegionId,
     ) {
-        if let Some((population, backing)) =
-            self.producer_populations.borrow().get(&node.0).copied()
+        if let Some((population, backing)) = self
+            .producer_populations
+            .borrow()
+            .get(&(scope, node.0))
+            .copied()
         {
             let population = PopulationId(population);
             self.derived.release(population);

@@ -245,10 +245,19 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     };
     let first_consumer = consumer(0, 2);
     let final_consumer_region = consumer(1, if refuse_provider { 3 } else { 2 });
-    file.execution
-        .observe_producer_releases(producer, &[first_consumer, final_consumer_region])?;
+    file.execution.observe_producer_releases(
+        file.execution.file_state(),
+        producer,
+        &[first_consumer, final_consumer_region],
+    )?;
     let first = if skipped_at_start {
-        assert_eq!(file.execution.retry_checkpoint(producer)?.remaining.0, 1);
+        assert_eq!(
+            file.execution
+                .retry_checkpoint(file.execution.file_state(), producer)?
+                .remaining
+                .0,
+            1
+        );
         let mut cells = vec![];
         file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
             cells.extend_from_slice(row);
@@ -321,7 +330,9 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         reads_before_final,
         "the shared source is not reread for a cache hit, skipped consumer or refusing final consumer"
     );
-    let events = file.execution.take_producer_releases();
+    let events = file
+        .execution
+        .take_producer_releases(file.execution.file_state());
     assert_eq!(events.len(), if skipped_at_start { 2 } else { 4 });
     let mut live_before = 0;
     let mut weak = None;
@@ -370,7 +381,9 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     // must therefore release at their real invocation boundaries.
     assert_eq!(live_before, if skipped_at_start { 1 } else { 2 });
     let weak = weak.expect("actual healthy consumer held the equality backing");
-    let final_state = file.execution.retry_checkpoint(producer)?;
+    let final_state = file
+        .execution
+        .retry_checkpoint(file.execution.file_state(), producer)?;
     assert_eq!(final_state.attempt, AttemptCheckpoint::Terminal);
     assert_eq!(final_state.remaining.0, 0);
     assert_eq!(

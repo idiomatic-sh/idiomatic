@@ -164,6 +164,7 @@ impl AvailableInput {
 
 /// Private to the common invocation. A semantic kernel cannot import this trait.
 pub(super) trait Inputs {
+    fn population_scope(&self) -> super::super::relations::ProducerScope;
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
     fn dependency(
@@ -227,6 +228,13 @@ pub(super) trait Inputs {
     ) -> Result<(), OperatingError>;
 }
 impl AdmittedInput {
+    pub(in crate::application::file_dag::program) fn population(
+        &self,
+        owner: &Rc<RelationOwner>,
+    ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
+        self.publication(owner)?;
+        Ok(self.proof.population)
+    }
     /// Every admitted consumer uses the same physical-layout contract. A readable
     /// malformed provider is normalized once by its owner; complete native and
     /// compact populations remain borrowed in their original representation.
@@ -310,9 +318,6 @@ impl AdmittedInput {
     ) -> Result<Self, OperatingError> {
         let (population, _) = admitted.identity(&owner)?;
         let generation = admitted.generation_guard();
-        if let ProducerRoot::Region(region) = root {
-            owner.bind_producer(region, publication.as_ref())?;
-        }
 
         Ok(Self {
             proof: PopulationProof {

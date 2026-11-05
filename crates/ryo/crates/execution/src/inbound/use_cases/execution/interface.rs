@@ -112,7 +112,9 @@ pub trait ProjectExecution {
     ) -> Result<ProjectRuleOutcome, OperatingError>;
 }
 
+pub use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
 pub trait ProjectStage {
+    fn state_counts(&self) -> InvocationStateCounts;
     fn project_scope(
         &self,
         rule: RuleIndex,
