@@ -64,6 +64,15 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
         for forwarded in [false, true] {
             let mut symbols = Symbols::default();
+            let intents = [FileRuleIntent::Run {
+                diagnostic: if forwarded {
+                    DiagnosticDelivery::Forwarded
+                } else {
+                    DiagnosticDelivery::Collected
+                },
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::Disabled,
+            }];
             let mut file = request
                 .open_file(
                     FileInput {
@@ -72,15 +81,7 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
-                        intents: &[FileRuleIntent::Run {
-                            diagnostic: if forwarded {
-                                DiagnosticDelivery::Forwarded
-                            } else {
-                                DiagnosticDelivery::Collected
-                            },
-                            observations: ObservationDemand::NotRequired,
-                            capture: CaptureIntent::Disabled,
-                        }],
+                        intents: &intents,
                         source: b"abc",
                         elements: &elements,
                         read: &read,

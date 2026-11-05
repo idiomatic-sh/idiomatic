@@ -489,6 +489,15 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
         for delivery in [0, 1, 2] {
             let mut symbols = Symbols::default();
+            let intents = [FileRuleIntent::Run {
+                diagnostic: if delivery == 0 {
+                    DiagnosticDelivery::Collected
+                } else {
+                    DiagnosticDelivery::Forwarded
+                },
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::Disabled,
+            }];
             let mut file = request
                 .open_file(
                     FileInput {
@@ -497,15 +506,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
-                        intents: &[FileRuleIntent::Run {
-                            diagnostic: if delivery == 0 {
-                                DiagnosticDelivery::Collected
-                            } else {
-                                DiagnosticDelivery::Forwarded
-                            },
-                            observations: ObservationDemand::NotRequired,
-                            capture: CaptureIntent::Disabled,
-                        }],
+                        intents: &intents,
                         source: b"abc",
                         elements: &elements,
                         read: &read,

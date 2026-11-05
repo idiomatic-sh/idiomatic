@@ -52,6 +52,15 @@ fn semantic_failure_discards_every_after_success_row() {
                 Ok(SourceRows::Computed(&table))
             };
             let mut symbols = Symbols::default();
+            let intents = [FileRuleIntent::Run {
+                diagnostic: if forwarded {
+                    DiagnosticDelivery::Forwarded
+                } else {
+                    DiagnosticDelivery::Collected
+                },
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::Disabled,
+            }];
             let mut file = request
                 .open_file(
                     FileInput {
@@ -60,15 +69,7 @@ fn semantic_failure_discards_every_after_success_row() {
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
-                        intents: &[FileRuleIntent::Run {
-                            diagnostic: if forwarded {
-                                DiagnosticDelivery::Forwarded
-                            } else {
-                                DiagnosticDelivery::Collected
-                            },
-                            observations: ObservationDemand::NotRequired,
-                            capture: CaptureIntent::Disabled,
-                        }],
+                        intents: &intents,
                         source: b"abc",
                         elements: &elements,
                         read: &read,
@@ -120,6 +121,11 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
             Ok(SourceRows::Computed(&table))
         };
         let mut symbols = Symbols::default();
+        let intents = [FileRuleIntent::Run {
+            diagnostic,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        }];
         let mut file = request
             .open_file(
                 FileInput {
@@ -128,11 +134,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    intents: &[FileRuleIntent::Run {
-                        diagnostic,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    }],
+                    intents: &intents,
                     source: b"abc",
                     elements: &elements,
                     read: &read,
