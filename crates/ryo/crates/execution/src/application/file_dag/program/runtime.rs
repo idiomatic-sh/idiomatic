@@ -595,7 +595,9 @@ impl ProgramExecution {
             Delivery::Retain => &first.collected_demand,
             Delivery::Forward(_) => &first.streaming_demand,
         };
-        let after_success = program.actions().contains(&DemandAction::PublishAfterSuccess);
+        let after_success = program
+            .actions()
+            .contains(&DemandAction::PublishAfterSuccess);
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
             if !completion.allows_region(needs) {
                 let last = region
@@ -652,9 +654,6 @@ impl ProgramExecution {
                     &mut crate::domain::replay::types::Collect(&mut rows),
                 )?;
                 if matches!(outcome, StrategyOutcome::Executed) {
-                    output_kinds
-                        .as_ref()
-                        .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     completion.filter_rows(
                         region
                             .last_operation()
@@ -772,9 +771,6 @@ impl ProgramExecution {
                 self.record_column(shape, &counters)
                     .map_err(InvocationFailure::Semantic)?;
                 if matches!(outcome?, StrategyOutcome::Executed) {
-                    output_kinds
-                        .as_ref()
-                        .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     completion.filter_rows(
                         region
                             .last_operation()
@@ -983,7 +979,9 @@ impl ProgramExecution {
                 }
             }
             match delivery {
-                Delivery::Forward(output) if !region.publishes && !completion.requires_buffer() && !after_success => {
+                Delivery::Forward(output)
+                    if !region.publishes && !completion.requires_buffer() && !after_success =>
+                {
                     let mut output = GuardedOutput {
                         output,
                         error: None,
@@ -1042,7 +1040,9 @@ impl ProgramExecution {
                                 &mut output,
                             )?;
                         }
-                        Delivery::Forward(output) if completion.requires_buffer() || after_success => {
+                        Delivery::Forward(output)
+                            if completion.requires_buffer() || after_success =>
+                        {
                             let mut collect = crate::domain::replay::types::Collect(&mut rows);
                             continuation(
                                 &permit,
