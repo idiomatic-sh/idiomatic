@@ -377,3 +377,72 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     file.finish().unwrap();
     request.finish();
 }
+
+#[test]
+fn a_collected_frontier_does_not_consume_a_forwarded_diagnostics_error_prefix() {
+    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+    for capture_first in [true, false] {
+        let (engine, _) = engine();
+        let mut authored = authored_request(1);
+        authored.plans[0].steps[0].operation = Operation::Select {
+            from: Input::Relation(Relation::SyntaxTree),
+            comparisons: selection(Selector::DynamicRegex),
+            kept: vec![],
+        };
+        authored.plans[0].frontier = vec![Input::Step(StepId(0))];
+        let program = engine.prepare(authored).unwrap();
+        let corpus = corpus();
+        let request = engine.begin(&program, &corpus);
+        let (elements, mut symbols) = tree(FileId(0), b"ab(");
+        let intents = [FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Forwarded,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }];
+        let mut file = request
+            .open_file(
+                input(FileId(0), b"ab(", &elements, &intents, &no_catalog),
+                &mut symbols,
+            )
+            .unwrap();
+        for capture_now in [capture_first, !capture_first] {
+            if capture_now {
+                let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
+                let captured = file
+                    .capture_frontiers(
+                        RuleIndex(0),
+                        ryo_values::domain::stored_facts::types::Bucket(0),
+                        &mut symbols,
+                        CaptureContext {
+                            worker: WorkerNumber(0),
+                            arena: &mut arena,
+                            places: &mut places,
+                            words: &mut words,
+                        },
+                    )
+                    .unwrap();
+                assert_eq!(captured.len(), 1);
+                assert!(
+                    matches!(&captured[0].outcome, Err(error) if *error == regex_error("(")),
+                    "a prefix followed by failure is never a complete frontier"
+                );
+            } else {
+                let mut delivered = vec![];
+                let result = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+                    delivered.extend_from_slice(row);
+                    Ok(())
+                });
+                assert!(matches!(result, Err(error) if error == regex_error("(")));
+                assert_eq!(
+                    delivered,
+                    expected(FileId(0), &elements, &[1]).cells,
+                    "internal collection cannot discard the diagnostic's accepted prefix"
+                );
+            }
+        }
+        counts(&file, 1, 4);
+        assert_eq!(file.walk_counts().predicate_rows.0, 2);
+        file.finish().unwrap();
+        request.finish();
+    }
+}
