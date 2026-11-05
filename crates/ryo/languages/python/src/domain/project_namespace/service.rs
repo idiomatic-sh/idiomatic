@@ -136,12 +136,13 @@ fn classify(
             kinds.push(kind);
         }
     }
-    if kinds.is_empty() {
-        kinds.push(if unknown {
-            EntryKind::Unknown
-        } else {
-            EntryKind::Absent
-        });
+    // A positive observation does not complete the other search roots. Keep
+    // uncertainty alongside it so consumers cannot turn an unobserved possible
+    // module or package into a complete namespace-only answer.
+    if unknown {
+        kinds.push(EntryKind::Unknown);
+    } else if kinds.is_empty() {
+        kinds.push(EntryKind::Absent);
     }
     kinds
 }

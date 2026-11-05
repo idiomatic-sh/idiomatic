@@ -46,7 +46,12 @@ fn imported_root_membership_requires_complete_scope_or_positive_observation() {
     });
     assert_eq!(
         present.rows.iter().map(|row| row.state).collect::<Vec<_>>(),
-        vec![MembershipState::Present; 2]
+        vec![
+            MembershipState::Present,
+            MembershipState::Unknown,
+            MembershipState::Present,
+            MembershipState::Unknown,
+        ]
     );
 }
 
@@ -217,4 +222,37 @@ fn missing_or_conflicting_entry_cannot_prove_absence() {
     })
     .rows;
     assert_eq!(rows[0].state, MembershipState::Unknown);
+}
+
+#[test]
+fn positive_entries_keep_uncertainty_from_an_unobserved_search_root() {
+    let imported = [root(0, "acme")];
+    let search = [path("src"), path("lib")];
+    for (module, expected) in [(false, EntryKind::Namespace), (true, EntryKind::Module)] {
+        let rows = memberships(Some(&search), &imported, Vec::new(), |candidate, file| {
+            if candidate.0.starts_with("lib/") {
+                None
+            } else {
+                Some(match candidate.0.as_ref() {
+                    "src/acme.py" => module && file,
+                    "src/acme" => !module && !file,
+                    _ => false,
+                })
+            }
+        })
+        .rows;
+        assert_eq!(
+            rows.iter()
+                .map(|row| (row.kind, row.state))
+                .collect::<Vec<_>>(),
+            vec![
+                (expected, MembershipState::Present),
+                (EntryKind::Unknown, MembershipState::Unknown)
+            ]
+        );
+        assert!(
+            rows.iter()
+                .all(|row| row.file == FileId(0) && &*row.root == "acme" && &*row.path == "acme")
+        );
+    }
 }

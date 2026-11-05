@@ -386,3 +386,123 @@ fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
     assert!(resolved.derived.manifest_validation.files.is_empty());
     assert!(resolved.derived.manifest_validation.incomplete.is_empty());
 }
+
+#[test]
+fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() {
+    use crate::domain::project_namespace::{
+        constants::UNKNOWN_CONTEXT,
+        types::{EntryKind, MembershipState},
+    };
+    use languages::ManifestItem as _;
+    use ryo_language::domain::project_context::{
+        service::observed,
+        types::{EntryObservation, EntryState, ProjectSearchScope},
+    };
+    let contract = ProjectContract::new(
+        faked,
+        Arc::new(postcard()),
+        Arc::new(crate::outbound::module_context::factory::filesystem()),
+    );
+    for (module, directory, incomplete, expected) in [
+        (
+            false,
+            true,
+            true,
+            vec![EntryKind::Namespace, EntryKind::Unknown],
+        ),
+        (
+            true,
+            false,
+            true,
+            vec![EntryKind::Module, EntryKind::Unknown],
+        ),
+        (
+            true,
+            true,
+            false,
+            vec![EntryKind::Module, EntryKind::Namespace],
+        ),
+    ] {
+        let mut entries = Vec::new();
+        for search in ["src", "lib"] {
+            for name in [
+                "acme.py",
+                "acme.pyi",
+                "acme",
+                "acme/__init__.py",
+                "acme/__init__.pyi",
+            ] {
+                let state = if search == "lib" && incomplete {
+                    EntryState::Unknown
+                } else if search == "src" && name == "acme.py" && module {
+                    EntryState::File
+                } else if search == "src" && name == "acme" && directory {
+                    EntryState::Directory
+                } else {
+                    EntryState::Missing
+                };
+                entries.push(EntryObservation {
+                    path: languages::FilePath(format!("{search}/{name}").into()),
+                    state,
+                });
+            }
+        }
+        let request = languages::ProjectRequest {
+            search_scope: ProjectSearchScope::Declared(vec![
+                languages::FilePath("src".into()),
+                languages::FilePath("lib".into()),
+            ]),
+            given_inventory: Default::default(),
+            observed_entries: observed(entries),
+            repository: languages::Repository::Given,
+            root: languages::RootPath("".into()),
+            files: vec![languages::FilePath("source.py".into())],
+            manifests: vec![],
+            notes: vec![notes_of("source.py", "import acme\n")],
+            wanted: vec![languages::Relation::ProjectNamespaceMembership],
+        };
+        let resolved = contract
+            .resolve(&request)
+            .expect("observed project namespace");
+        assert!(resolved.refused.is_empty());
+        assert_eq!(
+            resolved
+                .derived
+                .namespace_memberships
+                .rows
+                .iter()
+                .map(|row| row.kind)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        let positives = resolved
+            .derived
+            .namespace_memberships
+            .rows
+            .iter()
+            .filter(|row| row.kind != EntryKind::Unknown)
+            .collect::<Vec<_>>();
+        assert!(!positives.is_empty());
+        assert!(
+            positives
+                .iter()
+                .all(|row| row.state == MembershipState::Present)
+        );
+        let mut output = ReaderOutcome::default();
+        let mut symbols = languages::Symbols::default();
+        let input = languages::ManifestInput {
+            request: &request,
+            derived: &resolved.derived,
+        };
+        (crate::domain::manifests::collections::manifests::project_namespace_membership::item::ProjectNamespaceMembershipItem::READER.read)(&input, &mut symbols, &mut output);
+        assert_eq!(output.rows, expected.len());
+        assert_eq!(
+            output.partial,
+            if incomplete {
+                vec![UNKNOWN_CONTEXT.to_owned()]
+            } else {
+                vec![]
+            }
+        );
+    }
+}
