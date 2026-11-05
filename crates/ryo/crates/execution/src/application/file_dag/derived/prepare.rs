@@ -14,8 +14,12 @@ pub(crate) fn operator(
     bindings: &[ParameterBinding],
 ) -> Result<OperatorContract, OperatingError> {
     let mut contract = item.prepare(operation, schemas, bindings)?;
-    super::request::RequestViews::new(crate::outbound::derived::factory::test_port())
-        .bind(&mut contract)?;
+    super::request::RequestViews::new(
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    )
+    .bind(&mut contract)?;
     Ok(contract)
 }
 

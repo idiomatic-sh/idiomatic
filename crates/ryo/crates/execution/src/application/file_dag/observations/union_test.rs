@@ -165,9 +165,9 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
     )
     .expect("prepared named request");
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-        )),
+        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,

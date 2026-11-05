@@ -12,8 +12,12 @@ fn prepare_cycles(
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<super::derived::view::AcquiredView, OperatingError> {
-    let owner =
-        super::relations::RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let owner = super::relations::RelationOwner::new(
+        true,
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let BorrowedRows::Computed(table) = input else {
         panic!("computed fixture")
     };
@@ -50,7 +54,9 @@ fn prepare_closure(
 ) -> Result<Vec<super::derived::view::AcquiredView>, OperatingError> {
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
         true,
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ));
     let BorrowedRows::Computed(table) = input else {
         return Err(OperatingError::WrongOperation);

@@ -2,7 +2,12 @@
 use super::*;
 #[test]
 fn many_selected_consumers_reacquire_one_generation_proof() {
-    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let owner = RelationOwner::new(
+        true,
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let relation = Relation::FilesystemLineCount;
     let schema = kinds(relation);
     let physical = columns(schema);

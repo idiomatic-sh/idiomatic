@@ -138,9 +138,9 @@ fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingErro
         ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-        )),
+        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -295,9 +295,9 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
         ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-        )),
+        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,

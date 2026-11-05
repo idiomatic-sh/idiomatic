@@ -221,9 +221,9 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
-    let engine = Arc::new(CommonOperatorEngine::new(
-        crate::outbound::operators::factory::test_port(),
-    ));
+    let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+    )));
     let services = Arc::new(ProgramServices::new(
         engine,
         derived,
@@ -345,3 +345,7 @@ mod replay_test;
 mod scratch_owner_test;
 
 mod execution_boundary_test;
+
+use crate::application::file_dag::program::facade;
+
+mod independent_roots_test;

@@ -94,7 +94,11 @@ fn subject(case: Input) -> Result<Value, Failure> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
-    let engine = CommonOperatorEngine::new(crate::outbound::operators::factory::test_port());
+    let engine = CommonOperatorEngine::new(
+        (std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
+    );
     let corpus = ["a", "b"].map(|path| {
         CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -292,3 +296,8 @@ fn refuses() {
 }
 
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
+
+use crate::application::file_dag::program::facade_runtime::{
+    open_program_owner, required_partitions,
+};
+use crate::domain::table_model::service::count_of;

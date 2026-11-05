@@ -12,7 +12,11 @@ fn kinds() -> Vec<Vec<CellKind>> {
 
 #[test]
 fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
-    let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
+    let mut views = RequestViews::new(
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let program = ResourceProgram::Index {
         input: 1,
         columns: IndexColumns::Whole,
@@ -44,7 +48,11 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
 
 #[test]
 fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
-    let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
+    let mut views = RequestViews::new(
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let kinds = kinds();
     let join = ResourceProgram::Join(JoinResources {
         output: vec![],
@@ -114,7 +122,11 @@ fn family_slots_hold_compact_shared_binding_handles() {
         size_of::<DerivedSlots>(),
         2 * DerivedKind::ALL.len() * size_of::<usize>()
     );
-    let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
+    let mut views = RequestViews::new(
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let schema = kinds();
     let first = views
         .bind_mode(

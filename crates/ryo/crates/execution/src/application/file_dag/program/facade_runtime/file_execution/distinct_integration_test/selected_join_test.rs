@@ -106,9 +106,9 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
         "RHS must use the actual compiled stored selection"
     );
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-        )),
+        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,

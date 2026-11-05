@@ -132,7 +132,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let on = [ColumnIndex(0)];
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::outbound::derived::factory::test_port(),
+            crate::application::file_dag::testing::program_derived_port(),
             &ViewRequest::Equality {
                 columns: on.to_vec(),
             },
@@ -146,7 +146,10 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let state = capture(|| {
         let _rule = rule(2, "query-two");
         let _node = node(41);
-        let owner = DerivedOwner::new(1, crate::outbound::derived::factory::test_port());
+        let owner = DerivedOwner::new(
+            1,
+            crate::application::file_dag::testing::program_derived_port(),
+        );
         let held = owner
             .acquire_stored(
                 &plan,
@@ -158,7 +161,10 @@ fn owner_routes_count_each_physical_equality_build_once() {
             )
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
-        let selector_owner = DerivedOwner::new(1, crate::outbound::derived::factory::test_port());
+        let selector_owner = DerivedOwner::new(
+            1,
+            crate::application::file_dag::testing::program_derived_port(),
+        );
         let first = selector_owner
             .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,

@@ -265,7 +265,9 @@ fn a_single_emitted_step_is_residual_not_a_dag_cut() {
             assert_eq!(asked, relation);
             stored_kinds(&case.inputs[0])
         },
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
@@ -333,7 +335,10 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 std::slice::from_ref(&case.bindings),
                 &hosted,
                 &kinds,
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )
             .unwrap();
             let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
@@ -426,7 +431,10 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 std::slice::from_ref(&case.bindings),
                 &[],
                 &relation_kinds,
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )
             .unwrap();
             let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
@@ -672,7 +680,9 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let port = crate::outbound::derived::factory::test_port();
+    let port = (std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = RequestOperators::prepare_with_schemas(
         std::slice::from_ref(&plan),
         &[vec![]],

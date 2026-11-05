@@ -56,7 +56,11 @@ impl OperatorsPort for ContinuesAfterSetFailure {
                 }
                 Ok(OperatorAnswer::Written)
             }
-            other => crate::outbound::operators::factory::test_port().operators(other),
+            other => (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>)
+                .operators(other),
         }
     }
 }

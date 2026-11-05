@@ -259,9 +259,9 @@ fn raw_order() -> (
     use ryo_derived::domain::contract::types::{
         BuildOutcome, BuildWorkspace, DerivedInputs, ViewRequest,
     };
-    let port = std::sync::Arc::new(
+    let port = (std::sync::Arc::new(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    );
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = port.prepare(ViewRequest::RawKeyOrder { stride: 2 }, Vec::new());
     let BuildOutcome::Built(payload) = port
         .build(
@@ -315,9 +315,9 @@ pub(crate) fn prepared_payload(
     use ryo_derived::domain::contract::types::{
         BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs,
     };
-    let port = std::sync::Arc::new(
+    let port = (std::sync::Arc::new(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    );
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = port.prepare(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
@@ -362,9 +362,9 @@ pub(crate) fn prepared_order(
         keys: columns.to_vec(),
     };
     let payload = prepared_payload(request.clone(), rows)?;
-    let port = std::sync::Arc::new(
+    let port = (std::sync::Arc::new(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    );
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let plan = port.prepare(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],

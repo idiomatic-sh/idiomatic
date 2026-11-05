@@ -20,7 +20,9 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::CycleAdjacency {
                 source: ColumnIndex(0),
                 destination: ColumnIndex(1),
@@ -34,7 +36,9 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let owner = crate::application::file_dag::relations::RelationOwner::new(
         true,
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone()).unwrap();
     let held = owner
@@ -72,7 +76,9 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let equality = Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },

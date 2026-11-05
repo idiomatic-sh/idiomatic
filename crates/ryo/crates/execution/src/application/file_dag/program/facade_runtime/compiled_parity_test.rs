@@ -354,9 +354,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             "the non-tree RHS must decline native-position installation"
         );
     }
-    let engine = Arc::new(CommonOperatorEngine::new(
-        crate::outbound::operators::factory::test_port(),
-    ));
+    let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+    )));
     let services = Arc::new(ProgramServices::new(
         engine,
         derived,

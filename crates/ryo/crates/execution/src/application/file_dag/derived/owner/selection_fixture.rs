@@ -70,7 +70,9 @@ impl SelectionFixture {
     ) -> Result<Self, OperatingError> {
         let owner = Rc::new(RelationOwner::new(
             true,
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
         let mut cache = super::super::indexes::new(wanted, partials, super::super::indexes::LIMIT)
             .ok_or(OperatingError::ShapeMismatch)?;
@@ -78,7 +80,9 @@ impl SelectionFixture {
         let prepared = super::super::selection::prepare_views_with_schemas(
             authored,
             &|_| kinds,
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         )?;
         super::super::selection::install_views(&mut cache, prepared);
         super::super::indexes::candidate_columns(&mut cache);

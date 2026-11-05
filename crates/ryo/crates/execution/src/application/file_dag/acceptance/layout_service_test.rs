@@ -112,7 +112,7 @@ fn prepared(plan: Plan) -> Result<Arc<facade::PreparedProgram>, OperatingError> 
         &[rule],
         &[Digest([0; 16])],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
         ObservationIdentity::Independent,
     )
 }
@@ -124,7 +124,7 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
         &plans,
         &[vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -153,7 +153,7 @@ fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
         &plans,
         &[vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -214,7 +214,7 @@ fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows(
         &[vec![]],
         &[],
         &|_| &[CellKind::Symbol, CellKind::File],
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -267,7 +267,7 @@ fn preparation_keeps_ordered_relation_dependencies_without_probing_availability(
         &[vec![]],
         &[],
         &metadata,
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -307,7 +307,7 @@ fn empty_native_frontier_has_the_deep_walk_schema_before_any_file_is_read() {
         &plans,
         &[vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -366,7 +366,7 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
         &[vec![]],
         &[],
         &metadata,
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
     let prepared_kinds = operators.rules[0][1]

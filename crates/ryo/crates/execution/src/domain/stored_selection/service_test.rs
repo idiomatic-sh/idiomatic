@@ -10,9 +10,9 @@ fn representatives(
     columns: &[ColumnIndex],
     positions: &[u32],
 ) -> Result<Vec<u32>, DerivedFault> {
-    let port = std::sync::Arc::new(
+    let port = (std::sync::Arc::new(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    );
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let plan = port.prepare(
         ViewRequest::DistinctRepresentatives {
             columns: columns.to_vec(),

@@ -102,7 +102,9 @@ fn found(
     right_on: &[ColumnIndex],
     view: &[ColumnIndex],
 ) -> Option<Finding> {
-    let semantics = crate::outbound::derived::factory::test_port();
+    let semantics = (std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let native = ryo_relations::domain::relations::service::kinds(match form {
         TreeForm::Elements => ryo_relations::domain::relations::types::Relation::SyntaxTree,
         TreeForm::Edges => ryo_relations::domain::relations::types::Relation::SyntaxChild,

@@ -15,7 +15,9 @@ const REFUSAL: u32 = 60001;
 fn feed_owner() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
     std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         true,
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ))
 }
 fn stream_with_port(
@@ -98,10 +100,17 @@ impl OperatorsPort for Refuses {
             if self.refuse && (!self.only_columns || columnar) {
                 return Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL });
             }
-            crate::outbound::operators::factory::test_port()
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>)
                 .operators(OperatorCall::EqualityJoin { input })
         } else {
-            crate::outbound::operators::factory::test_port().operators(call)
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>)
+                .operators(call)
         }
     }
 }
@@ -401,7 +410,11 @@ impl OperatorsPort for KeepsCalling {
             // The original delivery failure must win even over dishonest success.
             Ok(OperatorAnswer::Written)
         } else {
-            crate::outbound::operators::factory::test_port().operators(call)
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>)
+                .operators(call)
         }
     }
 }
@@ -600,7 +613,12 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         comparison_origins: vec![],
     };
     let port = Refuses::default();
-    let engine = CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port());
+    let engine = CommonOperatorEngine::new(
+        &port,
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let request = crate::domain::operator::contract::types::RequestOperators::prepare(
         std::slice::from_ref(&plan),
         &[vec![]],
@@ -827,7 +845,9 @@ fn native_provenance_join_keeps_right_first_refusal_and_empty_left_order() {
         &operation,
         &[Rows::Computed(&empty), Rows::Computed(&nonempty)],
     );
-    let port = crate::outbound::operators::factory::test_port();
+    let port = (std::sync::Arc::new(
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+    ) as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>);
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
     let mut memo = vec![];
@@ -900,7 +920,10 @@ impl Emit for NestedOutput {
         };
         let mut nested = CollectedRows::default();
         stream_with_port(
-            crate::outbound::operators::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
             &contract,
             &mut feed,
             context,
@@ -948,7 +971,10 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
     };
     assert!(matches!(
         stream_with_port(
-            crate::outbound::operators::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
             &contract,
             &mut feed,
             &mut ctx,
@@ -973,7 +999,9 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
         right_fails: false,
     };
     stream_with_port(
-        crate::outbound::operators::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
         &contract,
         &mut feed,
         &mut ctx,

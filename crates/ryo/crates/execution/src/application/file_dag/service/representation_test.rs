@@ -134,7 +134,11 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
                     &[vec![], vec![]],
                     &[],
                     &|_| crate::domain::table_model::service::kinds_of(&input),
-                    crate::outbound::derived::factory::test_port(),
+                    (std::sync::Arc::new(
+                        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(
+                        ),
+                    )
+                        as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
                 )
                 .unwrap();
             let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
@@ -226,7 +230,9 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
             &[vec![]],
             &[],
             &ryo_relations::domain::relations::service::kinds,
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         )
         .unwrap();
     let graph = Arc::new(crate::domain::file_program::service::compile_prepared(

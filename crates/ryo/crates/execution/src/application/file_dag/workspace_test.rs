@@ -71,7 +71,10 @@ fn use_(
     PreparedViewUse {
         plan: {
             let plan = crate::application::file_dag::derived::prepare::view(
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
                 &request,
                 &schemas,
             )
@@ -349,7 +352,9 @@ use ryo_derived::domain::contract::types::DerivedKind;
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         true,
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ))
 }
 

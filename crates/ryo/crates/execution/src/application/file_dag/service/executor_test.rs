@@ -112,7 +112,10 @@ fn streamed_count_left_and_held_count_right_join_under_one_owner() {
                 &[vec![]],
                 &[],
                 &ryo_relations::domain::relations::service::kinds,
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )
             .unwrap();
         let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
@@ -164,7 +167,9 @@ struct CountingExecutor {
 }
 impl PrimitiveExecutor for CountingExecutor {
     fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        crate::outbound::derived::factory::test_port()
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>)
     }
     fn native_classes(
         &self,
@@ -315,7 +320,9 @@ fn dag_root_and_recursive_child_use_injected_executor() {
             &[vec![]],
             &[],
             &ryo_relations::domain::relations::service::kinds,
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         )
         .unwrap();
     let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
@@ -485,7 +492,9 @@ fn native_batch_refusal_cannot_publish_classes_or_nodes() {
         &plans,
         &bindings,
         &[],
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .unwrap();
     let graph = Arc::new(crate::domain::file_program::service::compile_prepared(

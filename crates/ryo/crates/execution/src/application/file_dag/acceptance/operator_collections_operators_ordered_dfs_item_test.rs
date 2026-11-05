@@ -433,7 +433,9 @@ fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<us
     }
     let table = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
     let roots = numbers(1, &[&[1]]);
-    let semantics = crate::outbound::derived::factory::test_port();
+    let semantics = (std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         ViewRequest::OrderedDfs {
             root: column(0),
@@ -799,7 +801,10 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
         &mut Held {
             owner: std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
                 true,
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )),
             tables: [&roots, &edges],
         },

@@ -200,7 +200,9 @@ pub(crate) fn compile(plans: &[Plan]) -> crate::domain::file_program::types::Req
         plans,
         &bindings,
         &[],
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .expect("fixture request metadata");
     crate::domain::file_program::service::compile_prepared(plans, &request)

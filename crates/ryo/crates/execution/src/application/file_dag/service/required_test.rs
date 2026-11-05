@@ -69,7 +69,9 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
             std::slice::from_ref(&plan),
             &[vec![]],
             &[],
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         )
         .unwrap();
         let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &operators));
@@ -188,7 +190,9 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
         std::slice::from_ref(&plan),
         &[vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &ops));
@@ -345,7 +349,9 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
         &[vec![]],
         &[],
         &|_| &[CellKind::Span],
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &ops));

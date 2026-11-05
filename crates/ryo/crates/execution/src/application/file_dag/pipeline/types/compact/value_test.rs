@@ -171,7 +171,9 @@ fn subject_with_counting(
                 |view| view.kinds,
             )
         },
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
     prepare_request(&mut prepared, &request);
     assert_eq!(

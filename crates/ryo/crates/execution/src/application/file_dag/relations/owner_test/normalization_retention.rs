@@ -3,7 +3,12 @@ use super::*;
 
 #[test]
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
-    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let owner = RelationOwner::new(
+        true,
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
     let mut physical = columns(schema);

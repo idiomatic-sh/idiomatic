@@ -109,8 +109,13 @@ mod tests {
                 column: number,
             }],
         };
-        let owner =
-            RelationOwner::for_request(true, 64, crate::outbound::derived::factory::test_port());
+        let owner = RelationOwner::for_request(
+            true,
+            64,
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        );
         let publication = owner.source_borrowed(relation, rows).unwrap();
         owner
             .bind_producer(RegionId(7), publication.as_ref())

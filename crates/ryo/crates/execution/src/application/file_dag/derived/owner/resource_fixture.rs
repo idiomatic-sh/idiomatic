@@ -31,7 +31,9 @@ impl ResourceFixture {
     pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
             true,
-            crate::outbound::derived::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
         owner.derived.prepare_file(
             true,
@@ -62,7 +64,10 @@ impl ResourceFixture {
         out: &mut Table,
     ) -> Result<(), OperatingError> {
         self.collect_with(
-            crate::outbound::operators::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
             operation,
             inputs,
             context,
@@ -304,7 +309,10 @@ impl ResourceFixture {
             owner: Rc::clone(&self.owner),
         };
         let engine = CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
+            (std::sync::Arc::new(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )
+                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
             self.owner.derived.semantic_port(),
         );
         crate::application::file_dag::executor::ScopedExecutor::new(

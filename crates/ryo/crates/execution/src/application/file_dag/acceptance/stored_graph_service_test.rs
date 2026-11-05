@@ -63,7 +63,9 @@ fn build(
     // The portable request carries the actual endpoints and keys. The old
     // GraphIdentity belongs to the former local builder and is not an input
     // to this port; invalid columns must be refused by the port itself.
-    let semantics = crate::outbound::derived::factory::test_port();
+    let semantics = (std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         ViewRequest::Adjacency {
             endpoints,

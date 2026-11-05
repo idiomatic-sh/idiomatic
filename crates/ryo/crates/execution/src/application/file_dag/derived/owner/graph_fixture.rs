@@ -68,7 +68,10 @@ impl GraphFixture {
             owner: Rc::new(RelationOwner::for_request(
                 stable,
                 max_views,
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )),
             wanted: wanted.to_vec(),
             partials: partials.to_vec(),
@@ -156,7 +159,10 @@ impl GraphFixture {
     ) -> Arc<DerivedContract> {
         Arc::new(
             super::super::prepare::view(
-                crate::outbound::derived::factory::test_port(),
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
                 &request,
                 &[InputShape {
                     kinds: kinds_of(rows),

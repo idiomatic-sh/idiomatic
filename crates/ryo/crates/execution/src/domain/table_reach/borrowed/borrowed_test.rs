@@ -45,9 +45,9 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
             .flat_map(|row| row.iter().copied().map(number))
             .collect(),
     };
-    let port = std::sync::Arc::new(
+    let port = (std::sync::Arc::new(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    );
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = port.prepare(
         ViewRequest::Equality {
             columns: vec![ColumnIndex(0)],

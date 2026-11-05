@@ -33,9 +33,9 @@ fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-        )),
+        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -179,9 +179,9 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-        )),
+        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -276,4 +276,201 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
         }),
     });
     assert!(matches!(source(rows), Err(OperatingError::ShapeMismatch)));
+}
+
+fn output_requests(
+    counts: &[usize],
+    bad_first: bool,
+) -> (Arc<facade::PreparedProgram>, Arc<ProgramServices>) {
+    use ryo_values::domain::hosted::types::{
+        HostColumn, HostColumnName, HostName, HostRelation, HostRow,
+    };
+    let hosts = counts
+        .iter()
+        .enumerate()
+        .map(|(index, count)| HostRelation {
+            name: HostName(format!("output-{index}").into()),
+            columns: vec![HostColumn {
+                name: HostColumnName("value".into()),
+                kind: HostKind::Number,
+            }],
+            rows: (0..*count)
+                .map(|_| HostRow(vec![HostedCell::Number(Integer(7))]))
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    let plans = counts
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            let mut plan = plan(Scenario::ProjectRetry);
+            plan.steps[0].operation = Operation::Hosted {
+                relation: HostedNumber(index as u32),
+            };
+            plan.steps[1].operation = Operation::Project {
+                from: PlanInput::Step(StepId(0)),
+                columns: vec![ColumnIndex(if bad_first && index == 0 { 99 } else { 0 })],
+                distinct: RepeatedRows::Kept,
+            };
+            plan
+        })
+        .collect();
+    let rules = counts
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            let mut rule = rule();
+            rule.id = RuleId(format!("output-{index}").into());
+            rule
+        })
+        .collect::<Vec<_>>();
+    let derived = crate::application::file_dag::testing::program_derived_port();
+    let prepared = facade::prepare(
+        Compiled {
+            schedule: RuleSchedule::Independent,
+            observations: vec![vec![]; counts.len()],
+            plans,
+            bindings: vec![vec![]; counts.len()],
+        },
+        &rules,
+        &vec![Digest([0; 16]); counts.len()],
+        &hosts,
+        Arc::clone(&derived),
+        ObservationIdentity::Independent,
+    )
+    .unwrap();
+    let services = Arc::new(ProgramServices::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
+        derived,
+        &[CorpusInput::Available(CorpusEntry {
+            executable: ExecutablePermission::Unknown,
+            path: FilePath("owned-outputs.py".into()),
+            size: FileSize(0),
+            modified: Nanoseconds(0),
+        })],
+    ));
+    (prepared, services)
+}
+#[test]
+fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
+    let counts = [4096, 1, 0, 3];
+    let (prepared, services) = output_requests(&counts, false);
+    let mut symbols = Symbols::default();
+    let mut file = open_file(
+        &prepared,
+        FileId(0),
+        ScopePartials::File {
+            evaluation: &[],
+            publication: &[],
+        },
+        &[true; 4],
+        services,
+        b"",
+        true,
+        &mut symbols,
+        None,
+        None,
+    )
+    .unwrap();
+    let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
+    let mut outputs = Vec::new();
+    for (index, &count) in counts.iter().enumerate() {
+        let outcome = file
+            .rule(
+                RuleIndex(index),
+                RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                &read,
+                &mut symbols,
+            )
+            .unwrap();
+        let RootOutcome::Complete(table) = outcome.emit else {
+            panic!("owned output required")
+        };
+        assert_eq!(
+            table.kinds,
+            [CellKind::Number],
+            "empty outputs retain the actual prepared schema"
+        );
+        assert_eq!(table.count.0, count);
+        assert_eq!(table.cells, vec![Cell::Number(Integer(7)); count]);
+        outputs.push(table);
+    }
+    let pointers = outputs
+        .iter()
+        .map(|table| table.cells.as_ptr())
+        .collect::<Vec<_>>();
+    file.finish().unwrap();
+    for ((table, &count), pointer) in outputs.iter().zip(&counts).zip(pointers) {
+        assert_eq!(table.count.0, count);
+        assert_eq!(table.kinds, [CellKind::Number]);
+        assert_eq!(table.cells, vec![Cell::Number(Integer(7)); count]);
+        assert_eq!(
+            table.cells.as_ptr(),
+            pointer,
+            "the returned table keeps its own allocation after actual owner finish"
+        );
+    }
+}
+#[test]
+fn evaluation_errors_do_not_leave_mutable_state_in_the_next_rule() {
+    let (prepared, services) = output_requests(&[2, 2], true);
+    let mut symbols = Symbols::default();
+    let mut file = open_file(
+        &prepared,
+        FileId(0),
+        ScopePartials::File {
+            evaluation: &[],
+            publication: &[],
+        },
+        &[true; 2],
+        services,
+        b"",
+        true,
+        &mut symbols,
+        None,
+        None,
+    )
+    .unwrap();
+    let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
+    let demand = || RuleDemand {
+        emit: EmitDemand::Enabled,
+        observations: ObservationDemand::NotRequired,
+    };
+    let failed = file
+        .rule(RuleIndex(0), demand(), &read, &mut symbols)
+        .unwrap();
+    assert!(matches!(
+        failed.emit,
+        RootOutcome::Failed(OperatingError::Table(
+            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
+        ))
+    ));
+    let next = file
+        .rule(RuleIndex(1), demand(), &read, &mut symbols)
+        .unwrap();
+    let RootOutcome::Complete(table) = next.emit else {
+        panic!("independent next rule must complete")
+    };
+    assert_eq!(table.count.0, 2);
+    assert_eq!(table.kinds, [CellKind::Number]);
+    assert_eq!(table.cells, [Cell::Number(Integer(7)); 2]);
+    let repeated = file
+        .rule(RuleIndex(0), demand(), &read, &mut symbols)
+        .unwrap();
+    assert!(
+        matches!(
+            repeated.emit,
+            RootOutcome::Failed(OperatingError::Table(
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
+            ))
+        ),
+        "the earlier failure remains exact after a later successful invocation"
+    );
+    file.finish().unwrap();
+    assert_eq!(table.cells, [Cell::Number(Integer(7)); 2]);
 }

@@ -122,7 +122,9 @@ fn run<'f>(
         symbols,
         partial,
         strategy,
-        crate::outbound::operators::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
     )
 }
 fn run_with_port<'f>(
@@ -139,7 +141,9 @@ fn run_with_port<'f>(
         kernel_strategy: strategy,
         ..PreparedPool::default()
     };
-    let derived = crate::outbound::derived::factory::test_port();
+    let derived = (std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
         std::slice::from_ref(plan),
         &[vec![]],

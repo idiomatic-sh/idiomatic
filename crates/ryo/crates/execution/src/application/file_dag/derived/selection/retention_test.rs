@@ -174,7 +174,9 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let proof = owner.admit(publication.as_ref(), rows)?;
     let (population, _) = proof.identity(owner)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PredicateMatches(selector),
         &[InputShape {
             kinds: &[],
@@ -284,7 +286,9 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
     let views = super::prepare_views_with_schemas(
         [(selector).clone()],
         &|_| &[CellKind::Number; 3],
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
     let plans = &views.by_selector[&(Arc::as_ptr(&selector) as usize)].equalities;
     assert_eq!(plans.len(), 2);
@@ -326,20 +330,29 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         tree: None,
     }];
     let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::DistinctRepresentatives {
             columns: vec![ColumnIndex(0)],
         },
         &schema,
     )?);
     let order = Arc::new(crate::application::file_dag::derived::prepare::view(
-        crate::outbound::derived::factory::test_port(),
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
         },
         &schema,
     )?);
-    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let owner = RelationOwner::new(
+        true,
+        (std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+    );
     let publication = owner.computed(table.clone())?;
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let rows = BorrowedRows::from(&held);
