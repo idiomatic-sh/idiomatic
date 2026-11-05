@@ -685,13 +685,30 @@ pub(crate) fn prepare(
             let outputs = metadata
                 .observations
                 .iter()
-                .map(|root| (root.source.clone(), root.phase))
+                .map(|root| {
+                    crate::domain::executable_program::file_demand::types::ObservationDemandSource {
+                        source: root.source.clone(),
+                        phase: root.phase,
+                    }
+                })
+                .collect::<Vec<_>>();
+            let frontiers = metadata
+                .observation_frontiers
+                .iter()
+                .map(|observed| {
+                    use crate::domain::executable_program::file_demand::types::FrontierPurpose;
+                    if *observed {
+                        FrontierPurpose::Observation
+                    } else {
+                        FrontierPurpose::Diagnostic
+                    }
+                })
                 .collect::<Vec<_>>();
             crate::domain::executable_program::file_demand::service::compile(
                 &program,
                 RuleIndex(rule),
                 &outputs,
-                &metadata.observation_frontiers,
+                &frontiers,
             )
         })
         .collect::<Result<Vec<_>, _>>()?

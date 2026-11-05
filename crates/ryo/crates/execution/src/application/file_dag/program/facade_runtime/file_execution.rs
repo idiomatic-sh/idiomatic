@@ -96,8 +96,8 @@ pub(crate) fn open_file<'a>(
 impl FileRun<'_> {
     /// Bind selected external readers before a source or native walk is admitted.
     fn bind_intents(&mut self) -> Result<Vec<RuleIndex>, OperatingError> {
-        use crate::domain::executable_program::file_demand::{
-            service::mode, types::FileRoot as DemandRoot,
+        use crate::domain::executable_program::file_demand::types::{
+            FileDemand, FileRootDemand as DemandRoot, FrontierSelection, RootSelection,
         };
         let ScopePartials::File { publication, .. } = &self.partials else {
             return Err(OperatingError::WrongOperation);
@@ -113,32 +113,40 @@ impl FileRun<'_> {
                     diagnostic,
                     observations,
                     capture,
-                } => mode(
-                    diagnostic != DiagnosticDelivery::Disabled,
-                    observations == ObservationDemand::Required,
-                    match capture {
-                        CaptureIntent::Disabled => 0,
-                        CaptureIntent::Observations => 1,
-                        CaptureIntent::DiagnosticAndObservations => 2,
+                } => FileDemand {
+                    diagnostic: match diagnostic {
+                        DiagnosticDelivery::Disabled => RootSelection::Undemanded,
+                        DiagnosticDelivery::Collected | DiagnosticDelivery::Forwarded => {
+                            RootSelection::Required
+                        }
                     },
-                ),
-                _ => 0,
+                    observations: match observations {
+                        ObservationDemand::NotRequired => RootSelection::Undemanded,
+                        ObservationDemand::Required => RootSelection::Required,
+                    },
+                    capture: match capture {
+                        CaptureIntent::Disabled => FrontierSelection::Disabled,
+                        CaptureIntent::Observations => FrontierSelection::Observations,
+                        CaptureIntent::DiagnosticAndObservations => FrontierSelection::All,
+                    },
+                },
+                _ => FileDemand::NONE,
             };
-            if selected != 0 {
+            if selected != FileDemand::NONE {
                 demanded.push(rule);
             }
-            let plan = &compiled.modes[selected];
+            let plan = compiled.selected(selected);
             readers.extend_from_slice(&plan.readers);
-            if (selected != 0
+            if (selected != FileDemand::NONE
                 || matches!(
                     intent,
                     FileRuleIntent::Skipped(_) | FileRuleIntent::Refused(_)
                 ))
-                && compiled.outputs != 0
+                && compiled.outputs.0 != 0
             {
                 self.roots.insert(
                     index,
-                    (0..compiled.outputs)
+                    (0..compiled.outputs.0)
                         .map(|_| FileRoot {
                             readiness: None,
                             committed_frontier: false,
@@ -149,16 +157,20 @@ impl FileRun<'_> {
                 );
             }
             for &output in &plan.observations {
-                let root = &self.program.rule_metadata(rule)?.observations[output];
+                let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
                 let ready = crate::domain::trust::service::blocked(&root.reads, publication)
                     == crate::domain::trust::types::Blocking::Free;
-                self.prepared_named.push((index, output, ready));
+                self.prepared_named.push((index, output.0 as usize, ready));
             }
             for root in &plan.roots {
                 let id = match root {
+                    // Deferred source faults stay in compiled metadata; admission
+                    // of the diagnostic/named/frontier root reports them on demand.
+                    DemandRoot::Deferred(_error) => continue,
                     DemandRoot::Ordinary(id) => *id,
                     DemandRoot::Observation { region, output } => {
-                        let root = &self.program.rule_metadata(rule)?.observations[*output];
+                        let root =
+                            &self.program.rule_metadata(rule)?.observations[output.0 as usize];
                         if crate::domain::trust::service::blocked(&root.reads, publication)
                             != crate::domain::trust::types::Blocking::Free
                         {
@@ -276,7 +288,7 @@ impl FileRun<'_> {
         let mut named = Vec::new();
         for &(index, output, ready) in &self.prepared_named {
             let rule = RuleIndex(index);
-            let root = &self.program.rule_metadata(rule)?.observations[output];
+            let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
             sources.bind_rule(rule);
             let result = if ready {
                 root.source.clone().and_then(|source| {
@@ -472,7 +484,7 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
-    ) -> Result<Vec<FrontierCapture>, OperatingError> {
+    ) -> Result<Vec<FrontierSelection>, OperatingError> {
         let (_, _, capture_intent) = self.declared(rule)?;
         if capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);
@@ -589,7 +601,7 @@ impl FileRun<'_> {
                     words: packed,
                 })
             })();
-            captures.push(FrontierCapture { input, outcome });
+            captures.push(FrontierSelection { input, outcome });
         }
         Ok(captures)
     }

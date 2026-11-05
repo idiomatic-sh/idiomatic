@@ -116,13 +116,13 @@ pub(crate) struct RuleProgram {
 #[derive(Debug)]
 pub(crate) struct ExecutableProgram {
     pub(super) regions: Box<[Region]>,
-    pub(super) file_readers: super::file_demand::types::FileReaderGraph,
+    pub(super) file_readers: FileReaderGraph,
     pub(super) rules: Box<[RuleProgram]>,
     pub(super) logical_regions: Box<[RegionId]>,
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
 }
 impl ExecutableProgram {
-    pub(crate) fn file_readers(&self) -> &super::file_demand::types::FileReaderGraph {
+    pub(crate) fn file_readers(&self) -> &FileReaderGraph {
         &self.file_readers
     }
     /// The prepared physical phase of an original frontier root. No file or
@@ -222,4 +222,22 @@ impl Region {
             .map(|instruction| &instruction.operation)
             .ok_or(OperatingError::NotRun)
     }
+}
+
+/// Number of independent readers of the same publication.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ReaderMultiplicity(pub usize);
+/// One direct consumer and the number of its repeated dependency edges.
+#[derive(Debug)]
+pub(crate) struct ConsumerObligation {
+    pub consumer: RegionId,
+    pub readers: ReaderMultiplicity,
+}
+/// Request-compiled potential obligations, indexed by external root and producer.
+#[derive(Debug)]
+pub(crate) struct FileReaderGraph {
+    pub consumers: std::collections::HashMap<
+        RegionId,
+        std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
+    >,
 }

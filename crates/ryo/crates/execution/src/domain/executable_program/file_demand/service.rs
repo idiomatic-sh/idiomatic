@@ -1,100 +1,152 @@
 //! Compile immutable file-intent root obligations once for the whole request.
-use super::super::types::{ExecutableProgram, InputSource, RegionId};
+use super::super::types::{
+    ConsumerObligation, ExecutableProgram, FileReaderGraph, InputSource, ReaderMultiplicity,
+    RegionId, RuleProgram,
+};
+use super::types::*;
 use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::{observations::types::ObservationIndex, plans::types::StepScope};
 
-use super::types::{FileMode, FileRoot, FileRuleDemand};
-
-pub(crate) const fn mode(diagnostic: bool, observations: bool, capture: usize) -> usize {
-    diagnostic as usize * 6 + observations as usize * 3 + capture
-}
-fn region(program: &ExecutableProgram, source: &InputSource) -> Option<RegionId> {
+fn region(
+    program: &ExecutableProgram,
+    source: &InputSource,
+) -> Result<Option<RegionId>, OperatingError> {
     match source {
-        InputSource::Region(id) => Some(*id),
+        InputSource::Region(id) => Ok(Some(*id)),
         InputSource::Observation(slot) => program
             .observation_regions()
-            .get(*slot)?
-            .as_ref()
-            .ok()
-            .copied(),
-        _ => None,
+            .get(*slot)
+            .ok_or(OperatingError::NotRun)?
+            .clone()
+            .map(Some),
+        _ => Ok(None),
     }
+}
+/// Root candidates retain deferred source faults without opening a dormant input.
+fn file_root(
+    program: &ExecutableProgram,
+    source: Result<Option<RegionId>, OperatingError>,
+    roots: &mut Vec<FileRootDemand>,
+    output: Option<ObservationIndex>,
+) {
+    let id = match source {
+        Ok(Some(id)) => id,
+        Ok(None) => return,
+        Err(error) => {
+            roots.push(FileRootDemand::Deferred(error));
+            return;
+        }
+    };
+    if program.regions()[id.0].phase != StepScope::PerFile {
+        return;
+    }
+    roots.push(match output {
+        Some(output) => FileRootDemand::Observation { region: id, output },
+        None => FileRootDemand::Ordinary(id),
+    });
+}
+fn compile_mode(
+    program: &ExecutableProgram,
+    prepared: &RuleProgram,
+    observations: &[ObservationDemandSource],
+    frontiers: &[FrontierPurpose],
+    demand: FileDemand,
+) -> Result<FileMode, OperatingError> {
+    let mut enabled = Vec::new();
+    let mut roots = Vec::new();
+    let mut named_outputs = Vec::new();
+    if demand.diagnostic == RootSelection::Required {
+        enabled.extend(prepared.emit.iter().copied());
+        file_root(program, prepared.emit.clone().map(Some), &mut roots, None);
+    }
+    if demand.observations == RootSelection::Required {
+        for (output, observation) in observations.iter().enumerate() {
+            if let Ok(InputSource::Region(id)) = &observation.source {
+                enabled.push(*id);
+            }
+            if observation.phase != StepScope::PerFile {
+                continue;
+            }
+            let output = ObservationIndex(
+                output
+                    .try_into()
+                    .map_err(|_| OperatingError::ShapeMismatch)?,
+            );
+            named_outputs.push(output);
+            let source = observation
+                .source
+                .as_ref()
+                .map_err(Clone::clone)
+                .and_then(|source| region(program, source));
+            file_root(program, source, &mut roots, Some(output));
+        }
+    }
+    for (at, source) in prepared.frontier.iter().enumerate() {
+        match demand.capture {
+            FrontierSelection::Disabled => continue,
+            FrontierSelection::Observations
+                if frontiers.get(at) != Some(&FrontierPurpose::Observation) =>
+            {
+                continue;
+            }
+            _ => {}
+        }
+        let source = source
+            .as_ref()
+            .map_err(Clone::clone)
+            .and_then(|source| region(program, source));
+        if let Ok(Some(id)) = &source {
+            enabled.push(*id);
+        }
+        file_root(program, source, &mut roots, None);
+    }
+    // Reader multiplicity is independent of scheduling deduplication.
+    let mut readers = Vec::new();
+    for &root in &prepared.root_readers {
+        if let Some(at) = enabled.iter().position(|enabled| *enabled == root) {
+            enabled.swap_remove(at);
+            readers.push(root);
+        }
+    }
+    Ok(FileMode {
+        readers: readers.into_boxed_slice(),
+        roots: roots.into_boxed_slice(),
+        observations: named_outputs.into_boxed_slice(),
+    })
 }
 pub(crate) fn compile(
     program: &ExecutableProgram,
     rule: RuleIndex,
-    observations: &[(Result<InputSource, OperatingError>, StepScope)],
-    observation_frontiers: &[bool],
+    observations: &[ObservationDemandSource],
+    frontiers: &[FrontierPurpose],
 ) -> Result<FileRuleDemand, OperatingError> {
     let prepared = program.rules().get(rule.0).ok_or(OperatingError::NotRun)?;
-    let mut modes = Vec::with_capacity(12);
-    for diagnostic in [false, true] {
-        for named in [false, true] {
-            for capture in 0..3 {
-                let mut enabled = Vec::new();
-                let mut roots = Vec::new();
-                let mut named_outputs = Vec::new();
-                if diagnostic {
-                    enabled.extend(prepared.emit.iter().copied());
-                    if let Ok(id) = prepared.emit {
-                        if program.regions()[id.0].phase == StepScope::PerFile {
-                            roots.push(FileRoot::Ordinary(id));
-                        }
-                    }
-                }
-                if named {
-                    for (output, (source, phase)) in observations.iter().enumerate() {
-                        if let Ok(InputSource::Region(id)) = source {
-                            enabled.push(*id);
-                        }
-                        if *phase == StepScope::PerFile {
-                            named_outputs.push(output);
-                            if let Ok(source) = source {
-                                if let Some(id) = region(program, source) {
-                                    if program.regions()[id.0].phase == StepScope::PerFile {
-                                        roots.push(FileRoot::Observation { region: id, output });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                for (at, source) in prepared.frontier.iter().enumerate() {
-                    if capture == 0
-                        || (capture == 1
-                            && !observation_frontiers.get(at).copied().unwrap_or(false))
-                    {
-                        continue;
-                    }
-                    if let Ok(source) = source {
-                        if let Some(id) = region(program, source) {
-                            enabled.push(id);
-                            if program.regions()[id.0].phase == StepScope::PerFile {
-                                roots.push(FileRoot::Ordinary(id));
-                            }
-                        }
-                    }
-                }
-                // Readers are a multiset: an Emit, observation and frontier may
-                // name the same region but own distinct retirement obligations.
-                let mut readers = Vec::new();
-                for &root in &prepared.root_readers {
-                    if let Some(at) = enabled.iter().position(|enabled| *enabled == root) {
-                        enabled.swap_remove(at);
-                        readers.push(root);
-                    }
-                }
-                modes.push(FileMode {
-                    readers: readers.into_boxed_slice(),
-                    roots: roots.into_boxed_slice(),
-                    observations: named_outputs.into_boxed_slice(),
-                });
-            }
-        }
-    }
+    let demands = [RootSelection::Undemanded, RootSelection::Required]
+        .into_iter()
+        .flat_map(|diagnostic| {
+            [RootSelection::Undemanded, RootSelection::Required]
+                .into_iter()
+                .flat_map(move |observations| {
+                    [
+                        FrontierSelection::Disabled,
+                        FrontierSelection::Observations,
+                        FrontierSelection::All,
+                    ]
+                    .into_iter()
+                    .map(move |capture| FileDemand {
+                        diagnostic,
+                        observations,
+                        capture,
+                    })
+                })
+        });
+    let modes = demands
+        .map(|demand| compile_mode(program, prepared, observations, frontiers, demand))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_boxed_slice();
     Ok(FileRuleDemand {
-        outputs: observations.len(),
-        modes: modes.into_boxed_slice(),
+        outputs: NamedOutputCount(observations.len()),
+        modes,
     })
 }
 
@@ -102,7 +154,7 @@ pub(crate) fn compile(
 pub(crate) fn readers(
     regions: &[super::super::types::Region],
     rules: &[super::super::types::RuleProgram],
-) -> Result<super::types::FileReaderGraph, OperatingError> {
+) -> Result<FileReaderGraph, OperatingError> {
     use std::collections::{HashMap, HashSet};
     let mut compiled = HashMap::new();
     for root in rules
@@ -114,18 +166,19 @@ pub(crate) fn readers(
         }
         let mut pending = vec![root];
         let mut visited = HashSet::new();
-        let mut consumers = HashMap::<RegionId, HashMap<RegionId, usize>>::new();
+        let mut consumers = HashMap::<RegionId, HashMap<RegionId, ReaderMultiplicity>>::new();
         while let Some(id) = pending.pop() {
             if !visited.insert(id) {
                 continue;
             }
             let region = regions.get(id.0).ok_or(OperatingError::NotRun)?;
             for &dependency in &region.dependencies {
-                *consumers
+                consumers
                     .entry(dependency)
                     .or_default()
                     .entry(id)
-                    .or_default() += 1;
+                    .or_default()
+                    .0 += 1;
                 pending.push(dependency);
             }
         }
@@ -136,12 +189,19 @@ pub(crate) fn readers(
                 .map(|(producer, users)| {
                     let mut users = users.into_iter().collect::<Vec<_>>();
                     users.sort_unstable_by_key(|(id, _)| id.0);
-                    (producer, users.into_boxed_slice())
+                    (
+                        producer,
+                        users
+                            .into_iter()
+                            .map(|(consumer, readers)| ConsumerObligation { consumer, readers })
+                            .collect::<Vec<_>>()
+                            .into_boxed_slice(),
+                    )
                 })
                 .collect(),
         );
     }
-    Ok(super::types::FileReaderGraph {
+    Ok(FileReaderGraph {
         consumers: compiled,
     })
 }
@@ -149,27 +209,31 @@ pub(crate) fn readers(
 /// Count only selected external roots and their potentially live direct consumers.
 /// Duplicate dependency edges remain distinct; shared consumers are counted once.
 pub(crate) fn remaining(
-    graph: &super::types::FileReaderGraph,
-    selected: &std::collections::HashMap<RegionId, usize>,
+    graph: &FileReaderGraph,
+    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
     producer: RegionId,
-) -> Result<usize, OperatingError> {
-    let mut consumers = std::collections::HashMap::<RegionId, usize>::new();
+) -> Result<ReaderMultiplicity, OperatingError> {
+    let mut consumers = std::collections::HashMap::<RegionId, ReaderMultiplicity>::new();
     for root in selected.keys() {
         let roots = graph.consumers.get(root).ok_or(OperatingError::NotRun)?;
         if let Some(users) = roots.get(&producer) {
-            for &(consumer, multiplicity) in users {
+            for user in users {
+                let consumer = user.consumer;
+                let multiplicity = user.readers;
                 consumers
                     .entry(consumer)
-                    .and_modify(|count| *count = (*count).max(multiplicity))
+                    .and_modify(|count| *count = ReaderMultiplicity(count.0.max(multiplicity.0)))
                     .or_insert(multiplicity);
             }
         }
     }
     consumers.values().try_fold(
-        selected.get(&producer).copied().unwrap_or(0),
+        selected.get(&producer).copied().unwrap_or_default(),
         |count, used| {
             count
-                .checked_add(*used)
+                .0
+                .checked_add(used.0)
+                .map(ReaderMultiplicity)
                 .ok_or(OperatingError::ShapeMismatch)
         },
     )

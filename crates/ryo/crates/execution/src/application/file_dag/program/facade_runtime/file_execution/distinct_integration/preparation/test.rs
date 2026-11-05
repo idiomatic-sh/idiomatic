@@ -100,20 +100,53 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     )
     .unwrap();
     let roots = prepared.file_demand(RuleIndex(0)).unwrap();
-    use crate::domain::executable_program::file_demand::service::mode;
-    assert_eq!(roots.modes[mode(false, false, 0)].readers.len(), 0);
-    assert_eq!(roots.modes[mode(true, true, 2)].readers.len(), 3);
+    use crate::domain::executable_program::file_demand::types::{
+        FileDemand, FrontierSelection, RootSelection,
+    };
+    assert_eq!(roots.selected(FileDemand::NONE).readers.len(), 0);
     assert_eq!(
-        roots.modes[mode(true, true, 2)].roots.len(),
+        roots
+            .selected(FileDemand {
+                diagnostic: RootSelection::Required,
+                observations: RootSelection::Required,
+                capture: FrontierSelection::All
+            })
+            .readers
+            .len(),
+        3
+    );
+    assert_eq!(
+        roots
+            .selected(FileDemand {
+                diagnostic: RootSelection::Required,
+                observations: RootSelection::Required,
+                capture: FrontierSelection::All
+            })
+            .roots
+            .len(),
         3,
         "reader aliases remain distinct in the compiled obligation multiset"
     );
     assert_eq!(
-        roots.modes[mode(false, false, 1)].roots.len(),
+        roots
+            .selected(FileDemand {
+                capture: FrontierSelection::Observations,
+                ..FileDemand::NONE
+            })
+            .roots
+            .len(),
         1,
         "observation-only capture retains its declared frontier"
     );
-    assert!(roots.modes[mode(false, false, 1)].observations.is_empty());
+    assert!(
+        roots
+            .selected(FileDemand {
+                capture: FrontierSelection::Observations,
+                ..FileDemand::NONE
+            })
+            .observations
+            .is_empty()
+    );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),

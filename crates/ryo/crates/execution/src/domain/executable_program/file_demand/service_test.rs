@@ -1,8 +1,10 @@
 //! File root activation preserves a reader multiset and independent intent masks.
-use super::service::{compile, mode};
+use super::{service::compile, types::*};
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{ExecutableProgram, InputSource, Region, RegionId, RuleProgram},
+    executable_program::types::{
+        ExecutableProgram, InputSource, ReaderMultiplicity, Region, RegionId, RuleProgram,
+    },
     operating::errors::OperatingError,
 };
 use ryo_values::{
@@ -48,28 +50,28 @@ fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
     let mut program = program();
     program.regions[0].dependencies = vec![RegionId(1), RegionId(1)].into_boxed_slice();
     let graph = super::service::readers(&program.regions, &program.rules).unwrap();
-    let mut selected = std::collections::HashMap::from([(RegionId(0), 2)]);
+    let mut selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(2))]);
     assert_eq!(
         super::service::remaining(&graph, &selected, RegionId(0)).unwrap(),
-        2
+        ReaderMultiplicity(2)
     );
     assert_eq!(
         super::service::remaining(&graph, &selected, RegionId(1)).unwrap(),
-        2,
+        ReaderMultiplicity(2),
         "the same dependency is consumed once per declared edge"
     );
-    selected.insert(RegionId(1), 1);
+    selected.insert(RegionId(1), ReaderMultiplicity(1));
     assert_eq!(
         super::service::remaining(&graph, &selected, RegionId(1)).unwrap(),
-        3,
+        ReaderMultiplicity(3),
         "a source's external reader is independent of consumer edges"
     );
     selected.clear();
     assert_eq!(
         super::service::remaining(&graph, &selected, RegionId(1)).unwrap(),
-        0
+        ReaderMultiplicity(0)
     );
-    selected.insert(RegionId(99), 1);
+    selected.insert(RegionId(99), ReaderMultiplicity(1));
     assert_eq!(
         super::service::remaining(&graph, &selected, RegionId(1)),
         Err(OperatingError::NotRun)
@@ -78,11 +80,18 @@ fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
 enum Scenario {
     Mode(bool, bool, usize, usize, usize),
     Readers,
+    DeferredSources,
 }
 type Input = Scenario;
 type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("stored observation faults remain deferred under compiled demand"),
+        word: Word::Succeeds,
+        input: || Scenario::DeferredSources,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName(
             "selected reverse readers preserve duplicate edges and reject unknown roots",
@@ -129,18 +138,45 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    let Scenario::Mode(diagnostic, observations, capture, cancelled, roots) = input else {
-        selected_reader_counts_keep_duplicate_edges_without_disabled_siblings();
-        return Ok(());
+    let (diagnostic, observations, capture, cancelled, roots) = match input {
+        Scenario::Readers => {
+            selected_reader_counts_keep_duplicate_edges_without_disabled_siblings();
+            return Ok(());
+        }
+        Scenario::DeferredSources => {
+            return deferred_sources();
+        }
+        Scenario::Mode(diagnostic, observations, capture, cancelled, roots) => {
+            (diagnostic, observations, capture, cancelled, roots)
+        }
     };
     let program = program();
     let prepared = compile(
         &program,
         RuleIndex(0),
-        &[(Ok(InputSource::Region(RegionId(0))), StepScope::PerFile)],
-        &[false],
+        &[ObservationDemandSource {
+            source: Ok(InputSource::Region(RegionId(0))),
+            phase: StepScope::PerFile,
+        }],
+        &[FrontierPurpose::Diagnostic],
     )?;
-    let selected = &prepared.modes[mode(diagnostic, observations, capture)];
+    let selected = prepared.selected(FileDemand {
+        diagnostic: if diagnostic {
+            RootSelection::Required
+        } else {
+            RootSelection::Undemanded
+        },
+        observations: if observations {
+            RootSelection::Required
+        } else {
+            RootSelection::Undemanded
+        },
+        capture: match capture {
+            0 => FrontierSelection::Disabled,
+            1 => FrontierSelection::Observations,
+            _ => FrontierSelection::All,
+        },
+    });
     assert_eq!(
         program.rules()[0].root_readers.len() - selected.readers.len(),
         cancelled
@@ -152,4 +188,39 @@ fn subject(input: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+fn deferred_sources() -> Result<(), OperatingError> {
+    let mut program = program();
+    program.observation_regions = vec![Err(OperatingError::NotRead)].into_boxed_slice();
+    let prepared = compile(
+        &program,
+        RuleIndex(0),
+        &[
+            ObservationDemandSource {
+                source: Ok(InputSource::Observation(0)),
+                phase: StepScope::PerFile,
+            },
+            ObservationDemandSource {
+                source: Err(OperatingError::WrongOperation),
+                phase: StepScope::PerFile,
+            },
+        ],
+        &[FrontierPurpose::Diagnostic],
+    )?;
+    assert!(prepared.selected(FileDemand::NONE).roots.is_empty());
+    let named = prepared.selected(FileDemand {
+        observations: RootSelection::Required,
+        ..FileDemand::NONE
+    });
+    assert!(matches!(
+        &named.roots[..],
+        [
+            FileRootDemand::Deferred(OperatingError::NotRead),
+            FileRootDemand::Deferred(OperatingError::WrongOperation)
+        ]
+    ));
+    assert!(named.readers.is_empty());
+    assert_eq!(named.observations.len(), 2);
+    Ok(())
 }

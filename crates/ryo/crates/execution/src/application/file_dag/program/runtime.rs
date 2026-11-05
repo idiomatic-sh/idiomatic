@@ -394,7 +394,12 @@ impl Slot {
 /// Qualified state for the same interpreter; never an independent execution owner.
 enum RootReaders {
     Declared,
-    Selected(std::collections::HashMap<RegionId, usize>),
+    Selected(
+        std::collections::HashMap<
+            RegionId,
+            crate::domain::executable_program::types::ReaderMultiplicity,
+        >,
+    ),
 }
 pub(super) struct RuntimeState {
     generation: Arc<()>,
@@ -445,6 +450,7 @@ impl RuntimeState {
                     selected,
                     id,
                 )
+                .map(|readers| readers.0)
             }
         }
     }
@@ -505,7 +511,10 @@ impl ProgramExecution {
             if !self.program.file_readers().consumers.contains_key(&root) {
                 return Err(OperatingError::NotRun);
             }
-            *selected.entry(root).or_insert(0) += 1;
+            selected
+                .entry(root)
+                .or_insert(crate::domain::executable_program::types::ReaderMultiplicity(0))
+                .0 += 1;
         }
         *self.file_state.roots.borrow_mut() = RootReaders::Selected(selected);
         Ok(())
