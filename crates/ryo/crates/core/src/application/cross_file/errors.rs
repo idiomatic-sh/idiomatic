@@ -4,7 +4,7 @@ pub(crate) enum CrossError {
     #[error("{0}")]
     Contract(String),
     #[error(transparent)]
-    Operating(#[from] crate::domain::operating::errors::OperatingError),
+    Operating(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
     #[error(transparent)]
     Rules(#[from] ryo_values::domain::rule_requests::errors::RulesError),
     #[error(transparent)]

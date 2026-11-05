@@ -7,8 +7,6 @@ use super::errors::VisitError;
 use super::types::{
     BorrowedBytes, EdgeInput, LineCount, Noting, RoleCompared, RoleNamed, RoleRead, Wants,
 };
-use crate::domain::lowering::constants::EDGE;
-use crate::domain::lowering::types::ElementPart;
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
@@ -66,10 +64,14 @@ pub(crate) fn lines_in(bytes: BorrowedBytes<'_>) -> LineCount {
 
 /// The place of the `field` column among the columns of `syntax-child`.
 fn role_column() -> ColumnIndex {
+    let columns = ryo_relations::domain::relations::service::columns(Relation::SyntaxChild);
     ColumnIndex(
         u32::try_from(
-            EDGE.iter()
-                .position(|each| *each == ElementPart::Role)
+            columns
+                .iter()
+                .position(|column| {
+                    ryo_relations::domain::relations::service::column_name(*column).0 == "field"
+                })
                 .unwrap_or(usize::MAX),
         )
         .unwrap_or(u32::MAX),

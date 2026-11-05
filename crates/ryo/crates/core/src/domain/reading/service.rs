@@ -1,39 +1,22 @@
 //! The `reading` service: free functions named by verb over the visit of one file, with no IO and no ports.
 
 use super::types::{EngineAsked, EngineRows};
-use crate::domain::finish::service::escape;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::service::{emitted, pool_for};
-use crate::domain::operator::types::RuleWorkspace;
 use crate::domain::ordering::service::sort_findings;
-use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
-use crate::domain::render::types::{Answering, FindingRule, RenderInput};
-use crate::domain::rules::service::{failed, id_at};
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use crate::domain::render::types::Answering;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_values::domain::rule_requests::errors::RulesError;
-use {
-    crate::domain::finish::types::Arena, crate::domain::finish::types::Leaves,
-    crate::domain::finish::types::Leaving, crate::domain::finish::types::Retained,
-    ryo_values::domain::runs::types::RuleNumber,
-};
 
-use crate::domain::value_cells::types::Scene;
-use crate::domain::workers::types::{Tables, VisitSetting};
+use crate::domain::workers::types::Tables;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_language::domain::elements::service::clear_elements;
-use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
-use ryo_values::domain::files::types::SourceView;
+use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, ReadInPart};
-use ryo_values::domain::table_words::service::{encode_table, pack_onto};
-use ryo_values::domain::table_words::types::WordSlice;
 
 /// Readies the worker for a file it reads: counts it, notes where its text will begin in the worker's arena and empties what the
 /// last file left.
@@ -146,52 +129,6 @@ pub(crate) fn start_partials(
     tables.partials = MetadataUseCaseImpl.partial_of(said, everything, wanted);
 }
 
-/// Hands what the rule's per-file steps leave for the cross-file steps to `keep`, input by input, and keeps a copy when the run
-/// keeps its findings.
-///
-/// # Errors
-///
-/// Whatever `keep` fails with.
-pub(crate) fn prepare_frontier(
-    tables: &mut Tables,
-    setting: &VisitSetting<'_>,
-    rule: RuleIndex,
-    file: FileId,
-    place: InputNumber,
-    frontier: &mut [Table],
-) -> Option<Bucket> {
-    if !*setting
-        .metadata
-        .get(rule.0)?
-        .frontier_capture
-        .get(place.0)?
-    {
-        return None;
-    }
-    let first = setting.first_bucket.get(rule.0).copied()?;
-    let table = frontier.get_mut(place.0)?;
-    escape(
-        table,
-        Leaving {
-            symbols: &tables.symbols,
-            source: SourceView(&tables.bytes.0),
-            file,
-            worker: tables.number,
-            text: Leaves::WithText,
-        },
-        Retained {
-            arena: Arena(&mut tables.arena.0),
-            places: &mut tables.places,
-        },
-    );
-    tables.words.0.clear();
-    encode_table(table, &tables.places, &mut tables.words);
-    tables.places.clear();
-    tables.packed.0.clear();
-    pack_onto(WordSlice(&tables.words.0), &mut tables.packed);
-    Some(frontier_bucket(first, place))
-}
-
 /// Gives back what a huge file made the tables grow past, and puts the file's findings in their order: rows of the rules' own
 /// columns stay in the order of the rules and, for a rule, of their places.
 pub(crate) fn settle(tables: &mut Tables, answering: &Answering) {
@@ -237,6 +174,6 @@ pub(crate) fn first_buckets(plans: &[Plan]) -> Vec<Bucket> {
     first
 }
 
-use ryo_values::domain::rows::types::Table;
-
 use ryo_values::domain::stored_facts::service::frontier_bucket;
+
+use ryo_values::domain::runs::types::RuleNumber;

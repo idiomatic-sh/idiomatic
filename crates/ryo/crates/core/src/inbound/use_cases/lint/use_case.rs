@@ -32,12 +32,12 @@ use crate::domain::budget::service::{fit, repository_size, within};
 use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
 use crate::domain::keeping::service::{rendered_of, rows_of};
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::RowsFed;
-use crate::domain::operator::types::TreeSteps;
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
 use crate::domain::ordering::types::{Admittance, Ordered, Turn};
 use crate::domain::reporting::service::report_refused;
+use ryo_execution::inbound::use_cases::execution::types::Counting;
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::types::TreeSteps;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 
@@ -400,7 +400,7 @@ impl LintUseCaseImpl {
                 };
                 // Stored findings from the two physical backends are not interchangeable.
                 let own = if self.file_analysis.kernel_strategy()
-                    == crate::domain::column_kernel::types::KernelStrategy::Column
+                    == ryo_execution::inbound::use_cases::execution::types::KernelStrategy::Column
                 {
                     self.digest
                         .combine(&[own, self.digest.digest(DigestBytes(b"column-kernel-v1"))])

@@ -10,7 +10,7 @@ use ryo_values::domain::rule_requests::errors::RulesError;
 pub(crate) enum FileAnalysisError {
     /// Required execution scope dependencies were inconsistent.
     #[error(transparent)]
-    Execution(#[from] crate::domain::operating::errors::OperatingError),
+    Execution(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
     /// A provider did not echo the exact project-entry observation batch it received.
     #[error("project entry observation receipt did not match the engine batch")]
     ProjectObservationMismatch,

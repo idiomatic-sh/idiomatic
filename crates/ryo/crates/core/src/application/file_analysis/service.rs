@@ -261,11 +261,13 @@ impl FileAnalysis {
     }
 
     /// Pass the strategy to each worker without consulting the environment per file.
-    pub(crate) fn kernel_strategy(&self) -> crate::domain::column_kernel::types::KernelStrategy {
+    pub(crate) fn kernel_strategy(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::KernelStrategy {
         if self.execution.column_kernel {
-            crate::domain::column_kernel::types::KernelStrategy::Column
+            ryo_execution::inbound::use_cases::execution::types::KernelStrategy::Column
         } else {
-            crate::domain::column_kernel::types::KernelStrategy::Existing
+            ryo_execution::inbound::use_cases::execution::types::KernelStrategy::Existing
         }
     }
 
@@ -413,7 +415,7 @@ impl FileAnalysis {
                 .map(SourceRows::Stored)
                 .map_err(|error| {
                     *refused.borrow_mut() = Some(error);
-                    crate::domain::operating::errors::OperatingError::NotRead
+                    ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRead
                 })
         };
         let mut run = visit.setting.services.open_file(
@@ -437,18 +439,14 @@ impl FileAnalysis {
             &mut tables.symbols,
         )?;
         for rule in visit.setting.program.rule_order() {
-            if !demanded
-                .get(rule.0)
-                .copied()
-                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
-            {
+            if !demanded.get(rule.0).copied().ok_or(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+            )? {
                 continue;
             }
-            if skipped
-                .get(rule.0)
-                .copied()
-                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
-            {
+            if skipped.get(rule.0).copied().ok_or(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+            )? {
                 run.skip_rule(rule, ApplicabilityReason::SyntaxRejected)?;
                 continue;
             }
@@ -477,14 +475,14 @@ impl FileAnalysis {
                 match outcome.emit {
                     RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
                         let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
-                            crate::domain::operating::errors::OperatingError::NotRun
+                            ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun
                         })?);
                         let id = crate::domain::render::types::FindingRule(
                             visit
                                 .setting
                                 .ids
                                 .get(rule.0)
-                                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
+                                .ok_or(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)?
                                 .0
                                 .as_ref(),
                         );
@@ -545,7 +543,7 @@ impl FileAnalysis {
                         );
                         if matches!(
                             error,
-                            crate::domain::operating::errors::OperatingError::SemanticIncomplete { .. }
+                            ryo_execution::inbound::use_cases::execution::types::OperatingError::SemanticIncomplete { .. }
                         ) {
                             semantic.mark_incomplete();
                         }
@@ -563,11 +561,9 @@ impl FileAnalysis {
             let captures = {
                 run.capture_frontiers(
                     rule,
-                    *visit
-                        .setting
-                        .first_bucket
-                        .get(rule.0)
-                        .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?,
+                    *visit.setting.first_bucket.get(rule.0).ok_or(
+                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                    )?,
                     &mut tables.symbols,
                     CaptureContext {
                         worker: tables.number,
@@ -629,12 +625,11 @@ impl FileAnalysis {
                 }
             }
             let counts = run.counts(rule)?;
-            let counted = tables
-                .fed
-                .get_mut(rule.0)
-                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?;
+            let counted = tables.fed.get_mut(rule.0).ok_or(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+            )?;
             if counted.len() != counts.fed.len() {
-                return Err(crate::domain::operating::errors::OperatingError::ShapeMismatch.into());
+                return Err(ryo_execution::inbound::use_cases::execution::types::OperatingError::ShapeMismatch.into());
             }
             for (total, current) in counted.iter_mut().zip(counts.fed.iter()) {
                 for (total, current) in total.0.iter_mut().zip(current.0) {
@@ -1115,7 +1110,7 @@ impl FileAnalysis {
             };
         if !valid {
             return Err(
-                crate::domain::operating::errors::OperatingError::ObservationIncomplete {
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete {
                     reason: "stored frontier proof does not match the prepared root".into(),
                 }
                 .into(),

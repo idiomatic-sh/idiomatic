@@ -2,13 +2,9 @@
 use super::errors::CrossError;
 use super::{service::CrossFile, types::ObservationRun};
 use crate::application::run_coordination::settings::CrossingInput;
-use crate::domain::{
-    answering::{
-        service::settle,
-        types::{Answered, Todo},
-    },
-    coverage::types::RuleIndex,
-    operating::errors::OperatingError,
+use crate::domain::answering::{
+    service::settle,
+    types::{Answered, Todo},
 };
 use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, ObservationExecution, ObservationPublication, PreparedExecution,
@@ -176,7 +172,7 @@ fn prepare_frontiers(
     symbols: &mut Symbols,
 ) -> Result<
     ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers,
-    crate::domain::rules::errors::RulesError,
+    ryo_values::domain::rule_requests::errors::RulesError,
 > {
     let failed =
         |error: &dyn std::fmt::Display| crate::domain::rules::service::failed(&todo.id, error);
@@ -199,3 +195,5 @@ fn prepare_frontiers(
         )
         .map_err(|error| failed(&error))
 }
+
+use ryo_execution::inbound::use_cases::execution::types::{OperatingError, RuleIndex};

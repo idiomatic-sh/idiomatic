@@ -148,7 +148,7 @@ impl CrossFile {
                 .0
             {
                 let path = crossing.paths.get(index).ok_or_else(|| {
-                    refuse(&crate::domain::operating::errors::OperatingError::NotRun)
+                    refuse(&ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)
                 })?;
                 unknowns.push(
                     ryo_execution::inbound::use_cases::metadata::interface::Unknown {

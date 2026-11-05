@@ -1,9 +1,5 @@
 //! Project root delivery through the same prepared executable invocation.
-use crate::domain::{
-    coverage::types::RuleIndex,
-    crossing::types::{ObservedRoot, PhaseRoots},
-    operating::errors::OperatingError,
-};
+use crate::domain::crossing::types::{ObservedRoot, PhaseRoots};
 use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
 use ryo_execution::inbound::use_cases::execution::types::{
     EmitDemand, ObservationDemand, ObservedPublication, PreparedFrontiers, ProjectInput,
@@ -101,3 +97,5 @@ pub(crate) fn evaluate_cross_roots(
         publications,
     })
 }
+
+use ryo_execution::inbound::use_cases::execution::types::{OperatingError, RuleIndex};

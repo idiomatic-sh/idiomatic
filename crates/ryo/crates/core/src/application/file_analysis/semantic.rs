@@ -3,8 +3,8 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::SemanticLookup;
+use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+use ryo_execution::inbound::use_cases::execution::types::SemanticLookup;
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::semantics::interface::SemanticSession;
