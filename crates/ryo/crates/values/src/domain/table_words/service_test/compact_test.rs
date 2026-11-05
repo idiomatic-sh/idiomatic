@@ -348,6 +348,12 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
             .flat_map(|row| (0..2).map(move |column| (row, column)))
             .map(|(row, column)| service::compact_cell(&compact, row, column).unwrap())
             .collect::<Vec<_>>();
+        let mut compact_rows = Vec::new();
+        let mut row_scratch = [Cell::Number(Integer(0)); 2];
+        for row in 0..2 {
+            compact_rows
+                .extend_from_slice(service::compact_read(&compact, row, &mut row_scratch).unwrap());
+        }
         let identities = |cells: &[Cell]| {
             cells
                 .iter()
@@ -362,8 +368,16 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         // Name equality intentionally compares hashes, so place identity must
         // be compared explicitly to detect a global index being renumbered.
         assert_eq!(
-            (identities(&decoded.cells), identities(&compact_cells)),
-            (identities(&expected.cells), identities(&expected.cells))
+            (
+                identities(&decoded.cells),
+                identities(&compact_cells),
+                identities(&compact_rows)
+            ),
+            (
+                identities(&expected.cells),
+                identities(&expected.cells),
+                identities(&expected.cells)
+            )
         );
         // Both actual codec routes execute before comparison; agreement between
         // two routes is insufficient if they both renumber the global symbol.
@@ -375,15 +389,11 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         assert_eq!(decoded_places, compact_places);
         assert_eq!(compact_places.len(), 4);
         assert_eq!(
-            names,
-            expected
-                .cells
+            names
                 .iter()
-                .filter_map(|cell| match cell {
-                    Cell::Name(name) => Some(*name),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
+                .map(|name| (name.hash, name.place))
+                .collect::<Vec<_>>(),
+            identities(&expected.cells)
         );
     }
 }
