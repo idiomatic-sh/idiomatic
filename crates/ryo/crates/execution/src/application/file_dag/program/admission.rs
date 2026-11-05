@@ -449,10 +449,11 @@ impl<'scope> KernelPermit<'scope> {
         Ok(code)
     }
     pub(in crate::application::file_dag::program) fn admitted(
-        execution: &'scope super::runtime::ProgramExecution,
-        region: RegionId,
+        authority: super::runtime::KernelAdmission<'scope>,
         inputs: &'scope [AdmittedInput],
     ) -> Result<Self, OperatingError> {
+        let execution = authority.execution();
+        let region = authority.region();
         let code = Self::code(execution, region)?;
         if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
             return Err(OperatingError::WrongOperation);
@@ -475,10 +476,11 @@ impl<'scope> KernelPermit<'scope> {
         })
     }
     pub(super) fn ordered(
-        execution: &'scope super::runtime::ProgramExecution,
-        region: RegionId,
+        authority: super::runtime::KernelAdmission<'scope>,
         input: &'scope AdmittedInput,
     ) -> Result<Self, OperatingError> {
+        let execution = authority.execution();
+        let region = authority.region();
         let code = Self::code(execution, region)?;
         let shape = code
             .ordered_existence
@@ -496,11 +498,12 @@ impl<'scope> KernelPermit<'scope> {
         })
     }
     pub(super) fn column(
-        execution: &'scope super::runtime::ProgramExecution,
-        region: RegionId,
+        authority: super::runtime::KernelAdmission<'scope>,
         left: &'scope AdmittedInput,
         right: &'scope AdmittedInput,
     ) -> Result<Self, OperatingError> {
+        let execution = authority.execution();
+        let region = authority.region();
         let code = Self::code(execution, region)?;
         let shape = code.column.as_ref().ok_or(OperatingError::WrongOperation)?;
         left.validate_for(execution, ProducerRoot::Region(shape.left()))?;

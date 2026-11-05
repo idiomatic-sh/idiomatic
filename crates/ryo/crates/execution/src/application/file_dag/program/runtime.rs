@@ -39,6 +39,21 @@ pub(super) struct ColumnCounters {
     pub filter: crate::domain::operator::contract::types::WorkCounters,
     pub project: crate::domain::operator::contract::types::WorkCounters,
 }
+/// Only this runtime can construct authority to issue a kernel permit.
+/// A sibling owning a ProgramExecution reference still cannot skip admission.
+pub(super) struct KernelAdmission<'a> {
+    execution: &'a ProgramExecution,
+    region: RegionId,
+}
+impl<'a> KernelAdmission<'a> {
+    pub(super) fn execution(&self) -> &'a ProgramExecution {
+        self.execution
+    }
+    pub(super) fn region(&self) -> RegionId {
+        self.region
+    }
+}
+
 /// Only the completed admission interpreter can issue a ready selection head.
 pub(super) struct ReadySelection<'call, 'scope> {
     permit: &'call super::admission::KernelPermit<'scope>,
@@ -1219,8 +1234,14 @@ impl ProgramExecution {
                         context,
                     )
                     .map_err(InvocationFailure::Semantic)?;
-                let permit = super::admission::KernelPermit::ordered(self, id, &source)
-                    .map_err(InvocationFailure::Semantic)?;
+                let permit = super::admission::KernelPermit::ordered(
+                    KernelAdmission {
+                        execution: self,
+                        region: id,
+                    },
+                    &source,
+                )
+                .map_err(InvocationFailure::Semantic)?;
                 let last = region
                     .instructions
                     .last()
@@ -1309,8 +1330,15 @@ impl ProgramExecution {
                         context,
                     )
                     .map_err(InvocationFailure::Semantic)?;
-                let permit = super::admission::KernelPermit::column(self, id, &left, &right)
-                    .map_err(InvocationFailure::Semantic)?;
+                let permit = super::admission::KernelPermit::column(
+                    KernelAdmission {
+                        execution: self,
+                        region: id,
+                    },
+                    &left,
+                    &right,
+                )
+                .map_err(InvocationFailure::Semantic)?;
                 let frames = cleanup
                     .scratch
                     .as_mut()
@@ -1423,8 +1451,14 @@ impl ProgramExecution {
                 .check_schema(region)
                 .map_err(InvocationFailure::Semantic)?;
             progress.preflight_done = true;
-            let permit = super::admission::KernelPermit::admitted(self, id, &admitted)
-                .map_err(InvocationFailure::Semantic)?;
+            let permit = super::admission::KernelPermit::admitted(
+                KernelAdmission {
+                    execution: self,
+                    region: id,
+                },
+                &admitted,
+            )
+            .map_err(InvocationFailure::Semantic)?;
             if !progress.ready {
                 kernels
                     .ready(&ReadySelection { permit: &permit }, &admitted, context)

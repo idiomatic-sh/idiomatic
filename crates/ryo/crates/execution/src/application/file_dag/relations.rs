@@ -533,7 +533,14 @@ impl RelationOwner {
         result: &RelationResult,
     ) -> Result<(), OperatingError> {
         self.generation(result)?;
-        let _origin = result.producer_scope.set(scope);
+        match result.producer_scope.get() {
+            Some(existing) if *existing != scope => return Err(OperatingError::WrongBinding),
+            Some(_) => {}
+            None => result
+                .producer_scope
+                .set(scope)
+                .map_err(|_| OperatingError::WrongBinding)?,
+        }
         if matches!(result.body, RelationBody::Source(_)) || result.producer.get().is_some() {
             self.producer_populations
                 .borrow_mut()
@@ -548,7 +555,10 @@ impl RelationOwner {
         let (id, _) = *known
             .entry((scope, node.0))
             .or_insert((result.population, self.backing_population(result)));
-        let _installed = result.producer.set(id);
+        result
+            .producer
+            .set(id)
+            .map_err(|_| OperatingError::WrongBinding)?;
         Ok(())
     }
     fn result_population(&self, result: &RelationResult) -> PopulationId {

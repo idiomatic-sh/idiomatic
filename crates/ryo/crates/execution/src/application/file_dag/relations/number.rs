@@ -161,6 +161,42 @@ mod tests {
         );
     }
     #[test]
+    fn producer_scope_rebinding_refuses_before_registering_an_alias() {
+        use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
+        use ryo_values::domain::rows::types::Table;
+
+        let fixture = ResourceFixture::new(&[], &[], 0).unwrap();
+        let owner = fixture.owner();
+        let first = super::ProducerScope::Project(owner.project_identity().unwrap());
+        let foreign = super::ProducerScope::Project(owner.project_identity().unwrap());
+        let publication = owner.computed(Table::default()).unwrap();
+        owner
+            .bind_producer(first, RegionId(7), publication.as_ref())
+            .unwrap();
+        let identity = owner.result_population(publication.as_ref());
+        owner
+            .bind_producer(first, RegionId(7), publication.as_ref())
+            .unwrap();
+        assert_eq!(
+            owner.bind_producer(foreign, RegionId(8), publication.as_ref()),
+            Err(OperatingError::WrongBinding),
+        );
+        assert_eq!(publication.as_ref().producer_scope.get(), Some(&first));
+        assert_eq!(owner.result_population(publication.as_ref()), identity);
+        assert!(
+            !owner
+                .producer_populations
+                .borrow()
+                .contains_key(&(foreign, 8))
+        );
+        let independent = owner.computed(Table::default()).unwrap();
+        owner
+            .bind_producer(foreign, RegionId(8), independent.as_ref())
+            .unwrap();
+        assert_ne!(owner.result_population(independent.as_ref()), identity);
+    }
+
+    #[test]
     fn qualified_producers_release_only_their_actual_population() {
         use crate::application::file_dag::derived::owner::{
             ViewContext,
