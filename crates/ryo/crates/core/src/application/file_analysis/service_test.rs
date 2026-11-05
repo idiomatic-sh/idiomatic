@@ -874,9 +874,6 @@ fn prepared_resource_state(
         observations: None,
         derived_sources: Vec::new(),
         nodes: Vec::new(),
-        cuts: Vec::new(),
-        boundaries: Vec::new(),
-        rule_liveness: Vec::new(),
     };
     let owner = std::rc::Rc::new(
         crate::application::file_dag::relations::RelationOwner::for_request(
