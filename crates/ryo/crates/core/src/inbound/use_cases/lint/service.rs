@@ -123,17 +123,14 @@ pub(super) fn observed_arenas(
     }
 }
 
-/// Cross-rule inputs and their name-place storage are observed without decoding/scanning any cells.
-pub(super) fn observed_inputs(
+/// Observe the cross-file symbols owned here; execution owns input residency.
+pub(super) fn observed_cross_symbols(
     phase: &'static str,
-    inputs: &Vec<crate::domain::table_model::types::Frontier>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
 ) {
     if memory_enabled() {
-        let mut bytes = ryo_values::domain::records::types::retention::value::RetainedBytes::inputs(
-            inputs,
-            |input| &input.table,
-        );
+        let mut bytes =
+            ryo_values::domain::records::types::retention::value::RetainedBytes::default();
         let places = ryo_language::domain::symbols::service::places_mut(symbols);
         bytes.places_live =
             places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
@@ -142,7 +139,7 @@ pub(super) fn observed_inputs(
         let text = ryo_language::domain::symbols::service::derived_of(symbols);
         bytes.text_live = text.0.len();
         bytes.text_capacity = text.0.capacity();
-        observed_memory(phase, "decoded_inputs", bytes);
+        observed_memory(phase, "cross_symbols", bytes);
     }
 }
 

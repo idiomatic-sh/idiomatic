@@ -2,11 +2,9 @@
 
 use crate::domain::storing::service::stored_of;
 use crate::domain::storing::types::ToKeep;
-use crate::domain::table_model::types::Frontier;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
-use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::records::types::retention::value::RetainedBytes;
 use ryo_values::domain::records::types::{
     FileOutcome, FindingRows, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
@@ -119,15 +117,12 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
     kinds.extend([CellKind::Number, CellKind::Number]);
     let kinds_capacity = kinds.capacity();
     let mut inputs = Vec::with_capacity(3);
-    inputs.push(Frontier {
-        input: Input::Relation(Relation::Function),
-        table: Table {
-            cells,
-            kinds,
-            count: RowCount(1),
-        },
+    inputs.push(Table {
+        cells,
+        kinds,
+        count: RowCount(1),
     });
-    let observed = RetainedBytes::inputs(&inputs, |input| &input.table);
+    let observed = RetainedBytes::inputs(&inputs, |input| input);
     assert_eq!(
         (
             observed.objects,
@@ -144,9 +139,9 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
     );
     assert_eq!(
         observed.metadata,
-        inputs.capacity() * size_of::<Frontier>() + kinds_capacity * size_of::<CellKind>()
+        inputs.capacity() * size_of::<Table>() + kinds_capacity * size_of::<CellKind>()
     );
-    assert_eq!(inputs[0].table.cells.as_ptr(), pointer);
+    assert_eq!(inputs[0].cells.as_ptr(), pointer);
     let mut arenas = Vec::with_capacity(4);
     arenas.push(ArenaBytes(bytes(31, 7)));
     let observed = RetainedBytes::arenas(&arenas);
