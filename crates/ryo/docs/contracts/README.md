@@ -29,9 +29,16 @@ Internal authority followup `25dae5fd4a` requires a runtime-issued `KernelAdmiss
 
 ### Phase 2 completion checklist
 
-Independent inventory audit: source `bf525425c7`; retained Astra and Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. This audits scope, **not implementation approval**. The current B4b/B4c branches and authority followup are still uncompiled.
+Inventory audit: `bf525425c7`, retained Astra/Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. All 83 rows below require evidence for their entire scope; authored or integrated code is not a completed boundary.
 
-**No current Phase 2 completion box is checked.** “Written”, “integrated” and historical passing tests are evidence states, not completion. A check requires current evidence for the entire row. The older Beads checklist mixed these meanings and is superseded by this inventory.
+Current candidate: `1d1cdf431`. Project-root scheduling, sparse file preparation, route controls, mandatory runtime authority, and all four reviewed source corrections are integrated. Combined build268 reached Core test setup: obsolete singleton test routing and its operator adapter remain to migrate. Execution/domain and public-boundary tests269 are running. No phase is verified.
+
+- Source review of `4351e1f409`: retained Astra and Opus accepted the four corrections; current runtime/structural proof remains incomplete.
+- TM264 on `ebd264c06b`: `file_demand` findings **24 → 0**; the broader eight-file check still fails with **140 findings, zero suppressed**.
+- Internal sibling Rust bypass proof remains missing. Existing external privacy tests do not prove that boundary.
+- No new performance measurement. Full Django256 failed at 2,986.06 seconds and 6.009 GB; it is not acceptance evidence.
+
+**Unchecked means unverified complete.** Many implementations and tests are integrated; remaining work includes actual defects, enforcement gaps, and validation. Beads `ryo-7tkn.19` holds live process and artifact details.
 
 **A — Shared scheduling foundations**
 
@@ -41,7 +48,7 @@ Independent inventory audit: source `bf525425c7`; retained Astra and Opus round 
 | ☐ | A2.1 | Compile logical-to-physical class lookup once, including synthetic observation IDs. | integrated |
 | ☐ | A2.2 | Allocate scratch, pending classes and results only for admitted work. | integrated |
 | ☐ | A2.3 | Merge later cohorts atomically and preserve earlier results after failure. | integrated |
-| ☐ | A3 | Independently review the complete combined Phase 2 source. | pending |
+| ☐ | A3 | Independently review the complete combined Phase 2 source. | correction source reviewed; full proof pending |
 | ☐ | A4 | Retain dormant-class, later-cohort, failure, retry and generation controls. | integrated |
 | ☐ | A5 | Integrate every assigned Phase 2 batch into one immutable candidate. | in progress |
 | ☐ | A6 | Run the public production-boundary suite on that candidate. | pending |
@@ -70,40 +77,40 @@ Independent inventory audit: source `bf525425c7`; retained Astra and Opus round 
 | ☐ | B4a.7 | Reject foreign generations and changed partition proofs; isolate population release. | tests integrated |
 | ☐ | B4a.8 | Allocate project state for reached regions, not populations × whole program. | tests integrated |
 | ☐ | B4a.9 | Release phase ownership on success/error and preserve primary-error precedence. | integrated; proof pending |
-| ☐ | B4a.10 | Reject contradictory producer-scope rebinding before mutating indexes. | written |
+| ☐ | B4a.10 | Reject contradictory producer-scope rebinding before mutating indexes. | integrated; control unrun |
 
 **B4b — Project root scheduling**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B4b.1 | Require complete declared project root sets at the engine entry. | written |
-| ☐ | B4b.2 | Group roots by exact engine-issued population and policy identity. | written |
-| ☐ | B4b.3 | Advance every compatible root group through the common readiness queue. | written |
-| ☐ | B4b.4 | Migrate ordinary core callers to batch preparation before ordered delivery. | written |
-| ☐ | B4b.5 | Migrate named producer/consumer stages; keep dependency policy in the engine. | written |
-| ☐ | B4b.6 | Cover diagnostic, named, direct non-Region, empty and restored roots. | in progress |
-| ☐ | B4b.7 | Remove separate per-root depth-first dependency advancement. | written |
-| ☐ | B4b.8 | Preserve conditional demand, duplicate obligations, diamonds and failure wakeups. | new batch controls pending |
-| ☐ | B4b.9 | Prove prepared delivery/retry performs no further scheduling, evaluation or provider reads. | new batch controls pending |
-| ☐ | B4b.10 | Settle cancellation, budgets, errors and cleanup across the submitted batch. | written; proof pending |
-| ☐ | B4b.11 | Expose real project scheduling counts and test shared versus distinct populations. | written; proof pending |
-| ☐ | B4b.12 | Make singleton entries use the same queue or replay prepared results. | written |
+| ☐ | B4b.1 | Require complete declared project root sets at the engine entry. | integrated; verification pending |
+| ☐ | B4b.2 | Group roots by exact engine-issued population and policy identity. | integrated; verification pending |
+| ☐ | B4b.3 | Advance every compatible root group through the common readiness queue. | integrated; verification pending |
+| ☐ | B4b.4 | Migrate ordinary core callers to batch preparation before ordered delivery. | integrated; verification pending |
+| ☐ | B4b.5 | Migrate named producer/consumer stages; keep dependency policy in the engine. | integrated; verification pending |
+| ☐ | B4b.6 | Cover diagnostic, named, direct non-Region, empty and restored roots. | integrated; verification pending |
+| ☐ | B4b.7 | Remove separate per-root depth-first dependency advancement. | integrated; verification pending |
+| ☐ | B4b.8 | Preserve conditional demand, duplicate obligations, diamonds and failure wakeups. | controls integrated; unrun |
+| ☐ | B4b.9 | Prove prepared delivery/retry performs no further scheduling, evaluation or provider reads. | controls integrated; unrun |
+| ☐ | B4b.10 | Settle cancellation, budgets, errors and cleanup across the submitted batch. | integrated; proof pending |
+| ☐ | B4b.11 | Expose real project scheduling counts and test shared versus distinct populations. | integrated; proof pending |
+| ☐ | B4b.12 | Make singleton entries use the same queue or replay prepared results. | integrated; verification pending |
 
 **B4c — Per-file preparation**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B4c.1 | Compile intent-specific root and reader multisets once per request. | written |
-| ☐ | B4c.2 | Compile frontier-input → named-output lookup once per request. | written |
-| ☐ | B4c.3 | Build ordered active roots once per file without linear queued.contains searches. | written |
-| ☐ | B4c.4 | Allocate named-root state only for demanded/readiness-output obligations. | written |
+| ☐ | B4c.1 | Compile intent-specific root and reader multisets once per request. | integrated; verification pending |
+| ☐ | B4c.2 | Compile frontier-input → named-output lookup once per request. | integrated; verification pending |
+| ☐ | B4c.3 | Build ordered active roots once per file without linear queued.contains searches. | integrated; verification pending |
+| ☐ | B4c.4 | Allocate named-root state only for demanded/readiness-output obligations. | integrated; verification pending |
 | ☐ | B4c.5 | Allocate runtime slots, counters and scratch only for reached regions. | integrated |
-| ☐ | B4c.6 | Allocate readiness entries only for discovered roots/dependencies; reject invalid IDs. | written |
-| ☐ | B4c.7 | Apply dormant cancellation obligations without traversing/materializing the unselected graph. | in progress |
-| ☐ | B4c.8 | Compile selector ranges once; count only active selector groups per file. | written |
-| ☐ | B4c.9 | Keep graph and other activation metadata proportional to relevant rules. | written |
-| ☐ | B4c.10 | Prove opening/binding does no provider or kernel work for disabled/skipped/refused/rootless intents. | controls written |
-| ☐ | B4c.11 | Measure preparation work and falsify dense dormant processing. | controls written |
+| ☐ | B4c.6 | Allocate readiness entries only for discovered roots/dependencies; reject invalid IDs. | integrated; verification pending |
+| ☐ | B4c.7 | Apply dormant cancellation obligations without traversing/materializing the unselected graph. | integrated; verification pending |
+| ☐ | B4c.8 | Compile selector ranges once; count only active selector groups per file. | integrated; verification pending |
+| ☐ | B4c.9 | Keep graph and other activation metadata proportional to relevant rules. | integrated; verification pending |
+| ☐ | B4c.10 | Prove opening/binding does no provider or kernel work for disabled/skipped/refused/rootless intents. | controls integrated; unrun |
+| ☐ | B4c.11 | Measure preparation work and falsify dense dormant processing. | controls integrated; unrun |
 | ☐ | B4c.12 | Preserve duplicate reader multiplicity and cancellation/release when roots are deduplicated. | proof pending |
 
 **B4d — Every source and physical route**
@@ -130,7 +137,7 @@ Independent inventory audit: source `bf525425c7`; retained Astra and Opus round 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
 | ☐ | B5.1 | Keep one production interpreter; kernels cannot resolve dependencies. | final audit pending |
-| ☐ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | written |
+| ☐ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | integrated; current proof pending |
 | ☐ | B5.3 | Only actual ready gates may submit shared-walk classes. | integrated; boundary proof pending |
 | ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | proof pending |
 | ☐ | B5.5 | Require owner, generation, partition, root and population scope at all lifecycle boundaries. | current proof pending |
