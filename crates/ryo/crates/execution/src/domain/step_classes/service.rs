@@ -135,7 +135,7 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                 None
             };
             below.push(chosen.clone());
-            let Some(chosen) = chosen.filter(|rooted| !rooted.comparisons.is_empty()) else {
+            let Some(chosen) = chosen else {
                 continue;
             };
             let member = MergedStep {
