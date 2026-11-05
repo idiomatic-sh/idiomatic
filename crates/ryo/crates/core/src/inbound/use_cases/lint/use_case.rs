@@ -23,7 +23,7 @@ use crate::domain::answering::types::Todo;
 use crate::domain::answering::types::{Answered, CrossSteps, Crossed};
 use crate::domain::budget::service::{fit, repository_size, within};
 
-use crate::application::file_dag::settings::CrossingInput;
+use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
 use crate::domain::features::service::{fed_over, work_over};
 use crate::domain::hosted::service::identity as hosted_identity;
@@ -65,24 +65,24 @@ use crate::domain::trust::types::Needs;
 use crate::domain::visit::service::wants;
 use crate::domain::visit::types::Keeping;
 
-use crate::application::file_dag::settings::VisitSetting;
+use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::workers::service::{absorb, gathering, note_slots, order, size_at, tables_for};
 use crate::domain::workers::types::{
     CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Replaying, Visited, WorkersMet,
 };
 use crate::outbound::corpus::interface::CorpusPort;
-use crate::outbound::digest::interface::DigestPort;
-use crate::outbound::digest::types::DigestBytes;
-use crate::outbound::facts::interface::FactsPort;
-use crate::outbound::facts::interface::FactsWorker;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::{ManifestReading, ProjectInput, ProjectNotes};
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::lint_store::types::StoreKeeping;
-use crate::outbound::matching::errors::MatchingError;
-use crate::outbound::matching::interface::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use crate::outbound::memory::interface::MemoryPort;
-use crate::outbound::operators::interface::OperatorsPort;
+use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::rows::types::{LentCell, Summary};
@@ -133,7 +133,7 @@ pub struct LintUseCaseImpl {
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
-    derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    derived: Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
     /// Runs the files' jobs on the workers.
     scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
@@ -173,7 +173,7 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
-        derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        derived: Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowsPort>,

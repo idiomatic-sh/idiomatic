@@ -5,9 +5,9 @@ use std::path::PathBuf;
 
 use super::adapter::FactsSpillAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::outbound::facts::errors::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use crate::outbound::facts::fixtures::contract::{check, test_words};
-use crate::outbound::facts::interface::FactsPort as _;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 

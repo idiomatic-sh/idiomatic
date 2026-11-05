@@ -1,5 +1,5 @@
 //! Compose the portable operator adapter at an SDK edge.
-use super::interface::OperatorsPort;
+use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
 
 /// The stateless use case adapter; the edge constructs it once per lint service.
 #[must_use]

@@ -8,7 +8,7 @@ pub(crate) enum CrossError {
     #[error(transparent)]
     Rules(#[from] crate::domain::rules::errors::RulesError),
     #[error(transparent)]
-    Facts(#[from] crate::outbound::facts::errors::FactsError),
+    Facts(#[from] ryo_execution::inbound::use_cases::execution::types::facts::FactsError),
     #[error(transparent)]
     Scheduler(#[from] crate::outbound::scheduler::errors::SchedulerError),
 }

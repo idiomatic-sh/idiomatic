@@ -5,7 +5,7 @@ use crate::domain::budget::errors::BudgetError;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::visit::errors::VisitError;
 use crate::outbound::corpus::errors::CorpusError;
-use crate::outbound::facts::errors::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;

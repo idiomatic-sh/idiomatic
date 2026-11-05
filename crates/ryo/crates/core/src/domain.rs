@@ -7,38 +7,19 @@ pub(crate) mod answering;
 pub(crate) mod budget;
 pub(crate) mod choosing;
 pub(crate) mod column_kernel;
-pub(crate) mod comparing;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod corpus_copies;
-pub mod coverage;
 pub(crate) mod crossing;
 pub(crate) mod describing;
-pub(crate) mod features;
-pub(crate) mod file_program;
 pub(crate) mod finish;
 pub(crate) mod frontiers;
 pub(crate) mod functions;
-pub(crate) mod globbing;
 pub(crate) mod handing;
 pub(crate) mod hosted;
 pub(crate) mod keeping;
-pub mod kind_check;
-pub(crate) mod kind_sets;
-pub(crate) mod layout;
 pub(crate) mod listing;
-pub(crate) mod lowering;
-pub(crate) mod matching;
-pub(crate) mod numeric_values;
-pub(crate) mod operands;
-pub(crate) mod operating;
-pub(crate) mod operation_schema;
-pub(crate) mod operator;
 pub(crate) mod ordering;
-pub(crate) mod ordered_existence;
 
-pub(crate) mod placement;
-pub(crate) mod positions;
-pub(crate) mod native_positions;
 pub(crate) mod project;
 pub(crate) mod reading;
 pub(crate) mod recording;
@@ -49,33 +30,15 @@ pub(crate) mod replay;
 pub(crate) mod reporting;
 pub(crate) mod repository;
 pub(crate) mod rules;
-pub(crate) mod selections;
-pub(crate) mod shared_walk;
 pub(crate) mod spelling;
 pub(crate) mod step_classes;
 pub(crate) mod storing;
-pub(crate) mod table_cells;
-pub(crate) mod table_dedup;
-pub(crate) mod table_groups;
-pub(crate) mod table_model;
-pub(crate) mod table_reach;
-pub(crate) mod table_scratch;
-pub(crate) mod table_texts;
-pub(crate) mod table_words;
 pub(crate) mod text_gate;
-pub(crate) mod tree_join;
 pub(crate) mod tree_walk;
-pub(crate) mod trust;
 pub(crate) mod value_cells;
 pub(crate) mod visit;
-pub(crate) mod walks;
 pub(crate) mod workers;
 
 // Demand-root join semantics now execute through the mandatory registered primitive.
 pub(crate) mod stored_graph;
 /// Complete stored indexes owned by a single physical file generation.
-pub(crate) mod stored_selection;
-
-pub(crate) mod derived_views;
-
-pub(crate) mod executable_program;

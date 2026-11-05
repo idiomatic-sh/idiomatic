@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use super::super::errors::MatchingError;
-use super::super::interface::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::{GlobsMatcher, Hits, MatchCandidate};
 

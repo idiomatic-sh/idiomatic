@@ -4,9 +4,9 @@ use super::fake::one_function;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 
-use super::super::errors::FactsError;
-use super::super::interface::FactsPort;
-use super::super::types::WordsToKeep;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_words::service::{pack, unpacked};
 use crate::domain::table_words::types::WordSlice;
@@ -187,7 +187,7 @@ fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, Fa
 fn resident_rows_survive_other_reads_and_word_flushes(
     facts: &dyn FactsPort,
 ) -> Result<Value, FactsError> {
-    use crate::outbound::facts::types::ResidentStability;
+    use ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability;
     let mut worker = facts.worker()?;
     if worker.resident_stability() == ResidentStability::Unstable {
         return Ok(1);
@@ -202,7 +202,7 @@ fn resident_rows_survive_other_reads_and_word_flushes(
             }
         }
     }
-    let snapshot = |resident: &dyn super::super::interface::FactsWorker| -> Result<_, FactsError> {
+    let snapshot = |resident: &dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker| -> Result<_, FactsError> {
         let rows = resident.rows(Relation::Function)?;
         Ok((
             rows.kinds.to_vec(),

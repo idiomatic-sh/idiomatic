@@ -1,5 +1,5 @@
 //! Adapter from the engine port to the portable projection use case.
-use crate::outbound::operators::interface::OperatorsPort;
+use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 

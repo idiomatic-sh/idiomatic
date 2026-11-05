@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
-use crate::outbound::facts::interface::FactsPort as _;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::types::{ProjectInput, ProjectNotes};
@@ -16,13 +16,13 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 use std::sync::{Arc, atomic::Ordering};
 
-use crate::application::file_dag::settings::VisitSetting;
+use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
 use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
 use crate::domain::trust::types::{Needs, RelationRead};
 use crate::domain::workers::service::tables_for;
-use crate::outbound::matching::interface::MatchingPort as _;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_relations::domain::relations::types::{Relation, WorkerNumber};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
@@ -441,7 +441,7 @@ fn visited_as(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     visited_as_with_facts(
         paths,
@@ -458,8 +458,8 @@ fn visited_as_with_facts(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
-    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
+    facts: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use crate::outbound::corpus::interface::CorpusPort as _;
     use ryo_values::domain::files::types::{CorpusFile, FileBytes};
@@ -497,8 +497,8 @@ fn visited_inputs(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
-    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
+    facts: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
     kept: Option<&ryo_values::domain::records::types::Record>,
     repetitions: usize,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
@@ -526,8 +526,8 @@ fn visited_inputs_with_rule_demands(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
-    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
+    facts: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
     kept: Option<&ryo_values::domain::records::types::Record>,
     repetitions: usize,
     ids: &[ryo_values::domain::runs::types::RuleId],
@@ -801,21 +801,21 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() {
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
 struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.
-    inner: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    inner: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
     /// Distinguishable same-shape populations selected by read order.
     alternatives: [Vec<ryo_relations::domain::relations::types::FactColumn>; 2],
     /// Source reads remain observable even when their shapes agree.
     reads: std::sync::atomic::AtomicUsize,
 }
-impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Unstable
+impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker for UnstableResidentFacts {
+    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Unstable
     }
     fn columns_mut(
         &mut self,
     ) -> Result<
-        crate::outbound::facts::types::ColumnsMut<'_>,
-        crate::outbound::facts::errors::FactsError,
+        ryo_execution::inbound::use_cases::execution::types::facts::ColumnsMut<'_>,
+        ryo_execution::inbound::use_cases::execution::types::facts::FactsError,
     > {
         self.inner.columns_mut()
     }
@@ -824,7 +824,7 @@ impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
         relation: Relation,
     ) -> Result<
         ryo_relations::domain::relations::types::ColumnsView<'_>,
-        crate::outbound::facts::errors::FactsError,
+        ryo_execution::inbound::use_cases::execution::types::facts::FactsError,
     > {
         use ryo_relations::domain::relations::{service::kinds, types::ColumnsView};
         if relation != Relation::Function {
@@ -843,18 +843,18 @@ impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
     fn keep(
         &mut self,
         bucket: ryo_values::domain::stored_facts::types::Bucket,
-        words: crate::outbound::facts::types::WordsToKeep<'_>,
-    ) -> Result<(), crate::outbound::facts::errors::FactsError> {
+        words: ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep<'_>,
+    ) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
         self.inner.keep(bucket, words)
     }
-    fn release(&mut self) -> Result<(), crate::outbound::facts::errors::FactsError> {
+    fn release(&mut self) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
         self.inner.release()
     }
     fn finished(
         self: Box<Self>,
     ) -> Result<
-        Box<dyn crate::outbound::facts::interface::FactsFinish>,
-        crate::outbound::facts::errors::FactsError,
+        Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsFinish>,
+        ryo_execution::inbound::use_cases::execution::types::facts::FactsError,
     > {
         self.inner.finished()
     }
@@ -934,7 +934,7 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
 
 #[test]
 fn unstable_same_shape_resident_populations_decline_generation_reuse() {
-    use crate::outbound::facts::interface::FactsWorker as _;
+    use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
     use ryo_values::domain::stored_facts::types::LanguageNumber;
     let mut tables = tables_for(

@@ -2,8 +2,8 @@
 use crate::domain::storing::service::as_kept;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::PathStat;
-use crate::outbound::digest::interface::DigestPort;
-use crate::outbound::digest::types::DigestBytes;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::EntryObservation;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;

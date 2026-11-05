@@ -13,9 +13,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ryo_relations::domain::relations::service::{all, columns, kinds};
 use ryo_relations::domain::relations::types::Relation;
 
-use super::super::errors::FactsError;
-use super::super::interface::{FactsFinish, FactsPort, FactsWorker};
-use super::super::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
+use ryo_execution::inbound::use_cases::execution::types::facts::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -71,8 +71,8 @@ struct FakeWorker {
 }
 
 impl FactsWorker for FakeWorker {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Stable
+    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
     }
 
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {

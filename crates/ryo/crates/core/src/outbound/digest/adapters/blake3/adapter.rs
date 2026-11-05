@@ -1,7 +1,7 @@
 //! The digest port, implemented with blake3.
 
-use crate::outbound::digest::interface::DigestPort;
-use crate::outbound::digest::types::{DigestBytes, DigestWords};
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+use ryo_execution::inbound::use_cases::execution::types::digest::{DigestBytes, DigestWords};
 use ryo_values::domain::stored_facts::types::Digest;
 
 /// The blake3 digest adapter.

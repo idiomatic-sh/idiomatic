@@ -480,7 +480,7 @@ fn scheduled_world_with_query_kernel(
             Arc::<LanguageFake>::clone(&language);
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(given.memory);
-        let analysis_digest: Arc<dyn crate::outbound::digest::interface::DigestPort> =
+        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
             Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
@@ -1910,7 +1910,7 @@ fn succeeds() {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn crate::outbound::digest::interface::DigestPort> =
+        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
             Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(

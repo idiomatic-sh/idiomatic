@@ -1,7 +1,7 @@
 //! What every `matching` adapter must pass.
 
-use super::super::errors::MatchingError;
-use super::super::interface::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::{Hits, MatchCandidate};

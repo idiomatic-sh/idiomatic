@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use globset::{GlobBuilder, GlobSetBuilder};
 
-use crate::outbound::matching::errors::MatchingError;
-use crate::outbound::matching::interface::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::{GlobsMatcher, Hits, MatchCandidate};
 

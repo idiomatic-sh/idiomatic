@@ -2,7 +2,7 @@
 //! The `crossing` service's cases, on values alone.
 
 use super::service::CrossFile;
-use crate::application::file_dag::settings::CrossingInput;
+use crate::application::run_coordination::settings::CrossingInput;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::answering::types::Todo;
 use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, RuleIndex};
@@ -108,7 +108,7 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 }
 
 fn world(plan: Plan) -> World {
-    use crate::outbound::matching::interface::MatchingPort as _;
+    use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
     let placement =
         crate::domain::placement::service::decide(&[crate::domain::placement::types::RuleScope {
             include: Vec::new(),

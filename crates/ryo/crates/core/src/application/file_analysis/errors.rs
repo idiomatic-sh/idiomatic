@@ -2,7 +2,7 @@
 use crate::domain::admission::errors::AdmissionError;
 use crate::domain::budget::errors::BudgetError;
 use crate::domain::rules::errors::RulesError;
-use crate::outbound::facts::errors::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::memory::errors::MemoryError;
 /// Why an analysis could not finish.

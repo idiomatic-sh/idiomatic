@@ -13,9 +13,9 @@ use super::constants::{FILE, FLUSH_AT, MISSING};
 use super::types::{
     PackedLength, RoomToFill, Spill, SpillFile, SpillOffset, SpillStretch, SpillWorkerNumber,
 };
-use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
+use ryo_execution::inbound::use_cases::execution::types::facts::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -154,8 +154,8 @@ fn read_exact_at(
 }
 
 impl FactsWorker for SpillWorker {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Stable
+    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
     }
 
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {

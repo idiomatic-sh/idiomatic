@@ -1,5 +1,5 @@
+use ryo_execution::inbound::use_cases::execution::types::ObservationIdentity;
 //! Bounded session plans and one invocation's compiled/bound answer.
-use crate::domain::table_model::types::ParameterBinding;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::runs::types::RuleId;
@@ -36,26 +36,8 @@ pub struct CachedPlan {
     pub plan: Plan,
 }
 
-/// The plans of the rules, and what each binds its parameters to.
-#[derive(Clone, Debug)]
-pub(crate) struct Compiled {
-    /// A once-resolved traversal over stable original rule indices.
-    pub schedule: crate::domain::file_program::types::RuleSchedule,
-    /// Names resolved once to real producer roots; empty on ordinary requests.
-    pub observations: Vec<Vec<crate::domain::file_program::types::ResolvedObservationBinding>>,
-    /// The plans, in the order of the rules.
-    pub plans: Vec<Plan>,
-    /// What each rule binds its parameters to, in the order of the plan's parameters.
-    pub bindings: Vec<Vec<ParameterBinding>>,
-}
-
 /// Retained rule identities and the required semantic layout for named frontier bits.
 pub(crate) struct PreparedRuleIdentities {
     pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     pub observations: ObservationIdentity,
-}
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum ObservationIdentity {
-    Independent,
-    Named(ryo_values::domain::observations::types::ObservationReadinessLayout),
 }

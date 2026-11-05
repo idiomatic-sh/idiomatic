@@ -9,9 +9,9 @@ use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::SCHEMAS;
 use super::types::RefusalText;
-use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
+use ryo_execution::inbound::use_cases::execution::types::facts::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -42,8 +42,8 @@ struct MemoryWorker {
 }
 
 impl FactsWorker for MemoryWorker {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Stable
+    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
     }
 
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {

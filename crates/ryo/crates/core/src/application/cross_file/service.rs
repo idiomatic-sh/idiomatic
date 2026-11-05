@@ -1,7 +1,7 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
-use crate::application::file_dag::crossing::cross_rule_with_inputs;
+use crate::application::run_coordination::crossing::cross_rule_with_inputs;
 use crate::application::file_dag::program::facade;
-use crate::application::file_dag::settings::CrossingInput;
+use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::answering::types::{Crossed, Todo};
 use crate::domain::crossing::service::placeable;
 use crate::domain::crossing::types::Placeability;

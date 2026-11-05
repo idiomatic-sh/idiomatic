@@ -1,7 +1,8 @@
 //! Compile rule programs once per bounded shared session and bind every request independently.
 use super::constants::COMPILED_PLANS;
 use super::errors::RuleCompilationError;
-use super::types::{CachedPlan, Compiled, CompiledPlans};
+use super::types::{CachedPlan, CompiledPlans};
+use ryo_execution::inbound::use_cases::execution::types::Compiled;
 use crate::domain::rules::service::{bind, check_ids};
 use crate::domain::rules::types::RuleSpec;
 use crate::outbound::query_language::errors::QueryLanguageError;

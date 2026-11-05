@@ -1,0 +1,65 @@
+//! Pure borrowed-value and preparation fixtures; no executor or admission alternative.
+use crate::domain::table_model::types::ParameterBinding;
+use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_values::domain::rows::types::Table;
+/// Composition of the actual portable derived use case for current engine tests.
+pub(crate) fn program_derived_port()
+-> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+    std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    )
+}
+/// Complete computed fixture rows for portable derived semantics controls.
+pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
+impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {
+    fn bulk(&self) -> Option<ryo_derived::domain::contract::types::BulkRows<'_>> {
+        Some(ryo_derived::domain::contract::types::BulkRows::Computed(
+            self.0,
+        ))
+    }
+    fn validate(&self) -> Result<(), ryo_derived::domain::contract::types::DerivedFault> {
+        (self.0.count.0.checked_mul(self.0.kinds.len()) == Some(self.0.cells.len()))
+            .then_some(())
+            .ok_or(ryo_derived::domain::contract::types::DerivedFault::ShapeMismatch)
+    }
+    fn kinds(&self) -> &[CellKind] {
+        &self.0.kinds
+    }
+    fn count(&self) -> usize {
+        self.0.count.0
+    }
+    fn cell(
+        &self,
+        row: usize,
+        column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    ) -> Option<Value> {
+        crate::domain::table_model::service::row_in(
+            self.0,
+            ryo_values::domain::rows::types::RowIndex(row),
+        )?
+        .get(column.0 as usize)
+        .copied()
+    }
+}
+
+pub(crate) fn same_rows(table: &Table, rows: &[Vec<Value>]) -> bool {
+    table.count.0 == rows.len()
+        && rows.iter().all(|row| row.len() == table.kinds.len())
+        && table.cells == rows.iter().flatten().copied().collect::<Vec<_>>()
+}
+
+pub(crate) fn request_fixture(
+    plans: &[ryo_values::domain::plans::types::Plan],
+    bindings: &[Vec<ParameterBinding>],
+    hosted: &[ryo_values::domain::hosted::types::HostRelation],
+) -> std::sync::Arc<crate::domain::operator::contract::types::RequestOperators> {
+    std::sync::Arc::new(
+        crate::domain::operator::contract::types::RequestOperators::prepare(
+            plans,
+            bindings,
+            hosted,
+            program_derived_port(),
+        )
+        .expect("fixture metadata"),
+    )
+}

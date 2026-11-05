@@ -47,7 +47,7 @@ use crate::domain::corpus_copies::types::{
 use crate::domain::operator::constants::{OPERATORS, describe};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
-use crate::outbound::facts::interface::FactsPort;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
 use crate::outbound::language::fixtures::fake::{LanguageFake, READ};
 use crate::outbound::language::{interface::LanguagePort, types::Absence};
 use crate::outbound::lint_store::interface::LintStorePort;
@@ -556,7 +556,7 @@ fn use_case_over(
         let analysis_language: Arc<dyn LanguagePort> = Arc::clone(&corpus.language);
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn crate::outbound::digest::interface::DigestPort> =
+        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
             Arc::new(crate::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
