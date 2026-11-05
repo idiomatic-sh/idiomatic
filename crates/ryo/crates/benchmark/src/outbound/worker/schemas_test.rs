@@ -28,6 +28,7 @@ fn missing_reason_unknown_capability_and_extra_wire_fields_are_refused() {
         r#"{"availability":"unavailable"}"#,
         r#"{"availability":"assumed-complete"}"#,
         r#"{"availability":"complete","extra":true}"#,
+        r#"{"availability":"unknown","extra":true}"#,
     ] {
         assert!(serde_json::from_str::<ExecutionMetadataSchema>(wire).is_err());
     }

@@ -85,15 +85,17 @@ impl From<PerformanceOptions> for OptionsSchema {
 }
 
 /// Process-bound spelling; neutral data owns no serde implementation.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "availability", rename_all = "kebab-case", deny_unknown_fields)]
 pub(crate) enum ExecutionMetadataSchema {
-    #[default]
-    Unknown,
-    Unavailable {
-        reason: String,
-    },
-    Complete,
+    Unknown {},
+    Unavailable { reason: String },
+    Complete {},
+}
+impl Default for ExecutionMetadataSchema {
+    fn default() -> Self {
+        Self::Unknown {}
+    }
 }
 impl From<&ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata>
     for ExecutionMetadataSchema
@@ -101,11 +103,11 @@ impl From<&ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata>
     fn from(value: &ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata) -> Self {
         use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
         match value {
-            ExecutionMetadata::Unknown => Self::Unknown,
+            ExecutionMetadata::Unknown => Self::Unknown {},
             ExecutionMetadata::Unavailable { reason } => Self::Unavailable {
                 reason: reason.clone(),
             },
-            ExecutionMetadata::Complete => Self::Complete,
+            ExecutionMetadata::Complete => Self::Complete {},
         }
     }
 }
@@ -114,9 +116,9 @@ impl From<ExecutionMetadataSchema>
 {
     fn from(value: ExecutionMetadataSchema) -> Self {
         match value {
-            ExecutionMetadataSchema::Unknown => Self::Unknown,
+            ExecutionMetadataSchema::Unknown {} => Self::Unknown,
             ExecutionMetadataSchema::Unavailable { reason } => Self::Unavailable { reason },
-            ExecutionMetadataSchema::Complete => Self::Complete,
+            ExecutionMetadataSchema::Complete {} => Self::Complete,
         }
     }
 }
