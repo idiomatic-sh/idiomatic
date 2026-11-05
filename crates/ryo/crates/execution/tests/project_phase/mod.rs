@@ -256,3 +256,5 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
         assert_eq!(file_reads.get(), 3, "project work cannot reread file facts");
     }
 }
+
+mod negative;
