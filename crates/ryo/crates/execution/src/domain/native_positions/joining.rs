@@ -21,7 +21,7 @@ use crate::domain::{
         types::{FoundPositions, Keys, Positions, RowPositions, Slots},
     },
     table_cells::types::TreeRows,
-    table_model::{service::positions, types::Verdict},
+    table_model::types::Verdict,
     walks::{
         service::{allows, give, take_filter},
         types::Admit,
@@ -356,3 +356,5 @@ pub(super) fn join(
         slots,
     })
 }
+
+use ryo_values::domain::rows::service::positions;

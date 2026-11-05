@@ -13,7 +13,7 @@ use crate::domain::{
         types::{Positions, Slots},
     },
     table_cells::types::TreeRows,
-    table_model::{service::positions, types::Verdict},
+    table_model::types::Verdict,
     walks::{
         service::{allows, give, take_filter},
         types::{Admit, Marked},
@@ -156,3 +156,5 @@ pub(super) fn axis(
         slots,
     })
 }
+
+use ryo_values::domain::rows::service::positions;

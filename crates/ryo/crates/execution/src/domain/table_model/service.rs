@@ -33,32 +33,11 @@ use ryo_values::domain::rows::errors::TableModelError;
 
 /// The row at `index`, when the table has that many rows.
 #[must_use]
-pub(crate) fn row_in(table: &Table, index: RowIndex) -> Option<&[Value]> {
-    let (width, index) = (table.kinds.len(), index.0);
-    table
-        .cells
-        .get(index * width..(index + 1) * width)
-        .filter(|_| index < table.count.0)
-}
-
-/// The places of rows, from the first to the last of that many.
-pub(crate) fn positions(count: RowCount) -> impl Iterator<Item = RowIndex> + Clone {
-    (0..count.0).map(RowIndex)
-}
+use ryo_values::domain::rows::service::positions;
 
 /// Empties the table for new rows of the given kinds, keeping its room.
-pub(crate) fn reset(table: &mut Table, kinds: &[CellKind]) {
-    table.kinds.clear();
-    table.kinds.extend_from_slice(kinds);
-    table.cells.clear();
-    table.count = RowCount(0);
-}
 
 /// Adds one row to the table.
-pub(crate) fn push_row(table: &mut Table, row: &[Value]) {
-    table.cells.extend_from_slice(row);
-    table.count = RowCount(table.count.0 + 1);
-}
 
 /// What each column of the rows holds.
 #[must_use]
@@ -76,7 +55,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
             ..
         }) => &ELEMENT_KINDS,
         Rows::Computed(table) => &table.kinds,
-        Rows::Compact(table) => crate::domain::table_words::service::compact_kinds(table),
+        Rows::Compact(table) => ryo_values::domain::table_words::service::compact_kinds(table),
     }
 }
 
@@ -95,7 +74,9 @@ pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
         ),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
-        Rows::Compact(table) => RowCount(crate::domain::table_words::service::compact_rows(table)),
+        Rows::Compact(table) => RowCount(ryo_values::domain::table_words::service::compact_rows(
+            table,
+        )),
         Rows::Tree(tree) => RowCount(
             real_count(tree.elements)
                 .0

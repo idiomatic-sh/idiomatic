@@ -32,8 +32,8 @@ use ryo_values::domain::records::types::{
     Cell, CellText, RowEnds, RowTotal, RowsTextView, TextRange,
 };
 use {
-    crate::domain::table_model::service::positions, crate::domain::table_model::service::row_in,
-    ryo_values::domain::rows::service::cell,
+    ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::positions,
+    ryo_values::domain::rows::service::row_in,
 };
 
 /// The answer of the rules' own columns over `plans`, at most `limit` rows of it written. One rule's columns are the answer's; with

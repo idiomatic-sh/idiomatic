@@ -14,7 +14,7 @@ use crate::domain::{
         types::{Keys, Positions, Slots},
     },
     table_cells::types::TreeRows,
-    table_model::{service::positions, types::Verdict},
+    table_model::types::Verdict,
 };
 use ryo_language::domain::symbols::service::name_count;
 use ryo_values::domain::{
@@ -136,3 +136,5 @@ pub(super) fn project(
         slots,
     })
 }
+
+use ryo_values::domain::rows::service::positions;

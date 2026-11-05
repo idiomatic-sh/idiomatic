@@ -14,7 +14,6 @@ use crate::domain::{
         types::{Keeps, Keys, Positions, Slots, Stride},
     },
     table_cells::types::TreeRows,
-    table_model::service::positions,
 };
 use ryo_derived::domain::contract::types::RawOrder;
 use ryo_operators::inbound::use_cases::operators::interface::{
@@ -298,3 +297,5 @@ pub(super) fn antijoin(
         slots,
     })
 }
+
+use ryo_values::domain::rows::service::positions;

@@ -17,8 +17,8 @@ use ryo_values::domain::files::types::SourceView;
 use super::errors::FinishError;
 use super::types::{ColumnNumber, FileLine, FoundRow, LineStarts, Loaded, Point, Resolving};
 use {
-    crate::domain::table_model::service::positions, crate::domain::table_model::service::row_in,
     ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,
+    ryo_values::domain::rows::service::positions, ryo_values::domain::rows::service::row_in,
 };
 
 use crate::domain::value_cells::service::unknown_cell;

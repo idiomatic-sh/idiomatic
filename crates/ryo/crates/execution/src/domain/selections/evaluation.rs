@@ -9,10 +9,8 @@ use crate::domain::kind_sets::service::{candidates_of, kind_tests, passes};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNarrowing;
-use crate::domain::operating::types::{
-    Emit, InputPlace, Memo, NameCount, OperatorContext, Room, Supply,
-};
-use crate::domain::replay::types::{Collect, Pipe};
+use crate::domain::operating::types::{Emit, InputPlace, Memo, NameCount, OperatorContext, Supply};
+use crate::domain::replay::types::Collect;
 use crate::domain::table_cells::service::{read_cells, read_tree_cells};
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
 use crate::domain::table_model::types::{Rows, SelectedRows, Verdict};
@@ -25,10 +23,10 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::errors::TableModelError;
 use {
     crate::domain::table_model::service::cell_at, crate::domain::table_model::service::count_of,
-    crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::positions,
-    crate::domain::table_model::service::read_row,
-    crate::domain::table_model::service::rectangular, crate::domain::table_model::service::reset,
-    ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,
+    crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::read_row,
+    crate::domain::table_model::service::rectangular, ryo_values::domain::rows::service::cell,
+    ryo_values::domain::rows::service::column_in, ryo_values::domain::rows::service::positions,
+    ryo_values::domain::rows::service::reset,
 };
 
 /// `select`, one item of the `operators` collection.
@@ -65,23 +63,6 @@ fn kind_verdict(kinds: &KindScratch, tree: &TreeRows<'_>, index: RowIndex) -> Ve
         .kind
         .get(index.0)
         .map_or(Verdict::Holds, |kind| passes(kinds, *kind))
-}
-
-/// Passes each element of a tree the comparisons admit to `each`, in the order of the tree for the elements found without a pass
-/// over it, with the cells the comparisons read left in `buffer`. Elements are found among the kinds the comparisons name, or among
-/// the texts they admit, when few enough; the whole tree is looked at otherwise.
-///
-/// # Errors
-///
-/// A comparison that asks for a column the tree does not have, or what `each` refuses.
-pub(crate) fn tree_each(
-    comparisons: &[Comparison],
-    tree: &TreeRows<'_>,
-    buffer: &mut Vec<Value>,
-    context: &mut OperatorContext<'_>,
-    each: &mut EachElement<'_>,
-) -> Result<(), OperatingError> {
-    tree_each_with_visits(comparisons, tree, buffer, context, &mut |_| {}, each)
 }
 
 /// As `tree_each`, with one event for each candidate visited in source order, before its
