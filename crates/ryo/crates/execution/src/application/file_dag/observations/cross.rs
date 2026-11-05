@@ -1,7 +1,7 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
-use crate::domain::completion::types::CoverageState;
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, PublicationSlot};
 use crate::application::file_dag::program::facade::{ObservationMetadata, OutputRoot};
+use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
     observations::types::{ObservationIndex, ProducerReadiness},
@@ -29,9 +29,12 @@ enum CrossRoot {
     },
     Unavailable,
 }
-/// A complete joined file population, constructed only after every expected file frame validates.
+/// Every expected file has one validated frame; each logical state retains its file identity.
 pub(crate) struct FrontierPopulation<'a> {
-    frames: Vec<ryo_values::domain::observations::types::ValidatedFrontiers<'a>>,
+    frames: Vec<(
+        ryo_relations::domain::relations::types::FileId,
+        ryo_values::domain::observations::types::ValidatedFrontiers<'a>,
+    )>,
 }
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
@@ -138,7 +141,7 @@ impl<'a> CrossPublications<'a> {
         prepared: &PreparedFrontier,
         readiness: &FrontierPopulation<'_>,
     ) -> Result<(), OperatingError> {
-        if !frontier_complete(slot, readiness)? {
+        if !frontier_compatible(slot, readiness, prepared.token.coverage())? {
             return Err(incomplete());
         }
         let entry = self.metadata.frontiers.get(slot).ok_or_else(incomplete)?;
@@ -174,7 +177,8 @@ impl<'a> CrossPublications<'a> {
         };
         Ok(())
     }
-    /// Prepared once for one task; an unavailable producer never becomes an empty source.
+    /// Prepared once for one task. Availability retains the producer's admitted
+    /// coverage; a partial publication is usable without becoming complete-empty.
     pub(crate) fn binding_readiness(
         &self,
         rule: RuleIndex,
@@ -486,24 +490,33 @@ pub(crate) fn frontier_readiness<'a>(
         .iter()
         .map(|file| {
             let frame = indexed.get(&file.0).ok_or_else(incomplete)?;
-            validate_frontiers(frame, metadata.layout, count).map_err(|_| incomplete())
+            validate_frontiers(frame, metadata.layout, count)
+                .map(|frame| (*file, frame))
+                .map_err(|_| incomplete())
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(FrontierPopulation { frames })
 }
 
-/// Logical completion proof, separate from the physical packed payload.
-pub(crate) fn frontier_complete(
+/// Logical unavailability must agree with independently validated physical coverage.
+fn frontier_compatible(
     slot: usize,
     readiness: &FrontierPopulation<'_>,
+    physical: &CoverageState,
 ) -> Result<bool, OperatingError> {
     use ryo_values::domain::observations::{
         service::frontier_state, types::ObservationReadinessSlot,
     };
     let slot = ObservationReadinessSlot(u32::try_from(slot).map_err(|_| incomplete())?);
-    for frame in &readiness.frames {
+    for (file, frame) in &readiness.frames {
         if frontier_state(*frame, slot).map_err(|_| incomplete())? != ProducerReadiness::Complete {
-            return Ok(false);
+            // Logical unavailability may be localized only by independently
+            // admitted physical provenance, never by a cached readiness bit.
+            if !matches!(physical, CoverageState::Partial { files }
+                if files.contains(&None) || files.contains(&Some(*file)))
+            {
+                return Ok(false);
+            }
         }
     }
     Ok(true)
@@ -526,10 +539,7 @@ pub(crate) fn restore_frontiers(
     use crate::application::file_dag::program::{facade, facade_runtime};
     use ryo_values::domain::stored_facts::types::Bucket;
 
-    use crate::application::file_dag::{
-
-        observations::cross::{PreparedFrontier, frontier_readiness},
-    };
+    use crate::application::file_dag::observations::cross::{PreparedFrontier, frontier_readiness};
     let metadata = program
         .observation_metadata()
         .ok_or(OperatingError::NotRun)?;
@@ -589,14 +599,7 @@ pub(crate) fn restore_frontiers(
                 payload,
                 publication,
             )
-            .and_then(|token| {
-                if !matches!(token.coverage(), CoverageState::Complete) {
-                    return Err(OperatingError::ObservationIncomplete {
-                        reason: "named producer frontier has incomplete physical coverage".into(),
-                    });
-                }
-                publications.prepare_frontier(token)
-            });
+            .and_then(|token| publications.prepare_frontier(token));
             entry.insert(restored);
         }
         match physical.get(&bucket).ok_or(OperatingError::NotRun)? {

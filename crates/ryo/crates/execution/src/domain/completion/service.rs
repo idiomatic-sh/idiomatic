@@ -30,3 +30,23 @@ pub(crate) fn file_frontier_coverage(
         }
     }
 }
+
+/// Missing named populations obey the same absence semantics as physical reads.
+/// Positive operators retain admitted rows; absence-sensitive operators can
+/// trust a keyed answer only outside the affected physical partitions.
+pub(crate) fn filter_contributor_rows(
+    operation: &ryo_values::domain::plans::types::Operation,
+    input_kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],
+    absence_inputs: u8,
+    files: &[Option<FileId>],
+    rows: &mut ryo_values::domain::rows::types::Table,
+) {
+    let mut affected = files.to_vec();
+    affected.sort_unstable();
+    affected.dedup();
+    for (input, kinds) in input_kinds.iter().enumerate() {
+        if input < u8::BITS as usize && absence_inputs & (1 << input) != 0 {
+            crate::domain::coverage::service::drop_uncertain(operation, kinds, rows, &affected);
+        }
+    }
+}

@@ -100,3 +100,110 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_away() {
+    use super::service::filter_contributor_rows;
+    use crate::domain::operator::contract::service::semantics;
+    use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+    use ryo_values::domain::{
+        plan_parts::types::{ColumnIndex, Input, StepId},
+        plans::{service::kind_of, types::Operation},
+        rows::types::{RowCount, Table},
+    };
+    let left = Input::Step(StepId(0));
+    let right = Input::Step(StepId(1));
+    let candidates = [
+        Cell::File(FileId(1)),
+        Cell::Number(Integer(10)),
+        Cell::File(FileId(0)),
+        Cell::Number(Integer(20)),
+        Cell::File(FileId(0)),
+        Cell::Number(Integer(20)),
+        Cell::File(FileId(2)),
+        Cell::Number(Integer(30)),
+    ];
+    let operations = [
+        Operation::Antijoin {
+            left,
+            right,
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+        },
+        Operation::Difference { left, right },
+        Operation::GroupCount {
+            from: left,
+            keys: vec![ColumnIndex(0)],
+            distinct: None,
+        },
+        Operation::GroupDigest {
+            from: left,
+            keys: vec![ColumnIndex(0)],
+            over: ColumnIndex(1),
+        },
+    ];
+    for operation in operations {
+        let (_, _, _, absence) = semantics(kind_of(&operation));
+        let input_kinds = vec![vec![CellKind::File, CellKind::Number]; 2];
+        let digest = matches!(operation, Operation::GroupDigest { .. });
+        let extend_digest = |cells: &[Cell]| {
+            cells
+                .chunks(2)
+                .flat_map(|row| {
+                    let mut row = row.to_vec();
+                    if digest {
+                        row.push(Cell::Number(Integer(1)));
+                    }
+                    row
+                })
+                .collect::<Vec<_>>()
+        };
+        for affected in [vec![Some(FileId(2)), Some(FileId(1))], vec![None]] {
+            let mut kinds = vec![CellKind::File, CellKind::Number];
+            if digest {
+                kinds.push(CellKind::Number);
+            }
+            let mut rows = Table {
+                kinds,
+                cells: extend_digest(&candidates),
+                count: RowCount(4),
+            };
+            filter_contributor_rows(&operation, &input_kinds, absence, &affected, &mut rows);
+            assert_eq!(
+                rows.cells,
+                if affected.contains(&None) {
+                    vec![]
+                } else {
+                    extend_digest(&[
+                        Cell::File(FileId(0)),
+                        Cell::Number(Integer(20)),
+                        Cell::File(FileId(0)),
+                        Cell::Number(Integer(20)),
+                    ])
+                }
+            );
+        }
+    }
+    let global_count = Operation::GroupCount {
+        from: left,
+        keys: vec![],
+        distinct: None,
+    };
+    let mut count = Table {
+        kinds: vec![CellKind::Number],
+        cells: vec![Cell::Number(Integer(4))],
+        count: RowCount(1),
+    };
+    filter_contributor_rows(
+        &global_count,
+        &[vec![CellKind::File]],
+        1,
+        &[Some(FileId(1))],
+        &mut count,
+    );
+    assert_eq!(
+        count.count,
+        RowCount(0),
+        "an unkeyed aggregate cannot localize uncertainty"
+    );
+}

@@ -149,6 +149,14 @@ pub(crate) fn compile(
                         .get(region)
                         .and_then(Option::as_ref)
                         .filter(|region| region.phase == node.phase)
+                        // Publish absence-sensitive answers before a continuation
+                        // can project away the file key needed for completeness.
+                        .filter(|region| {
+                            region
+                                .instructions
+                                .iter()
+                                .all(|instruction| instruction.contract.absence_inputs == 0)
+                        })
                         .map(|_| region)
                 }
                 _ => None,

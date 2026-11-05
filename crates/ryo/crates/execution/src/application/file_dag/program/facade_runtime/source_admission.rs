@@ -525,12 +525,32 @@ impl Inputs for SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        rows: Table,
+        mut rows: Table,
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
         let readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
+        if let (
+            ProducerRoot::Region(region),
+            super::super::admission::Readiness::Partial { files },
+        ) = (root, &readiness)
+        {
+            let instruction = self
+                .program
+                .program()
+                .regions()
+                .get(region.0)
+                .and_then(|region| region.instructions.last())
+                .ok_or(OperatingError::NotRun)?;
+            crate::domain::completion::service::filter_contributor_rows(
+                &instruction.operation,
+                &instruction.contract.input_kinds,
+                instruction.contract.absence_inputs,
+                files,
+                &mut rows,
+            );
+        }
         let publication = self.owner.computed(rows)?;
         self.state.bind(&self.owner, root, &publication)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;

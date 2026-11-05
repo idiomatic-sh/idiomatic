@@ -1,4 +1,4 @@
-//! Named restoration must reject incomplete physical coverage despite cached readiness.
+//! Named restoration retains partition-qualified physical coverage despite cached readiness.
 use super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -7,7 +7,7 @@ use ryo_values::domain::{
 };
 
 #[test]
-fn restored_named_frontier_cannot_use_complete_readiness_to_hide_a_skipped_partition() {
+fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_readiness() {
     use ryo_execution::inbound::use_cases::execution::interface::{
         ObservationExecution, ObservationPublication,
     };
@@ -135,7 +135,7 @@ fn restored_named_frontier_cannot_use_complete_readiness_to_hide_a_skipped_parti
                 .binding_readiness(RuleIndex(1))
                 .unwrap()
                 .get(&ObservationBindingId(0)),
-            Some(&!rejected)
+            Some(&true)
         );
     }
 }
