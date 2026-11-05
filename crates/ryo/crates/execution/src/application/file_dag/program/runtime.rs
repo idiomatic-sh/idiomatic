@@ -546,8 +546,6 @@ impl ProgramExecution {
                 slot.dependencies_consumed = true;
                 slot.waiting_on = None;
                 slot.admission = AdmissionProgress::default();
-                slot.failed_prefix = None;
-                slot.prefix_delivered.clear();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
                     self.owner.release_derived_producer(id);
@@ -815,7 +813,6 @@ impl ProgramExecution {
             scratch: Some(scratch),
             terminal: Terminal::Retry,
             admission: None,
-            delivered_consumer: None,
         };
         let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
         let needs = region.needs.as_ref().map_err(Clone::clone)?;
