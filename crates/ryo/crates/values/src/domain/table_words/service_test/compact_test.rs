@@ -298,7 +298,8 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         service::{hash_of, intern_derived, name_made_across},
         types::Symbols,
     };
-    use ryo_relations::domain::relations::types::{ByteSlice, NameText};
+    use ryo_language::domain::symbols::types::ByteSlice;
+    use ryo_relations::domain::terms::types::NameText;
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("global"));
     let global = name_made_across(&symbols, symbol).expect("real cross-file symbol");
