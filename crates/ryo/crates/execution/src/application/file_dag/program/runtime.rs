@@ -631,6 +631,7 @@ impl ProgramExecution {
             }
         }
         let mut pending = roots.to_vec();
+        let mut known: std::collections::HashSet<_> = roots.iter().map(|(id, _)| *id).collect();
         let mut ready = Vec::new();
         let mut waiting = std::collections::HashMap::new();
         while !pending.is_empty() {
@@ -657,9 +658,7 @@ impl ProgramExecution {
                             cursor = next;
                         }
                         blocked.push((id, mode));
-                        if !discovered.iter().any(|(found, _)| *found == dependency)
-                            && !ready.iter().any(|(found, _)| *found == dependency)
-                        {
+                        if known.insert(dependency) {
                             let mode = self.slots.borrow()[dependency.0]
                                 .mode
                                 .unwrap_or(EvaluationMode::Collected);
