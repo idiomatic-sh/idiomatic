@@ -12,7 +12,7 @@ pub(super) struct ProjectSources<'a> {
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
     pub(super) cache: &'a mut Vec<(
         crate::domain::executable_program::types::InputSource,
-        AdmittedInput,
+        AvailableInput,
     )>,
     pub(super) transport: &'a ryo_language::domain::symbols::types::TransportPermit,
     pub(super) publication: &'a PublicationScope,
@@ -52,13 +52,13 @@ impl ProjectSources<'_> {
     }
     /// Called only by an actual DemandAction::Admit. Raw source handles and
     /// errors remain untouched when a branch does not demand them.
-    fn admit(
+    fn supply(
         &mut self,
         source: crate::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
         owner: &Rc<RelationOwner>,
-    ) -> Option<Result<AdmittedInput, OperatingError>> {
+    ) -> Option<Result<AvailableInput, OperatingError>> {
         use crate::{
             application::file_dag::frontiers::types::FrontierInput,
             domain::executable_program::types::InputSource,
@@ -81,17 +81,24 @@ impl ProjectSources<'_> {
                 .expect("demanded source was present");
             let (publication, coverage) = match input {
                 FrontierInput::Decoded { frontier, coverage } => {
-                    (owner.computed(frontier.table), coverage)
+                    (owner.source_computed(frontier.table), coverage)
                 }
                 FrontierInput::Compact {
                     table, coverage, ..
-                } => (owner.compact(Arc::new(table)), coverage),
+                } => (owner.source_compact(Arc::new(table)), coverage),
             };
-            let result = publication
-                .and_then(|publication| {
-                    admit_published(owner, publication, source, actual_partition)
-                })
-                .map(|admitted| admitted.with_coverage(coverage));
+            let result = publication.and_then(|publication| {
+                AvailableInput::source(
+                    Rc::clone(owner),
+                    publication,
+                    match source {
+                        InputSource::Region(id) => ProducerRoot::Region(id),
+                        _ => ProducerRoot::Input(source),
+                    },
+                    actual_partition.clone(),
+                    coverage,
+                )
+            });
             if let Ok(input) = &result {
                 self.cache.push((source, input.clone()));
             }
@@ -147,6 +154,7 @@ impl ProjectSources<'_> {
                         owner,
                     )
                 })();
+                let result = result.map(AvailableInput::published);
                 if let Ok(input) = &result {
                     self.cache.push((source, input.clone()));
                 }
@@ -198,6 +206,17 @@ pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
     pub(super) project: Option<ProjectSources<'a>>,
+}
+impl SourceInputs<'_, '_> {
+    pub(super) fn admit_source(
+        &mut self,
+        source: crate::domain::executable_program::types::InputSource,
+        partition: &Partition,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<AdmittedInput, OperatingError> {
+        let available = self.supply(source, partition, context)?;
+        self.admit(&available, partition, context)
+    }
 }
 impl Inputs for SourceInputs<'_, '_> {
     fn bind_rule(&mut self, rule: RuleIndex) {
@@ -309,19 +328,19 @@ impl Inputs for SourceInputs<'_, '_> {
         }
     }
 
-    fn admit(
+    fn supply(
         &mut self,
         source: crate::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
-    ) -> Result<AdmittedInput, OperatingError> {
+    ) -> Result<AvailableInput, OperatingError> {
         use crate::domain::executable_program::types::InputSource;
         if let Some(project) = &mut self.project {
-            if let Some(provided) = project.admit(source, partition, context, &self.owner) {
+            if let Some(provided) = project.supply(source, partition, context, &self.owner) {
                 return provided;
             }
         }
-        match source {
+        let admitted = match source {
             InputSource::Relation(relation) => {
                 let actual_partition = self
                     .execution
@@ -329,24 +348,17 @@ impl Inputs for SourceInputs<'_, '_> {
                 actual_partition.require_supply(partition)?;
                 let rows = (self.read)(relation)?;
                 let publication = self.owner.source(relation, &rows)?;
-                let checked = self.owner.admit(
-                    publication.as_ref(),
-                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-                )?;
-                let admitted = AdmittedInput::from_publication(
+                return AvailableInput::source(
                     Rc::clone(&self.owner),
-                    publication.clone(),
-                    &checked,
+                    publication,
                     ProducerRoot::Input(source),
                     actual_partition,
-                    Readiness::Complete,
-                )?;
-                Ok(admitted.with_coverage(self.completion.coverage(&[
-                    crate::domain::trust::types::RelationRead {
-                        relation,
-                        kinds: vec![],
-                    },
-                ])))
+                    self.completion
+                        .coverage(&[crate::domain::trust::types::RelationRead {
+                            relation,
+                            kinds: vec![],
+                        }]),
+                );
             }
             InputSource::Hosted { rule, relation } => {
                 let actual_partition = self
@@ -495,7 +507,7 @@ impl Inputs for SourceInputs<'_, '_> {
                         let source = *root.source.as_ref().map_err(Clone::clone)?;
                         let previous = self.rule;
                         self.bind_rule(*rule);
-                        let admitted = self.admit(source, partition, context);
+                        let admitted = self.admit_source(source, partition, context);
                         self.bind_rule(previous);
                         admitted?
                     }
@@ -514,7 +526,16 @@ impl Inputs for SourceInputs<'_, '_> {
                     &self.owner,
                 )
             }
-        }
+        }?;
+        Ok(AvailableInput::published(admitted))
+    }
+    fn admit(
+        &mut self,
+        input: &AvailableInput,
+        partition: &Partition,
+        _context: &mut OperatorContext<'_>,
+    ) -> Result<AdmittedInput, OperatingError> {
+        input.admit(&self.owner, partition, self.read)
     }
     fn is_empty(
         &self,

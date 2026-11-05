@@ -66,6 +66,93 @@ pub(super) struct AdmittedInput {
     readiness: Readiness,
     publication: PublishedInput,
 }
+/// Actual source availability is not a physical-shape or semantic-readiness permit.
+/// It retains an owner-issued publication, never a provider borrow across suspension.
+#[derive(Clone)]
+pub(super) struct AvailableInput {
+    body: AvailableBody,
+}
+#[derive(Clone)]
+enum AvailableBody {
+    Published(AdmittedInput),
+    Source {
+        owner: Rc<RelationOwner>,
+        publication: PublishedInput,
+        root: ProducerRoot,
+        partition: Partition,
+        coverage: crate::domain::completion::types::CoverageState,
+    },
+}
+impl AvailableInput {
+    pub(super) fn published(input: AdmittedInput) -> Self {
+        Self {
+            body: AvailableBody::Published(input),
+        }
+    }
+    pub(super) fn source(
+        owner: Rc<RelationOwner>,
+        publication: PublishedInput,
+        root: ProducerRoot,
+        partition: Partition,
+        coverage: crate::domain::completion::types::CoverageState,
+    ) -> Result<Self, OperatingError> {
+        // This checks the private owner generation without inspecting payload geometry.
+        let _kinds = owner.publication_kinds(&publication)?;
+        Ok(Self {
+            body: AvailableBody::Source {
+                owner,
+                publication,
+                root,
+                partition,
+                coverage,
+            },
+        })
+    }
+    pub(super) fn admit<'facts>(
+        &self,
+        owner: &Rc<RelationOwner>,
+        partition: &Partition,
+        read: &dyn Fn(
+            ryo_relations::domain::relations::types::Relation,
+        )
+            -> Result<crate::domain::table_model::types::Rows<'facts>, OperatingError>,
+    ) -> Result<AdmittedInput, OperatingError> {
+        match &self.body {
+            AvailableBody::Published(input) => {
+                input.publication(owner)?;
+                input.partition.require_supply(partition)?;
+                Ok(input.clone())
+            }
+            AvailableBody::Source {
+                owner: original,
+                publication,
+                root,
+                partition: actual,
+                coverage,
+            } => {
+                if !Rc::ptr_eq(original, owner) {
+                    return Err(OperatingError::NotRead);
+                }
+                actual.require_supply(partition)?;
+                let rows = owner.resolve(publication.as_ref(), read)?;
+                let checked = owner.admit(
+                    publication.as_ref(),
+                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+                )?;
+                AdmittedInput::from_publication(
+                    Rc::clone(owner),
+                    publication.clone(),
+                    &checked,
+                    *root,
+                    actual.clone(),
+                    Readiness::Complete,
+                )
+                .map(|input| input.with_coverage(coverage.clone()))
+            }
+        }
+    }
+}
+
 /// Private to the common invocation. A semantic kernel cannot import this trait.
 pub(super) trait Inputs {
     /// A dependency is polled without entering another invocation. The owner
@@ -78,9 +165,15 @@ pub(super) trait Inputs {
     }
     fn bind_rule(&mut self, _rule: crate::domain::coverage::types::RuleIndex) {}
 
-    fn admit(
+    fn supply(
         &mut self,
         input: InputSource,
+        partition: &Partition,
+        context: &mut crate::domain::operating::types::OperatorContext<'_>,
+    ) -> Result<AvailableInput, OperatingError>;
+    fn admit(
+        &mut self,
+        input: &AvailableInput,
         partition: &Partition,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError>;

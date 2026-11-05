@@ -239,6 +239,31 @@ impl RelationOwner {
         }
         Ok(result)
     }
+    /// Custody of a supplied compact source; no kernel permit is issued here.
+    pub(super) fn source_compact(
+        &self,
+        table: Arc<ryo_values::domain::table_words::types::CompactTable>,
+    ) -> Result<PublishedInput, OperatingError> {
+        self.publication(Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
+            generation: Arc::clone(&self.generation.borrow()),
+            body: RelationBody::Compact(table),
+            inspected: OnceLock::new(),
+            normalized: OnceLock::new(),
+        }))
+    }
+    /// Custody of a supplied flat source, retaining its real malformed geometry until admission.
+    pub(super) fn source_computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
+        self.publication(Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
+            generation: Arc::clone(&self.generation.borrow()),
+            body: RelationBody::Computed(Arc::new(table)),
+            inspected: OnceLock::new(),
+            normalized: OnceLock::new(),
+        }))
+    }
     pub(super) fn compact(
         &self,
         table: Arc<ryo_values::domain::table_words::types::CompactTable>,

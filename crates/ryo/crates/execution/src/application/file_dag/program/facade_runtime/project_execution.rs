@@ -16,7 +16,7 @@ pub(crate) struct ProjectRun<'a> {
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
     cache: Vec<(
         crate::domain::executable_program::types::InputSource,
-        AdmittedInput,
+        AvailableInput,
     )>,
     transport: ryo_language::domain::symbols::types::TransportPermit,
     context: super::super::context::RunContext<'a>,

@@ -1,6 +1,6 @@
 //! Sole region invocation lifecycle. Internal continuations have no publication,
 //! room, dependency ledger or separate scheduler state.
-use super::admission::{AdmittedInput, Inputs, Partition};
+use super::admission::{AdmittedInput, AvailableInput, Inputs, Partition};
 use crate::domain::{
     executable_program::types::{
         DemandAction, ExecutableProgram, InputId, Instruction, Region, RegionId,
@@ -110,6 +110,8 @@ pub(super) enum StrategyOutcome {
 #[derive(Default)]
 struct AdmissionProgress {
     action: usize,
+    availability_action: usize,
+    schema_done: bool,
     ordered_done: bool,
     column_done: bool,
     ready: bool,
@@ -117,7 +119,7 @@ struct AdmissionProgress {
     inputs: Vec<AdmittedInput>,
     acquired: Vec<(
         crate::domain::executable_program::types::InputSource,
-        AdmittedInput,
+        InputStage,
     )>,
     waiting: Option<RegionId>,
     emptiness: Vec<(
@@ -125,6 +127,16 @@ struct AdmissionProgress {
         crate::domain::operator::contract::types::EmptyRepresentation,
         bool,
     )>,
+}
+enum InputStage {
+    Available(AvailableInput),
+    Admitted(AdmittedInput),
+}
+fn schema_first(region: &Region) -> bool {
+    region.instructions.first().is_some_and(|instruction| {
+        instruction.contract.semantics.preflight
+            == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
+    })
 }
 impl AdmissionProgress {
     fn is_empty(
@@ -146,15 +158,32 @@ impl AdmissionProgress {
         Ok(empty)
     }
 
-    fn admit(
+    fn check_schema(&mut self, region: &Region) -> Result<(), OperatingError> {
+        if !self.schema_done {
+            for instruction in region.instructions.iter().rev() {
+                if instruction.contract.semantics.preflight
+                    == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
+                {
+                    instruction
+                        .contract
+                        .output_kinds
+                        .as_ref()
+                        .map_err(Clone::clone)?;
+                }
+            }
+            self.schema_done = true;
+        }
+        Ok(())
+    }
+    fn supply(
         &mut self,
         inputs: &mut dyn Inputs,
         source: crate::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
-    ) -> Result<AdmittedInput, OperatingError> {
-        if let Some((_, input)) = self.acquired.iter().find(|(key, _)| *key == source) {
-            return Ok(input.clone());
+    ) -> Result<(), OperatingError> {
+        if self.acquired.iter().any(|(key, _)| *key == source) {
+            return Ok(());
         }
         if let Some(dependency) = inputs.dependency(source).inspect_err(|error| {
             tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "dependency", action = self.action, ?source, ?error);
@@ -162,11 +191,36 @@ impl AdmissionProgress {
             self.waiting = Some(dependency);
             return Err(OperatingError::NotRun);
         }
-        let admitted = inputs.admit(source, partition, context).inspect_err(|error| {
-            tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "admission", action = self.action, ?source, ?error);
+        let available = inputs.supply(source, partition, context).inspect_err(|error| {
+            tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "availability", action = self.action, ?source, ?error);
         })?;
-        self.acquired.push((source, admitted.clone()));
-        Ok(admitted)
+        self.acquired
+            .push((source, InputStage::Available(available)));
+        Ok(())
+    }
+    fn admit(
+        &mut self,
+        inputs: &mut dyn Inputs,
+        source: crate::domain::executable_program::types::InputSource,
+        partition: &Partition,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<AdmittedInput, OperatingError> {
+        self.supply(inputs, source, partition, context)?;
+        let (_, stage) = self
+            .acquired
+            .iter_mut()
+            .find(|(key, _)| *key == source)
+            .ok_or(OperatingError::NotRun)?;
+        match stage {
+            InputStage::Admitted(input) => Ok(input.clone()),
+            InputStage::Available(available) => {
+                let admitted = inputs.admit(available, partition, context).inspect_err(|error| {
+                    tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "physical", action = self.action, ?source, ?error);
+                })?;
+                *stage = InputStage::Admitted(admitted.clone());
+                Ok(admitted)
+            }
+        }
     }
 }
 enum State {
@@ -758,7 +812,8 @@ impl ProgramExecution {
             self.invoke(dependency, inputs, kernels, completion, context)?;
             inputs.bind_rule(rule);
         }
-        inputs.admit(source, &self.partition, context)
+        let available = inputs.supply(source, &self.partition, context)?;
+        inputs.admit(&available, &self.partition, context)
     }
     pub(in crate::application::file_dag::program) fn invoke(
         &self,
@@ -911,6 +966,17 @@ impl ProgramExecution {
                 .as_ref()
                 .filter(|_| !progress.ordered_done)
             {
+                progress
+                    .supply(
+                        inputs,
+                        crate::domain::executable_program::types::InputSource::Region(shape.source),
+                        &self.partition,
+                        context,
+                    )
+                    .map_err(InvocationFailure::Semantic)?;
+                progress
+                    .check_schema(region)
+                    .map_err(InvocationFailure::Semantic)?;
                 let source = progress
                     .admit(
                         inputs,
@@ -974,6 +1040,25 @@ impl ProgramExecution {
             progress.ordered_done = true;
             if let Some(shape) = region.column.as_ref().filter(|_| !progress.column_done) {
                 use crate::domain::executable_program::types::InputSource;
+                progress
+                    .supply(
+                        inputs,
+                        InputSource::Region(shape.left()),
+                        &self.partition,
+                        context,
+                    )
+                    .map_err(InvocationFailure::Semantic)?;
+                progress
+                    .supply(
+                        inputs,
+                        InputSource::Relation(shape.chain().right),
+                        &self.partition,
+                        context,
+                    )
+                    .map_err(InvocationFailure::Semantic)?;
+                progress
+                    .check_schema(region)
+                    .map_err(InvocationFailure::Semantic)?;
                 let left = progress
                     .admit(
                         inputs,
@@ -1027,6 +1112,25 @@ impl ProgramExecution {
                 }
             }
             progress.column_done = true;
+            if schema_first(region) {
+                for action in program.actions().iter().skip(progress.availability_action) {
+                    match *action {
+                        DemandAction::Admit(InputId(at)) => {
+                            let source =
+                                *region.inputs.get(at).ok_or(InvocationFailure::Semantic(
+                                    OperatingError::MissingInput { position: at + 1 },
+                                ))?;
+                            progress
+                                .supply(inputs, source, &self.partition, context)
+                                .map_err(InvocationFailure::Semantic)?;
+                        }
+                    }
+                    progress.availability_action += 1;
+                }
+                progress
+                    .check_schema(region)
+                    .map_err(InvocationFailure::Semantic)?;
+            }
             for action in program.actions().iter().skip(progress.action) {
                 match *action {
                     DemandAction::Admit(InputId(at)) => {
@@ -1080,18 +1184,10 @@ impl ProgramExecution {
                         ));
                     }
                 }
-                for instruction in region.instructions.iter().rev() {
-                    if instruction.contract.semantics.preflight
-                        == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
-                    {
-                        instruction
-                            .contract
-                            .output_kinds
-                            .as_ref()
-                            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-                    }
-                }
             }
+            progress
+                .check_schema(region)
+                .map_err(InvocationFailure::Semantic)?;
             progress.preflight_done = true;
             let permit = super::admission::KernelPermit::admitted(self, id, &admitted)
                 .map_err(InvocationFailure::Semantic)?;
