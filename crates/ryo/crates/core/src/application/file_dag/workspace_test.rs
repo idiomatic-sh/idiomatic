@@ -271,7 +271,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
         columns: &columns,
     });
     let published = owner.source(Relation::LanguageTarget, &raw).unwrap();
-    let normalized = owner.normalized(&published, raw).unwrap().unwrap();
+    let normalized = owner.normalize(&published, raw).unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone())];
     let use_ = use_(
@@ -284,7 +284,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     );
     let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let inputs = [BorrowedRows::Computed(&normalized)];
+    let inputs = [BorrowedRows::from(&normalized)];
     let storage = workspace
         .inputs(&inputs)
         .acquire_rows(&use_, &mut context)
@@ -292,7 +292,10 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     let DerivedView::Equality(index) = storage.view().unwrap() else {
         panic!("equality")
     };
-    assert_eq!(index.rows().len(), normalized.count.0 as usize);
+    assert_eq!(
+        index.rows().len(),
+        crate::domain::table_model::service::count_of(&normalized).0
+    );
     let transformed = table(&[8, 9], 2);
     let inputs = [BorrowedRows::Computed(&transformed)];
     assert!(matches!(

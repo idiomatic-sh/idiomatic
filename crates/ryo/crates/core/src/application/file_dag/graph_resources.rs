@@ -13,7 +13,13 @@ fn prepare_cycles(
 ) -> Result<super::derived::view::AcquiredView, OperatingError> {
     let owner =
         super::relations::RelationOwner::new(true, crate::outbound::derived::factory::test_port());
-    let proof = owner.admit_external(input)?;
+    let BorrowedRows::Computed(table) = input else {
+        panic!("computed fixture")
+    };
+    let publication = owner.computed(table.clone())?;
+    let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let input = BorrowedRows::from(&held);
+    let proof = owner.admit(publication.as_ref(), input)?;
     let (population, _) = proof.identity(&owner)?;
     let plan = std::sync::Arc::new(super::derived::prepare::view(
         owner.derived.semantic_port(),
@@ -45,7 +51,14 @@ fn prepare_closure(
         true,
         crate::outbound::derived::factory::test_port(),
     ));
+    let BorrowedRows::Computed(table) = input else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let publication = owner.computed(table.clone())?;
+    let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let input = BorrowedRows::from(&rows);
     let mut cursor = super::closure_partitions::PartitionedClosure::prepare(
+        &publication,
         input,
         keys,
         source,

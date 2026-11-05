@@ -143,7 +143,6 @@ impl Worker {
             tables,
             facts,
             old_rows: None,
-            activation: Default::default(),
             failure: None,
         }
     }

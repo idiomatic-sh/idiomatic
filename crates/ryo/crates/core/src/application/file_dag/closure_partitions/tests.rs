@@ -4,22 +4,11 @@ use crate::domain::table_model::service::push_row;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-fn scope() -> crate::application::file_dag::testing::FileScope<'static> {
-    use crate::application::file_dag::executor::PrimitiveExecutor as _;
-    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
-    let prepared = crate::domain::operator::contract::types::RequestOperators::prepare(
-        &[],
-        &[],
-        &[],
-        executor.derived_port(),
-    )
-    .unwrap();
-    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
-        &[],
-        &prepared,
-    ));
-    crate::application::file_dag::testing::FileScope::new(graph, executor, |_| true, &[], &[])
-        .unwrap()
+fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+    std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+        true,
+        crate::application::file_dag::testing::program_derived_port(),
+    ))
 }
 
 fn number(value: i64) -> Value {
@@ -39,12 +28,19 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
         }
     }
     let scope = scope();
+    let publication = scope.computed(input.clone()).unwrap();
+    let rows = scope
+        .resolve(publication.as_ref(), &|_| {
+            Err(crate::domain::operating::errors::OperatingError::NotRead)
+        })
+        .unwrap();
     let mut cursor = PartitionedClosure::prepare(
-        BorrowedRows::Computed(&input),
+        &publication,
+        BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
         ColumnIndex(1),
-        std::rc::Rc::clone(scope.scope.owner()),
+        std::rc::Rc::clone(&scope),
     )
     .unwrap();
     let mut seen = 0;
@@ -84,12 +80,19 @@ fn separate_keys_never_share_edges() {
         push_row(&mut input, &[number(from), number(to), number(key)]);
     }
     let scope = scope();
+    let publication = scope.computed(input.clone()).unwrap();
+    let rows = scope
+        .resolve(publication.as_ref(), &|_| {
+            Err(crate::domain::operating::errors::OperatingError::NotRead)
+        })
+        .unwrap();
     let mut cursor = PartitionedClosure::prepare(
-        BorrowedRows::Computed(&input),
+        &publication,
+        BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
         ColumnIndex(1),
-        std::rc::Rc::clone(scope.scope.owner()),
+        std::rc::Rc::clone(&scope),
     )
     .unwrap();
     let mut observed = Vec::new();
@@ -120,16 +123,23 @@ fn advancing_releases_only_the_previous_partition_lease() {
         push_row(&mut input, &[number(from), number(to), number(key)]);
     }
     let scope = scope();
+    let publication = scope.computed(input.clone()).unwrap();
+    let rows = scope
+        .resolve(publication.as_ref(), &|_| {
+            Err(crate::domain::operating::errors::OperatingError::NotRead)
+        })
+        .unwrap();
     let mut cursor = PartitionedClosure::prepare(
-        BorrowedRows::Computed(&input),
+        &publication,
+        BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
         ColumnIndex(1),
-        std::rc::Rc::clone(scope.scope.owner()),
+        std::rc::Rc::clone(&scope),
     )
     .unwrap();
     assert!(cursor.advance().unwrap());
-    let owner = std::rc::Rc::clone(scope.scope.owner());
+    let owner = std::rc::Rc::clone(&scope);
     let first_backing =
         crate::application::file_dag::derived::owner::resource_fixture::weak_storage(
             cursor.current.as_ref().unwrap(),
@@ -182,12 +192,19 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
         ..Table::default()
     };
     let scope = scope();
+    let publication = scope.computed(input.clone()).unwrap();
+    let rows = scope
+        .resolve(publication.as_ref(), &|_| {
+            Err(crate::domain::operating::errors::OperatingError::NotRead)
+        })
+        .unwrap();
     let cursor = PartitionedClosure::prepare(
-        BorrowedRows::Computed(&input),
+        &publication,
+        BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
         ColumnIndex(1),
-        std::rc::Rc::clone(scope.scope.owner()),
+        std::rc::Rc::clone(&scope),
     )
     .unwrap();
     let mut empty = cursor;

@@ -65,6 +65,7 @@ impl<'f> PartitionedClosure<'f> {
     }
     #[cfg(test)]
     pub(crate) fn prepare(
+        publication: &super::relations::PublishedInput,
         input: BorrowedRows<'f>,
         keys: &[ColumnIndex],
         source: ColumnIndex,
@@ -91,7 +92,7 @@ impl<'f> PartitionedClosure<'f> {
             },
             &schema,
         )?);
-        let proof = owner.admit_external(input)?;
+        let proof = owner.admit(publication.as_ref(), input)?;
         let (population, _) = proof.identity(owner.as_ref())?;
         let ordered = owner.derived.acquire_stored(
             &partition_plan,

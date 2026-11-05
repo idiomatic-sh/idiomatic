@@ -46,7 +46,9 @@ impl<'f> SelectedInput<'f> {
             false,
             crate::outbound::derived::factory::test_port(),
         );
-        let proof = owner.admit_external(rows)?;
+        let supplied = crate::domain::table_model::types::Rows::Selected(original.clone());
+        let publication = owner.source(original.selection.relation, &supplied)?;
+        let proof = owner.admit(publication.as_ref(), rows)?;
         let (population, _) = proof.identity(&owner)?;
         let index = owner.derived.acquire_stored(
             &plan,

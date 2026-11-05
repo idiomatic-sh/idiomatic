@@ -167,7 +167,10 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         count: RowCount(super::MAX_RETAINED_POSITION_CAPACITY + 1),
     };
     let owner = fixture.owner();
-    let proof = owner.admit_external(BorrowedRows::Computed(&table))?;
+    let publication = owner.computed(table.clone())?;
+    let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let rows = BorrowedRows::from(&held);
+    let proof = owner.admit(publication.as_ref(), rows)?;
     let (population, _) = proof.identity(owner)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         crate::outbound::derived::factory::test_port(),
@@ -335,7 +338,10 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         &schema,
     )?);
     let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
-    let proof = owner.admit_external(BorrowedRows::Computed(&table))?;
+    let publication = owner.computed(table.clone())?;
+    let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let rows = BorrowedRows::from(&held);
+    let proof = owner.admit(publication.as_ref(), rows)?;
     let (population, _) = proof.identity(&owner)?;
     let acquired = owner.derived.acquire_stored(
         &distinct,

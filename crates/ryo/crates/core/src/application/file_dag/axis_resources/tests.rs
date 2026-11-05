@@ -63,7 +63,15 @@ fn acquired(
         false,
         crate::outbound::derived::factory::test_port(),
     );
-    let proof = owner.admit_external(rows).unwrap();
+    let BorrowedRows::Computed(table) = rows else {
+        panic!("computed fixture")
+    };
+    let publication = owner.computed(table.clone()).unwrap();
+    let held = owner
+        .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
+    let rows = BorrowedRows::from(&held);
+    let proof = owner.admit(publication.as_ref(), rows).unwrap();
     let (population, _) = proof.identity(&owner).unwrap();
     let inputs = [rows];
     let data = if kind == ryo_derived::domain::contract::types::DerivedKind::Membership {

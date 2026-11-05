@@ -31,29 +31,16 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         )
         .unwrap(),
     );
-    use crate::application::file_dag::executor::PrimitiveExecutor as _;
-    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
-    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
-        &[],
-        &[],
-        &[],
-        executor.derived_port(),
-    )
-    .unwrap();
-    let scope = crate::application::file_dag::testing::FileScope::new(
-        Arc::new(crate::domain::file_program::service::compile_prepared(
-            &[],
-            &request,
-        )),
-        executor,
-        |_| true,
-        &[],
-        &[],
-    )
-    .unwrap();
-    let owner = scope.scope.owner();
-    let rows = BorrowedRows::Computed(&table);
-    let proof = owner.admit_external(rows).unwrap();
+    let owner = crate::application::file_dag::relations::RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    );
+    let publication = owner.computed(table.clone()).unwrap();
+    let held = owner
+        .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
+    let rows = BorrowedRows::from(&held);
+    let proof = owner.admit(publication.as_ref(), rows).unwrap();
     let (population, _) = proof.identity(&owner).unwrap();
     let acquired = owner
         .derived

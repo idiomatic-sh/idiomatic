@@ -58,43 +58,6 @@ impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {
     }
 }
 
-/// Explicit outer fixture scope. All dependency tests use the actual scheduler,
-/// required executor/owner and generation constructor; no fallback owner is minted.
-pub(crate) struct FileScope<'a> {
-    pub(crate) scope: super::scope::ExecutionScope<'a>,
-    pub(crate) execution: std::cell::RefCell<super::types::FileDagExecution>,
-}
-impl<'a> FileScope<'a> {
-    pub(crate) fn new(
-        graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
-        executor: &'a dyn super::executor::PrimitiveExecutor,
-        active: impl Fn(usize) -> bool,
-        complete: &[ryo_relations::domain::relations::types::Relation],
-        partials: &[crate::domain::coverage::types::Partial],
-    ) -> Result<Self, OperatingError> {
-        let scope = super::scope::ExecutionScope::new(
-            std::sync::Arc::clone(&graph),
-            super::scope::ScopePhase::File(ryo_relations::domain::relations::types::FileId(0)),
-            true,
-            executor,
-        )?;
-        let schedule =
-            super::activation::types::ActivationCache::default().activate(&graph, active, complete);
-        let completion = scope.completion(
-            crate::domain::coverage::types::RuleIndex(0),
-            super::scope::ScopePartials::File {
-                evaluation: partials,
-                publication: partials,
-            },
-        )?;
-        let execution = std::cell::RefCell::new(super::types::FileDagExecution::new_for_schedule(
-            &schedule,
-            std::rc::Rc::clone(scope.owner()),
-            completion,
-        ));
-        Ok(Self { scope, execution })
-    }
-}
 /// Standalone borrowed-row semantic oracles have an explicit empty request scope:
 /// no graph dependency is evaluated and no production owner/default is bypassed.
 pub(super) fn semantic_scope<'a>(

@@ -47,7 +47,6 @@ pub(crate) mod route_counts;
 
 mod equality_join;
 
-pub(in crate::application) mod activation;
 
 pub(in crate::application) mod observations;
 mod ordered_existence;

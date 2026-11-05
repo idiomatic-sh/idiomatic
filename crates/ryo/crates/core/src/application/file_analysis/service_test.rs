@@ -601,7 +601,6 @@ fn visited_inputs_with_rule_demands(
         ),
         facts,
         old_rows: None,
-        activation: Default::default(),
         failure: None,
     };
     for _ in 0..repetitions {
@@ -1134,7 +1133,6 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         ),
         facts: FactsFake::default().worker().expect("facts worker"),
         old_rows: None,
-        activation: Default::default(),
         failure: None,
     };
     let packed = |value, places: &[NamePlace]| {
@@ -1351,7 +1349,6 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         ),
         facts: FactsFake::default().worker().expect("worker"),
         old_rows: None,
-        activation: Default::default(),
         failure: None,
     };
     let producer = new_worker();

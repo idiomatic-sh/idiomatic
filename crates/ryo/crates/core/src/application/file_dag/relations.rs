@@ -376,15 +376,6 @@ impl RelationOwner {
             }
         }
     }
-    #[cfg(test)]
-    pub(super) fn normalized(
-        &self,
-        result: &PublishedInput,
-        rows: Rows<'_>,
-    ) -> Result<Option<Arc<Table>>, OperatingError> {
-        let _checked = self.normalize(result, rows)?;
-        Ok(self.private(result.as_ref())?.normalized.get().cloned())
-    }
     /// The caller invokes this only at its already declared physical demand gate.
     pub(super) fn inspect(
         &self,

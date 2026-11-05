@@ -11,7 +11,7 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::to_bits,
-    types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value},
+    types::{CellKind, ColumnsView, FactColumn, Relation, Value},
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use std::sync::Arc;
@@ -23,7 +23,12 @@ fn source(values: &[&[i64]]) -> Vec<FactColumn> {
             FactColumn(
                 column
                     .iter()
-                    .map(|value| to_bits(Value::Number(Integer(*value))).0)
+                    .map(|value| {
+                        to_bits(Value::Node(
+                            ryo_relations::domain::relations::types::NodeId(*value as u64),
+                        ))
+                        .0
+                    })
                     .collect(),
             )
         })
@@ -33,14 +38,14 @@ fn source(values: &[&[i64]]) -> Vec<FactColumn> {
 fn selected<'a>(columns: &'a [FactColumn], positions: Vec<u32>) -> SelectedRows<'a> {
     SelectedRows {
         source: ColumnsView {
-            kinds: &[CellKind::Number, CellKind::Number],
+            kinds: &[CellKind::Node, CellKind::Node],
             columns,
         },
         selection: Arc::new(StoredSelection {
-            relation: Relation::Function,
+            relation: Relation::SyntaxChild,
             rows: Arc::new(positions),
             columns: vec![ColumnIndex(1), ColumnIndex(0)],
-            kinds: vec![CellKind::Number, CellKind::Number],
+            kinds: vec![CellKind::Node, CellKind::Node],
             identity: Arc::new(Default::default()),
         }),
     }
@@ -54,7 +59,9 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
     assert_eq!(
         selected
             .view()
-            .matching(&[Value::Number(Integer(7))])
+            .matching(&[Value::Node(
+                ryo_relations::domain::relations::types::NodeId(7)
+            )])
             .collect::<Vec<_>>(),
         vec![RowIndex(0), RowIndex(1), RowIndex(2)]
     );
@@ -73,7 +80,10 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let left = [Value::Number(Integer(7)), Value::Number(Integer(99))];
+    let left = [
+        Value::Node(ryo_relations::domain::relations::types::NodeId(7)),
+        Value::Node(ryo_relations::domain::relations::types::NodeId(99)),
+    ];
     let output = [
         JoinColumn {
             side: Side::Left,
@@ -89,7 +99,7 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
         },
     ];
     let mut table = Table {
-        kinds: vec![CellKind::Number; 3],
+        kinds: vec![CellKind::Node; 3],
         ..Table::default()
     };
     let _previous = take_read_row_counts();
@@ -110,15 +120,15 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
     assert_eq!(
         table.cells,
         [
-            Value::Number(Integer(99)),
-            Value::Number(Integer(3)),
-            Value::Number(Integer(3)),
-            Value::Number(Integer(99)),
-            Value::Number(Integer(1)),
-            Value::Number(Integer(1)),
-            Value::Number(Integer(99)),
-            Value::Number(Integer(3)),
-            Value::Number(Integer(3)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(99)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(3)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(3)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(99)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(1)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(1)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(99)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(3)),
+            Value::Node(ryo_relations::domain::relations::types::NodeId(3)),
         ]
     );
     Ok(())
