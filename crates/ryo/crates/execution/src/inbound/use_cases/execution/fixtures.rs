@@ -106,7 +106,7 @@ pub(super) fn prepared(
                     id: QuerySourceId("authored-operator-contract".into()),
                     text: "".into(),
                 },
-                modules: BTreeMap::new(),
+                modules: BTreeMap::new().into(),
             },
             applicability: RuleApplicability::Always,
             given: vec![],

@@ -133,7 +133,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                 if relation == Relation::Function {
                     Ok(if stored {
                         SourceRows::Stored(ColumnsView {
-                            kinds: &source.kinds,
+                            kinds: kinds(Relation::Function),
                             columns: &columns,
                         })
                     } else {

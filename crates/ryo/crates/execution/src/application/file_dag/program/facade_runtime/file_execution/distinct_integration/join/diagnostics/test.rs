@@ -1,5 +1,5 @@
 //! The private owner reports once at normal file shutdown, including failure/empty roots.
-use super::super::cases::table_of;
+use super::super::cases::test::table_of;
 use super::super::*;
 /// Capture only the opt-in aggregate target, without adding a test dependency.
 #[derive(Clone, Default)]

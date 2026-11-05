@@ -1,5 +1,5 @@
 //! Reentrant delivery and retry use one genuine prepared program and file owner.
-use super::super::cases::table_of;
+use super::super::cases::test::table_of;
 use super::super::*;
 use crate::domain::operating::types::Memo;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};

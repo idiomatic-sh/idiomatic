@@ -1,5 +1,5 @@
 //! Fault injection is a real semantic dependency; every execution uses FileRun.
-use super::super::cases::{node, table_of, tree_rows, wide_tree};
+use super::super::cases::test::{node, table_of, tree_rows, wide_tree};
 use super::super::*;
 use ryo_operators::inbound::use_cases::operators::interface::{
     JoinInput, JoinRow, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
