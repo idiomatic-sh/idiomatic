@@ -56,6 +56,8 @@ pub(crate) struct SelectionSnapshot {
     pub prepared_descriptor_address: Option<usize>,
     pub prepared_views_address: Option<usize>,
     pub prepared_selectors: usize,
+    pub active_repetition_groups: usize,
+    pub repetition_capacity: usize,
     pub repeated_discriminator: bool,
     pub counts: SelectionCounters,
 }
@@ -125,9 +127,13 @@ impl SelectionFixture {
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
         let descriptors = super::super::owner::resource_fixture::prepared_sources(plans);
-        owner
-            .derived
-            .prepare_program_file(&descriptors, &vec![true; plans.len()], partials)?;
+        owner.derived.prepare_program_file(
+            &descriptors,
+            &(0..plans.len())
+                .map(crate::domain::coverage::types::RuleIndex)
+                .collect::<Vec<_>>(),
+            partials,
+        )?;
         owner
             .derived
             .fixture_install_views(active, authored, kinds)?;

@@ -446,7 +446,9 @@ pub(crate) fn compile(
             })
             .collect();
     }
+    let file_readers = super::file_demand::service::readers(&regions, &rules)?;
     let mut executable = ExecutableProgram {
+        file_readers,
         regions: regions.into_boxed_slice(),
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),

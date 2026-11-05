@@ -116,11 +116,15 @@ pub(crate) struct RuleProgram {
 #[derive(Debug)]
 pub(crate) struct ExecutableProgram {
     pub(super) regions: Box<[Region]>,
+    pub(super) file_readers: super::file_demand::types::FileReaderGraph,
     pub(super) rules: Box<[RuleProgram]>,
     pub(super) logical_regions: Box<[RegionId]>,
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
 }
 impl ExecutableProgram {
+    pub(crate) fn file_readers(&self) -> &super::file_demand::types::FileReaderGraph {
+        &self.file_readers
+    }
     /// The prepared physical phase of an original frontier root. No file or
     /// project runtime can change this declaration while admitting its input.
     pub(crate) fn frontier_phase(&self, source: InputSource) -> Result<StepScope, OperatingError> {

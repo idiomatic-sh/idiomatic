@@ -15,7 +15,9 @@ pub(crate) struct FileRun<'a> {
     owner: Rc<RelationOwner>,
     file: FileId,
     partials: ScopePartials<'a>,
-    roots: Vec<Vec<FileRoot>>,
+    roots: HashMap<usize, Vec<FileRoot>>,
+    prepared_roots: Vec<crate::domain::executable_program::types::RegionId>,
+    prepared_named: Vec<(usize, usize, bool)>,
     /// Immutable intent and identity share the same private file owner lifetime.
     intents: Box<[FileRuleIntent]>,
     generation: FileGeneration,
@@ -59,46 +61,12 @@ pub(crate) fn open_file<'a>(
     let ScopePartials::File { publication, .. } = partials else {
         return Err(OperatingError::WrongOperation);
     };
-    let demanded = intents
-        .iter()
-        .map(|intent| match intent {
-            FileRuleIntent::Run {
-                diagnostic,
-                observations,
-                capture,
-            } => {
-                *diagnostic != DiagnosticDelivery::Disabled
-                    || *observations == ObservationDemand::Required
-                    || *capture != CaptureIntent::Disabled
-            }
-            _ => false,
-        })
-        .collect::<Vec<_>>();
-    owner
-        .derived
-        .prepare_program_file(program.derived(), &demanded, publication)?;
     let generation = FileGeneration::from_owner(file, &owner);
     let execution = ProgramExecution::open(
         Arc::clone(program.program()),
         Partition::File(generation.clone()),
         Rc::clone(&owner),
     );
-    let roots = (0..program.rule_count())
-        .map(|rule| {
-            program.rule_metadata(RuleIndex(rule)).map(|metadata| {
-                metadata
-                    .observations
-                    .iter()
-                    .map(|_| FileRoot {
-                        readiness: None,
-                        committed_frontier: false,
-                        publication: None,
-                        skipped: None,
-                    })
-                    .collect()
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
     let mut run = FileRun {
         _routes: routes,
         program,
@@ -107,7 +75,9 @@ pub(crate) fn open_file<'a>(
         owner,
         file,
         partials,
-        roots,
+        roots: HashMap::new(),
+        prepared_roots: Vec::new(),
+        prepared_named: Vec::new(),
         intents: intents.into(),
         generation,
         observed: HashMap::new(),
@@ -117,82 +87,100 @@ pub(crate) fn open_file<'a>(
             &services, source, symbols, semantic, kinds,
         ),
     };
-    run.bind_intents()?;
+    let demanded = run.bind_intents()?;
+    run.owner
+        .derived
+        .prepare_program_file(program.derived(), &demanded, publication)?;
     Ok(run)
 }
 impl FileRun<'_> {
-    /// Cancel every undeclared external reader before a source or native walk is admitted.
-    fn bind_intents(&mut self) -> Result<(), OperatingError> {
-        use crate::domain::executable_program::types::InputSource;
+    /// Bind selected external readers before a source or native walk is admitted.
+    fn bind_intents(&mut self) -> Result<Vec<RuleIndex>, OperatingError> {
+        use crate::domain::executable_program::file_demand::{
+            service::mode, types::FileRoot as DemandRoot,
+        };
+        let ScopePartials::File { publication, .. } = &self.partials else {
+            return Err(OperatingError::WrongOperation);
+        };
+        let mut seen = std::collections::HashSet::new();
+        let mut readers = Vec::new();
+        let mut demanded = Vec::new();
         for (index, intent) in self.intents.iter().copied().enumerate() {
             let rule = RuleIndex(index);
-            let prepared = &self.program.program().rules()[index];
-            let metadata = self.program.rule_metadata(rule)?;
-            let mut enabled = Vec::new();
-            if let FileRuleIntent::Run {
-                diagnostic,
-                observations,
-                capture,
-            } = intent
+            let compiled = self.program.file_demand(rule)?;
+            let selected = match intent {
+                FileRuleIntent::Run {
+                    diagnostic,
+                    observations,
+                    capture,
+                } => mode(
+                    diagnostic != DiagnosticDelivery::Disabled,
+                    observations == ObservationDemand::Required,
+                    match capture {
+                        CaptureIntent::Disabled => 0,
+                        CaptureIntent::Observations => 1,
+                        CaptureIntent::DiagnosticAndObservations => 2,
+                    },
+                ),
+                _ => 0,
+            };
+            if selected != 0 {
+                demanded.push(rule);
+            }
+            let plan = &compiled.modes[selected];
+            readers.extend_from_slice(&plan.readers);
+            if (selected != 0
+                || matches!(
+                    intent,
+                    FileRuleIntent::Skipped(_) | FileRuleIntent::Refused(_)
+                ))
+                && compiled.outputs != 0
             {
-                if diagnostic != DiagnosticDelivery::Disabled {
-                    enabled.extend(prepared.emit.iter().copied());
-                }
-                if observations == ObservationDemand::Required {
-                    enabled.extend(metadata.observations.iter().filter_map(|root| {
-                        match root.source.as_ref().ok()? {
-                            InputSource::Region(id) => Some(*id),
-                            _ => None,
+                self.roots.insert(
+                    index,
+                    (0..compiled.outputs)
+                        .map(|_| FileRoot {
+                            readiness: None,
+                            committed_frontier: false,
+                            publication: None,
+                            skipped: None,
+                        })
+                        .collect(),
+                );
+            }
+            for &output in &plan.observations {
+                let root = &self.program.rule_metadata(rule)?.observations[output];
+                let ready = crate::domain::trust::service::blocked(&root.reads, publication)
+                    == crate::domain::trust::types::Blocking::Free;
+                self.prepared_named.push((index, output, ready));
+            }
+            for root in &plan.roots {
+                let id = match root {
+                    DemandRoot::Ordinary(id) => *id,
+                    DemandRoot::Observation { region, output } => {
+                        let root = &self.program.rule_metadata(rule)?.observations[*output];
+                        if crate::domain::trust::service::blocked(&root.reads, publication)
+                            != crate::domain::trust::types::Blocking::Free
+                        {
+                            continue;
                         }
-                    }));
-                }
-                for (frontier, source) in prepared.frontier.iter().enumerate() {
-                    let wanted = match capture {
-                        CaptureIntent::Disabled => false,
-                        CaptureIntent::Observations => metadata
-                            .observation_frontiers
-                            .get(frontier)
-                            .copied()
-                            .unwrap_or(false),
-                        CaptureIntent::DiagnosticAndObservations => true,
-                    };
-                    if wanted {
-                        match source {
-                            Ok(InputSource::Region(id)) => enabled.push(*id),
-                            Ok(InputSource::Observation(slot)) => {
-                                if let Some(Ok(id)) =
-                                    self.program.program().observation_regions().get(*slot)
-                                {
-                                    enabled.push(*id);
-                                }
-                            }
-                            _ => {}
-                        }
+                        *region
                     }
+                };
+                if seen.insert(id) {
+                    self.prepared_roots.push(id);
                 }
-            }
-            // Reader obligations are a multiset: repeated root aliases remain distinct.
-            let mut cancelled = Vec::new();
-            for root in prepared.root_readers.iter().copied() {
-                if let Some(place) = enabled.iter().position(|enabled| *enabled == root) {
-                    enabled.swap_remove(place);
-                } else {
-                    cancelled.push(root);
-                }
-            }
-            if !cancelled.is_empty() {
-                self.execution
-                    .cancel_roots(self.execution.file_state(), &cancelled)?;
             }
             match intent {
-                FileRuleIntent::Undemanded => {}
                 FileRuleIntent::Skipped(reason) => {
                     let proof = ApplicabilityProof::for_file(rule, self.file, reason, &self.owner);
-                    for root in &mut self.roots[index] {
-                        root.readiness = Some(
-                            ryo_values::domain::observations::types::ProducerReadiness::Skipped,
-                        );
-                        root.skipped = Some(proof.clone());
+                    if let Some(roots) = self.roots.get_mut(&index) {
+                        for root in roots {
+                            root.readiness = Some(
+                                ryo_values::domain::observations::types::ProducerReadiness::Skipped,
+                            );
+                            root.skipped = Some(proof.clone());
+                        }
                     }
                 }
                 FileRuleIntent::Refused(reason) => {
@@ -204,20 +192,23 @@ impl FileRun<'_> {
                             "applicability metadata unavailable"
                         }
                     };
-                    for root in &mut self.roots[index] {
-                        root.readiness = Some(
-                            ryo_values::domain::observations::types::ProducerReadiness::Unknown(
-                                ryo_values::domain::observations::types::ObservationReason(
-                                    reason.into(),
+                    if let Some(roots) = self.roots.get_mut(&index) {
+                        for root in roots {
+                            root.readiness = Some(
+                                ryo_values::domain::observations::types::ProducerReadiness::Unknown(
+                                    ryo_values::domain::observations::types::ObservationReason(
+                                        reason.into(),
+                                    ),
                                 ),
-                            ),
-                        );
+                            );
+                        }
                     }
                 }
-                FileRuleIntent::Run { .. } => {}
+                _ => {}
             }
         }
-        Ok(())
+        self.execution.activate_file_roots(&readers)?;
+        Ok(demanded)
     }
     fn declared(
         &self,
@@ -240,80 +231,7 @@ impl FileRun<'_> {
         if self.walk_prepared {
             return Ok(());
         }
-        let mut queued = Vec::new();
-        for (index, intent) in self.intents.iter().enumerate() {
-            let FileRuleIntent::Run {
-                diagnostic,
-                observations,
-                capture,
-            } = intent
-            else {
-                continue;
-            };
-            let metadata = self.program.rule_metadata(RuleIndex(index))?;
-            let mut append = |source: &Result<InputSource, OperatingError>| {
-                let id = match source {
-                    Ok(InputSource::Region(id)) => Some(*id),
-                    Ok(InputSource::Observation(slot)) => self
-                        .program
-                        .program()
-                        .observation_regions()
-                        .get(*slot)
-                        .and_then(|id| id.as_ref().ok())
-                        .copied(),
-                    _ => None,
-                };
-                if let Some(id) = id {
-                    if self.program.program().regions()[id.0].phase
-                        == ryo_values::domain::plans::types::StepScope::PerFile
-                    {
-                        if !queued.contains(&id) {
-                            queued.push(id);
-                        }
-                    }
-                }
-            };
-            if *diagnostic != DiagnosticDelivery::Disabled {
-                append(&metadata.emit_root.clone().map(InputSource::Region));
-            }
-            if *observations == ObservationDemand::Required {
-                let policy = match &self.partials {
-                    ScopePartials::File {
-                        evaluation,
-                        publication,
-                    } => CompletionPolicy::file_inputs(
-                        RuleIndex(index),
-                        self.file,
-                        evaluation,
-                        publication,
-                    ),
-                    ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
-                };
-                for root in &metadata.observations {
-                    if policy.observation_admission(&root.reads)
-                        == crate::domain::completion::types::ObservationAdmission::Ready
-                    {
-                        append(&root.source);
-                    }
-                }
-            }
-            let prepared = &self.program.program().rules()[index];
-            for (frontier, source) in prepared.frontier.iter().enumerate() {
-                let wanted = match capture {
-                    CaptureIntent::Disabled => false,
-                    CaptureIntent::Observations => metadata
-                        .observation_frontiers
-                        .get(frontier)
-                        .copied()
-                        .unwrap_or(false),
-                    CaptureIntent::DiagnosticAndObservations => true,
-                };
-                if wanted {
-                    append(source);
-                }
-            }
-        }
-        let Some(first) = queued.first() else {
+        let Some(first) = self.prepared_roots.first() else {
             self.walk_prepared = true;
             return Ok(());
         };
@@ -347,7 +265,7 @@ impl FileRun<'_> {
         };
         self.execution.prepare_roots(
             self.execution.file_state(),
-            &queued,
+            &self.prepared_roots,
             &mut sources,
             &kernels,
             &completion,
@@ -356,52 +274,37 @@ impl FileRun<'_> {
         // Named roots have their own declared demand. Publish their readiness
         // through the same evaluation contract before delivering any diagnostic.
         let mut named = Vec::new();
-        for (index, intent) in self.intents.iter().enumerate() {
-            let FileRuleIntent::Run {
-                observations: ObservationDemand::Required,
-                ..
-            } = intent
-            else {
-                continue;
-            };
+        for &(index, output, ready) in &self.prepared_named {
             let rule = RuleIndex(index);
-            let metadata = self.program.rule_metadata(rule)?;
-            let policy = completion.for_rule(rule);
+            let root = &self.program.rule_metadata(rule)?.observations[output];
             sources.bind_rule(rule);
-            for (output, root) in metadata.observations.iter().enumerate() {
-                if root.phase != ryo_values::domain::plans::types::StepScope::PerFile {
-                    continue;
-                }
-                let result = if policy.observation_admission(&root.reads)
-                    == crate::domain::completion::types::ObservationAdmission::Ready
-                {
-                    root.source.clone().and_then(|source| {
-                        sources.admit_source(
-                            source,
-                            &Partition::File(self.generation.clone()),
-                            &mut context,
-                        )
-                    })
+            let result = if ready {
+                root.source.clone().and_then(|source| {
+                    sources.admit_source(
+                        source,
+                        &Partition::File(self.generation.clone()),
+                        &mut context,
+                    )
+                })
+            } else {
+                Err(OperatingError::ObservationIncomplete {
+                    reason: "physical source facts are incomplete".into(),
+                })
+            };
+            let result = result.and_then(|input| {
+                if input.observation_ready()? {
+                    Ok(input)
                 } else {
                     Err(OperatingError::ObservationIncomplete {
-                        reason: "physical source facts are incomplete".into(),
+                        reason: "producer publication has incomplete physical coverage".into(),
                     })
-                };
-                let result = result.and_then(|input| {
-                    if input.observation_ready()? {
-                        Ok(input)
-                    } else {
-                        Err(OperatingError::ObservationIncomplete {
-                            reason: "producer publication has incomplete physical coverage".into(),
-                        })
-                    }
-                });
-                named.push((index, output, result));
-            }
+                }
+            });
+            named.push((index, output, result));
         }
         drop(sources);
         for (rule, output, result) in named {
-            let root = &mut self.roots[rule][output];
+            let root = &mut self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output];
             match result {
                 Ok(input) => {
                     root.publication = Some(input);
@@ -547,10 +450,12 @@ impl FileRun<'_> {
         }
         drop(sources);
         for (index, input) in published {
-            self.roots[rule.0][index].publication = Some(input);
+            self.roots.get_mut(&rule.0).ok_or(OperatingError::NotRun)?[index].publication =
+                Some(input);
         }
         for (output, outcome) in &observations {
-            self.roots[rule.0][output.0 as usize].readiness = readiness_of(outcome);
+            self.roots.get_mut(&rule.0).ok_or(OperatingError::NotRun)?[output.0 as usize]
+                .readiness = readiness_of(outcome);
         }
         Ok(RuleOutcome {
             emit,
@@ -701,19 +606,12 @@ impl FileRun<'_> {
         {
             return Err(OperatingError::NotRun);
         }
-        let metadata = self.program.observation_metadata();
-        if let Some(metadata) = metadata {
-            for root in metadata
-                .frontiers
-                .iter()
-                .filter(|root| root.producer == rule && root.frontier == input)
-            {
-                self.roots
-                    .get_mut(rule.0)
-                    .and_then(|outputs| outputs.get_mut(root.output.0 as usize))
-                    .ok_or(OperatingError::NotRun)?
-                    .committed_frontier = true;
-            }
+        for &output in self.program.file_frontier_outputs(rule, input.0)? {
+            self.roots
+                .get_mut(&rule.0)
+                .and_then(|outputs| outputs.get_mut(output))
+                .ok_or(OperatingError::NotRun)?
+                .committed_frontier = true;
         }
         Ok(())
     }
@@ -791,10 +689,13 @@ impl FileRun<'_> {
         let count = u32::try_from(metadata.frontiers.len()).ok()?;
         let mut map = new_frontiers(metadata.layout, ObservationReadinessCount(count));
         for (slot, root) in metadata.frontiers.iter().enumerate() {
-            let state = self
+            let Some(state) = self
                 .roots
-                .get(root.producer.0)?
-                .get(root.output.0 as usize)?;
+                .get(&root.producer.0)
+                .and_then(|outputs| outputs.get(root.output.0 as usize))
+            else {
+                continue;
+            };
             let readiness = match &state.readiness {
                 Some(ProducerReadiness::Complete) if state.committed_frontier => {
                     ProducerReadiness::Complete

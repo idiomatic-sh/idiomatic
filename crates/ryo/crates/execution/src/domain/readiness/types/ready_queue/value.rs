@@ -1,7 +1,7 @@
 //! A producer completion wakes exactly the admissions waiting for that producer.
 use super::super::{ReadinessAction, ReadinessCounts, ReadinessOutcome, RegionCount, WaitingCount};
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Copy)]
 enum State {
@@ -18,7 +18,8 @@ struct Entry {
 }
 /// Owns only readiness transitions. The application polls the sole actual interpreter.
 pub(crate) struct ReadyQueue {
-    entries: Vec<Entry>,
+    region_count: RegionCount,
+    entries: HashMap<usize, Entry>,
     pending: VecDeque<RegionId>,
     ready: VecDeque<RegionId>,
     cohort: VecDeque<RegionId>,
@@ -31,12 +32,8 @@ impl ReadyQueue {
         roots: &[RegionId],
     ) -> Result<Self, OperatingError> {
         let mut queue = Self {
-            entries: (0..region_count.0)
-                .map(|_| Entry {
-                    state: State::Unseen,
-                    waiters: Vec::new(),
-                })
-                .collect(),
+            region_count,
+            entries: HashMap::new(),
             pending: VecDeque::new(),
             ready: VecDeque::new(),
             cohort: VecDeque::new(),
@@ -49,7 +46,13 @@ impl ReadyQueue {
         Ok(queue)
     }
     fn discover(&mut self, id: RegionId) -> Result<(), OperatingError> {
-        let entry = self.entries.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+        if id.0 >= self.region_count.0 {
+            return Err(OperatingError::NotRun);
+        }
+        let entry = self.entries.entry(id.0).or_insert_with(|| Entry {
+            state: State::Unseen,
+            waiters: Vec::new(),
+        });
         if matches!(entry.state, State::Unseen) {
             entry.state = State::Queued;
             self.pending.push_back(id);
@@ -77,7 +80,10 @@ impl ReadyQueue {
         let id = match action {
             ReadinessAction::Prepare(id) | ReadinessAction::Evaluate(id) => id,
         };
-        self.entries[id.0].state = State::Polling;
+        self.entries
+            .get_mut(&id.0)
+            .ok_or(OperatingError::NotRun)?
+            .state = State::Polling;
         Ok(Some(action))
     }
     pub(crate) fn observe(
@@ -86,44 +92,72 @@ impl ReadyQueue {
         outcome: ReadinessOutcome,
     ) -> Result<(), OperatingError> {
         if !matches!(
-            self.entries.get(id.0).map(|entry| entry.state),
+            self.entries.get(&id.0).map(|entry| entry.state),
             Some(State::Polling)
         ) {
             return Err(OperatingError::NotRun);
         }
         match outcome {
             ReadinessOutcome::Ready => {
-                self.entries[id.0].state = State::Ready;
+                self.entries
+                    .get_mut(&id.0)
+                    .ok_or(OperatingError::NotRun)?
+                    .state = State::Ready;
                 self.ready.push_back(id);
             }
             ReadinessOutcome::Waiting(dependency) => {
                 if dependency == id {
                     return Err(OperatingError::NotRun);
                 }
+                if dependency.0 >= self.region_count.0 {
+                    return Err(OperatingError::NotRun);
+                }
                 let dependency_state = self
                     .entries
-                    .get(dependency.0)
-                    .ok_or(OperatingError::NotRun)?
-                    .state;
+                    .get(&dependency.0)
+                    .map_or(State::Unseen, |entry| entry.state);
                 self.counts.suspensions.0 += 1;
                 if matches!(dependency_state, State::Terminal) {
                     // Canonical admission consumes a completed producer or its
                     // error; another Waiting event cannot make further progress.
                     return Err(OperatingError::NotRun);
                 }
-                self.entries[id.0].state = State::Waiting(dependency);
-                self.entries[dependency.0].waiters.push(id);
+                self.entries
+                    .get_mut(&id.0)
+                    .ok_or(OperatingError::NotRun)?
+                    .state = State::Waiting(dependency);
+                self.entries
+                    .entry(dependency.0)
+                    .or_insert_with(|| Entry {
+                        state: State::Unseen,
+                        waiters: Vec::new(),
+                    })
+                    .waiters
+                    .push(id);
                 self.blocked.0 += 1;
                 self.discover(dependency)?;
             }
             ReadinessOutcome::Terminal => {
-                self.entries[id.0].state = State::Terminal;
-                for waiter in std::mem::take(&mut self.entries[id.0].waiters) {
-                    if !matches!(self.entries[waiter.0].state, State::Waiting(producer) if producer == id)
+                self.entries
+                    .get_mut(&id.0)
+                    .ok_or(OperatingError::NotRun)?
+                    .state = State::Terminal;
+                let waiters = std::mem::take(
+                    &mut self
+                        .entries
+                        .get_mut(&id.0)
+                        .ok_or(OperatingError::NotRun)?
+                        .waiters,
+                );
+                for waiter in waiters {
+                    if !matches!(self.entries.get_mut(&waiter.0).ok_or(OperatingError::NotRun)?.state, State::Waiting(producer) if producer == id)
                     {
                         return Err(OperatingError::NotRun);
                     }
-                    self.entries[waiter.0].state = State::Queued;
+                    self.entries
+                        .get_mut(&waiter.0)
+                        .ok_or(OperatingError::NotRun)?
+                        .state = State::Queued;
                     self.blocked.0 -= 1;
                     self.counts.wakeups.0 += 1;
                     self.pending.push_back(waiter);
@@ -131,6 +165,10 @@ impl ReadyQueue {
             }
         }
         Ok(())
+    }
+    #[cfg(test)]
+    pub(super) fn reached_entries(&self) -> usize {
+        self.entries.len()
     }
     pub(crate) fn counts(&self) -> ReadinessCounts {
         self.counts

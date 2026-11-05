@@ -132,10 +132,42 @@ fn preparation_terminal_wakes_admissions_before_the_ready_cohort() {
     assert_eq!(queue.next(), Ok(None));
 }
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+fn large_unreached_program_has_only_actual_readiness_entries() {
+    let mut queue = ReadyQueue::new(RegionCount(10_000_000), &[RegionId(7), RegionId(7)]).unwrap();
+    assert_eq!(queue.reached_entries(), 1);
+    assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(7)))));
+    assert_eq!(
+        queue.observe(RegionId(7), Outcome::Waiting(RegionId(10_000_000))),
+        Err(OperatingError::NotRun)
+    );
+    assert_eq!(
+        queue.reached_entries(),
+        1,
+        "invalid dependency cannot allocate a readiness entry"
+    );
+    queue
+        .observe(RegionId(7), Outcome::Waiting(RegionId(9_999_999)))
+        .unwrap();
+    assert_eq!(queue.reached_entries(), 2);
+    assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(9_999_999)))));
+    queue
+        .observe(RegionId(9_999_999), Outcome::Terminal)
+        .unwrap();
+    assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(7)))));
+    queue.observe(RegionId(7), Outcome::Terminal).unwrap();
+    assert_eq!(queue.next(), Ok(None));
+    assert_eq!(queue.reached_entries(), 2);
+}
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("large unreached program allocates only reached readiness entries"),
+        word: Word::Succeeds,
+        input: || large_unreached_program_has_only_actual_readiness_entries,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("preparation terminal wakes before ready evaluation"),
         word: Word::Succeeds,

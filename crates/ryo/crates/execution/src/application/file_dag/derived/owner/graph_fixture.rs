@@ -129,7 +129,13 @@ impl GraphFixture {
         let prepared = super::resource_fixture::prepared_sources(&plans);
         self.owner
             .derived
-            .prepare_program_file(&prepared, &vec![true; plans.len()], &self.partials)
+            .prepare_program_file(
+                &prepared,
+                &(0..plans.len())
+                    .map(crate::domain::coverage::types::RuleIndex)
+                    .collect::<Vec<_>>(),
+                &self.partials,
+            )
             .unwrap();
         self.owner.derived.set_optional_limit(self.limit).unwrap();
     }
@@ -170,10 +176,15 @@ impl GraphFixture {
             Rows::Computed(table) => self.owner.computed((*table).clone())?,
             Rows::Compact(table) => {
                 let publication = self.owner.source_compact(Arc::new((*table).clone()))?;
-                let supplied = self.owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-                self.owner.admit(publication.as_ref(), crate::domain::operator::contract::views::BorrowedRows::from(&supplied))?;
+                let supplied = self
+                    .owner
+                    .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+                self.owner.admit(
+                    publication.as_ref(),
+                    crate::domain::operator::contract::views::BorrowedRows::from(&supplied),
+                )?;
                 publication
-            },
+            }
             _ => match input {
                 Input::Relation(relation) => self.owner.source(relation, rows)?,
                 Input::Step(_) | Input::BoundObservation(_) => return Err(OperatingError::NotRun),

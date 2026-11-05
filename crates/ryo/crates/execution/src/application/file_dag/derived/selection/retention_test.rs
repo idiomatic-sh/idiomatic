@@ -471,3 +471,63 @@ fn empty_retention_counts_no_position_slots_and_invalid_group_is_not_allocation_
 use ryo_values::domain::rows::types::{RowCount, Table};
 
 use ryo_derived::domain::contract::types::DerivedKind;
+
+#[test]
+fn request_selector_inventory_allocates_repetition_only_for_active_groups() -> Result<(), Failure> {
+    let authored = (0..1024).map(program).collect::<Vec<_>>();
+    let active = authored[2].clone();
+    let known_inactive = authored[3].clone();
+    let fixture = SelectionFixture::new(
+        &[Relation::Function],
+        &[],
+        vec![active.clone(), active.clone()],
+        authored,
+        &[CellKind::Number; 3],
+    )?;
+    let snapshot = fixture.snapshot(None);
+    assert_eq!(snapshot.prepared_selectors, 1024);
+    assert_eq!(snapshot.active_repetition_groups, 1);
+    assert!(
+        snapshot.repetition_capacity < 256,
+        "inactive request groups allocate no file counter slots"
+    );
+    let columns = (0..3)
+        .map(|column| {
+            FactColumn(
+                (0..4)
+                    .map(|row| to_bits(Cell::Number(Integer(row + column))).0)
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let source = ColumnsView {
+        kinds: &[CellKind::Number; 3],
+        columns: &columns,
+    };
+    let mut symbols = Symbols::default();
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
+        semantic: None,
+        prepared_kinds: None,
+        prepared_matchers: None,
+        bindings: &[],
+        symbols: (&mut symbols).into(),
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let selected = fixture
+        .select(&active, source, &mut context)?
+        .expect("active prepared selector");
+    assert_eq!(selected.selection.rows.as_slice(), &[2]);
+    let inactive = fixture
+        .select(&known_inactive, source, &mut context)?
+        .expect("known descriptor remains legal without a repetition slot");
+    assert_eq!(inactive.selection.rows.as_slice(), &[3]);
+    assert_eq!(fixture.snapshot(None).active_repetition_groups, 1);
+    Ok(())
+}

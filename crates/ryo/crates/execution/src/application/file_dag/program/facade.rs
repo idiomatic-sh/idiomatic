@@ -224,6 +224,8 @@ pub(crate) struct PreparedProgram {
     rule_digests: Box<[ryo_values::domain::stored_facts::types::Digest]>,
     bindings: Box<[Box<[ParameterBinding]>]>,
     rules: Box<[RuleMetadata]>,
+    file_demands: Box<[crate::domain::executable_program::file_demand::types::FileRuleDemand]>,
+    file_frontier_outputs: Box<[Box<[Box<[usize]>]>]>,
     observations: Option<ObservationMetadata>,
     schedule: RuleSchedule,
     semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
@@ -234,6 +236,26 @@ pub(crate) struct PreparedProgram {
     walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 impl PreparedProgram {
+    pub(super) fn file_demand(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<
+        &crate::domain::executable_program::file_demand::types::FileRuleDemand,
+        OperatingError,
+    > {
+        self.file_demands.get(rule.0).ok_or(OperatingError::NotRun)
+    }
+    pub(super) fn file_frontier_outputs(
+        &self,
+        rule: RuleIndex,
+        input: usize,
+    ) -> Result<&[usize], OperatingError> {
+        self.file_frontier_outputs
+            .get(rule.0)
+            .and_then(|inputs| inputs.get(input))
+            .map(AsRef::as_ref)
+            .ok_or(OperatingError::NotRun)
+    }
     pub(super) fn native_order(
         &self,
         region: crate::domain::executable_program::types::RegionId,
@@ -656,6 +678,43 @@ pub(crate) fn prepare(
             }),
         ),
     );
+    let file_demands = metadata
+        .iter()
+        .enumerate()
+        .map(|(rule, metadata)| {
+            let outputs = metadata
+                .observations
+                .iter()
+                .map(|root| (root.source.clone(), root.phase))
+                .collect::<Vec<_>>();
+            crate::domain::executable_program::file_demand::service::compile(
+                &program,
+                RuleIndex(rule),
+                &outputs,
+                &metadata.observation_frontiers,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_boxed_slice();
+    let file_frontier_outputs = metadata
+        .iter()
+        .enumerate()
+        .map(|(rule, metadata)| {
+            (0..metadata.frontiers.len())
+                .map(|input| {
+                    named
+                        .iter()
+                        .flat_map(|named| named.frontiers.iter())
+                        .filter(|root| root.producer.0 == rule && root.frontier.0 == input)
+                        .map(|root| root.output.0 as usize)
+                        .collect::<Vec<_>>()
+                        .into_boxed_slice()
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice()
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
     Ok(Arc::new(PreparedProgram {
         program,
         native_orders,
@@ -664,6 +723,8 @@ pub(crate) fn prepare(
         rule_digests: rule_digests.to_vec().into_boxed_slice(),
         bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),
+        file_demands,
+        file_frontier_outputs,
         observations: named,
         schedule,
         semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&plans),

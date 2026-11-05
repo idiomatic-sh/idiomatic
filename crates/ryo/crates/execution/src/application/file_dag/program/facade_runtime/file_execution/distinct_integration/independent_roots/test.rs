@@ -190,7 +190,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 [Cell::Node(node_id(FileId(0), Position(0)))]
             );
             assert_eq!(
-                file.roots[0][0].readiness,
+                file.roots[&0][0].readiness,
                 Some(ProducerReadiness::Complete)
             );
         } else {
@@ -204,10 +204,10 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 RootOutcome::Failed(OperatingError::WrongOperation)
             ));
             assert!(matches!(
-                &file.roots[0][0].readiness,
+                &file.roots[&0][0].readiness,
                 Some(ProducerReadiness::Unknown(_))
             ));
-            assert!(file.roots[0][0].publication.is_none());
+            assert!(file.roots[&0][0].publication.is_none());
         }
         file.finish().unwrap();
     }

@@ -128,13 +128,14 @@ pub(crate) fn prepare_views_with_schemas<'s>(
 pub(in crate::application::file_dag::derived) fn activate_program(
     cache: &mut CacheBackend,
     prepared: &crate::application::file_dag::derived::prepared::PreparedDerived,
-    demanded: &[bool],
+    demanded: &[crate::domain::coverage::types::RuleIndex],
 ) {
     let mut selectors = Vec::new();
-    for use_ in prepared.selectors.iter() {
-        if !demanded.get(use_.rule.0).copied().unwrap_or(false)
-            || !cache.eligible.contains(&use_.selector.relation)
-        {
+    for use_ in demanded
+        .iter()
+        .flat_map(|rule| prepared.selectors[prepared.selector_ranges[rule.0].clone()].iter())
+    {
+        if !cache.eligible.contains(&use_.selector.relation) {
             continue;
         }
         let bytes = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
@@ -171,23 +172,23 @@ pub(in crate::application::file_dag::derived) fn install_views(
     cache.selector_repetition_failed = false;
     if cache
         .selector_repetition
-        .try_reserve_exact(views.groups)
+        .try_reserve(cache.selectors.len())
         .is_ok()
     {
-        cache.selector_repetition.resize(views.groups, 0);
         for selector in &cache.selectors {
             if let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) {
-                let Some(count) = cache.selector_repetition.get_mut(prepared.group) else {
+                if prepared.group >= views.groups {
                     cache.selector_repetition.clear();
                     break;
-                };
+                }
+                let count = cache.selector_repetition.entry(prepared.group).or_insert(0);
                 *count = count.saturating_add(1).min(2);
             }
         }
     } else {
         cache.selector_repetition_failed = true;
     }
-    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,working_metadata_bytes=cache.selector_repetition.capacity());
+    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(usize, u8)>()));
     cache.selection_views = Some(views);
     super::fanout::prepare_active(cache);
 }

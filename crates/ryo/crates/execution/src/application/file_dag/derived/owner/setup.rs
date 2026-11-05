@@ -20,7 +20,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn prepare_program_file(
         &self,
         prepared: &PreparedDerived,
-        demanded: &[bool],
+        demanded: &[crate::domain::coverage::types::RuleIndex],
         partial: &[Partial],
     ) -> Result<(), OperatingError> {
         if self.file_prepared.get() {
@@ -33,8 +33,7 @@ impl DerivedOwner {
             cache.graph_enabled = prepared
                 .graph_rules
                 .iter()
-                .zip(demanded)
-                .any(|(graph, active)| *graph && *active);
+                .any(|rule| demanded.binary_search(rule).is_ok());
             super::super::selection::activate_program(cache, prepared, demanded);
         }
         *self.backend.borrow_mut() = backend;

@@ -357,11 +357,14 @@ impl Slot {
         } else {
             state.dormant.borrow_mut().remove(&id)
         };
-        let cancelled = settled == Some(0);
+        let remaining = match settled {
+            Some(remaining) => remaining,
+            None => state.initial_remaining(program, id)?,
+        };
+        let cancelled = remaining == 0;
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
-        let remaining = settled.unwrap_or(region.consumers);
         Ok(slots.entry(id.0).or_insert_with(|| Self {
             #[cfg(test)]
             observed: Default::default(),
@@ -389,9 +392,14 @@ impl Slot {
     }
 }
 /// Qualified state for the same interpreter; never an independent execution owner.
+enum RootReaders {
+    Declared,
+    Selected(std::collections::HashMap<RegionId, usize>),
+}
 pub(super) struct RuntimeState {
     generation: Arc<()>,
     scope: super::super::relations::ProducerScope,
+    roots: RefCell<RootReaders>,
     slots: RefCell<std::collections::HashMap<usize, Slot>>,
     dormant: RefCell<std::collections::HashMap<RegionId, usize>>,
     retirement: RefCell<RetirementWork>,
@@ -401,6 +409,7 @@ impl RuntimeState {
         Self {
             generation,
             scope,
+            roots: RefCell::new(RootReaders::Declared),
             slots: RefCell::new(std::collections::HashMap::new()),
             dormant: RefCell::new(std::collections::HashMap::new()),
             retirement: RefCell::new(RetirementWork {
@@ -410,6 +419,26 @@ impl RuntimeState {
                 waiters: std::collections::HashMap::new(),
                 retired: Vec::new(),
             }),
+        }
+    }
+    fn initial_remaining(
+        &self,
+        program: &ExecutableProgram,
+        id: RegionId,
+    ) -> Result<usize, OperatingError> {
+        match &*self.roots.borrow() {
+            RootReaders::Declared => program
+                .regions()
+                .get(id.0)
+                .map(|region| region.consumers)
+                .ok_or(OperatingError::NotRun),
+            RootReaders::Selected(selected) => {
+                crate::domain::executable_program::file_demand::service::remaining(
+                    program.file_readers(),
+                    selected,
+                    id,
+                )
+            }
         }
     }
     pub(super) fn population_scope(&self) -> super::super::relations::ProducerScope {
@@ -454,6 +483,25 @@ impl ProgramExecution {
             #[cfg(test)]
             producer_lease_probe: RefCell::new(None),
         }
+    }
+    /// Bind the immutable declared file intents before any region is touched.
+    pub(super) fn activate_file_roots(&self, readers: &[RegionId]) -> Result<(), OperatingError> {
+        if !matches!(self.partition, Partition::File(_))
+            || !self.file_state.slots.borrow().is_empty()
+            || !self.file_state.dormant.borrow().is_empty()
+            || !matches!(*self.file_state.roots.borrow(), RootReaders::Declared)
+        {
+            return Err(OperatingError::NotRun);
+        }
+        let mut selected = std::collections::HashMap::new();
+        for &root in readers {
+            if !self.program.file_readers().consumers.contains_key(&root) {
+                return Err(OperatingError::NotRun);
+            }
+            *selected.entry(root).or_insert(0) += 1;
+        }
+        *self.file_state.roots.borrow_mut() = RootReaders::Selected(selected);
+        Ok(())
     }
     fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
         if Arc::ptr_eq(&self.generation, &state.generation) && self.generation_live.is_live() {
@@ -599,17 +647,14 @@ impl ProgramExecution {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
         let Some(slot) = slots.get(&id.0) else {
-            let region = self
-                .program
+            self.program
                 .regions()
                 .get(id.0)
                 .ok_or(OperatingError::NotRun)?;
-            let remaining = state
-                .dormant
-                .borrow()
-                .get(&id)
-                .copied()
-                .unwrap_or(region.consumers);
+            let remaining = match state.dormant.borrow().get(&id).copied() {
+                Some(remaining) => remaining,
+                None => state.initial_remaining(&self.program, id)?,
+            };
             return Ok(RetryCheckpoint {
                 attempt: if state.dormant.borrow().get(&id) == Some(&0) {
                     AttemptCheckpoint::Terminal
@@ -826,8 +871,7 @@ impl ProgramExecution {
         }
         let planned = (|| {
             while let Some(id) = work.pending.pop() {
-                let region = self
-                    .program
+                self.program
                     .regions()
                     .get(id.0)
                     .ok_or(OperatingError::NotRun)?;
@@ -836,17 +880,13 @@ impl ProgramExecution {
                     *current
                 } else {
                     work.touched.push(id);
-                    slot.map_or_else(
-                        || {
-                            state
-                                .dormant
-                                .borrow()
-                                .get(&id)
-                                .copied()
-                                .unwrap_or(region.consumers)
+                    match slot {
+                        Some(slot) => slot.remaining,
+                        None => match state.dormant.borrow().get(&id).copied() {
+                            Some(remaining) => remaining,
+                            None => state.initial_remaining(&self.program, id)?,
                         },
-                        |slot| slot.remaining,
-                    )
+                    }
                 };
                 if current == 0 {
                     return Err(OperatingError::NotRun);

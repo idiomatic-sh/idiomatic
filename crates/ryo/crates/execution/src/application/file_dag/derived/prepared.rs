@@ -15,9 +15,10 @@ pub(in crate::application::file_dag) struct SelectorUse {
 }
 pub(in crate::application::file_dag) struct PreparedDerived {
     pub selectors: Box<[SelectorUse]>,
+    pub selector_ranges: Box<[std::ops::Range<usize>]>,
     pub views: Arc<PreparedSelectionViews>,
     pub relations: Box<[Box<[Relation]>]>,
-    pub graph_rules: Box<[bool]>,
+    pub graph_rules: Box<[RuleIndex]>,
 }
 impl PreparedDerived {
     pub(in crate::application::file_dag) fn compile(
@@ -28,6 +29,7 @@ impl PreparedDerived {
             return Err(OperatingError::NotRun);
         }
         let mut selectors = Vec::new();
+        let mut selector_ranges = Vec::with_capacity(program.rules().len());
         let mut relations = Vec::with_capacity(program.rules().len());
         let mut graph_rules = Vec::with_capacity(program.rules().len());
         for (rule, (mapping, selected)) in program
@@ -39,6 +41,7 @@ impl PreparedDerived {
             if selected.steps.len() != mapping.original_steps.len() {
                 return Err(OperatingError::NotRun);
             }
+            let first_selector = selectors.len();
             let mut reads = Vec::new();
             let mut graph = false;
             for (at, origin) in mapping.original_steps.iter().enumerate() {
@@ -90,11 +93,15 @@ impl PreparedDerived {
                     });
                 }
             }
+            selector_ranges.push(first_selector..selectors.len());
             relations.push(reads.into_boxed_slice());
-            graph_rules.push(graph);
+            if graph {
+                graph_rules.push(RuleIndex(rule));
+            }
         }
         Ok(Self {
             selectors: selectors.into_boxed_slice(),
+            selector_ranges: selector_ranges.into_boxed_slice(),
             views: Arc::clone(&prepared.selection_views),
             relations: relations.into_boxed_slice(),
             graph_rules: graph_rules.into_boxed_slice(),
@@ -102,18 +109,17 @@ impl PreparedDerived {
     }
     pub(in crate::application::file_dag) fn wanted(
         &self,
-        demanded: &[bool],
+        demanded: &[RuleIndex],
     ) -> Result<Vec<Relation>, OperatingError> {
-        if demanded.len() != self.relations.len() {
+        if !demanded.windows(2).all(|pair| pair[0] < pair[1]) {
             return Err(OperatingError::NotRun);
         }
         let mut wanted = Vec::new();
-        for (active, relations) in demanded.iter().zip(&self.relations) {
-            if *active {
-                for relation in relations.iter() {
-                    if !wanted.contains(relation) {
-                        wanted.push(*relation);
-                    }
+        for rule in demanded {
+            let relations = self.relations.get(rule.0).ok_or(OperatingError::NotRun)?;
+            for relation in relations.iter() {
+                if !wanted.contains(relation) {
+                    wanted.push(*relation);
                 }
             }
         }

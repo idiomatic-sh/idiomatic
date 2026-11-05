@@ -15,3 +15,5 @@ pub(crate) mod native;
 
 #[cfg(test)]
 mod service_test;
+
+pub(crate) mod file_demand;

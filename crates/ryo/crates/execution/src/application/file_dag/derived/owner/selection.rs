@@ -140,10 +140,14 @@ impl SelectionSource<'_> {
         group: usize,
         build: impl FnOnce(&mut CacheBackend) -> Result<DerivedStorage, OperatingError>,
     ) -> Result<super::super::view::AcquiredView, OperatingError> {
-        let repeated = *cache
-            .selector_repetition
-            .get(group)
-            .ok_or(OperatingError::NotRun)?;
+        if cache
+            .selection_views
+            .as_ref()
+            .is_none_or(|views| group >= views.groups)
+        {
+            return Err(OperatingError::NotRun);
+        }
+        let repeated = cache.selector_repetition.get(&group).copied().unwrap_or(0);
         let optional = !cache.selector_repetition_failed && repeated >= 2;
         self.owner.acquire_with(
             plan,
@@ -200,7 +204,7 @@ impl DerivedOwner {
         if backend.selector_repetition_failed {
             return Ok(None);
         }
-        if backend.selector_repetition.get(views.group).is_none() {
+        if views.group >= plans.groups {
             return Err(OperatingError::NotRun);
         }
         Ok(Some(Arc::clone(&views.predicate)))

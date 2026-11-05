@@ -258,6 +258,8 @@ impl DerivedOwner {
                 .selection_views
                 .as_ref()
                 .map(|views| Arc::as_ptr(views) as usize),
+            active_repetition_groups: cache.selector_repetition.len(),
+            repetition_capacity: cache.selector_repetition.capacity(),
             prepared_selectors: cache
                 .selection_views
                 .as_ref()

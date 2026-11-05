@@ -8,8 +8,8 @@ use std::sync::Arc;
 pub(in crate::application::file_dag) struct CacheBackend {
     #[cfg(test)]
     pub(super) selector_descriptor: Option<usize>,
-    /// Per-file active repetition counts indexed by request-prepared predicate group.
-    pub(super) selector_repetition: Vec<u8>,
+    /// Sparse active repetition counts keyed by request-prepared predicate group.
+    pub(super) selector_repetition: std::collections::HashMap<usize, u8>,
     pub(super) selector_repetition_failed: bool,
     /// Immutable request-owned selector requirements, never file-owned payload.
     pub(super) selection_views:

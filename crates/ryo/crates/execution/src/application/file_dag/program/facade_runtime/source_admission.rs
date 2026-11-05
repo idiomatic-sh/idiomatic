@@ -168,7 +168,7 @@ pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     pub(super) observations: &'a mut HashMap<usize, AdmittedInput>,
-    pub(super) file_outputs: Option<&'a [Vec<FileRoot>]>,
+    pub(super) file_outputs: Option<&'a HashMap<usize, Vec<FileRoot>>>,
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
     pub(super) project: Option<ProjectSources<'a>>,
@@ -243,7 +243,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     } => {
                         if self
                             .file_outputs
-                            .and_then(|outputs| outputs.get(rule.0))
+                            .and_then(|outputs| outputs.get(&rule.0))
                             .and_then(|roots| roots.get(output.0 as usize))
                             .is_some_and(|root| {
                                 root.publication.is_some() || root.readiness.is_some()

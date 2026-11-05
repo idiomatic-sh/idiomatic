@@ -40,7 +40,7 @@ pub(in crate::application::file_dag::derived) fn new(
     (bytes <= limit).then_some(CacheBackend {
         #[cfg(test)]
         selector_descriptor: None,
-        selector_repetition: Vec::new(),
+        selector_repetition: std::collections::HashMap::new(),
         selector_repetition_failed: false,
         selection_views: None,
         graph_enabled: false,

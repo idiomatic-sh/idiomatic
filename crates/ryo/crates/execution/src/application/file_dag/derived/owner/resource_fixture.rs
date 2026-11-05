@@ -105,7 +105,9 @@ impl ResourceFixture {
             .derived
             .prepare_program_file(
                 &prepared_sources(&plans),
-                &vec![true; plans.len()],
+                &(0..plans.len())
+                    .map(crate::domain::coverage::types::RuleIndex)
+                    .collect::<Vec<_>>(),
                 partials,
             )
             .unwrap();
