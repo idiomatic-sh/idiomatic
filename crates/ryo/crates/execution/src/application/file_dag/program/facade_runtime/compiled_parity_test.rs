@@ -296,7 +296,7 @@ fn rule() -> RuleSpec {
                 id: QuerySourceId("native-parity".into()),
                 text: "".into(),
             },
-            modules: BTreeMap::new(),
+            modules: Default::default(),
         },
         applicability: RuleApplicability::Always,
         given: vec![],

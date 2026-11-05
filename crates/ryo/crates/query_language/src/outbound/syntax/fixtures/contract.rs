@@ -81,7 +81,7 @@ pub fn check(adapter: &impl SyntaxPort) {
                     id: QuerySourceId(ROOT_SOURCE.into()),
                     text: text.into(),
                 },
-                modules: std::collections::BTreeMap::new(),
+                modules: Default::default(),
             };
             adapter.read_bundle(&bundle).map(|parsed| {
                 assert!(parsed.fragments.is_empty());

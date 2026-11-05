@@ -102,7 +102,7 @@ pub(super) fn run(
                 id: QuerySourceId("span-contract".into()),
                 text: "".into(),
             },
-            modules: BTreeMap::new(),
+            modules: Default::default(),
         },
         applicability: RuleApplicability::Always,
         given: vec![],

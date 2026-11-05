@@ -163,7 +163,7 @@ fn world(plan: Plan) -> World {
                             id: QuerySourceId("rule".into()),
                             text: "".into(),
                         },
-                        modules: std::collections::BTreeMap::new(),
+                        modules: Default::default(),
                     },
                     applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
                     given: Vec::new(),

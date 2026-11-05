@@ -28,6 +28,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
             .unwrap()
         })
         .collect::<Vec<_>>();
+    let modules = ryo::query::QueryModuleCatalog::try_new(modules).unwrap();
     let i001 = RuleId::try_from("I001").unwrap();
     let ruf100 = RuleId::try_from("RUF100").unwrap();
     let hidden = RuleId::try_from("HIDDEN").unwrap();
@@ -56,7 +57,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
         }]
     };
     let rule = |name: &str, query: &str, observations| Rule {
-        query: ryo::query::RyoQlQuery::with_modules(name, query, modules.clone()).unwrap(),
+        query: ryo::query::RyoQlQuery::with_modules(name, query, &modules).unwrap(),
         observations,
         applicability: RuleApplicability::Always,
         parameters: BTreeMap::new(),

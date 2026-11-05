@@ -1,6 +1,6 @@
 //! Checked construction and accessors for query source bundles.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::domain::plan_parts::types::QueryText;
 
@@ -21,7 +21,7 @@ pub fn source_id(text: &str) -> Result<QuerySourceId, QueryBundleError> {
 
 /// Construct a source record after its identity has been checked.
 #[must_use]
-pub fn document_source(id: QuerySourceId, text: impl Into<Box<str>>) -> QueryDocumentSource {
+pub fn document_source(id: QuerySourceId, text: impl Into<Arc<str>>) -> QueryDocumentSource {
     QueryDocumentSource {
         id,
         text: text.into(),
@@ -46,8 +46,39 @@ pub fn query_bundle(
     }
     Ok(QueryBundle {
         root,
-        modules: indexed,
+        modules: Arc::new(indexed),
     })
+}
+
+/// Validate module identities once and retain their exact immutable source bytes.
+///
+/// # Errors
+/// Returns [`QueryBundleError::DuplicateSourceId`] for repeated module ids.
+pub fn module_catalog(
+    modules: impl IntoIterator<Item = QueryDocumentSource>,
+) -> Result<Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>, QueryBundleError> {
+    let mut indexed = BTreeMap::new();
+    for module in modules {
+        let id = module.id.clone();
+        if indexed.insert(id.clone(), module).is_some() {
+            return Err(QueryBundleError::DuplicateSourceId { id });
+        }
+    }
+    Ok(Arc::new(indexed))
+}
+
+/// Associate a root with an immutable catalog without copying its documents.
+///
+/// # Errors
+/// Returns [`QueryBundleError::DuplicateSourceId`] when the root id is a module id.
+pub fn query_bundle_with_catalog(
+    root: QueryDocumentSource,
+    modules: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
+) -> Result<QueryBundle, QueryBundleError> {
+    if modules.contains_key(&root.id) {
+        return Err(QueryBundleError::DuplicateSourceId { id: root.id });
+    }
+    Ok(QueryBundle { root, modules })
 }
 
 /// Construct a standalone root source.
@@ -73,11 +104,11 @@ impl From<QueryText> for QueryBundle {
     fn from(text: QueryText) -> Self {
         let root = QueryDocumentSource {
             id: QuerySourceId("<query>".into()),
-            text: text.0,
+            text: text.0.into(),
         };
         Self {
             root,
-            modules: BTreeMap::new(),
+            modules: Arc::new(BTreeMap::new()),
         }
     }
 }

@@ -67,7 +67,7 @@ fn prepared_test_program(
                                 id: QuerySourceId(id.0.clone()),
                                 text: "".into(),
                             },
-                            modules: std::collections::BTreeMap::new(),
+                            modules: Default::default(),
                         },
                         applicability: RuleApplicability::Always,
                         given: Vec::new(),
