@@ -23,3 +23,6 @@ mod workspace_test;
 
 #[cfg(test)]
 mod row_population_test;
+
+#[cfg(test)]
+mod join_result_test;

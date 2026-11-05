@@ -1,5 +1,4 @@
 //! Production-route and engine-owned behavioral acceptance.
-pub(crate) mod column_kernel_service_test;
 #[cfg(test)]
 pub(crate) mod column_topology_test;
 pub(crate) mod comparing_service_test;
@@ -22,7 +21,6 @@ pub(crate) mod operator_collections_operators_extend_item_test;
 pub(crate) mod operator_collections_operators_group_count_item_test;
 pub(crate) mod operator_collections_operators_group_digest_item_test;
 pub(crate) mod operator_collections_operators_intersection_item_test;
-pub(crate) mod operator_collections_operators_join_item_test;
 pub(crate) mod operator_collections_operators_ordered_match_item_test;
 pub(crate) mod operator_collections_operators_project_item_test;
 pub(crate) mod operator_collections_operators_rank_item_test;

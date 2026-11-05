@@ -357,3 +357,5 @@ mod route_controls_test;
 mod ordered_dfs_test;
 
 mod closure_abort_test;
+
+mod join_test;
