@@ -89,5 +89,8 @@ fn hosted_without_its_request_source_refuses_at_the_real_owner() {
         vec![],
         &mut symbols,
     );
+    // The prepared request has no source partition for Hosted(0), so admission
+    // refuses before schema evaluation. MissingInput belongs to the pure schema
+    // contract, independently covered by operation_schema::service_test.
     assert_eq!(result, Err(OperatingError::NotRead));
 }
