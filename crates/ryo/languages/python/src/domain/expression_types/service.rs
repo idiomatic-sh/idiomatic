@@ -1,6 +1,6 @@
 //! One bottom-up pass for basic expression-type classification.
 use crate::domain::{
-    expression_types::types::{ExpressionTypeIndex, IndexState, Resolution},
+    expression_types::types::{BasicType, ExpressionTypeIndex, IndexState, Resolution},
     fields::service::field_of,
     labels::types::Field,
     literal_properties::service::{Classification, classify as classify_literal},
@@ -22,22 +22,24 @@ pub(crate) fn clear(index: &mut ExpressionTypeIndex) {
 }
 
 /// Return a resolved value with one known type label.
-fn atom(kind: &'static str) -> Resolution {
+fn atom(kind: BasicType) -> Resolution {
     Resolution::Atom(kind)
 }
 /// Return a numeric value with its inferred type label.
-fn numeric(kind: &'static str) -> Resolution {
+fn numeric(kind: BasicType) -> Resolution {
     atom(kind)
 }
 
 /// Check whether the left type is included in the right type.
-fn subtype(left: &str, right: &str) -> bool {
+fn subtype(left: BasicType, right: BasicType) -> bool {
     left == right
         || matches!(
             (left, right),
-            ("boolean", "integer" | "float" | "complex")
-                | ("integer", "float" | "complex")
-                | ("float", "complex")
+            (
+                BasicType::Boolean,
+                BasicType::Integer | BasicType::Float | BasicType::Complex
+            ) | (BasicType::Integer, BasicType::Float | BasicType::Complex)
+                | (BasicType::Float, BasicType::Complex)
         )
 }
 
@@ -58,7 +60,7 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         (Resolution::Atom(left_kind), Resolution::Union(mut right_types)) => {
             if !right_types
                 .iter()
-                .any(|candidate| subtype(left_kind, candidate))
+                .any(|candidate| subtype(left_kind, *candidate))
             {
                 right_types.push(left_kind);
             }
@@ -67,7 +69,7 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         (Resolution::Union(mut left_types), Resolution::Atom(right_kind)) => {
             if !left_types
                 .iter()
-                .any(|candidate| subtype(right_kind, candidate))
+                .any(|candidate| subtype(right_kind, *candidate))
             {
                 left_types.push(right_kind);
             }
@@ -75,7 +77,7 @@ fn union(left: Resolution, right: Resolution) -> Resolution {
         }
         (Resolution::Union(mut left_types), Resolution::Union(right_types)) => {
             for candidate in right_types {
-                if !left_types.iter().any(|known| subtype(candidate, known)) {
+                if !left_types.iter().any(|known| subtype(candidate, *known)) {
                     left_types.push(candidate);
                 }
             }
@@ -159,7 +161,7 @@ fn unary_operator(tree: &Tree<'_>, at: Position) -> Option<Node> {
             Some(Node::USub)
         } else if token == Token::Tilde {
             Some(Node::Invert)
-        } else if token == Token::Name && written(tree, each).0 == "not" {
+        } else if token == Token::Name && written(tree, each).0 == super::constants::NOT {
             Some(Node::Not)
         } else {
             None
@@ -171,8 +173,8 @@ fn unary_operator(tree: &Tree<'_>, at: Position) -> Option<Node> {
 fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
     if op == Node::Mod {
         match left {
-            Resolution::Atom("string") => return atom("string"),
-            Resolution::Atom("bytes") => return atom("bytes"),
+            Resolution::Atom(BasicType::String) => return atom(BasicType::String),
+            Resolution::Atom(BasicType::Bytes) => return atom(BasicType::Bytes),
             Resolution::Atom(_)
             | Resolution::Union(_)
             | Resolution::Unknown
@@ -182,28 +184,34 @@ fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
     let (Resolution::Atom(left_kind), Resolution::Atom(right_kind)) = (left, right) else {
         return Resolution::Unknown;
     };
-    let numeric_a = matches!(*left_kind, "boolean" | "integer" | "float" | "complex");
-    let numeric_b = matches!(*right_kind, "boolean" | "integer" | "float" | "complex");
-    let coerced = if *left_kind == "complex" || *right_kind == "complex" {
-        "complex"
-    } else if *left_kind == "float" || *right_kind == "float" {
-        "float"
+    let numeric_a = matches!(
+        *left_kind,
+        BasicType::Boolean | BasicType::Integer | BasicType::Float | BasicType::Complex
+    );
+    let numeric_b = matches!(
+        *right_kind,
+        BasicType::Boolean | BasicType::Integer | BasicType::Float | BasicType::Complex
+    );
+    let coerced = if *left_kind == BasicType::Complex || *right_kind == BasicType::Complex {
+        BasicType::Complex
+    } else if *left_kind == BasicType::Float || *right_kind == BasicType::Float {
+        BasicType::Float
     } else {
-        "integer"
+        BasicType::Integer
     };
     if op == Node::Add {
         return match (*left_kind, *right_kind) {
-            ("string", "string") => atom("string"),
-            ("bytes", "bytes") => atom("bytes"),
-            ("list", "list") => atom("list"),
-            ("tuple", "tuple") => atom("tuple"),
+            (BasicType::String, BasicType::String) => atom(BasicType::String),
+            (BasicType::Bytes, BasicType::Bytes) => atom(BasicType::Bytes),
+            (BasicType::List, BasicType::List) => atom(BasicType::List),
+            (BasicType::Tuple, BasicType::Tuple) => atom(BasicType::Tuple),
             _ if numeric_a && numeric_b => numeric(coerced),
             _ => Resolution::TypeError,
         };
     }
     if op == Node::Sub {
         return match (*left_kind, *right_kind) {
-            ("set", "set") => atom("set"),
+            (BasicType::Set, BasicType::Set) => atom(BasicType::Set),
             _ if numeric_a && numeric_b => numeric(coerced),
             _ => Resolution::TypeError,
         };
@@ -217,7 +225,9 @@ fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
     }
     if op == Node::Mult {
         return match (*left_kind, *right_kind) {
-            ("string", "integer") | ("integer", "string") => atom("string"),
+            (BasicType::String, BasicType::Integer) | (BasicType::Integer, BasicType::String) => {
+                atom(BasicType::String)
+            }
             _ if numeric_a && numeric_b => numeric(coerced),
             _ => Resolution::TypeError,
         };
@@ -231,8 +241,8 @@ fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
     }
     if op == Node::Div {
         return if numeric_a && numeric_b {
-            numeric(if coerced == "integer" {
-                "float"
+            numeric(if coerced == BasicType::Integer {
+                BasicType::Float
             } else {
                 coerced
             })
@@ -244,8 +254,8 @@ fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
         op,
         Node::BitAnd | Node::BitOr | Node::BitXor | Node::LShift | Node::RShift
     ) {
-        return if numeric_a && numeric_b && coerced == "integer" {
-            atom("integer")
+        return if numeric_a && numeric_b && coerced == BasicType::Integer {
+            atom(BasicType::Integer)
         } else {
             Resolution::TypeError
         };
@@ -260,24 +270,16 @@ fn classify_expression(
     at: Position,
 ) -> (Resolution, bool) {
     let result = match kind(tree, at) {
-        Kind::Node(Node::Dict | Node::DictComp) => atom("dict"),
-        Kind::Node(Node::Set | Node::SetComp) => atom("set"),
-        Kind::Node(Node::List | Node::ListComp) => atom("list"),
-        Kind::Node(Node::Tuple) => atom("tuple"),
-        Kind::Node(Node::GeneratorExp) => atom("generator"),
-        Kind::Node(Node::JoinedStr) => atom("string"),
+        Kind::Node(Node::Dict | Node::DictComp) => atom(BasicType::Dict),
+        Kind::Node(Node::Set | Node::SetComp) => atom(BasicType::Set),
+        Kind::Node(Node::List | Node::ListComp) => atom(BasicType::List),
+        Kind::Node(Node::Tuple) => atom(BasicType::Tuple),
+        Kind::Node(Node::GeneratorExp) => atom(BasicType::Generator),
+        Kind::Node(Node::JoinedStr) => atom(BasicType::String),
         Kind::Node(Node::Constant) => match classify_literal(tree, at) {
-            Classification::Known(properties) => atom(match properties.kind {
-                "integer" => "integer",
-                "float" => "float",
-                "complex" => "complex",
-                "boolean" => "boolean",
-                "string" => "string",
-                "bytes" => "bytes",
-                "null" => "null",
-                "ellipsis" => "ellipsis",
-                _ => "unknown",
-            }),
+            Classification::Known(properties) => atom(super::constants::literal_type(
+                languages::NameText(properties.kind),
+            )),
             Classification::MissingPayload => return (Resolution::Unknown, true),
             Classification::NotPrimitive => return (Resolution::Unknown, false),
         },
@@ -301,10 +303,12 @@ fn classify_expression(
             let operand = child_resolution(index, child(tree, at, Field::Operand));
             let operator = unary_operator(tree, at);
             if operator == Some(Node::Not) {
-                atom("boolean")
+                atom(BasicType::Boolean)
             } else if operator == Some(Node::Invert) {
                 match operand {
-                    Resolution::Atom("boolean" | "integer") => atom("integer"),
+                    Resolution::Atom(BasicType::Boolean | BasicType::Integer) => {
+                        atom(BasicType::Integer)
+                    }
                     Resolution::Atom(_) => Resolution::TypeError,
                     Resolution::Union(_) | Resolution::Unknown | Resolution::TypeError => {
                         Resolution::Unknown
@@ -312,10 +316,11 @@ fn classify_expression(
                 }
             } else if operator == Some(Node::UAdd) || operator == Some(Node::USub) {
                 match operand {
-                    Resolution::Atom("boolean") => atom("integer"),
-                    Resolution::Atom(resolved_type @ ("integer" | "float" | "complex")) => {
-                        atom(resolved_type)
-                    }
+                    Resolution::Atom(BasicType::Boolean) => atom(BasicType::Integer),
+                    Resolution::Atom(
+                        resolved_type
+                        @ (BasicType::Integer | BasicType::Float | BasicType::Complex),
+                    ) => atom(resolved_type),
                     Resolution::Atom(_) => Resolution::TypeError,
                     Resolution::Union(_) | Resolution::Unknown | Resolution::TypeError => {
                         Resolution::Unknown

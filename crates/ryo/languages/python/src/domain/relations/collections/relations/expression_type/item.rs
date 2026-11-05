@@ -50,13 +50,13 @@ ryo::reads! {
             when classification(&index, expression) {
                 Some(Resolution::Atom(type_name)) => {
                     given resolution = languages::intern_derived(symbols, tree.source, languages::NameText("atom"));
-                    given kind = languages::intern_derived(symbols, tree.source, languages::NameText(type_name));
+                    given kind = languages::intern_derived(symbols, tree.source, crate::domain::expression_types::constants::name(*type_name));
                     row { id: node(expression), resolution: value(resolution), type_: value(kind), file: file, span: span(expression), }
                 }
                 Some(Resolution::Union(types)) => {
                     given resolution = languages::intern_derived(symbols, tree.source, languages::NameText("union"));
                     each (types.iter()) as type_name {
-                        given kind = languages::intern_derived(symbols, tree.source, languages::NameText(type_name));
+                        given kind = languages::intern_derived(symbols, tree.source, crate::domain::expression_types::constants::name(*type_name));
                         row { id: node(expression), resolution: value(resolution), type_: value(kind), file: file, span: span(expression), }
                     }
                 }

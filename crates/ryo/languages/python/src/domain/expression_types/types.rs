@@ -3,9 +3,9 @@
 /// One expression's basic inferred type, with union members in deterministic traversal order.
 pub(crate) enum Resolution {
     /// A single known basic Python type.
-    Atom(&'static str),
+    Atom(BasicType),
     /// More than one known type after simple subtype reduction.
-    Union(Vec<&'static str>),
+    Union(Vec<BasicType>),
     /// The expression's type is not determined by its syntax alone.
     Unknown,
     /// The supported operation has incompatible known operand types.
@@ -31,4 +31,37 @@ pub(crate) enum IndexState {
     Complete,
     /// Syntax or a required parser payload was incomplete.
     Partial,
+}
+
+/// Closed basic types supplied by the Python expression classifier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BasicType {
+    /// The `boolean` classification.
+    Boolean,
+    /// The `integer` classification.
+    Integer,
+    /// The `float` classification.
+    Float,
+    /// The `complex` classification.
+    Complex,
+    /// The `string` classification.
+    String,
+    /// The `bytes` classification.
+    Bytes,
+    /// The `list` classification.
+    List,
+    /// The `tuple` classification.
+    Tuple,
+    /// The `set` classification.
+    Set,
+    /// The `dict` classification.
+    Dict,
+    /// The `generator` classification.
+    Generator,
+    /// The `null` classification.
+    Null,
+    /// The `ellipsis` classification.
+    Ellipsis,
+    /// The `unknown` classification.
+    Unrecognized,
 }
