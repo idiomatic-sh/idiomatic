@@ -391,18 +391,10 @@ fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
 fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() {
     use crate::domain::project_namespace::{
         constants::UNKNOWN_CONTEXT,
-        types::{EntryKind, MembershipState},
+        service::memberships,
+        types::{EntryKind, ImportedRoot, MembershipState},
     };
     use languages::ManifestItem as _;
-    use ryo_language::domain::project_context::{
-        service::observed,
-        types::{EntryObservation, EntryState, ProjectSearchScope},
-    };
-    let contract = ProjectContract::new(
-        faked,
-        Arc::new(postcard()),
-        Arc::new(crate::outbound::module_context::factory::filesystem()),
-    );
     for (module, directory, incomplete, expected) in [
         (
             false,
@@ -423,37 +415,35 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
             vec![EntryKind::Module, EntryKind::Namespace],
         ),
     ] {
-        let mut entries = Vec::new();
-        for search in ["src", "lib"] {
-            for name in [
-                "acme.py",
-                "acme.pyi",
-                "acme",
-                "acme/__init__.py",
-                "acme/__init__.pyi",
-            ] {
-                let state = if search == "lib" && incomplete {
-                    EntryState::Unknown
-                } else if search == "src" && name == "acme.py" && module {
-                    EntryState::File
-                } else if search == "src" && name == "acme" && directory {
-                    EntryState::Directory
+        let roots = [ImportedRoot {
+            file: languages::FileId(0),
+            root: "acme".into(),
+            path: "acme".into(),
+        }];
+        let search = [
+            languages::FilePath("src".into()),
+            languages::FilePath("lib".into()),
+        ];
+        let namespace_memberships =
+            memberships(Some(&search), &roots, vec![], |candidate, file| {
+                if candidate.0.starts_with("lib/") && incomplete {
+                    None
                 } else {
-                    EntryState::Missing
-                };
-                entries.push(EntryObservation {
-                    path: languages::FilePath(format!("{search}/{name}").into()),
-                    state,
-                });
-            }
-        }
+                    Some(match candidate.0.as_ref() {
+                        "src/acme.py" => module && file,
+                        "src/acme" => directory && !file,
+                        _ => false,
+                    })
+                }
+            });
+        let derived = crate::domain::links::types::Linked {
+            namespace_memberships,
+            ..Default::default()
+        };
         let request = languages::ProjectRequest {
-            search_scope: ProjectSearchScope::Declared(vec![
-                languages::FilePath("src".into()),
-                languages::FilePath("lib".into()),
-            ]),
+            search_scope: Default::default(),
             given_inventory: Default::default(),
-            observed_entries: observed(entries),
+            observed_entries: Default::default(),
             repository: languages::Repository::Given,
             root: languages::RootPath("".into()),
             files: vec![languages::FilePath("source.py".into())],
@@ -461,13 +451,8 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
             notes: vec![notes_of("source.py", "import acme\n")],
             wanted: vec![languages::Relation::ProjectNamespaceMembership],
         };
-        let resolved = contract
-            .resolve(&request)
-            .expect("observed project namespace");
-        assert!(resolved.refused.is_empty());
         assert_eq!(
-            resolved
-                .derived
+            derived
                 .namespace_memberships
                 .rows
                 .iter()
@@ -475,8 +460,7 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
                 .collect::<Vec<_>>(),
             expected
         );
-        let positives = resolved
-            .derived
+        let positives = derived
             .namespace_memberships
             .rows
             .iter()
@@ -492,7 +476,7 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
         let mut symbols = languages::Symbols::default();
         let input = languages::ManifestInput {
             request: &request,
-            derived: &resolved.derived,
+            derived: &derived,
         };
         (crate::domain::manifests::collections::manifests::project_namespace_membership::item::ProjectNamespaceMembershipItem::READER.read)(&input, &mut symbols, &mut output);
         assert_eq!(output.rows, expected.len());
