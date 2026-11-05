@@ -455,27 +455,33 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         .map(|input| input.rows(&self.owner, self.read))
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(InvocationFailure::Semantic)?;
-                    if let (Some(walk), [Rows::Tree(tree)]) = (self.walk, originals.as_slice()) {
+                    if let (Some(walk), [source]) = (self.walk, originals.as_slice()) {
                         if let Some(class) = walk.class(self.prepared, instruction) {
-                            walk.prepare(self.prepared, permit, *tree, context, self.kernels)
+                            let ryo_values::domain::plans::types::Operation::Select {
+                                from:
+                                    ryo_values::domain::plan_parts::types::Input::Relation(relation),
+                                kept,
+                                ..
+                            } = &instruction.operation
+                            else {
+                                return Err(InvocationFailure::Semantic(
+                                    OperatingError::WrongOperation,
+                                ));
+                            };
+                            let batch = walk
+                                .prepare(
+                                    self.prepared,
+                                    permit,
+                                    *relation,
+                                    source,
+                                    context,
+                                    self.kernels,
+                                )
                                 .map_err(InvocationFailure::Semantic)?;
-                            let batch = walk.batch();
-                            let batch = batch
-                                .as_ref()
-                                .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
                             if let Some(result) = batch.class(class) {
                                 workspace.work.found(0, batch.visits(class).0);
-                                let ryo_values::domain::plans::types::Operation::Select {
-                                    kept,
-                                    ..
-                                } = &instruction.operation
-                                else {
-                                    return Err(InvocationFailure::Semantic(
-                                        OperatingError::WrongOperation,
-                                    ));
-                                };
                                 return crate::domain::replay::service::selected(
-                                    result, *tree, kept, context, output,
+                                    result, source, kept, context, output,
                                 )
                                 .map_err(InvocationFailure::Semantic);
                             }

@@ -1,26 +1,36 @@
-//! One file-generation native scan, requested only after ordinary input admission.
+//! One admitted source population is scanned only after ordinary input admission.
 use super::{admission::KernelPermit, facade::PreparedProgram};
-use crate::domain::{
-    executable_program::types::Instruction,
-    operating::{errors::OperatingError, types::OperatorContext},
-    positions::types::ClassPlace,
-    shared_walk::types::{RuleActivity, WalkWork, prepared_walk::value::NativeBatch},
-    table_cells::types::TreeRows,
+use crate::{
+    application::file_dag::derived::owner::PopulationId,
+    domain::{
+        executable_program::types::Instruction,
+        operating::{errors::OperatingError, types::OperatorContext},
+        positions::types::ClassPlace,
+        shared_walk::types::{RuleActivity, WalkWork, prepared_walk::value::NativeBatch},
+        table_model::types::Rows,
+    },
 };
-use std::cell::RefCell;
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+};
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct WalkSourceIdentity {
+    population: PopulationId,
+    relation: Relation,
+}
 
 pub(super) struct FileWalk {
-    file: ryo_relations::domain::relations::types::FileId,
+    file: FileId,
     active: Box<[RuleActivity]>,
-    population: std::cell::Cell<Option<super::super::derived::owner::PopulationId>>,
-    batch: RefCell<Option<NativeBatch>>,
+    // Position batches live until this file owner drops. Last-consumer retirement
+    // and accounting are not implemented by this source cache.
+    batches: RefCell<HashMap<WalkSourceIdentity, NativeBatch>>,
     work: RefCell<WalkWork>,
 }
 impl FileWalk {
-    pub(super) fn new(
-        file: ryo_relations::domain::relations::types::FileId,
-        demanded: &[bool],
-    ) -> Self {
+    pub(super) fn new(file: FileId, demanded: &[bool]) -> Self {
         Self {
             file,
             active: demanded
@@ -33,8 +43,7 @@ impl FileWalk {
                     }
                 })
                 .collect(),
-            population: std::cell::Cell::new(None),
-            batch: RefCell::new(None),
+            batches: RefCell::new(HashMap::new()),
             work: RefCell::new(WalkWork::default()),
         }
     }
@@ -45,60 +54,66 @@ impl FileWalk {
     ) -> Option<ClassPlace> {
         prepared.walk_class(instruction)
     }
-    pub(super) fn prepare(
-        &self,
+    pub(super) fn prepare<'walk>(
+        &'walk self,
         prepared: &PreparedProgram,
         permit: &KernelPermit<'_>,
-        tree: TreeRows<'_>,
+        relation: Relation,
+        rows: &Rows<'_>,
         context: &mut OperatorContext<'_>,
         kernels: &dyn super::super::executor::PrimitiveExecutor,
-    ) -> Result<(), OperatingError> {
-        if tree.file != self.file
-            || tree.form != crate::domain::table_cells::types::TreeForm::Elements
-        {
-            return Err(OperatingError::NotRead);
+    ) -> Result<Ref<'walk, NativeBatch>, OperatingError> {
+        if let Rows::Tree(tree) = rows {
+            if tree.file != self.file {
+                return Err(OperatingError::NotRead);
+            }
         }
-        let admitted = permit.admit_tree(tree)?;
-        if self
-            .population
-            .get()
-            .is_some_and(|expected| expected != admitted.population())
-        {
-            return Err(OperatingError::NotRead);
-        }
-        self.population.set(Some(admitted.population()));
-        let mut batch = self.batch.borrow_mut();
-        if batch.is_none() {
+        // Revalidate even a cache hit: population alone does not establish the
+        // relation, current physical view, generation, or live invocation.
+        permit.validate_program(prepared.program().as_ref())?;
+        let admitted = permit.admit_walk_source(relation, rows)?;
+        let identity = WalkSourceIdentity {
+            population: admitted.population(),
+            relation: admitted.relation(),
+        };
+        if !self.batches.borrow().contains_key(&identity) {
             let mut work = self.work.borrow_mut();
             let request = permit.walk(prepared, admitted, context, &self.active, &mut work)?;
-            *batch = Some(
-                match kernels.execute(super::super::executor::KernelCall::Walk { request }) {
-                    Ok(super::super::executor::KernelAnswer::Walk(batch)) => batch,
-                    Err(super::super::executor::KernelFault::Refused(error)) => return Err(error),
-                    Err(super::super::executor::KernelFault::Portable(_)) => {
-                        return Err(OperatingError::NotRead);
-                    }
-                    _ => return Err(OperatingError::WrongOperation),
-                },
-            );
+            let batch = match kernels.execute(super::super::executor::KernelCall::Walk { request })
+            {
+                Ok(super::super::executor::KernelAnswer::Walk(batch)) => batch,
+                Err(super::super::executor::KernelFault::Refused(error)) => return Err(error),
+                Err(super::super::executor::KernelFault::Portable(_)) => {
+                    return Err(OperatingError::NotRead);
+                }
+                _ => return Err(OperatingError::WrongOperation),
+            };
+            let _previous = self.batches.borrow_mut().insert(identity, batch);
         }
-        Ok(())
+        Ref::filter_map(self.batches.borrow(), |batches| batches.get(&identity))
+            .map_err(|_| OperatingError::NotRun)
     }
     pub(super) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
-        self.batch
-            .borrow()
-            .as_ref()
-            .map_or_else(Default::default, NativeBatch::counts)
-    }
-    pub(super) fn batch(&self) -> std::cell::Ref<'_, Option<NativeBatch>> {
-        self.batch.borrow()
+        self.batches.borrow().values().fold(
+            crate::domain::shared_walk::types::WalkCounts::default(),
+            |mut total, batch| {
+                let counts = batch.counts();
+                total.passes.0 = total.passes.0.saturating_add(counts.passes.0);
+                total.source_rows.0 = total.source_rows.0.saturating_add(counts.source_rows.0);
+                total.predicate_rows.0 = total
+                    .predicate_rows
+                    .0
+                    .saturating_add(counts.predicate_rows.0);
+                total
+            },
+        )
     }
 }
-/// The semantic adapter can consume this request, but cannot construct one.
+/// Only the live engine permit can bind these borrowed, already-admitted rows.
 pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     pub(super) permit: &'call KernelPermit<'scope>,
     pub(super) prepared: &'call PreparedProgram,
-    pub(super) source: super::admission::AdmittedTree<'call>,
+    pub(super) source: super::admission::AdmittedWalkSource<'call>,
     pub(super) context: &'call mut OperatorContext<'context>,
     pub(super) active: &'call [RuleActivity],
     pub(super) work: &'call mut WalkWork,
@@ -108,6 +123,7 @@ impl PermittedWalk<'_, '_, '_> {
         self.permit.validate_live()?;
         Ok(crate::domain::shared_walk::service::evaluate(
             self.prepared.walk(),
+            self.source.relation(),
             self.source.rows(),
             self.prepared.all_bindings(),
             self.context,
