@@ -20,7 +20,7 @@ use crate::domain::{
 };
 use ryo::languages::{self, Position, Symbols, Tree};
 use std::cell::Ref;
-use std::hash;
+use std::hash::{Hash, Hasher};
 
 /// The numeric payload retained alongside a successfully constructed full key.
 struct BuiltKey {
@@ -341,8 +341,8 @@ fn integer_as_float(value: i128) -> f64 {
 /// Hash a full key and intern it into the collision-checked record table.
 fn intern(index: &mut ConstantKeyIndex, at: Position) -> Option<Position> {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    hash::Hash::hash(&index.scratch, &mut hasher);
-    intern_with_hash(index, at, hash::Hasher::finish(&hasher))
+    Hash::hash(&index.scratch, &mut hasher);
+    intern_with_hash(index, at, Hasher::finish(&hasher))
 }
 
 /// Intern after a caller-selected hash, also making collision handling directly testable.

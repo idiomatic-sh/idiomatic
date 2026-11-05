@@ -225,11 +225,17 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
         Operation::EmbeddedRoot(leading_token) => {
-            use crate::domain::{elements::{
+            use crate::domain::{
+                elements::{
                     service::{enter_node, leave_node, table_builder, token},
                     types::Elements,
-                }, expansions::service::write_embedded, symbols::types::{ByteSlice, Symbols}};
-use ryo_relations::domain::relations::types::{EmbeddedMapping, KindBits, Offset, Position};
+                },
+                expansions::service::write_embedded,
+                symbols::types::{ByteSlice, Symbols},
+            };
+            use ryo_relations::domain::relations::types::{
+                EmbeddedMapping, KindBits, Offset, Position,
+            };
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
             enter_node(&mut builder, KindBits(1), Offset(0));
@@ -302,14 +308,14 @@ use ryo_relations::domain::relations::types::{EmbeddedMapping, KindBits, Offset,
             Ok(super::semantic_spans_valid(&output, 6, false, |id| id == 3))
         }
         Operation::Identifier(name, span) => {
-            use crate::domain::{symbols::{
-                    service::intern_derived,
-                    types::{ByteSlice, Symbols},
-                }};
-use ryo_relations::domain::terms::{
-                    service::unknown_symbol,
-                    types::{NameText, UnknownReason},
-                };
+            use crate::domain::symbols::{
+                service::intern_derived,
+                types::{ByteSlice, Symbols},
+            };
+            use ryo_relations::domain::terms::{
+                service::unknown_symbol,
+                types::{NameText, UnknownReason},
+            };
             let source = ByteSlice("𝗲𝘅𝗲𝗰".as_bytes());
             let mut symbols = Symbols::default();
             let name = name.map_or_else(

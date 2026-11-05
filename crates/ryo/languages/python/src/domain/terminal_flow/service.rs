@@ -70,7 +70,9 @@ fn has_return(value: Outcome) -> bool {
 
 /// Compose sequential statement outcomes from left to right.
 fn and_then(left: Outcome, right: Outcome) -> Outcome {
-    use Outcome::{ConditionalReturn, Implicit, None, Raise, RaiseOrReturn, Return};
+    use crate::domain::terminal_flow::types::Outcome::{
+        ConditionalReturn, Implicit, None, Raise, RaiseOrReturn, Return,
+    };
     match (left, right) {
         (None | Implicit, other) | (other, None | Implicit) => other,
         (ConditionalReturn, ConditionalReturn) => ConditionalReturn,
@@ -85,7 +87,9 @@ fn and_then(left: Outcome, right: Outcome) -> Outcome {
 
 /// Join outcomes from alternate branches.
 fn branch(left: Outcome, right: Outcome) -> Outcome {
-    use Outcome::{ConditionalReturn, Implicit, None, Raise, RaiseOrReturn, Return};
+    use crate::domain::terminal_flow::types::Outcome::{
+        ConditionalReturn, Implicit, None, Raise, RaiseOrReturn, Return,
+    };
     match (left, right) {
         (None, other) | (other, None) => other,
         (Implicit, Implicit | Raise) | (Raise, Implicit) => Implicit,
@@ -146,11 +150,11 @@ fn exhaustive_case(tree: &Tree<'_>, nodes: &[NodeSummary], case: Position) -> bo
 )]
 /// Summarize the supported terminal behavior for one syntax node.
 fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSummary {
-    use Kind::Node as SyntaxNode;
-    use Node::{
+    use crate::domain::nodes::types::Node::{
         AsyncFor, AsyncFunctionDef, AsyncWith, Break, For, FunctionDef, If, Match, MatchAs,
         MatchOr, Raise, Return, Try, TryStar, While, With,
     };
+    use crate::domain::syntax::types::Kind::Node as SyntaxNode;
     match kind(tree, at) {
         SyntaxNode(MatchAs) => NodeSummary {
             wildcard_pattern: children(tree, at, Field::Pattern, Category::Pattern)

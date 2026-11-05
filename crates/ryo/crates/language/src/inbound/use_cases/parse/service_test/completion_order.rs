@@ -13,7 +13,9 @@ macro_rules! forward {
 }
 impl ParseUseCase for Ordered {
     type FileModel = Seen;
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         Small.capabilities()
     }
     fn configuration_identity(

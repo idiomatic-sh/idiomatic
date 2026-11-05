@@ -210,6 +210,7 @@ language-parts = "0.1.0"
 language-test-entries = "0.1.0"
 program-implementation-boundary = "0.1.0"
 readers-in-items = "0.1.0"
+source-import-allowlist = "0.1.0"
 
 [packages."idiomatic.ryo".specs]
 benchmark = "0.1.0"
@@ -227,4 +228,5 @@ executable-lowering = "0.1.0"
 executable-program-part = "0.1.0"
 native-position-operation = "0.1.0"
 program-runtime-proof = "0.1.0"
+provider-allowances = "0.1.0"
 selection-evaluation = "0.1.0"
