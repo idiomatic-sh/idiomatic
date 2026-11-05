@@ -329,6 +329,8 @@ impl From<crate::application::cross_file::errors::CrossError> for LintError {
             CrossError::Rules(error) => error.into(),
             CrossError::Facts(error) => error.into(),
             CrossError::Scheduler(error) => error.into(),
+            CrossError::Budget(error) => error.into(),
+            CrossError::Memory(error) => error.into(),
         }
     }
 }

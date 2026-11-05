@@ -174,6 +174,11 @@ pub enum ProjectObservation {
     },
     Other(RootOutcome),
 }
+/// Completed results retain declaration order if the required host guard refuses advancement.
+pub enum ProjectBatch<T, E> {
+    Complete(Vec<T>),
+    Refused { completed: Vec<T>, error: E },
+}
 pub struct ProjectRuleOutcome {
     pub emit: RootOutcome,
     pub observations: Vec<(ObservationIndex, ProjectObservation)>,

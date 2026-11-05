@@ -114,9 +114,15 @@ impl CrossFile {
         tasks: Vec<super::types::ProjectTask<'_>>,
         stage: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
         symbols: &mut Symbols,
-    ) -> Vec<Result<super::types::CrossedWithPublications, RulesError>> {
+        guard: impl FnMut(
+            ryo_execution::inbound::use_cases::execution::types::RuleIndex,
+        ) -> Result<(), super::errors::CrossError>,
+    ) -> ryo_execution::inbound::use_cases::execution::types::ProjectBatch<
+        Result<super::types::CrossedWithPublications, RulesError>,
+        super::errors::CrossError,
+    > {
         use ryo_execution::inbound::use_cases::execution::types::{
-            EmitDemand, ObservationDemand, ProjectInput, ProjectTask, RuleDemand,
+            EmitDemand, ObservationDemand, ProjectBatch, ProjectInput, ProjectTask, RuleDemand,
         };
         let partials = tasks
             .iter()
@@ -170,24 +176,36 @@ impl CrossFile {
                 Err(error) => failures.push(Some(failed(&task.todo.id, error))),
             }
         }
-        let mut evaluated = stage.evaluate(inputs, symbols).into_iter();
-        targets
-            .into_iter()
-            .zip(failures)
-            .map(|((todo, slot), failure)| {
-                if let Some(error) = failure {
-                    return Err(error);
+        let (completed, refused) = match stage.evaluate(inputs, symbols, guard) {
+            ProjectBatch::Complete(completed) => (completed, None),
+            ProjectBatch::Refused { completed, error } => (completed, Some(error)),
+        };
+        let mut evaluated = completed.into_iter();
+        let mut completed = Vec::with_capacity(targets.len());
+        for ((todo, slot), failure) in targets.into_iter().zip(failures) {
+            if let Some(error) = failure {
+                completed.push(Err(error));
+                continue;
+            }
+            let Some(outcome) = evaluated.next() else {
+                if refused.is_some() {
+                    break;
                 }
-                let outcome = evaluated
-                    .next()
-                    .ok_or_else(|| failed(&todo.id, &"project root outcome missing"))?
-                    .map_err(|error| failed(&todo.id, &error))?;
+                completed.push(Err(failed(&todo.id, &"project root outcome missing")));
+                continue;
+            };
+            completed.push((|| {
+                let outcome = outcome.map_err(|error| failed(&todo.id, &error))?;
                 let evaluated =
                     crate::application::run_coordination::cross_execution::collected(outcome)
                         .map_err(|error| failed(&todo.id, &error))?;
                 self.complete_phase(crossing, todo, evaluated, symbols, slot)
-            })
-            .collect()
+            })());
+        }
+        match refused {
+            Some(error) => ProjectBatch::Refused { completed, error },
+            None => ProjectBatch::Complete(completed),
+        }
     }
     fn complete_phase(
         &self,

@@ -28,6 +28,7 @@ impl CrossFile {
         run: ObservationRun<'_>,
         arenas: &mut Vec<ArenaBytes>,
         answered: &mut Answered,
+        mut guard: impl FnMut(RuleIndex) -> Result<(), CrossError>,
     ) -> Result<(), CrossError> {
         let batches = run.batches;
         let mut stage = run.services.observations(arenas)?;
@@ -97,7 +98,7 @@ impl CrossFile {
             if tasks.is_empty() {
                 continue;
             }
-            let results = {
+            let (results, refused) = {
                 let crossing = CrossingInput {
                     arenas: stage.arenas(),
                     services: run.services,
@@ -127,28 +128,40 @@ impl CrossFile {
                         Err(error) => errors.push(Some(error)),
                     }
                 }
-                let mut evaluated = self
-                    .evaluate_batch(&crossing, prepared, &stage, &mut symbols)
-                    .into_iter();
-                errors
-                    .into_iter()
-                    .zip(&tasks)
-                    .map(|(error, task)| match error {
-                        Some(error) => Err(error),
-                        None => evaluated.next().unwrap_or_else(|| {
-                            Err(crate::domain::rules::service::failed(
+                use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
+                let (completed, refused) = match self.evaluate_batch(
+                    &crossing,
+                    prepared,
+                    &stage,
+                    &mut symbols,
+                    &mut guard,
+                ) {
+                    ProjectBatch::Complete(completed) => (completed, None),
+                    ProjectBatch::Refused { completed, error } => (completed, Some(error)),
+                };
+                let mut evaluated = completed.into_iter();
+                let mut results = Vec::with_capacity(tasks.len());
+                for (error, task) in errors.into_iter().zip(&tasks) {
+                    match error {
+                        Some(error) => results.push(Err(error)),
+                        None => match evaluated.next() {
+                            Some(result) => results.push(result),
+                            None if refused.is_some() => break,
+                            None => results.push(Err(crate::domain::rules::service::failed(
                                 &task.todo.id,
                                 &OperatingError::NotRun,
-                            ))
-                        }),
-                    })
-                    .collect::<Vec<_>>()
+                            ))),
+                        },
+                    }
+                }
+                (results, refused)
             };
             let mut first_error = None;
-            for (mut task, result) in tasks.into_iter().zip(results) {
+            let mut results = results.into_iter();
+            for mut task in tasks {
                 task.bindings.clear();
-                match result {
-                    Ok(result) => {
+                match results.next() {
+                    Some(Ok(result)) => {
                         if let Some(transfer) = settle(
                             &task.todo,
                             result.crossed,
@@ -166,15 +179,20 @@ impl CrossFile {
                             }
                         }
                     }
-                    Err(error) => {
+                    Some(Err(error)) => {
                         first_error.get_or_insert(CrossError::from(error));
                     }
+                    None => {}
                 }
                 if let Err(error) = stage.finish(task.todo.rule) {
                     first_error.get_or_insert(CrossError::from(error));
                 }
             }
+            if let Some(error) = refused {
+                first_error.get_or_insert(error);
+            }
             if let Some(error) = first_error {
+                let _finished = stage.finish_stage();
                 return Err(error);
             }
         }

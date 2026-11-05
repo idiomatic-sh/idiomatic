@@ -8,7 +8,7 @@ use crate::domain::{
 use ryo_values::domain::{plan_parts::types::Input, rows::types::Table};
 use std::{cell::OnceCell, sync::Arc};
 #[derive(Clone, PartialEq, Eq)]
-pub(in crate::application::file_dag::program) enum Payload {
+pub(in crate::application::file_dag::program) enum ProjectFrontierPayload {
     Flat(Arc<Table>),
     Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
 }
@@ -17,7 +17,7 @@ pub(in crate::application::file_dag::program) struct ProjectFrontierPopulation<A
     pub(in crate::application::file_dag::program) id: PopulationId,
     pub(in crate::application::file_dag::program) source: Result<InputSource, OperatingError>,
     pub(in crate::application::file_dag::program) coverage: CoverageState,
-    pub(in crate::application::file_dag::program) payload: Payload,
+    pub(in crate::application::file_dag::program) payload: ProjectFrontierPayload,
     pub(in crate::application::file_dag::program) admitted: OnceCell<Result<A, OperatingError>>,
 }
 #[derive(PartialEq, Eq)]
@@ -29,6 +29,8 @@ pub(in crate::application::file_dag::program) struct ProjectInvocationKey<R> {
 }
 #[derive(PartialEq, Eq)]
 pub(in crate::application::file_dag::program) struct ProjectRefusal {
+    pub(in crate::application::file_dag::program) source:
+        Option<Result<InputSource, OperatingError>>,
     pub(in crate::application::file_dag::program) input: Input,
     pub(in crate::application::file_dag::program) error: OperatingError,
 }
@@ -37,5 +39,11 @@ pub(in crate::application::file_dag::program) enum BoundKey<R> {
     Current(PopulationId, CoverageState),
     Restored(R),
     Refused(OperatingError),
-    Input(ryo_values::domain::observations::types::ObservationBindingId),
+    Input(crate::domain::executable_program::types::InputSource),
+}
+
+/// Structural equality is the only reuse decision accepted by the source interner.
+pub(in crate::application::file_dag::program) enum ProjectSourceMatch {
+    Equivalent,
+    Distinct,
 }

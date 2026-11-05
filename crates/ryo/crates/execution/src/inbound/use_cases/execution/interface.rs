@@ -115,11 +115,12 @@ pub trait ProjectExecution {
 pub use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
 pub trait ProjectRootExecution {
     /// Bind all actual tasks, prepare compatible root cohorts, then deliver in declaration order.
-    fn evaluate(
+    fn evaluate<E>(
         &self,
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
-    ) -> Vec<Result<ProjectRuleOutcome, OperatingError>>;
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E>;
     fn readiness_counts(&self) -> ReadinessCounts;
 }
 pub trait ProjectStage: ProjectRootExecution {

@@ -1,6 +1,7 @@
 //! Project execution over deferred frontier sources and one publication scope.
 use super::super::project_population::types::{
-    BoundKey, Payload, ProjectFrontierPopulation, ProjectInvocationKey, ProjectRefusal,
+    BoundKey, ProjectFrontierPayload, ProjectFrontierPopulation, ProjectInvocationKey,
+    ProjectRefusal, ProjectSourceMatch,
 };
 use super::source_admission::ProjectSources;
 use super::*;
@@ -19,8 +20,12 @@ impl ProjectFrontierPopulation<AvailableInput> {
             .get_or_init(|| {
                 let source = self.source.clone()?;
                 let publication = match &self.payload {
-                    Payload::Flat(table) => owner.source_shared_computed(Arc::clone(table)),
-                    Payload::Compact(table) => owner.source_compact(Arc::clone(table)),
+                    ProjectFrontierPayload::Flat(table) => {
+                        owner.source_shared_computed(Arc::clone(table))
+                    }
+                    ProjectFrontierPayload::Compact(table) => {
+                        owner.source_compact(Arc::clone(table))
+                    }
                 }?;
                 let unavailable = |_| Err(OperatingError::NotRead);
                 let rows = owner.resolve(publication.as_ref(), &unavailable)?;
@@ -53,14 +58,18 @@ impl PublicationScope {
                     FrontierInput::Decoded { frontier, coverage } => (
                         frontier.input,
                         coverage,
-                        Payload::Flat(Arc::new(frontier.table)),
+                        ProjectFrontierPayload::Flat(Arc::new(frontier.table)),
                     ),
                     FrontierInput::Compact {
                         input,
                         table,
                         coverage,
                         ..
-                    } => (input, coverage, Payload::Compact(Arc::new(table))),
+                    } => (
+                        input,
+                        coverage,
+                        ProjectFrontierPayload::Compact(Arc::new(table)),
+                    ),
                 };
                 let source = sources
                     .iter()
@@ -71,9 +80,14 @@ impl PublicationScope {
                 let populations = &mut *self.populations.borrow_mut();
                 populations.source(
                     |found| {
-                        found.source == source
+                        if found.source == source
                             && found.coverage == coverage
                             && found.payload == payload
+                        {
+                            ProjectSourceMatch::Equivalent
+                        } else {
+                            ProjectSourceMatch::Distinct
+                        }
                     },
                     || {
                         Ok(ProjectFrontierPopulation {
@@ -93,12 +107,17 @@ impl PublicationScope {
         owner: &Rc<RelationOwner>,
         sources: &[Rc<ProjectFrontierPopulation<AvailableInput>>],
         refused: &[crate::domain::crossing::types::RefusedFrontier],
+        frontier_sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
         bound: &[Option<crate::application::file_dag::frontiers::types::BoundInput>],
+        prepared: &PreparedProgram,
+        rule: RuleIndex,
         policy: CompletionPolicy,
     ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
-            bindings.push(BoundKey::Input(binding.input));
+            bindings.push(BoundKey::Input(InputSource::Observation(
+                super::source_admission::observation_slot(prepared, rule, binding.input)?,
+            )));
             match &binding.members {
                 Err(error) => bindings.push(BoundKey::Refused(error.clone())),
                 Ok(members) => {
@@ -116,6 +135,10 @@ impl PublicationScope {
             refused: refused
                 .iter()
                 .map(|entry| ProjectRefusal {
+                    source: frontier_sources
+                        .iter()
+                        .find(|source| source.input == entry.input)
+                        .map(|source| source.root.clone()),
                     input: entry.input,
                     error: entry.error.clone(),
                 })
@@ -239,7 +262,10 @@ impl ProjectRun<'_> {
             &self.owner,
             &self.ordinary,
             &self.refused,
+            &self.frontier_sources,
             &self.bound,
+            self.program,
+            rule,
             self.completion(rule)?.for_rule(RuleIndex(0)),
         )
     }
@@ -444,11 +470,12 @@ pub(crate) struct ProjectRootDeclaration {
     pub(crate) rule: RuleIndex,
     pub(crate) demand: RuleDemand,
 }
-pub(crate) fn evaluate_roots(
+pub(crate) fn evaluate_roots<E>(
     mut runs: Vec<Result<ProjectRun<'_>, OperatingError>>,
     declarations: &[ProjectRootDeclaration],
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
-) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+    mut guard: impl FnMut(RuleIndex) -> Result<(), E>,
+) -> super::super::facade::ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
     use crate::domain::executable_program::types::RegionId;
     enum RootSet {
         Pending(Vec<RegionId>),
@@ -488,11 +515,19 @@ pub(crate) fn evaluate_roots(
         };
         memberships.push(membership);
     }
-    runs.into_iter()
-        .zip(declarations)
-        .zip(memberships)
-        .map(|((run, declaration), membership)| {
-            let ProjectRootDeclaration { rule, demand } = *declaration;
+    let mut completed = Vec::with_capacity(runs.len());
+    for ((run, declaration), membership) in runs.into_iter().zip(declarations).zip(memberships) {
+        let ProjectRootDeclaration { rule, demand } = *declaration;
+        let requires_guard = match &membership {
+            Ok(index) => matches!(cohorts[*index].roots, RootSet::Pending(_)),
+            Err(_) => true,
+        };
+        if requires_guard {
+            if let Err(error) = guard(rule) {
+                return super::super::facade::ProjectBatch::Refused { completed, error };
+            }
+        }
+        let result = (|| {
             let mut run = run?;
             let cohort = &mut cohorts[membership?];
             let roots = match std::mem::replace(&mut cohort.roots, RootSet::Prepared) {
@@ -500,6 +535,8 @@ pub(crate) fn evaluate_roots(
                 RootSet::Prepared => Vec::new(),
             };
             run.deliver(&cohort.state, rule, demand, &roots, symbols)
-        })
-        .collect()
+        })();
+        completed.push(result);
+    }
+    super::super::facade::ProjectBatch::Complete(completed)
 }

@@ -1057,29 +1057,7 @@ impl ProgramExecution {
                         Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
                         // A failed producer wakes its dependants so each resumes its
                         // actual admission action, records the same failure and retires.
-                        Ok(_) => ReadinessOutcome::Terminal,
-                        Err(error) => {
-                            // Some contract refusals occur before the kernel/Invocation guard
-                            // is entered. Retain that same error as a terminal publication
-                            // outcome so ordered delivery never has to re-run a failed poll.
-                            let retained = state.slots.borrow().get(&id.0).is_some_and(|slot| {
-                                matches!(
-                                    slot.state,
-                                    State::Published(_) | State::Failed(_) | State::Retired
-                                )
-                            });
-                            if !retained {
-                                Slot::touched(
-                                    state,
-                                    &mut state.slots.borrow_mut(),
-                                    &self.program,
-                                    id,
-                                )?
-                                .state = State::Failed(error);
-                                let _cleanup = self.release_inputs(state, id);
-                            }
-                            ReadinessOutcome::Terminal
-                        }
+                        Ok(_) | Err(_) => ReadinessOutcome::Terminal,
                     };
                 queue.observe(id, outcome)?;
             }
@@ -1170,6 +1148,14 @@ impl ProgramExecution {
         {
             return Err(OperatingError::NotRead);
         }
+        if state
+            .slots
+            .borrow()
+            .get(&id.0)
+            .is_some_and(|slot| matches!(slot.state, State::Running))
+        {
+            return Err(OperatingError::NotRun);
+        }
         if let Some(input) = self.published(state, id)? {
             return Ok(InvocationOutcome::Published(input));
         }
@@ -1256,11 +1242,15 @@ impl ProgramExecution {
             started,
             prepare_only,
         };
-        let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
-        let needs = region.needs.as_ref().map_err(Clone::clone)?;
+        let first = region.instructions.first();
         let mut admitted = progress.inputs.clone();
-        let program = &first.demand;
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
+            let first = first.ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+            let needs = region
+                .needs
+                .as_ref()
+                .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
+            let program = &first.demand;
             if completion.region_admission(needs)
                 == crate::domain::completion::types::RegionAdmission::Blocked
             {
@@ -1648,7 +1638,7 @@ impl ProgramExecution {
             }
             Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
                 if let Some(admission) = cleanup.admission.as_ref() {
-                    tracing::trace!(target: "ryo::diagnostic::execution", event = "region_failure", region = id.0, producer = region.producer.0, phase = ?region.phase, logical = first.logical.0, action = admission.action, ?error);
+                    tracing::trace!(target: "ryo::diagnostic::execution", event = "region_failure", region = id.0, producer = region.producer.0, phase = ?region.phase, logical = ?first.map(|first| first.logical.0), action = admission.action, ?error);
                 }
                 cleanup.terminal = Terminal::Failed(error.clone());
                 let _cleanup = self.release_inputs(state, id);

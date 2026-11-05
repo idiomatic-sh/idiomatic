@@ -949,6 +949,10 @@ impl LintUseCaseImpl {
                     },
                     handed.arenas,
                     answered,
+                    |rule| {
+                        let id = run.ids.get(rule.0).ok_or(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)?;
+                        Ok(within(self.memory.resident_bytes()?, listing.budget, || vec![id.clone()])?)
+                    },
                 )
                 .map_err(Into::into);
         }
@@ -1055,25 +1059,42 @@ impl LintUseCaseImpl {
                 _ => None,
             }
         }).collect();
-        let mut outcomes = self
-            .cross_file
-            .evaluate_batch(&crossing, tasks, &stage, &mut cross)
-            .into_iter();
-        let made = preparation_errors
-            .into_iter()
-            .map(|error| match error {
-                Some(error) => Err(error),
-                None => outcomes
-                    .next()
-                    .ok_or_else(|| {
-                        LintError::from(crate::domain::rules::service::failed(
-                            &first_rule.id,
-                            &"missing project outcome",
-                        ))
-                    })
-                    .and_then(|outcome| outcome.map(|result| result.crossed).map_err(Into::into)),
-            })
-            .collect::<Vec<_>>();
+        use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
+        let guarded =
+            self.cross_file
+                .evaluate_batch(&crossing, tasks, &stage, &mut cross, |rule| {
+                    let id = run.ids.get(rule.0).ok_or(
+                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                    )?;
+                    Ok(within(
+                        self.memory.resident_bytes()?,
+                        listing.budget,
+                        || vec![id.clone()],
+                    )?)
+                });
+        let (outcomes, refused) = match guarded {
+            ProjectBatch::Complete(completed) => (completed, None),
+            ProjectBatch::Refused { completed, error } => (completed, Some(error)),
+        };
+        let mut outcomes = outcomes.into_iter();
+        let mut made = Vec::with_capacity(preparation_errors.len());
+        for error in preparation_errors {
+            match error {
+                Some(error) => made.push(Err(error)),
+                None => match outcomes.next() {
+                    Some(outcome) => made.push(
+                        outcome
+                            .map(|result| result.crossed)
+                            .map_err(LintError::from),
+                    ),
+                    None if refused.is_some() => break,
+                    None => made.push(Err(LintError::from(crate::domain::rules::service::failed(
+                        &first_rule.id,
+                        &"missing project outcome",
+                    )))),
+                },
+            }
+        }
         observed_cross_symbols("before_cross_cleanup", &mut cross);
         drop(scopes);
         // Always release the shared stage, but preserve an earlier rule/budget
@@ -1093,6 +1114,9 @@ impl LintUseCaseImpl {
                     reason: "named publication was not admitted by the request owner".into(),
                 });
             }
+        }
+        if let Some(error) = refused {
+            return Err(error.into());
         }
         finished.map_err(|error| {
             LintError::from(crate::domain::rules::service::failed(

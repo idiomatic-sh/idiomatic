@@ -161,6 +161,7 @@ pub struct ProjectTask<'a> {
     pub demand: RuleDemand,
     pub input: ProjectInput<'a>,
 }
+pub use crate::application::file_dag::program::facade::ProjectBatch;
 pub struct ProjectSession<'a> {
     pub(super) inner: crate::application::file_dag::program::facade_runtime::ProjectRun<'a>,
 }

@@ -756,7 +756,7 @@ pub(super) fn observation_table<'facts>(
     table_of(owner, input, read)
 }
 
-fn observation_slot(
+pub(super) fn observation_slot(
     program: &PreparedProgram,
     rule: RuleIndex,
     input: ryo_values::domain::observations::types::ObservationBindingId,

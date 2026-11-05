@@ -26,6 +26,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 mod applicability;
 #[cfg(test)]
+mod consumers;
+#[cfg(test)]
 mod declared_empty;
 mod restoration;
 mod source_facts;

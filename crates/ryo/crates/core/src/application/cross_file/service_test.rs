@@ -11,7 +11,7 @@ use ryo_execution::inbound::use_cases::execution::{
     interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution, ProjectStage},
     types::{
         FrontierDemand, FrontierRequest, ObservationIdentity, PreparedFrontiers, PreparedRequest,
-        ProjectPhase, ProjectScope, PublicationSlot,
+        ProjectBatch, ProjectPhase, ProjectScope, PublicationSlot,
     },
     use_case::ExecutionUseCaseImpl,
 };
@@ -1219,7 +1219,13 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
                 slot: PublicationSlot::Unused,
             })
             .collect::<Vec<_>>();
-        let results = service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols);
+        let results = completed_batch(service().evaluate_batch(
+            &crossing(&rules),
+            tasks,
+            &phase,
+            &mut symbols,
+            |_| Ok(()),
+        ));
         let mut previous = None;
         for result in results {
             let result = result.unwrap().crossed;
@@ -1268,7 +1274,13 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
                 slot: PublicationSlot::Unused,
             })
             .collect();
-        for result in service().evaluate_batch(&crossing(&rules), again, &phase, &mut symbols) {
+        for result in completed_batch(service().evaluate_batch(
+            &crossing(&rules),
+            again,
+            &phase,
+            &mut symbols,
+            |_| Ok(()),
+        )) {
             assert_eq!(result.unwrap().crossed.rendered.as_ref(), previous.as_ref());
         }
         assert_eq!(
@@ -1350,7 +1362,13 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
                 slot: PublicationSlot::Unused,
             })
             .collect();
-        let results = service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols);
+        let results = completed_batch(service().evaluate_batch(
+            &crossing(&rules),
+            tasks,
+            &phase,
+            &mut symbols,
+            |_| Ok(()),
+        ));
         for (rule, result) in order.into_iter().zip(results) {
             let result = result.unwrap().crossed;
             assert_eq!(result.unknowns.len(), usize::from(rule == 0));
@@ -1364,6 +1382,227 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
         assert_eq!(phase.state_counts().populations.0, 2);
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
+        drop(scopes);
+        phase.finish().unwrap();
+    }
+}
+
+fn completed_batch<T>(batch: ProjectBatch<T, super::errors::CrossError>) -> Vec<T> {
+    match batch {
+        ProjectBatch::Complete(completed) => completed,
+        ProjectBatch::Refused { error, .. } => {
+            panic!("the fixture declares no memory limit: {error}")
+        }
+    }
+}
+
+#[test]
+fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_phase() {
+    use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
+    use ryo_operators::inbound::use_cases::operators::interface::{
+        OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
+    };
+    use ryo_relations::domain::relations::{service::node_id, types::Position};
+    use ryo_values::domain::runs::types::MemoryBytes;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    #[derive(Debug, Default)]
+    struct GrowingMemory {
+        actual: ProjectCalls,
+        resident: AtomicU64,
+    }
+    impl OperatorsUseCase for GrowingMemory {
+        fn operators(
+            &self,
+            call: OperatorCall<'_>,
+        ) -> Result<OperatorAnswer, PortableOperatorFault> {
+            let answer = self.actual.operators(call);
+            self.resident.store(200, Ordering::SeqCst);
+            answer
+        }
+    }
+    impl MemoryPort for GrowingMemory {
+        fn budget(&self) -> Result<MemoryBytes, MemoryError> {
+            Ok(MemoryBytes(100))
+        }
+        fn resident_bytes(&self) -> Result<MemoryBytes, MemoryError> {
+            Ok(MemoryBytes(self.resident.load(Ordering::SeqCst)))
+        }
+    }
+    for order in [[0, 1], [1, 0]] {
+        let memory = Arc::new(GrowingMemory::default());
+        let plan = counting_plan(1, vec![]);
+        let rules = world_with(vec![plan.clone(), plan], memory.clone());
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let original = frontier_rows();
+        let mut different = original.clone();
+        for cell in &mut different[0].1.cells {
+            *cell = Cell::Node(node_id(FileId(0), Position(9)));
+        }
+        let mut scopes = Vec::new();
+        let mut frontiers = Vec::new();
+        let mut todos = Vec::new();
+        for rule in order {
+            let source = if rule == 0 { &original } else { &different };
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                source,
+                &mut symbols,
+            )
+            .unwrap();
+            scopes.push(scope);
+            frontiers.push(frontier);
+            todos.push(Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            });
+        }
+        let tasks = todos
+            .iter()
+            .zip(&scopes)
+            .zip(frontiers)
+            .map(|((todo, scope), frontier)| super::types::ProjectTask {
+                todo,
+                scope,
+                frontier,
+                bound: &[],
+                slot: PublicationSlot::Unused,
+            })
+            .collect();
+        let guarded =
+            service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols, |rule| {
+                Ok(crate::domain::budget::service::within(
+                    memory.resident_bytes()?,
+                    memory.budget()?,
+                    || vec![rules.ids[rule.0].clone()],
+                )?)
+            });
+        let ProjectBatch::Refused { completed, error } = guarded else {
+            panic!("later cohort must be refused")
+        };
+        assert_eq!(completed.len(), 1);
+        assert!(
+            completed
+                .into_iter()
+                .next()
+                .unwrap()
+                .unwrap()
+                .crossed
+                .rendered
+                .is_some()
+        );
+        assert!(
+            matches!(error, super::errors::CrossError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])
+        );
+        assert_eq!(memory.actual.reductions.load(Ordering::SeqCst), 1);
+        assert_eq!(memory.actual.aggregates.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            phase.state_counts().slots.0,
+            1,
+            "refused population never starts source admission or semantic work"
+        );
+        drop(scopes);
+        phase
+            .finish()
+            .expect("all scopes settle after budget refusal");
+    }
+}
+
+#[test]
+fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort() {
+    use ryo_execution::inbound::use_cases::execution::{
+        interface::ProjectRootExecution,
+        types::{
+            EmitDemand, ObservationDemand, OperatingError, ProjectInput, ProjectTask, RootOutcome,
+            RuleDemand,
+        },
+    };
+    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
+    use std::sync::atomic::Ordering;
+    for order in [[0, 1], [1, 0]] {
+        let calls = Arc::new(ProjectCalls::default());
+        let first = counting_plan(1, vec![]);
+        let mut second = first.clone();
+        let Operation::Project { distinct, .. } = &mut second.steps[0].operation else {
+            unreachable!()
+        };
+        *distinct = RepeatedRows::Kept;
+        let mut rules = world_with_applicability(
+            vec![first, second],
+            calls.clone(),
+            &[RuleApplicability::AcceptedSyntax; 2],
+        );
+        for rule in [0, 1] {
+            for path in &rules.paths {
+                rules.skipped.push(Skipped {
+                    rule: rules.ids[rule].clone(),
+                    path: path.clone(),
+                    reason: SkipReason::SyntaxRejected,
+                });
+            }
+        }
+        rules.covered.clear();
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let mut scopes = vec![];
+        let mut frontiers = vec![];
+        let mut policies = vec![];
+        for rule in order {
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                &[],
+                &mut symbols,
+            )
+            .unwrap();
+            scopes.push(scope);
+            frontiers.push(frontier);
+            policies.push(partials_for(&crossing(&rules).domain, RuleIndex(rule)));
+        }
+        let tasks = order
+            .into_iter()
+            .zip(&scopes)
+            .zip(frontiers)
+            .zip(&policies)
+            .map(|(((rule, scope), ordinary), policy)| ProjectTask {
+                rule: RuleIndex(rule),
+                demand: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                input: ProjectInput {
+                    scope,
+                    evaluation: policy,
+                    publication: policy,
+                    ordinary,
+                    bound: &[],
+                    arenas: &rules.arenas,
+                },
+            })
+            .collect();
+        let ProjectBatch::Complete(results) = phase.evaluate(tasks, &mut symbols, |_| {
+            Ok::<(), std::convert::Infallible>(())
+        }) else {
+            unreachable!()
+        };
+        assert_eq!(results.len(), 2);
+        for result in results {
+            assert!(
+                matches!(result.unwrap().emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")
+            );
+        }
+        assert_eq!(calls.reductions.load(Ordering::SeqCst), 0);
+        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            phase.state_counts().populations.0,
+            2,
+            "same local #1 refusal belongs to different compiled frontier roots"
+        );
         drop(scopes);
         phase.finish().unwrap();
     }

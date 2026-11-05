@@ -2,6 +2,10 @@
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum CrossError {
     #[error(transparent)]
+    Budget(#[from] crate::domain::budget::errors::BudgetError),
+    #[error(transparent)]
+    Memory(#[from] crate::outbound::memory::errors::MemoryError),
+    #[error(transparent)]
     Operating(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
     #[error(transparent)]
     Rules(#[from] ryo_values::domain::rule_requests::errors::RulesError),

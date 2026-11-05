@@ -253,11 +253,12 @@ impl ProjectExecution for ProjectSession<'_> {
 }
 
 impl ProjectRootExecution for ProjectPhase<'_> {
-    fn evaluate(
+    fn evaluate<E>(
         &self,
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
-    ) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
         let mut opened = Vec::with_capacity(tasks.len());
         let mut declarations = Vec::with_capacity(tasks.len());
         for task in tasks {
@@ -275,7 +276,7 @@ impl ProjectRootExecution for ProjectPhase<'_> {
                     .map(|session| session.inner),
             );
         }
-        facade_runtime::evaluate_roots(opened, &declarations, symbols)
+        facade_runtime::evaluate_roots(opened, &declarations, symbols, guard)
     }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.publication.readiness_counts()
@@ -317,12 +318,13 @@ impl ProjectStage for ProjectPhase<'_> {
 }
 
 impl ProjectRootExecution for ObservationStage<'_> {
-    fn evaluate(
+    fn evaluate<E>(
         &self,
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
-    ) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
-        self.phase.evaluate(tasks, symbols)
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+        self.phase.evaluate(tasks, symbols, guard)
     }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.phase.readiness_counts()
