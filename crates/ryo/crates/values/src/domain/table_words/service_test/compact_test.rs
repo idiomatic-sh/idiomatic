@@ -294,11 +294,11 @@ fn permissive_mixed_width_frames_preserve_flat_rows_and_name_places() {
 }
 
 fn cross_file_symbol_indices_survive_frame_local_rebasing() {
+    use ryo_language::domain::symbols::types::ByteSlice;
     use ryo_language::domain::symbols::{
         service::{hash_of, intern_derived, name_made_across},
         types::Symbols,
     };
-    use ryo_language::domain::symbols::types::ByteSlice;
     use ryo_relations::domain::terms::types::NameText;
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("global"));
@@ -348,6 +348,23 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
             .flat_map(|row| (0..2).map(move |column| (row, column)))
             .map(|(row, column)| service::compact_cell(&compact, row, column).unwrap())
             .collect::<Vec<_>>();
+        let identities = |cells: &[Cell]| {
+            cells
+                .iter()
+                .map(|cell| {
+                    let Cell::Name(name) = *cell else {
+                        panic!("name-only fixture")
+                    };
+                    (name.hash, name.place)
+                })
+                .collect::<Vec<_>>()
+        };
+        // Name equality intentionally compares hashes, so place identity must
+        // be compared explicitly to detect a global index being renumbered.
+        assert_eq!(
+            (identities(&decoded.cells), identities(&compact_cells)),
+            (identities(&expected.cells), identities(&expected.cells))
+        );
         // Both actual codec routes execute before comparison; agreement between
         // two routes is insufficient if they both renumber the global symbol.
         assert_eq!(
