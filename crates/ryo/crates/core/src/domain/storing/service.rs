@@ -1,7 +1,7 @@
 //! The `storing` service: free functions named by verb over what a run keeps in its store and what the next uses again, with no IO
 //! and no ports.
 
-use super::types::{Decision, MadeAgain, ToKeep, ToStore};
+use super::types::{Decision, ToKeep, ToStore};
 use crate::domain::handing::service::{hand_into, handed_in, rows_of_file};
 use crate::domain::keeping::service::{findings_of, rows_from};
 use crate::domain::workers::types::FileOrder;
@@ -13,6 +13,7 @@ use ryo_values::domain::records::types::{
 };
 use ryo_values::domain::runs::types::{RuleId, Skipped};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
+use ryo_values::domain::stores::types::MadeAgain;
 use ryo_values::domain::stores::types::{
     BucketsWanted, Crossing, FileAgain, FindingMade, KeptRows, Stored, StoredCell, StoredFile,
     StoredFileNumber, StoredFinding, StoredFrontier, StoredRule, StoredUnknown, StoredUnread,

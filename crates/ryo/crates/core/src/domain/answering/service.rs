@@ -3,7 +3,6 @@
 use super::types::{CrossSteps, Crossed, Todo};
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
-use crate::domain::rules::service::id_at;
 use crate::domain::workers::service::add_fed;
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
@@ -33,7 +32,7 @@ pub(crate) fn todo_list(metadata: &[RuleMetadata], ids: &[RuleId]) -> Vec<Todo> 
         .filter(|(_, rule)| rule.has_cross_steps)
         .map(|(rule, _)| Todo {
             rule: RuleIndex(rule),
-            id: id_at(ids, RuleIndex(rule)),
+            id: MetadataUseCaseImpl.rule_id(ids, RuleIndex(rule)),
         })
         .collect()
 }
@@ -64,3 +63,7 @@ pub(crate) fn settle(
     observations
 }
 use ryo_values::domain::plans::types::{Plan, StepScope};
+
+use ryo_execution::inbound::use_cases::metadata::{
+    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
+};

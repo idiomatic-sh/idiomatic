@@ -4,7 +4,6 @@ use super::types::{BucketWords, Flat, InterfaceBytes};
 use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::render::types::Answering;
-use crate::domain::rules::service::id_at;
 use crate::domain::visit::types::{Keeping, Noting};
 use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables, VisitSetting};
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
@@ -116,7 +115,7 @@ pub(crate) fn moved_words(
 pub(crate) fn frontier_flat(
     moved: &[BucketWords],
     observations: Option<ryo_values::domain::observations::types::ValidatedFrontiers<'_>>,
-    slots: &[crate::domain::file_program::types::ObservedFrontierRoot],
+    slots: &[ryo_execution::inbound::use_cases::execution::types::ObservedFrontierRoot],
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     flat: &mut Flat,
@@ -289,7 +288,7 @@ pub(crate) fn cover(
                 .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
             {
                 tables.unknowns.push(Unknown {
-                    rule: id_at(setting.ids, RuleIndex(rule)),
+                    rule: MetadataUseCaseImpl.rule_id(setting.ids, RuleIndex(rule)),
                     path: path.clone(),
                     message: MetadataUseCaseImpl
                         .unknown_message(partial, CoverageScope::File(path)),

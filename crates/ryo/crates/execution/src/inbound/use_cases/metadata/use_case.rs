@@ -16,6 +16,9 @@ use ryo_values::domain::stored_facts::types::ReadInPart;
 pub struct MetadataUseCaseImpl;
 
 impl MetadataUseCase for MetadataUseCaseImpl {
+    fn rule_id(&self, ids: &[RuleId], rule: RuleIndex) -> RuleId {
+        crate::domain::rules::service::id_at(ids, rule)
+    }
     fn kind_refusal(&self, plan: &Plan, vocabularies: &KindVocabularies) -> Option<KindRefusal> {
         crate::domain::kind_check::service::refusal(plan, vocabularies)
     }

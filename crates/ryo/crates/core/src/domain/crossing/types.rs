@@ -19,7 +19,7 @@ pub(crate) struct CrossingInput<'a> {
     pub observations:
         &'a [ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness],
     /// Pure source and accounting facts extracted before executable plans are consumed.
-    pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
     /// The relations the steps of each rule trust the absence of rows of.
@@ -74,7 +74,7 @@ pub(crate) struct ObservedRoot {
 #[derive(Debug, Default)]
 pub(crate) struct PhaseRoots {
     /// Emit refusal does not erase an independent successfully produced named root.
-    pub emit_error: Option<crate::domain::operating::errors::OperatingError>,
+    pub emit_error: Option<ryo_execution::inbound::use_cases::execution::types::OperatingError>,
     /// Exact affected physical file ordinals for a usable partial Emit.
     /// An unlocated entry requires request-level refusal if no file can represent it.
     pub emit_affected: Option<Vec<Option<ryo_relations::domain::relations::types::FileId>>>,
@@ -88,5 +88,5 @@ pub(crate) struct PhaseRoots {
 #[derive(Clone, Debug)]
 pub(crate) struct RefusedFrontier {
     pub input: ryo_values::domain::plan_parts::types::Input,
-    pub error: crate::domain::operating::errors::OperatingError,
+    pub error: ryo_execution::inbound::use_cases::execution::types::OperatingError,
 }
