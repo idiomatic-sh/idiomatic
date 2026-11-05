@@ -28,7 +28,9 @@ fn equivalent_rules_share_one_ordered_class_without_retaining_plans() {
     assert_eq!(batch.visits(ClassPlace(0)).0, 2);
     assert_eq!(batch.visits(ClassPlace(1)).0, 1);
     assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
-    assert!(batch.class(ClassPlace(2)).unwrap().positions.0.is_empty());
+    // Nodes have no token text; the ordinary Select contract reads that as empty.
+    // The inbound kinds control independently checks root-only empty text selection.
+    assert_eq!(batch.class(ClassPlace(2)).unwrap().positions.0, [0]);
 }
 
 #[test]
