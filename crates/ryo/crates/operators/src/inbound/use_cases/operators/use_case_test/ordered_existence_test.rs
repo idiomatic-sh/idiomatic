@@ -9,11 +9,11 @@ use crate::domain::set_rows::types::{SetInput, SetInterrupted, SetKind, SetRowDr
 use crate::inbound::use_cases::operators::{
     interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
 };
-use ryo_relations::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 struct Driver {
-    rows: Vec<[Value; 3]>,
+    rows: Vec<[ValueCell; 3]>,
     emitted: Vec<usize>,
     fail_read: Option<usize>,
     fail_emit: bool,
@@ -23,7 +23,7 @@ impl OrderedExistenceDriver for Driver {
     fn len(&self) -> usize {
         self.rows.len()
     }
-    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<Value, JoinInterrupted> {
+    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<ValueCell, JoinInterrupted> {
         if self.failed {
             return Err(JoinInterrupted);
         }
@@ -43,7 +43,7 @@ impl OrderedExistenceDriver for Driver {
             .get(row)
             .and_then(|row| row.get(column.0 as usize))
         {
-            Some(Value::Number(value)) => Ok(*value),
+            Some(ValueCell::Number(value)) => Ok(*value),
             _ => {
                 self.failed = true;
                 Err(JoinInterrupted)
@@ -65,7 +65,7 @@ fn driver(rows: &[[i64; 3]]) -> Driver {
     Driver {
         rows: rows
             .iter()
-            .map(|row| row.map(|n| Value::Number(Integer(n))))
+            .map(|row| row.map(|n| ValueCell::Number(Integer(n))))
             .collect(),
         emitted: Vec::new(),
         fail_read: None,
@@ -88,7 +88,7 @@ fn execute(
         })
         .map(|_| ())
 }
-fn oracle(rows: &[[Value; 3]], extremum: PartitionExtremum) -> Vec<usize> {
+fn oracle(rows: &[[ValueCell; 3]], extremum: PartitionExtremum) -> Vec<usize> {
     rows.iter()
         .enumerate()
         .filter_map(|(at, left)| {
@@ -96,7 +96,7 @@ fn oracle(rows: &[[Value; 3]], extremum: PartitionExtremum) -> Vec<usize> {
                 .any(|right| {
                     left[0] == right[0]
                         && match (left[2], right[2]) {
-                            (Value::Number(a), Value::Number(b)) => match extremum {
+                            (ValueCell::Number(a), ValueCell::Number(b)) => match extremum {
                                 PartitionExtremum::Maximum => a < b,
                                 PartitionExtremum::Minimum => a > b,
                             },
@@ -143,20 +143,20 @@ fn projected_dominated_keys_poison_the_entire_unchanged_antijoin_key_group() {
     .expect("flag");
     assert_eq!(input.emitted, [0, 2]);
     struct Anti {
-        keys: Vec<Value>,
-        rows: Vec<Vec<Value>>,
+        keys: Vec<ValueCell>,
+        rows: Vec<Vec<ValueCell>>,
     }
     impl SetRowDriver for Anti {
         fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
             Ok(self.keys.is_empty())
         }
-        fn contains_right(&mut self, key: &[Value]) -> Result<bool, SetInterrupted> {
+        fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
             Ok(self.keys.contains(&key[0]))
         }
-        fn first_time(&mut self, _: &[Value]) -> Result<bool, SetInterrupted> {
+        fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
             panic!("antijoin must preserve left bags")
         }
-        fn emit(&mut self, row: &[Value]) -> Result<(), SetInterrupted> {
+        fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
             self.rows.push(row.to_vec());
             Ok(())
         }
@@ -237,20 +237,20 @@ fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns(
         dropped.push(projected);
     }
     struct Anti {
-        dropped: Vec<Vec<Value>>,
-        emitted: Vec<Vec<Value>>,
+        dropped: Vec<Vec<ValueCell>>,
+        emitted: Vec<Vec<ValueCell>>,
     }
     impl SetRowDriver for Anti {
         fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
             Ok(self.dropped.is_empty())
         }
-        fn contains_right(&mut self, key: &[Value]) -> Result<bool, SetInterrupted> {
+        fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
             Ok(self.dropped.iter().any(|row| row == key))
         }
-        fn first_time(&mut self, _: &[Value]) -> Result<bool, SetInterrupted> {
+        fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
             panic!("bag-preserving antijoin")
         }
-        fn emit(&mut self, row: &[Value]) -> Result<(), SetInterrupted> {
+        fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
             self.emitted.push(row.to_vec());
             Ok(())
         }
