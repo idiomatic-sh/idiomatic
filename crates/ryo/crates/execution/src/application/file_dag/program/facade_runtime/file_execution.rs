@@ -59,7 +59,14 @@ pub(crate) fn open_file<'a>(
     };
     let demanded = intents
         .iter()
-        .map(|intent| matches!(intent, FileRuleIntent::Run { .. }))
+        .map(|intent| match intent {
+            FileRuleIntent::Run { roots, capture } => {
+                roots.emit == EmitDemand::Enabled
+                    || roots.observations == ObservationDemand::Required
+                    || *capture != CaptureIntent::Disabled
+            }
+            _ => false,
+        })
         .collect::<Vec<_>>();
     owner
         .derived
