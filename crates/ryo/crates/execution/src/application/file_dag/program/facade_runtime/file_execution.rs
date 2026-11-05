@@ -705,6 +705,11 @@ impl FileRun<'_> {
         self.execution.finish()?;
         Ok(readiness)
     }
+    /// Weak lifetime observation only; the test never retains a workspace or owner.
+    #[cfg(test)]
+    pub(crate) fn owner_lifetime(&self) -> std::rc::Weak<RelationOwner> {
+        Rc::downgrade(&self.owner)
+    }
     /// Read-only test telemetry from actual common-program dispatch and retirement.
     #[cfg(test)]
     pub(crate) fn route_observation(

@@ -14,7 +14,6 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plans::types::Operation;
 
-use ryo_relations::domain::relations::types::Relation;
 /// A genuine populated/empty evaluator comparison across every current operator.
 type Input = bool;
 /// The number of distinct operator variants whose shapes were compared.

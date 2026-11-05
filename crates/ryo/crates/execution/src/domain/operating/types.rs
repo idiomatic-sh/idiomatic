@@ -188,7 +188,8 @@ pub(crate) struct ExecutionObservation {
     pub dfs_frames_len: usize,
     pub dfs_visited_len: usize,
     pub traversal_queue_len: usize,
-    pub local_resources_released: bool,
+    /// Set only after a real weak file-owner handle is observed dead at file finish.
+    pub file_owner_released: bool,
 }
 
 /// Optional test telemetry is dormant until a real execution publishes observations.
@@ -220,7 +221,7 @@ impl std::ops::Deref for ExecutionObservationSlot {
             dfs_frames_len: 0,
             dfs_visited_len: 0,
             traversal_queue_len: 0,
-            local_resources_released: false,
+            file_owner_released: false,
         };
         self.0.as_deref().unwrap_or(&ZERO)
     }

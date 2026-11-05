@@ -251,3 +251,15 @@ nonfinal retention from output delivery, which follows canonical preparation of
 all declared roots. Optional budget zero, exact output/error, last-consumer
 release before file finish, and upfront-skipped obligations remain explicit.
 These authored postimages have not been compiled or executed.
+
+Review corrections keep owner-facing selection/cache tests within the execution
+inbound test module; application code does not import private inbound fixtures.
+Collected conformance explicitly distinguishes `Failed` from `Unknown` (the
+partial semantic batch expects `Unknown`), and ordinary exact-failure fixtures
+reject unexpected `Unknown` outcomes. The matching cleanup observation now comes
+from an actual file-owner weak handle dying at file finish; it is not a claimed
+earlier invocation release. The invalid terminal Project remains unfused: its
+actual Join reader releases first, then Project returns its exact column error.
+The provider-refusal Union control now also declares callback delivery and
+requires one terminal RHS refusal, no delivered prefix and no provider retry.
+All correction controls remain unexecuted pending the combined gate.

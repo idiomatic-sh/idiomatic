@@ -1,8 +1,5 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use super::super::{
-    fixtures,
-    types::{OperatingError, SourceRows},
-};
+use super::super::{fixtures, interface::*, types::*};
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{FileId, Offset, Position, Relation, Span, Value as Cell},
@@ -28,10 +25,15 @@ enum Missing {
     First,
     Second,
 }
-type Input = (Binary, Missing);
+#[derive(Clone, Copy)]
+enum Delivery {
+    Collected,
+    Forwarded,
+}
+type Input = (Binary, Missing, Delivery);
 type Value = ();
 type Failure = OperatingError;
-fn subject((operator, missing): Input) -> Result<Value, Failure> {
+fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
     let (elements, mut symbols) = fixtures::tree_with_names();
     // Actual Function declaration and valid typed cells; no numeric catalog stand-in.
     let function = Table {
@@ -83,15 +85,79 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
         },
         operation,
     ]);
-    let result = fixtures::published_from(
-        plan,
-        vec![],
-        vec![],
-        b"abcd",
-        &elements,
-        &mut symbols,
-        &read,
-    );
+    let result = match delivery {
+        Delivery::Collected => fixtures::published_from(
+            plan,
+            vec![],
+            vec![],
+            b"abcd",
+            &elements,
+            &mut symbols,
+            &read,
+        )
+        .map(|_| ()),
+        Delivery::Forwarded => {
+            use ryo_values::domain::files::types::{
+                CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
+            };
+            let (engine, prepared) = fixtures::prepared(plan, vec![], vec![])?;
+            let corpus = [CorpusInput::Available(CorpusEntry {
+                path: ryo_language::domain::files::types::FilePath("provider-refusal.py".into()),
+                size: FileSize(4),
+                modified: Nanoseconds(0),
+                executable: ExecutablePermission::Unknown,
+            })];
+            let request = engine.begin(&prepared, &corpus);
+            let mut file = request.open_file(
+                FileInput {
+                    language: SourceLanguage::Recognized,
+                    resident_stability: facts::ResidentStability::Stable,
+                    file: FileId(0),
+                    evaluation: &[],
+                    publication: &[],
+                    intents: &[FileRuleIntent::Run {
+                        diagnostic: DiagnosticDelivery::Forwarded,
+                        observations: ObservationDemand::NotRequired,
+                        capture: CaptureIntent::Disabled,
+                    }],
+                    source: b"abcd",
+                    elements: &elements,
+                    read: &read,
+                    semantic: None,
+                    kinds: None,
+                },
+                &mut symbols,
+            )?;
+            let mut callbacks = 0;
+            let result = file
+                .emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
+                    callbacks += 1;
+                    Ok(())
+                })
+                .map(|_| ());
+            assert_eq!(
+                callbacks, 0,
+                "a refused RHS cannot publish a successful LHS prefix"
+            );
+            let terminal_reads = reads.borrow().clone();
+            assert!(matches!(
+                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
+                    callbacks += 1;
+                    Ok(())
+                }),
+                Err(OperatingError::NotRead)
+            ));
+            assert_eq!(
+                *reads.borrow(),
+                terminal_reads,
+                "retry never rereads after the terminal RHS refusal"
+            );
+            assert_eq!(callbacks, 0);
+            file.finish()?;
+            request.finish();
+            result
+        }
+    };
     let history = reads.into_inner();
     // Pinned successful LHS borrows may repeat, but refusal is terminal.
     match missing {
@@ -115,33 +181,41 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName(
+            "forwarded_union_requires_rhs_after_successful_lhs_and_never_delivers_a_prefix",
+        ),
+        word: Word::Refuses,
+        input: || (Binary::Union, Missing::Second, Delivery::Forwarded),
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
         name: CaseName("union_requires_rhs_after_successful_lhs"),
         word: Word::Refuses,
-        input: || (Binary::Union, Missing::Second),
+        input: || (Binary::Union, Missing::Second, Delivery::Collected),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("intersection_requires_rhs_after_successful_lhs"),
         word: Word::Refuses,
-        input: || (Binary::Intersection, Missing::Second),
+        input: || (Binary::Intersection, Missing::Second, Delivery::Collected),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("difference_requires_rhs_after_successful_lhs"),
         word: Word::Refuses,
-        input: || (Binary::Difference, Missing::Second),
+        input: || (Binary::Difference, Missing::Second, Delivery::Collected),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("antijoin_requires_rhs_after_successful_lhs"),
         word: Word::Refuses,
-        input: || (Binary::Antijoin, Missing::Second),
+        input: || (Binary::Antijoin, Missing::Second, Delivery::Collected),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("antijoin_first_provider_failure_prevents_rhs_demand"),
         word: Word::Refuses,
-        input: || (Binary::Antijoin, Missing::First),
+        input: || (Binary::Antijoin, Missing::First, Delivery::Collected),
         expect: Expect::Error(OperatingError::NotRead),
     },
 ];

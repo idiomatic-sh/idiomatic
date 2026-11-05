@@ -84,7 +84,10 @@ fn evaluate(
     let read = |_| Err(OperatingError::NotRead);
     let (table, observed) =
         fixtures::run_prepared(engine, program, b"", &Elements::default(), symbols, &read)?;
-    assert!(observed.local_resources_released);
+    assert!(
+        observed.file_owner_released,
+        "actual file-owner weak handle is dead after finish, so mandatory workspace references were released"
+    );
     Ok((table, observed.regexes, observed.globs))
 }
 fn builds(program: &PreparedProgram) -> usize {

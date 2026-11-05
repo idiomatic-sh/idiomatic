@@ -115,7 +115,7 @@ fn binary_bad_shape_missing_input_and_sink_prefix_remain_observable() {
         );
         assert_eq!(missing, Err(OperatingError::MissingInput { position: 2 }));
         // Runtime RHS refusal (with a valid successful LHS) is covered by the
-        // public rowsets_test requests; an absent raw input slice is not a plan.
+        // public provider_test requests; an absent raw input slice is not a plan.
         let mut case = fixture(kind);
         let stopped = compare_delivery(
             &case.operation,

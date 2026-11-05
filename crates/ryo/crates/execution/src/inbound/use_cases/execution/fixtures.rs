@@ -178,18 +178,30 @@ pub(super) fn run_prepared_context<'facts>(
         },
         symbols,
     );
-    let observed = match &outcome {
+    let mut observed = match &outcome {
         Ok(result) if matches!(result.emit, RootOutcome::Complete(_)) => {
             file.inner.route_observation(RuleIndex(0), last)?
         }
         _ => Default::default(),
     };
+    // Every actual invocation workspace retains this required owner Rc. A
+    // surviving workspace would therefore keep this weak owner live.
+    let owner = file.inner.owner_lifetime();
+    assert!(owner.upgrade().is_some());
     let finished = file.finish();
+    observed.file_owner_released = owner.upgrade().is_none();
+    assert!(
+        observed.file_owner_released,
+        "file finish drops the actual owner and all mandatory workspace references"
+    );
     request.finish();
     finished?;
     let table = match outcome?.emit {
         RootOutcome::Complete(table) => table,
-        RootOutcome::Failed(error) | RootOutcome::Unknown(error) => return Err(error),
+        RootOutcome::Failed(error) => return Err(error),
+        RootOutcome::Unknown(error) => panic!(
+            "expected a complete publication or exact Failed outcome, got Unknown({error:?})"
+        ),
         _ => panic!("authored per-file request must publish a complete table or its exact failure"),
     };
     Ok((table, observed))

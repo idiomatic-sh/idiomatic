@@ -201,3 +201,6 @@ mod prepared_matching_test;
 
 #[cfg(test)]
 mod project_input_test;
+
+#[cfg(test)]
+mod selection_cache_test;

@@ -2,6 +2,7 @@
 //! Synthetic schemas below parameterize the private generic cache contract;
 //! they are never supplied as catalog providers to the public execution owner.
 
+use super::super::{fixtures as public_owner, types::SourceRows};
 use crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture;
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
@@ -10,7 +11,6 @@ use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::inbound::use_cases::execution::{fixtures as public_owner, types::SourceRows};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;

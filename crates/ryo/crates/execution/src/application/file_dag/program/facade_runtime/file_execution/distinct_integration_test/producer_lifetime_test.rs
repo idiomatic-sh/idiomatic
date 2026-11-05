@@ -244,14 +244,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         prepared.program().logical_regions()[logical.0]
     };
     let first_consumer = consumer(0, 2);
-    let final_consumer_region = consumer(
-        1,
-        if refuse_provider || invalid_terminal {
-            3
-        } else {
-            2
-        },
-    );
+    let final_consumer_region = consumer(1, if refuse_provider { 3 } else { 2 });
     file.execution
         .observe_producer_releases(producer, &[first_consumer, final_consumer_region])?;
     let first = if skipped_at_start {
@@ -372,17 +365,10 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             );
         }
     }
-    // A malformed terminal may cancel before the healthy ready cohort executes.
-    // It must still settle its reader; the real healthy invocation must acquire
-    // and release the same producer's required index. No delivery-order claim.
-    if invalid_terminal {
-        assert!(
-            live_before > 0,
-            "healthy invocation acquires and releases real backing despite cancellation order"
-        );
-    } else {
-        assert_eq!(live_before, if skipped_at_start { 1 } else { 2 });
-    }
+    // The invalid Project cannot fuse: canonical demand first completes its
+    // actual Join reader, then refuses the Project's output column. Both readers
+    // must therefore release at their real invocation boundaries.
+    assert_eq!(live_before, if skipped_at_start { 1 } else { 2 });
     let weak = weak.expect("actual healthy consumer held the equality backing");
     let final_state = file.execution.retry_checkpoint(producer)?;
     assert_eq!(final_state.attempt, AttemptCheckpoint::Terminal);
@@ -410,12 +396,12 @@ fn shared_published_producer_keeps_index_until_its_final_real_consumer() {
     exercise(FinalConsumer::Completes).expect("actual compiled producer lifetime");
 }
 #[test]
-fn failed_terminal_cancels_the_shared_producer_and_releases_its_index() {
+fn terminal_shape_failure_preserves_actual_reader_release_and_transferred_output() {
     exercise(FinalConsumer::InvalidTerminal).expect("actual compiled failure cancellation");
 }
 
 #[test]
-fn final_refusing_consumer_releases_zero_budget_global_index_without_reading_sources() {
+fn final_refusing_consumer_releases_zero_budget_index_without_rereading_its_producer() {
     for final_consumer in [FinalConsumer::RefusingProvider] {
         exercise(final_consumer).expect("actual compiled final consumer cancellation");
     }

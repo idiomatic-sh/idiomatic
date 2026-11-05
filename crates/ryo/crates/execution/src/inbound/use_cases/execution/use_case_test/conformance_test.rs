@@ -21,6 +21,11 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RefusalOutcome {
+    Failed,
+    Unknown,
+}
 pub(super) struct ObservedDelivery {
     pub(super) schema: Result<Vec<CellKind>, OperatingError>,
     pub(super) collected: Result<Table, OperatingError>,
@@ -42,7 +47,16 @@ pub(super) fn compare_delivery(
     symbols: &mut Symbols,
     stop: Option<usize>,
 ) -> Result<ObservedDelivery, OperatingError> {
-    compare_delivery_with_semantic(operation, inputs, bindings, source, symbols, stop, None)
+    compare_delivery_with_semantic(
+        operation,
+        inputs,
+        bindings,
+        source,
+        symbols,
+        stop,
+        None,
+        RefusalOutcome::Failed,
+    )
 }
 pub(super) fn compare_delivery_with_semantic(
     operation: &Operation,
@@ -52,6 +66,7 @@ pub(super) fn compare_delivery_with_semantic(
     symbols: &mut Symbols,
     stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
+    refusal: RefusalOutcome,
 ) -> Result<ObservedDelivery, OperatingError> {
     compare_delivery_with_port(
         operation,
@@ -61,6 +76,7 @@ pub(super) fn compare_delivery_with_semantic(
         symbols,
         stop,
         semantic,
+        refusal,
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
         ),
@@ -76,6 +92,7 @@ pub(super) fn compare_delivery_with_port(
     symbols: &mut Symbols,
     stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
+    refusal: RefusalOutcome,
     port: Arc<dyn OperatorsPort>,
 ) -> Result<ObservedDelivery, OperatingError> {
     use ryo_values::domain::{
@@ -179,6 +196,11 @@ pub(super) fn compare_delivery_with_port(
     let program = match preparation {
         Ok(program) => program,
         Err(error) => {
+            assert_eq!(
+                refusal,
+                RefusalOutcome::Failed,
+                "a metadata refusal cannot satisfy an expected runtime Unknown outcome"
+            );
             return Ok(ObservedDelivery {
                 schema,
                 collected: Err(error.clone()),
@@ -237,8 +259,21 @@ pub(super) fn compare_delivery_with_port(
             Ok(table),
             collected_file.inner.route_observation(RuleIndex(0), emit)?,
         ),
-        RootOutcome::Failed(e) | RootOutcome::Unknown(e) => {
-            (Err(e), ExecutionObservation::default())
+        RootOutcome::Failed(error) => {
+            assert_eq!(
+                refusal,
+                RefusalOutcome::Failed,
+                "actual Failed({error:?}) must match its authored classification"
+            );
+            (Err(error), ExecutionObservation::default())
+        }
+        RootOutcome::Unknown(error) => {
+            assert_eq!(
+                refusal,
+                RefusalOutcome::Unknown,
+                "actual Unknown({error:?}) must match its authored classification"
+            );
+            (Err(error), ExecutionObservation::default())
         }
         _ => panic!("declared per-file operation must settle"),
     };
@@ -327,6 +362,7 @@ fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() {
         &mut case.symbols,
         None,
         None,
+        RefusalOutcome::Failed,
         port.clone(),
     )
     .expect("real Union prepares");
@@ -361,6 +397,7 @@ fn every_registered_class_runs_real_collect_and_stream_with_independent_expectat
             } else {
                 None
             },
+            RefusalOutcome::Failed,
         )
         .unwrap();
         let collected = observed.collected.unwrap();
@@ -408,6 +445,7 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
         &mut case.symbols,
         None,
         Some(&PartialSyntax),
+        RefusalOutcome::Unknown,
     )
     .unwrap();
     assert!(matches!(
