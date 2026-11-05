@@ -466,45 +466,8 @@ fn a_collected_frontier_does_not_consume_a_forwarded_diagnostics_error_prefix() 
 
 #[test]
 fn identical_join_diagnostics_keep_opposite_declared_modes_in_both_invocation_orders() {
-    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let (engine, _) = engine();
-    let mut authored = authored_request(2);
-    authored.plans[0].steps = vec![
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Select {
-                from: Input::Relation(Relation::SyntaxTree),
-                comparisons: selection(Selector::Kind("absent-kind")),
-                kept: vec![],
-            },
-        },
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Select {
-                from: Input::Relation(Relation::SyntaxTree),
-                comparisons: selection(Selector::BadRegex),
-                kept: vec![],
-            },
-        },
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Join {
-                left: Input::Step(StepId(0)),
-                right: Input::Step(StepId(1)),
-                left_on: vec![ColumnIndex(0)],
-                right_on: vec![ColumnIndex(0)],
-                output: vec![JoinColumn {
-                    side: Side::Left,
-                    column: ColumnIndex(0),
-                }],
-                filter: vec![],
-                view: vec![],
-                reach: None,
-            },
-        },
-    ];
-    authored.plans[0].emit.step = StepId(2);
-    authored.plans[1] = authored.plans[0].clone();
+    let authored = conditional_join_request(2);
     let program = engine
         .prepare(authored)
         .expect("identical authored Join plans");
@@ -553,6 +516,107 @@ fn identical_join_diagnostics_keep_opposite_declared_modes_in_both_invocation_or
             }
         }
         file.finish().expect("release both diagnostic terminals");
+    }
+    request.finish();
+}
+
+fn conditional_join_request(count: usize) -> PreparedRequest {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let mut authored = authored_request(count);
+    authored.plans[0].steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::Kind("absent-kind")),
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::BadRegex),
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Join {
+                left: Input::Step(StepId(0)),
+                right: Input::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(0),
+                }],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
+        },
+    ];
+    authored.plans[0].emit.step = StepId(2);
+    for index in 1..count {
+        authored.plans[index] = authored.plans[0].clone();
+    }
+    authored
+}
+
+#[test]
+fn a_forwarded_diagnostic_does_not_change_its_frontiers_collected_demand_program() {
+    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+    let (engine, _) = engine();
+    let mut authored = conditional_join_request(1);
+    authored.plans[0].frontier = vec![Input::Step(StepId(2))];
+    let program = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let intents = [FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Forwarded,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::DiagnosticAndObservations,
+    }];
+    for capture_first in [true, false] {
+        let (elements, mut symbols) = tree(FileId(0), b"abc");
+        let mut file = request
+            .open_file(
+                input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+                &mut symbols,
+            )
+            .unwrap();
+        for capture_now in [capture_first, !capture_first] {
+            if capture_now {
+                let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
+                let captured = file
+                    .capture_frontiers(
+                        RuleIndex(0),
+                        ryo_values::domain::stored_facts::types::Bucket(0),
+                        &mut symbols,
+                        CaptureContext {
+                            worker: WorkerNumber(0),
+                            arena: &mut arena,
+                            places: &mut places,
+                            words: &mut words,
+                        },
+                    )
+                    .unwrap();
+                assert_eq!(captured.len(), 1);
+                assert!(
+                    matches!(&captured[0].outcome, Err(error) if *error == regex_error("[")),
+                    "the collected frontier must demand its failing RHS even when the diagnostic skips it"
+                );
+            } else {
+                let outcome = file
+                    .emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
+                        panic!("empty forwarded Join cannot emit a row")
+                    })
+                    .expect("forwarded diagnostic independently skips the failing RHS");
+                assert!(matches!(outcome, RowEmission::Complete));
+            }
+        }
+        file.finish().unwrap();
     }
     request.finish();
 }
