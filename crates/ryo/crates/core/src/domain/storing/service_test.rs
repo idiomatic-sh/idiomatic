@@ -22,9 +22,10 @@ use ryo_values::domain::stores::types::{
 use super::service::{
     later_from, made_again, records_from, skipped_from, stored_of, unknowns_from, with_fresh,
 };
-use super::types::{Decision, MadeAgain, ToKeep};
+use super::types::{Decision, ToKeep};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::workers::types::FileOrder;
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digits.
 #[derive(Clone, Copy)]

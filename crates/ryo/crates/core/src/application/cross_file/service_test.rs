@@ -19,6 +19,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
     Covered, FilePartial, Lacking, Partial, RuleIndex,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
+use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
@@ -520,7 +521,6 @@ fn service() -> CrossFile {
 }
 fn source_text(bytes: &[u8], fails: bool) -> String {
     use crate::outbound::corpus::fixtures::fake::CorpusFake;
-    use ryo_language::domain::files::types::FilePath;
     use ryo_values::domain::files::types::CorpusFile;
     use ryo_values::domain::files::types::{FileSize, Nanoseconds};
     let corpus = CorpusFake {

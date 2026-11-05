@@ -539,10 +539,7 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
 
 #[test]
 fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
-    use crate::outbound::facts::{
-        adapters::memory::adapter::FactsMemoryAdapter, interface::FactsPort as _,
-        types::WordsToKeep,
-    };
+    use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
     use ryo_relations::domain::relations::types::FileId;
     use ryo_values::domain::{
         records::types::{FrontierAffected, FrontierCoverage},
@@ -576,7 +573,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     let mut bytes = PackedWords::default();
     warm.read_old(&descriptor, &mut bytes)
         .expect("same snapshot resolves bytes");
-    let facts = FactsMemoryAdapter::new();
+    let facts = crate::outbound::facts::factory::memory();
     let mut worker = facts.worker().expect("facts worker");
     worker
         .keep(

@@ -10,7 +10,7 @@ use crate::outbound::lint_store::fixtures::fake::stored;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
-use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 use ryo_values::domain::stores::types::{Stored, StoredFinding, StoredHanded, StoredWords};
 
 /// What a row offers the schemas.

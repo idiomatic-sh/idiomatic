@@ -18,16 +18,16 @@ use ryo_values::domain::{
 use std::sync::Arc;
 
 type Input = ();
-type Value = usize;
+type Answer = usize;
 type Failure = ryo_values::domain::observations::types::ObservationReason;
 const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
+const CASES: &[Case<Input, Answer, Failure>] = &[Case {
     name: CaseName(stringify!(symbol_gets_portable_text_and_place)),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value(1),
 }];
-fn subject(_: Input) -> Result<Value, Failure> {
+fn subject(_: Input) -> Result<Answer, Failure> {
     let adapter = PublicationExecutionAdapter::new(Arc::new(PublicationUseCaseImpl::new()));
     let mut symbols = Symbols::default();
     let name = std::str::from_utf8(NAME_BYTES).unwrap();

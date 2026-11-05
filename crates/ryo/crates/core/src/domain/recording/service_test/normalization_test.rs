@@ -77,21 +77,52 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         &[],
         &mut zero_width,
     );
+    // Two explicit producer identities: rule 0 starts at bucket 1 with two
+    // frontiers; rule 1 starts at bucket 9 with one. Their fixture digests
+    // remain attached while the packed representation is normalized.
     worker.captured = vec![
         Kept {
             bucket: Bucket(9),
+            proof: ryo_values::domain::records::types::FrontierProof {
+                version: 1,
+                rule: 1,
+                input: 0,
+                rule_digest: Digest([18; 16]),
+                coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+            },
             words: KeptWords(pack(WordSlice(&complex.0))),
         },
         Kept {
             bucket: Bucket(1),
+            proof: ryo_values::domain::records::types::FrontierProof {
+                version: 1,
+                rule: 0,
+                input: 0,
+                rule_digest: Digest([17; 16]),
+                coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+            },
             words: KeptWords(pack(WordSlice(&zero_width.0))),
         },
         Kept {
             bucket: Bucket(2),
+            proof: ryo_values::domain::records::types::FrontierProof {
+                version: 1,
+                rule: 0,
+                input: 1,
+                rule_digest: Digest([17; 16]),
+                coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+            },
             words: KeptWords(pack(WordSlice(&[]))),
         },
         Kept {
             bucket: Bucket(9),
+            proof: ryo_values::domain::records::types::FrontierProof {
+                version: 1,
+                rule: 1,
+                input: 0,
+                rule_digest: Digest([18; 16]),
+                coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+            },
             words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
         },
     ];
@@ -99,8 +130,9 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         normalized_words(&worker, FileId(3), ArenaBase(7)).expect("reference remap");
     let moved = moved_words(&worker, FileId(3), ArenaBase(7)).expect("incremental remap");
     assert_eq!(moved.len(), expected_words.len());
-    for (prepared, (bucket, words)) in moved.iter().zip(&expected_words) {
+    for (index, (prepared, (bucket, words))) in moved.iter().zip(&expected_words).enumerate() {
         assert_eq!(prepared.bucket, *bucket);
+        assert_eq!(prepared.proof, worker.captured[index].proof);
         assert_eq!(prepared.word_count, words.0.len());
         assert_eq!(prepared.words, pack(WordSlice(&words.0)));
         assert_eq!(prepared.words.0.capacity(), prepared.words.0.len());
@@ -159,6 +191,7 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
             "no second packing/copy in made_ran"
         );
         assert_eq!(*words, pack(WordSlice(&expected_words[index].1.0)));
+        assert_eq!(bucket.proof, worker.captured[index].proof);
     }
     assert_eq!(handed.text.0, b"derived text");
 }
@@ -177,6 +210,19 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
     for end in 0..=packed.0.len() {
         worker.captured = vec![Kept {
             bucket: Bucket(0),
+            proof: ryo_values::domain::records::types::FrontierProof {
+                version: 1,
+                rule: 0,
+                input: 0,
+                rule_digest: Digest([17; 16]),
+                coverage: if end == packed.0.len() {
+                    ryo_values::domain::records::types::FrontierCoverage::Complete
+                } else {
+                    ryo_values::domain::records::types::FrontierCoverage::Partial(vec![
+                        ryo_values::domain::records::types::FrontierAffected::CurrentFile,
+                    ])
+                },
+            },
             words: KeptWords(ryo_values::domain::stored_facts::types::PackedWords(
                 packed.0[..end].to_vec(),
             )),
@@ -184,6 +230,7 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
         let expected =
             normalized_words(&worker, FileId(3), ArenaBase(0)).expect("complete normalized prefix");
         let actual = moved_words(&worker, FileId(3), ArenaBase(0)).expect("new valid prefix");
+        assert_eq!(actual[0].proof, worker.captured[0].proof);
         assert_eq!(actual[0].word_count, expected[0].1.0.len());
         assert_eq!(
             actual[0].words,
@@ -200,6 +247,13 @@ fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
     let mut worker = tables();
     let good = Kept {
         bucket: Bucket(0),
+        proof: ryo_values::domain::records::types::FrontierProof {
+            version: 1,
+            rule: 0,
+            input: 0,
+            rule_digest: Digest([17; 16]),
+            coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+        },
         words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
     };
     for (value, places) in [
@@ -243,6 +297,13 @@ fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
             good.clone(),
             Kept {
                 bucket: Bucket(1),
+                proof: ryo_values::domain::records::types::FrontierProof {
+                    version: 1,
+                    rule: 0,
+                    input: 1,
+                    rule_digest: Digest([17; 16]),
+                    coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                },
                 words: KeptWords(pack(WordSlice(&words.0))),
             },
         ];

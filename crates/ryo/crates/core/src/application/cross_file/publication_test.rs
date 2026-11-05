@@ -43,9 +43,9 @@ enum Scenario {
     Skipped,
 }
 type Input = Scenario;
-type Value = usize;
+type Answer = usize;
 type Failure = std::convert::Infallible;
-const CASES: &[Case<Input, Value, Failure>] = &[
+const CASES: &[Case<Input, Answer, Failure>] = &[
     Case {
         name: CaseName(stringify!(later_refusal_keeps_only_prior_arena_bytes)),
         word: Word::Succeeds,
@@ -72,7 +72,7 @@ fn numeric() -> Table {
         count: RowCount(1),
     }
 }
-fn subject(scenario: Input) -> Result<Value, Failure> {
+fn subject(scenario: Input) -> Result<Answer, Failure> {
     let root = |output, table, readiness| ObservedRoot {
         output: ObservationIndex(output),
         table,

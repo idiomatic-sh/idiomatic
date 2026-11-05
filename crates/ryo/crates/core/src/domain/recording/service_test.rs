@@ -282,6 +282,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut worker = tables();
             worker.captured = vec![Kept {
                 bucket: Bucket(1),
+                proof: ryo_values::domain::records::types::FrontierProof {
+                    version: 1,
+                    rule: 0,
+                    input: 0,
+                    rule_digest: Digest([17; 16]),
+                    coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                },
                 words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
             }];
             let moved = moved_words(&worker, FileId(3), ArenaBase(0)).unwrap_or_default();
@@ -293,8 +300,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::FrontierFlat => {
             let placed = placed()?;
-            let plans = [plan_with_a_frontier()];
-            let first = [Bucket(1)];
+            let plans = [plan_with_a_frontier(), plan_with_a_frontier()];
+            let first = [Bucket(1), Bucket(9)];
             let setting = VisitSetting {
                 metadata: &from_plans(&plans),
                 first_bucket: &first,
@@ -303,11 +310,25 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let moved = [
                 BucketWords {
                     bucket: Bucket(1),
+                    proof: ryo_values::domain::records::types::FrontierProof {
+                        version: 1,
+                        rule: 0,
+                        input: 0,
+                        rule_digest: Digest([17; 16]),
+                        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                    },
                     word_count: 2,
                     words: pack(WordSlice(&[5, 6])),
                 },
                 BucketWords {
                     bucket: Bucket(9),
+                    proof: ryo_values::domain::records::types::FrontierProof {
+                        version: 1,
+                        rule: 1,
+                        input: 0,
+                        rule_digest: Digest([18; 16]),
+                        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+                    },
                     word_count: 1,
                     words: pack(WordSlice(&[7])),
                 },

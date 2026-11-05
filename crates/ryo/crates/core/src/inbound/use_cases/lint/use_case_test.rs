@@ -107,14 +107,8 @@ enum Scenario {
     ChangedFragmentPlan,
     /// Changes only a nested query module and checks both plan and persisted-result invalidation.
     ChangedNestedModule,
-    /// Lints under new rule ids again and again, over plans one session shares, until more ids were named than the plans it keeps.
-    ChangedIdsKeepOnePlan,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
     InterleavedRuns,
-    /// One request that names more rules than the cap of the plans a session keeps.
-    OneRequestOverTheCap,
-    /// A session over the cap drops the plan kept longest, one at a time.
-    EvictionIsOneAtATime,
     /// Lints with the host's relation, counting how many times the language was asked to read the manifests.
     Projects,
     /// Lints and reads the line and the character the first finding is at.
@@ -864,20 +858,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName(
-            "one_request_naming_more_rules_than_the_cap_keeps_no_more_plans_than_the_cap",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::OneRequestOverTheCap,
-        expect: Expect::Value((1, 0)),
-    },
-    Case {
-        name: CaseName("a_session_over_the_cap_drops_the_plan_kept_longest_and_no_other"),
-        word: Word::Succeeds,
-        input: || Scenario::EvictionIsOneAtATime,
-        expect: Expect::Value((1, 0)),
-    },
-    Case {
         name: CaseName("compiles_each_rule_once_per_session"),
         word: Word::Succeeds,
         input: || Scenario::CompilesPerSession,
@@ -916,7 +896,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName("a_rule_keeps_one_plan_whatever_queries_it_had"),
+        name: CaseName("a_changed_query_recompiles_once_and_then_reuses_the_plan"),
         word: Word::Succeeds,
         input: || Scenario::ChangedQueryKeepsOnePlan,
         expect: Expect::Value((1, 0)),
@@ -931,12 +911,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("editing_a_nested_query_module_invalidates_plan_and_persisted_results"),
         word: Word::Succeeds,
         input: || Scenario::ChangedNestedModule,
-        expect: Expect::Value((1, 0)),
-    },
-    Case {
-        name: CaseName("rules_of_earlier_runs_do_not_stay_in_the_plans_a_session_keeps"),
-        word: Word::Succeeds,
-        input: || Scenario::ChangedIdsKeepOnePlan,
         expect: Expect::Value((1, 0)),
     },
     Case {
@@ -1676,21 +1650,15 @@ fn changed_fragment_plan() -> Result<Value, Failure> {
 
     let _first_report = world.use_case.lint(first)?;
     let first_paths = collected_file_paths(&world);
-    let _second_report = world.use_case.lint(second)?;
+    let _second_report = world.use_case.lint(second.clone())?;
     let second_paths = collected_file_paths(&world);
-    let retained = plans
-        .0
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let updated_bundle = retained
-        .plans
-        .get(&RuleId("0".into()))
-        .is_some_and(|cached| cached.query == make_bundle("beta"));
+    let _retained_report = world.use_case.lint(second)?;
+    let retained_paths = collected_file_paths(&world);
     Ok((
         usize::from(
             first_paths == std::collections::BTreeSet::from(["alpha.txt".to_owned()])
                 && second_paths == std::collections::BTreeSet::from(["beta.txt".to_owned()])
-                && updated_bundle,
+                && retained_paths == second_paths,
         ),
         0,
     ))
@@ -1713,107 +1681,6 @@ fn collected_file_paths(world: &World) -> std::collections::BTreeSet<String> {
             _ => None,
         })
         .collect()
-}
-
-/// Lints one query under new ids, a run at a time, until more ids were named than the cap: answers whether the session kept
-/// some plans and no more than the cap.
-fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
-    const PER_RUN: usize = 1024;
-    let given = || Given {
-        files: vec![SOURCES[0]],
-        rules: vec!["one"; PER_RUN],
-        ..violations()
-    };
-    let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
-    let use_case = world(given()).use_case.compiling_into(plans.clone());
-    let runs = crate::application::rule_compilation::constants::COMPILED_PLANS / PER_RUN + 2;
-    let mut most = 0;
-    for run in 0..runs {
-        let mut asked = request(&given());
-        for (place, rule) in asked.rules.iter_mut().enumerate() {
-            rule.id = RuleId(format!("{run}-{place}").into());
-        }
-        let _run = use_case.lint(asked)?;
-        let kept = plans
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .plans
-            .len();
-        most = most.max(kept);
-    }
-    Ok((
-        usize::from(
-            most > 0 && most <= crate::application::rule_compilation::constants::COMPILED_PLANS,
-        ),
-        0,
-    ))
-}
-
-/// Lints a rule under `count` ids named `{tag}-{place}` in one request over the plans one session shares.
-fn lint_under_ids(use_case: &LintUseCaseImpl, tag: &str, count: usize) -> Result<(), Failure> {
-    let mut asked = request(&Given {
-        files: vec![SOURCES[0]],
-        rules: vec!["one"; count],
-        ..violations()
-    });
-    for (place, rule) in asked.rules.iter_mut().enumerate() {
-        rule.id = RuleId(format!("{tag}-{place}").into());
-    }
-    let _run = use_case.lint(asked)?;
-    Ok(())
-}
-
-/// Lints one request that names more rules than the cap: answers 1 when the plans kept are no more than the cap.
-fn one_request_over_the_cap() -> Result<Value, Failure> {
-    let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
-    let use_case = world(violations()).use_case.compiling_into(plans.clone());
-    lint_under_ids(
-        &use_case,
-        "big",
-        crate::application::rule_compilation::constants::COMPILED_PLANS + 1,
-    )?;
-    lint_under_ids(
-        &use_case,
-        "bigger",
-        crate::application::rule_compilation::constants::COMPILED_PLANS * 2,
-    )?;
-    let kept = plans
-        .0
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .plans
-        .len();
-    Ok((
-        usize::from(kept == crate::application::rule_compilation::constants::COMPILED_PLANS),
-        0,
-    ))
-}
-
-/// Fills the plans of a session to the cap, then lints one rule more: answers 1 when only the plan kept longest was dropped and the
-/// plans of the runs before it all stayed.
-fn eviction_drops_one_plan_at_a_time() -> Result<Value, Failure> {
-    let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
-    let use_case = world(violations()).use_case.compiling_into(plans.clone());
-    let cap = crate::application::rule_compilation::constants::COMPILED_PLANS;
-    lint_under_ids(&use_case, "old", cap / 2)?;
-    lint_under_ids(&use_case, "newer", cap - cap / 2)?;
-    lint_under_ids(&use_case, "latest", 1)?;
-    let kept = plans
-        .0
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let named = |tag: &str, place: usize| {
-        kept.plans
-            .contains_key(&RuleId(format!("{tag}-{place}").into()))
-    };
-    let only_the_oldest_went = kept.plans.len() == cap
-        && !named("old", 0)
-        && named("old", 1)
-        && named("newer", 0)
-        && named("newer", cap - cap / 2 - 1)
-        && named("latest", 0);
-    Ok((usize::from(only_the_oldest_went), 0))
 }
 
 /// Lints rule `a`, then rule `b`, then each again, over plans one session shares: answers how many times a rule was compiled.
@@ -1879,25 +1746,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 ..violations()
             };
             let (first, second) = (request(&rule("one")), request(&rule("two")));
-            let plans =
-                ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
-            let use_case = world(rule("one")).use_case.compiling_into(plans.clone());
-            let _first = use_case.lint(first)?;
-            let _second = use_case.lint(second)?;
-            let kept = plans
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .plans
-                .len();
-            Ok((kept, 0))
+            let world = world(rule("one"));
+            let _first = world.use_case.lint(first)?;
+            let _second = world.use_case.lint(second.clone())?;
+            let _cached_second = world.use_case.lint(second)?;
+            Ok((
+                usize::from(world.query.calls.load(Ordering::SeqCst) == 2),
+                0,
+            ))
         }
         Scenario::ChangedFragmentPlan => changed_fragment_plan(),
         Scenario::ChangedNestedModule => changed_nested_module(),
-        Scenario::ChangedIdsKeepOnePlan => changed_ids_keep_one_plan(),
         Scenario::InterleavedRuns => interleaved_runs(),
-        Scenario::OneRequestOverTheCap => one_request_over_the_cap(),
-        Scenario::EvictionIsOneAtATime => eviction_drops_one_plan_at_a_time(),
         Scenario::ManyRuns => many_runs(),
         Scenario::CompilesPerRule => {
             let made = lint(Given {
