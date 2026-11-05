@@ -47,6 +47,8 @@ rules = [
   { rule = "idiomatic.ryo/absence-cites-the-standard", include = ["languages/*/src/inbound/contracts/*/contract.rs"], description = "A language contract's answer that the language lacks a relation, `AbsenceCause::NoSuchConstruct` or `AbsenceCause::NoManifests`, cites the standard: a `standard:` comment in the method names the document and section that lacks it." },
 ]
 templates = [
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/source_boundary/mod.rs", description = "Normal Rust test registration for same-crate authority proofs." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/source_boundary/test.rs", description = "Actual production-source overlay compiles authorized runtime and rejects sibling authority bypasses." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/scheduler/mod.rs", description = "Public inbound scheduler source, terminal delivery and physical dependency controls." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/scheduler/sources/mod.rs", description = "Public inbound scheduler source, terminal delivery and physical dependency controls." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/scheduler/sources/test.rs", description = "Public inbound scheduler source, terminal delivery and physical dependency controls." },

@@ -762,3 +762,5 @@ mod file_intents;
 
 #[cfg(test)]
 mod scheduler;
+
+mod source_boundary;
