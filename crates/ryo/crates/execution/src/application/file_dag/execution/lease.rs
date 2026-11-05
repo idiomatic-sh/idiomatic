@@ -32,11 +32,6 @@ pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
     output: &'call mut dyn RowSink,
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
-    #[cfg(test)]
-    pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
-        ryo_values::domain::plans::service::kind_of(self.operation)
-    }
-
     fn new(
         permit: &'call super::super::program::admission::KernelPermit<'scope>,
         context: &'call mut PrimitiveLease<'resources>,
