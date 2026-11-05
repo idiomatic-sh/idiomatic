@@ -15,8 +15,6 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/source_admission.rs", description = "Typed deferred source handles." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/kernel_session.rs", description = "Borrowed physical-kernel bridge under invocation permit." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_walk.rs", description = "Application-owned shared native pass admission and publication." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/partitions.rs", description = "Prepared producer partition requirements." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/partitions_test.rs", description = "Partition behavior controls." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_identity.rs", description = "One request's source and generation identity." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/restored.rs", description = "Validated deferred restoration." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/selection.rs", description = "Admitted compact selection construction and publication proof." },
@@ -43,8 +41,6 @@ given.files."src/application/file_dag/program/facade_runtime/project_execution.r
 given.files."src/application/file_dag/program/facade_runtime/source_admission.rs" = "pub fn source() {}"
 given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invoke() {}"
 given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
-given.files."src/application/file_dag/program/partitions.rs" = "pub fn partition() {}"
-given.files."src/application/file_dag/program/partitions_test.rs" = "#[test] fn partition() {}"
 given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
 given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
 given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
