@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from authoring.case_receipt_adapter import verified_case_ids
+from authoring.case_receipt_adapter import receipt_registration, verified_case_ids
 
 
 class ReceiptAdapterTests(unittest.TestCase):
@@ -71,3 +71,9 @@ class ReceiptAdapterTests(unittest.TestCase):
         current['file_metadata_verified_cases'][0]['sha256'] = file_metadata_digest({'input.txt': True})
         with self.assertRaisesRegex(ValueError, 'metadata witness identity differs'):
             self.run_audit(current)
+
+    def test_registration_matches_the_shared_rust_boundary_fixture(self):
+        fixture = Path(__file__).resolve().parents[6] / 'crates/benchmark/tests/fixtures/registrations/receipt_only/registration.json'
+        registered = json.loads(fixture.read_text())
+        inventory = [case for rule in registered['rules'] for case in rule['cases']]
+        self.assertEqual(receipt_registration(inventory), registered)

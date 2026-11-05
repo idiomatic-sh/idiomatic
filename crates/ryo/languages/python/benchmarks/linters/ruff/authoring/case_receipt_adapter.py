@@ -23,6 +23,15 @@ def file_metadata_digest(values: dict[str, bool] | None) -> str | None:
     return digest.hexdigest()
 
 
+def receipt_registration(inventory: list[dict[str, object]]) -> dict[str, object]:
+    """Declare receipt-only authority; this registration cannot execute a worker."""
+    rules = sorted({case['rule'] for case in inventory})
+    return {'authority': {'kind': 'receipt-only'}, 'provider': 'case-receipts', 'defaults': rules, 'identity': {}, 'rules': [
+        {'rule_id': rule, 'definition': None, 'modules': {}, 'artifacts': {}, 'command': None, 'reason': None, 'instance': None,
+         'cases': [case for case in inventory if case['rule'] == rule]} for rule in rules
+    ]}
+
+
 def verified_case_ids(inventory: list[dict[str, object]], records: list[dict[str, object]], receipt: Path | None) -> frozenset[str]:
     """Decode a pinned shared audit; this adapter never matches process bytes or exit policy."""
     if not any(case.get('file_metadata') is not None or case.get('file_observation') is not None or case.get('file_metadata_sha256') is not None or (isinstance(case.get('reference_discrepancy'), dict) and case['reference_discrepancy'].get('process') is not None) for case in inventory):
@@ -41,11 +50,7 @@ def verified_case_ids(inventory: list[dict[str, object]], records: list[dict[str
     executable = Path(configured).resolve(strict=True)
     if hashlib.sha256(executable.read_bytes()).hexdigest() != pin:
         raise ValueError('shared receipt validator executable identity differs')
-    rules = sorted({case['rule'] for case in inventory})
-    registration = {'provider': 'case-receipts', 'defaults': rules, 'identity': {}, 'rules': [
-        {'rule_id': rule, 'command': None, 'reason': None, 'instance': None,
-         'cases': [case for case in inventory if case['rule'] == rule]} for rule in rules
-    ]}
+    registration = receipt_registration(inventory)
     with tempfile.TemporaryDirectory(prefix='case-receipt-registration-') as temporary:
         path = Path(temporary) / 'registration.json'
         path.write_text(json.dumps(registration, ensure_ascii=False, sort_keys=True) + '\n')
