@@ -6,7 +6,7 @@ pub(super) struct ProjectSources<'a> {
     pub(super) rule: RuleIndex,
     pub(super) sources: &'a [crate::application::file_dag::frontiers::types::FrontierSource],
     pub(super) ordinary:
-        &'a mut [Option<crate::application::file_dag::frontiers::types::FrontierInput>],
+        &'a [Rc<super::super::project_population::service::ProjectFrontierPopulation>],
     pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
@@ -22,21 +22,11 @@ impl ProjectSources<'_> {
         &self,
         source: crate::domain::executable_program::types::InputSource,
     ) -> Option<usize> {
-        use crate::application::file_dag::frontiers::types::FrontierInput;
-        self.ordinary.iter().enumerate().find_map(|(at, input)| {
-            let original = match input.as_ref()? {
-                FrontierInput::Decoded { frontier, .. } => frontier.input,
-                FrontierInput::Compact { input, .. } => *input,
-            };
-            self.sources
-                .iter()
-                .any(|binding| {
-                    binding.input == original
-                        && matches!(&binding.root, Ok(actual) if *actual == source)
-                })
-                .then_some(at)
-        })
+        self.ordinary
+            .iter()
+            .position(|input| input.source() == Some(source))
     }
+
     fn provides(&self, source: crate::domain::executable_program::types::InputSource) -> bool {
         matches!(
             source,
@@ -59,10 +49,7 @@ impl ProjectSources<'_> {
         context: &mut OperatorContext<'_>,
         owner: &Rc<RelationOwner>,
     ) -> Option<Result<AvailableInput, OperatingError>> {
-        use crate::{
-            application::file_dag::frontiers::types::FrontierInput,
-            domain::executable_program::types::InputSource,
-        };
+        use crate::domain::executable_program::types::InputSource;
         if let Some((_, admitted)) = self.cache.iter().find(|(key, _)| *key == source) {
             return Some(Ok(admitted.clone()));
         }
@@ -76,32 +63,7 @@ impl ProjectSources<'_> {
             if let Err(error) = actual_partition.require_supply(partition) {
                 return Some(Err(error));
             }
-            let input = self.ordinary[at]
-                .take()
-                .expect("demanded source was present");
-            let (publication, coverage) = match input {
-                FrontierInput::Decoded { frontier, coverage } => {
-                    (owner.source_computed(frontier.table), coverage)
-                }
-                FrontierInput::Compact {
-                    table, coverage, ..
-                } => (owner.source_compact(Arc::new(table)), coverage),
-            };
-            let result = publication.and_then(|publication| {
-                let unavailable = |_| Err(OperatingError::NotRead);
-                let rows = owner.resolve(publication.as_ref(), &unavailable)?;
-                AvailableInput::source(
-                    Rc::clone(owner),
-                    publication.clone(),
-                    match source {
-                        InputSource::Region(id) => ProducerRoot::Region(id),
-                        _ => ProducerRoot::Input(source),
-                    },
-                    actual_partition.clone(),
-                    coverage,
-                    rows,
-                )
-            });
+            let result = self.ordinary[at].supply(owner, actual_partition);
             if let Ok(input) = &result {
                 self.cache.push((source, input.clone()));
             }
@@ -201,6 +163,7 @@ fn admit_published(
 /// to a generation-checked publication. It has no second scheduler.
 pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) execution: &'a ProgramExecution,
+    pub(super) state: &'a super::super::runtime::RuntimeState,
     pub(super) completion: CompletionPolicy,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
@@ -222,6 +185,9 @@ impl SourceInputs<'_, '_> {
     }
 }
 impl Inputs for SourceInputs<'_, '_> {
+    fn population_scope(&self) -> super::super::super::relations::ProducerScope {
+        self.state.population_scope()
+    }
     fn bind_rule(&mut self, rule: RuleIndex) {
         self.completion = self.completion.for_rule(rule);
         self.rule = rule;
@@ -326,7 +292,7 @@ impl Inputs for SourceInputs<'_, '_> {
             _ => None,
         };
         match region {
-            Some(id) if self.execution.published(id)?.is_none() => Ok(Some(id)),
+            Some(id) if self.execution.published(self.state, id)?.is_none() => Ok(Some(id)),
             _ => Ok(None),
         }
     }
@@ -340,7 +306,19 @@ impl Inputs for SourceInputs<'_, '_> {
         use crate::domain::executable_program::types::InputSource;
         if let Some(project) = &mut self.project {
             if let Some(provided) = project.supply(source, partition, context, &self.owner) {
-                return provided;
+                return provided.map(|input| match source {
+                    // Shared project facts need the same physical certificate
+                    // as a direct provider, before any operator can re-key them.
+                    InputSource::Relation(relation) => {
+                        input.with_coverage(self.completion.coverage(&[
+                            crate::domain::trust::types::RelationRead {
+                                relation,
+                                kinds: vec![],
+                            },
+                        ]))
+                    }
+                    _ => input,
+                });
             }
         }
         let admitted = match source {
@@ -386,7 +364,10 @@ impl Inputs for SourceInputs<'_, '_> {
                 let publication = self.owner.computed(table)?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
-            InputSource::Region(id) => self.execution.published(id)?.ok_or(OperatingError::NotRun),
+            InputSource::Region(id) => self
+                .execution
+                .published(self.state, id)?
+                .ok_or(OperatingError::NotRun),
             InputSource::Observation(slot) => {
                 if let Some(input) = self.observations.get(&slot) {
                     return Ok(AvailableInput::published(input.clone()));
@@ -401,7 +382,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     .map_err(Clone::clone)?;
                 let input = self
                     .execution
-                    .published(union)?
+                    .published(self.state, union)?
                     .ok_or(OperatingError::NotRun)?;
                 let admitted = super::super::admission::alias_observation(
                     self.program.program(),
@@ -557,13 +538,111 @@ impl Inputs for SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        rows: Table,
+        mut rows: Table,
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
-        let readiness =
+        let mut readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
+        if let ProducerRoot::Region(region) = root
+            && matches!(
+                readiness,
+                super::super::admission::Readiness::Partial { .. }
+            )
+        {
+            // A region starts with the admitted operands, then contains only
+            // pure unary continuations. Absence operations publish before any
+            // continuation can erase their completeness key.
+            let code = self
+                .program
+                .program()
+                .regions()
+                .get(region.0)
+                .ok_or(OperatingError::NotRun)?;
+            let column = code.column.as_ref().filter(|_| inputs.len() == 2);
+            let ordered = code.ordered_existence.as_ref().filter(|shape| {
+                inputs.len() == 1 && inputs[0].has_root(ProducerRoot::Region(shape.source))
+            });
+            // Alternatives certify their original semantic operands, not the
+            // unary Project/Select that owns the final publication boundary.
+            let semantic = if let Some(shape) = column {
+                self.program
+                    .program()
+                    .regions()
+                    .get(shape.join().0)
+                    .ok_or(OperatingError::NotRun)?
+            } else {
+                code
+            };
+            let instruction = semantic
+                .instructions
+                .first()
+                .ok_or(OperatingError::NotRun)?;
+            let contributions = inputs
+                .iter()
+                .enumerate()
+                .map(|(ordinal, input)| {
+                    let kinds = if let Some(shape) = ordered {
+                        self.program
+                            .program()
+                            .regions()
+                            .get(shape.source.0)
+                            .and_then(|source| source.instructions.last())
+                            .and_then(|instruction| instruction.contract.output_kinds.as_ref().ok())
+                            .ok_or(OperatingError::NotRun)?
+                    } else {
+                        instruction
+                            .contract
+                            .input_kinds
+                            .get(ordinal)
+                            .ok_or(OperatingError::NotRun)?
+                    };
+                    Ok(crate::domain::completion::types::InputCoverage {
+                        ordinal,
+                        kinds,
+                        coverage: input.coverage()?,
+                    })
+                })
+                .collect::<Result<Vec<_>, OperatingError>>()?;
+            crate::domain::completion::service::filter_contributor_rows(
+                &instruction.operation,
+                instruction.contract.absence_inputs,
+                &contributions,
+                &mut rows,
+            );
+            let coverage = match &instruction.contract.output_kinds {
+                Ok(kinds) => {
+                    if let Some(shape) = ordered {
+                        crate::domain::completion::service::ordered_output_coverage(
+                            &shape.partition,
+                            kinds,
+                            &contributions[0],
+                        )
+                    } else {
+                        crate::domain::completion::service::output_coverage(
+                            &instruction.operation,
+                            kinds,
+                            &contributions,
+                        )?
+                    }
+                }
+                // An intentionally undemanded row fault must stay deferred.
+                // No precise lineage can be certified from a refused schema.
+                Err(_) => {
+                    crate::domain::completion::types::CoverageState::Partial { files: vec![None] }
+                }
+            };
+            readiness = match coverage {
+                crate::domain::completion::types::CoverageState::Complete => {
+                    super::super::admission::Readiness::Complete
+                }
+                crate::domain::completion::types::CoverageState::Partial { files } => {
+                    super::super::admission::Readiness::Partial { files }
+                }
+            };
+        }
         let publication = self.owner.computed(rows)?;
+        self.state.bind(&self.owner, root, &publication)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -589,6 +668,7 @@ impl Inputs for SourceInputs<'_, '_> {
         actual_partition.require_supply(partition)?;
         let readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
+        self.state.bind(&self.owner, root, &publication)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -614,6 +694,7 @@ impl Inputs for SourceInputs<'_, '_> {
         actual_partition.require_supply(partition)?;
         let readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
+        self.state.bind(&self.owner, root, &publication)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),

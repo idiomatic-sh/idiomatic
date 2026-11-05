@@ -69,9 +69,15 @@ pub(crate) struct PublicationScope {
     program: Arc<crate::domain::executable_program::types::ExecutableProgram>,
     owner: Rc<RelationOwner>,
     execution: std::cell::OnceCell<ProgramExecution>,
+    populations: std::cell::RefCell<super::project_population::service::Populations>,
     symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,
 }
 impl PublicationScope {
+    pub(crate) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {
+        self.execution
+            .get()
+            .map_or_else(Default::default, |execution| execution.state_counts())
+    }
     pub(crate) fn finish(self) -> Result<(), OperatingError> {
         match self.execution.into_inner() {
             Some(execution) => execution.finish(),
@@ -150,6 +156,7 @@ pub(crate) fn publication_owner(
         program: Arc::clone(program.program()),
         owner: open_program_owner(program.program(), Arc::clone(services.derived()), true),
         execution: std::cell::OnceCell::new(),
+        populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),
     })
 }

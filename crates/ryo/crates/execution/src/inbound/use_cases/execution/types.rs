@@ -73,9 +73,9 @@ pub use crate::application::file_dag::program::admission::{
     ApplicabilityProof, ApplicabilityReason,
 };
 pub use crate::application::file_dag::program::facade::{
-    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand, FileRuleIntent,
-    FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation, ProjectRuleOutcome,
-    RootOutcome, RuleDemand, RuleOutcome,
+    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand,
+    FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation,
+    ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
 };
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
@@ -121,6 +121,12 @@ pub struct FileSession<'a, 'facts> {
     pub(super) read: &'a dyn Fn(
         ryo_relations::domain::relations::types::Relation,
     ) -> Result<SourceRows<'facts>, OperatingError>,
+}
+/// One project-phase publication/interpreter and symbol generation, shared across rules.
+pub struct ProjectPhase<'a> {
+    pub(super) request: &'a RequestExecution,
+    pub(super) publication:
+        std::rc::Rc<crate::application::file_dag::program::facade_runtime::PublicationScope>,
 }
 pub struct ProjectScope {
     pub(super) required: crate::application::file_dag::program::admission::RequiredPartitions,
@@ -180,9 +186,7 @@ pub struct PreparedRuleIdentities {
 
 /// One project publication generation shared by every ready batch.
 pub struct ObservationStage<'a> {
-    pub(super) request: &'a RequestExecution,
-    pub(super) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::PublicationScope>,
+    pub(super) phase: ProjectPhase<'a>,
     pub(super) publications:
         crate::application::file_dag::observations::cross::CrossPublications<'a>,
 }

@@ -53,7 +53,7 @@ pub(crate) enum Placeability {
 pub(crate) struct ObservedRoot {
     /// Resolved position in the producer's compiled named-root list.
     pub output: ryo_values::domain::observations::types::ObservationIndex,
-    /// Present only for a complete, admitted output; unavailable never means empty.
+    /// Present only for an admitted complete or partial output; unavailable never means empty.
     pub table: Option<ryo_values::domain::rows::types::Table>,
     /// Actual producer readiness independent of diagnostic Emit.
     pub readiness: ryo_values::domain::observations::types::ProducerReadiness,
@@ -71,4 +71,3 @@ pub(crate) struct PhaseRoots {
     /// Only roots explicitly retained by request demand linking.
     pub observations: Vec<ObservedRoot>,
 }
-

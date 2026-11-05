@@ -11,14 +11,12 @@ pub(crate) use crate::domain::table_model::collections::representations::types::
 #[derive(Clone, Copy)]
 pub(crate) enum ProgressCounter {
     InputRows,
-    EmittedRows,
     PredicateEvaluations,
     IndexProbes,
     IndexRowsExamined,
     EqualityMatches,
     JoinCandidatePairs,
     KernelOutputRows,
-    PositionRowsYielded,
 }
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) type ProgressObserver = fn(ProgressCounter, u64);

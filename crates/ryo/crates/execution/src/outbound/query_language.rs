@@ -2,5 +2,5 @@
 pub(crate) mod errors;
 pub(crate) mod interface;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub mod fixtures;
+#[cfg(test)]
+pub(crate) mod fixtures;

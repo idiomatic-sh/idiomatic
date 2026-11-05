@@ -38,7 +38,8 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let scope = request
+    let phase = request.project_phase().unwrap();
+    let scope = phase
         .project_scope(RuleIndex(0), &corpus, &covered, &[])
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
@@ -82,7 +83,8 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
     run.finish();
-    scope.finish().unwrap();
+    drop(scope);
+    phase.finish().unwrap();
 
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |actual| {

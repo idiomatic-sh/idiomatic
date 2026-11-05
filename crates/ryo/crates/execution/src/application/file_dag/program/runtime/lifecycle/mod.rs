@@ -27,12 +27,19 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
     let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
     assert!(matches!(
-        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
+        execution.invoke(
+            execution.file_state(),
+            roots[0],
+            &mut input,
+            &probe,
+            &policy,
+            &mut context
+        ),
         Err(OperatingError::WrongBinding)
     ));
-    let slots = execution.slots.borrow();
+    let slots = execution.file_state().slots.borrow();
     for (at, root) in roots.into_iter().enumerate() {
-        let slot = &slots[root.0];
+        let slot = &slots[&root.0];
         assert!(matches!(
             slot.state,
             State::Failed(OperatingError::WrongBinding)
@@ -47,7 +54,14 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     }
     drop(slots);
     assert!(matches!(
-        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
+        execution.invoke(
+            execution.file_state(),
+            roots[0],
+            &mut input,
+            &probe,
+            &policy,
+            &mut context
+        ),
         Err(OperatingError::WrongBinding)
     ));
     assert_eq!(
@@ -71,12 +85,26 @@ fn same_region_reentry_refuses_without_corrupting_successful_publication() {
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
     let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
     assert!(matches!(
-        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
+        execution.invoke(
+            execution.file_state(),
+            roots[0],
+            &mut input,
+            &probe,
+            &policy,
+            &mut context
+        ),
         Ok(InvocationOutcome::Published(_))
     ));
     assert_eq!(probe.reentry.get(), Reentry::Refused);
     assert!(matches!(
-        execution.invoke(roots[0], &mut input, &probe, &policy, &mut context),
+        execution.invoke(
+            execution.file_state(),
+            roots[0],
+            &mut input,
+            &probe,
+            &policy,
+            &mut context
+        ),
         Ok(InvocationOutcome::Published(_))
     ));
     assert_eq!(
@@ -101,7 +129,14 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
         rows: vec![],
     };
     let InvocationOutcome::Published(published) = execution
-        .invoke(roots[0], &mut input, &probe, &policy, &mut context)
+        .invoke(
+            execution.file_state(),
+            roots[0],
+            &mut input,
+            &probe,
+            &policy,
+            &mut context,
+        )
         .unwrap()
     else {
         panic!("canonical completed publication")
@@ -111,16 +146,23 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
         Err(OperatingError::WrongBinding)
     ));
     {
-        let slots = execution.slots.borrow();
-        assert!(matches!(slots[roots[0].0].state, State::Published(_)));
-        assert_eq!(slots[roots[0].0].scratch[0].ordered_row.len(), 1);
+        let slots = execution.file_state().slots.borrow();
+        assert!(matches!(slots[&roots[0].0].state, State::Published(_)));
+        assert_eq!(slots[&roots[0].0].scratch[0].ordered_row.len(), 1);
     }
     let mut accept = Sink {
         mode: SinkMode::Accept,
         rows: vec![],
     };
     let InvocationOutcome::Published(repeated) = execution
-        .invoke(roots[0], &mut input, &probe, &policy, &mut context)
+        .invoke(
+            execution.file_state(),
+            roots[0],
+            &mut input,
+            &probe,
+            &policy,
+            &mut context,
+        )
         .unwrap()
     else {
         panic!("retry retains canonical publication")

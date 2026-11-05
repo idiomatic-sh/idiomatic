@@ -36,3 +36,15 @@ impl std::ops::AddAssign for ReadinessCounts {
         self.wakeups.0 += other.wakeups.0;
     }
 }
+
+/// Actual retained mutable entries, independent of the compiled region count.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InvocationStateCount(pub usize);
+/// Read-only size of the shared interpreter's live state, not an admission capability.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InvocationStateCounts {
+    pub populations: InvocationStateCount,
+    pub slots: InvocationStateCount,
+    pub instruction_counters: InvocationStateCount,
+    pub dormant_obligations: InvocationStateCount,
+}

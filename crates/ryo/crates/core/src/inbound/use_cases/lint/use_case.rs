@@ -18,7 +18,7 @@ use crate::application::file_analysis::types::{FileVisit, Worker};
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
         ExecutionCompilation, ExecutionRequest, ExecutionUseCase, PreparedExecution,
-        PreparedQueries, PreparedReporting,
+        PreparedQueries, PreparedReporting, ProjectStage,
     },
     types::{CompiledPlans, CompiledQueries, FrontierDemand, FrontierRequest, PreparationError},
     use_case::{CompilationUseCaseImpl, ExecutionUseCaseImpl},
@@ -958,21 +958,29 @@ impl LintUseCaseImpl {
             arenas: &*handed.arenas,
             domain,
         };
-        let made = self.drain(
-            self.workers,
-            todo,
-            |_, each| -> Result<Crossed, LintError> {
-                self.within_budget(listing.budget, || vec![each.id.clone()])?;
+        let Some(first_rule) = todo.first() else {
+            return Ok(());
+        };
+        self.within_budget(listing.budget, || vec![first_rule.id.clone()])?;
+        let stage = run.services.project_phase().map_err(|error| {
+            LintError::from(crate::domain::rules::service::failed(
+                &first_rule.id,
+                &error,
+            ))
+        })?;
+        // All ordinary project rules use the same interpreter and symbol generation.
+        let mut cross = Symbols::default();
+        let made = todo.iter().enumerate().map(
+            |(index, each)| -> Result<Crossed, LintError> {
+                if index != 0 { self.within_budget(listing.budget, || vec![each.id.clone()])?; }
                 let _memory_rule = memory_rule(&each.id, each.rule.0);
-                // This scope has the same input/symbol lifetime as the original rule closure.
                 let result = (|| -> Result<Crossed, LintError> {
-                    let mut cross = Symbols::default();
                     #[expect(
                         clippy::indexing_slicing,
                         reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
                     )]
                     let first = run.first_bucket[each.rule.0];
-                    let scope = run.services.project_scope(each.rule, crossing.domain.files, crossing.domain.covered, crossing.domain.skipped)
+                    let scope = stage.project_scope(each.rule, crossing.domain.files, crossing.domain.covered, crossing.domain.skipped)
                         .map_err(|error| LintError::from(crate::domain::rules::service::failed(&each.id, &error)))?;
                     let inputs = run.services.prepare_frontiers(FrontierRequest {
                         scope: &scope, rule: each.rule, first, facts: kept_facts.as_ref(),
@@ -987,11 +995,14 @@ impl LintUseCaseImpl {
                     Ok(result?)
                 })();
                 if memory_enabled() {
-                    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_cleanup", owner = "decoded_inputs", caller_inputs_owned = false, success = result.is_ok(), decoded_capacity_bytes = 0_usize);
+                    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_rule", owner = "project_phase", caller_inputs_owned = false, success = result.is_ok(), decoded_capacity_bytes = 0_usize);
                 }
                 result
             },
-        )?;
+        ).collect::<Vec<_>>();
+        // Always release the shared stage, but preserve an earlier rule/budget
+        // failure over a cleanup refusal.
+        let finished = stage.finish();
         for (each, crossed) in todo.iter().zip(made) {
             if settle(
                 each,
@@ -1007,7 +1018,12 @@ impl LintUseCaseImpl {
                 });
             }
         }
-        Ok(())
+        finished.map_err(|error| {
+            LintError::from(crate::domain::rules::service::failed(
+                &first_rule.id,
+                &error,
+            ))
+        })
     }
 
     /// Keeps what this run found for the next, when it keeps anything and it is not what the store already holds: a row for each

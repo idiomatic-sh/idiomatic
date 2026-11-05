@@ -17,6 +17,14 @@ pub(in super::super) struct ProjectFacts {
     pub reads: AtomicUsize,
 }
 impl ProjectFacts {
+    /// A real declared schema with no observed project rows.
+    pub fn empty(relation: Relation) -> Self {
+        let mut facts = Self::new(relation);
+        for column in &mut facts.columns {
+            column.0.clear();
+        }
+        facts
+    }
     pub fn new(relation: Relation) -> Self {
         let columns = kinds(relation)
             .iter()

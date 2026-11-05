@@ -235,7 +235,8 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             rules: vec![RuleIndex(0)],
             partial: vec![],
         }];
-        let scope = request
+        let phase = request.project_phase().unwrap();
+        let scope = phase
             .project_scope(RuleIndex(0), &corpus, &covered, &[])
             .unwrap();
         let project_symbols = Symbols::default();
@@ -297,7 +298,8 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             "one cached project invocation, with no second semantic evaluation"
         );
         run.finish();
-        scope.finish().expect("release project publications");
+        drop(scope);
+        phase.finish().expect("release project publications");
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         request.finish();
         assert_eq!(
@@ -440,7 +442,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         rules: vec![RuleIndex(0)],
         partial: vec![],
     });
-    let scope = request
+    let phase = request.project_phase().unwrap();
+    let scope = phase
         .project_scope(RuleIndex(0), &corpus, &covered, &[])
         .unwrap();
     let project_symbols = Symbols::default();
@@ -502,7 +505,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     expected.sort_unstable();
     assert_eq!(actual, expected);
     run.finish();
-    scope.finish().unwrap();
+    drop(scope);
+    phase.finish().unwrap();
     request.finish();
 }
 
@@ -1191,7 +1195,8 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     rules: vec![RuleIndex(0)],
                     partial: vec![],
                 }];
-                let scope = request
+                let phase = request.project_phase().unwrap();
+                let scope = phase
                     .project_scope(RuleIndex(0), &corpus, &covered, &[])
                     .unwrap();
                 let stored = CapturedFacts {

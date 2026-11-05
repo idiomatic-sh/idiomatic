@@ -74,7 +74,8 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let scope = request
+    let phase = request.project_phase().unwrap();
+    let scope = phase
         .project_scope(RuleIndex(0), &corpus, &covered, &[])
         .unwrap();
     let facts = UnavailableFacts::default();
@@ -131,6 +132,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
         "a project invocation cannot reacquire the missing per-file provider"
     );
     project.finish();
-    scope.finish().unwrap();
+    drop(scope);
+    phase.finish().unwrap();
     request.finish();
 }

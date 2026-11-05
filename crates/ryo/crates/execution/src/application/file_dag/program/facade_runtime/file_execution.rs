@@ -181,7 +181,8 @@ impl FileRun<'_> {
                 }
             }
             if !cancelled.is_empty() {
-                self.execution.cancel_roots(&cancelled)?;
+                self.execution
+                    .cancel_roots(self.execution.file_state(), &cancelled)?;
             }
             match intent {
                 FileRuleIntent::Undemanded => {}
@@ -334,6 +335,7 @@ impl FileRun<'_> {
         );
         let mut sources = SourceInputs {
             execution: &self.execution,
+            state: self.execution.file_state(),
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read,
@@ -343,8 +345,14 @@ impl FileRun<'_> {
             rule,
             project: None,
         };
-        self.execution
-            .prepare_roots(&queued, &mut sources, &kernels, &completion, &mut context)?;
+        self.execution.prepare_roots(
+            self.execution.file_state(),
+            &queued,
+            &mut sources,
+            &kernels,
+            &completion,
+            &mut context,
+        )?;
         // Named roots have their own declared demand. Publish their readiness
         // through the same evaluation contract before delivering any diagnostic.
         let mut named = Vec::new();
@@ -461,6 +469,7 @@ impl FileRun<'_> {
         );
         let mut sources = SourceInputs {
             execution: &self.execution,
+            state: self.execution.file_state(),
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read,
@@ -482,8 +491,14 @@ impl FileRun<'_> {
                     }
                 }
                 Ok(id) => outcome_of(
-                    self.execution
-                        .invoke(*id, &mut sources, &kernels, &completion, context),
+                    self.execution.invoke(
+                        self.execution.file_state(),
+                        *id,
+                        &mut sources,
+                        &kernels,
+                        &completion,
+                        context,
+                    ),
                     &self.owner,
                     read,
                 ),
@@ -540,7 +555,9 @@ impl FileRun<'_> {
         Ok(RuleOutcome {
             emit,
             observations,
-            counts: self.execution.logical_counts(rule)?,
+            counts: self
+                .execution
+                .logical_counts(self.execution.file_state(), rule)?,
         })
     }
     pub(crate) fn capture_frontiers<'facts>(
@@ -585,6 +602,7 @@ impl FileRun<'_> {
         );
         let mut inputs = SourceInputs {
             execution: &self.execution,
+            state: self.execution.file_state(),
             completion,
             owner: Rc::clone(&self.owner),
             read,
@@ -724,7 +742,8 @@ impl FileRun<'_> {
         rule: RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
-        self.execution.route_observation(rule, step)
+        self.execution
+            .route_observation(self.execution.file_state(), rule, step)
     }
     #[cfg(test)]
     pub(crate) fn resource_fixture_counts(
@@ -745,7 +764,8 @@ impl FileRun<'_> {
             .ok_or(OperatingError::NotRun)?
             .as_ref()
             .map_err(Clone::clone)?;
-        self.execution.region_observation(*region)
+        self.execution
+            .region_observation(self.execution.file_state(), *region)
     }
     pub(crate) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
         self.execution.readiness_counts()
@@ -754,7 +774,8 @@ impl FileRun<'_> {
         self.walk.counts()
     }
     pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
-        self.execution.logical_counts(rule)
+        self.execution
+            .logical_counts(self.execution.file_state(), rule)
     }
     pub(crate) fn observation_snapshot(
         &self,
@@ -908,6 +929,7 @@ impl FileRun<'_> {
         );
         let mut sources = SourceInputs {
             execution: &self.execution,
+            state: self.execution.file_state(),
             completion: completion.clone(),
             owner: Rc::clone(&self.owner),
             read,
@@ -931,16 +953,19 @@ impl FileRun<'_> {
                 (self.0)(row)
             }
         }
-        let published =
-            match self
-                .execution
-                .invoke(id, &mut sources, &kernels, &completion, context)?
-            {
-                InvocationOutcome::Published(input) => input,
-                InvocationOutcome::Ready | InvocationOutcome::Suspended(_) => {
-                    return Err(OperatingError::NotRun);
-                }
-            };
+        let published = match self.execution.invoke(
+            self.execution.file_state(),
+            id,
+            &mut sources,
+            &kernels,
+            &completion,
+            context,
+        )? {
+            InvocationOutcome::Published(input) => input,
+            InvocationOutcome::Ready | InvocationOutcome::Suspended(_) => {
+                return Err(OperatingError::NotRun);
+            }
+        };
         let coverage = published.coverage()?;
         // Delivery begins only after semantic evaluation has committed. A sink
         // refusal leaves that publication intact for replay without reevaluation.

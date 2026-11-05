@@ -385,7 +385,8 @@ pub enum FrontierRefusalReason {
 /// Canonical read-only retention measurements over portable payloads.
 pub mod retention;
 
-/// A portable named output. Readiness and words agree: only Complete carries words.
+/// A portable named output. Complete words, or partial words whose readiness
+/// remains Unknown, require a matching engine-issued publication at admission.
 #[derive(Clone, Debug)]
 pub struct PackedObservedRoot {
     pub output: crate::domain::observations::types::ObservationIndex,

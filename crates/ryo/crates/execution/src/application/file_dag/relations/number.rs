@@ -22,7 +22,13 @@ impl RelationOwner {
         let expected: Option<(PopulationId, PopulationId)> = self
             .producer_populations
             .borrow()
-            .get(&producer.0)
+            .get(&(
+                match record.producer_scope.get() {
+                    Some(scope) => *scope,
+                    None => return Ok(None),
+                },
+                producer.0,
+            ))
             .map(|(population, backing)| (PopulationId(*population), *backing));
         let actual = (
             self.result_population(record),
@@ -118,7 +124,11 @@ mod tests {
         );
         let publication = owner.source_borrowed(relation, rows).unwrap();
         owner
-            .bind_producer(RegionId(7), publication.as_ref())
+            .bind_producer(
+                super::ProducerScope::File,
+                RegionId(7),
+                publication.as_ref(),
+            )
             .unwrap();
         assert!(
             owner
@@ -134,7 +144,9 @@ mod tests {
         );
         owner.release_population();
         let next = owner.source_borrowed(relation, rows).unwrap();
-        owner.bind_producer(RegionId(7), next.as_ref()).unwrap();
+        owner
+            .bind_producer(super::ProducerScope::File, RegionId(7), next.as_ref())
+            .unwrap();
         assert!(
             owner
                 .admit_number(&next, RegionId(7), &required, rows)
@@ -147,5 +159,84 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
+    }
+    #[test]
+    fn qualified_producers_release_only_their_actual_population() {
+        use crate::application::file_dag::derived::owner::{
+            ViewContext,
+            graph_fixture::GraphFixture,
+            resource_fixture::{ResourceFixture, weak_storage},
+        };
+        use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
+        use ryo_relations::domain::relations::types::{Integer, Value};
+        use ryo_values::domain::rows::types::{RowCount, Table};
+        // This is a generic owned-row index contract, not a catalog-provider fixture.
+        let fixture = ResourceFixture::new(&[Relation::Function], &[], 0).unwrap();
+        let owner = fixture.owner();
+        let first_scope = super::ProducerScope::Project(owner.project_identity().unwrap());
+        let second_scope = super::ProducerScope::Project(owner.project_identity().unwrap());
+        let table = |number| Table {
+            kinds: vec![CellKind::Number],
+            count: RowCount(1),
+            cells: vec![Value::Number(Integer(number))],
+        };
+        let first = owner.computed(table(1)).unwrap();
+        let second = owner.computed(table(2)).unwrap();
+        owner
+            .bind_producer(first_scope, RegionId(7), first.as_ref())
+            .unwrap();
+        owner
+            .bind_producer(second_scope, RegionId(7), second.as_ref())
+            .unwrap();
+        assert_ne!(
+            owner.result_population(first.as_ref()),
+            owner.result_population(second.as_ref())
+        );
+        let acquire = |publication: &PublishedInput| {
+            let rows = owner
+                .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+                .unwrap();
+            let proof = owner
+                .admit(publication.as_ref(), BorrowedRows::from(&rows))
+                .unwrap();
+            let population = proof.identity(owner).unwrap().0;
+            let plan = GraphFixture::prepare(
+                ViewRequest::Equality {
+                    columns: vec![ColumnIndex(0)],
+                },
+                &rows,
+            );
+            owner
+                .derived
+                .acquire_stored(
+                    &plan,
+                    &[population],
+                    ViewContext::default(),
+                    DerivedInputs::Rows(&[proof.rows()]),
+                    &mut DerivedScratch::default(),
+                    None,
+                )
+                .unwrap()
+        };
+        owner.pin_derived(first.as_ref());
+        owner.pin_derived(second.as_ref());
+        let a = acquire(&first);
+        let b = acquire(&second);
+        let weak_a = weak_storage(&a);
+        let weak_b = weak_storage(&b);
+        drop((a, b));
+        assert!(weak_a.upgrade().is_some());
+        assert!(weak_b.upgrade().is_some());
+        // Bind/reuse B before A's delayed retirement: release must carry A's key.
+        let b = acquire(&second);
+        owner.release_derived_producer(first_scope, RegionId(7));
+        assert!(weak_a.upgrade().is_none());
+        assert!(weak_b.upgrade().is_some());
+        drop(b);
+        owner.release_derived_producer(second_scope, RegionId(7));
+        assert!(weak_b.upgrade().is_none());
+        drop((first, second));
+        owner.release_population();
+        assert_eq!(owner.derived.working_bytes(), 0);
     }
 }

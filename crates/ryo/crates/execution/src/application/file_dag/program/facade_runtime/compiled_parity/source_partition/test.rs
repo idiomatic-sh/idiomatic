@@ -184,6 +184,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut observed = std::collections::HashMap::new();
     let mut sources = super::super::super::SourceInputs {
         execution: &execution,
+        state: execution.file_state(),
         completion: completion.clone(),
         owner: Rc::clone(&owner),
         read: &read,
@@ -200,8 +201,14 @@ fn subject(case: Input) -> Result<Value, Failure> {
             .emit
             .as_ref()
             .map_err(Clone::clone)?;
-        let InvocationOutcome::Published(admitted) =
-            execution.invoke(root, &mut sources, &kernels, &completion, &mut context)?
+        let InvocationOutcome::Published(admitted) = execution.invoke(
+            execution.file_state(),
+            root,
+            &mut sources,
+            &kernels,
+            &completion,
+            &mut context,
+        )?
         else {
             return Err(OperatingError::NotRun);
         };

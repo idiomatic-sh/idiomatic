@@ -298,7 +298,7 @@ struct Slot {
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
 struct RetirementWork {
-    simulated: Vec<usize>,
+    simulated: std::collections::HashMap<RegionId, usize>,
     touched: Vec<RegionId>,
     pending: Vec<RegionId>,
     waiters: std::collections::HashMap<RegionId, Vec<RegionId>>,
@@ -306,9 +306,8 @@ struct RetirementWork {
 }
 impl RetirementWork {
     fn reset(&mut self) {
-        for id in self.touched.drain(..) {
-            self.simulated[id.0] = usize::MAX;
-        }
+        self.simulated.clear();
+        self.touched.clear();
         self.pending.clear();
     }
 }
@@ -318,12 +317,100 @@ pub(crate) struct ProgramExecution {
     pub(super) generation: Arc<()>,
     pub(super) generation_live: Arc<super::super::relations::GenerationLease>,
     partition: Partition,
-    slots: RefCell<Vec<Slot>>,
-    retirement: RefCell<RetirementWork>,
+    file_state: RuntimeState,
+    project_states: RefCell<
+        Vec<(
+            super::super::derived::owner::PopulationId,
+            std::rc::Rc<RuntimeState>,
+        )>,
+    >,
     cleanup_failure: RefCell<Option<OperatingError>>,
     readiness_counts: RefCell<crate::domain::readiness::types::ReadinessCounts>,
     #[cfg(test)]
     producer_lease_probe: RefCell<Option<ProducerLeaseProbe>>,
+}
+impl Slot {
+    fn touched<'a>(
+        state: &RuntimeState,
+        slots: &'a mut std::collections::HashMap<usize, Slot>,
+        program: &ExecutableProgram,
+        id: RegionId,
+    ) -> Result<&'a mut Slot, OperatingError> {
+        let region = program.regions().get(id.0).ok_or(OperatingError::NotRun)?;
+        let settled = if slots.contains_key(&id.0) {
+            None
+        } else {
+            state.dormant.borrow_mut().remove(&id)
+        };
+        let cancelled = settled == Some(0);
+        // Compiled obligations include roots in other project populations. They
+        // remain a conservative upper bound until phase finish; no bank may
+        // retire another population's publication or claim exact last use.
+        let remaining = settled.unwrap_or(region.consumers);
+        Ok(slots.entry(id.0).or_insert_with(|| Self {
+            #[cfg(test)]
+            observed: Default::default(),
+            #[cfg(test)]
+            native_positions: 0,
+            #[cfg(test)]
+            registered_calls: 0,
+            state: if cancelled {
+                State::Retired
+            } else {
+                State::Dormant
+            },
+            scratch: Vec::new(),
+            admission: Default::default(),
+            fed: vec![
+                crate::domain::operator::types::RowsFed::default();
+                region.instructions.len()
+            ]
+            .into_boxed_slice(),
+            remaining,
+            dependencies_consumed: cancelled,
+            waiting_on: None,
+            completion: None,
+        }))
+    }
+}
+/// Qualified state for the same interpreter; never an independent execution owner.
+pub(super) struct RuntimeState {
+    generation: Arc<()>,
+    scope: super::super::relations::ProducerScope,
+    slots: RefCell<std::collections::HashMap<usize, Slot>>,
+    dormant: RefCell<std::collections::HashMap<RegionId, usize>>,
+    retirement: RefCell<RetirementWork>,
+}
+impl RuntimeState {
+    fn new(scope: super::super::relations::ProducerScope, generation: Arc<()>) -> Self {
+        Self {
+            generation,
+            scope,
+            slots: RefCell::new(std::collections::HashMap::new()),
+            dormant: RefCell::new(std::collections::HashMap::new()),
+            retirement: RefCell::new(RetirementWork {
+                simulated: std::collections::HashMap::new(),
+                touched: Vec::new(),
+                pending: Vec::new(),
+                waiters: std::collections::HashMap::new(),
+                retired: Vec::new(),
+            }),
+        }
+    }
+    pub(super) fn population_scope(&self) -> super::super::relations::ProducerScope {
+        self.scope
+    }
+    pub(super) fn bind(
+        &self,
+        owner: &super::super::relations::RelationOwner,
+        root: super::admission::ProducerRoot,
+        publication: &super::super::relations::PublishedInput,
+    ) -> Result<(), OperatingError> {
+        if let super::admission::ProducerRoot::Region(id) = root {
+            owner.bind_producer(self.scope, id, publication.as_ref())?;
+        }
+        Ok(())
+    }
 }
 /// Constructors are private to the outer execution owner; no primitive can open
 /// another scope or choose a scheduler.
@@ -333,65 +420,46 @@ impl ProgramExecution {
         partition: Partition,
         owner: std::rc::Rc<super::super::relations::RelationOwner>,
     ) -> Self {
-        let slots = program
-            .regions()
-            .iter()
-            .map(|region| Slot {
-                #[cfg(test)]
-                observed: Default::default(),
-                #[cfg(test)]
-                native_positions: 0,
-                #[cfg(test)]
-                registered_calls: 0,
-                state: State::Dormant,
-                scratch: Vec::new(),
-                admission: AdmissionProgress::default(),
-                fed: vec![
-                    crate::domain::operator::types::RowsFed::default();
-                    region.instructions.len()
-                ]
-                .into_boxed_slice(),
-                remaining: region.consumers,
-                dependencies_consumed: false,
-                waiting_on: None,
-                completion: None,
-            })
-            .collect();
-        let region_count = program.regions().len();
         let generation = owner.generation_guard();
         let generation_live = owner.generation_liveness();
+        let file_state = RuntimeState::new(
+            super::super::relations::ProducerScope::File,
+            Arc::clone(&generation),
+        );
         Self {
             program,
             owner,
             generation,
             generation_live,
             partition,
-            retirement: RefCell::new(RetirementWork {
-                simulated: vec![usize::MAX; region_count],
-                touched: Vec::new(),
-                pending: Vec::new(),
-                waiters: std::collections::HashMap::new(),
-                retired: Vec::new(),
-            }),
-            slots: RefCell::new(slots),
+            file_state,
+            project_states: RefCell::new(Vec::new()),
             cleanup_failure: RefCell::new(None),
             readiness_counts: RefCell::new(Default::default()),
             #[cfg(test)]
             producer_lease_probe: RefCell::new(None),
         }
     }
+    fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
+        if Arc::ptr_eq(&self.generation, &state.generation) && self.generation_live.is_live() {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    }
     fn record_column(
         &self,
+        state: &RuntimeState,
         shape: &crate::domain::executable_program::column::ColumnAlternative,
         counts: &ColumnCounters,
     ) -> Result<(), OperatingError> {
-        let mut slots = self.slots.borrow_mut();
+        let mut slots = state.slots.borrow_mut();
         for (id, values) in [
             (shape.join(), counts.join.snapshot()),
             (shape.filter(), counts.filter.snapshot()),
             (shape.target(), counts.project.snapshot()),
         ] {
-            let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+            let slot = Slot::touched(state, &mut slots, &self.program, id)?;
             let fed = slot.fed.first_mut().ok_or(OperatingError::NotRun)?;
             for (total, found) in fed.0.iter_mut().zip(values) {
                 *total = total.saturating_add(found);
@@ -403,6 +471,7 @@ impl ProgramExecution {
     #[cfg(test)]
     pub(super) fn observe_producer_releases(
         &self,
+        state: &RuntimeState,
         producer: RegionId,
         consumers: &[RegionId],
     ) -> Result<(), OperatingError> {
@@ -422,7 +491,12 @@ impl ProgramExecution {
         Ok(())
     }
     #[cfg(test)]
-    fn observe_consumer_release(&self, consumer: RegionId, point: ConsumerReleasePoint) {
+    fn observe_consumer_release(
+        &self,
+        state: &RuntimeState,
+        consumer: RegionId,
+        point: ConsumerReleasePoint,
+    ) {
         let mut probe = self.producer_lease_probe.borrow_mut();
         let Some(probe) = probe
             .as_mut()
@@ -431,7 +505,7 @@ impl ProgramExecution {
             return;
         };
         let checkpoint = self
-            .retry_checkpoint(probe.producer)
+            .retry_checkpoint(state, probe.producer)
             .expect("observed actual producer");
         let index = self
             .owner
@@ -450,7 +524,7 @@ impl ProgramExecution {
         });
     }
     #[cfg(test)]
-    pub(super) fn take_producer_releases(&self) -> Vec<ProducerLeaseEvent> {
+    pub(super) fn take_producer_releases(&self, state: &RuntimeState) -> Vec<ProducerLeaseEvent> {
         self.producer_lease_probe
             .borrow_mut()
             .take()
@@ -461,6 +535,7 @@ impl ProgramExecution {
     #[cfg(test)]
     pub(super) fn route_observation(
         &self,
+        state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
@@ -477,15 +552,23 @@ impl ProgramExecution {
             .logical_regions()
             .get(origin.logical.0)
             .ok_or(OperatingError::NotRun)?;
-        self.region_observation(*region)
+        self.region_observation(state, *region)
     }
     #[cfg(test)]
     pub(super) fn region_observation(
         &self,
+        state: &RuntimeState,
         region: RegionId,
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
-        let slots = self.slots.borrow();
-        let slot = slots.get(region.0).ok_or(OperatingError::NotRun)?;
+        self.validate_state(state)?;
+        let slots = state.slots.borrow();
+        let Some(slot) = slots.get(&region.0) else {
+            self.program
+                .regions()
+                .get(region.0)
+                .ok_or(OperatingError::NotRun)?;
+            return Ok(Default::default());
+        };
         Ok(crate::domain::operating::types::ExecutionObservation {
             native_positions: slot.native_positions,
             registered_calls: slot.registered_calls,
@@ -493,9 +576,39 @@ impl ProgramExecution {
         })
     }
     #[cfg(test)]
-    pub(super) fn retry_checkpoint(&self, id: RegionId) -> Result<RetryCheckpoint, OperatingError> {
-        let slots = self.slots.borrow();
-        let slot = slots.get(id.0).ok_or(OperatingError::NotRun)?;
+    pub(super) fn retry_checkpoint(
+        &self,
+        state: &RuntimeState,
+        id: RegionId,
+    ) -> Result<RetryCheckpoint, OperatingError> {
+        self.validate_state(state)?;
+        let slots = state.slots.borrow();
+        let Some(slot) = slots.get(&id.0) else {
+            let region = self
+                .program
+                .regions()
+                .get(id.0)
+                .ok_or(OperatingError::NotRun)?;
+            let remaining = state
+                .dormant
+                .borrow()
+                .get(&id)
+                .copied()
+                .unwrap_or(region.consumers);
+            return Ok(RetryCheckpoint {
+                attempt: if state.dormant.borrow().get(&id) == Some(&0) {
+                    AttemptCheckpoint::Terminal
+                } else {
+                    AttemptCheckpoint::Dormant
+                },
+                remaining: ReaderCount(remaining),
+                dependencies: if state.dormant.borrow().get(&id) == Some(&0) {
+                    DependencyCheckpoint::Consumed
+                } else {
+                    DependencyCheckpoint::Pending
+                },
+            });
+        };
         Ok(RetryCheckpoint {
             attempt: match slot.state {
                 State::Dormant => AttemptCheckpoint::Dormant,
@@ -513,32 +626,77 @@ impl ProgramExecution {
     }
     /// Consume the generation once no invocation can remain active. Dropping
     /// its slots releases only engine-held storage; transferred leases own theirs.
+    pub(super) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {
+        use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
+        let states = self.project_states.borrow();
+        let mut found = InvocationStateCounts {
+            populations: InvocationStateCount(states.len()),
+            ..Default::default()
+        };
+        for state in
+            std::iter::once(&self.file_state).chain(states.iter().map(|(_, state)| state.as_ref()))
+        {
+            let slots = state.slots.borrow();
+            found.slots.0 += slots.len();
+            found.instruction_counters.0 +=
+                slots.values().map(|slot| slot.fed.len()).sum::<usize>();
+            found.dormant_obligations.0 += state.dormant.borrow().len();
+        }
+        found
+    }
+    pub(super) fn file_state(&self) -> &RuntimeState {
+        &self.file_state
+    }
+    pub(super) fn project_state(
+        &self,
+        id: super::super::derived::owner::PopulationId,
+    ) -> std::rc::Rc<RuntimeState> {
+        let mut states = self.project_states.borrow_mut();
+        if let Some((_, state)) = states.iter().find(|(key, _)| *key == id) {
+            return std::rc::Rc::clone(state);
+        }
+        let state = std::rc::Rc::new(RuntimeState::new(
+            super::super::relations::ProducerScope::Project(id),
+            Arc::clone(&self.generation),
+        ));
+        states.push((id, std::rc::Rc::clone(&state)));
+        state
+    }
     pub(super) fn finish(self) -> Result<(), OperatingError> {
-        let slots = self.slots.into_inner();
-        if slots
-            .iter()
+        if self
+            .file_state
+            .slots
+            .borrow()
+            .values()
             .any(|slot| matches!(slot.state, State::Running))
+            || self.project_states.borrow().iter().any(|(_, state)| {
+                state
+                    .slots
+                    .borrow()
+                    .values()
+                    .any(|slot| matches!(slot.state, State::Running))
+            })
         {
             return Err(OperatingError::NotRun);
         }
         let failure = self.cleanup_failure.into_inner();
-        drop(slots);
+        drop(self.file_state);
+        drop(self.project_states);
         self.owner.release_population();
-        match failure {
-            Some(error) => Err(error),
-            None => Ok(()),
-        }
+        failure.map_or(Ok(()), Err)
     }
     pub(super) fn logical_counts(
         &self,
+        state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
     ) -> Result<super::facade::LogicalCounts, OperatingError> {
+        self.validate_state(state)?;
         let rule = self
             .program
             .rules()
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?;
-        let slots = self.slots.borrow();
+        let slots = state.slots.borrow();
         let mut fed = Vec::with_capacity(rule.original_steps.len());
         for origin in rule.original_steps.iter() {
             let origin = origin.as_ref().map_err(Clone::clone)?;
@@ -557,7 +715,10 @@ impl ProgramExecution {
                 .iter()
                 .position(|instruction| instruction.logical == origin.logical)
                 .ok_or(OperatingError::NotRun)?;
-            let slot = slots.get(region_id.0).ok_or(OperatingError::NotRun)?;
+            let Some(slot) = slots.get(&region_id.0) else {
+                fed.push(crate::domain::operator::types::RowsFed::default());
+                continue;
+            };
             if matches!(slot.state, State::Running | State::Suspended | State::Ready) {
                 return Err(OperatingError::NotRun);
             }
@@ -600,29 +761,42 @@ impl ProgramExecution {
     }
     /// A prepared consumer obligation can finish once. The whole transitive
     /// cancellation is preflighted before any slot, count or lease changes.
-    fn release_inputs(&self, consumer: RegionId) -> Result<(), OperatingError> {
+    fn release_inputs(
+        &self,
+        state: &RuntimeState,
+        consumer: RegionId,
+    ) -> Result<(), OperatingError> {
         #[cfg(test)]
-        self.observe_consumer_release(consumer, ConsumerReleasePoint::Before);
-        let result = self.retire(Retirement::Consumer(consumer));
+        self.observe_consumer_release(state, consumer, ConsumerReleasePoint::Before);
+        let result = self.retire(state, Retirement::Consumer(consumer));
         if let Err(error) = &result {
             self.cleanup_failure
                 .borrow_mut()
                 .get_or_insert(error.clone());
         }
         #[cfg(test)]
-        self.observe_consumer_release(consumer, ConsumerReleasePoint::After);
+        self.observe_consumer_release(state, consumer, ConsumerReleasePoint::After);
         result
     }
-    pub(super) fn cancel_roots(&self, roots: &[RegionId]) -> Result<(), OperatingError> {
-        self.retire(Retirement::Roots(roots))
+    pub(super) fn cancel_roots(
+        &self,
+        state: &RuntimeState,
+        roots: &[RegionId],
+    ) -> Result<(), OperatingError> {
+        self.validate_state(state)?;
+        self.retire(state, Retirement::Roots(roots))
     }
-    fn retire(&self, retirement: Retirement<'_>) -> Result<(), OperatingError> {
-        let mut work = self.retirement.borrow_mut();
+    fn retire(
+        &self,
+        state: &RuntimeState,
+        retirement: Retirement<'_>,
+    ) -> Result<(), OperatingError> {
+        let mut work = state.retirement.borrow_mut();
         work.reset();
-        let mut slots = self.slots.borrow_mut();
+        let mut slots = state.slots.borrow_mut();
         match retirement {
             Retirement::Consumer(consumer) => {
-                let slot = slots.get(consumer.0).ok_or(OperatingError::NotRun)?;
+                let slot = slots.get(&consumer.0).ok_or(OperatingError::NotRun)?;
                 if slot.dependencies_consumed {
                     return Err(OperatingError::NotRun);
                 }
@@ -637,22 +811,37 @@ impl ProgramExecution {
         }
         let planned = (|| {
             while let Some(id) = work.pending.pop() {
-                let slot = slots.get(id.0).ok_or(OperatingError::NotRun)?;
-                let current = if work.simulated[id.0] == usize::MAX {
-                    work.touched.push(id);
-                    slot.remaining
+                let region = self
+                    .program
+                    .regions()
+                    .get(id.0)
+                    .ok_or(OperatingError::NotRun)?;
+                let slot = slots.get(&id.0);
+                let current = if let Some(current) = work.simulated.get(&id) {
+                    *current
                 } else {
-                    work.simulated[id.0]
+                    work.touched.push(id);
+                    slot.map_or_else(
+                        || {
+                            state
+                                .dormant
+                                .borrow()
+                                .get(&id)
+                                .copied()
+                                .unwrap_or(region.consumers)
+                        },
+                        |slot| slot.remaining,
+                    )
                 };
                 if current == 0 {
                     return Err(OperatingError::NotRun);
                 }
-                if current == 1 && matches!(slot.state, State::Running) {
+                if current == 1 && slot.is_some_and(|slot| matches!(slot.state, State::Running)) {
                     return Ok(Some(id));
                 }
                 let remaining = current - 1;
-                work.simulated[id.0] = remaining;
-                if remaining == 0 && !slot.dependencies_consumed {
+                work.simulated.insert(id, remaining);
+                if remaining == 0 && !slot.is_some_and(|slot| slot.dependencies_consumed) {
                     work.pending
                         .extend(self.program.regions()[id.0].dependencies.iter().copied());
                 }
@@ -670,8 +859,12 @@ impl ProgramExecution {
                     // File-level cancellation cannot race an active invocation.
                     return Err(OperatingError::NotRun);
                 };
-                if slots[consumer.0].waiting_on.is_none() {
-                    slots[consumer.0].waiting_on = Some(blocker);
+                if Slot::touched(state, &mut slots, &self.program, consumer)?
+                    .waiting_on
+                    .is_none()
+                {
+                    Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on =
+                        Some(blocker);
                     work.waiters.entry(blocker).or_default().push(consumer);
                 }
                 return Ok(());
@@ -679,20 +872,23 @@ impl ProgramExecution {
             Ok(None) => {}
         }
         if let Retirement::Consumer(consumer) = retirement {
-            slots[consumer.0].dependencies_consumed = true;
-            slots[consumer.0].waiting_on = None;
+            Slot::touched(state, &mut slots, &self.program, consumer)?.dependencies_consumed = true;
+            Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on = None;
         }
         for at in 0..work.touched.len() {
             let id = work.touched[at];
-            let slot = &mut slots[id.0];
-            slot.remaining = work.simulated[id.0];
+            let Some(slot) = slots.get_mut(&id.0) else {
+                state.dormant.borrow_mut().insert(id, work.simulated[&id]);
+                continue;
+            };
+            slot.remaining = work.simulated[&id];
             if slot.remaining == 0 {
                 slot.dependencies_consumed = true;
                 slot.waiting_on = None;
                 slot.admission = AdmissionProgress::default();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
-                    self.owner.release_derived_producer(id);
+                    self.owner.release_derived_producer(state.scope, id);
                 }
                 work.retired.push((old, std::mem::take(&mut slot.scratch)));
             }
@@ -703,26 +899,28 @@ impl ProgramExecution {
         drop(work);
         // Lease destructors run outside all scheduler-state borrows.
         retired.clear();
-        self.retirement.borrow_mut().retired = retired;
+        state.retirement.borrow_mut().retired = retired;
         Ok(())
     }
-    fn wake_retirements(&self, producer: RegionId) {
+    fn wake_retirements(&self, state: &RuntimeState, producer: RegionId) {
         // Only a blocker transition wakes its exact consumers. Unchanged
         // running ancestors never cause a full queue or graph rescan.
-        let waiters = self.retirement.borrow_mut().waiters.remove(&producer);
+        let waiters = state.retirement.borrow_mut().waiters.remove(&producer);
         let Some(waiters) = waiters else {
             return;
         };
         for consumer in waiters {
             {
-                let mut slots = self.slots.borrow_mut();
-                let slot = &mut slots[consumer.0];
+                let mut slots = state.slots.borrow_mut();
+                let Some(slot) = slots.get_mut(&consumer.0) else {
+                    continue;
+                };
                 if slot.waiting_on != Some(producer) {
                     continue;
                 }
                 slot.waiting_on = None;
             }
-            if let Err(error) = self.release_inputs(consumer) {
+            if let Err(error) = self.release_inputs(state, consumer) {
                 self.cleanup_failure.borrow_mut().get_or_insert(error);
             }
         }
@@ -744,12 +942,14 @@ impl ProgramExecution {
     /// walked ahead of the action that actually demands it.
     pub(in crate::application::file_dag::program) fn prepare_roots(
         &self,
+        state: &RuntimeState,
         roots: &[RegionId],
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
+        self.validate_state(state)?;
         use crate::domain::readiness::types::{
             ReadinessAction, ReadinessOutcome, RegionCount, ready_queue::value::ReadyQueue,
         };
@@ -760,16 +960,17 @@ impl ProgramExecution {
                     ReadinessAction::Prepare(id) => (id, true),
                     ReadinessAction::Evaluate(id) => (id, false),
                 };
-                let outcome = match self.poll(id, inputs, kernels, completion, context, prepare) {
-                    Ok(InvocationOutcome::Suspended(dependency)) => {
-                        ReadinessOutcome::Waiting(dependency)
-                    }
-                    Ok(InvocationOutcome::Ready) if prepare => ReadinessOutcome::Ready,
-                    Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
-                    // A failed producer wakes its dependants so each resumes its
-                    // actual admission action, records the same failure and retires.
-                    Ok(_) | Err(_) => ReadinessOutcome::Terminal,
-                };
+                let outcome =
+                    match self.poll(state, id, inputs, kernels, completion, context, prepare) {
+                        Ok(InvocationOutcome::Suspended(dependency)) => {
+                            ReadinessOutcome::Waiting(dependency)
+                        }
+                        Ok(InvocationOutcome::Ready) if prepare => ReadinessOutcome::Ready,
+                        Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
+                        // A failed producer wakes its dependants so each resumes its
+                        // actual admission action, records the same failure and retires.
+                        Ok(_) | Err(_) => ReadinessOutcome::Terminal,
+                    };
                 queue.observe(id, outcome)?;
             }
             Ok(())
@@ -786,10 +987,23 @@ impl ProgramExecution {
     }
     pub(in crate::application::file_dag::program) fn published(
         &self,
+        state: &RuntimeState,
         id: RegionId,
     ) -> Result<Option<AdmittedInput>, OperatingError> {
-        let slots = self.slots.borrow();
-        match &slots.get(id.0).ok_or(OperatingError::NotRun)?.state {
+        self.validate_state(state)?;
+        let slots = state.slots.borrow();
+        let Some(slot) = slots.get(&id.0) else {
+            self.program
+                .regions()
+                .get(id.0)
+                .ok_or(OperatingError::NotRun)?;
+            return if state.dormant.borrow().get(&id) == Some(&0) {
+                Err(OperatingError::NotRun)
+            } else {
+                Ok(None)
+            };
+        };
+        match &slot.state {
             State::Published(input) => Ok(Some(input.clone())),
             State::Failed(error) => Err(error.clone()),
             State::Retired => Err(OperatingError::NotRun),
@@ -800,6 +1014,7 @@ impl ProgramExecution {
     /// after their caller's completeness gate has authorized this root.
     pub(in crate::application::file_dag::program) fn admit_root(
         &self,
+        state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
         source: crate::domain::executable_program::types::InputSource,
         inputs: &mut dyn Inputs,
@@ -807,9 +1022,10 @@ impl ProgramExecution {
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
+        self.validate_state(state)?;
         inputs.bind_rule(rule);
         if let Some(dependency) = inputs.dependency(source)? {
-            self.invoke(dependency, inputs, kernels, completion, context)?;
+            self.invoke(state, dependency, inputs, kernels, completion, context)?;
             inputs.bind_rule(rule);
         }
         let available = inputs.supply(source, &self.partition, context)?;
@@ -817,17 +1033,26 @@ impl ProgramExecution {
     }
     pub(in crate::application::file_dag::program) fn invoke(
         &self,
+        state: &RuntimeState,
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
+        self.validate_state(state)?;
         loop {
-            match self.poll(id, inputs, kernels, completion, context, false)? {
+            match self.poll(state, id, inputs, kernels, completion, context, false)? {
                 InvocationOutcome::Suspended(dependency) => {
                     let mut pending = vec![id, dependency];
-                    self.resolve_dependencies(&mut pending, inputs, kernels, completion, context)?;
+                    self.resolve_dependencies(
+                        state,
+                        &mut pending,
+                        inputs,
+                        kernels,
+                        completion,
+                        context,
+                    )?;
                 }
                 InvocationOutcome::Ready => return Err(OperatingError::NotRun),
                 outcome => return Ok(outcome),
@@ -836,6 +1061,7 @@ impl ProgramExecution {
     }
     fn resolve_dependencies(
         &self,
+        state: &RuntimeState,
         pending: &mut Vec<RegionId>,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
@@ -844,16 +1070,16 @@ impl ProgramExecution {
     ) -> Result<(), OperatingError> {
         while pending.len() > 1 {
             let current = *pending.last().ok_or(OperatingError::NotRun)?;
-            match self.poll(current, inputs, kernels, completion, context, false) {
+            match self.poll(state, current, inputs, kernels, completion, context, false) {
                 Ok(InvocationOutcome::Suspended(dependency)) => {
                     if pending.contains(&dependency) {
                         {
-                            let mut slots = self.slots.borrow_mut();
-                            let slot = slots.get_mut(current.0).ok_or(OperatingError::NotRun)?;
+                            let mut slots = state.slots.borrow_mut();
+                            let slot = Slot::touched(state, &mut slots, &self.program, current)?;
                             slot.state = State::Failed(OperatingError::NotRun);
                             slot.admission = AdmissionProgress::default();
                         }
-                        self.release_inputs(current)?;
+                        self.release_inputs(state, current)?;
                         pending.pop();
                         continue;
                     }
@@ -872,6 +1098,7 @@ impl ProgramExecution {
     }
     pub(in crate::application::file_dag::program) fn poll(
         &self,
+        state: &RuntimeState,
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
@@ -879,6 +1106,10 @@ impl ProgramExecution {
         context: &mut OperatorContext<'_>,
         prepare_only: bool,
     ) -> Result<InvocationOutcome, OperatingError> {
+        self.validate_state(state)?;
+        if inputs.population_scope() != state.scope {
+            return Err(OperatingError::NotRead);
+        }
         let _node_origin = crate::application::file_dag::route_counts::node(id.0);
         self.cleanup_status()?;
         let region = self
@@ -892,8 +1123,8 @@ impl ProgramExecution {
         // A scope borrow never crosses admission, kernels or downstream callbacks.
         let started;
         let mut scratch = {
-            let mut slots = self.slots.borrow_mut();
-            let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+            let mut slots = state.slots.borrow_mut();
+            let slot = Slot::touched(state, &mut slots, &self.program, id)?;
             match &slot.completion {
                 Some(bound) if bound != completion => return Err(OperatingError::NotRead),
                 Some(_) => {}
@@ -926,10 +1157,13 @@ impl ProgramExecution {
             }
             std::mem::take(&mut slot.scratch)
         };
-        let mut progress = std::mem::take(&mut self.slots.borrow_mut()[id.0].admission);
+        let mut progress = std::mem::take(
+            &mut Slot::touched(state, &mut state.slots.borrow_mut(), &self.program, id)?.admission,
+        );
         progress.waiting = None;
         let mut cleanup = Invocation {
             execution: self,
+            state,
             id,
             scratch: Some(scratch),
             terminal: Terminal::Retry,
@@ -1089,7 +1323,7 @@ impl ProgramExecution {
                 let outcome = kernels.column(
                     shape, &permit, &left, &right, context, scratch, &counters, &mut rows,
                 );
-                self.record_column(shape, &counters)
+                self.record_column(state, shape, &counters)
                     .map_err(InvocationFailure::Semantic)?;
                 if matches!(outcome?, StrategyOutcome::Executed) {
                     completion.filter_rows(
@@ -1305,7 +1539,7 @@ impl ProgramExecution {
             }
             Ok(InvocationOutcome::Published(input)) => {
                 cleanup.terminal = Terminal::Published(input.clone());
-                self.release_inputs(id)?;
+                self.release_inputs(state, id)?;
                 Ok(InvocationOutcome::Published(input))
             }
             Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
@@ -1313,7 +1547,7 @@ impl ProgramExecution {
                     tracing::trace!(target: "ryo::diagnostic::execution", event = "region_failure", region = id.0, producer = region.producer.0, phase = ?region.phase, logical = first.logical.0, action = admission.action, ?error);
                 }
                 cleanup.terminal = Terminal::Failed(error.clone());
-                let _cleanup = self.release_inputs(id);
+                let _cleanup = self.release_inputs(state, id);
                 Err(error)
             }
         };
@@ -1403,6 +1637,7 @@ enum Terminal {
 }
 struct Invocation<'a> {
     execution: &'a ProgramExecution,
+    state: &'a RuntimeState,
     id: RegionId,
     scratch: Option<Vec<KernelScratch>>,
     terminal: Terminal,
@@ -1412,9 +1647,9 @@ struct Invocation<'a> {
 }
 impl Drop for Invocation<'_> {
     fn drop(&mut self) {
-        let mut slots = self.execution.slots.borrow_mut();
+        let mut slots = self.state.slots.borrow_mut();
         let mut committed_outcome = "missing";
-        if let Some(slot) = slots.get_mut(self.id.0) {
+        if let Some(slot) = slots.get_mut(&self.id.0) {
             slot.scratch = self.scratch.take().unwrap_or_default();
             slot.admission = match self.terminal {
                 Terminal::Suspended | Terminal::Ready => self.admission.take().unwrap_or_default(),
@@ -1465,7 +1700,7 @@ impl Drop for Invocation<'_> {
             };
         }
         drop(slots);
-        self.execution.wake_retirements(self.id);
+        self.execution.wake_retirements(self.state, self.id);
         if let (Some(started), Some(region)) = (
             self.started,
             self.execution.program.regions().get(self.id.0),

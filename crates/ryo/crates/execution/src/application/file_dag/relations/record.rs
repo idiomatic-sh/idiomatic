@@ -6,6 +6,7 @@ use std::sync::{Arc, OnceLock};
 pub(crate) struct RelationResult {
     pub(super) population: usize,
     pub(super) producer: OnceLock<usize>,
+    pub(super) producer_scope: OnceLock<super::ProducerScope>,
     pub(super) generation: Arc<()>,
     pub(super) body: RelationBody,
     pub(super) inspected: OnceLock<Result<PhysicalShape, OperatingError>>,

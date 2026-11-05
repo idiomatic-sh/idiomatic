@@ -225,6 +225,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             context.scratch.row = vec![n(987)];
             let mut inputs = SourceInputs {
                 execution: &file.execution,
+                state: file.execution.file_state(),
                 completion: inner_completion.clone(),
                 owner: Rc::clone(&owner),
                 read: &read,
@@ -235,6 +236,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
                 project: None,
             };
             let InvocationOutcome::Published(input) = file.execution.invoke(
+                file.execution.file_state(),
                 inner_root,
                 &mut inputs,
                 &kernels,
@@ -264,6 +266,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         let mut sink = Callback(&mut each);
         let mut inputs = SourceInputs {
             execution: &file.execution,
+            state: file.execution.file_state(),
             completion: completion.clone(),
             owner: Rc::clone(&owner),
             read: &read,
@@ -275,7 +278,14 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         };
         let result = file
             .execution
-            .invoke(outer_root, &mut inputs, &kernels, &completion, &mut context)
+            .invoke(
+                file.execution.file_state(),
+                outer_root,
+                &mut inputs,
+                &kernels,
+                &completion,
+                &mut context,
+            )
             .and_then(|outcome| {
                 let InvocationOutcome::Published(input) = outcome else {
                     return Err(OperatingError::NotRun);
