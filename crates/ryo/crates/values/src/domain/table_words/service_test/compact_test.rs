@@ -46,11 +46,28 @@ fn packed(frames: &[Table]) -> Arc<KeptWords> {
     }
     Arc::new(KeptWords(service::pack(WordSlice(&words.0))))
 }
-fn same(actual: &Table, expected: &Table) {
-    assert_eq!(actual.kinds, expected.kinds);
-    assert_eq!(actual.count, expected.count);
-    assert_eq!(actual.cells, expected.cells);
+fn same(actual: &types::CompactTable, expected: &Table) {
+    assert_eq!(service::compact_kinds(actual), expected.kinds);
+    assert_eq!(service::compact_rows(actual), expected.count.0);
+    assert_eq!(service::compact_cells(actual), expected.cells.len());
+    let width = expected.kinds.len();
+    let mut scratch = vec![Cell::Number(Integer(0)); width];
+    for row in 0..expected.count.0 {
+        let start = row * width;
+        assert_eq!(
+            service::compact_read(actual, row, &mut scratch),
+            expected.cells.get(start..start + width)
+        );
+        for column in 0..width {
+            assert_eq!(
+                service::compact_cell(actual, row, column),
+                expected.cells.get(start + column).copied()
+            );
+        }
+    }
+    assert!(service::compact_read(actual, expected.count.0, &mut scratch).is_none());
 }
+
 fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
     let seed = vec![place(99)];
     let mut old_places = seed.clone();
@@ -66,8 +83,7 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
         assert_eq!(service::compact_kinds(&meta), old.kinds);
         assert_eq!(service::compact_rows(&meta), old.count.0);
         assert_eq!(service::compact_cells(&meta), old.cells.len());
-        let actual = service::materialize_compact(&meta).unwrap();
-        same(&actual, &old);
+        same(&meta, &old);
         let expected_rectangular = old
             .count
             .0
@@ -94,8 +110,8 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
             assert!(service::compact_cell(&meta, 0, old.kinds.len()).is_none());
         }
         let before = new_places.clone();
-        same(&service::materialize_compact(&meta).unwrap(), &old);
-        assert_eq!(new_places, before, "materialization never re-admits names");
+        same(&meta, &old);
+        assert_eq!(new_places, before, "compact reads never re-admit names");
     }
 }
 fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
@@ -111,13 +127,12 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
     assert!(service::compact_rectangular(&meta));
     assert_eq!(names.len(), 4);
     assert_eq!(places.len(), 4);
-    let actual = service::materialize_compact(&meta).unwrap();
     assert_eq!(
-        actual.cells[7],
-        Cell::Name(Name {
+        service::compact_cell(&meta, 2, 1),
+        Some(Cell::Name(Name {
             hash: TextHash(17),
             place: PlaceNumber(2)
-        })
+        }))
     );
 }
 fn truncated_tail_rolls_back_that_frame_or_complete_input() {
@@ -175,10 +190,10 @@ fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     )
     .unwrap();
     service::shape_compact(&mut meta, &[CellKind::Number]).unwrap();
-    let rows = service::materialize_compact(&meta).unwrap();
-    assert_eq!(rows.count, RowCount(0));
-    assert!(rows.cells.is_empty());
-    assert_eq!(rows.kinds, vec![CellKind::Number]);
+    assert_eq!(service::compact_rows(&meta), 0);
+    assert_eq!(service::compact_cells(&meta), 0);
+    assert_eq!(service::compact_kinds(&meta), &[CellKind::Number]);
+    assert!(service::compact_read(&meta, 0, &mut [Cell::Number(Integer(0))]).is_none());
 }
 fn compact_lease_pins_backing_until_metadata_is_retired() {
     let input = packed(&[table()]);
@@ -194,7 +209,7 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
     );
     drop(input);
     assert!(weak.upgrade().is_some());
-    same(&service::materialize_compact(&meta).unwrap(), &table());
+    same(&meta, &table());
     drop(meta);
     assert!(weak.upgrade().is_none());
 }
