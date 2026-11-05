@@ -1,14 +1,11 @@
 //! The compiler checks types and constants before either operator reads any rows.
 
-use crate::domain::substituting::service::call_replace;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::calling::service::call_join;
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::types::Builder;
-use crate::domain::syntax::constants::operator_named;
 use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::program::types::QueryView;
 
@@ -20,31 +17,30 @@ fn subject(text: Input) -> Result<Value, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("query fixture parses");
-    let mut builder = Builder {
-        catalog: &[Relation::Function, Relation::SourceLocation],
-        observation_inputs: &[],
-        hosted_steps: Vec::new(),
-        parameters: &program.parameters,
-        kinds: Vec::new(),
-        steps: Vec::new(),
-        lowered: Vec::new(),
-        span: program.emit.span,
-        origin: None,
-        comparison_origins: Vec::new(),
-    };
-    for step in &program.steps {
-        let ryo_values::domain::program::types::Expression::Call(call) = &step.expression else {
-            panic!("call fixture required")
-        };
-        if operator_named(&call.name.0)
-            == Some(ryo_values::domain::plans::types::QueryOperator::Replace)
-        {
-            call_replace(&mut builder, &step.name, call)?;
-        } else {
-            call_join(&mut builder, &step.name, call)?;
-        }
-    }
-    Ok(builder.steps.iter().any(|step| {
+    let hosted = [HostedRelation {
+        name: HostedName("global".into()),
+        columns: vec![
+            HostedColumn {
+                name: ColumnLabel("id".into()),
+                kind: CellKind::Node,
+            },
+            HostedColumn {
+                name: ColumnLabel("file".into()),
+                kind: CellKind::File,
+            },
+            HostedColumn {
+                name: ColumnLabel("span".into()),
+                kind: CellKind::Span,
+            },
+        ],
+    }];
+    let plan = crate::domain::assembling::service::lower_with_observations(
+        &program,
+        &[Relation::Function, Relation::SourceLocation],
+        &hosted,
+        &[],
+    )?;
+    Ok(plan.steps.iter().any(|step| {
         matches!(
             step.operation,
             Operation::Replace { .. }
@@ -55,6 +51,106 @@ fn subject(text: Input) -> Result<Value, Failure> {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("semantic_call_rejects_extra_arguments"),
+        word: Word::Refuses,
+        input: || r#"let a = render-syntax(from="function", node="id", context="assignment-target", output="rendered", extra="id"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::SemanticArgument { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("semantic_call_rejects_project_input"),
+        word: Word::Refuses,
+        input: || r#"let a = render-syntax(from="global", node="id", context="assignment-target", output="rendered"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::CrossFileSemantic { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("semantic_call_rejects_unknown_context"),
+        word: Word::Refuses,
+        input: || r#"let a = render-syntax(from="function", node="id", context="not-a-context", output="rendered"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::InvalidSemanticLiteral { .. }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("span_bounds_rejects_extra_arguments"),
+        word: Word::Refuses,
+        input: || r#"let a = span-bounds(from="function", span="span", start-output="begin", end-output="finish", extra="span"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::SpanBoundsArgument { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("source_matches_rejects_extra_arguments"),
+        word: Word::Refuses,
+        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", extra="span"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::SourceMatchesArgument { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("source_matches_rejects_project_input"),
+        word: Word::Refuses,
+        input: || r#"let a = source-matches(from="global", span="span", pattern="fn", output="hit"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::CrossFileSourceMatches { .. }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("source_matches_requires_line_pair"),
+        word: Word::Refuses,
+        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", base-line="line"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::SourceMatchesLinePair { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("source_matches_requires_capture_pair"),
+        word: Word::Refuses,
+        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::SourceMatchesCapturePair { .. }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("source_matches_requires_declared_capture"),
+        word: Word::Refuses,
+        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group", capture-output="captured"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::SourceMatchesCaptureMissing { .. }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("span_between_rejects_extra_arguments"),
+        word: Word::Refuses,
+        input: || r#"let a = span-between(from="function", start="span", end="span", output="hit", extra="span"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::SpanArgument { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("span_between_rejects_project_input"),
+        word: Word::Refuses,
+        input: || r#"let a = span-between(from="global", start="span", end="span", output="hit"); emit a subject file key(file);"#,
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::CrossFileSpan { .. }))
+        }),
+    },
     Case {
         name: CaseName("ambiguous_output_map_refused"),
         word: Word::Refuses,
