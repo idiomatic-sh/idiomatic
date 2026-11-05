@@ -165,6 +165,8 @@ fn defines_where_kind_is(word: &str) -> Given {
             fails: false,
         },
         text: "emit",
+        hosted: vec![],
+        observations: vec![],
     }
 }
 
