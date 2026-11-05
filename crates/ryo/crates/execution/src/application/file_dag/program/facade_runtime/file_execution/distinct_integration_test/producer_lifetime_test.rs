@@ -98,10 +98,12 @@ fn numbers(table: &Table) -> Vec<i64> {
 #[derive(Clone, Copy)]
 enum FinalConsumer {
     Completes,
+    SkippedAtStart,
     InvalidTerminal,
     RefusingProvider,
 }
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
+    let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let invalid_terminal = matches!(final_consumer, FinalConsumer::InvalidTerminal);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
     let derived = crate::application::file_dag::testing::program_derived_port();
@@ -165,12 +167,16 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 },
                 capture: CaptureIntent::Disabled,
             },
-            FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
-                capture: CaptureIntent::Disabled,
+            if skipped_at_start {
+                FileRuleIntent::Skipped(crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable)
+            } else {
+                FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }
             },
         ],
         services,
@@ -210,29 +216,76 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
     };
-    let first = file.rule(RuleIndex(0), demand(), &read, &mut symbols)?;
-    let RootOutcome::Complete(first) = first.emit else {
-        return Err(OperatingError::NotRun);
+    let observed = std::cell::RefCell::new(None);
+    let first = if skipped_at_start {
+        assert_eq!(file.execution.retry_checkpoint(producer)?.remaining.0, 1);
+        let owner = Rc::clone(&file.owner);
+        let mut cells = Vec::new();
+        file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+            assert!(owner.derived.working_bytes() > 0);
+            let weak = owner
+                .derived
+                .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
+                .expect("real backing while the remaining consumer is live");
+            assert!(weak.upgrade().is_some());
+            *observed.borrow_mut() = Some(weak);
+            cells.extend_from_slice(row);
+            Ok(())
+        })?;
+        Table {
+            kinds: vec![CellKind::Number; 2],
+            count: RowCount(cells.len() / 2),
+            cells,
+        }
+    } else {
+        let RootOutcome::Complete(first) =
+            file.rule(RuleIndex(0), demand(), &read, &mut symbols)?.emit
+        else {
+            return Err(OperatingError::NotRun);
+        };
+        first
     };
     assert_eq!(numbers(&first), [2, 9, 3, 7]);
-    assert!(
-        file.owner.derived.working_bytes() > 0,
-        "a nonfinal consumer must leave the shared producer's required index live"
-    );
     let after_first = file.execution.retry_checkpoint(producer)?;
-    assert_eq!(after_first.attempt, AttemptCheckpoint::Published);
-    assert_eq!(after_first.remaining.0, 1);
+    if skipped_at_start {
+        assert_eq!(after_first.attempt, AttemptCheckpoint::Terminal);
+        assert_eq!(after_first.remaining.0, 0);
+        assert_eq!(
+            file.owner.derived.working_bytes(),
+            0,
+            "upfront skipped reader is not a future consumer"
+        );
+    } else {
+        assert!(
+            file.owner.derived.working_bytes() > 0,
+            "a nonfinal consumer keeps the required index live"
+        );
+        assert_eq!(after_first.attempt, AttemptCheckpoint::Published);
+        assert_eq!(after_first.remaining.0, 1);
+    }
     let first_counts = file.owner.derived.counts();
     assert_eq!(first_counts.0, 1, "one actual equality construction");
-    let weak = file
-        .owner
-        .derived
-        .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
-        .expect("actual index backing from the first compiled consumer");
-    assert!(weak.upgrade().is_some());
-    assert_eq!(file.owner.derived.retained_bytes(), 0);
+    let weak = if skipped_at_start {
+        observed
+            .into_inner()
+            .expect("observed real live backing before final reader returned")
+    } else {
+        let weak = file
+            .owner
+            .derived
+            .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
+            .expect("actual shared index after the nonfinal consumer");
+        assert!(weak.upgrade().is_some());
+        assert!(file.owner.derived.owned_bytes() > 0);
+        weak
+    };
     let reads_before_final = source_reads.get();
-    {
+    if skipped_at_start {
+        assert!(matches!(
+            file.rule(RuleIndex(1), demand(), &read, &mut symbols),
+            Err(OperatingError::NotRun)
+        ));
+    } else {
         let second = file.rule(RuleIndex(1), demand(), &read, &mut symbols)?;
         match final_consumer {
             FinalConsumer::InvalidTerminal => {
@@ -250,6 +303,9 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 matches!(second.emit, RootOutcome::Failed(OperatingError::NotRead)),
                 "the real provider's original refusal must survive consumer cleanup"
             ),
+            FinalConsumer::SkippedAtStart => {
+                unreachable!("upfront exclusion is handled before execution")
+            }
             FinalConsumer::Completes => {
                 let RootOutcome::Complete(second) = second.emit else {
                     return Err(OperatingError::NotRun);
@@ -307,4 +363,10 @@ fn final_refusing_consumer_releases_zero_budget_global_index_without_reading_sou
     for final_consumer in [FinalConsumer::RefusingProvider] {
         exercise(final_consumer).expect("actual compiled final consumer cancellation");
     }
+}
+
+#[test]
+fn upfront_skipped_reader_releases_the_real_shared_index_after_the_remaining_reader() {
+    exercise(FinalConsumer::SkippedAtStart)
+        .expect("actual zero-budget final reader release before file finish");
 }

@@ -768,4 +768,5 @@ mod project_phase;
 #[cfg(test)]
 mod shared_walk;
 
+#[cfg(test)]
 mod file_intents;

@@ -275,3 +275,6 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     assert_eq!(semantics.selects(), 0);
     request.finish();
 }
+
+#[cfg(test)]
+mod projection;
