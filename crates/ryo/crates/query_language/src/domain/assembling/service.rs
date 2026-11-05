@@ -3,7 +3,7 @@
 //! `Relation`, a column becomes its position, a step becomes its number, a test becomes an enum.
 //! Nothing after this works on names.
 
-use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
@@ -21,7 +21,7 @@ use crate::domain::pushing::service::{
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
-use crate::domain::syntax::constants::parameter_kind_named;
+use crate::domain::syntax::constants::{parameter_kind_named, relation_cell_kind_named};
 use crate::domain::walking::service::{fuse_descents, fuse_neighbours};
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types as parts;
@@ -347,19 +347,11 @@ fn check_relation_shape(
         });
     }
     for (actual_column, expected_column) in actual.iter().zip(&expected.columns) {
-        let expected_kind = match expected_column.kind.0.as_ref() {
-            "node" => CellKind::Node,
-            "symbol" | "text" => CellKind::Symbol,
-            "file" => CellKind::File,
-            "span" => CellKind::Span,
-            "number" | "integer" => CellKind::Number,
-            "flag" | "boolean" => CellKind::Flag,
-            other => {
-                return Err(LoweringError::FragmentContract {
-                    message: format!("unknown relation cell type `{other}`"),
-                    origin,
-                });
-            }
+        let Some(expected_kind) = relation_cell_kind_named(&expected_column.kind.0) else {
+            return Err(LoweringError::FragmentContract {
+                message: format!("unknown relation cell type `{}`", expected_column.kind.0),
+                origin,
+            });
         };
         if actual_column.name != expected_column.name || actual_column.kind != expected_kind {
             return Err(LoweringError::FragmentContract {

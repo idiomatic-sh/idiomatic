@@ -215,3 +215,31 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
         (None, Some(_) | None) => None,
     }
 }
+
+/// The scalar kinds accepted by fragment declarations (distinct from root parameter syntax).
+#[must_use]
+pub(crate) fn fragment_scalar_kind_named(declared: &str) -> Option<ParameterType> {
+    match declared {
+        "string" | "text" => Some(ParameterType::Text),
+        "integer" | "number" => Some(ParameterType::Number),
+        "boolean" => Some(ParameterType::Flag),
+        _ => None,
+    }
+}
+
+/// The column kinds accepted by fragment relation signatures.
+#[must_use]
+pub(crate) fn relation_cell_kind_named(declared: &str) -> Option<CellKind> {
+    match declared {
+        "node" => Some(CellKind::Node),
+        "symbol" | "text" => Some(CellKind::Symbol),
+        "file" => Some(CellKind::File),
+        "span" => Some(CellKind::Span),
+        "number" | "integer" => Some(CellKind::Number),
+        "flag" | "boolean" => Some(CellKind::Flag),
+        _ => None,
+    }
+}
+
+/// The two literal words that provide a fragment boolean argument.
+pub(crate) const BOOLEAN_WORDS: [&str; 2] = ["true", "false"];

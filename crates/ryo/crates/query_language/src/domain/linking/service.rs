@@ -11,7 +11,11 @@ use ryo_values::domain::program::types::{
 
 use super::errors::LinkError;
 use super::types::{Bindings, Imported};
+use crate::domain::syntax::constants::{
+    BOOLEAN_WORDS, fragment_scalar_kind_named, relation_cell_kind_named,
+};
 use crate::domain::syntax::service::shape_named;
+use ryo_values::domain::plans::types::ParameterType;
 
 /// Expands every imported-fragment call into fresh, identity-linked AST definitions.
 #[cfg(test)]
@@ -221,10 +225,7 @@ fn validate_fragment_signature(
                 ),
             ));
         }
-        if !matches!(
-            parameter.kind.0.as_ref(),
-            "string" | "text" | "integer" | "number" | "boolean"
-        ) {
+        if fragment_scalar_kind_named(&parameter.kind.0).is_none() {
             return Err(located(
                 source,
                 parameter.span,
@@ -243,18 +244,7 @@ fn validate_relation_signature(
 ) -> Result<(), LinkError> {
     let mut names = BTreeSet::new();
     for column in &signature.columns {
-        if !matches!(
-            column.kind.0.as_ref(),
-            "node"
-                | "symbol"
-                | "text"
-                | "file"
-                | "span"
-                | "number"
-                | "integer"
-                | "flag"
-                | "boolean"
-        ) {
+        if relation_cell_kind_named(&column.kind.0).is_none() {
             return Err(located(
                 source,
                 column.span,
@@ -688,25 +678,25 @@ fn scalar_matches(
     value: &ArgumentValue,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
 ) -> bool {
+    let Some(expected) = fragment_scalar_kind_named(kind) else {
+        return false;
+    };
     let actual = match value {
-        ArgumentValue::Text(_) => "string",
-        ArgumentValue::Number(_) => "integer",
-        ArgumentValue::Word(word) if matches!(word.0.as_ref(), "true" | "false") => "boolean",
+        ArgumentValue::Text(_) => Some(ParameterType::Text),
+        ArgumentValue::Number(_) => Some(ParameterType::Number),
+        ArgumentValue::Word(word) if BOOLEAN_WORDS.contains(&word.0.as_ref()) => {
+            Some(ParameterType::Flag)
+        }
         ArgumentValue::Parameter(parameter) => root_parameters
             .iter()
             .find(|declared| declared.name.0.as_ref() == parameter.0.as_ref())
-            .map_or("", |declared| declared.kind.0.as_ref()),
+            .and_then(|declared| fragment_scalar_kind_named(&declared.kind.0)),
         ArgumentValue::Word(_)
         | ArgumentValue::Step(_)
         | ArgumentValue::List(_)
-        | ArgumentValue::Map(_) => "",
+        | ArgumentValue::Map(_) => None,
     };
-    matches!(
-        (kind, actual),
-        ("string" | "text", "string" | "text")
-            | ("integer" | "number", "integer" | "number")
-            | ("boolean", "boolean")
-    )
+    actual == Some(expected)
 }
 
 /// Rewrites one fragment step's local identities, inputs, parameters, and nested calls.
