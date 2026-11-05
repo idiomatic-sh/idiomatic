@@ -264,23 +264,6 @@ impl RelationOwner {
             normalized: OnceLock::new(),
         }))
     }
-    pub(super) fn compact(
-        &self,
-        table: Arc<ryo_values::domain::table_words::types::CompactTable>,
-    ) -> Result<PublishedInput, OperatingError> {
-        let input = BorrowedRows::Compact(&table);
-        let contract = input.contract()?;
-        let shape = registered(contract.kind).inspect(&contract)?;
-        self.publication(Arc::new(RelationResult {
-            population: self.allocate_population()?,
-            producer: OnceLock::new(),
-            generation: Arc::clone(&self.generation.borrow()),
-
-            body: RelationBody::Compact(table),
-            inspected: OnceLock::from(Ok(shape)),
-            normalized: OnceLock::new(),
-        }))
-    }
     pub(super) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         let input = BorrowedRows::Computed(&table);
         let contract = input.contract()?;

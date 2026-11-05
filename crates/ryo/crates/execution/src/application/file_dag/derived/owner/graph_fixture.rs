@@ -168,7 +168,12 @@ impl GraphFixture {
         // relation alias. Resident/selected rows retain their exact source witness.
         let publication = match rows {
             Rows::Computed(table) => self.owner.computed((*table).clone())?,
-            Rows::Compact(table) => self.owner.compact(Arc::new((*table).clone()))?,
+            Rows::Compact(table) => {
+                let publication = self.owner.source_compact(Arc::new((*table).clone()))?;
+                let supplied = self.owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+                self.owner.admit(publication.as_ref(), crate::domain::operator::contract::views::BorrowedRows::from(&supplied))?;
+                publication
+            },
             _ => match input {
                 Input::Relation(relation) => self.owner.source(relation, rows)?,
                 Input::Step(_) | Input::BoundObservation(_) => return Err(OperatingError::NotRun),

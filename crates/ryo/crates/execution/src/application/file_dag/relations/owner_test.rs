@@ -52,9 +52,11 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
-    let first = owner.compact(Arc::clone(&compact)).unwrap();
+    let first = owner.source_compact(Arc::clone(&compact)).unwrap();
+    owner.admit(first.as_ref(), crate::domain::operator::contract::views::BorrowedRows::Compact(&compact)).unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
-    let second = owner.compact(Arc::clone(&compact)).unwrap();
+    let second = owner.source_compact(Arc::clone(&compact)).unwrap();
+    owner.admit(second.as_ref(), crate::domain::operator::contract::views::BorrowedRows::Compact(&compact)).unwrap();
     assert!(!first.same_record(&second));
     // A second publication of the same immutable Compact and word buffer
     // adds only its own record. Shared backing allocations are not charged
