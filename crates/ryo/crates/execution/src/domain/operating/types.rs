@@ -128,15 +128,6 @@ pub(crate) struct TreeShape<'a> {
     pub output: &'a [JoinColumn],
 }
 
-/// How the rows of an input of a step come to it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Supply {
-    /// Made as they are asked for: not at hand to read in place.
-    Streamed,
-    /// At hand, to read in place.
-    AtHand,
-}
-
 /// Whether a comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum KindNaming {
