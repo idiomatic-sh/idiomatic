@@ -40,9 +40,11 @@ Treat missing mappings or enforcement as failures, not exemptions.
 - Add authorized and forbidden compiler controls for privacy and dependency
   guarantees, plus positive and negative runtime controls for behavior,
   ownership, refusal, sharing, readiness, and release where applicable.
-- The normal CI contract gate must cover the whole matrix inventory and every
-  declared route. Missing, stale, or unexecuted enforcement is red. A failed
-  build is missing proof, never a successful forbidden-call negative control.
+- Put durable positive and negative tests at production inbound APIs and run
+  actual TM, Rust boundary and runtime suites in normal CI. Missing suites or
+  zero tests are red; a failed build is never forbidden-call proof.
+- During the parallel crate move, author controls before the grouped build.
+  Remove migration-only scaffolds and test executors as the real boundary lands.
 - Update only the existing matrix with the exact source checkpoint and proof
   status, including unexecuted controls. Keep unchecked guarantees unchecked
   until their controls pass.

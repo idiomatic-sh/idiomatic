@@ -949,36 +949,45 @@ def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
         assert contract_review_problems(changed)
 
 
-def ownership_gate_problems(workflow: dict) -> list[str]:
+def ownership_contract_problems(workflow: dict) -> list[str]:
     jobs = workflow["jobs"]
-    expected = {
-        "runs-on": "ubuntu-26.04",
-        "steps": [
-            {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
-            {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
-            {"name": "Require every matrix contract and executed control", "run": 'python3 -I ci/scripts/checks/ownership_matrix.py --root "$GITHUB_WORKSPACE"'},
-        ],
-    }
+    job = jobs.get("ownership-contracts", {})
+    steps = job.get("steps", [])
     gate = jobs.get("gate", {})
     allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
-    if jobs.get("ownership-contracts") != expected or "ownership-contracts" not in needs(gate) or "ownership-contracts" in allowed:
-        return ["ownership matrix gate must run unconditionally and be required by gate"]
+    if (
+        job.get("runs-on") != "ubuntu-26.04"
+        or job.get("if") is not None
+        or job.get("continue-on-error") is not None
+        or len(steps) != 9
+        or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
+        or "tm validate --root crates/ryo" not in steps[-2].get("run", "")
+        or "tm check --root crates/ryo" not in steps[-2].get("run", "")
+        or "--test boundary_contract" not in steps[-1].get("run", "")
+        or "-p idiomatic-sh-ryo-operators --doc" not in steps[-1].get("run", "")
+        or "--workspace --all-targets" not in steps[-1].get("run", "")
+        or "--workspace --doc" not in steps[-1].get("run", "")
+        or "ownership-contracts" not in needs(gate)
+        or "ownership-contracts" in allowed
+    ):
+        return ["real ownership TM and Rust suites must run unconditionally in the required gate"]
     return []
 
 
-def test_ownership_matrix_gate_is_required_and_cannot_be_masked() -> None:
+def test_real_ownership_contract_suites_are_required() -> None:
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
-    assert not ownership_gate_problems(workflow)
+    assert not ownership_contract_problems(workflow)
     for mutate in (
         lambda w: w["jobs"].pop("ownership-contracts"),
         lambda w: w["jobs"]["gate"]["needs"].remove("ownership-contracts"),
         lambda w: w["jobs"]["ownership-contracts"].update({"continue-on-error": True}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "true"}),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": "true"}),
         lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "ownership-contracts"}),
     ):
         changed = deepcopy(workflow)
         mutate(changed)
-        assert ownership_gate_problems(changed)
+        assert ownership_contract_problems(changed)
 
 
 @pytest.mark.parametrize("dispatch", [False, True])
