@@ -7,15 +7,19 @@ use ryo_relations::domain::relations::collections::relations::interface::Relatio
 use ryo_relations::domain::relations::types::{FileId, NodeId, Offset, Span};
 use ryo_relations::domain::terms::types::Symbol;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use ryo_relations::domain::relations::service::{all, columns, kinds};
 use ryo_relations::domain::relations::types::Relation;
 
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
-use ryo_execution::inbound::use_cases::execution::types::facts::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    BucketSource, ColumnsMut, KeptBucket, WordsToKeep,
+};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsFinish, FactsPort, FactsWorker,
+};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -71,7 +75,9 @@ struct FakeWorker {
 }
 
 impl FactsWorker for FakeWorker {
-    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
         ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
     }
 

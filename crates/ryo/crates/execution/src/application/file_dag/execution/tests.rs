@@ -4,9 +4,9 @@ use crate::application::file_dag::testing::{Held, prepare};
 use crate::domain::operating::types::Memo;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows},
     plans::types::Operation,

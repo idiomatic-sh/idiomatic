@@ -3,8 +3,8 @@
 
 use std::io::Write as _;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use ryo_relations::domain::relations::service::{all, columns, kinds};
 use ryo_relations::domain::relations::types::Relation;
@@ -14,8 +14,12 @@ use super::types::{
     PackedLength, RoomToFill, Spill, SpillFile, SpillOffset, SpillStretch, SpillWorkerNumber,
 };
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
-use ryo_execution::inbound::use_cases::execution::types::facts::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    BucketSource, ColumnsMut, KeptBucket, WordsToKeep,
+};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsFinish, FactsPort, FactsWorker,
+};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -154,7 +158,9 @@ fn read_exact_at(
 }
 
 impl FactsWorker for SpillWorker {
-    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
         ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
     }
 

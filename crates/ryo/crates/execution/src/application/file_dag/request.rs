@@ -1,21 +1,21 @@
 //! Prepare every operation once for one request, shared by all file workers.
-use ryo_values::domain::plans::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::service::registered;
 use crate::domain::table_cells::types::TreeForm;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Relation},
 };
 use ryo_values::domain::hosted::types::{HostKind, HostRelation};
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::{
     service::{inputs_of, named},
     types::{Operation, Plan},
 };
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
 use crate::domain::operator::contract::types::RequestOperators;

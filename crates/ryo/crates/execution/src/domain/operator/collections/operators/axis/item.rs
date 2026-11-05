@@ -6,8 +6,6 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_cells::service::element_of;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-use {ryo_values::domain::rows::service::cell, crate::domain::table_model::types::Verdict};
 use crate::domain::table_reach::borrowed::{follow, reach_breadth, reach_nearest};
 use crate::domain::tree_join::service::tree_value;
 use ryo_derived::domain::contract::types::MembershipView;
@@ -20,6 +18,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::plan_parts::types::{Direction, Side};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use {crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell};
 pub(crate) struct AxisItem;
 impl OperatorsItem for AxisItem {
     fn prepare(

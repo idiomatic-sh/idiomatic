@@ -22,7 +22,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
+use ryo_values::domain::files::types::SourceView;
 
 use crate::domain::tree_join::service::{source_column, tree_value};
 use ryo_derived::domain::contract::types::{

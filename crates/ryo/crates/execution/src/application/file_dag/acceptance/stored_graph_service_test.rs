@@ -8,12 +8,12 @@ use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
 use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
 use crate::domain::table_model::service::{push_row, row_in};
 use crate::domain::table_model::types::Rows;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, CompactGraph, DerivedInputs, ViewRequest,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;

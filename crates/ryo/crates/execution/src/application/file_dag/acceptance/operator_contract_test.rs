@@ -3,7 +3,6 @@ pub(crate) mod fixtures;
 use crate::application::file_dag::testing::{
     execute, execute_with_port, execute_with_semantic, same_rows,
 };
-use ryo_values::domain::plans::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::service::registered;
 use crate::outbound::operators::interface::OperatorsPort;
@@ -11,6 +10,7 @@ use fixtures::*;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     plans::types::{Operation, OperationKind},

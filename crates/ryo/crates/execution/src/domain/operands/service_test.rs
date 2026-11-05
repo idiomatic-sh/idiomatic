@@ -7,8 +7,11 @@ use super::service::resolve;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::functions::types::MadeText;
 use crate::domain::operating::errors::OperatingError;
-use {crate::domain::table_texts::types::Datum, ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::Texts};
 use ryo_values::domain::plan_parts::types::{Operand, ParameterId, QueryLiteral, WholeNumber};
+use {
+    crate::domain::table_texts::types::Datum, crate::domain::table_texts::types::Texts,
+    ryo_values::domain::files::types::SourceView,
+};
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

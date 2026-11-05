@@ -7,9 +7,6 @@ use crate::domain::features::types::FeatureRows;
 use crate::domain::ordering::types::Ordered;
 use crate::domain::placement::types::PlacedScopes;
 use crate::domain::render::types::Answering;
-use ryo_values::domain::rule_requests::types::RuleParameters;
-use ryo_values::domain::stores::types::Reuse;
-use crate::domain::table_model::types::{};
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::Wants;
 use crate::outbound::lint_store::interface::ReadStore;
@@ -20,10 +17,12 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::records::types::{RowTotal, Unread};
+use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::runs::types::{
     AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
 };
 use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stores::types::Reuse;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, StoredRule};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
@@ -359,6 +358,6 @@ pub(super) struct LintRun<'a> {
     pub wanted: &'a BucketsWanted,
 }
 
-use ryo_values::domain::rule_requests::types::{RuleSpec,Given};
+use ryo_values::domain::rule_requests::types::{Given, RuleSpec};
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};
+use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};

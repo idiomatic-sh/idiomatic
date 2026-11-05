@@ -26,7 +26,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{kinds_of, push_row, row_in};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand, QueryLiteral,
     Side, Test,

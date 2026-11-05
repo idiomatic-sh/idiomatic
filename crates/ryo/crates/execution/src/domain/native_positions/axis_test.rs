@@ -5,11 +5,22 @@ use super::{
     types::{PositionInput, PositionWork},
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use {crate::domain::lowering::types::ElementPart, crate::domain::lowering::types::LoweredColumn, crate::domain::lowering::types::LoweredShape, crate::domain::lowering::types::RowPosition, crate::domain::lowering::types::RowWidth, crate::domain::operating::errors::OperatingError, crate::domain::operating::types::OperatorContext, crate::domain::operator::contract::types::WorkCounters, crate::domain::positions::service_test::SMALL_SOURCE, crate::domain::positions::service_test::rows_over, crate::domain::positions::service_test::small_tree, crate::domain::positions::types::Positions, crate::domain::positions::types::Slots, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepId},
     plans::types::Operation,
+};
+use {
+    crate::domain::lowering::types::ElementPart, crate::domain::lowering::types::LoweredColumn,
+    crate::domain::lowering::types::LoweredShape, crate::domain::lowering::types::RowPosition,
+    crate::domain::lowering::types::RowWidth, crate::domain::operating::errors::OperatingError,
+    crate::domain::operating::types::OperatorContext,
+    crate::domain::operator::contract::types::WorkCounters,
+    crate::domain::positions::service_test::SMALL_SOURCE,
+    crate::domain::positions::service_test::rows_over,
+    crate::domain::positions::service_test::small_tree, crate::domain::positions::types::Positions,
+    crate::domain::positions::types::Slots, crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
 };
 
 fn shape(columns: usize) -> LoweredShape {

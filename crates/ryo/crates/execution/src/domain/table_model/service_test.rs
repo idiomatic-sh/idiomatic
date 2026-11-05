@@ -15,8 +15,6 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_relations::domain::terms::types::NameText;
 
-use ryo_values::domain::rows::errors::TableModelError;
-use {ryo_values::domain::rows::service::cell, super::service::count_of, super::service::kinds_of, super::service::matching, super::service::push_row, super::service::read_row, super::service::reset};
 use super::types::Rows;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::positions::service_test::prepared_index;
@@ -24,6 +22,12 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::types::On;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::errors::TableModelError;
+use {
+    super::service::count_of, super::service::kinds_of, super::service::matching,
+    super::service::push_row, super::service::read_row, super::service::reset,
+    ryo_values::domain::rows::service::cell,
+};
 
 #[test]
 fn compact_materialization_decodes_projected_cells_without_full_row_reads() {

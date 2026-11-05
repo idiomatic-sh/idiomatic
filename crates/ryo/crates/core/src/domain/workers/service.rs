@@ -7,26 +7,23 @@ use super::types::{
     VisitSetting, WorkersMet,
 };
 use crate::domain::coverage::types::RuleIndex;
-use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
-use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use crate::domain::placement::service::{governed, governs, place};
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
-use ryo_values::domain::run_metadata::types::RuleMetadata;
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
+use ryo_values::domain::run_metadata::types::RuleMetadata;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
+use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 
 /// What a worker owns before it reads a file: empty tables, and a pool big enough for any of the plans.
 #[must_use]
-pub(crate) fn tables_for(
-    number: WorkerNumber,
-    metadata: &[RuleMetadata],
-) -> Tables {
+pub(crate) fn tables_for(number: WorkerNumber, metadata: &[RuleMetadata]) -> Tables {
     Tables {
         current_observations: None,
         observations: Vec::new(),
@@ -39,7 +36,10 @@ pub(crate) fn tables_for(
         hits: Hits::default(),
         words: Words::default(),
         packed: PackedWords::default(),
-        fed: metadata.iter().map(|rule| vec![RowsFed::default(); rule.steps.len()]).collect(),
+        fed: metadata
+            .iter()
+            .map(|rule| vec![RowsFed::default(); rule.steps.len()])
+            .collect(),
         kind_vocabulary: None,
         starts: LineStarts(Vec::new()),
         arena: ArenaBytes::default(),

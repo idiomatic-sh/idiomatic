@@ -107,7 +107,8 @@ pub(crate) fn prepare(
         }
         // The original fallible store boundary still executes in frontier order,
         // before any query root. This POC changes cell lifetime, not I/O errors.
-        let bucket = ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(place));
+        let bucket =
+            ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
         let coverage = validate_bucket(program, rule, place, first, bucket, required, &words)?;
         if memory {
@@ -206,7 +207,9 @@ pub(crate) fn validate_bucket(
         reason: "frontier source proof does not match the prepared program".into(),
     };
     let expected = program.rule_digest(rule)?;
-    if ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(input)) != bucket {
+    if ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(input))
+        != bucket
+    {
         return Err(refuse());
     }
     let mut at = 0;

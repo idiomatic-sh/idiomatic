@@ -1,7 +1,6 @@
 //! The prepared native pass keeps independent class results and never publishes.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use {crate::domain::coverage::types::RuleIndex, crate::domain::operating::types::OperatorContext, crate::domain::positions::service_test::SMALL_SOURCE, crate::domain::positions::service_test::SmallTree, crate::domain::positions::service_test::small_tree, crate::domain::positions::types::ClassPlace, crate::domain::shared_walk::service::evaluate, crate::domain::shared_walk::types::RuleActivity, crate::domain::shared_walk::types::WalkWork, crate::domain::shared_walk::types::prepared_walk::value::NativeBatch, crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk, crate::domain::table_cells::types::TreeForm, crate::domain::table_cells::types::TreeRows, crate::domain::table_model::types::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::{
     completion::service::{completion, name_kind},
     elements::service::{enter_node, leave_node, table_builder, token},
@@ -19,6 +18,19 @@ use ryo_values::domain::{
         Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+};
+use {
+    crate::domain::coverage::types::RuleIndex, crate::domain::operating::types::OperatorContext,
+    crate::domain::positions::service_test::SMALL_SOURCE,
+    crate::domain::positions::service_test::SmallTree,
+    crate::domain::positions::service_test::small_tree,
+    crate::domain::positions::types::ClassPlace, crate::domain::shared_walk::service::evaluate,
+    crate::domain::shared_walk::types::RuleActivity, crate::domain::shared_walk::types::WalkWork,
+    crate::domain::shared_walk::types::prepared_walk::value::NativeBatch,
+    crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+    crate::domain::table_cells::types::TreeForm, crate::domain::table_cells::types::TreeRows,
+    crate::domain::table_model::types::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
 };
 
 fn plan(name: &str) -> Plan {
@@ -354,4 +366,4 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

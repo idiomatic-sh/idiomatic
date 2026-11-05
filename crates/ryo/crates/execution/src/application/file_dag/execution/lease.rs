@@ -10,7 +10,6 @@ use crate::domain::operating::{
 use crate::domain::operator::contract::{
     context::with_primitive_context, types::*, views::BorrowedRows,
 };
-use {ryo_values::domain::rows::service::cell, crate::domain::table_model::service::reset, crate::domain::table_model::types::Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::{
     service::datum,
@@ -18,6 +17,10 @@ use crate::domain::table_texts::{
 };
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
+use {
+    crate::domain::table_model::service::reset, crate::domain::table_model::types::Verdict,
+    ryo_values::domain::rows::service::cell,
+};
 
 /// The executable lease belongs to the application invocation owner. A pure
 /// borrowed context cannot be promoted into a registered call by a sibling.

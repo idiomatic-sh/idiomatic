@@ -30,4 +30,3 @@ pub(crate) mod visit;
 pub(crate) mod workers;
 
 // Demand-root join semantics now execute through the mandatory registered primitive.
-/// Complete stored indexes owned by a single physical file generation.

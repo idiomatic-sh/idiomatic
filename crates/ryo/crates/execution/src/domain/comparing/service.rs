@@ -19,8 +19,7 @@ use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::family_of;
 use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount, OperatorContext};
-use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
-use crate::domain::table_model::types::{Verdict};
+use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::{
     ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
     SubjectHash, SubjectTag, VerdictKey,
@@ -28,6 +27,7 @@ use crate::domain::table_scratch::types::{
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
 
 /// How many verdicts about texts a worker keeps from file to file.
 const VERDICTS: usize = 1 << 14;
@@ -426,4 +426,4 @@ pub(crate) fn holds_some(
     Ok(Verdict::Holds)
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

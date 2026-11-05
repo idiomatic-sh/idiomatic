@@ -4,12 +4,12 @@ use super::fake::one_function;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
-use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_words::service::{pack, unpacked};
 use crate::domain::table_words::types::WordSlice;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 

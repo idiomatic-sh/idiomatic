@@ -9,7 +9,6 @@ use crate::domain::table_model::collections::representations::{
 };
 use crate::domain::table_model::types::{SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::{
     elements::{
         service::{enter_node, leave_node, table_builder, token},
@@ -21,6 +20,7 @@ use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
     types::{ColumnsView, FactColumn, FileId, Integer, KindBits, Offset},
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
     plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},

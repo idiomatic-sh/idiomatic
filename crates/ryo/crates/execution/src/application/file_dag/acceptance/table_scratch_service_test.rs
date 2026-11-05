@@ -64,9 +64,9 @@ fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
     use crate::domain::operator::collections::operators::project::item::ProjectItem;
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::Rows;
-    use {ryo_values::domain::files::types::SourceView};
     use ryo_language::domain::symbols::types::Symbols;
     use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
+    use ryo_values::domain::files::types::SourceView;
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows};
     use ryo_values::domain::plans::types::Operation;
     let mut input = Table {
@@ -139,11 +139,11 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
     use crate::domain::operator::collections::operators::select::item::SelectItem;
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::Rows;
-    use {ryo_values::domain::files::types::SourceView};
     use ryo_language::domain::symbols::service::intern_derived;
     use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
     use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
     use ryo_relations::domain::terms::types::NameText;
+    use ryo_values::domain::files::types::SourceView;
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison, Input, Operand, Test};
     use ryo_values::domain::plans::types::Operation;
     let operation = Operation::Select {
@@ -209,7 +209,7 @@ fn aggregation_resources_are_engine_owned_and_released() {
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operator::service::registered;
     use crate::domain::table_model::types::Rows;
-    use {ryo_values::domain::files::types::SourceView};
+    use ryo_values::domain::files::types::SourceView;
     use ryo_values::domain::plans::types::OperationKind;
     for kind in [OperationKind::GroupCount, OperationKind::GroupDigest] {
         let mut case = fixture(kind);

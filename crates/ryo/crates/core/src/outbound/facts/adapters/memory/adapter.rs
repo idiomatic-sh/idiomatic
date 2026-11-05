@@ -11,8 +11,12 @@ use ryo_relations::domain::relations::types::Relation;
 use super::constants::SCHEMAS;
 use super::types::RefusalText;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
-use ryo_execution::inbound::use_cases::execution::types::facts::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    BucketSource, ColumnsMut, KeptBucket, WordsToKeep,
+};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsFinish, FactsPort, FactsWorker,
+};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -43,7 +47,9 @@ struct MemoryWorker {
 }
 
 impl FactsWorker for MemoryWorker {
-    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
         ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Stable
     }
 
@@ -77,7 +83,10 @@ impl FactsWorker for MemoryWorker {
         if words.words.0.is_empty() {
             return Err(refused(RefusalText(SCHEMAS)));
         }
-        let mut buckets = self.words.lock().map_err(|_| refused(RefusalText(SCHEMAS)))?;
+        let mut buckets = self
+            .words
+            .lock()
+            .map_err(|_| refused(RefusalText(SCHEMAS)))?;
         let kept = buckets.entry(bucket).or_default();
         let start = kept.words.0.0.len();
         kept.words.0.0.extend_from_slice(&words.words.0);
@@ -107,7 +116,10 @@ impl FactsWorker for MemoryWorker {
 
     fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         Ok(Box::new(MemoryFinish {
-            kept: self.words.into_inner().map_err(|_| refused(RefusalText(SCHEMAS)))?,
+            kept: self
+                .words
+                .into_inner()
+                .map_err(|_| refused(RefusalText(SCHEMAS)))?,
         }))
     }
 }

@@ -14,7 +14,7 @@ use crate::domain::operator::collections::operators::words::item::WordsItem;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plans::types::Operation;

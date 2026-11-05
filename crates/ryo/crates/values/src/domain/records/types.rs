@@ -401,4 +401,3 @@ pub struct CrossPublicationTransfer {
     pub arena: ArenaBytes,
     pub roots: Vec<PackedObservedRoot>,
 }
-

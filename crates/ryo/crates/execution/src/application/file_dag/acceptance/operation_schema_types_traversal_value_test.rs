@@ -6,9 +6,7 @@ use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::traversal::value::TraversalShape;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use {ryo_values::domain::rows::errors::TableModelError, crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::push_row, crate::domain::table_model::types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
     types::Elements,
@@ -18,10 +16,15 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell,
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, Input as Source, JoinColumn, Side,
 };
 use ryo_values::domain::plans::types::Operation;
+use {
+    crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::push_row,
+    crate::domain::table_model::types::Rows, ryo_values::domain::rows::errors::TableModelError,
+};
 
 /// One native or invalid traversal contract.
 #[derive(Clone, Copy)]

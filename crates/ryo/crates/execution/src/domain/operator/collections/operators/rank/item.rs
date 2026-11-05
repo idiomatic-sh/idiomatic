@@ -4,12 +4,12 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use ryo_values::domain::rows::service::cell;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::service::cell;
 pub(crate) struct RankItem;
 impl OperatorsItem for RankItem {
     fn prepare(

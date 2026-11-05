@@ -52,6 +52,3 @@ pub(crate) struct Texts<'a> {
     /// The text each worker made, by worker number: where a name that has left its file keeps its text.
     pub arenas: &'a [ArenaBytes],
 }
-
-/// The bytes of a file, borrowed: what the text of its names is read from.
-

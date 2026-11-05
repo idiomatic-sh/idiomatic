@@ -5,11 +5,13 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsPort, FactsWorker};
-use ryo_execution::inbound::use_cases::execution::types::facts::{ColumnsMut, WordsToKeep};
 use ryo_core::outbound::lint_store::errors::LintStoreError;
 use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::inbound::use_cases::execution::types::facts::{ColumnsMut, WordsToKeep};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsFinish, FactsPort, FactsWorker,
+};
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -30,7 +32,9 @@ pub(crate) struct CountingWorker {
 }
 
 impl FactsWorker for CountingWorker {
-    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
         self.inner.resident_stability()
     }
 
@@ -42,7 +46,12 @@ impl FactsWorker for CountingWorker {
     }
     fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         // A packed word ends at the byte whose high bit is clear: the count is of words, not of bytes.
-        let count = words.words.0.iter().filter(|byte| *byte & 0x80 == 0).count();
+        let count = words
+            .words
+            .0
+            .iter()
+            .filter(|byte| *byte & 0x80 == 0)
+            .count();
         let _before = self.words.fetch_add(count, Ordering::Relaxed);
         self.inner.keep(bucket, words)
     }

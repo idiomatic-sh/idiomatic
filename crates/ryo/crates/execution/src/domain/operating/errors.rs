@@ -1,7 +1,7 @@
 //! The `operating` concept's failures.
 
-use ryo_values::domain::rows::errors::TableModelError;
 use ryo_language::domain::semantics::types::RenderError;
+use ryo_values::domain::rows::errors::TableModelError;
 
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

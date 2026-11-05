@@ -1,10 +1,6 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
 use crate::application::run_coordination::crossing::cross_rule_with_inputs;
 use crate::application::run_coordination::settings::CrossingInput;
-use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, PreparedExecution};
-use ryo_execution::inbound::use_cases::execution::types::{
-    PreparedFrontiers, ProjectScope, PublicationSlot, BoundInput,
-};
 use crate::domain::answering::types::{Crossed, Todo};
 use crate::domain::crossing::service::placeable;
 use crate::domain::crossing::types::Placeability;
@@ -12,7 +8,6 @@ use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::service::{
     column_cell, founds, line_cell, place_all, shown_cell, source_of,
 };
-use {crate::domain::finish::types::Arenas, crate::domain::finish::types::FoundRow, crate::domain::finish::types::HeldFile, crate::domain::finish::types::Loaded, crate::domain::finish::types::Resolving, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::ordering::service::{order_alike, sort_findings};
 use crate::domain::placement::service::{governs, place};
 use crate::domain::placement::types::{Governing, Mask};
@@ -21,20 +16,31 @@ use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
 };
 use crate::domain::reporting::service::order_found;
-use {ryo_values::domain::rule_requests::errors::RulesError};
 use crate::domain::rules::service::failed;
-use ryo_values::domain::rows::service::cell;
-use ryo_values::domain::files::types::SourceView;
 use crate::outbound::corpus::interface::CorpusPort;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    ExecutionRequest, PreparedExecution,
+};
+use ryo_execution::inbound::use_cases::execution::types::{
+    BoundInput, PreparedFrontiers, ProjectScope, PublicationSlot,
+};
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Value};
 use ryo_values::domain::files::types::Hits;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::RenderedText;
 use ryo_values::domain::records::types::RowTotal;
 use ryo_values::domain::records::types::{Cell, CellText, TextRange};
+use ryo_values::domain::rows::service::cell;
+use ryo_values::domain::rule_requests::errors::RulesError;
+use {
+    crate::domain::finish::types::Arenas, crate::domain::finish::types::FoundRow,
+    crate::domain::finish::types::HeldFile, crate::domain::finish::types::Loaded,
+    crate::domain::finish::types::Resolving, ryo_values::domain::runs::types::RuleNumber,
+};
 
 use std::sync::Arc;
 /// Cross-file work sharing the caller's corpus resource.
@@ -65,12 +71,14 @@ impl CrossFile {
         frontier: PreparedFrontiers,
         cross: &mut Symbols,
     ) -> Result<Crossed, RulesError> {
-        let scope = crossing.services.project_scope(
-            todo.rule,
-            crossing.files,
-            crossing.covered,
-            crossing.skipped,
-        )
+        let scope = crossing
+            .services
+            .project_scope(
+                todo.rule,
+                crossing.files,
+                crossing.covered,
+                crossing.skipped,
+            )
             .map_err(|error| failed(&todo.id, &error))?;
         self.evaluate_phase(
             crossing,

@@ -22,7 +22,6 @@ use ryo_relations::domain::relations::types::{
     Bits, CellKind, ColumnsView, Flag, Integer, Position, Relation, Value,
 };
 
-use ryo_values::domain::rows::errors::TableModelError;
 use super::types::Rows;
 use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
@@ -30,6 +29,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
 use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::errors::TableModelError;
 
 /// The row at `index`, when the table has that many rows.
 #[must_use]

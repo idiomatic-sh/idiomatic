@@ -4,15 +4,15 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::family_of;
 use crate::domain::operating::types::{Family, OperatorContext};
 use crate::domain::operator::collections::operators::antijoin::item::AntijoinItem;
-use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Test};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::errors::TableModelError;
 
 fn numbers(values: &[i64]) -> Table {
     let mut table = Table {

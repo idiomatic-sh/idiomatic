@@ -5,13 +5,13 @@ use ryo_relations::domain::relations::types::Value;
 use crate::domain::functions::service::apply;
 use crate::domain::functions::types::MadeText;
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::rows::service::cell;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, TextView, Texts};
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::plan_parts::types::{Applied, Operand, QueryLiteral};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::service::cell;
 
 /// What one side of a comparison is for one row: borrowed from the row's texts, the bound
 /// parameters or the plan, so that comparing allocates nothing; a function's text is written into `made`.

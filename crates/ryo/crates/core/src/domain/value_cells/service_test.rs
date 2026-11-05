@@ -1,6 +1,5 @@
 //! The `value_cells` service's cases, on values alone.
 
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::{intern, places_mut};
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -14,6 +13,7 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_relations::domain::terms::service::unknown_symbol;
 use ryo_relations::domain::terms::types::{ReasonName, UnknownName, UnknownReason};
+use ryo_values::domain::files::types::SourceView;
 
 use super::service::value_cell;
 use crate::cases::{Case, CaseName, Expect, Word, run};

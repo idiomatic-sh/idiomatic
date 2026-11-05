@@ -16,17 +16,17 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
 use ryo_derived::domain::contract::types::Finding;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::errors::TableModelError;
 
 /// What a row asks: the stretch on the left, and how it is held.
 type Input = fn() -> Result<[u32; 4], OperatingError>;

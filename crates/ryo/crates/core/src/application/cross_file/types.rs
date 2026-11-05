@@ -10,7 +10,8 @@ pub(crate) struct CrossedWithPublications {
 /// Required resources for the existing cross ready batches; no optional owner/fallback executor.
 pub(crate) struct ObservationRun<'a> {
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
-    pub program: std::sync::Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    pub program:
+        std::sync::Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
     pub services: &'a ryo_execution::inbound::use_cases::execution::types::RequestExecution,
     pub scheduler: &'a dyn crate::outbound::scheduler::interface::SchedulerPort,
     pub workers: crate::outbound::scheduler::types::WorkerCount,

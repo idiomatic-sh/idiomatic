@@ -3,23 +3,22 @@
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::KnownSyntax;
 use crate::application::file_dag::cross_execution::compute;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use {crate::domain::features::service::catalog, ryo_values::domain::plans::service::kind_of};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::service::schema_of;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},
 };
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
+use {crate::domain::features::service::catalog, ryo_values::domain::plans::service::kind_of};
 
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{};
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell,
@@ -531,4 +530,4 @@ fn hosted_without_its_request_source_is_missing_not_an_unsupported_operation() {
 
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};
+use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};

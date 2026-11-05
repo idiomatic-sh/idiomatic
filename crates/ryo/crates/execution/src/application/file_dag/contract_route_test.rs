@@ -9,7 +9,6 @@ use crate::application::file_dag::pipeline::service::evaluate_file_with_executor
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::service::GraphInputs;
 use crate::domain::coverage::types::{Lacking, Partial, Partials};
-use ryo_values::domain::plans::service::kind_of;
 use crate::domain::file_program::service::compile_prepared;
 use crate::domain::operating::{
     errors::OperatingError,
@@ -24,9 +23,8 @@ use crate::domain::operator::{
 };
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{Rows};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use fixtures::{SOURCE, fixture};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::{
@@ -43,6 +41,8 @@ use ryo_relations::domain::relations::{
     },
 };
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::files::types::SourceView;
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation},
     plan_parts::types::{
@@ -939,4 +939,4 @@ fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
     )
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

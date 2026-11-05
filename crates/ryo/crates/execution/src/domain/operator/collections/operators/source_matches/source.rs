@@ -1,9 +1,9 @@
 //! Checked physical-source gate, shared by the engine and occurrence evaluator.
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::rows::service::cell;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::service::cell;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ValidatedSource<'a> {

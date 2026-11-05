@@ -70,24 +70,33 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, KeptWords};
 use crate::application::file_dag::settings::VisitSetting;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::coverage::types::{Recovery, RuleIndex};
-use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
 use crate::domain::placement::types::{PlacedScopes, ScopePlacement};
-use {crate::domain::reading::service::begin, crate::domain::reading::service::capture_frontier, crate::domain::reading::service::engine_asked, crate::domain::reading::service::first_buckets, ryo_values::domain::stored_facts::service::frontier_bucket, crate::domain::reading::service::prepare_frontier, crate::domain::reading::service::settle, crate::domain::reading::service::start_partials};
 use crate::domain::reading::types::EngineRows;
 use crate::domain::render::types::{RowNumber, RowOrder};
-use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Tables;
 use crate::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::Cell as Typed;
 use ryo_values::domain::records::types::CellText;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::RuleId;
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    ryo_values::domain::runs::types::RuleNumber,
+};
+use {
+    crate::domain::reading::service::begin, crate::domain::reading::service::capture_frontier,
+    crate::domain::reading::service::engine_asked, crate::domain::reading::service::first_buckets,
+    crate::domain::reading::service::prepare_frontier, crate::domain::reading::service::settle,
+    crate::domain::reading::service::start_partials,
+    ryo_values::domain::stored_facts::service::frontier_bucket,
+};
 
 /// What the last run kept, for a run that uses nothing of it.
 static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =

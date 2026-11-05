@@ -5,7 +5,6 @@ use crate::domain::coverage::service::partial_of;
 use crate::domain::coverage::types::Recovery;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::service::escape;
-use {crate::domain::finish::types::Arena, crate::domain::finish::types::Leaves, crate::domain::finish::types::Leaving, crate::domain::finish::types::Retained, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
 use crate::domain::operator::types::RuleWorkspace;
@@ -14,11 +13,15 @@ use crate::domain::placement::service::governs;
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
-use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_values::domain::rule_requests::errors::RulesError;
+use {
+    crate::domain::finish::types::Arena, crate::domain::finish::types::Leaves,
+    crate::domain::finish::types::Leaving, crate::domain::finish::types::Retained,
+    ryo_values::domain::runs::types::RuleNumber,
+};
 
-use {ryo_values::domain::files::types::SourceView};
 use crate::domain::table_words::service::{encode_table, pack_onto};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::Needs;
@@ -26,6 +29,7 @@ use crate::domain::value_cells::types::Scene;
 use crate::domain::workers::types::{Tables, VisitSetting};
 use ryo_language::domain::elements::service::clear_elements;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::PlacedRule;

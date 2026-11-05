@@ -8,9 +8,8 @@ use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, Rul
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
-use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier };
+use crate::domain::table_model::types::Frontier;
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::service::files_for;
@@ -21,6 +20,7 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
     Value as Cell, Words, WorkerNumber,
 };
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::PartialCause;
 
@@ -438,13 +438,21 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     use crate::application::file_dag::{
         execution::CommonOperatorEngine, executor::PrimitiveExecutor, feed::Feed,
     };
-    use {crate::domain::operating::errors::OperatingError, crate::domain::operating::types::OperatorContext, crate::domain::operating::types::Room, crate::domain::operator::contract::types::OperatorContract, crate::domain::operator::contract::types::RequestOperators, crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
     use ryo_values::domain::{
         observations::types::{
             ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
             ProducerReadiness,
         },
         plans::types::OperationKind,
+    };
+    use {
+        crate::domain::operating::errors::OperatingError,
+        crate::domain::operating::types::OperatorContext, crate::domain::operating::types::Room,
+        crate::domain::operator::contract::types::OperatorContract,
+        crate::domain::operator::contract::types::RequestOperators,
+        crate::domain::table_model::types::Rows,
+        crate::domain::table_scratch::types::OperatorScratch,
+        ryo_values::domain::files::types::SourceView,
     };
     #[derive(Debug)]
     struct RefuseCount(CommonOperatorEngine);
@@ -591,4 +599,4 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     }
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

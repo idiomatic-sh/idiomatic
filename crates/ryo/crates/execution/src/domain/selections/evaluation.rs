@@ -15,8 +15,6 @@ use crate::domain::operating::types::{
 use crate::domain::replay::types::{Collect, Pipe};
 use crate::domain::table_cells::service::{read_cells, read_tree_cells};
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
-use ryo_values::domain::rows::errors::TableModelError;
-use {ryo_values::domain::rows::service::cell, crate::domain::table_model::service::cell_at, ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::count_of, crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::positions, crate::domain::table_model::service::read_row, crate::domain::table_model::service::rectangular, crate::domain::table_model::service::reset};
 use crate::domain::table_model::types::{Rows, SelectedRows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
 use crate::domain::text_gate::service::{
@@ -24,6 +22,14 @@ use crate::domain::text_gate::service::{
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::errors::TableModelError;
+use {
+    crate::domain::table_model::service::cell_at, crate::domain::table_model::service::count_of,
+    crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::positions,
+    crate::domain::table_model::service::read_row,
+    crate::domain::table_model::service::rectangular, crate::domain::table_model::service::reset,
+    ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,
+};
 
 /// `select`, one item of the `operators` collection.
 

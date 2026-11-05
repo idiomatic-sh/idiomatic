@@ -15,9 +15,9 @@ use crate::domain::stored_graph::{
     types::traversal::value::GraphTraversal,
     types::{GraphWalk, Orientation},
 };
-use {ryo_values::domain::rows::service::cell, crate::domain::table_model::types::Rows};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
+use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::service::cell};
 
 /// One request-bound plan with invocation-local traversal buffers. Exact cache
 /// identity and bounded retention remain in `CacheBackend` and `graph_cache`.

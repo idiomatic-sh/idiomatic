@@ -2,13 +2,17 @@
 use super::super::*;
 use super::owner_inputs::{TestInputs, value};
 use crate::application::file_dag::completion::CompletionPolicy;
-use {crate::domain::coverage::types::RuleIndex, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
 use ryo_values::domain::rows::types::Table;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
+};
+use {
+    crate::domain::coverage::types::RuleIndex,
+    crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
 };
 
 #[derive(Clone, Copy)]

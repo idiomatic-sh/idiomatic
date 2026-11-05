@@ -2,12 +2,6 @@
 use super::errors::CrossError;
 use super::{service::CrossFile, types::ObservationRun};
 use crate::application::run_coordination::settings::CrossingInput;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, ObservationExecution, ObservationPublication, PreparedExecution,
-};
-use ryo_execution::inbound::use_cases::execution::types::{
-    BoundInput, FrontierDemand, FrontierRequest, ProjectScope, PublicationSlot,
-};
 use crate::domain::{
     answering::{
         service::settle,
@@ -15,6 +9,12 @@ use crate::domain::{
     },
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
+};
+use ryo_execution::inbound::use_cases::execution::interface::{
+    ExecutionRequest, ObservationExecution, ObservationPublication, PreparedExecution,
+};
+use ryo_execution::inbound::use_cases::execution::types::{
+    BoundInput, FrontierDemand, FrontierRequest, ProjectScope, PublicationSlot,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -37,7 +37,9 @@ impl CrossFile {
         let mut stage = run.services.observations(arenas)?;
         let mut selected = vec![false; run.domain.metadata.len()];
         for todo in run.todo {
-            *selected.get_mut(todo.rule.0).ok_or(OperatingError::NotRun)? = true;
+            *selected
+                .get_mut(todo.rule.0)
+                .ok_or(OperatingError::NotRun)? = true;
         }
         for (rule, selected) in selected.iter().enumerate() {
             if !selected {
@@ -48,9 +50,11 @@ impl CrossFile {
             .domain
             .observations
             .iter()
-            .map(|frame| ryo_execution::inbound::use_cases::execution::types::FileObservationReadiness {
-                file: frame.file,
-                root: std::sync::Arc::clone(&frame.root),
+            .map(|frame| {
+                ryo_execution::inbound::use_cases::execution::types::FileObservationReadiness {
+                    file: frame.file,
+                    root: std::sync::Arc::clone(&frame.root),
+                }
             })
             .collect::<Vec<_>>();
         stage.restore_frontiers(
@@ -170,24 +174,28 @@ fn prepare_frontiers(
     scope: &ProjectScope,
     ready: &[bool],
     symbols: &mut Symbols,
-) -> Result<ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers, crate::domain::rules::errors::RulesError> {
+) -> Result<
+    ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers,
+    crate::domain::rules::errors::RulesError,
+> {
     let failed =
         |error: &dyn std::fmt::Display| crate::domain::rules::service::failed(&todo.id, error);
     let first = *run
         .first_bucket
         .get(todo.rule.0)
         .ok_or_else(|| failed(&OperatingError::NotRun))?;
-    run.services.prepare_frontiers(
-        FrontierRequest {
-            scope,
-            rule: todo.rule,
-            first,
-            facts: run.facts,
-            project: run.project,
-            project_symbols: run.project_symbols,
-            demand: FrontierDemand::Observations { ready },
-        },
-        symbols,
-    )
-    .map_err(|error| failed(&error))
+    run.services
+        .prepare_frontiers(
+            FrontierRequest {
+                scope,
+                rule: todo.rule,
+                first,
+                facts: run.facts,
+                project: run.project,
+                project_symbols: run.project_symbols,
+                demand: FrontierDemand::Observations { ready },
+            },
+            symbols,
+        )
+        .map_err(|error| failed(&error))
 }

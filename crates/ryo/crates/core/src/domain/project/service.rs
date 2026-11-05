@@ -1,13 +1,13 @@
 //! The `project` service: free functions named by verb over what the rules read of the project, with no IO and no ports.
 
 use super::types::PlanReads;
-use ryo_values::domain::run_metadata::types::RuleMetadata;
-use ryo_values::domain::stores::types::MadeAgain;
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};
+use ryo_values::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// Whether the cross-file steps of a plan read what the project writes - the manifests and how the files link to one another.
 #[must_use]

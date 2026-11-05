@@ -8,10 +8,13 @@ use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 
 use super::service::datum;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::errors::TableModelError;
-use {crate::domain::table_texts::types::Datum, ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::TextView, crate::domain::table_texts::types::Texts};
 use ryo_values::domain::plan_parts::types::WholeNumber;
+use ryo_values::domain::rows::errors::TableModelError;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
+use {
+    crate::domain::table_texts::types::Datum, crate::domain::table_texts::types::TextView,
+    crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
+};
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, TableModelError>;

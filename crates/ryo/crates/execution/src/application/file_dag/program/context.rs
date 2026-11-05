@@ -3,13 +3,18 @@
 use super::{
     facade::PreparedProgram, facade_runtime::ProgramServices, request_identity::RequestIdentity,
 };
-use {crate::domain::coverage::types::RuleIndex, crate::domain::operating::errors::OperatingError, crate::domain::operating::types::Memo, crate::domain::operating::types::OperatorContext, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::{
     service::{same_transport_generation, transport_permit},
     types::{Symbols, TransportPermit},
 };
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::Arc;
+use {
+    crate::domain::coverage::types::RuleIndex, crate::domain::operating::errors::OperatingError,
+    crate::domain::operating::types::Memo, crate::domain::operating::types::OperatorContext,
+    crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
+};
 
 pub(super) struct RunContext<'a> {
     request: Arc<RequestIdentity>,

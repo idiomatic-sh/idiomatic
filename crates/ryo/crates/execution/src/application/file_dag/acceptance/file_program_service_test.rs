@@ -8,7 +8,6 @@ use crate::application::file_dag::{
     },
     testing::FileScope,
 };
-use {crate::domain::file_program::service::compile_prepared, crate::domain::operating::errors::OperatingError, crate::domain::operating::types::OperatorContext, crate::domain::operator::service::pool_for, crate::domain::operator::types::PreparedPool, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Relation, Value,
@@ -22,6 +21,14 @@ use ryo_values::domain::{
     rows::types::{RowCount, Table},
 };
 use std::{cell::Cell, sync::Arc};
+use {
+    crate::domain::file_program::service::compile_prepared,
+    crate::domain::operating::errors::OperatingError,
+    crate::domain::operating::types::OperatorContext, crate::domain::operator::service::pool_for,
+    crate::domain::operator::types::PreparedPool,
+    crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
+};
 
 fn request(
     plans: &[Plan],
@@ -229,12 +236,16 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
     }
     let bound_plans = [dynamic.clone(), dynamic];
     let bound_values = [
-        vec![ryo_values::domain::query_bindings::types::ParameterBinding::Text(
-            LiteralText("main".into()),
-        )],
-        vec![ryo_values::domain::query_bindings::types::ParameterBinding::Text(
-            LiteralText("other".into()),
-        )],
+        vec![
+            ryo_values::domain::query_bindings::types::ParameterBinding::Text(LiteralText(
+                "main".into(),
+            )),
+        ],
+        vec![
+            ryo_values::domain::query_bindings::types::ParameterBinding::Text(LiteralText(
+                "other".into(),
+            )),
+        ],
     ];
     let bound = Arc::new(compile_prepared(
         &bound_plans,

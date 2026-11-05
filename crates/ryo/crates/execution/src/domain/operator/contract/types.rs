@@ -2,12 +2,12 @@
 use super::views::{BorrowedRows, IndexedRows};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// This affects error/publication timing, not which primitive implementation runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

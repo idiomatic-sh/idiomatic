@@ -1,6 +1,5 @@
 //! Capacity snapshots neither decode, copy nor mutate the owned handover buffers.
 
-use ryo_values::domain::records::types::retention::value::RetainedBytes;
 use crate::domain::storing::service::stored_of;
 use crate::domain::storing::types::ToKeep;
 use crate::domain::table_model::types::Frontier;
@@ -8,6 +7,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::records::types::retention::value::RetainedBytes;
 use ryo_values::domain::records::types::{
     FileOutcome, FindingRows, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
 };
@@ -127,7 +127,10 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
             count: RowCount(1),
         },
     });
-    let observed = RetainedBytes::inputs(inputs.capacity() * size_of::<Frontier>(), inputs.iter().map(|input| &input.table));
+    let observed = RetainedBytes::inputs(
+        inputs.capacity() * size_of::<Frontier>(),
+        inputs.iter().map(|input| &input.table),
+    );
     assert_eq!(
         (
             observed.objects,

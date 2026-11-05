@@ -3,13 +3,13 @@
 use super::service::{decide, governs, place};
 use super::types::{Governing, Mask, PlacedScopes, RuleScope};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use ryo_values::domain::runs::types::RuleNumber;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::Hits;
+use ryo_values::domain::runs::types::RuleNumber;
 
 /// What a row of the cases does: the scopes of the rules, and the path placed.
 type Input = (

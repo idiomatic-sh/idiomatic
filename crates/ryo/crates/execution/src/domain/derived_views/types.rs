@@ -1,5 +1,4 @@
 //! Closed typed requirements, construction storage and immutable borrowed access.
-use {crate::domain::operator::contract::resources::DfsResources, crate::domain::operator::contract::types::PredicateProgram, crate::domain::operator::contract::views::BorrowedRows, crate::domain::stored_graph::types::GraphSource, crate::domain::stored_selection::types::Selector, crate::domain::table_cells::types::TreeRows, ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::Texts};
 use ryo_language::domain::{
     files::types::FilePath,
     symbols::types::{QuerySymbols, Symbols},
@@ -10,6 +9,14 @@ use ryo_values::domain::{
     stored_facts::types::ArenaBytes,
 };
 use std::sync::Arc;
+use {
+    crate::domain::operator::contract::resources::DfsResources,
+    crate::domain::operator::contract::types::PredicateProgram,
+    crate::domain::operator::contract::views::BorrowedRows,
+    crate::domain::stored_graph::types::GraphSource,
+    crate::domain::stored_selection::types::Selector, crate::domain::table_cells::types::TreeRows,
+    crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {

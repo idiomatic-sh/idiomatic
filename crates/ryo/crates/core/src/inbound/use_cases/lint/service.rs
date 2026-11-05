@@ -3,13 +3,16 @@
 use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
 use crate::domain::reading::service::buckets_of;
-use {crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain, ryo_values::domain::stores::types::Reuse};
 use crate::outbound::lint_store::interface::ReadStore;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::Record;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, StoredHanded};
 use std::sync::Arc;
+use {
+    crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain,
+    ryo_values::domain::stores::types::Reuse,
+};
 
 /// What a task's slot holds once the workers are done: its answer.
 ///
@@ -150,7 +153,9 @@ pub(super) fn observed_notes(
         observed_memory(
             phase,
             "worker_notes",
-            ryo_values::domain::records::types::retention::value::RetainedBytes::worker_notes(notes),
+            ryo_values::domain::records::types::retention::value::RetainedBytes::worker_notes(
+                notes,
+            ),
         );
     }
 }

@@ -3,11 +3,11 @@
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{PredicateProgram, PreparedPredicates};
-use crate::domain::table_model::types::{Verdict};
-use {ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::Texts};
+use crate::domain::table_model::types::Verdict;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
+use {crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView};
 
 pub(crate) struct BoundPredicate<'a> {
     pub program: &'a PreparedPredicates,
@@ -141,4 +141,4 @@ mod tests {
     }
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

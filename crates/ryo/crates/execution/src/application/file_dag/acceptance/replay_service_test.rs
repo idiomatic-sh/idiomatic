@@ -8,15 +8,15 @@ use crate::domain::operator::collections::operators::{
 };
 use crate::domain::replay::service::scan;
 use crate::domain::replay::types::{Collect, Pipe};
-use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::errors::TableModelError;
 const SOURCE: &[u8] = b"replayed";
 
 fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {

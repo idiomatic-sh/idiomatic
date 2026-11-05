@@ -7,11 +7,11 @@ use super::service::count_groups;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_groups::types::CountRoom;
-use ryo_values::domain::rows::errors::TableModelError;
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::inbound::use_cases::operators::interface::{
     OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
 };
+use ryo_values::domain::rows::errors::TableModelError;
 
 #[derive(Debug)]
 pub(super) struct TestOperators;

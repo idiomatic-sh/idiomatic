@@ -6,8 +6,13 @@ use super::{
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::types::ProjectScope;
 use ryo_execution::inbound::use_cases::execution::types::{BoundInput, PreparedFrontiers};
-use {crate::domain::answering::types::Todo, crate::domain::coverage::types::Partials, crate::domain::crossing::service::partials_for, crate::domain::crossing::service::partials_for_reads, ryo_values::domain::rule_requests::errors::RulesError, crate::domain::rules::service::failed};
 use ryo_language::domain::symbols::types::Symbols;
+use {
+    crate::domain::answering::types::Todo, crate::domain::coverage::types::Partials,
+    crate::domain::crossing::service::partials_for,
+    crate::domain::crossing::service::partials_for_reads, crate::domain::rules::service::failed,
+    ryo_values::domain::rule_requests::errors::RulesError,
+};
 
 pub(crate) fn cross_rule_with_inputs(
     crossing: &CrossingInput<'_>,

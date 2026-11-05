@@ -807,8 +807,12 @@ struct UnstableResidentFacts {
     /// Source reads remain observable even when their shapes agree.
     reads: std::sync::atomic::AtomicUsize,
 }
-impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker for UnstableResidentFacts {
-    fn resident_stability(&self) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
+    for UnstableResidentFacts
+{
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
         ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Unstable
     }
     fn columns_mut(
@@ -847,7 +851,9 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker for
     ) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
         self.inner.keep(bucket, words)
     }
-    fn release(&mut self) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
+    fn release(
+        &mut self,
+    ) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
         self.inner.release()
     }
     fn finished(

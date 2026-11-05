@@ -10,7 +10,6 @@ use crate::domain::operator::service::pool_for;
 use crate::domain::operator::types::{Pool, PreparedPool};
 use crate::domain::table_model::service::take_read_row_counts;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::{node_id, to_bits};
@@ -18,6 +17,7 @@ use ryo_relations::domain::relations::types::{
     ColumnsView, FactColumn, FileId, Integer, Offset, Position, Relation, Span, Value as Cell,
 };
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows,
     Side, StepId, Test,

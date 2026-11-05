@@ -1,6 +1,5 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
 use super::*;
-use {crate::domain::operating::types::OperatorContext, crate::domain::operator::contract::views::BorrowedRows, crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use resource_fixture::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
@@ -10,6 +9,12 @@ use ryo_relations::domain::relations::types::{
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, JoinColumn, Side},
     plans::types::Operation,
+};
+use {
+    crate::domain::operating::types::OperatorContext,
+    crate::domain::operator::contract::views::BorrowedRows,
+    crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
 };
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {

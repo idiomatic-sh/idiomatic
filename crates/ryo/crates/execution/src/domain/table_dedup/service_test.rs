@@ -6,8 +6,8 @@ use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::distinct;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::errors::TableModelError;
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, TableModelError>;

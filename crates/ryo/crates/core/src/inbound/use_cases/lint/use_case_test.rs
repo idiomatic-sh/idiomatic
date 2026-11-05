@@ -406,8 +406,9 @@ fn world(given: Given) -> World {
 /// Construct either physical backend over the same fake store and query identity.
 fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
     let scheduler = Arc::new(std::mem::take(&mut given.scheduler));
-    let query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort> =
-        Arc::<QueryLanguageFake>::clone(&given.query);
+    let query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    > = Arc::<QueryLanguageFake>::clone(&given.query);
     scheduled_world_with_query_kernel(
         given,
         scheduler,
@@ -419,8 +420,9 @@ fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
 
 /// The same fixture over an explicitly injected production scheduler.
 fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: WorkerCount) -> World {
-    let query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort> =
-        Arc::<QueryLanguageFake>::clone(&given.query);
+    let query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    > = Arc::<QueryLanguageFake>::clone(&given.query);
     scheduled_world_with_query(given, scheduler, workers, query_language)
 }
 
@@ -429,7 +431,9 @@ fn scheduled_world_with_query(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
-    query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort>,
+    query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    >,
 ) -> World {
     scheduled_world_with_query_kernel(given, scheduler, workers, query_language, false)
 }
@@ -438,7 +442,9 @@ fn scheduled_world_with_query_kernel(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
-    query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort>,
+    query_language: Arc<
+        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+    >,
     column_kernel: bool,
 ) -> World {
     let collected = rows::types::Collector::default();
@@ -480,8 +486,9 @@ fn scheduled_world_with_query_kernel(
             Arc::<LanguageFake>::clone(&language);
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(given.memory);
-        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
-            Arc::new(DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -1618,8 +1625,8 @@ fn changed_nested_module() -> Result<Value, Failure> {
 
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
-    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
     use crate::outbound::query_language::factory;
+    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
     use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {
@@ -1872,7 +1879,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 ..violations()
             };
             let (first, second) = (request(&rule("one")), request(&rule("two")));
-            let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
+            let plans =
+                ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
             let use_case = world(rule("one")).use_case.compiling_into(plans.clone());
             let _first = use_case.lint(first)?;
             let _second = use_case.lint(second)?;
@@ -1910,8 +1918,9 @@ fn succeeds() {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
-            Arc::new(DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),

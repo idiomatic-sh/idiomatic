@@ -1,22 +1,25 @@
 //! The `ordering` service's cases, on values alone.
 
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Offset, Span, Value as Cell};
+use ryo_values::domain::files::types::SourceView;
 
 use super::service::{append, offer, sort_findings};
 use super::types::{Ordered, Turn};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::render::service::{end_row, key_count, lent_row, render_rows, row_cells};
 use crate::domain::render::types::{
     FindingRule, KeyCount, RenderInput, Rendered, RowLayout, RowLimit, RowNumber, RowOrder, Shown,
 };
 use crate::domain::table_model::service::push_row;
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber,
+};
 
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;

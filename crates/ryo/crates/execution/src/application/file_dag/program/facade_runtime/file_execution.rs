@@ -37,7 +37,11 @@ pub(crate) fn open_file<'a>(
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let owner = open_program_owner(program.program(), Arc::clone(services.derived()), reuse_eligible);
+    let owner = open_program_owner(
+        program.program(),
+        Arc::clone(services.derived()),
+        reuse_eligible,
+    );
     let ScopePartials::File { publication, .. } = partials else {
         return Err(OperatingError::WrongOperation);
     };
@@ -288,7 +292,9 @@ impl FileRun<'_> {
                 );
                 Ok(CapturedFrontier {
                     input,
-                    bucket: ryo_values::domain::stored_facts::service::frontier_bucket(first, input),
+                    bucket: ryo_values::domain::stored_facts::service::frontier_bucket(
+                        first, input,
+                    ),
                     proof: ryo_values::domain::records::types::FrontierProof {
                         version: 1,
                         rule: u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,

@@ -1,13 +1,13 @@
 //! Project root delivery through the same prepared executable invocation.
-use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
-use ryo_execution::inbound::use_cases::execution::types::{
-    EmitDemand, ObservationDemand, ObservedPublication, PreparedFrontiers, ProjectInput,
-    ProjectObservation, ProjectScope, RequestExecution, RootOutcome, RuleDemand,
-};
 use crate::domain::{
     coverage::types::RuleIndex,
     crossing::types::{ObservedRoot, PhaseRoots},
     operating::errors::OperatingError,
+};
+use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
+use ryo_execution::inbound::use_cases::execution::types::{
+    EmitDemand, ObservationDemand, ObservedPublication, PreparedFrontiers, ProjectInput,
+    ProjectObservation, ProjectScope, RequestExecution, RootOutcome, RuleDemand,
 };
 use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
 

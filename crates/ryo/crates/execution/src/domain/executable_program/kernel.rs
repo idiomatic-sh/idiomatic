@@ -7,7 +7,11 @@ pub(crate) fn row_admissible(
     row: &[ryo_relations::domain::relations::types::Value],
     texts: &crate::domain::table_texts::types::Texts<'_>,
 ) -> Result<bool, crate::domain::operating::errors::OperatingError> {
-    use {crate::domain::operator::contract::types::SourceGate, ryo_values::domain::rows::service::cell, crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum};
+    use {
+        crate::domain::operator::contract::types::SourceGate,
+        crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum,
+        ryo_values::domain::rows::service::cell,
+    };
     if let Some(error) = &contract.row_error {
         return Err(error.clone());
     }

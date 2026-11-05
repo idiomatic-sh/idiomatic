@@ -7,8 +7,8 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScop
 use super::service::{reads_any, reads_project, with_consulted};
 use super::types::PlanReads;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::stores::types::MadeAgain;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digit.
 #[derive(Clone, Copy)]

@@ -290,10 +290,10 @@ fn raw_order() -> (
     (prepared, port, payload)
 }
 
-use {ryo_values::domain::rows::errors::TableModelError, crate::domain::table_model::types::Rows};
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
+use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::errors::TableModelError};
 /// Finite typed input adapter for pure semantic conformance, with no cache or scheduler.
 pub(crate) struct SemanticRows<'f>(pub crate::domain::table_model::types::Rows<'f>);
 impl ryo_derived::domain::contract::types::RowCells for SemanticRows<'_> {

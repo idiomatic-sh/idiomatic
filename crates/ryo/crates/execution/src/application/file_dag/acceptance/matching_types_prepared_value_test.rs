@@ -5,13 +5,13 @@ use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, Function, Input, LiteralText, Operand, ParameterId,
     QueryLiteral, Test,
@@ -309,4 +309,4 @@ fn concurrent_literal_users_initialize_one_slot() {
 
 use ryo_values::domain::rows::types::Table;
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

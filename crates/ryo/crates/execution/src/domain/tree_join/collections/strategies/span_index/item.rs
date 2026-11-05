@@ -7,9 +7,9 @@ use ryo_relations::domain::relations::types::{Position, Value};
 use super::super::interface::StrategiesItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::TreeRows;
-use ryo_values::domain::rows::service::cell;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
 use ryo_derived::domain::contract::types::Finding;
+use ryo_values::domain::rows::service::cell;
 
 /// `span_index`, one item of the `strategies` collection.
 pub(crate) struct SpanIndexItem;

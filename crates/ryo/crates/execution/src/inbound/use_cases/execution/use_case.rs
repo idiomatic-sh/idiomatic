@@ -119,7 +119,8 @@ impl ExecutionRequest for RequestExecution {
             input.demanded,
             Arc::clone(&self.services),
             input.source,
-            matches!(input.language, SourceLanguage::Recognized) && input.resident_stability == facts::ResidentStability::Stable,
+            matches!(input.language, SourceLanguage::Recognized)
+                && input.resident_stability == facts::ResidentStability::Stable,
             symbols,
             input.semantic,
             input.kinds,

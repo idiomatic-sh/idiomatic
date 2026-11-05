@@ -2,16 +2,16 @@
 
 use crate::domain::operating::errors::OperatingError;
 
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_model::types::Rows;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::JoinColumn;

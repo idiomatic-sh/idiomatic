@@ -4,14 +4,17 @@ use super::types::InputShape;
 use super::types::bindings::value::BindingShape;
 use super::types::traversal::value::TraversalShape;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
-use ryo_values::domain::rows::errors::TableModelError;
-use {crate::domain::table_model::service::check_columns, ryo_values::domain::rows::service::column_in};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::plans::service::inputs_of;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::errors::TableModelError;
+use {
+    crate::domain::table_model::service::check_columns,
+    ryo_values::domain::rows::service::column_in,
+};
 
 /// Read one input's metadata in the same input order as execution.
 pub(crate) fn schema_input<'a>(

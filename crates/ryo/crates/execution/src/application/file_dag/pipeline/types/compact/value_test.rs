@@ -48,7 +48,6 @@ fn subject_with_counting(
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operator::service::pool_for;
     use crate::domain::table_scratch::types::OperatorScratch;
-    use {ryo_values::domain::files::types::SourceView};
     use ryo_language::domain::symbols::service::intern_derived;
     use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
     use ryo_relations::domain::relations::service::{node_id, to_bits};
@@ -56,6 +55,7 @@ fn subject_with_counting(
         CellKind, ColumnsView, FactColumn, FileId, Offset, Position, Relation, Span, Value as Cell,
     };
     use ryo_relations::domain::terms::types::NameText;
+    use ryo_values::domain::files::types::SourceView;
     use ryo_values::domain::plan_parts::types::{JoinColumn, LiteralText, QueryLiteral, Side};
     use ryo_values::domain::plans::types::{Emit, Plan};
     let mut symbols = Symbols::default();

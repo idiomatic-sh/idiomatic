@@ -1,8 +1,8 @@
 //! The `axis` item's cases.
 
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::QueryOperator;
 
@@ -15,7 +15,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::axis::item::AxisItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
@@ -603,4 +603,4 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
 
 use ryo_values::domain::rows::types::Table;
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

@@ -11,7 +11,6 @@ use ryo_relations::domain::relations::types::{Bits, NamePlace, Offset, Origin, V
 use super::types::{Configuration, DigestInput, DigestPart, Remap};
 
 use crate::domain::finish::service::{column_cell, line_cell};
-use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, crate::domain::finish::types::Point, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::render::service::{finding_parts, key_count, row_cells};
 use crate::domain::render::types::{KeyCount, Rendered, RowNumber, RowOrder};
 use crate::domain::table_words::service::unpacked;
@@ -27,6 +26,10 @@ use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stores::types::{
     FindingMade, FindingPlace, StoredCell, StoredFinding, StoredPlace, StoredValue,
+};
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    crate::domain::finish::types::Point, ryo_values::domain::runs::types::RuleNumber,
 };
 
 /// The findings of a file as a record keeps them.

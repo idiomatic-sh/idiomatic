@@ -1,6 +1,5 @@
 //! The `render` service's cases, on values alone.
 
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern;
@@ -10,6 +9,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, KindBits, Offset, Position, Span, Value as Cell,
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::records::types::Cell as Typed;
 use ryo_values::domain::records::types::{CellText, RowsTextView};
 
@@ -20,8 +20,8 @@ use super::types::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::table_model::service::push_row;
+use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;

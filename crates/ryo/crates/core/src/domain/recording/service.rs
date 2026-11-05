@@ -6,7 +6,6 @@ use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::{
     CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown,
 };
-use ryo_values::domain::runs::types::RuleNumber;
 use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::placement::service::governs;
@@ -33,6 +32,7 @@ use ryo_values::domain::records::types::{
     FileOutcome, GoverningRules, Handed, HandedWords, Handing, Ran, Record,
 };
 use ryo_values::domain::runs::types::RuleApplicability;
+use ryo_values::domain::runs::types::RuleNumber;
 use ryo_values::domain::stored_facts::types::{
     ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes, PartialAt, PartialCause, PartialKind,
     PartialScope, StoredPartial,

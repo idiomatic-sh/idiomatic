@@ -17,7 +17,6 @@ use crate::domain::table_cells::service::{
     kind_name_at, ordinal_number_at, read_tree_cells, span_at,
 };
 use crate::domain::table_cells::types::{CellsRead, TreeForm, TreeRows};
-use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
@@ -32,6 +31,7 @@ use ryo_derived::domain::contract::types::Finding;
 use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+use ryo_values::domain::rows::errors::TableModelError;
 mod driver;
 
 /// The column of the elements of a tree that the column `column` of the view of them is.
@@ -213,7 +213,9 @@ pub(crate) fn probe(
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
         input: ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values {
-            left: ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(left_row),
+            left: ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(
+                left_row,
+            ),
             left_on,
             output,
             view,

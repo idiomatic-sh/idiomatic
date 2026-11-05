@@ -4,7 +4,7 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 };
 use ryo_execution::inbound::use_cases::execution::types::{
     ApplicabilityReason, CaptureContext, EmitDemand, FileInput, ObservationDemand, RootOutcome,
-    RuleDemand, SourceRows,
+    RuleDemand, SourceLanguage, SourceRows,
 };
 // ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
@@ -24,8 +24,8 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, engine_asked, failure_partials, prepare, read_failure_demanded,
-    settle as settle_file, start_partials,
+    begin, engine_asked, failure_partials, prepare, read_failure_demanded, settle as settle_file,
+    start_partials,
 };
 use crate::domain::reading::types::{EngineAsked, EngineRows, PrimaryFailureKind};
 use crate::domain::recording::service::{
@@ -34,11 +34,11 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use {ryo_values::domain::files::types::SourceView};
 use crate::domain::table_words::service::pack_onto;
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::workers::types::{Replaying, Tables};
 use ryo_relations::domain::relations::types::Words;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::records::types::{
     GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
@@ -53,8 +53,8 @@ use crate::domain::rules::service::governing;
 use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};
 
-use ryo_values::domain::runs::types::RuleNumber;
 use crate::domain::workers::service::{checking, file_at, govern, governs_rule};
+use ryo_values::domain::runs::types::RuleNumber;
 
 use crate::domain::workers::types::{Checking, FileOrder};
 use crate::outbound::corpus::errors::CorpusError;
@@ -423,6 +423,12 @@ impl FileAnalysis {
                 demanded: &demanded,
                 source: &tables.bytes.0,
                 elements: &tables.elements,
+                language: if tables.language.is_some() {
+                    SourceLanguage::Recognized
+                } else {
+                    SourceLanguage::Unrecognized
+                },
+                resident_stability: worker.facts.resident_stability(),
                 read: &read,
                 semantic: Some(semantic),
                 kinds: tables.kind_vocabulary.as_ref().map(Arc::clone),
@@ -608,11 +614,15 @@ impl FileAnalysis {
                 if visit.setting.keeping == Keeping::Keeps
                     && visit.setting.answering == Answering::Findings
                 {
-                    tables.captured.push(ryo_values::domain::records::types::Kept {
-                        bucket: capture.bucket,
-                        proof: capture.proof,
-                        words: ryo_values::domain::stored_facts::types::KeptWords(capture.words),
-                    });
+                    tables
+                        .captured
+                        .push(ryo_values::domain::records::types::Kept {
+                            bucket: capture.bucket,
+                            proof: capture.proof,
+                            words: ryo_values::domain::stored_facts::types::KeptWords(
+                                capture.words,
+                            ),
+                        });
                 }
             }
             let counts = run.counts(rule)?;
@@ -1089,7 +1099,10 @@ impl FileAnalysis {
                 .copied()
                 == Some(true)
             && setting.first_bucket.get(rule.0).copied().map(|first| {
-                ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(input))
+                ryo_values::domain::stored_facts::service::frontier_bucket(
+                    first,
+                    InputNumber(input),
+                )
             }) == Some(bucket)
             && match &proof.coverage {
                 FrontierCoverage::Complete => true,

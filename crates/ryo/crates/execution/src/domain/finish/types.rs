@@ -1,7 +1,7 @@
 //! Borrowed publication storage belongs to the execution invocation.
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, NamePlace, WorkerNumber};
+use ryo_values::domain::files::types::SourceView;
 /// Where the names of a file's rows are read, and who they leave as: the file's names and bytes, the file, and the worker that
 /// keeps the text of a name made while evaluating.
 #[derive(Clone, Copy, Debug)]

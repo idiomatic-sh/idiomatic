@@ -6,7 +6,6 @@ use crate::application::file_dag::{
     feed::Feed,
     relations::RelationOwner,
 };
-use {crate::domain::operating::errors::OperatingError, crate::domain::operating::types::Emit, crate::domain::operating::types::OperatorContext, crate::domain::operating::types::Room, crate::domain::operator::contract::types::OperatorContract, crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::rows::types::Table;
@@ -16,6 +15,13 @@ use ryo_values::domain::{
     rows::types::RowCount,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
+use {
+    crate::domain::operating::errors::OperatingError, crate::domain::operating::types::Emit,
+    crate::domain::operating::types::OperatorContext, crate::domain::operating::types::Room,
+    crate::domain::operator::contract::types::OperatorContract,
+    crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
+};
 #[derive(Debug)]
 struct Counted {
     calls: AtomicUsize,

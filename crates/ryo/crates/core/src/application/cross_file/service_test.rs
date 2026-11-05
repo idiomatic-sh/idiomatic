@@ -9,9 +9,8 @@ use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, Rul
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
-use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier };
+use crate::domain::table_model::types::Frontier;
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::{Needs, RelationRead};
@@ -26,6 +25,7 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
@@ -537,4 +537,4 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
 
 use ryo_values::domain::rows::types::Table;
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

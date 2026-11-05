@@ -7,12 +7,12 @@ use crate::domain::table_model::{
     types::{SelectedRows, StoredSelection},
 };
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{CellKind, ColumnsView, FactColumn, Relation, Value},
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use std::sync::Arc;
 

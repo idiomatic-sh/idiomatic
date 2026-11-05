@@ -10,7 +10,6 @@ use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
@@ -20,6 +19,7 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, LiteralText, Operand, ParameterId, QueryLiteral,
     RepeatedRows, Test, WholeNumber,
@@ -1123,4 +1123,4 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
 
 use ryo_values::domain::rows::types::Table;
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

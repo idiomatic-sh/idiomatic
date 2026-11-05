@@ -4,14 +4,17 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::row_in};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_reach::{
     service::{begin_ordered, next_ordered},
     types::Edges,
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use {
+    crate::domain::table_model::service::row_in, ryo_values::domain::rows::service::cell,
+    ryo_values::domain::rows::service::column_in,
+};
 pub(crate) struct OrderedDfsItem;
 impl OperatorsItem for OrderedDfsItem {
     fn prepare(

@@ -4,7 +4,9 @@ use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::domain::operating::types::Memo;
 use crate::domain::table_model::types::{SelectedRows, StoredSelection};
 use crate::outbound::operators::interface::OperatorsPort;
-use ryo_operators::inbound::use_cases::operators::interface::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use ryo_operators::inbound::use_cases::operators::interface::{
+    OperatorAnswer, OperatorCall, PortableOperatorFault,
+};
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -71,16 +73,23 @@ impl OperatorsPort for Refuses {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if let OperatorCall::EqualityJoin { input } = call {
             let columnar = match &input {
-                ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values { left, .. } => {
-                    match left {
-                        ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(_) => false,
-                        ryo_operators::inbound::use_cases::operators::interface::JoinRow::Columns(_) => {
-                            self.columns.fetch_add(1, Ordering::Relaxed);
-                            true
-                        }
+                ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values {
+                    left,
+                    ..
+                } => match left {
+                    ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(_) => {
+                        false
                     }
-                }
-                ryo_operators::inbound::use_cases::operators::interface::JoinInput::Positions { .. } => {
+                    ryo_operators::inbound::use_cases::operators::interface::JoinRow::Columns(
+                        _,
+                    ) => {
+                        self.columns.fetch_add(1, Ordering::Relaxed);
+                        true
+                    }
+                },
+                ryo_operators::inbound::use_cases::operators::interface::JoinInput::Positions {
+                    ..
+                } => {
                     self.positions.fetch_add(1, Ordering::Relaxed);
                     false
                 }
@@ -101,9 +110,7 @@ fn refused(result: Result<(), OperatingError>) {
         matches!(
             &result,
             Err(OperatingError::Table(
-                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn {
-                    index: REFUSAL
-                }
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: REFUSAL }
             ))
         ),
         "{result:?}"
@@ -383,7 +390,11 @@ struct KeepsCalling;
 impl OperatorsPort for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if let OperatorCall::EqualityJoin {
-            input: ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values { driver, .. },
+            input:
+                ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values {
+                    driver,
+                    ..
+                },
         } = call
         {
             assert!(driver.emit(&[Cell::Number(Integer(1))]).is_err());
@@ -674,9 +685,7 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         matches!(
             &result,
             Err(OperatingError::Table(
-                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn {
-                    index: REFUSAL
-                }
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: REFUSAL }
             ))
         ),
         "strategy={strategy:?}, right={right:?}, root={:?}, result={result:?}, failed={:?}, visiting={:?}, executions={:?}, supplies={:?}",

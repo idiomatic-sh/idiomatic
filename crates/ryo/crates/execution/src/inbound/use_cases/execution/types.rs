@@ -91,7 +91,10 @@ pub struct RequestExecution {
     pub(super) services:
         Arc<crate::application::file_dag::program::facade_runtime::ProgramServices>,
 }
-pub enum SourceLanguage { Recognized, Unrecognized }
+pub enum SourceLanguage {
+    Recognized,
+    Unrecognized,
+}
 pub struct FileInput<'a, 'facts> {
     pub language: SourceLanguage,
     pub resident_stability: facts::ResidentStability,

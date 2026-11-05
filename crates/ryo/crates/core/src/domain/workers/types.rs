@@ -2,11 +2,11 @@
 
 use crate::domain::coverage::types::{Covered, Partial, Unknown};
 use crate::domain::finish::types::LineStarts;
-use ryo_execution::inbound::use_cases::execution::types::{RowsFed, PreparedVocabulary};
 use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
+use ryo_execution::inbound::use_cases::execution::types::{PreparedVocabulary, RowsFed};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;

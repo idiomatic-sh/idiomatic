@@ -3,7 +3,6 @@ use super::{
     RelationOwner,
     fixtures::{columns, read},
 };
-use {crate::domain::operating::types::OperatorContext, crate::domain::operator::contract::views::BorrowedRows, crate::domain::stored_selection::types::Selector, crate::domain::table_model::collections::representations::types::PhysicalShape, crate::domain::table_model::types::Rows, crate::domain::table_model::types::SelectionIdentity, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
@@ -13,6 +12,15 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
 };
 use std::sync::Arc;
+use {
+    crate::domain::operating::types::OperatorContext,
+    crate::domain::operator::contract::views::BorrowedRows,
+    crate::domain::stored_selection::types::Selector,
+    crate::domain::table_model::collections::representations::types::PhysicalShape,
+    crate::domain::table_model::types::Rows, crate::domain::table_model::types::SelectionIdentity,
+    crate::domain::table_scratch::types::OperatorScratch,
+    ryo_values::domain::files::types::SourceView,
+};
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {
@@ -129,4 +137,4 @@ fn exercise_real_selector(limit: usize) {
     ));
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

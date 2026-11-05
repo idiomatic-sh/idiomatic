@@ -2,8 +2,8 @@
 //! and no inherent impl. Placement says which rules govern which files, and it is decided once for
 //! the run: one set of globs for every rule, one bit for every rule.
 
-use ryo_values::domain::runs::types::RuleNumber;
 use ryo_values::domain::files::types::Glob;
+use ryo_values::domain::runs::types::RuleNumber;
 
 use ryo_values::domain::files::types::GlobsMatcher;
 

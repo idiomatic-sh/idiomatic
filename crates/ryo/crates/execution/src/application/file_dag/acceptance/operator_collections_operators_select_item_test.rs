@@ -18,8 +18,8 @@ use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_model::service::{materialize, push_row};
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use {ryo_values::domain::files::types::SourceView};
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Applied;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
@@ -410,4 +410,4 @@ fn refuses() {
 
 use ryo_values::domain::rows::types::Table;
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

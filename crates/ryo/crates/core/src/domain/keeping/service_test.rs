@@ -13,8 +13,11 @@ use super::service::{
 use super::types::{ArenaStart, Configuration, DigestInput, HostedText, Remap};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::render::types::{Rendered, RowNumber, RowOrder};
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    ryo_values::domain::runs::types::RuleNumber,
+};
 
 use crate::domain::table_words::service::{decode_combined, encode_table, pack, unpacked};
 use crate::domain::table_words::types::WordSlice;
@@ -363,4 +366,4 @@ fn succeeds() {
 
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-use ryo_values::domain::rule_requests::types::{RuleSpec,RuleParameters};
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};

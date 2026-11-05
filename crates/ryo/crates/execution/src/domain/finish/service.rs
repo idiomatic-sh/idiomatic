@@ -1,6 +1,5 @@
 //! Normalize producer-local names at the owner-controlled publication boundary.
 use super::types::{Arena, Leaves, Leaving, Retained};
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::{
     service::{intern_derived, name_made_across, name_of, text_of},
     types::{ByteSlice, Symbols},
@@ -8,6 +7,7 @@ use ryo_language::domain::symbols::{
 use ryo_relations::domain::relations::types::{
     Bytes, NamePlace, Offset, Origin, Value, WorkerNumber,
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::rows::types::Table;
 /// Turns each name of the rows into a name that leaves its file, in place: its text stays where
 /// it is, and the row carries the hash of the text and the number of its place, which is pushed onto `places`.

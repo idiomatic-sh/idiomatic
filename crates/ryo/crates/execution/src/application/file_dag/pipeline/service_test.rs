@@ -1,7 +1,6 @@
 //! The `pipeline` service's cases: it walks a plan through the operators, the per-file steps on one
 //! file's rows and the cross-file steps on the rows the files handed over.
 
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
@@ -9,6 +8,7 @@ use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 

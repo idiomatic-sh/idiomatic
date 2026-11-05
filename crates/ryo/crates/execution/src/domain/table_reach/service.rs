@@ -3,7 +3,10 @@
 use ryo_relations::domain::relations::types::Value;
 
 use super::types::{Edges, Walk};
-use {ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::matching, crate::domain::table_model::service::row_in};
+use {
+    crate::domain::table_model::service::matching, crate::domain::table_model::service::row_in,
+    ryo_values::domain::rows::service::column_in,
+};
 
 use ryo_derived::domain::contract::types::On;
 
