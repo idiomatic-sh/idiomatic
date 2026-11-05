@@ -673,15 +673,22 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
 
 #[test]
 fn project_observation_union_semantic_calls_use_members_without_a_restored_union() {
-    exercise_project_observation_union(false);
+    exercise_project_observation_union(false, None);
 }
 
 #[test]
 fn refused_project_union_frontier_prevents_union_semantic_calls_with_available_members() {
-    exercise_project_observation_union(true);
+    exercise_project_observation_union(true, None);
 }
 
-fn exercise_project_observation_union(refused: bool) {
+#[test]
+fn project_hosted_text_joins_named_publication_text_by_spelling() {
+    for selected in ["F401", "F822"] {
+        exercise_project_observation_union(false, Some(selected));
+    }
+}
+
+fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>) {
     use ryo_execution::inbound::use_cases::execution::interface::{
         ObservationExecution, ObservationPublication, PreparedExecution,
     };
@@ -741,7 +748,7 @@ fn exercise_project_observation_union(refused: bool) {
         .iter()
         .position(|kind| *kind == CellKind::File)
         .unwrap();
-    let columns = vec![ObservationColumn {
+    let mut columns = vec![ObservationColumn {
         name: ObservationColumnName("file".into()),
         kind: CellKind::File,
     }];
@@ -753,9 +760,26 @@ fn exercise_project_observation_union(refused: bool) {
             kept: vec![ColumnIndex(u32::try_from(file_column).unwrap())],
         },
     }];
+    if selected_text.is_some() {
+        columns.push(ObservationColumn {
+            name: ObservationColumnName("code".into()),
+            kind: CellKind::Symbol,
+        });
+        authored.plans[0].steps.push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Extend {
+                from: Input::Step(StepId(0)),
+                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                    ryo_values::domain::plan_parts::types::QueryLiteral::Text(
+                        ryo_values::domain::plan_parts::types::LiteralText("F401".into()),
+                    ),
+                )],
+            },
+        });
+    }
     authored.plans[0].observations.push(PlanObservation {
         name: ObservationName("files".into()),
-        source: Input::Step(StepId(0)),
+        source: Input::Step(StepId(if selected_text.is_some() { 1 } else { 0 })),
         columns: columns.clone(),
         scope: StepScope::CrossFile,
     });
@@ -774,6 +798,47 @@ fn exercise_project_observation_union(refused: bool) {
             columns: columns.clone(),
             scope: StepScope::CrossFile,
         });
+    if let Some(selected) = selected_text {
+        use ryo_values::domain::hosted::types::{
+            HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
+        };
+        use ryo_values::domain::plan_parts::types::HostedNumber;
+        authored.hosted.push(HostRelation {
+            name: HostName("selected-codes".into()),
+            columns: vec![HostColumn {
+                name: HostColumnName("code".into()),
+                kind: HostKind::Text,
+            }],
+            rows: vec![HostRow(vec![
+                ryo_values::domain::records::types::Cell::Text(selected.into()),
+            ])],
+        });
+        authored.plans[1].steps.extend([
+            PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Hosted {
+                    relation: HostedNumber(0),
+                },
+            },
+            PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Join {
+                    left: Input::Step(StepId(0)),
+                    right: Input::Step(StepId(1)),
+                    left_on: vec![ColumnIndex(1)],
+                    right_on: vec![ColumnIndex(0)],
+                    output: vec![JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(0),
+                    }],
+                    filter: vec![],
+                    view: vec![],
+                    reach: None,
+                },
+            },
+        ]);
+        authored.plans[1].emit.step = StepId(2);
+    }
     let producer = authored.rules[0].id.clone();
     authored.rules[1].observations.push(ObservationBinding {
         name: ObservationBindingName("files".into()),
@@ -853,30 +918,67 @@ fn exercise_project_observation_union(refused: bool) {
     assert!(matches!(result.emit, RootOutcome::NoQuery));
     let (output, observed) = result.observations.pop().unwrap();
     assert_eq!(output, ObservationIndex(0));
-    let ProjectObservation::Complete { table, publication } = observed else {
+    let ProjectObservation::Complete {
+        mut table,
+        publication,
+    } = observed
+    else {
         panic!("actual named project publication")
     };
-    assert_eq!(table.kinds, [CellKind::File]);
+    assert_eq!(
+        table.kinds,
+        if selected_text.is_some() {
+            vec![CellKind::File, CellKind::Symbol]
+        } else {
+            vec![CellKind::File]
+        }
+    );
     assert_eq!(table.count, RowCount(1));
-    assert_eq!(table.cells, [Value::File(FileId(0))]);
+    assert_eq!(table.cells[0], Value::File(FileId(0)));
+    if selected_text.is_some() {
+        assert!(
+            matches!(table.cells[1], Value::Name(_)),
+            "the project producer actually publishes stable text names"
+        );
+    } else {
+        assert_eq!(table.cells, [Value::File(FileId(0))]);
+    }
     run.finish();
     let PublicationSlot::Reserved(worker) = slot else {
         panic!("real reserved publication slot")
     };
     let mut words = Words::default();
-    encode_table(&table, &[], &mut words);
+    let mut arena = ArenaBytes::default();
+    let mut places = vec![];
+    ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase::publication(
+        &ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new(),
+        ryo_execution::inbound::use_cases::publication::types::PublicationInput {
+            table: &mut table,
+            symbols: &mut symbols,
+            inherited: stage.arenas(),
+            worker,
+            arena: &mut arena,
+            places: &mut places,
+        },
+    )
+    .expect("normal publication normalization and text ownership");
+    encode_table(&table, &places, &mut words);
     stage
         .install(
             RuleIndex(0),
             slot,
             CrossPublicationTransfer {
                 worker,
-                arena: ArenaBytes::default(),
+                arena,
                 roots: vec![PackedObservedRoot {
                     output,
                     words: Some(KeptWords(pack(WordSlice(&words.0)))),
                     readiness: ProducerReadiness::Complete,
-                    arenas: vec![],
+                    arenas: if selected_text.is_some() {
+                        vec![worker]
+                    } else {
+                        vec![]
+                    },
                 }],
             },
             vec![(output, publication)],
@@ -954,8 +1056,16 @@ fn exercise_project_observation_union(refused: bool) {
             RootOutcome::NoQuery => panic!("union unexpectedly absent"),
         };
         assert_eq!(table.kinds, [CellKind::File]);
-        assert_eq!(table.count, RowCount(1));
-        assert_eq!(table.cells, [Value::File(FileId(0))]);
+        let matches = selected_text.is_none() || selected_text == Some("F401");
+        assert_eq!(table.count, RowCount(usize::from(matches)));
+        assert_eq!(
+            table.cells,
+            if matches {
+                vec![Value::File(FileId(0))]
+            } else {
+                vec![]
+            }
+        );
     }
     assert_eq!(
         union_semantic_calls.0.load(Ordering::SeqCst),
