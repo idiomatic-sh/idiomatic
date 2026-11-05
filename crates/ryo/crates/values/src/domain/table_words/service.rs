@@ -5,7 +5,7 @@ use ryo_language::domain::words::service::{
     decode_kind, decode_places, decode_value, encode_kind, encode_places, encode_value,
 };
 use ryo_relations::domain::relations::types::{
-    Bits, Integer, Name, NamePlace, PlaceNumber, Value, Words,
+    Bits, CROSS_PLACE, Integer, Name, NamePlace, PlaceNumber, Value, Words,
 };
 
 use super::types::{CompactFrame, CompactTable, DecodeMode, WordSlice};
@@ -141,10 +141,10 @@ fn observed_decode(
     }
 }
 
-/// A value with the number of its place moved up by `base`, when it is a name of a table whose places start there.
+/// Frame-local names move by `base`; global cross-file symbol indices retain their owner.
 fn rebased(value: Value, base: PlaceNumber) -> Value {
     match value {
-        Value::Name(name) if base.0 != 0 => Value::Name(Name {
+        Value::Name(name) if base.0 != 0 && name.place.0 & CROSS_PLACE == 0 => Value::Name(Name {
             hash: name.hash,
             place: PlaceNumber(name.place.0 + base.0),
         }),
