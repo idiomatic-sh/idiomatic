@@ -725,88 +725,130 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         plan_parts::types::RepeatedRows, stored_facts::types::Bucket,
         table_words::service::decode_complete,
     };
-    let engine = engine();
-    let mut input = authored_request(1);
-    input.plans[0].steps.push(PlanStep {
-        scope: StepScope::PerFile,
-        operation: Operation::Project {
-            from: Input::Relation(Relation::Function),
-            columns: vec![ColumnIndex(1)],
-            distinct: RepeatedRows::Kept,
-        },
-    });
-    input.plans[0].frontier = vec![Input::Step(StepId(1))];
-    let program = engine.prepare(input).expect("valid symbol frontier");
-    let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
-    let mut symbols = Symbols::default();
-    let symbol = intern(&mut symbols, ByteSlice(b"abc"), Offset(0), Offset(3));
-    let expected_hash = hash_in(&symbols, symbol).expect("interned hash");
-    let mut table = source();
-    table.cells[1] = Value::Symbol(symbol);
-    let read = |relation| {
-        assert_eq!(relation, Relation::Function);
-        Ok(SourceRows::Computed(&table))
-    };
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                demanded: &[true],
-                source: b"abc",
-                elements: &elements,
-                read: &read,
-                semantic: None,
-                kinds: None,
+    for representation in ["symbol", "source_name", "cross_name"] {
+        let engine = engine();
+        let mut input = authored_request(1);
+        input.plans[0].steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Project {
+                from: Input::Relation(Relation::Function),
+                columns: vec![ColumnIndex(1)],
+                distinct: RepeatedRows::Kept,
             },
-            &mut symbols,
-        )
-        .expect("open actual public file owner");
-    let mut arena = Vec::new();
-    let mut places = Vec::new();
-    let mut words = Words::default();
-    for ordinal in 0..2 {
-        let captures = file
-            .capture_frontiers(
-                RuleIndex(0),
-                Bucket(0),
+        });
+        input.plans[0].frontier = vec![Input::Step(StepId(1))];
+        let program = engine.prepare(input).expect("valid symbol frontier");
+        let corpus = corpus();
+        let request = engine.begin(&program, &corpus);
+        let mut symbols = Symbols::default();
+        let symbol = if representation == "cross_name" {
+            ryo_language::domain::symbols::service::intern_derived(
                 &mut symbols,
-                CaptureContext {
-                    worker: WorkerNumber(0),
-                    arena: &mut arena,
-                    places: &mut places,
-                    words: &mut words,
-                },
+                ByteSlice(b"abc"),
+                ryo_relations::domain::terms::types::NameText("abc"),
             )
-            .expect("capture actual frontier");
-        assert_eq!(captures.len(), 1);
-        let capture = captures
-            .into_iter()
-            .next()
-            .unwrap()
-            .outcome
-            .expect("complete frontier");
-        let mut decoded_places = Vec::new();
-        let decoded = decode_complete(&capture.words, &mut decoded_places).expect("complete frame");
-        assert_eq!(decoded.count, RowCount(1));
-        let [Value::Name(name)] = decoded.cells.as_slice() else {
-            panic!("one escaped name")
+        } else {
+            intern(&mut symbols, ByteSlice(b"abc"), Offset(0), Offset(3))
         };
-        // Name equality compares only hashes; assert physical location separately.
-        let physical_identity = (name.hash, name.place.0);
-        assert_eq!(physical_identity, (expected_hash, 0), "frame {ordinal}");
-        let location = decoded_places.first().expect("frame owns its name place");
-        assert_eq!(location.origin, Origin::Derived(WorkerNumber(0)));
+        let expected_hash = hash_in(&symbols, symbol).expect("interned hash");
+        let mut table = source();
+        table.cells[1] = match representation {
+            "source_name" => {
+                ryo_language::domain::symbols::service::places_mut(&mut symbols).push(
+                    ryo_relations::domain::relations::types::NamePlace {
+                        origin: Origin::Source,
+                        file: FileId(0),
+                        start: Offset(0),
+                        end: Offset(3),
+                    },
+                );
+                Value::Name(ryo_relations::domain::relations::types::Name {
+                    hash: expected_hash,
+                    place: ryo_relations::domain::relations::types::PlaceNumber(0),
+                })
+            }
+            "cross_name" => Value::Name(
+                ryo_language::domain::symbols::service::name_made_across(&symbols, symbol)
+                    .expect("derived producer name"),
+            ),
+            _ => Value::Symbol(symbol),
+        };
+        let read = |relation| {
+            assert_eq!(relation, Relation::Function);
+            Ok(SourceRows::Computed(&table))
+        };
+        let elements = ryo_language::domain::elements::types::Elements::default();
+        let mut file = request
+            .open_file(
+                FileInput {
+                    language: SourceLanguage::Recognized,
+                    resident_stability: facts::ResidentStability::Stable,
+                    file: FileId(0),
+                    evaluation: &[],
+                    publication: &[],
+                    demanded: &[true],
+                    source: b"abc",
+                    elements: &elements,
+                    read: &read,
+                    semantic: None,
+                    kinds: None,
+                },
+                &mut symbols,
+            )
+            .expect("open actual public file owner");
+        let mut arena = Vec::new();
+        let sentinel = ryo_relations::domain::relations::types::NamePlace {
+            origin: Origin::Source,
+            file: FileId(99),
+            start: Offset(1),
+            end: Offset(2),
+        };
+        let mut places = vec![sentinel];
+        let mut words = Words::default();
+        for ordinal in 0..2 {
+            let captures = file
+                .capture_frontiers(
+                    RuleIndex(0),
+                    Bucket(0),
+                    &mut symbols,
+                    CaptureContext {
+                        worker: WorkerNumber(0),
+                        arena: &mut arena,
+                        places: &mut places,
+                        words: &mut words,
+                    },
+                )
+                .expect("capture actual frontier");
+            assert_eq!(captures.len(), 1);
+            let capture = captures
+                .into_iter()
+                .next()
+                .unwrap()
+                .outcome
+                .expect("complete frontier");
+            let mut decoded_places = Vec::new();
+            let decoded =
+                decode_complete(&capture.words, &mut decoded_places).expect("complete frame");
+            assert_eq!(decoded.count, RowCount(1));
+            let [Value::Name(name)] = decoded.cells.as_slice() else {
+                panic!("one escaped name")
+            };
+            // Name equality compares only hashes; assert physical location separately.
+            let physical_identity = (name.hash, name.place.0);
+            assert_eq!(physical_identity, (expected_hash, 0), "frame {ordinal}");
+            let location = decoded_places.first().expect("frame owns its name place");
+            assert_eq!(location.origin, Origin::Derived(WorkerNumber(0)));
+            assert_eq!(
+                &arena[location.start.0 as usize..location.end.0 as usize],
+                b"abc"
+            );
+        }
         assert_eq!(
-            &arena[location.start.0 as usize..location.end.0 as usize],
-            b"abc"
+            places,
+            vec![sentinel],
+            "capture leaves caller's place log intact"
         );
+        file.finish().expect("finish actual file owner");
+        request.finish();
     }
-    file.finish().expect("finish actual file owner");
-    request.finish();
 }

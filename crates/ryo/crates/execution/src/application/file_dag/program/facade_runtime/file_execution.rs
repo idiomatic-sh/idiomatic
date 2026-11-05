@@ -319,7 +319,7 @@ impl FileRun<'_> {
             retained,
             words,
         } = capture;
-        let crate::domain::finish::types::Retained { arena, places } = retained;
+        let crate::domain::finish::types::Retained { arena, places: _ } = retained;
         for (index, source) in sources.into_iter().enumerate() {
             if let Ok(source) = source.as_ref()
                 && matches!(
@@ -341,8 +341,7 @@ impl FileRun<'_> {
                     file,
                 )?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
-                let before = places.len();
-                crate::domain::finish::service::escape(
+                let frame_places = crate::domain::finish::service::escape_frame(
                     &mut table,
                     crate::domain::finish::types::Leaving {
                         symbols: context.symbols.as_ref(),
@@ -351,15 +350,15 @@ impl FileRun<'_> {
                         worker,
                         text: crate::domain::finish::types::Leaves::WithText,
                     },
-                    crate::domain::finish::types::Retained {
-                        arena: crate::domain::finish::types::Arena(&mut *arena.0),
-                        places: &mut *places,
-                    },
-                );
+                    crate::domain::finish::types::Arena(&mut *arena.0),
+                )
+                .map_err(|reason| OperatingError::ObservationIncomplete {
+                    reason: reason.to_string(),
+                })?;
                 words.0.clear();
                 ryo_values::domain::table_words::service::encode_table(
                     &table,
-                    &places[before..],
+                    &frame_places,
                     words,
                 );
                 let packed = ryo_values::domain::table_words::service::pack(

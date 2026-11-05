@@ -44,6 +44,103 @@ pub(crate) fn escape(table: &mut Table, leaving: Leaving<'_>, kept: Retained<'_>
     }
 }
 
+/// Publish one independently decodable frame. Its place numbers never borrow the
+/// caller's accumulated place log; only the backing text arena is shared.
+pub(crate) fn escape_frame(
+    table: &mut Table,
+    leaving: Leaving<'_>,
+    arena: Arena<'_>,
+) -> Result<Vec<NamePlace>, super::types::PublicationReason> {
+    use super::types::PublicationReason;
+    use ryo_language::domain::symbols::service::{derived_of, hash_in, hash_of, places_of};
+    use ryo_relations::domain::relations::types::{CROSS_FILE, CROSS_PLACE, PlaceNumber};
+    use ryo_relations::domain::terms::types::Symbol;
+
+    if leaving.worker == CROSS_FILE {
+        return Err(PublicationReason::ReservedArena);
+    }
+    let mut places = Vec::new();
+    for value in &mut table.cells {
+        let Value::Name(name) = *value else { continue };
+        if name.place.0 & CROSS_PLACE != 0 {
+            let symbol = Symbol(name.place.0 & !CROSS_PLACE);
+            if hash_in(leaving.symbols, symbol) != Some(name.hash) {
+                return Err(PublicationReason::CrossNameMismatch);
+            }
+            *value = Value::Symbol(symbol);
+            continue;
+        }
+        let mut place = *places_of(leaving.symbols)
+            .get(name.place.0 as usize)
+            .ok_or(PublicationReason::PlaceMissing)?;
+        let range = place.start.0 as usize..place.end.0 as usize;
+        let local = match place.origin {
+            Origin::Source => {
+                if place.file != leaving.file {
+                    return Err(PublicationReason::SourceTextMissing);
+                }
+                Some(
+                    leaving
+                        .source
+                        .0
+                        .get(range)
+                        .ok_or(PublicationReason::LocalRangeMissing)?,
+                )
+            }
+            Origin::Derived(origin) if origin == CROSS_FILE => Some(
+                derived_of(leaving.symbols)
+                    .0
+                    .get(range)
+                    .ok_or(PublicationReason::LocalRangeMissing)?,
+            ),
+            Origin::Derived(_) => None,
+        };
+        if let Some(bytes) = local {
+            if hash_of(ByteSlice(bytes)) != name.hash {
+                return Err(PublicationReason::LocalHashMismatch);
+            }
+            let start = u32::try_from(arena.0.len())
+                .map_err(|_| PublicationReason::StartUnrepresentable)?;
+            let end = arena
+                .0
+                .len()
+                .checked_add(bytes.len())
+                .and_then(|end| u32::try_from(end).ok())
+                .ok_or(PublicationReason::EndUnrepresentable)?;
+            arena.0.extend_from_slice(bytes);
+            place.origin = Origin::Derived(leaving.worker);
+            place.start = Offset(start);
+            place.end = Offset(end);
+        }
+        let index =
+            u32::try_from(places.len()).map_err(|_| PublicationReason::PortablePlaceLogFull)?;
+        if index >= CROSS_PLACE {
+            return Err(PublicationReason::PortablePlaceLogFull);
+        }
+        places.push(place);
+        *value = Value::Name(ryo_relations::domain::relations::types::Name {
+            hash: name.hash,
+            place: PlaceNumber(index),
+        });
+    }
+    escape(
+        table,
+        leaving,
+        Retained {
+            arena,
+            places: &mut places,
+        },
+    );
+    if table
+        .cells
+        .iter()
+        .any(|value| matches!(value, Value::Symbol(_)))
+    {
+        return Err(PublicationReason::ProducerSymbolUnescaped);
+    }
+    Ok(places)
+}
+
 /// Turns each name of a table the project wrote (its text is in `from`) into a name of the steps that run after
 /// the files were read, whose text is in `cross`: it compares with the names the files handed over.
 pub(crate) fn carry(table: &mut Table, from: &Symbols, cross: &mut Symbols) {
