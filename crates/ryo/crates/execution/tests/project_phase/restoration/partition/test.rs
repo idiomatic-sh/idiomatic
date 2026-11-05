@@ -24,16 +24,51 @@ use ryo_values::domain::{
     },
 };
 
+#[derive(Clone, Copy, Debug)]
+enum Mode {
+    PartialRight,
+    PartialLeft { difference: bool },
+    Rekey { file_key: bool },
+    Current,
+}
+
 #[test]
 fn named_absence_keeps_good_file_bags_and_orders_while_bad_file_stays_unknown() {
     for empty in [false, true] {
         for project_away_file in [false, true] {
-            exercise(empty, project_away_file);
+            for stale_complete in [false, true] {
+                exercise(empty, project_away_file, stale_complete, Mode::PartialRight);
+            }
         }
     }
 }
+#[test]
+fn partial_left_and_complete_empty_right_preserve_known_positive_rows() {
+    for project_away_file in [false, true] {
+        for difference in [false, true] {
+            exercise(
+                false,
+                project_away_file,
+                false,
+                Mode::PartialLeft { difference },
+            );
+        }
+    }
+}
+#[test]
+fn empty_rekeying_join_widens_uncertainty_but_file_equality_keeps_good_files_known() {
+    for file_key in [false, true] {
+        exercise(true, false, false, Mode::Rekey { file_key });
+    }
+}
+#[test]
+fn current_partial_project_publication_retains_owner_provenance_through_real_consumer() {
+    for project_away_file in [false, true] {
+        exercise(true, project_away_file, false, Mode::Current);
+    }
+}
 
-fn exercise(empty: bool, project_away_file: bool) {
+fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mode) {
     let engine = engine();
     let mut authored = authored_request(3);
     authored.rules[0].applicability = RuleApplicability::AcceptedSyntax;
@@ -41,19 +76,34 @@ fn exercise(empty: bool, project_away_file: bool) {
         .iter()
         .position(|kind| *kind == CellKind::File)
         .unwrap();
-    let columns = vec![ObservationColumn {
-        name: ObservationColumnName("file".into()),
-        kind: CellKind::File,
-    }];
+    let columns = vec![
+        ObservationColumn {
+            name: ObservationColumnName("file".into()),
+            kind: CellKind::File,
+        },
+        ObservationColumn {
+            name: ObservationColumnName("code".into()),
+            kind: CellKind::Number,
+        },
+    ];
     authored.plans[0].steps[0].operation = Operation::Select {
         from: Input::Relation(Relation::Function),
         comparisons: vec![],
         kept: vec![ColumnIndex(file_column as u32)],
     };
-    authored.plans[0].frontier = vec![Input::Step(StepId(0))];
+    authored.plans[0].steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Extend {
+            from: Input::Step(StepId(0)),
+            values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
+            )],
+        },
+    });
+    authored.plans[0].frontier = vec![Input::Step(StepId(1))];
     authored.plans[0].observations = vec![PlanObservation {
         name: ObservationName("files".into()),
-        source: Input::Step(StepId(0)),
+        source: Input::Step(StepId(1)),
         columns: columns.clone(),
         scope: StepScope::PerFile,
     }];
@@ -65,9 +115,29 @@ fn exercise(empty: bool, project_away_file: bool) {
             relation: HostedNumber(0),
         },
     }];
+    if matches!(mode, Mode::Current) {
+        let column = kinds(Relation::ModuleIdentity)
+            .iter()
+            .position(|kind| *kind == CellKind::File)
+            .unwrap();
+        authored.plans[1].steps[0].operation = Operation::Select {
+            from: Input::Relation(Relation::ModuleIdentity),
+            comparisons: vec![],
+            kept: vec![ColumnIndex(column as u32)],
+        };
+        authored.plans[1].steps.push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Extend {
+                from: Input::Step(StepId(0)),
+                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                    ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
+                )],
+            },
+        });
+    }
     authored.plans[1].observations = vec![PlanObservation {
         name: ObservationName("files".into()),
-        source: Input::Step(StepId(0)),
+        source: Input::Step(StepId(if matches!(mode, Mode::Current) { 1 } else { 0 })),
         columns: columns.clone(),
         scope: StepScope::CrossFile,
     }];
@@ -103,17 +173,84 @@ fn exercise(empty: bool, project_away_file: bool) {
             },
         },
     ];
+    if let Mode::PartialLeft { difference } = mode {
+        authored.plans[2].steps[0].operation = Operation::Hosted {
+            relation: HostedNumber(0),
+        };
+        let left = Input::BoundObservation(ObservationBindingId(0));
+        let right = Input::Step(StepId(0));
+        authored.plans[2].steps[1].operation = if difference {
+            Operation::Difference { left, right }
+        } else {
+            Operation::Antijoin {
+                left,
+                right,
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+            }
+        };
+    }
+    if let Mode::Rekey { file_key } = mode {
+        let key = ColumnIndex(if file_key { 0 } else { 1 });
+        authored.plans[2].steps[1] = PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Hosted {
+                relation: HostedNumber(2),
+            },
+        };
+        authored.plans[2].steps.push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Join {
+                left: Input::BoundObservation(ObservationBindingId(0)),
+                right: Input::Step(StepId(1)),
+                left_on: vec![key],
+                right_on: vec![key],
+                output: vec![
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(0),
+                    },
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(1),
+                    },
+                ],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
+        });
+        authored.plans[2].steps.push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Antijoin {
+                left: Input::Step(StepId(0)),
+                right: Input::Step(StepId(2)),
+                left_on: vec![ColumnIndex(0), ColumnIndex(1)],
+                right_on: vec![ColumnIndex(0), ColumnIndex(1)],
+            },
+        });
+    }
+    if matches!(mode, Mode::Current) {
+        if let Operation::Antijoin {
+            left_on, right_on, ..
+        } = &mut authored.plans[2].steps[1].operation
+        {
+            *left_on = vec![ColumnIndex(0), ColumnIndex(1)];
+            *right_on = left_on.clone();
+        }
+    }
     if project_away_file {
+        let previous = authored.plans[2].steps.len() - 1;
         authored.plans[2].steps.push(PlanStep {
             scope: StepScope::CrossFile,
             operation: Operation::Project {
-                from: Input::Step(StepId(1)),
+                from: Input::Step(StepId(previous as u32)),
                 columns: vec![ColumnIndex(1)],
                 distinct: RepeatedRows::Kept,
             },
         });
     }
-    authored.plans[2].emit.step = StepId(if project_away_file { 2 } else { 1 });
+    authored.plans[2].emit.step = StepId((authored.plans[2].steps.len() - 1) as u32);
     let host_column = |name: &str, kind| HostColumn {
         name: HostColumnName(name.into()),
         kind,
@@ -121,7 +258,10 @@ fn exercise(empty: bool, project_away_file: bool) {
     authored.hosted = vec![
         HostRelation {
             name: HostName("empty-project".into()),
-            columns: vec![host_column("file", HostKind::File)],
+            columns: vec![
+                host_column("file", HostKind::File),
+                host_column("code", HostKind::Number),
+            ],
             rows: vec![],
         },
         HostRelation {
@@ -147,6 +287,35 @@ fn exercise(empty: bool, project_away_file: bool) {
             .collect(),
         },
     ];
+    if matches!(mode, Mode::Rekey { .. }) {
+        let row = HostRow(vec![
+            HostCell::File(FilePath("input.py".into())),
+            HostCell::Number(Integer(7)),
+        ]);
+        authored.hosted[1].rows = vec![row.clone()];
+        authored.hosted.push(HostRelation {
+            name: HostName("rekey-targets".into()),
+            columns: authored.hosted[1].columns.clone(),
+            rows: vec![row],
+        });
+    }
+    if matches!(mode, Mode::Current) {
+        authored.hosted[1].rows = [
+            ("second.py", 7),
+            ("input.py", 7),
+            ("input.py", 8),
+            ("second.py", 8),
+            ("input.py", 8),
+        ]
+        .into_iter()
+        .map(|(file, code)| {
+            HostRow(vec![
+                HostCell::File(FilePath(file.into())),
+                HostCell::Number(Integer(code)),
+            ])
+        })
+        .collect();
+    }
     authored.observations =
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([97; 16])));
     let producer_id = authored.rules[0].id.clone();
@@ -226,6 +395,11 @@ fn exercise(empty: bool, project_away_file: bool) {
             root: file.finish().unwrap().readiness.unwrap(),
         });
     }
+    if stale_complete {
+        // Model persisted Complete bits for a now rejected file. Only current
+        // physical provenance can place the uncertainty; stale bits cannot erase it.
+        readiness[1].root = Arc::clone(&readiness[0].root);
+    }
     let skipped = vec![Skipped {
         rule: producer_id,
         path: FilePath("second.py".into()),
@@ -237,6 +411,25 @@ fn exercise(empty: bool, project_away_file: bool) {
     };
     let project_facts = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
+    let publication_partials = if matches!(mode, Mode::Current) {
+        use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Lacking};
+        Partials {
+            entries: vec![FilePartial {
+                file: Some(FileId(1)),
+                partial: Partial {
+                    relation: Relation::ModuleIdentity,
+                    cause: ryo_values::domain::stored_facts::types::PartialCause(
+                        "missing project partition".into(),
+                    ),
+                    lacking: Lacking::Any,
+                    at: Some(FileId(1)),
+                },
+            }],
+            unavailable_files: vec![],
+        }
+    } else {
+        Partials::default()
+    };
     let partials = Partials::default();
     let mut arenas = vec![];
     let mut stage = request.observations(&mut arenas).unwrap();
@@ -276,7 +469,7 @@ fn exercise(empty: bool, project_away_file: bool) {
             ProjectInput {
                 scope: &scope,
                 evaluation: &partials,
-                publication: &partials,
+                publication: &publication_partials,
                 ordinary,
                 bound: &[],
                 arenas: stage.arenas(),
@@ -294,34 +487,62 @@ fn exercise(empty: bool, project_away_file: bool) {
             &mut symbols,
         )
         .unwrap();
-    let (output, ProjectObservation::Complete { table, publication }) =
-        outcome.observations.pop().unwrap()
-    else {
-        panic!("the empty project member is a real complete publication")
+    let (output, observed) = outcome.observations.pop().unwrap();
+    let (table, publication, readiness) = match (mode, observed) {
+        (Mode::Current, ProjectObservation::Partial { table, publication }) => {
+            assert_eq!(
+                table.cells,
+                vec![Value::File(FileId(0)), Value::Number(Integer(7))]
+            );
+            (
+                table,
+                publication,
+                ProducerReadiness::Unknown(
+                    ryo_values::domain::observations::types::ObservationReason(
+                        "physical source facts are incomplete".into(),
+                    ),
+                ),
+            )
+        }
+        (_, ProjectObservation::Complete { table, publication }) => {
+            assert_eq!(table.count, RowCount(0));
+            (table, publication, ProducerReadiness::Complete)
+        }
+        _ => panic!("the actual project population keeps its exact completeness"),
     };
-    assert_eq!(table.count, RowCount(0));
     project.finish();
     let PublicationSlot::Reserved(worker) = slot else {
         panic!("demanded publication arena")
     };
     let mut words = Words::default();
     encode_table(&table, &[], &mut words);
+    let transfer = CrossPublicationTransfer {
+        worker,
+        arena: ArenaBytes::default(),
+        roots: vec![PackedObservedRoot {
+            output,
+            words: Some(KeptWords(pack(WordSlice(&words.0)))),
+            readiness,
+            arenas: vec![],
+        }],
+    };
+    if matches!(mode, Mode::Current) {
+        let mut forged = transfer.clone();
+        forged.roots[0].readiness = ProducerReadiness::Complete;
+        assert!(
+            stage
+                .install(
+                    RuleIndex(1),
+                    slot,
+                    forged,
+                    vec![(output, publication.clone())]
+                )
+                .is_err(),
+            "a Partial owner proof cannot be relabeled Complete"
+        );
+    }
     stage
-        .install(
-            RuleIndex(1),
-            slot,
-            CrossPublicationTransfer {
-                worker,
-                arena: ArenaBytes::default(),
-                roots: vec![PackedObservedRoot {
-                    output: ObservationIndex(0),
-                    words: Some(KeptWords(pack(WordSlice(&words.0)))),
-                    readiness: ProducerReadiness::Complete,
-                    arenas: vec![],
-                }],
-            },
-            vec![(output, publication)],
-        )
+        .install(RuleIndex(1), slot, transfer, vec![(output, publication)])
         .unwrap();
     stage.finish(RuleIndex(1)).unwrap();
     drop(scope);
@@ -371,32 +592,42 @@ fn exercise(empty: bool, project_away_file: bool) {
         else {
             panic!("only the bad physical partition must remain explicitly unknown")
         };
-        assert_eq!(affected, vec![Some(FileId(1))]);
-        let expected = if !empty {
-            vec![]
-        } else if project_away_file {
-            vec![
-                Value::Number(Integer(20)),
-                Value::Number(Integer(20)),
-                Value::Number(Integer(30)),
-            ]
-        } else {
-            vec![
-                Value::File(FileId(0)),
-                Value::Number(Integer(20)),
-                Value::File(FileId(0)),
-                Value::Number(Integer(20)),
-                Value::File(FileId(0)),
-                Value::Number(Integer(30)),
-            ]
+        assert_eq!(
+            affected,
+            if matches!(mode, Mode::Rekey { file_key: false }) {
+                vec![None]
+            } else {
+                vec![Some(FileId(1))]
+            }
+        );
+        let values = match mode {
+            Mode::PartialLeft { .. } => vec![7],
+            Mode::Rekey { file_key: true } => vec![7],
+            Mode::Rekey { file_key: false } => vec![],
+            Mode::Current => vec![8, 8],
+            Mode::PartialRight if empty => vec![20, 20, 30],
+            Mode::PartialRight => vec![],
         };
+        let expected = values
+            .iter()
+            .flat_map(|value| {
+                if project_away_file {
+                    vec![Value::Number(Integer(*value))]
+                } else {
+                    vec![Value::File(FileId(0)), Value::Number(Integer(*value))]
+                }
+            })
+            .collect::<Vec<_>>();
         assert_eq!(
             table.cells, expected,
-            "good-file multiplicity and order survive missing named rows"
+            "known rows preserve their multiplicity and order for {mode:?}"
         );
-        assert_eq!(table.count, RowCount(if empty { 3 } else { 0 }));
+        assert_eq!(table.count, RowCount(values.len()));
     }
-    assert_eq!(project_facts.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        project_facts.reads.load(Ordering::SeqCst),
+        usize::from(matches!(mode, Mode::Current))
+    );
     project.finish();
     drop(bound);
     drop(scope);

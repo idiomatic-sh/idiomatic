@@ -57,8 +57,10 @@ fn pack_root(
         readiness: root.readiness,
         arenas: Vec::new(),
     };
-    if published.readiness != ProducerReadiness::Complete {
-        return published;
+    match &published.readiness {
+        ProducerReadiness::Complete => {}
+        ProducerReadiness::Unknown(_) if root.table.is_some() => {}
+        _ => return published,
     }
     let Some(mut table) = root.table else {
         published.readiness = ProducerReadiness::Unknown(ObservationReason(

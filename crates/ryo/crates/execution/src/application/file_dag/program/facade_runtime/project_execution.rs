@@ -198,10 +198,10 @@ impl ProjectRun<'_> {
                 if root.phase != ryo_values::domain::plans::types::StepScope::CrossFile {
                     continue;
                 }
-                let result = if completion.observation_admission(&root.reads)
-                    == crate::domain::completion::types::ObservationAdmission::Ready
-                {
-                    root.source.clone().and_then(|source| {
+                let result = root
+                    .source
+                    .clone()
+                    .and_then(|source| {
                         self.execution.admit_root(
                             &state,
                             rule,
@@ -212,18 +212,26 @@ impl ProjectRun<'_> {
                             context,
                         )
                     })
-                } else {
-                    Err(OperatingError::ObservationIncomplete {
-                        reason: "physical source facts are incomplete".into(),
-                    })
-                };
+                    .map(|input| input.with_coverage(completion.coverage(&root.reads)));
                 observations.push((
                     ryo_values::domain::observations::types::ObservationIndex(
                         u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                     ),
                     match result {
-                        Ok(input) => match observation_table(&self.owner, &input, &unavailable) {
-                            Ok(table) => ProjectObservation::Complete {
+                        Ok(input) => match table_of(&self.owner, &input, &unavailable)
+                            .and_then(|table| Ok((table, input.coverage()?)))
+                        {
+                            Ok((
+                                table,
+                                crate::domain::completion::types::CoverageState::Complete,
+                            )) => ProjectObservation::Complete {
+                                table,
+                                publication: ObservedPublication::from_admitted(input),
+                            },
+                            Ok((
+                                table,
+                                crate::domain::completion::types::CoverageState::Partial { .. },
+                            )) => ProjectObservation::Partial {
                                 table,
                                 publication: ObservedPublication::from_admitted(input),
                             },

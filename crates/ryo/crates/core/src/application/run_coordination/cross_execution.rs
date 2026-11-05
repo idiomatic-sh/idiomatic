@@ -7,7 +7,7 @@ use ryo_execution::inbound::use_cases::execution::types::{
 };
 use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
 
-/// Pure phase rows plus the actual admitted owner proof of each Complete named root.
+/// Pure phase rows plus the actual admitted owner proof of each usable named root.
 pub(crate) struct ProgramEvaluated {
     pub roots: PhaseRoots,
     pub fed: Vec<ryo_execution::inbound::use_cases::execution::types::RowsFed>,
@@ -64,6 +64,15 @@ pub(crate) fn evaluate_cross_roots(
             ProjectObservation::Complete { table, publication } => {
                 publications.push((output, publication));
                 (Some(table), ProducerReadiness::Complete)
+            }
+            ProjectObservation::Partial { table, publication } => {
+                publications.push((output, publication));
+                (
+                    Some(table),
+                    ProducerReadiness::Unknown(ObservationReason(
+                        "physical source facts are incomplete".into(),
+                    )),
+                )
             }
             ProjectObservation::Other(RootOutcome::Partial { .. }) => (
                 None,

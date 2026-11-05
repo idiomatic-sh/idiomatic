@@ -168,7 +168,18 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
                 cells: extend_digest(&candidates),
                 count: RowCount(4),
             };
-            filter_contributor_rows(&operation, &input_kinds, absence, &affected, &mut rows);
+            let contributions = input_kinds
+                .iter()
+                .enumerate()
+                .map(|(ordinal, kinds)| super::types::InputCoverage {
+                    ordinal,
+                    kinds,
+                    coverage: CoverageState::Partial {
+                        files: affected.clone(),
+                    },
+                })
+                .collect::<Vec<_>>();
+            filter_contributor_rows(&operation, absence, &contributions, &mut rows);
             assert_eq!(
                 rows.cells,
                 if affected.contains(&None) {
@@ -196,14 +207,42 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
     };
     filter_contributor_rows(
         &global_count,
-        &[vec![CellKind::File]],
         1,
-        &[Some(FileId(1))],
+        &[super::types::InputCoverage {
+            ordinal: 0,
+            kinds: &[CellKind::File],
+            coverage: CoverageState::Partial {
+                files: vec![Some(FileId(1))],
+            },
+        }],
         &mut count,
     );
     assert_eq!(
         count.count,
         RowCount(0),
         "an unkeyed aggregate cannot localize uncertainty"
+    );
+}
+
+#[test]
+fn ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_uncertainty() {
+    use super::service::ordered_output_coverage;
+    use super::types::InputCoverage;
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::plan_parts::types::ColumnIndex;
+    let source = InputCoverage {
+        ordinal: 0,
+        kinds: &[CellKind::File, CellKind::Number],
+        coverage: CoverageState::Partial {
+            files: vec![Some(FileId(1))],
+        },
+    };
+    assert_eq!(
+        ordered_output_coverage(&[ColumnIndex(0)], &[CellKind::File], &source),
+        source.coverage
+    );
+    assert_eq!(
+        ordered_output_coverage(&[ColumnIndex(1)], &[CellKind::File], &source),
+        CoverageState::Partial { files: vec![None] }
     );
 }

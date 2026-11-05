@@ -31,3 +31,11 @@ pub(crate) enum RegionAdmission {
     Allowed,
     Blocked,
 }
+
+/// One actually admitted operand's schema and physical completeness. Missing
+/// operands are intentionally absent when a lazy demand gate did not read them.
+pub(crate) struct InputCoverage<'a> {
+    pub ordinal: usize,
+    pub kinds: &'a [ryo_relations::domain::relations::types::CellKind],
+    pub coverage: CoverageState,
+}

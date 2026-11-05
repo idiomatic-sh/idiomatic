@@ -235,6 +235,9 @@ impl AdmittedInput {
         self.publication(owner)?;
         Ok(self.proof.population)
     }
+    pub(super) fn has_root(&self, root: ProducerRoot) -> bool {
+        self.root == root
+    }
     /// Every admitted consumer uses the same physical-layout contract. A readable
     /// malformed provider is normalized once by its owner; complete native and
     /// compact populations remain borrowed in their original representation.

@@ -305,7 +305,9 @@ impl<'a> CrossPublications<'a> {
                 return Err(OperatingError::NotRun);
             }
             seen[output] = true;
-            if (root.readiness == ProducerReadiness::Complete) != root.words.is_some() {
+            if let Some(publication) = admitted.get(&root.output.0) {
+                publication.validate_transfer_readiness(&self.owner, &root.readiness)?;
+            } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }
             if root.words.is_some() != admitted.contains_key(&root.output.0) {

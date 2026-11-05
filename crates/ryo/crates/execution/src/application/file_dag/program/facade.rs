@@ -132,6 +132,26 @@ impl ObservedPublication {
     pub(super) fn admitted(&self) -> &super::admission::AdmittedInput {
         &self.admitted
     }
+    pub(in crate::application::file_dag) fn validate_transfer_readiness(
+        &self,
+        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        readiness: &ryo_values::domain::observations::types::ProducerReadiness,
+    ) -> Result<(), OperatingError> {
+        self.admitted.publication(owner)?;
+        match (self.admitted.coverage()?, readiness) {
+            (
+                crate::domain::completion::types::CoverageState::Complete,
+                ryo_values::domain::observations::types::ProducerReadiness::Complete,
+            ) => Ok(()),
+            (
+                crate::domain::completion::types::CoverageState::Partial { files },
+                ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
+            ) if !files.is_empty() => Ok(()),
+            _ => Err(OperatingError::ObservationIncomplete {
+                reason: "packed readiness disagrees with the admitted producer coverage".into(),
+            }),
+        }
+    }
 }
 pub struct LogicalCounts {
     pub fed: Box<[RowsFed]>,
@@ -144,6 +164,11 @@ pub struct RuleOutcome {
 /// A project named root can be Complete only with the admitted owner proof.
 pub enum ProjectObservation {
     Complete {
+        table: Table,
+        publication: ObservedPublication,
+    },
+    /// Known rows whose exact uncertainty remains in the admitted publication.
+    Partial {
         table: Table,
         publication: ObservedPublication,
     },

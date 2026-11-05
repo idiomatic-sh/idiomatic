@@ -1,4 +1,4 @@
-/// Diagnostic result plus the actual admitted identities of its complete named roots.
+/// Diagnostic result plus the actual admitted identities of its complete and partial named roots.
 pub(crate) struct CrossedWithPublications {
     pub crossed: crate::domain::answering::types::Crossed,
     pub publications: Vec<(

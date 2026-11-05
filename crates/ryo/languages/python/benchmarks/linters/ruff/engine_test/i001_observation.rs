@@ -189,6 +189,55 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     "Unknown source population must not become a complete empty observation",
                 );
             }
+            if phase == 0 {
+                let mut mixed_syntax = request.clone();
+                let Corpus::Given(files) = &mut mixed_syntax.corpus else {
+                    unreachable!()
+                };
+                files.push(CaseSource {
+                    path: RelativePath("broken.py".into()),
+                    text: SourceText("def broken(  # noqa: I001\n".into()),
+                    executable: ExecutablePermission::Unknown,
+                });
+                let fresh_mixed = lint_with(&engine(Cache::None), mixed_syntax.clone()).unwrap();
+                let warm_mixed = lint_with(&cached, mixed_syntax.clone()).unwrap();
+                assert_eq!(warm_mixed, fresh_mixed);
+                assert_eq!(lint_with(&cached, mixed_syntax).unwrap(), fresh_mixed);
+                for (rule, expected) in [
+                    (&hidden, usize::from(first_line)),
+                    (&ruf100, usize::from(!first_line)),
+                ] {
+                    assert_eq!(
+                        warm_mixed
+                            .findings
+                            .iter()
+                            .filter(|finding| &finding.rule == rule
+                                && finding.subject
+                                    == ryo::linter::Slot::Is(Cell::File(RelativePath(
+                                        "case.py".into()
+                                    ))))
+                            .count(),
+                        expected,
+                        "the valid file keeps its actual I001-derived answer"
+                    );
+                    assert!(
+                        !warm_mixed
+                            .unknowns
+                            .iter()
+                            .any(|unknown| &unknown.rule == rule
+                                && unknown.path == RelativePath("case.py".into())),
+                        "one broken file cannot poison the valid named partition"
+                    );
+                    assert!(
+                        warm_mixed
+                            .unknowns
+                            .iter()
+                            .any(|unknown| &unknown.rule == rule
+                                && unknown.path == RelativePath("broken.py".into())),
+                        "the incomplete partition remains explicitly Unknown"
+                    );
+                }
+            }
             if first_line && phase == 0 {
                 // The producer is hidden only on case.py. Its independent
                 // observation still serves that file while another file's

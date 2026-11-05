@@ -204,11 +204,10 @@ impl CrossFile {
         let mut publications = evaluated.publications;
         if let Some(packed) = &observations {
             publications.retain(|(output, _)| {
-                packed.roots.iter().any(|root| {
-                    root.output == *output
-                        && root.readiness
-                            == ryo_values::domain::observations::types::ProducerReadiness::Complete
-                })
+                packed
+                    .roots
+                    .iter()
+                    .any(|root| root.output == *output && root.words.is_some())
             });
         } else {
             publications.clear();

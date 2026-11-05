@@ -529,27 +529,104 @@ impl Inputs for SourceInputs<'_, '_> {
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
-        let readiness =
+        let mut readiness =
             super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
-        if let (
-            ProducerRoot::Region(region),
-            super::super::admission::Readiness::Partial { files },
-        ) = (root, &readiness)
+        if let ProducerRoot::Region(region) = root
+            && matches!(
+                readiness,
+                super::super::admission::Readiness::Partial { .. }
+            )
         {
-            let instruction = self
+            // A region starts with the admitted operands, then contains only
+            // pure unary continuations. Absence operations publish before any
+            // continuation can erase their completeness key.
+            let code = self
                 .program
                 .program()
                 .regions()
                 .get(region.0)
-                .and_then(|region| region.instructions.last())
                 .ok_or(OperatingError::NotRun)?;
+            let column = code.column.as_ref().filter(|_| inputs.len() == 2);
+            let ordered = code.ordered_existence.as_ref().filter(|shape| {
+                inputs.len() == 1 && inputs[0].has_root(ProducerRoot::Region(shape.source))
+            });
+            // Alternatives certify their original semantic operands, not the
+            // unary Project/Select that owns the final publication boundary.
+            let semantic = if let Some(shape) = column {
+                self.program
+                    .program()
+                    .regions()
+                    .get(shape.join().0)
+                    .ok_or(OperatingError::NotRun)?
+            } else {
+                code
+            };
+            let instruction = semantic
+                .instructions
+                .first()
+                .ok_or(OperatingError::NotRun)?;
+            let contributions = inputs
+                .iter()
+                .enumerate()
+                .map(|(ordinal, input)| {
+                    let kinds = if let Some(shape) = ordered {
+                        self.program
+                            .program()
+                            .regions()
+                            .get(shape.source.0)
+                            .and_then(|source| source.instructions.last())
+                            .and_then(|instruction| instruction.contract.output_kinds.as_ref().ok())
+                            .ok_or(OperatingError::NotRun)?
+                    } else {
+                        instruction
+                            .contract
+                            .input_kinds
+                            .get(ordinal)
+                            .ok_or(OperatingError::NotRun)?
+                    };
+                    Ok(crate::domain::completion::types::InputCoverage {
+                        ordinal,
+                        kinds,
+                        coverage: input.coverage()?,
+                    })
+                })
+                .collect::<Result<Vec<_>, OperatingError>>()?;
             crate::domain::completion::service::filter_contributor_rows(
                 &instruction.operation,
-                &instruction.contract.input_kinds,
                 instruction.contract.absence_inputs,
-                files,
+                &contributions,
                 &mut rows,
             );
+            let coverage = match &instruction.contract.output_kinds {
+                Ok(kinds) => {
+                    if let Some(shape) = ordered {
+                        crate::domain::completion::service::ordered_output_coverage(
+                            &shape.partition,
+                            kinds,
+                            &contributions[0],
+                        )
+                    } else {
+                        crate::domain::completion::service::output_coverage(
+                            &instruction.operation,
+                            kinds,
+                            &contributions,
+                        )?
+                    }
+                }
+                // An intentionally undemanded row fault must stay deferred.
+                // No precise lineage can be certified from a refused schema.
+                Err(_) => {
+                    crate::domain::completion::types::CoverageState::Partial { files: vec![None] }
+                }
+            };
+            readiness = match coverage {
+                crate::domain::completion::types::CoverageState::Complete => {
+                    super::super::admission::Readiness::Complete
+                }
+                crate::domain::completion::types::CoverageState::Partial { files } => {
+                    super::super::admission::Readiness::Partial { files }
+                }
+            };
         }
         let publication = self.owner.computed(rows)?;
         self.state.bind(&self.owner, root, &publication)?;
