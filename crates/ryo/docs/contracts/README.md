@@ -2,16 +2,16 @@
 
 **Full categories: Relations INCOMPLETE (69 public catalog members, and framework routes); operators INCOMPLETE (26 kinds); derived views INCOMPLETE (13 required mechanisms: 12 public registered kinds plus `RawKeyOrder`).** The member and route checklists below are the acceptance scope.
 
-**Frozen verification source: `a9fc28a5c9` (2026-11-05).** No ownership category is complete.
+**Latest public runtime: `b75c59ce3d` (2026-11-05).** No ownership category is complete.
 
-- Full rule inventory212: **413 PASS / 0 FAIL**. Public execution boundaries204: **65/65 pass** on identical execution source.
-- B008 fixture209: **0.961 → 0.0678 s**, exact output unchanged; suspended polls **311,791 → 1,943**. This is one diagnostic fixture, not a Django speedup; the builds differ in Core's fixtures feature.
-- Full-Django213 cold/warm/edit and Rust214 remain pending. The cold process exceeded 30 CPU-minutes; no completed timing or performance acceptance is established.
-- Current candidate: compact physical selection classes and direct instruction lookup prepared once; cohort-sized scratch and sparse admitted-source results. Actual scratch resets and stored result slots are exposed through the existing public walk counters. Source written; compilation, TM, behavioral controls and independent review remain pending.
-- Internal tests still need migration to mandatory production contracts. Scoped TM197 remains **241 findings / 0 suppressed across 77 changed Rust files**; this is not a current whole-workspace count.
-- Paired Astra/Opus review of the frozen scheduler found no bounded source blocker; overall **UNASSESSED**. It does not approve this new candidate or close ownership, lifetime, TM or performance gaps.
+- Public boundaries221/222: **71/71 pass**. Restoring whole-program scratch sizing makes the dormant-class control fail **257 versus 1**; restoring the candidate passes all 71. This proves the bounded allocation-work guard, not whole-program memory performance.
+- Previous full rule inventory212: **413 PASS / 0 FAIL** on `a9fc28a5c9`; candidate inventory remains pending.
+- Full-Django213 **failed** after **3,039.41 s / 5.30 GB**, with I001 frontier proof mismatch and no report. Warm was cancelled after the correctness failure; edit did not run. Rust214 refused pending recorded rules before timing.
+- Tiny mixed-syntax224 passes the repaired transport boundary but still fails with **nine unknowns**. RUF100 incorrectly becomes unavailable for the valid file too. Partition-aware named availability and absence-sensitive consumption remain open; do not label this case fixed.
+- Tiny valid-file225: **10.59 → 9.88 s**, **1.988 → 1.985 GB**, exactly equal complete reports for 413 rules. One diagnostic comparison only. Profile217 attributed **6.272 s** to compilation and left **2.567 s** of preparation unaccounted.
+- TM221: **0 findings across five public proof files**. TM219: **79 findings across six source/proof files**; broader architecture remains open. Internal test migration and full acceptance are unfinished.
 
-Evidence, commands, source identities and live processes remain in Beads `ryo-7tkn.19`. The candidate preserves the single interpreter, admission/error order, source identity and publication ownership. It does not extend selection eligibility or claim completion of the full shared walk.
+Evidence and granular tasks **A1–A9, B1–B5, C1–C7** are tracked in Beads `ryo-7tkn.19`. Astra/Opus source review found no remaining blocker in the bounded frontier repair; it did not close runtime coverage, ownership categories or performance gates. Scheduling audit distinguishes shared file preparation and named-project execution from the ordinary project route, which still creates two scopes per rule and separate execution generations.
 
 ## 1. Ownership matrix
 
