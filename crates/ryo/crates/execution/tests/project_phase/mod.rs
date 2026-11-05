@@ -1152,10 +1152,17 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     },
                 ];
                 if use_parameter_rows {
-                    use ryo_values::domain::plan_parts::types::{ParameterId, TableKey};
+                    use ryo_values::domain::plan_parts::types::{
+                        ParameterId, ParameterName, TableKey,
+                    };
+                    use ryo_values::domain::plans::types::{ParameterType, PlanParameter};
                     use ryo_values::domain::query_bindings::types::{
                         BindingCell, BindingTable, ParameterBinding,
                     };
+                    authored.plans[0].parameters = vec![PlanParameter {
+                        name: ParameterName("codes".into()),
+                        kind: ParameterType::Tables,
+                    }];
                     authored.bindings[0] =
                         vec![ParameterBinding::Tables(vec![BindingTable(vec![
                             BindingCell {
