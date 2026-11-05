@@ -25,6 +25,8 @@ Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and 
 
 **Query source ownership:** shared immutable catalogs are integrated. Diagnostic232 proves the scoped memory reduction above; combined245 passes SDK43, query-language89 and values21 tests. Public API snapshot/semver checks, unresolved TM findings, all-route sharing and full-Django acceptance remain open.
 
+Internal authority followup `25dae5fd4a` requires a runtime-issued `KernelAdmission` for all three kernel-permit constructors and rejects contradictory producer-scope rebinding. The placed `runtime-authority` TM rule checks private fields, declaration owners and direct record issuance, with eight bad/good scenarios. These checks are authored, not executed. Aliases, macros, new constructors and unsafe code still require Rust boundaries and review. The actual in-crate sibling compile-fail control is missing; external private-import failures are not substitute proof. B5.2/B5.4/B5.6 remain unchecked.
+
 ### Phase 2 completion checklist
 
 Independent inventory audit: source `bf525425c7`; retained Astra and Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. This audits scope, **not implementation approval**. The current B4b/B4c branches and authority followup are still uncompiled.

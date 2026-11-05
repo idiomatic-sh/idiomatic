@@ -1,0 +1,115 @@
+description = "Runtime admission authority is sealed to its declaring owner."
+why = "KernelAdmission is the unforgeable input required by all three KernelPermit constructors. Private record fields keep program siblings from issuing it even when they already hold a ProgramExecution reference. KernelPermit, AdmittedInput and RuntimeState likewise retain private representation. This AST rule rejects visibility widening, misplaced declarations and written KernelAdmission record construction outside runtime.rs. Rust privacy independently resolves aliases and rejects sibling field construction. This rule does not prove constructor signatures, facade reexports, macro expansion, unsafe code or runtime admission correctness; those remain compiler and production execution obligations."
+query = '''
+let nodes = select id, kind, file, span from "syntax-tree" where text = "";
+let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
+let structs = select * from nodes where kind = "struct";
+let names = select * from nodes where kind = "name";
+let struct-children = select l.id as id, l.file as file, l.span as span, r.child as child from structs as l join "syntax-child" as r on l.id = r.parent;
+let struct-names = select l.id as id, l.file as file, l.span as span, l.child as node from struct-children as l join names as r on l.child = r.id;
+let name-children = select l.id as id, l.file as file, l.span as span, r.child as token from struct-names as l join "syntax-child" as r on l.node = r.parent;
+let named-structs = select l.id as id, l.file as file, l.span as span, r.text as name from name-children as l join tokens as r on l.token = r.id;
+let sealed = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,AdmittedInput,RuntimeState}");
+let placed = capture(from=sealed, path="file", pattern="{*root}/application/file_dag/program/{part}.rs", captures=["root", "part"]);
+let wrong-runtime = select file, span from placed where glob_any(name, "{KernelAdmission,RuntimeState}") and part != "runtime";
+let wrong-admission = select file, span from placed where glob_any(name, "{KernelPermit,AdmittedInput}") and part != "admission";
+let unplaced = antijoin(left=sealed, right=placed, left-on=["id"], right-on=["id"]);
+let wrong-unplaced = project(from=unplaced, columns=["file", "span"]);
+let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
+let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
+let fields = select * from nodes where glob_any(kind, "{record-field,tuple-field}");
+let sealed-fields = select r.id as id, r.file as file, r.span as span from field-edges as l join fields as r on l.field = r.id;
+let visibilities = select * from nodes where kind = "visibility";
+let visible-owners = select l.parent as id from "syntax-child" as l join visibilities as r on l.child = r.id;
+let widened = select l.file as file, l.span as span from sealed-fields as l join visible-owners as r on l.id = r.id;
+let records = select * from nodes where kind = "record-expr";
+let paths = select * from nodes where kind = "path";
+let record-children = select l.id as id, l.file as file, l.span as span, r.child as child from records as l join "syntax-child" as r on l.id = r.parent;
+let record-paths = select l.id as id, l.file as file, l.span as span, l.child as path from record-children as l join paths as r on l.child = r.id;
+let path-names = axis(from=paths, relation="syntax-child", direction=descendant, domain=tokens);
+let authority-names = select l.id as path from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and r.text = "KernelAdmission";
+let authority-records = select l.file as file, l.span as span from record-paths as l join authority-names as r on l.path = r.path;
+let foreign-issuers = select file, span from authority-records where not glob_any(file, "{src,**/src}/application/file_dag/program/runtime.rs");
+let wrong-placement = union(left=wrong-runtime, right=wrong-admission);
+let all-placement = union(left=wrong-placement, right=wrong-unplaced);
+let sealed-placement = union(left=all-placement, right=widened);
+let violations = union(left=sealed-placement, right=foreign-issuers);
+emit violations subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "runtime admission authority escapes its sealed owner"
+help = "Keep KernelAdmission and RuntimeState in runtime.rs, KernelPermit and AdmittedInput in admission.rs, every representation field private, and KernelAdmission issuance inside runtime.rs. Other modules receive admitted capabilities through the production interpreter."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "runtime_authority_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'mod application;'
+files.'src/application.rs' = 'mod file_dag;'
+files.'src/application/file_dag.rs' = 'mod program;'
+files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session;'
+files.'src/application/file_dag/program/runtime.rs' = '''
+pub(super) struct KernelAdmission { execution: (), region: usize }
+pub(super) struct RuntimeState { generation: (), slots: () }
+fn issue() -> KernelAdmission { KernelAdmission { execution: (), region: 0 } }
+'''
+files.'src/application/file_dag/program/admission.rs' = '''
+pub(super) struct KernelPermit { region: usize }
+pub(super) struct AdmittedInput { proof: () }
+'''
+files.'src/application/file_dag/program/kernel_session.rs' = 'fn consume(_: &super::admission::KernelPermit) {}'
+
+[[scenarios]]
+id = "private-owner-issuance"
+scenario = "The runtime issues sealed authority and a sibling only borrows an existing permit."
+
+[[scenarios]]
+id = "sibling-cannot-issue"
+scenario = "A real program sibling writing the authority record is rejected."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'fn bypass() { let _ = super::runtime::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "authority-field-super-is-not-private"
+scenario = "Widening a field to pub(super) makes sibling construction possible and is rejected."
+given.files.'src/application/file_dag/program/runtime.rs' = 'pub(super) struct KernelAdmission { pub(super) execution: (), region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime.rs", line = 1 }]
+
+[[scenarios]]
+id = "permit-field-crate-is-not-private"
+scenario = "Permit representation cannot be widened to the crate."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct KernelPermit { pub(crate) region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "input-field-public-is-not-private"
+scenario = "A public admitted proof would bypass the sealed record."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub proof: () }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "state-field-super-is-not-private"
+scenario = "Runtime slot state cannot be fabricated by a program sibling."
+given.files.'src/application/file_dag/program/runtime.rs' = 'pub(super) struct RuntimeState { pub(super) generation: (), slots: () }'
+then.findings = [{ path = "src/application/file_dag/program/runtime.rs", line = 1 }]
+
+[[scenarios]]
+id = "authority-declaration-cannot-move"
+scenario = "A sibling must not become the new authority issuer by moving its record."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub(super) struct KernelAdmission { execution: (), region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "comments-do-not-issue-authority"
+scenario = "A comment or string mentioning record syntax is not a construction."
+given.files.'src/application/file_dag/program/kernel_session.rs' = '''
+// KernelAdmission { execution: (), region: 0 }
+const NOTE: &str = "KernelAdmission { execution: (), region: 0 }";
+fn consume(_: &super::admission::KernelPermit) {}
+'''
