@@ -297,6 +297,14 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
     {
+        if self
+            .walk
+            .is_some_and(|walk| walk.class(self.prepared, permit.descriptor()).is_some())
+        {
+            // The ready cohort owns selection work for this head. Do not probe
+            // a second per-head stored-selection route before replaying it.
+            return Ok(None);
+        }
         let mut rebound = OperatorContext {
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
