@@ -13,8 +13,6 @@ pub(crate) struct ObservationRun<'a> {
     pub program:
         std::sync::Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
     pub services: &'a ryo_execution::inbound::use_cases::execution::types::RequestExecution,
-    pub scheduler: &'a dyn crate::outbound::scheduler::interface::SchedulerPort,
-    pub workers: crate::outbound::scheduler::types::WorkerCount,
     pub batches: &'a [Vec<ryo_execution::inbound::use_cases::execution::types::RuleIndex>],
     pub first_bucket: &'a [ryo_values::domain::stored_facts::types::Bucket],
     pub facts: &'a dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsFinish,

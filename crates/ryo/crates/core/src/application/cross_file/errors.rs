@@ -1,8 +1,6 @@
 //! Cross publication orchestration failures, preserving port errors at the use-case edge.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum CrossError {
-    #[error("{0}")]
-    Contract(String),
     #[error(transparent)]
     Operating(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
     #[error(transparent)]

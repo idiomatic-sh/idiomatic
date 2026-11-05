@@ -941,8 +941,6 @@ impl LintUseCaseImpl {
                         domain,
                         services: run.services,
                         program: std::sync::Arc::clone(&run.program),
-                        scheduler: self.scheduler.as_ref(),
-                        workers: self.workers,
                         batches,
                         first_bucket: run.first_bucket,
                         facts: kept_facts.as_ref(),

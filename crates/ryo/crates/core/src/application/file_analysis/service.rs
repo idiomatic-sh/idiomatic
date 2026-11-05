@@ -62,7 +62,6 @@ use crate::outbound::corpus::types::PathStat;
 use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
 use ryo_execution::inbound::use_cases::execution::types::digest::{DigestBytes, DigestWords};
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
-use ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
 use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
 use ryo_values::domain::files::service::input_path;
@@ -152,9 +151,6 @@ impl Worker {
 }
 
 impl FileAnalysis {
-    pub(super) fn resource_generation_enabled(tables: &Tables, facts: &dyn FactsWorker) -> bool {
-        tables.language.is_some() && facts.resident_stability() == ResidentStability::Stable
-    }
     /// Admit one exact linked-provider selection before parsing or retained-data reuse.
     pub(crate) fn validate_source_language(
         &self,
