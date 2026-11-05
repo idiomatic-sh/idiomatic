@@ -1,4 +1,4 @@
-//! Opaque request preparation and independent results for the shared tree walk.
+//! Opaque request preparation and independent results for shared relation walks.
 
 use crate::domain::{
     coverage::types::RuleIndex,
@@ -54,7 +54,7 @@ impl PreparedWalk {
             return None;
         }
         let ryo_values::domain::plans::types::Operation::Select {
-            from: Input::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
+            from: Input::Relation(relation),
             comparisons,
             kept,
         } = &instruction.operation
@@ -62,7 +62,7 @@ impl PreparedWalk {
             return None;
         };
         if kept.iter().any(|column| {
-            column.0 as usize >= crate::domain::step_classes::constants::ELEMENT_COLUMNS
+            column.0 as usize >= ryo_relations::domain::relations::service::columns(*relation).len()
         }) {
             return None;
         }
@@ -78,7 +78,9 @@ impl PreparedWalk {
             .get(original.step.0 as usize)
             .copied()
             .flatten()?;
-        (self.classes().get(class.0)?.comparisons == *comparisons).then_some(class)
+        (self.classes().get(class.0)?.source == *relation
+            && self.classes().get(class.0)?.comparisons == *comparisons)
+            .then_some(class)
     }
 
     /// Exclude logical classes with no physical consumer of the shared result.

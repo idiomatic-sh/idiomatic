@@ -20,7 +20,7 @@ use ryo_values::domain::{
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
 };
 use {
-    crate::domain::coverage::types::RuleIndex, crate::domain::operating::types::OperatorContext,
+    crate::domain::operating::types::OperatorContext,
     crate::domain::positions::service_test::SMALL_SOURCE,
     crate::domain::positions::service_test::SmallTree,
     crate::domain::positions::service_test::small_tree,
@@ -101,7 +101,8 @@ pub(crate) fn evaluate_plans(
     };
     evaluate(
         prepared,
-        tree,
+        Relation::SyntaxTree,
+        &crate::domain::table_model::types::Rows::Tree(tree),
         &bound,
         &mut context,
         active,
@@ -278,11 +279,12 @@ fn different_kind_errors_keep_the_first_source_row() {
         .collect::<Vec<_>>();
     let batch = evaluate(
         &prepared,
-        TreeRows {
+        Relation::SyntaxTree,
+        &crate::domain::table_model::types::Rows::Tree(TreeRows {
             elements: &elements,
             file: FileId(0),
             form: TreeForm::Elements,
-        },
+        }),
         &bound,
         &mut context,
         &[RuleActivity::Active; 4],
@@ -327,11 +329,12 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         .collect::<Vec<_>>();
     let first = evaluate(
         &prepared,
-        TreeRows {
+        Relation::SyntaxTree,
+        &crate::domain::table_model::types::Rows::Tree(TreeRows {
             elements: &elements,
             file: FileId(0),
             form: TreeForm::Elements,
-        },
+        }),
         &bound,
         &mut context,
         &[RuleActivity::Active; 4],
@@ -341,17 +344,21 @@ fn an_empty_next_file_has_no_stale_native_publication() {
     let empty = ryo_language::domain::elements::types::Elements::default();
     let next = evaluate(
         &prepared,
-        TreeRows {
+        Relation::SyntaxTree,
+        &crate::domain::table_model::types::Rows::Tree(TreeRows {
             elements: &empty,
             file: FileId(1),
             form: TreeForm::Elements,
-        },
+        }),
         &bound,
         &mut context,
         &[RuleActivity::Active; 4],
         &mut work,
     );
-    assert!((0..prepared.classes().len()).all(|at| next.class(ClassPlace(at)).is_none()));
+    assert!((0..prepared.classes().len()).all(|at| {
+        next.class(ClassPlace(at))
+            .is_some_and(|result| result.positions.0.is_empty() && result.completion.is_ok())
+    }));
     assert_eq!(first.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
 }
 
@@ -426,3 +433,271 @@ fn succeeds() {
 }
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+
+fn relation_plan(relation: Relation, comparisons: Vec<Comparison>) -> Plan {
+    let mut selected = plan("word");
+    selected.steps[0].operation = Operation::Select {
+        from: PlanInput::Relation(relation),
+        comparisons,
+        kept: Vec::new(),
+    };
+    selected
+}
+
+fn numbered(column: u32, value: i64) -> Comparison {
+    Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(column)),
+        right: Operand::Literal(QueryLiteral::Number(Integer(value))),
+        origin: None,
+    }
+}
+
+fn with_context<T>(symbols: &mut Symbols, run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
+    let mut scratch = OperatorScratch::default();
+    let mut memo = Vec::new();
+    run(&mut OperatorContext {
+        semantic: None,
+        prepared_kinds: None,
+        prepared_matchers: None,
+        bindings: &[],
+        symbols: symbols.into(),
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    })
+}
+
+#[test]
+fn generic_rows_share_one_walk_under_exact_typed_bindings_and_relation() {
+    let mut by_parameter = numbered(8, 0);
+    by_parameter.right = Operand::Parameter(ParameterId(0));
+    let plans = [
+        relation_plan(Relation::SourceLocation, vec![by_parameter.clone()]),
+        relation_plan(Relation::SourceLocation, vec![by_parameter.clone()]),
+        relation_plan(Relation::SourceLocation, vec![by_parameter]),
+        relation_plan(Relation::SemanticSyntax, vec![numbered(0, 0)]),
+    ];
+    let bindings = vec![
+        vec![ParameterBinding::Number(WholeNumber(1))],
+        vec![ParameterBinding::Number(WholeNumber(2))],
+        vec![ParameterBinding::Text(LiteralText("1".into()))],
+        vec![],
+    ];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    assert_eq!(prepared.classes().len(), 4);
+    // The fourth class belongs to another source and receives no visits.
+    let columns = (0..9)
+        .map(|at| FactColumn(if at == 8 { vec![1, 2, 1] } else { vec![0; 3] }))
+        .collect::<Vec<_>>();
+    let rows = Rows::Stored(ColumnsView {
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::SourceLocation),
+        columns: &columns,
+    });
+    let bound = bindings
+        .iter()
+        .cloned()
+        .map(Vec::into_boxed_slice)
+        .collect::<Vec<_>>();
+    let batch = with_context(&mut Symbols::default(), |context| {
+        evaluate(
+            &prepared,
+            Relation::SourceLocation,
+            &rows,
+            &bound,
+            context,
+            &[RuleActivity::Active; 4],
+            &mut WalkWork::default(),
+        )
+    });
+    assert_eq!(batch.counts().passes.0, 1);
+    assert_eq!(batch.counts().source_rows.0, 3);
+    assert_eq!(batch.class(ClassPlace(0)).unwrap().positions.0, [0, 2]);
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [1]);
+    assert!(batch.class(ClassPlace(3)).is_none());
+    assert_eq!(batch.visits(ClassPlace(3)).0, 0);
+    // Reuse the exact program for a second schema; no SourceLocation class runs.
+    let other = ryo_values::domain::rows::types::Table {
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::SemanticSyntax).to_vec(),
+        cells: Vec::new(),
+        count: RowCount(0),
+    };
+    let empty = with_context(&mut Symbols::default(), |context| {
+        evaluate(
+            &prepared,
+            Relation::SemanticSyntax,
+            &Rows::Computed(&other),
+            &bound,
+            context,
+            &[RuleActivity::Active; 4],
+            &mut WalkWork::default(),
+        )
+    });
+    assert!(empty.class(ClassPlace(0)).is_none());
+    assert!(empty.class(ClassPlace(3)).unwrap().positions.0.is_empty());
+}
+
+#[derive(Default)]
+struct Collected(Vec<Vec<CellValue>>);
+impl crate::domain::operating::types::Emit for Collected {
+    fn row(
+        &mut self,
+        _: &mut OperatorContext<'_>,
+        row: &[CellValue],
+    ) -> Result<(), OperatingError> {
+        self.0.push(row.to_vec());
+        Ok(())
+    }
+}
+
+#[test]
+fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
+    let comparison = Comparison {
+        test: Test::Matches,
+        left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
+        right: Operand::Column(ColumnIndex(2)),
+        origin: None,
+    };
+    let plans = [relation_plan(Relation::SemanticSyntax, vec![comparison])];
+    let prepared = PreparedWalk::compile(&plans, &[vec![]]);
+    let mut symbols = Symbols::default();
+    let valid = ryo_language::domain::symbols::service::intern_derived(
+        &mut symbols,
+        ByteSlice(b""),
+        NameText("x"),
+    );
+    let invalid = ryo_language::domain::symbols::service::intern_derived(
+        &mut symbols,
+        ByteSlice(b""),
+        NameText("["),
+    );
+    let table = ryo_values::domain::rows::types::Table {
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::SemanticSyntax).to_vec(),
+        cells: [valid, invalid, valid]
+            .iter()
+            .enumerate()
+            .flat_map(|(at, text)| {
+                [
+                    CellValue::Node(NodeId(at as u64)),
+                    CellValue::Symbol(valid),
+                    CellValue::Symbol(*text),
+                    CellValue::File(FileId(0)),
+                    CellValue::Span(Span {
+                        start: Offset(0),
+                        end: Offset(1),
+                    }),
+                ]
+            })
+            .collect(),
+        count: RowCount(3),
+    };
+    let source = Rows::Computed(&table);
+    with_context(&mut symbols, |context| {
+        let batch = evaluate(
+            &prepared,
+            Relation::SemanticSyntax,
+            &source,
+            &[Vec::new().into_boxed_slice()],
+            context,
+            &[RuleActivity::Active],
+            &mut WalkWork::default(),
+        );
+        let result = batch.class(ClassPlace(0)).unwrap();
+        assert_eq!(result.positions.0, [0]);
+        assert_eq!(batch.visits(ClassPlace(0)).0, 2);
+        assert!(matches!(
+            &result.completion,
+            Err(OperatingError::InvalidRegex { .. })
+        ));
+        let mut collected = Collected::default();
+        let replayed = crate::domain::replay::service::selected(
+            result,
+            &source,
+            &[ColumnIndex(2), ColumnIndex(0), ColumnIndex(2)],
+            context,
+            &mut collected,
+        );
+        assert!(matches!(replayed, Err(OperatingError::InvalidRegex { .. })));
+        assert_eq!(
+            collected.0,
+            vec![vec![
+                CellValue::Symbol(valid),
+                CellValue::Node(NodeId(0)),
+                CellValue::Symbol(valid)
+            ]]
+        );
+        struct Refuse;
+        impl crate::domain::operating::types::Emit for Refuse {
+            fn row(
+                &mut self,
+                _: &mut OperatorContext<'_>,
+                _: &[CellValue],
+            ) -> Result<(), OperatingError> {
+                Err(OperatingError::NotRead)
+            }
+        }
+        assert!(matches!(
+            crate::domain::replay::service::selected(result, &source, &[], context, &mut Refuse),
+            Err(OperatingError::NotRead)
+        ));
+    });
+}
+
+#[test]
+fn invalid_generic_representation_or_relation_schema_declines_without_semantic_work() {
+    let plans = [relation_plan(
+        Relation::SourceLocation,
+        vec![numbered(8, 1)],
+    )];
+    let prepared = PreparedWalk::compile(&plans, &[vec![]]);
+    let mut table = ryo_values::domain::rows::types::Table {
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::SourceLocation).to_vec(),
+        cells: vec![],
+        count: RowCount(1),
+    };
+    with_context(&mut Symbols::default(), |context| {
+        let invalid = evaluate(
+            &prepared,
+            Relation::SourceLocation,
+            &Rows::Computed(&table),
+            &[Vec::new().into_boxed_slice()],
+            context,
+            &[RuleActivity::Active],
+            &mut WalkWork::default(),
+        );
+        assert!(invalid.class(ClassPlace(0)).is_none());
+        assert_eq!(invalid.counts().passes.0, 0);
+        table.count = RowCount(usize::MAX);
+        let oversized = evaluate(
+            &prepared,
+            Relation::SourceLocation,
+            &Rows::Computed(&table),
+            &[Vec::new().into_boxed_slice()],
+            context,
+            &[RuleActivity::Active],
+            &mut WalkWork::default(),
+        );
+        assert!(oversized.class(ClassPlace(0)).is_none());
+        assert_eq!(oversized.counts().passes.0, 0);
+        table.count = RowCount(0);
+        let wrong_schema = evaluate(
+            &prepared,
+            Relation::SemanticSyntax,
+            &Rows::Computed(&table),
+            &[Vec::new().into_boxed_slice()],
+            context,
+            &[RuleActivity::Active],
+            &mut WalkWork::default(),
+        );
+        assert!(wrong_schema.class(ClassPlace(0)).is_none());
+        assert_eq!(wrong_schema.counts().passes.0, 0);
+    });
+}
+
+use crate::domain::{operating::errors::OperatingError, table_model::types::Rows};
+use ryo_relations::domain::relations::types::{
+    ColumnsView, FactColumn, Integer, NodeId, Span, Value as CellValue,
+};
+use ryo_values::domain::{plan_parts::types::WholeNumber, rows::types::RowCount};

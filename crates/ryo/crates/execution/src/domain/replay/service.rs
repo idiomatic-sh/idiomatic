@@ -43,17 +43,16 @@ pub(crate) fn scan(
 /// The existing continuation decides downstream semantics and sink refusal order.
 pub(crate) fn selected(
     result: &crate::domain::shared_walk::types::ClassResult,
-    tree: crate::domain::table_cells::types::TreeRows<'_>,
+    source: &Rows<'_>,
     kept: &[ryo_values::domain::plan_parts::types::ColumnIndex],
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
-    let source = Rows::Tree(tree);
     let mut cells = Vec::new();
     let mut projected = Vec::new();
     for position in &result.positions.0 {
         let row = read_row(
-            &source,
+            source,
             ryo_values::domain::rows::types::RowIndex(*position as usize),
             &mut cells,
         )

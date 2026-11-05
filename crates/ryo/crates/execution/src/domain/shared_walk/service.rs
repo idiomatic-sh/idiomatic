@@ -1,38 +1,34 @@
-//! One borrowed tree pass for active selection classes. No publication,
+//! One borrowed relation pass for active selection classes. No publication,
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
-    ClassWork, Eligibility, KindCount, RowRead, RuleActivity, WalkWork,
+    ClassWork, Eligibility, KindCount, RuleActivity, WalkWork,
     prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
 };
 use crate::domain::{
     comparing::service::holds_all,
-    coverage::types::RuleIndex,
     kind_sets::{
         service::{kind_tests, named_kinds, names_a_kind, passes},
         types::KindScratch,
     },
-    operating::{
-        errors::OperatingError,
-        types::{KindNaming, Memo, NameCount, OperatorContext},
-    },
+    operating::types::{KindNaming, Memo, NameCount, OperatorContext},
     positions::types::{ClassPlace, Slots},
-    step_classes::{constants::ELEMENT_COLUMNS, types::StepClass},
+    step_classes::types::StepClass,
     table_cells::{
         service::read_tree_cells,
-        types::{CellsRead, ColumnPlaces, TreeForm, TreeRows},
+        types::{CellsRead, ColumnPlaces, TreeForm},
     },
     table_model::{
-        service::kinds_of,
+        service::{count_of, kinds_of, read_row},
         types::{Rows, Verdict},
     },
     text_gate::service::needed_of_rest,
 };
 use ryo_language::domain::{
-    elements::service::{kind_at, kind_names, positions, real_count},
+    elements::service::{kind_at, kind_names},
     symbols::service::{name_count, query_reborrow},
 };
-use ryo_relations::domain::relations::types::{CellKind, Position, Value};
+use ryo_relations::domain::relations::types::{CellKind, Flag, Position, Relation, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::RowIndex;
 
@@ -69,22 +65,19 @@ fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[Class
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "One borrowed tree row and one independent class result"
+    reason = "One borrowed source row and one independent class result"
 )]
 fn consider(
-    tree: &TreeRows<'_>,
+    row: &[Value],
     class: &StepClass,
     each: &mut ClassWork,
     batch: &mut NativeBatch,
     place: ClassPlace,
     position: Position,
-    union: &ColumnPlaces,
     names: NameCount,
-    element_kinds: &[CellKind],
+    source_kinds: &[CellKind],
     bindings: &[Box<[ParameterBinding]>],
     context: &mut OperatorContext<'_>,
-    cells: &mut [Value; ELEMENT_COLUMNS],
-    read: &mut RowRead,
 ) {
     if each.eligible != Eligibility::Ready {
         return;
@@ -93,19 +86,14 @@ fn consider(
         return;
     };
     batch.record_visit(place);
-    let comparisons = class.comparisons.as_slice();
-    let index = usize::try_from(position.0).unwrap_or(usize::MAX);
     let mut class_context = class_context(context, bound, &mut each.memo);
-    let decided = (|| -> Result<Verdict, OperatingError> {
-        if *read == RowRead::Pending {
-            if read_tree_cells(tree, RowIndex(index), cells, union) == CellsRead::Missing {
-                return Ok(Verdict::Fails);
-            }
-            *read = RowRead::Done;
-        }
-        holds_all(comparisons, cells, element_kinds, names, &mut class_context)
-    })();
-    match decided {
+    match holds_all(
+        &class.comparisons,
+        row,
+        source_kinds,
+        names,
+        &mut class_context,
+    ) {
         Ok(Verdict::Holds) => {
             if let Some(done) = batch.output(place) {
                 done.0.push(position.0);
@@ -122,23 +110,54 @@ fn consider(
 /// Evaluate independent active classes in one pass. `None` declines before any
 /// semantic comparison; an error after reaching a class is retained as that
 /// class's result and never asks the caller to run it again.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "The prepared request and one borrowed typed source population"
+)]
 pub(crate) fn evaluate(
     program: &PreparedWalk,
-    tree: TreeRows<'_>,
+    relation: Relation,
+    rows: &Rows<'_>,
     bindings: &[Box<[ParameterBinding]>],
     context: &mut OperatorContext<'_>,
     active: &[RuleActivity],
     scratch: &mut WalkWork,
 ) -> NativeBatch {
     let mut batch = NativeBatch::empty(ClassCount(program.classes().len()));
-    if tree.form != TreeForm::Elements
-        || real_count(tree.elements).0 > u32::MAX as usize
-        || kind_names(tree.elements).is_empty()
-        || program.classes().is_empty()
-        || active.len() != program.rule_count().0
+    if active.len() != program.rule_count().0
+        || !program.classes().iter().any(|class| {
+            class.source == relation
+                && class
+                    .members
+                    .iter()
+                    .any(|member| active[member.rule.0] == RuleActivity::Active)
+        })
     {
         return batch;
     }
+    let source_kinds = kinds_of(rows);
+    let count = count_of(rows).0;
+    // Representation/schema failures decline before any semantic predicate work.
+    // Ordinary selection remains responsible for its representation-specific error.
+    if source_kinds != ryo_relations::domain::relations::service::kinds(relation)
+        || matches!(rows, Rows::Tree(tree) if count != 0 && kind_names(tree.elements).is_empty())
+        || count > u32::MAX as usize
+        || crate::domain::table_model::collections::representations::service::borrowed(rows)
+            .validate()
+            .is_err()
+    {
+        return batch;
+    }
+    let tree = match rows {
+        Rows::Tree(tree)
+            if relation == Relation::SyntaxTree
+                && tree.form == TreeForm::Elements
+                && !kind_names(tree.elements).is_empty() =>
+        {
+            Some(tree)
+        }
+        _ => None,
+    };
 
     let WalkWork {
         work,
@@ -155,7 +174,11 @@ pub(crate) fn evaluate(
         each.memo.clear();
         each.eligible = Eligibility::Declined;
     }
-    by_kind.resize_with(kind_names(tree.elements).len(), Vec::new);
+    cells.resize(source_kinds.len(), Value::Flag(Flag::Lowered));
+    by_kind.resize_with(
+        tree.map_or(0, |tree| kind_names(tree.elements).len()),
+        Vec::new,
+    );
     for group in by_kind.iter_mut() {
         group.clear();
     }
@@ -170,10 +193,11 @@ pub(crate) fn evaluate(
     for (at, class) in program.classes().iter().enumerate() {
         // Distinct predicates share the source traversal too. Duplicate consumers
         // are not required; only a class with no demanded member is excluded.
-        if !class
-            .members
-            .iter()
-            .any(|member| active[member.rule.0] == RuleActivity::Active)
+        if class.source != relation
+            || !class
+                .members
+                .iter()
+                .any(|member| active[member.rule.0] == RuleActivity::Active)
         {
             continue;
         }
@@ -195,21 +219,23 @@ pub(crate) fn evaluate(
                     )
             })
             .count();
-        kind_tests(&tree, &comparisons[..prefix], &mut prepared, &mut kinds);
+        if let Some(tree) = tree {
+            kind_tests(tree, &comparisons[..prefix], &mut prepared, &mut kinds);
+        }
         each.rest.0.extend(0..comparisons.len());
         needed_of_rest(comparisons, &each.rest, &mut each.needed);
         if each
             .needed
             .0
             .iter()
-            .any(|column| *column >= ELEMENT_COLUMNS)
+            .any(|column| *column >= source_kinds.len())
         {
             continue;
         }
         prepared.memo.clear();
         // Do not allocate a comparisons-by-symbols matrix for every class.
         // Matcher compilation and keyed verdict reuse already live in shared scratch.
-        if let Some(named) = named_kinds(&kinds) {
+        if let Some(named) = tree.and_then(|_| named_kinds(&kinds)) {
             for kind in named {
                 if passes(&kinds, *kind) == Verdict::Holds
                     && let Some(group) = by_kind.get_mut(usize::from(kind.0))
@@ -228,8 +254,6 @@ pub(crate) fn evaluate(
     context.scratch.select_scratch.kind_names = kinds.names;
     context.scratch.select_scratch.kind_sets = kinds.sets;
     context.scratch.select_scratch.kind_tests = kinds.tests;
-    let rows = Rows::Tree(tree);
-    let element_kinds = kinds_of(&rows);
 
     // The vocabulary dispatch is prepared once, but rows themselves are visited
     // in source order. This preserves the first semantic error of each class.
@@ -240,35 +264,54 @@ pub(crate) fn evaluate(
         group.dedup();
         needed_together(columns, work, group);
     }
-    if by_kind.iter().all(Vec::is_empty) {
+    if by_kind.iter().all(Vec::is_empty) && every.is_empty() {
         return batch;
     }
     batch.record_pass();
-    for position in positions(tree.elements) {
+    // Every representation uses this same source-ordered outer walk. Only the
+    // exact native SyntaxTree form has vocabulary dispatch and selective decoding.
+    for index in 0..count {
         batch.record_source_row();
-        let kind = usize::from(kind_at(tree.elements, position).0);
-        let (Some(group), Some(columns)) = (by_kind.get(kind), columns_by_kind.get(kind)) else {
-            continue;
+        let position = Position(u32::try_from(index).unwrap_or(u32::MAX));
+        let (group, columns) = if let Some(tree) = tree {
+            let kind = usize::from(kind_at(tree.elements, position).0);
+            let (Some(group), Some(columns)) = (by_kind.get(kind), columns_by_kind.get(kind))
+            else {
+                continue;
+            };
+            (group.as_slice(), Some(columns))
+        } else {
+            (every.as_slice(), None)
         };
-        let mut read = RowRead::Pending;
+        if group.is_empty() {
+            continue;
+        }
+        let row = if let (Some(tree), Some(columns)) = (tree, columns) {
+            if read_tree_cells(tree, RowIndex(index), cells, columns) == CellsRead::Missing {
+                continue;
+            }
+            cells.as_slice()
+        } else {
+            let Some(row) = read_row(rows, RowIndex(index), cells) else {
+                continue;
+            };
+            row
+        };
         for place in group {
             if let (Some(class), Some(each)) =
                 (program.classes().get(place.0), work.get_mut(place.0))
             {
                 consider(
-                    &tree,
+                    row,
                     class,
                     each,
                     &mut batch,
                     *place,
                     position,
-                    columns,
                     names,
-                    element_kinds,
+                    source_kinds,
                     bindings,
                     context,
-                    cells,
-                    &mut read,
                 );
             }
         }

@@ -1,12 +1,11 @@
-//! The types of the `step_classes` concept: the steps of the call's rules that select from the elements of a file, and the classes of
-//! those that select the same elements. Plain data, public fields and derives, with no constructor and no inherent impl.
+//! Typed source selections and their exact ordered predicate equivalence classes.
 
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
 
-/// A step that selects from the elements of a file: the rule it is a step of, and its place among the rule's steps.
+/// A per-file selection's rule and place among that rule's steps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct MergedStep {
     /// The place of the rule among the rules of the call.
@@ -15,26 +14,27 @@ pub(crate) struct MergedStep {
     pub step: StepPlace,
 }
 
-/// The steps that select the same elements: they have the same comparisons and exact bindings for the parameters those comparisons read,
-/// so what one decides of an element or a text the others have decided too.
+/// Steps over one relation with equal ordered comparisons and referenced typed bindings.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct StepClass {
+    /// The typed relation whose ordered rows these comparisons select.
+    pub source: ryo_relations::domain::relations::types::Relation,
     /// The step the class is decided by.
     pub first: MergedStep,
     /// Every step of the class, the first included.
     pub members: Vec<MergedStep>,
-    /// The comparisons that select its elements from the tree: those of the step, and, when it selects from a step that selects from
-    /// the tree, those of that step before them, over the tree's own columns.
+    /// Ordered predicates mapped through preceding selections to source columns.
     pub comparisons: Vec<Comparison>,
 }
 
-/// A step that keeps elements of the tree: the comparisons that select them from the tree, and which column of the tree each column
-/// of its rows is.
+/// A selection chain mapped to its original typed relation and source columns.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Rooted {
-    /// The comparisons over the tree's columns.
+    /// The original relation, before any projection.
+    pub source: ryo_relations::domain::relations::types::Relation,
+    /// The comparisons over the source's columns.
     pub comparisons: Vec<Comparison>,
-    /// For each column of the step's rows, the column of the tree it is.
+    /// For each output column, the source column it reads.
     pub columns: Vec<ColumnIndex>,
 }
 

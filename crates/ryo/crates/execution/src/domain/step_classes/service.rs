@@ -1,18 +1,15 @@
-//! The `step_classes` service: the classes of the `select` steps of the call's rules over the elements of a file, made from the plans
-//! the call runs, whatever they were written as, by a scan of their steps, with no IO and no ports.
+//! Equivalence classes of typed relation selections, with no IO and no ports.
 
-use super::constants::ELEMENT_COLUMNS;
 use super::types::{Merge, MergedStep, Rooted, StepClass};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
-use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Applied, ColumnIndex, Comparison, Input, Operand};
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-/// `operand` over the tree's columns, when `columns` says which column of the tree each column it reads is.
-fn over_tree(operand: &Operand, columns: &[ColumnIndex]) -> Option<Operand> {
+/// `operand` over the source's columns, using the projection's column map.
+fn over_source(operand: &Operand, columns: &[ColumnIndex]) -> Option<Operand> {
     Some(match operand {
         Operand::Column(column) => Operand::Column(
             columns
@@ -24,15 +21,14 @@ fn over_tree(operand: &Operand, columns: &[ColumnIndex]) -> Option<Operand> {
             arguments: applied
                 .arguments
                 .iter()
-                .map(|each| over_tree(each, columns))
+                .map(|each| over_source(each, columns))
                 .collect::<Option<Vec<_>>>()?,
         }),
         Operand::Parameter(_) | Operand::Literal(_) => operand.clone(),
     })
 }
 
-/// What the step `operation` keeps of the elements of the tree, when it is a `select` of them or of a step that is: the comparisons
-/// that select them, over the tree's columns, and which column of the tree each of its own columns is.
+/// Map a select chain's predicates and output columns to its original relation.
 fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
     let Operation::Select {
         from,
@@ -42,10 +38,12 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
     else {
         return None;
     };
-    let (mut chosen, columns) = match from {
-        Input::Relation(Relation::SyntaxTree) => (
+    let (source, mut chosen, columns) = match from {
+        Input::Relation(relation) => (
+            *relation,
             Vec::new(),
-            (0..u32::try_from(ELEMENT_COLUMNS).unwrap_or(u32::MAX))
+            (0..u32::try_from(ryo_relations::domain::relations::service::columns(*relation).len())
+                .ok()?)
                 .map(ColumnIndex)
                 .collect::<Vec<_>>(),
         ),
@@ -53,15 +51,19 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
             let under = below
                 .get(usize::try_from(step.0).unwrap_or(usize::MAX))?
                 .as_ref()?;
-            (under.comparisons.clone(), under.columns.clone())
+            (
+                under.source,
+                under.comparisons.clone(),
+                under.columns.clone(),
+            )
         }
-        Input::Relation(_) | Input::BoundObservation(_) => return None,
+        Input::BoundObservation(_) => return None,
     };
     for comparison in comparisons {
         chosen.push(Comparison {
             test: comparison.test,
-            left: over_tree(&comparison.left, &columns)?,
-            right: over_tree(&comparison.right, &columns)?,
+            left: over_source(&comparison.left, &columns)?,
+            right: over_source(&comparison.right, &columns)?,
             origin: comparison.origin,
         });
     }
@@ -77,6 +79,7 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
             .collect::<Option<Vec<_>>>()?
     };
     Some(Rooted {
+        source,
         comparisons: chosen,
         columns: kept,
     })
@@ -117,9 +120,8 @@ fn predicate_bindings_match(
     })
 }
 
-/// The classes of the steps that select from the elements of a file, and for each rule and step the class that has it. Steps that
-/// have the same comparisons under equal bindings of only their referenced parameters are one class: a step that selects from a step that
-/// selects from the tree is in the class of the comparisons of both.
+/// Group selections by source relation, ordered predicates and referenced typed bindings.
+/// Preceding selections contribute their predicates before the current step's predicates.
 #[must_use]
 pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge {
     let mut merged = Merge::default();
@@ -141,7 +143,8 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                 step: StepPlace(step),
             };
             let same = merged.classes.iter().position(|class| {
-                class.comparisons == chosen.comparisons
+                class.source == chosen.source
+                    && class.comparisons == chosen.comparisons
                     && predicate_bindings_match(
                         &class.comparisons,
                         bindings.get(class.first.rule.0).map(Vec::as_slice),
@@ -155,6 +158,7 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                 place
             } else {
                 merged.classes.push(StepClass {
+                    source: chosen.source,
                     first: member,
                     members: vec![member],
                     comparisons: chosen.comparisons,

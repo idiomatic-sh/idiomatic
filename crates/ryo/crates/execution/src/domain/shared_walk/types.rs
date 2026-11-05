@@ -1,10 +1,10 @@
-//! File-local scratch for one borrowed tree pass.
+//! File-local scratch for one borrowed relation pass.
 
 use crate::domain::{
-    operating::types::Memo, positions::types::ClassPlace, step_classes::constants::ELEMENT_COLUMNS,
-    table_cells::types::ColumnPlaces, table_scratch::types::ComparisonNumbers,
+    operating::types::Memo, positions::types::ClassPlace, table_cells::types::ColumnPlaces,
+    table_scratch::types::ComparisonNumbers,
 };
-use ryo_relations::domain::relations::types::{Flag, Value};
+use ryo_relations::domain::relations::types::Value;
 
 pub(crate) mod prepared_walk;
 
@@ -27,13 +27,6 @@ pub(crate) enum Eligibility {
     Ready,
 }
 
-/// Cells of one source row are read at most once for its admitted classes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RowRead {
-    Pending,
-    Done,
-}
-
 /// Reusable file-local comparison work. No request plan or published rows live here.
 #[derive(Debug, Default)]
 pub(crate) struct ClassWork {
@@ -44,25 +37,13 @@ pub(crate) struct ClassWork {
     pub eligible: Eligibility,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct WalkWork {
     pub work: Vec<ClassWork>,
     pub by_kind: Vec<Vec<ClassPlace>>,
     pub columns_by_kind: Vec<ColumnPlaces>,
     pub every: Vec<ClassPlace>,
-    pub cells: [Value; ELEMENT_COLUMNS],
-}
-
-impl Default for WalkWork {
-    fn default() -> Self {
-        Self {
-            work: Vec::new(),
-            by_kind: Vec::new(),
-            columns_by_kind: Vec::new(),
-            every: Vec::new(),
-            cells: [Value::Flag(Flag::Lowered); ELEMENT_COLUMNS],
-        }
-    }
+    pub cells: Vec<Value>,
 }
 
 /// Actual outer shared native traversals in this file generation.

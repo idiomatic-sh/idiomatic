@@ -281,3 +281,57 @@ fn missing_vectors_or_referenced_slots_never_become_equal_values() {
         );
     }
 }
+
+#[test]
+fn relation_identity_and_wide_source_projections_are_preserved() {
+    let mut wide = plan("word");
+    let Operation::Select {
+        from,
+        comparisons,
+        kept,
+    } = &mut wide.steps[0].operation
+    else {
+        unreachable!();
+    };
+    *from = PlanInput::Relation(Relation::SourceLocation);
+    comparisons[0] = Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(8)),
+        right: Operand::Literal(QueryLiteral::Number(
+            ryo_relations::domain::relations::types::Integer(7),
+        )),
+        origin: None,
+    };
+    *kept = vec![ColumnIndex(8), ColumnIndex(0), ColumnIndex(8)];
+    wide.steps.push(PlanStep {
+        operation: Operation::Select {
+            from: PlanInput::Step(StepId(0)),
+            comparisons: vec![Comparison {
+                test: Test::Equal,
+                left: Operand::Column(ColumnIndex(2)),
+                right: Operand::Column(ColumnIndex(0)),
+                origin: None,
+            }],
+            kept: vec![ColumnIndex(1)],
+        },
+        scope: StepScope::PerFile,
+    });
+    let mut semantic = plan("word");
+    let Operation::Select { from, .. } = &mut semantic.steps[0].operation else {
+        unreachable!();
+    };
+    *from = PlanInput::Relation(Relation::SemanticSyntax);
+    let merged = merge(&[plan("word"), semantic, wide], &vec![vec![]; 3]);
+    assert_eq!(merged.classes.len(), 4);
+    assert_eq!(merged.classes[0].source, Relation::SyntaxTree);
+    assert_eq!(merged.classes[1].source, Relation::SemanticSyntax);
+    assert_eq!(merged.classes[3].source, Relation::SourceLocation);
+    assert_eq!(
+        merged.classes[3].comparisons[1].left,
+        Operand::Column(ColumnIndex(8))
+    );
+    assert_eq!(
+        merged.classes[3].comparisons[1].right,
+        Operand::Column(ColumnIndex(8))
+    );
+}
