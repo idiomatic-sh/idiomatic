@@ -54,3 +54,7 @@ diagnostic-row-progress = []
 
 [lints]
 workspace = true
+
+[[test]]
+name = "boundary_contract"
+path = "tests/test.rs"

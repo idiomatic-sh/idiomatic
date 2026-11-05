@@ -841,7 +841,7 @@ pub(super) fn outcome_of<'facts>(
 }
 
 #[cfg(test)]
-mod distinct_integration_test;
+mod distinct_integration;
 
 #[cfg(test)]
 impl FileRun<'_> {

@@ -1387,7 +1387,7 @@ impl Drop for Invocation<'_> {
 }
 
 #[cfg(test)]
-mod runtime_lifecycle_test;
+mod lifecycle;
 
 fn empty_output_kinds(
     region: &Region,

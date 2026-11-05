@@ -24,12 +24,12 @@ use ryo_values::domain::{
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+mod applicability;
 #[cfg(test)]
 mod declared_empty;
-mod applicability;
 mod restoration;
 mod source_facts;
-use self::source_facts::{CapturedFacts, ProjectFacts};
+use self::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 
 fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedProgram {
     let mut input = authored_request(1);

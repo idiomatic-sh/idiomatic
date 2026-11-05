@@ -33,8 +33,6 @@ mod leases;
 #[cfg(test)]
 pub(crate) mod resource_fixture;
 mod scoped;
-#[cfg(test)]
-pub(crate) mod selection_fixture;
 mod setup;
 
 /// Assigned only after application admission; canonical DAG producers keep one ID across rules.

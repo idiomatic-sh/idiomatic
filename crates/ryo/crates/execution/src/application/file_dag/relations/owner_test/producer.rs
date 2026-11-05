@@ -52,7 +52,7 @@ fn exercise_real_selector(limit: usize) {
     });
     let active = vec![Arc::clone(&program), Arc::clone(&program)];
     let fixture =
-        crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture::new(
+        crate::application::file_dag::derived::selection::fixtures::SelectionFixture::new(
             &[relation],
             &[],
             active.clone(),
@@ -77,18 +77,24 @@ fn exercise_real_selector(limit: usize) {
         memo: &mut memo,
         scratch: &mut scratch,
     };
+    let population = owner.source(relation, &Rows::Stored(source)).unwrap();
+    let proof = owner
+        .admit(population.as_ref(), BorrowedRows::Stored(source))
+        .unwrap();
+    let (identity, _) = proof.identity(owner).unwrap();
     let produced = owner
-        .produce_selection(
-            &program,
-            &|asked| {
-                assert_eq!(asked, relation);
-                Ok(Rows::Stored(source))
-            },
-            &mut context,
-        )
+        .derived
+        .select(&program, source, identity, &mut context)
         .unwrap()
         .expect("real producer");
-    let publication = owner.publish_selection(produced).unwrap();
+    let publication = super::super::selection::publish(
+        owner,
+        &population,
+        &proof,
+        produced.rows.selection,
+        produced.resources,
+    )
+    .unwrap();
     let resolved = owner
         .resolve(publication.as_ref(), &|_| Ok(Rows::Stored(source)))
         .unwrap();
@@ -110,14 +116,15 @@ fn exercise_real_selector(limit: usize) {
         "trusted output uses the producer's checked population"
     );
     let old_token = owner
-        .produce_selection(&program, &|_| Ok(Rows::Stored(source)), &mut context)
+        .derived
+        .select(&program, source, identity, &mut context)
         .unwrap()
         .expect("real repeated producer");
     let Rows::Selected(selected) = &resolved else {
         panic!("producer must publish compact rows")
     };
     assert!(
-        Arc::ptr_eq(&selected.selection.rows, &old_token.selection.rows),
+        Arc::ptr_eq(&selected.selection.rows, &old_token.rows.selection.rows),
         "second registered consumer reuses the producer match IDs"
     );
     drop(context);
@@ -133,7 +140,13 @@ fn exercise_real_selector(limit: usize) {
     );
     owner.release_population();
     assert!(matches!(
-        owner.publish_selection(old_token),
+        super::super::selection::publish(
+            owner,
+            &population,
+            &proof,
+            old_token.rows.selection,
+            old_token.resources
+        ),
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
 }

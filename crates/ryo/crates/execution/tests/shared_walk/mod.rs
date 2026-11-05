@@ -1,16 +1,16 @@
 //! The public file owner shares one measured outer walk among distinct selectors.
 #[cfg(test)]
+mod cohort;
+#[cfg(test)]
 mod compact;
 #[cfg(test)]
-mod fixture;
-#[cfg(test)]
-mod cohort;
+mod fixtures;
 #[cfg(test)]
 mod order;
 #[cfg(test)]
 mod readiness;
 use crate::boundary_fixture::{corpus, demand};
-use fixture::*;
+use fixtures::*;
 use ryo_execution::inbound::use_cases::execution::{
     interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
     types::*,

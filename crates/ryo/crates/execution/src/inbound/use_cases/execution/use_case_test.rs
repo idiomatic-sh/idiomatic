@@ -118,89 +118,92 @@ fn file_owner_reuses_only_recognized_stable_sources() {
 }
 
 #[cfg(test)]
-mod rowsets_test;
+mod rowsets;
 
 #[cfg(test)]
-mod ordered_match_test;
+mod ordered_match;
 
 #[cfg(test)]
-mod union_test;
+mod union;
 
 #[cfg(test)]
-mod rank_test;
+mod rank;
 #[cfg(test)]
-mod replace_test;
+mod replace;
 #[cfg(test)]
-mod rows_test;
+mod rows;
 
 #[cfg(test)]
-mod text_test;
+mod text;
 
 #[cfg(test)]
-mod cycles_test;
+mod cycles;
 #[cfg(test)]
-mod digest_test;
+mod digest;
 
 #[cfg(test)]
-mod provider_test;
+mod provider;
 
 #[cfg(test)]
-mod tree_join_test;
+mod tree_join;
 
 #[cfg(test)]
-mod select_test;
+mod select;
 
 #[cfg(test)]
-mod extend_test;
+mod extend;
 
 #[cfg(test)]
-mod closure_test;
+mod closure;
 
 #[cfg(test)]
-mod graph_test;
+mod graph;
 #[cfg(test)]
-mod span_join_test;
+mod span_join;
 
 #[cfg(test)]
-mod kinds_test;
+mod kinds;
 
 #[cfg(test)]
-mod axis_test;
+mod axis;
 
 #[cfg(test)]
-mod capability_test;
+mod capability;
 
 #[cfg(test)]
-mod axis_graph_test;
+mod axis_graph;
 
 #[cfg(test)]
-mod conformance_test;
+mod conformance;
 
 #[cfg(test)]
-mod conformance_boundary_test;
+mod conformance_boundary;
 #[cfg(test)]
-mod conformance_scale_test;
+mod conformance_scale;
 
 #[cfg(test)]
-mod selection_view_test;
+mod selection_view;
 
 #[cfg(test)]
-mod dispatch_test;
+mod dispatch;
 
 #[cfg(test)]
-mod schema_test;
+mod schema;
 
 #[cfg(test)]
-mod binding_schema_test;
+mod binding_schema;
 
 #[cfg(test)]
-mod traversal_schema_test;
+mod traversal_schema;
 
 #[cfg(test)]
-mod prepared_matching_test;
+mod prepared_matching;
 
 #[cfg(test)]
-mod project_input_test;
+mod project_input;
 
 #[cfg(test)]
-mod selection_cache_test;
+mod selection_cache;
+
+#[cfg(test)]
+mod contract_timing;

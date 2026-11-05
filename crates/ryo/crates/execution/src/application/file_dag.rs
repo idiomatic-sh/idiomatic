@@ -17,8 +17,6 @@ mod contract_route_test;
 
 pub(crate) mod cached_graph;
 pub(crate) mod closure_partitions;
-#[cfg(test)]
-mod contract_timing_test;
 pub(crate) mod selected;
 
 pub(in crate::application) mod relations;

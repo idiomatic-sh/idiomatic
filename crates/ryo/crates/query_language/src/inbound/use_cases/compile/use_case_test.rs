@@ -850,45 +850,45 @@ fn bound_observation_preserves_declared_schema_and_phase() {
 }
 
 #[cfg(test)]
-mod fragment_hygiene_test;
+mod fragment_hygiene;
 #[cfg(test)]
-mod fragment_refusal_test;
+mod fragment_refusal;
 
 #[cfg(test)]
-mod validation_test;
+mod validation;
 
 #[cfg(test)]
-mod assembling_test;
+mod assembling;
 
 #[cfg(test)]
-mod calling_test;
+mod calling;
 
 #[cfg(test)]
-mod combining_test;
+mod combining;
 
 #[cfg(test)]
-mod comparing_test;
+mod comparing;
 
 #[cfg(test)]
-mod idioms_test;
+mod idioms;
 
 #[cfg(test)]
-mod joining_test;
+mod joining;
 
 #[cfg(test)]
-mod planning_test;
+mod planning;
 
 #[cfg(test)]
-mod reshaping_test;
+mod reshaping;
 
 #[cfg(test)]
-mod resolving_test;
+mod resolving;
 
 #[cfg(test)]
-mod selecting_test;
+mod selecting;
 
 #[cfg(test)]
-mod substituting_test;
+mod substituting;
 
 #[cfg(test)]
-mod traversing_test;
+mod traversing;

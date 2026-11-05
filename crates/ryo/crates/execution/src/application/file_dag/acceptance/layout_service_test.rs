@@ -282,7 +282,7 @@ fn preparation_keeps_ordered_relation_dependencies_without_probing_availability(
             NodeInput::Relation(Relation::Comment)
         ]
     );
-    // Actual missing-provider refusal is exercised by compiled_parity_test's missing-demanded-right-source case.
+    // Actual missing-provider refusal is exercised by compiled_parity's missing-demanded-right-source case.
 }
 
 #[test]
