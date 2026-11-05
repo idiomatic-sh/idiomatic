@@ -156,11 +156,15 @@ impl AdmissionProgress {
         if let Some((_, input)) = self.acquired.iter().find(|(key, _)| *key == source) {
             return Ok(input.clone());
         }
-        if let Some(dependency) = inputs.dependency(source)? {
+        if let Some(dependency) = inputs.dependency(source).inspect_err(|error| {
+            tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "dependency", action = self.action, ?source, ?error);
+        })? {
             self.waiting = Some(dependency);
             return Err(OperatingError::NotRun);
         }
-        let admitted = inputs.admit(source, partition, context)?;
+        let admitted = inputs.admit(source, partition, context).inspect_err(|error| {
+            tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "admission", action = self.action, ?source, ?error);
+        })?;
         self.acquired.push((source, admitted.clone()));
         Ok(admitted)
     }
@@ -1144,6 +1148,9 @@ impl ProgramExecution {
                 Ok(InvocationOutcome::Published(input))
             }
             Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
+                if let Some(admission) = cleanup.admission.as_ref() {
+                    tracing::trace!(target: "ryo::diagnostic::execution", event = "region_failure", region = id.0, producer = region.producer.0, phase = ?region.phase, logical = first.logical.0, action = admission.action, ?error);
+                }
                 cleanup.terminal = Terminal::Failed(error.clone());
                 let _cleanup = self.release_inputs(id);
                 Err(error)
