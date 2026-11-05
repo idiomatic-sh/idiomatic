@@ -4,11 +4,11 @@ use super::errors::RuleCompilationError;
 use super::types::{CachedPlan, CompiledPlans};
 use crate::domain::prepared_request::types::Compiled;
 use crate::domain::rules::service::{bind, check_ids};
-use ryo_values::domain::rule_requests::types::RuleSpec;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::domain::hosted::service::declarations;
 use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::{Arc, PoisonError};
 
 /// One cohesive compiler operation, sharing only bounded immutable plans across invocations.
@@ -98,7 +98,8 @@ impl RuleCompilation {
             plans,
             bindings,
             schedule,
-            observations: Vec::new(),
+            // Independent scheduling still declares one exact binding vector per producer rule.
+            observations: vec![Vec::new(); rules.len()],
         })
     }
 
@@ -115,8 +116,8 @@ impl RuleCompilation {
         )?;
         compiled.plans = linked.plans;
         compiled.observations = linked.bindings;
+        // Scheduling independence does not erase the per-rule producer declarations.
         if compiled.observations.iter().all(Vec::is_empty) {
-            compiled.observations.clear();
             compiled.schedule = crate::domain::file_program::types::RuleSchedule::Independent;
         }
         Ok(compiled)

@@ -31,56 +31,59 @@ fn engine() -> ExecutionUseCaseImpl {
 fn prepared(engine: &ExecutionUseCaseImpl) -> PreparedProgram {
     prepared_rules(engine, 1)
 }
+fn authored_request(count: usize) -> PreparedRequest {
+    PreparedRequest {
+        plans: vec![
+            Plan {
+                parameters: vec![],
+                observation_inputs: vec![],
+                observations: vec![],
+                steps: vec![PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::Select {
+                        from: Input::Relation(Relation::Function),
+                        comparisons: vec![],
+                        kept: vec![ColumnIndex(0)],
+                    },
+                }],
+                comparison_origins: vec![],
+                frontier: vec![],
+                emit: Emit {
+                    step: StepId(0),
+                    subject: ColumnIndex(0),
+                    key: vec![],
+                    headings: vec![],
+                },
+            };
+            count
+        ],
+        bindings: vec![vec![]; count],
+        rules: (0..count)
+            .map(|index| RuleSpec {
+                id: RuleId(format!("public-boundary-{index}").into()),
+                query: QueryBundle {
+                    root: QueryDocumentSource {
+                        id: QuerySourceId(format!("public-boundary-{index}").into()),
+                        text: "".into(),
+                    },
+                    modules: BTreeMap::new(),
+                },
+                applicability: RuleApplicability::Always,
+                given: vec![],
+                observations: vec![],
+                spelled: RuleParameters("".into()),
+                include: vec![],
+                exclude: vec![],
+            })
+            .collect(),
+        digests: (0..count).map(|index| Digest([index as u8; 16])).collect(),
+        hosted: vec![],
+        observations: ObservationIdentity::Independent,
+    }
+}
 fn prepared_rules(engine: &ExecutionUseCaseImpl, count: usize) -> PreparedProgram {
     engine
-        .prepare(PreparedRequest {
-            plans: vec![
-                Plan {
-                    parameters: vec![],
-                    observation_inputs: vec![],
-                    observations: vec![],
-                    steps: vec![PlanStep {
-                        scope: StepScope::PerFile,
-                        operation: Operation::Select {
-                            from: Input::Relation(Relation::Function),
-                            comparisons: vec![],
-                            kept: vec![ColumnIndex(0)],
-                        },
-                    }],
-                    comparison_origins: vec![],
-                    frontier: vec![],
-                    emit: Emit {
-                        step: StepId(0),
-                        subject: ColumnIndex(0),
-                        key: vec![],
-                        headings: vec![],
-                    },
-                };
-                count
-            ],
-            bindings: vec![vec![]; count],
-            rules: (0..count)
-                .map(|index| RuleSpec {
-                    id: RuleId(format!("public-boundary-{index}").into()),
-                    query: QueryBundle {
-                        root: QueryDocumentSource {
-                            id: QuerySourceId(format!("public-boundary-{index}").into()),
-                            text: "".into(),
-                        },
-                        modules: BTreeMap::new(),
-                    },
-                    applicability: RuleApplicability::Always,
-                    given: vec![],
-                    observations: vec![],
-                    spelled: RuleParameters("".into()),
-                    include: vec![],
-                    exclude: vec![],
-                })
-                .collect(),
-            digests: (0..count).map(|index| Digest([index as u8; 16])).collect(),
-            hosted: vec![],
-            observations: ObservationIdentity::Independent,
-        })
+        .prepare(authored_request(count))
         .expect("valid public request")
 }
 fn corpus() -> Vec<CorpusInput> {
@@ -383,4 +386,117 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
     file.finish()
         .expect("finish actual owner after shared skip");
     request.finish();
+}
+
+/// A provider result, not a query parser or execution implementation: this
+/// control exercises the real compilation handover and every subsequent owner.
+struct AuthoredQueryProvider(Plan);
+impl query_language::QueryLanguagePort for AuthoredQueryProvider {
+    fn compile(
+        &self,
+        _: &QueryBundle,
+        _: &[ryo_values::domain::hosted::types::HostedRelation],
+        _: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    ) -> Result<Plan, query_language::QueryLanguageError> {
+        Ok(self.0.clone())
+    }
+    fn validate(
+        &self,
+        _: &QueryBundle,
+        _: &[ryo_values::domain::hosted::types::HostedRelation],
+        _: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    ) -> Result<
+        ryo_values::domain::descriptions::types::ValidateReport,
+        query_language::QueryLanguageError,
+    > {
+        Ok(ryo_values::domain::descriptions::types::ValidateReport {
+            relations: vec![],
+            operators: vec![],
+            steps: ryo_values::domain::descriptions::types::StepCount(self.0.steps.len()),
+        })
+    }
+}
+#[test]
+fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
+    use ryo_execution::inbound::use_cases::execution::{
+        interface::ExecutionCompilation, use_case::CompilationUseCaseImpl,
+    };
+    let engine = engine();
+    let raw = authored_request(2);
+    let compiler =
+        CompilationUseCaseImpl::new(Arc::new(AuthoredQueryProvider(raw.plans[0].clone())));
+    let compiled = compiler
+        .compile(&raw.rules, &raw.hosted)
+        .expect("compile independent rules");
+    let program = engine
+        .prepare_compiled(
+            compiled,
+            raw.rules,
+            raw.digests,
+            raw.hosted,
+            ObservationIdentity::Independent,
+        )
+        .expect("exact compiled declarations accepted");
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let table = source();
+    let read = |relation| {
+        if relation == Relation::Function {
+            Ok(SourceRows::Computed(&table))
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    };
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mut symbols = Symbols::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
+                file: FileId(0),
+                evaluation: &[],
+                publication: &[],
+                demanded: &[true, true],
+                source: b"abc",
+                elements: &elements,
+                read: &read,
+                semantic: None,
+                kinds: None,
+            },
+            &mut symbols,
+        )
+        .expect("open");
+    for rule in [RuleIndex(0), RuleIndex(1)] {
+        let RootOutcome::Complete(table) = file
+            .rule(rule, demand(), &mut symbols)
+            .expect("run independent rule")
+            .emit
+        else {
+            panic!("complete root")
+        };
+        assert_eq!(table.cells, [Value::Node(node_id(FileId(0), Position(2)))]);
+    }
+    file.finish().expect("finish");
+    request.finish();
+
+    let raw = authored_request(2);
+    let compiled = compiler
+        .compile(&raw.rules, &raw.hosted)
+        .expect("compile second request");
+    let mut substituted = raw.rules;
+    substituted.pop();
+    assert!(
+        matches!(
+            engine.prepare_compiled(
+                compiled,
+                substituted,
+                vec![Digest([0; 16])],
+                vec![],
+                ObservationIdentity::Independent
+            ),
+            Err(OperatingError::ShapeMismatch)
+        ),
+        "a consumer cannot relabel the two-rule provider result"
+    );
 }
