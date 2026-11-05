@@ -15,6 +15,8 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/source_admission.rs", description = "Typed deferred source handles." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/kernel_session.rs", description = "Borrowed physical-kernel bridge under invocation permit." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_walk.rs", description = "Application-owned shared native pass admission and publication." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_population/mod.rs", description = "Private project input/invocation population namespace; normal Rust registration remains required." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_population/service.rs", description = "Phase-owned canonical input backing and population-qualified invocation identity; admission remains demand-driven." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_identity.rs", description = "One request's source and generation identity." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/restored.rs", description = "Validated deferred restoration." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/selection.rs", description = "Admitted compact selection construction and publication proof." },
@@ -23,7 +25,9 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "relations/selection.rs", description = "Relation-owner selected population validation and resource ownership." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime.rs", description = "Single owner of dependency scheduling and release." },
 ]
-rules = []
+rules = [
+  { rule = "idiomatic.arch/module-declares@0.1.0", include = ["program.rs", "program/project_population/*.rs"], description = "The required population files must be compiled through normal parent and child module declarations; existence alone grants no implementation role." },
+]
 
 [[scenarios]]
 id = "declared-program-parts"
@@ -31,7 +35,7 @@ scenario = "The exact declared owner parts are placed."
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "pub mod runtime;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
 given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
@@ -48,6 +52,8 @@ given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_j
 given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service;"
+given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
 
 [[scenarios]]
 id = "missing-owner"
@@ -55,3 +61,89 @@ scenario = "An absent owner cannot satisfy required program parts."
 given.at = "src/application/file_dag"
 given.files."src/application/other.rs" = "pub fn other() {}"
 then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
+
+[[scenarios]]
+id = 'population-service-required'
+scenario = 'The canonical population service remains a required owner part.'
+given.at = "src/application/file_dag"
+given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
+given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
+given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
+given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/facade_runtime.rs" = "pub fn run() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
+given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
+given.files."src/application/file_dag/program/facade_runtime/source_admission.rs" = "pub fn source() {}"
+given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invoke() {}"
+given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
+given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
+given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
+given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
+given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
+given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
+given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
+given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service;"
+
+then.findings = [
+  { rule = "idiomatic.ryo/executable-program-part#count", path = "src/application/file_dag/program/project_population" },
+  { rule = "idiomatic.arch/module-declares", path = "src/application/file_dag/program/project_population/mod.rs" },
+]
+
+[[scenarios]]
+id = 'population-parent-registration-required'
+scenario = 'Existing population files do not bypass their parent registration.'
+given.at = "src/application/file_dag"
+given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
+given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join;"
+given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
+given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
+given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/facade_runtime.rs" = "pub fn run() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
+given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
+given.files."src/application/file_dag/program/facade_runtime/source_admission.rs" = "pub fn source() {}"
+given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invoke() {}"
+given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
+given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
+given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
+given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
+given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
+given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
+given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
+given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service;"
+given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
+
+then.findings = [{ rule = "idiomatic.arch/module-declares", path = "src/application/file_dag/program.rs" }]
+
+[[scenarios]]
+id = 'population-service-registration-required'
+scenario = 'A conventional directory module must declare its actual service child.'
+given.at = "src/application/file_dag"
+given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
+given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
+given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
+given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/facade_runtime.rs" = "pub fn run() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
+given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
+given.files."src/application/file_dag/program/facade_runtime/source_admission.rs" = "pub fn source() {}"
+given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invoke() {}"
+given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
+given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
+given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
+given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
+given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
+given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
+given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
+given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/project_population/mod.rs" = "//! Population namespace without its required declaration."
+given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
+
+then.findings = [{ rule = "idiomatic.arch/module-declares", path = "src/application/file_dag/program/project_population/mod.rs" }]

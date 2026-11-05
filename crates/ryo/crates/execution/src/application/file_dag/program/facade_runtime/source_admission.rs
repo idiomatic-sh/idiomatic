@@ -5,7 +5,8 @@ pub(super) struct ProjectSources<'a> {
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
     pub(super) sources: &'a [crate::application::file_dag::frontiers::types::FrontierSource],
-    pub(super) ordinary: &'a [Rc<super::super::project_population::service::Population>],
+    pub(super) ordinary:
+        &'a [Rc<super::super::project_population::service::ProjectFrontierPopulation>],
     pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
@@ -23,7 +24,7 @@ impl ProjectSources<'_> {
     ) -> Option<usize> {
         self.ordinary
             .iter()
-            .position(|input| input.provides(source))
+            .position(|input| input.source() == Some(source))
     }
 
     fn provides(&self, source: crate::domain::executable_program::types::InputSource) -> bool {

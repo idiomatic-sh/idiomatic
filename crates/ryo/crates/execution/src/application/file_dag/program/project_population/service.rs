@@ -1,8 +1,5 @@
 //! Retain each structurally equal source once; row admission remains demand-driven.
-use super::super::{
-    admission::{AvailableInput, Partition, ProducerRoot},
-    facade_runtime::PublicationScope,
-};
+use super::super::admission::{AvailableInput, Partition, ProducerRoot};
 use crate::application::file_dag::{
     derived::owner::PopulationId,
     frontiers::types::{BoundInput, FrontierInput, FrontierSource},
@@ -22,16 +19,16 @@ enum Payload {
     Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
 }
 /// The ID and backing are inseparable and privately issued by this phase owner.
-pub(in crate::application::file_dag::program) struct Population {
+pub(in crate::application::file_dag::program) struct ProjectFrontierPopulation {
     id: PopulationId,
     source: Result<InputSource, OperatingError>,
     coverage: CoverageState,
     payload: Payload,
     admitted: OnceCell<Result<AvailableInput, OperatingError>>,
 }
-impl Population {
-    pub(in crate::application::file_dag::program) fn provides(&self, source: InputSource) -> bool {
-        self.source.as_ref().is_ok_and(|actual| *actual == source)
+impl ProjectFrontierPopulation {
+    pub(in crate::application::file_dag::program) fn source(&self) -> Option<InputSource> {
+        self.source.as_ref().ok().copied()
     }
     pub(in crate::application::file_dag::program) fn supply(
         &self,
@@ -65,15 +62,24 @@ impl Population {
 /// No owner or evaluator is allocated per population: these are input and slot identities.
 #[derive(Default)]
 pub(in crate::application::file_dag::program) struct Populations {
-    sources: Vec<Rc<Population>>,
-    invocations: Vec<(InvocationKey, PopulationId)>,
+    sources: Vec<Rc<ProjectFrontierPopulation>>,
+    invocations: Vec<ProjectInvocationEntry>,
 }
 #[derive(PartialEq, Eq)]
-struct InvocationKey {
+struct ProjectInvocationKey {
     sources: Vec<PopulationId>,
-    refused: Vec<(Input, OperatingError)>,
+    refused: Vec<ProjectRefusal>,
     policy: CompletionPolicy,
     bound: Vec<BoundKey>,
+}
+struct ProjectInvocationEntry {
+    key: ProjectInvocationKey,
+    identity: PopulationId,
+}
+#[derive(PartialEq, Eq)]
+struct ProjectRefusal {
+    input: Input,
+    error: OperatingError,
 }
 #[derive(PartialEq, Eq)]
 enum BoundKey {
@@ -88,7 +94,7 @@ impl Populations {
         owner: &Rc<RelationOwner>,
         sources: &[FrontierSource],
         rows: Vec<FrontierInput>,
-    ) -> Result<Vec<Rc<Population>>, OperatingError> {
+    ) -> Result<Vec<Rc<ProjectFrontierPopulation>>, OperatingError> {
         rows.into_iter()
             .map(|row| {
                 let (input, coverage, payload) = match row {
@@ -115,7 +121,7 @@ impl Populations {
                 }) {
                     return Ok(Rc::clone(found));
                 }
-                let entry = Rc::new(Population {
+                let entry = Rc::new(ProjectFrontierPopulation {
                     id: owner.project_identity()?,
                     source,
                     coverage,
@@ -129,8 +135,8 @@ impl Populations {
     }
     pub(in crate::application::file_dag::program) fn invocation(
         &mut self,
-        scope: &PublicationScope,
-        sources: &[Rc<Population>],
+        owner: &Rc<RelationOwner>,
+        sources: &[Rc<ProjectFrontierPopulation>],
         refused: &[crate::domain::crossing::types::RefusedFrontier],
         bound: &[Option<BoundInput>],
         policy: CompletionPolicy,
@@ -143,27 +149,31 @@ impl Populations {
                 Ok(members) => {
                     for member in members {
                         bindings.push(match member {
-                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.admitted().population(scope.owner())?, publication.admitted().coverage()?),
+                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.admitted().population(owner)?, publication.admitted().coverage()?),
                         crate::application::file_dag::frontiers::types::BoundMember::Restored(token) => BoundKey::Restored(token.clone()),
                     });
                     }
                 }
             }
         }
-        let key = InvocationKey {
+        let key = ProjectInvocationKey {
             sources: sources.iter().map(|source| source.id).collect(),
             refused: refused
                 .iter()
-                .map(|entry| (entry.input, entry.error.clone()))
+                .map(|entry| ProjectRefusal {
+                    input: entry.input,
+                    error: entry.error.clone(),
+                })
                 .collect(),
             policy,
             bound: bindings,
         };
-        if let Some((_, id)) = self.invocations.iter().find(|(prior, _)| *prior == key) {
-            return Ok(*id);
+        if let Some(entry) = self.invocations.iter().find(|entry| entry.key == key) {
+            return Ok(entry.identity);
         }
-        let id = scope.owner().project_identity()?;
-        self.invocations.push((key, id));
+        let id = owner.project_identity()?;
+        self.invocations
+            .push(ProjectInvocationEntry { key, identity: id });
         Ok(id)
     }
 }

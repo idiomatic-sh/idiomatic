@@ -11,7 +11,7 @@ pub(crate) struct ProjectRun<'a> {
     partials: ScopePartials<'a>,
     frontier_producer: RuleIndex,
     frontier_sources: Box<[crate::application::file_dag::frontiers::types::FrontierSource]>,
-    ordinary: Vec<Rc<super::super::project_population::service::Population>>,
+    ordinary: Vec<Rc<super::super::project_population::service::ProjectFrontierPopulation>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
     cache: Vec<(
@@ -127,7 +127,7 @@ impl ProjectRun<'_> {
             ScopePartials::File { .. } => return Err(OperatingError::WrongOperation),
         };
         let identity = self.publication.populations.borrow_mut().invocation(
-            self.publication,
+            &self.owner,
             &self.ordinary,
             &self.refused,
             &self.bound,
