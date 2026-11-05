@@ -195,7 +195,7 @@ impl Inputs for SourceInputs<'_, '_> {
         if let Some(project) = &self.project {
             // Restored frontier handles are themselves the demanded source;
             // scheduling their original per-file producer would cross phase.
-            if !matches!(source, InputSource::Region(_))
+            if matches!(source, InputSource::ObservationMember { .. })
                 || project
                     .sources
                     .iter()
