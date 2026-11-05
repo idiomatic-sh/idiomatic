@@ -258,3 +258,187 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
 }
 
 mod negative;
+
+/// Migration control for the old pipeline proof's invalid schema and arbitrary cross-file hashes.
+/// Every grouped name below is obtained from a real captured Function population.
+#[test]
+fn project_grouping_reads_only_actual_captured_function_names() {
+    use ryo_language::domain::symbols::{
+        service::{hash_in, intern},
+        types::ByteSlice,
+    };
+    use ryo_relations::domain::relations::{
+        service::node_id,
+        types::{Integer, Offset, Position},
+    };
+    use ryo_values::domain::stored_facts::types::ArenaBytes;
+    let engine = engine();
+    let mut input = authored_request(1);
+    input.plans[0].steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::Function),
+                comparisons: vec![],
+                kept: vec![ColumnIndex(1)],
+            },
+        },
+        PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::GroupCount {
+                from: Input::Step(StepId(0)),
+                keys: vec![ColumnIndex(0)],
+                distinct: None,
+            },
+        },
+    ];
+    input.plans[0].frontier = vec![Input::Step(StepId(0))];
+    input.plans[0].emit.step = StepId(1);
+    let program = engine
+        .prepare(input)
+        .expect("prepare actual mixed-phase count");
+    let mut corpus = corpus();
+    if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {
+        entry.size = ryo_values::domain::files::types::FileSize(9);
+    }
+    let request = engine.begin(&program, &corpus);
+    let mut symbols = Symbols::default();
+    let main = intern(&mut symbols, ByteSlice(b"mainother"), Offset(0), Offset(4));
+    let other = intern(&mut symbols, ByteSlice(b"mainother"), Offset(4), Offset(9));
+    let main_hash = hash_in(&symbols, main).unwrap();
+    let other_hash = hash_in(&symbols, other).unwrap();
+    let mut table = source();
+    let prototype = table.cells.clone();
+    table.cells.clear();
+    for (index, name) in [main, main, other].into_iter().enumerate() {
+        let mut row = prototype.clone();
+        row[0] = Value::Node(node_id(FileId(0), Position(index as u32)));
+        row[1] = Value::Symbol(name);
+        table.cells.extend(row);
+    }
+    table.count = RowCount(3);
+    let read = |relation| {
+        assert_eq!(relation, Relation::Function);
+        Ok(SourceRows::Computed(&table))
+    };
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
+                file: FileId(0),
+                evaluation: &[],
+                publication: &[],
+                demanded: &[true],
+                source: b"mainother",
+                elements: &elements,
+                read: &read,
+                semantic: None,
+                kinds: None,
+            },
+            &mut symbols,
+        )
+        .expect("open actual file");
+    assert!(matches!(
+        file.rule(RuleIndex(0), demand(), &mut symbols)
+            .unwrap()
+            .emit,
+        RootOutcome::Deferred {
+            phase: StepScope::CrossFile
+        }
+    ));
+    let mut arena = vec![];
+    let mut places = vec![];
+    let mut words = Words::default();
+    let mut captures = file
+        .capture_frontiers(
+            RuleIndex(0),
+            Bucket(0),
+            &mut symbols,
+            CaptureContext {
+                worker: WorkerNumber(0),
+                arena: &mut arena,
+                places: &mut places,
+                words: &mut words,
+            },
+        )
+        .expect("capture actual names");
+    assert_eq!(captures.len(), 1);
+    let capture = captures.pop().unwrap().outcome.expect("complete capture");
+    file.finish().expect("release file owner");
+    let stored = CapturedFacts {
+        capture,
+        reads: AtomicUsize::new(0),
+    };
+    let project = ProjectFacts::new(Relation::ModuleIdentity);
+    let covered = [Covered {
+        file: FileId(0),
+        rules: vec![RuleIndex(0)],
+        partial: vec![],
+    }];
+    let scope = request
+        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .unwrap();
+    let project_symbols = Symbols::default();
+    let mut symbols = Symbols::default();
+    let ordinary = request
+        .prepare_frontiers(
+            FrontierRequest {
+                demand: FrontierDemand::Diagnostic,
+                scope: &scope,
+                rule: RuleIndex(0),
+                first: Bucket(0),
+                facts: &stored,
+                project: &project,
+                project_symbols: &project_symbols,
+            },
+            &mut symbols,
+        )
+        .expect("admit exact persisted frame");
+    assert_eq!(
+        project.reads.load(Ordering::SeqCst),
+        0,
+        "no unrelated project facts"
+    );
+    assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
+    let partials = Partials::default();
+    let arenas = [ArenaBytes(arena)];
+    let mut run = request
+        .open_project(
+            ProjectInput {
+                scope: &scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: &arenas,
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    let RootOutcome::Complete(result) =
+        run.rule(RuleIndex(0), demand(), &mut symbols).unwrap().emit
+    else {
+        panic!("project count must complete")
+    };
+    assert_eq!(result.count, RowCount(2));
+    assert_eq!(result.kinds, [CellKind::Symbol, CellKind::Number]);
+    let mut actual = result
+        .cells
+        .chunks_exact(2)
+        .map(|row| {
+            let [Value::Name(name), Value::Number(Integer(count))] = row else {
+                panic!("name and count")
+            };
+            (name.hash, *count)
+        })
+        .collect::<Vec<_>>();
+    let mut expected = vec![(main_hash, 2), (other_hash, 1)];
+    actual.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(actual, expected);
+    run.finish();
+    scope.finish().unwrap();
+    request.finish();
+}
