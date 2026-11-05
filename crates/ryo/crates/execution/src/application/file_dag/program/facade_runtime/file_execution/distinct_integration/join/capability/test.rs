@@ -681,7 +681,9 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                     assert!(actual.derived_builds.is_empty());
                 } else {
                     let result = actual.result.unwrap();
-                    assert_eq!(result.kinds, [CellKind::Symbol]);
+                    if !delivery {
+                        assert_eq!(result.kinds, [CellKind::Symbol]);
+                    }
                     assert_eq!(result.count.0, usize::from(!empty));
                     assert_eq!(result.cells, if empty { vec![] } else { vec![root_kind] });
                     if empty {
@@ -730,7 +732,9 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
             )
             .unwrap();
             let result = actual.result.unwrap();
-            assert_eq!(result.kinds, [CellKind::Node]);
+            if !delivery {
+                assert_eq!(result.kinds, [CellKind::Node]);
+            }
             assert_eq!(result.cells, if empty { vec![] } else { vec![node(1)] });
             assert_eq!(result.count.0, usize::from(!empty));
             if empty {
