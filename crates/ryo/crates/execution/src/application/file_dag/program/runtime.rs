@@ -637,6 +637,7 @@ impl ProgramExecution {
         while !pending.is_empty() {
             let mut blocked = Vec::new();
             let mut discovered = Vec::new();
+            let mut terminal_progress = false;
             for (id, mode) in pending.drain(..) {
                 match self.poll(
                     id,
@@ -673,7 +674,10 @@ impl ProgramExecution {
                     }
                     // A terminal source refusal belongs to its own root. Other
                     // independent roots still reach their actual admission head.
-                    Ok(_) | Err(_) => {}
+                    Ok(_) | Err(_) => {
+                        waiting.remove(&id);
+                        terminal_progress = true;
+                    }
                 }
             }
             if !discovered.is_empty() {
@@ -684,7 +688,7 @@ impl ProgramExecution {
             // Every currently reachable head has submitted its exact class.
             // Resume collected work, keeping forwarded roots parked for their
             // caller's sink. A callback borrow never enters this queue.
-            let mut advanced = false;
+            let mut advanced = terminal_progress;
             for (id, mode) in ready.drain(..) {
                 if mode == EvaluationMode::Collected
                     || self.program.regions()[id.0].publishes
