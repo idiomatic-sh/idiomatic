@@ -74,7 +74,9 @@ pub(crate) fn evaluate_cross_roots(
             ProjectObservation::Other(RootOutcome::Unknown(error) | RootOutcome::Failed(error)) => {
                 (
                     None,
-                    ProducerReadiness::Unknown(ObservationReason(error.to_string().into())),
+                    ProducerReadiness::Unknown(ObservationReason(
+                        format!("project phase named output {}: {error}", output.0).into(),
+                    )),
                 )
             }
             ProjectObservation::Other(RootOutcome::Skipped(_)) => {

@@ -611,7 +611,11 @@ impl FileAnalysis {
                                 path: visit.setting.paths[file.0 as usize].clone(),
                                 message:
                                     ryo_execution::inbound::use_cases::metadata::interface::Message(
-                                        error.to_string().into(),
+                                        format!(
+                                            "file phase frontier input {}: {error}",
+                                            captured.input.0
+                                        )
+                                        .into(),
                                     ),
                             },
                         );

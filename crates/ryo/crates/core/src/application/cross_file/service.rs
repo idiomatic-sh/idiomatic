@@ -130,7 +130,7 @@ impl CrossFile {
                         rule: todo.id.clone(),
                         path: path.clone(),
                         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
-                            error.to_string().into(),
+                            format!("project phase diagnostic emit: {error}").into(),
                         ),
                     },
                 )
