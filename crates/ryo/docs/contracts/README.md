@@ -9,7 +9,9 @@
 - Full-Django213 **failed** after **3,039.41 s / 5.30 GB**, with I001 frontier proof mismatch and no report. Warm was cancelled after the correctness failure; edit did not run. Rust214 refused pending recorded rules before timing.
 - Tiny mixed-syntax224 passes the repaired transport boundary but still fails with **nine unknowns**. RUF100 incorrectly becomes unavailable for the valid file too. Partition-aware named availability and absence-sensitive consumption remain open; do not label this case fixed.
 - Tiny valid-file225: **10.59 → 9.88 s**, **1.988 → 1.985 GB**, exactly equal complete reports for 413 rules. One diagnostic comparison only. Profile217 attributed **6.272 s** to compilation and left **2.567 s** of preparation unaccounted.
-- TM221: **0 findings across five public proof files**. TM219: **79 findings across six source/proof files**; broader architecture remains open. Internal test migration and full acceptance are unfinished.
+- Internal tests: migration integrated at `01c42f64a`; build229 fails with **66 compiler errors**. Repairs target current contracts; no runtime claim until the combined suite passes.
+- TM: run230 reports **76 findings in 11 repaired files**, zero suppressed. Earlier run221’s zero findings did not prove correct placement: its existence-only template accepted concept-named test files. The test-layout family and its enforcement are being corrected; architecture remains open.
+- Allocation profile227: immutable query/catalog clones retain **551.6 MB** at the measured global heap peak. Sharing their exact immutable contents is the current bounded candidate; no candidate timing or memory result yet.
 
 Evidence and granular tasks **A1–A9, B1–B5, C1–C7** are tracked in Beads `ryo-7tkn.19`. Astra/Opus source review found no remaining blocker in the bounded frontier repair; it did not close runtime coverage, ownership categories or performance gates. Scheduling audit distinguishes shared file preparation and named-project execution from the ordinary project route, which still creates two scopes per rule and separate execution generations.
 
