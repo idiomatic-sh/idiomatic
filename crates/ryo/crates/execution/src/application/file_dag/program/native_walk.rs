@@ -91,7 +91,7 @@ impl FileWalk {
         rows: &Rows<'_>,
         context: &mut OperatorContext<'_>,
         kernels: &dyn super::super::executor::PrimitiveExecutor,
-    ) -> Result<Ref<'walk, NativeBatch>, OperatingError> {
+    ) -> Result<Option<Ref<'walk, NativeBatch>>, OperatingError> {
         if let Rows::Tree(tree) = rows {
             if tree.file != self.file {
                 return Err(OperatingError::NotRead);
@@ -100,9 +100,9 @@ impl FileWalk {
         // Revalidate even a cache hit: population alone does not establish the
         // relation, current physical view, generation, or live invocation.
         permit.validate_program(prepared.program().as_ref())?;
-        let admitted = permit
-            .admit_walk_source(relation, rows)?
-            .ok_or(OperatingError::NotRead)?;
+        let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
+            return Ok(None);
+        };
         let identity = WalkSourceIdentity {
             population: admitted.population(),
             relation: admitted.relation(),
@@ -134,6 +134,7 @@ impl FileWalk {
         Ref::filter_map(self.batches.borrow(), |batches| {
             batches.get(&identity).map(|source| &source.batch)
         })
+        .map(Some)
         .map_err(|_| OperatingError::NotRun)
     }
     pub(super) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
