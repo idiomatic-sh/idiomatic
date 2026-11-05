@@ -31,13 +31,7 @@ use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::TableModelError;
 
-/// The row at `index`, when the table has that many rows.
-#[must_use]
 use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
-
-/// Empties the table for new rows of the given kinds, keeping its room.
-
-/// Adds one row to the table.
 
 /// What each column of the rows holds.
 #[must_use]
