@@ -25,7 +25,7 @@ use {
     crate::domain::positions::service_test::SmallTree,
     crate::domain::positions::service_test::small_tree,
     crate::domain::positions::types::ClassPlace, crate::domain::shared_walk::service::evaluate,
-    crate::domain::shared_walk::types::RuleActivity, crate::domain::shared_walk::types::WalkWork,
+    crate::domain::shared_walk::types::WalkWork,
     crate::domain::shared_walk::types::prepared_walk::value::NativeBatch,
     crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
     crate::domain::table_cells::types::TreeForm, crate::domain::table_cells::types::TreeRows,
@@ -69,7 +69,7 @@ pub(crate) fn plans() -> [Plan; 4] {
 pub(crate) fn evaluate_plans(
     prepared: &PreparedWalk,
     bindings: &[Vec<ParameterBinding>],
-    active: &[RuleActivity],
+    ready: &[ClassPlace],
 ) -> NativeBatch {
     let SmallTree {
         elements,
@@ -105,39 +105,37 @@ pub(crate) fn evaluate_plans(
         &crate::domain::table_model::types::Rows::Tree(tree),
         &bound,
         &mut context,
-        active,
+        ready,
         &mut WalkWork::default(),
     )
 }
 
-fn inactive_representative_and_single_member_preserve_eligibility() {
+fn any_equivalent_consumer_can_name_the_ready_class() {
     let mut plans = plans();
     plans[1] = plan("word");
     let bindings = vec![Vec::new(); plans.len()];
     let prepared = PreparedWalk::compile(&plans, &bindings);
-    let with_two = evaluate_plans(
-        &prepared,
-        &bindings,
-        &[
-            RuleActivity::Inactive,
-            RuleActivity::Active,
-            RuleActivity::Active,
-            RuleActivity::Inactive,
-        ],
+    let representative = prepared
+        .class_of(crate::domain::coverage::types::RuleIndex(0))
+        .unwrap()[0]
+        .unwrap();
+    let other = prepared
+        .class_of(crate::domain::coverage::types::RuleIndex(1))
+        .unwrap()[0]
+        .unwrap();
+    assert_eq!(representative, other);
+    assert_eq!(prepared.classes()[representative.0].members.len(), 3);
+    let from_other = evaluate_plans(&prepared, &bindings, &[other]);
+    assert_eq!(
+        from_other.class(representative).unwrap().positions.0,
+        [1, 3]
     );
-    assert_eq!(with_two.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
-    let with_one = evaluate_plans(
-        &prepared,
-        &bindings,
-        &[
-            RuleActivity::Active,
-            RuleActivity::Inactive,
-            RuleActivity::Inactive,
-            RuleActivity::Inactive,
-        ],
+    let from_first = evaluate_plans(&prepared, &bindings, &[representative]);
+    assert_eq!(
+        from_first.class(representative).unwrap().positions.0,
+        [1, 3]
     );
-    assert_eq!(with_one.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
-    assert!((1..prepared.classes().len()).all(|at| with_one.class(ClassPlace(at)).is_none()));
+    assert!((1..prepared.classes().len()).all(|at| from_first.class(ClassPlace(at)).is_none()));
 }
 
 fn distinct_single_consumer_predicates_share_the_walk() {
@@ -151,7 +149,7 @@ fn distinct_single_consumer_predicates_share_the_walk() {
             .iter()
             .all(|class| class.members.len() == 1)
     );
-    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 2]);
+    let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
     assert_eq!(batch.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
     assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
     assert_eq!(batch.visits(ClassPlace(0)).0, 2);
@@ -178,7 +176,7 @@ fn predicate_order_preserves_errors_and_short_circuits() {
     let plans = [first, second];
     let bindings = vec![Vec::new(); plans.len()];
     let prepared = PreparedWalk::compile(&plans, &bindings);
-    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 2]);
+    let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
     assert!(matches!(
         batch.class(ClassPlace(0)).map(|result| &result.completion),
         Some(Err(
@@ -210,7 +208,11 @@ fn a_reached_semantic_error_is_kept_for_its_class() {
     bindings[2] = vec![ParameterBinding::Text(LiteralText("[".into()))];
     let prepared = PreparedWalk::compile(&plans, &bindings);
     assert_eq!(prepared.classes()[0].members.len(), 2);
-    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
+    let batch = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
+    );
     assert!(matches!(
         batch.class(ClassPlace(0)).map(|result| &result.completion),
         Some(Err(_))
@@ -287,7 +289,7 @@ fn different_kind_errors_keep_the_first_source_row() {
         }),
         &bound,
         &mut context,
-        &[RuleActivity::Active; 4],
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
         &mut WalkWork::default(),
     );
     let Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { reason })) =
@@ -337,7 +339,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         }),
         &bound,
         &mut context,
-        &[RuleActivity::Active; 4],
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
         &mut work,
     );
     assert_eq!(first.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
@@ -352,7 +354,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         }),
         &bound,
         &mut context,
-        &[RuleActivity::Active; 4],
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
         &mut work,
     );
     assert!((0..prepared.classes().len()).all(|at| {
@@ -366,7 +368,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
 enum Scenario {
     PredicateOrder,
     Distinct,
-    Active,
+    Ready,
     Failure,
     SourceOrder,
     NextFile,
@@ -390,9 +392,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("inactive representative and one active member"),
+        name: CaseName("any equivalent consumer names the same ready class"),
         word: Word::Succeeds,
-        input: || Scenario::Active,
+        input: || Scenario::Ready,
         expect: Expect::Value(1),
     },
     Case {
@@ -419,7 +421,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Scenario::PredicateOrder => predicate_order_preserves_errors_and_short_circuits(),
         Scenario::Distinct => distinct_single_consumer_predicates_share_the_walk(),
-        Scenario::Active => inactive_representative_and_single_member_preserve_eligibility(),
+        Scenario::Ready => any_equivalent_consumer_can_name_the_ready_class(),
         Scenario::Failure => a_reached_semantic_error_is_kept_for_its_class(),
         Scenario::SourceOrder => different_kind_errors_keep_the_first_source_row(),
         Scenario::NextFile => an_empty_next_file_has_no_stale_native_publication(),
@@ -508,7 +510,7 @@ fn generic_rows_share_one_walk_under_exact_typed_bindings_and_relation() {
             &rows,
             &bound,
             context,
-            &[RuleActivity::Active; 4],
+            &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
             &mut WalkWork::default(),
         )
     });
@@ -531,7 +533,7 @@ fn generic_rows_share_one_walk_under_exact_typed_bindings_and_relation() {
             &Rows::Computed(&other),
             &bound,
             context,
-            &[RuleActivity::Active; 4],
+            &[ClassPlace(3)],
             &mut WalkWork::default(),
         )
     });
@@ -601,7 +603,7 @@ fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
             &source,
             &[Vec::new().into_boxed_slice()],
             context,
-            &[RuleActivity::Active],
+            &[ClassPlace(0)],
             &mut WalkWork::default(),
         );
         let result = batch.class(ClassPlace(0)).unwrap();
@@ -664,7 +666,7 @@ fn invalid_generic_representation_or_relation_schema_declines_without_semantic_w
             &Rows::Computed(&table),
             &[Vec::new().into_boxed_slice()],
             context,
-            &[RuleActivity::Active],
+            &[ClassPlace(0)],
             &mut WalkWork::default(),
         );
         assert!(invalid.class(ClassPlace(0)).is_none());
@@ -676,7 +678,7 @@ fn invalid_generic_representation_or_relation_schema_declines_without_semantic_w
             &Rows::Computed(&table),
             &[Vec::new().into_boxed_slice()],
             context,
-            &[RuleActivity::Active],
+            &[ClassPlace(0)],
             &mut WalkWork::default(),
         );
         assert!(oversized.class(ClassPlace(0)).is_none());
@@ -688,7 +690,7 @@ fn invalid_generic_representation_or_relation_schema_declines_without_semantic_w
             &Rows::Computed(&table),
             &[Vec::new().into_boxed_slice()],
             context,
-            &[RuleActivity::Active],
+            &[ClassPlace(0)],
             &mut WalkWork::default(),
         );
         assert!(wrong_schema.class(ClassPlace(0)).is_none());
@@ -701,3 +703,51 @@ use ryo_relations::domain::relations::types::{
     ColumnsView, FactColumn, Integer, NodeId, Span, Value as CellValue,
 };
 use ryo_values::domain::{plan_parts::types::WholeNumber, rows::types::RowCount};
+
+#[test]
+fn an_unready_class_of_a_demanded_rule_performs_no_semantic_work() {
+    let mut selected = plan("word");
+    selected.steps.push(PlanStep {
+        operation: Operation::Select {
+            from: PlanInput::Relation(Relation::SyntaxTree),
+            comparisons: vec![Comparison {
+                test: Test::Matches,
+                left: Operand::Column(ColumnIndex(2)),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
+                origin: None,
+            }],
+            kept: Vec::new(),
+        },
+        scope: StepScope::PerFile,
+    });
+    let bindings = vec![Vec::new()];
+    let prepared = PreparedWalk::compile(&[selected], &bindings);
+    let classes = prepared
+        .class_of(crate::domain::coverage::types::RuleIndex(0))
+        .unwrap();
+    let ready = classes[0].unwrap();
+    let unready = classes[1].unwrap();
+    assert_ne!(ready, unready);
+    assert_eq!(
+        prepared.classes()[ready.0].first.rule,
+        prepared.classes()[unready.0].first.rule
+    );
+    let idle = evaluate_plans(&prepared, &bindings, &[]);
+    assert!(idle.class(ready).is_none());
+    assert!(idle.class(unready).is_none());
+    assert_eq!(idle.counts().passes.0, 0);
+    assert_eq!(idle.counts().source_rows.0, 0);
+    let batch = evaluate_plans(&prepared, &bindings, &[ready]);
+    assert_eq!(batch.class(ready).unwrap().positions.0, [1, 3]);
+    assert!(batch.class(ready).unwrap().completion.is_ok());
+    assert!(batch.class(unready).is_none());
+    assert_eq!(batch.visits(unready).0, 0);
+    // The skipped predicate really errors when its own continuation becomes ready.
+    let later = evaluate_plans(&prepared, &bindings, &[unready]);
+    assert!(later.class(ready).is_none());
+    assert_eq!(later.visits(ready).0, 0);
+    assert!(matches!(
+        later.class(unready).map(|result| &result.completion),
+        Some(Err(OperatingError::InvalidRegex { .. }))
+    ));
+}

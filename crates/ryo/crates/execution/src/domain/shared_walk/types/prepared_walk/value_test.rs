@@ -4,10 +4,7 @@ use super::value::PreparedWalk;
 use crate::domain::{
     coverage::types::RuleIndex,
     positions::types::ClassPlace,
-    shared_walk::{
-        service_test::{add_pattern, evaluate_plans, plans},
-        types::RuleActivity,
-    },
+    shared_walk::service_test::{add_pattern, evaluate_plans, plans},
 };
 use ryo_values::domain::plan_parts::types::LiteralText;
 
@@ -22,7 +19,11 @@ fn equivalent_rules_share_one_ordered_class_without_retaining_plans() {
         prepared.class_of(RuleIndex(2)).unwrap()[0],
         Some(ClassPlace(0))
     );
-    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
+    let batch = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
+    );
     assert_eq!(batch.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
     assert_eq!(batch.visits(ClassPlace(0)).0, 2);
     assert_eq!(batch.visits(ClassPlace(1)).0, 1);
@@ -42,11 +43,15 @@ fn only_referenced_bindings_affect_class_equivalence() {
     let prepared = PreparedWalk::compile(&plans, &bindings);
     assert_eq!(prepared.classes()[0].members.len(), 2);
     assert_eq!(
-        evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4])
-            .class(ClassPlace(0))
-            .unwrap()
-            .positions
-            .0,
+        evaluate_plans(
+            &prepared,
+            &bindings,
+            &[ClassPlace(0), ClassPlace(1), ClassPlace(2)]
+        )
+        .class(ClassPlace(0))
+        .unwrap()
+        .positions
+        .0,
         [1, 3]
     );
 }
@@ -64,7 +69,11 @@ fn a_missing_referenced_binding_cannot_be_shared_as_a_value() {
             .iter()
             .all(|class| class.members.len() == 1)
     );
-    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
+    let batch = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[ClassPlace(0), ClassPlace(1), ClassPlace(2), ClassPlace(3)],
+    );
     assert!(matches!(
         batch.class(ClassPlace(0)).map(|result| &result.completion),
         Some(Err(_))
