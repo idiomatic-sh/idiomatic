@@ -84,7 +84,10 @@ pub(crate) fn bytes_of<'a>(
 #[must_use]
 pub fn name_made_across(symbols: &Symbols, symbol: Symbol) -> Option<Name> {
     let symbols: &SymbolsEngine = symbols.as_ref();
-    if symbols.storage.get(usize::try_from(symbol.0).ok()?) != Some(&SymbolStorage::Derived) {
+    let Ok(at) = usize::try_from(symbol.0) else {
+        return None;
+    };
+    if symbols.storage.get(at) != Some(&SymbolStorage::Derived) {
         return None;
     }
     Some(Name {
