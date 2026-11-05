@@ -101,7 +101,6 @@ impl CrossFile {
             let (results, refused) = {
                 let crossing = CrossingInput {
                     arenas: stage.arenas(),
-                    services: run.services,
                     program: std::sync::Arc::clone(&run.program),
                     domain: run.domain.clone(),
                 };

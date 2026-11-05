@@ -12,7 +12,7 @@ use super::service::{
 };
 use super::types::{
     Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
-    StepFed, Streaming, TaskIndex, Wanting,
+    StepFed, Streaming, Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, Worker};
 use ryo_execution::inbound::use_cases::execution::{
@@ -290,23 +290,6 @@ impl LintUseCaseImpl {
             .into_iter()
             .map(|slot| answered(slot.into_inner().unwrap_or_else(PoisonError::into_inner)))
             .collect())
-    }
-
-    /// Runs `work` for each of `tasks` on at most `workers` workers, each taking tasks until none is left, and answers what
-    /// each gave, in the order of the tasks.
-    fn drain<I: Sync, T: Send>(
-        &self,
-        workers: WorkerCount,
-        tasks: &[I],
-        work: impl Fn(TaskIndex, &I) -> T + Sync,
-    ) -> Result<Vec<T>, LintError> {
-        crate::application::job_execution::service::drain(
-            self.scheduler.as_ref(),
-            workers,
-            tasks,
-            |index, each| work(TaskIndex(index.0), each),
-        )
-        .map_err(Into::into)
     }
 
     /// The files under the root in the order of their paths, and what the last run kept of them, read while they are listed, when
@@ -957,7 +940,6 @@ impl LintUseCaseImpl {
                 .map_err(Into::into);
         }
         let crossing = CrossingInput {
-            services: run.services,
             program: std::sync::Arc::clone(&run.program),
             arenas: &*handed.arenas,
             domain,

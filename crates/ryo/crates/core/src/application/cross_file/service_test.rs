@@ -238,7 +238,6 @@ fn world_with_applicability(
 fn crossing(world: &World) -> CrossingInput<'_> {
     CrossingInput {
         program: Arc::clone(&world.program),
-        services: &world.request,
         arenas: &world.arenas,
         domain: crate::domain::crossing::types::CrossingInput {
             placed: &world.placed,

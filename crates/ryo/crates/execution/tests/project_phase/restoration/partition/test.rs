@@ -319,7 +319,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             .into_iter()
             .map(|(file, value)| {
                 HostRow(vec![
-                    HostCell::File(FilePath(file.into())),
+                    HostCell::File(file.into()),
                     HostCell::Number(Integer(value)),
                 ])
             })
@@ -328,7 +328,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
     ];
     if matches!(mode, Mode::Rekey { .. }) {
         let row = HostRow(vec![
-            HostCell::File(FilePath("input.py".into())),
+            HostCell::File("input.py".into()),
             HostCell::Number(Integer(7)),
         ]);
         authored.hosted[1].rows = vec![row.clone()];
@@ -349,7 +349,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         .into_iter()
         .map(|(file, code)| {
             HostRow(vec![
-                HostCell::File(FilePath(file.into())),
+                HostCell::File(file.into()),
                 HostCell::Number(Integer(code)),
             ])
         })
@@ -357,7 +357,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
     }
     if matches!(mode, Mode::CurrentRekey { .. }) {
         let row = HostRow(vec![
-            HostCell::File(FilePath("input.py".into())),
+            HostCell::File("input.py".into()),
             HostCell::Number(Integer(7)),
         ]);
         authored.hosted[1].rows = vec![row.clone()];

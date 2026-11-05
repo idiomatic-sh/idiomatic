@@ -30,7 +30,6 @@ pub(crate) struct CrossingInput<'a> {
     /// Invocation-owned physical arena lease view, supplied by the application coordinator.
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     pub program: Arc<PreparedProgram>,
-    pub services: &'a RequestExecution,
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
 }
 impl<'a> Deref for CrossingInput<'a> {

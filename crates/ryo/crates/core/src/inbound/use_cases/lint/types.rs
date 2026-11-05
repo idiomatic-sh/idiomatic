@@ -44,10 +44,6 @@ pub struct LintRequest {
     pub answer: AnswerShape,
 }
 
-/// The place of a task among the tasks a run shares between its workers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TaskIndex(pub usize);
-
 /// One rule: a query whose rows are violations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rule {
