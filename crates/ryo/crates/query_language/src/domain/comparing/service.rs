@@ -254,7 +254,7 @@ pub(crate) fn comparison_of(
     } = operand_of(builder, &filter.right, columns)?;
     let test = test_of(filter.test);
     let affix = match test {
-        parts::Test::NaturalLessThan => Some("natural_lt"),
+        parts::Test::NaturalLessThan => Some(super::constants::NATURAL_LESS_THAN),
         parts::Test::StartsWith => Some(STARTS_WITH),
         parts::Test::Matches => Some(MATCHES),
         parts::Test::EndsWith => Some(ENDS_WITH),

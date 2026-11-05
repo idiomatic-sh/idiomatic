@@ -191,8 +191,9 @@ pub(crate) fn lower_with_observations(
                     name,
                     source: parts::Input::Step(*step),
                     columns,
-                    scope: steps[usize::try_from(step.0).expect("retained root fits step index")]
-                        .scope,
+                    scope: steps
+                        [usize::try_from(step.0).expect(super::constants::RETAINED_ROOT_INDEX)]
+                    .scope,
                 }
             })
             .collect();
@@ -324,7 +325,7 @@ fn check_fragment_output(
             StepLabel::Named(_) | StepLabel::Unnamed => None,
         })
         .ok_or_else(|| LoweringError::FragmentContract {
-            message: "the returned step was not produced during lowering".to_owned(),
+            message: super::constants::MISSING_RETURNED_STEP.to_owned(),
             origin: contract.origin.clone(),
         })?;
     check_relation_shape(fields, &contract.output, contract.origin.clone())

@@ -282,7 +282,7 @@ fn imports_for(
                 source,
                 import.span,
                 Vec::new(),
-                "an import alias is declared more than once",
+                super::constants::DUPLICATE_IMPORT_ALIAS,
             ));
         }
     }
@@ -401,7 +401,7 @@ fn expand(
             source,
             fragment.result.span,
             trace.to_vec(),
-            "the returned step is not declared in this fragment",
+            super::constants::UNDECLARED_RETURNED_STEP,
         )
     })?;
     let mut identities = BTreeMap::new();
@@ -411,7 +411,7 @@ fn expand(
                 source,
                 step.span,
                 trace.to_vec(),
-                "a fragment step has no definition identity",
+                super::constants::MISSING_STEP_IDENTITY,
             )
         })?;
         let replacement = if identity == result_identity {
@@ -420,7 +420,7 @@ fn expand(
                     source,
                     call.span,
                     trace.to_vec(),
-                    "the call result has no definition identity",
+                    super::constants::MISSING_CALL_IDENTITY,
                 )
             })?
         } else {
@@ -498,7 +498,7 @@ fn expand(
                 source,
                 fragment.output_span,
                 trace.to_vec(),
-                "fragment expands to no step definitions",
+                super::constants::EMPTY_FRAGMENT,
             )
         })?;
     let result = result_name.1.ok_or_else(|| {
@@ -506,7 +506,7 @@ fn expand(
             source,
             fragment.result.span,
             trace.to_vec(),
-            "fragment result has no linked identity",
+            super::constants::MISSING_RESULT_IDENTITY,
         )
     })?;
     let input_contracts = fragment
@@ -831,7 +831,7 @@ fn remap_operand(
                         source,
                         span,
                         trace.to_vec(),
-                        "this filter position requires a text or number parameter",
+                        super::constants::INVALID_FILTER_PARAMETER,
                     ));
                 }
             };
@@ -1056,7 +1056,7 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
             output
                 .origin
                 .clone()
-                .expect("the root origin was just assigned"),
+                .expect(super::constants::ASSIGNED_ROOT_ORIGIN),
         );
     }
     program.emit_origin = Some(QueryOrigin {

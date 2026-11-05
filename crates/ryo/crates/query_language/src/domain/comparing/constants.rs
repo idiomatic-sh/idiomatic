@@ -58,3 +58,6 @@ pub(crate) const ENDS_WITH: &str = "ends_with";
 
 /// The regular-expression text predicate's query name.
 pub(crate) const MATCHES: &str = "matches";
+
+/// Natural_lt.
+pub(super) const NATURAL_LESS_THAN: &str = "natural_lt";

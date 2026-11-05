@@ -202,7 +202,7 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
         },
         parts::Input::BoundObservation(id) => {
             let bound = &builder.observation_inputs
-                [usize::try_from(id.0).expect("lowering assigned a valid binding index")];
+                [usize::try_from(id.0).expect(super::constants::VALID_BINDING_INDEX)];
             ScopedInput {
                 scope: bound.scope,
                 fields: bound

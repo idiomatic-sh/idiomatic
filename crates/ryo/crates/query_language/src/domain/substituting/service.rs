@@ -10,9 +10,11 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, PlannedColumn, Sourced, Uniqueness};
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
-    column_of, input_argument, position, positions_of, argument_named, word_of, words_of,
+    argument_named, column_of, input_argument, position, positions_of, word_of, words_of,
 };
-use crate::domain::syntax::constants::slot_name;
+use crate::domain::syntax::constants::{
+    ASSIGNMENT_TARGET, ATTRIBUTE_RECEIVER, POSITIONAL_ARGUMENT, slot_name,
+};
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_values::domain::program::types::ArgumentValue;
@@ -73,9 +75,9 @@ pub(crate) fn call_render_syntax(
         return Err(LoweringError::KindMismatch { span: call.span });
     }
     let context = match word_of(call, ArgumentSlot::Context)?.0.as_ref() {
-        "assignment-target" => RenderContext::AssignmentTarget,
-        "attribute-receiver" => RenderContext::AttributeReceiver,
-        "positional-argument" => RenderContext::PositionalArgument,
+        ASSIGNMENT_TARGET => RenderContext::AssignmentTarget,
+        ATTRIBUTE_RECEIVER => RenderContext::AttributeReceiver,
+        POSITIONAL_ARGUMENT => RenderContext::PositionalArgument,
         _ => return Err(LoweringError::InvalidSemanticLiteral { span: call.span }),
     };
     let output = word_of(call, ArgumentSlot::Output)?;

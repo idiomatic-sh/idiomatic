@@ -243,3 +243,12 @@ pub(crate) fn relation_cell_kind_named(declared: &str) -> Option<CellKind> {
 
 /// The two literal words that provide a fragment boolean argument.
 pub(crate) const BOOLEAN_WORDS: [&str; 2] = ["true", "false"];
+
+/// Written render context for assignment target.
+pub(crate) const ASSIGNMENT_TARGET: &str = "assignment-target";
+
+/// Written render context for attribute receiver.
+pub(crate) const ATTRIBUTE_RECEIVER: &str = "attribute-receiver";
+
+/// Written render context for positional argument.
+pub(crate) const POSITIONAL_ARGUMENT: &str = "positional-argument";
