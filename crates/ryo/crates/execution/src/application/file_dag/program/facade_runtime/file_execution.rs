@@ -135,11 +135,15 @@ impl FileRun<'_> {
                 capture,
             } = intent
             {
-                if diagnostic != DiagnosticDelivery::Disabled {
-                    enabled.extend(prepared.emit.iter().copied());
+                match diagnostic {
+                    DiagnosticDelivery::Disabled => {}
+                    DiagnosticDelivery::Collected => enabled.extend(prepared.emit.iter().copied()),
+                    DiagnosticDelivery::Forwarded => {
+                        enabled.extend(prepared.forward_emit.iter().copied())
+                    }
                 }
                 if diagnostic == DiagnosticDelivery::Forwarded {
-                    if let Ok(id) = &metadata.emit_root {
+                    if let Ok(id) = &prepared.forward_emit {
                         self.execution.declare_forwarder(*id, rule)?;
                     }
                 }
@@ -275,9 +279,7 @@ impl FileRun<'_> {
                         if let Some((_, existing)) =
                             queued.iter_mut().find(|(found, _)| *found == id)
                         {
-                            if mode == EvaluationMode::Streaming {
-                                *existing = mode;
-                            }
+                            debug_assert_eq!(*existing, mode);
                         } else {
                             queued.push((id, mode));
                         }
@@ -286,7 +288,13 @@ impl FileRun<'_> {
             };
             if *diagnostic != DiagnosticDelivery::Disabled {
                 append(
-                    &metadata.emit_root.clone().map(InputSource::Region),
+                    &match diagnostic {
+                        DiagnosticDelivery::Forwarded => {
+                            self.program.program().rules()[index].forward_emit.clone()
+                        }
+                        _ => metadata.emit_root.clone(),
+                    }
+                    .map(InputSource::Region),
                     match diagnostic {
                         DiagnosticDelivery::Forwarded => EvaluationMode::Streaming,
                         _ => EvaluationMode::Collected,
@@ -879,8 +887,11 @@ impl FileRun<'_> {
         }
         let id = *self
             .program
-            .rule_metadata(rule)?
-            .emit_root
+            .program()
+            .rules()
+            .get(rule.0)
+            .ok_or(OperatingError::NotRun)?
+            .forward_emit
             .as_ref()
             .map_err(Clone::clone)?;
         let phase = self.program.program().regions()[id.0].phase;
@@ -895,7 +906,6 @@ impl FileRun<'_> {
         let _consumer_origin = crate::application::file_dag::route_counts::consumer("file_stream");
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
-        let metadata = self.program.rule_metadata(rule)?;
         let completion = match &self.partials {
             ScopePartials::File {
                 evaluation,
@@ -935,7 +945,10 @@ impl FileRun<'_> {
                 (self.0)(row)
             }
         }
-        let id = metadata.emit_root.as_ref().map_err(Clone::clone)?;
+        let id = self.program.program().rules()[rule.0]
+            .forward_emit
+            .as_ref()
+            .map_err(Clone::clone)?;
         let phase = self.program.program().regions()[id.0].phase;
         if phase != ryo_values::domain::plans::types::StepScope::PerFile {
             return Ok(super::super::facade::RowEmission::Deferred { phase });

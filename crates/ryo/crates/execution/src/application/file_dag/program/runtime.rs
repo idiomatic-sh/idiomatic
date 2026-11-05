@@ -434,7 +434,35 @@ impl ProgramExecution {
             if matches!(slot.state, State::Running | State::Suspended | State::Ready) {
                 return Err(OperatingError::NotRun);
             }
-            fed.push(*slot.fed.get(at).ok_or(OperatingError::NotRun)?);
+            let mut total = *slot.fed.get(at).ok_or(OperatingError::NotRun)?;
+            // Both terminal roles retain the same authored logical coordinates.
+            // Count actual work from either or both attempts without changing
+            // the original-step identity used by frontier provenance/digests.
+            if let Ok(diagnostic) = &rule.forward_emit {
+                let diagnostic_code = self
+                    .program
+                    .regions()
+                    .get(diagnostic.0)
+                    .ok_or(OperatingError::NotRun)?;
+                if let Some(at) = diagnostic_code
+                    .instructions
+                    .iter()
+                    .position(|instruction| instruction.logical == origin.logical)
+                {
+                    let attempt = slots.get(diagnostic.0).ok_or(OperatingError::NotRun)?;
+                    if matches!(attempt.state, State::Running | State::Suspended) {
+                        return Err(OperatingError::NotRun);
+                    }
+                    for (total, next) in total
+                        .0
+                        .iter_mut()
+                        .zip(attempt.fed.get(at).ok_or(OperatingError::NotRun)?.0)
+                    {
+                        *total = total.saturating_add(next);
+                    }
+                }
+            }
+            fed.push(total);
         }
         Ok(super::facade::LogicalCounts {
             fed: fed.into_boxed_slice(),

@@ -65,13 +65,23 @@ pub(crate) fn open_project<'a>(
             return Err(OperatingError::WrongOperation);
         }
     } else {
+        let execution = ProgramExecution::open(
+            Arc::clone(program.program()),
+            Partition::Project(required.clone()),
+            Rc::clone(&owner),
+        );
+        // The project API is collected. Its unselected streaming terminal roles
+        // release their own reader edges before any restored source admission.
+        let cancelled = program
+            .program()
+            .rules()
+            .iter()
+            .filter_map(|rule| rule.forward_emit.as_ref().ok().copied())
+            .collect::<Vec<_>>();
+        execution.cancel_roots(&cancelled)?;
         scope
             .execution
-            .set(ProgramExecution::open(
-                Arc::clone(program.program()),
-                Partition::Project(required.clone()),
-                Rc::clone(&owner),
-            ))
+            .set(execution)
             .map_err(|_| OperatingError::WrongOperation)?;
     }
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;

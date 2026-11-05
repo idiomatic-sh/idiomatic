@@ -416,6 +416,7 @@ pub(crate) fn compile(
             .into_boxed_slice();
         rules.push(RuleProgram {
             root_readers,
+            forward_emit: emit.clone(),
             emit,
             frontier: plan
                 .frontier
@@ -514,6 +515,35 @@ pub(crate) fn compile(
         }
     }
     super::native::install(&mut executable, native_shapes);
+    // Delivery is a semantic boundary, not another graph or interpreter. Clone
+    // only the already-fused terminal region so the original logical step keeps
+    // its collected admission/error order for frontiers and observations. Doing
+    // this after lowering preserves the original input transport and fusion.
+    let mut regions = executable.regions.into_vec();
+    for rule in &mut executable.rules {
+        let Ok(original) = rule.emit.as_ref().copied() else {
+            continue;
+        };
+        let mut diagnostic = regions[original.0].clone();
+        diagnostic.id = RegionId(regions.len());
+        diagnostic.consumers = 1;
+        diagnostic.publishes = false;
+        // These alternatives are collected-only and their targets name the
+        // original semantic region. The streaming contract uses the same core
+        // row continuation and keeps its own terminal error/delivery state.
+        diagnostic.column = None;
+        diagnostic.selection = None;
+        diagnostic.native_positions = None;
+        for dependency in &diagnostic.dependencies {
+            regions[dependency.0].consumers += 1;
+        }
+        rule.forward_emit = Ok(diagnostic.id);
+        let mut readers = rule.root_readers.to_vec();
+        readers.push(diagnostic.id);
+        rule.root_readers = readers.into_boxed_slice();
+        regions.push(diagnostic);
+    }
+    executable.regions = regions.into_boxed_slice();
     Ok(executable)
 }
 

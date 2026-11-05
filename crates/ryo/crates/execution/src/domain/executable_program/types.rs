@@ -59,7 +59,7 @@ pub(crate) enum DemandAction {
     PublishAfterSuccess,
 }
 /// Closed, ordered code interpreted only by the common application invocation.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct DemandProgram {
     pub(super) actions: Box<[DemandAction]>,
 }
@@ -69,7 +69,7 @@ pub(crate) enum OperandSource {
     /// Only the immediately preceding instruction's borrowed row; no publication exists.
     PreviousRow,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Instruction {
     pub logical: LogicalInstruction,
     pub producer: RuleIndex,
@@ -95,7 +95,7 @@ pub(crate) struct SourcePartition {
     pub source: InputSource,
     pub requirement: PartitionRequirement,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Region {
     pub id: RegionId,
     pub producer: RuleIndex,
@@ -123,7 +123,10 @@ pub(crate) struct RuleProgram {
     /// External root-reader obligations, including repeated aliases.
     pub root_readers: Box<[RegionId]>,
     pub original_steps: Box<[Result<Origin, OperatingError>]>,
+    /// Collected semantic root shared only with collected frontier/observation aliases.
     pub emit: Result<RegionId, OperatingError>,
+    /// Private diagnostic delivery boundary; no ordinary dependency or persisted alias targets it.
+    pub forward_emit: Result<RegionId, OperatingError>,
     pub frontier: Box<[Result<InputSource, OperatingError>]>,
 }
 /// There is no retained RequestGraph, PhysicalRegion, PlanLayout or per-plan evaluator here.
