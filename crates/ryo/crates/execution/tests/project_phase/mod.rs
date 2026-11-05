@@ -671,12 +671,12 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
 }
 
 #[test]
-fn project_observation_union_runs_from_member_handles_without_a_restored_union() {
+fn project_observation_union_semantic_calls_use_members_without_a_restored_union() {
     exercise_project_observation_union(false);
 }
 
 #[test]
-fn refused_project_union_frontier_precedes_available_member_handles() {
+fn refused_project_union_frontier_prevents_union_semantic_calls_with_available_members() {
     exercise_project_observation_union(true);
 }
 
@@ -696,7 +696,44 @@ fn exercise_project_observation_union(refused: bool) {
         types::WordSlice,
     };
 
-    let engine = engine();
+    use ryo_operators::inbound::use_cases::operators::{
+        interface::{
+            OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault, SetInput,
+            SetKind,
+        },
+        use_case::OperatorsUseCaseImpl,
+    };
+    #[derive(Default)]
+    struct UnionSemanticCalls(AtomicUsize);
+    impl OperatorsUseCase for UnionSemanticCalls {
+        fn operators(
+            &self,
+            call: OperatorCall<'_>,
+        ) -> Result<OperatorAnswer, PortableOperatorFault> {
+            if matches!(
+                &call,
+                OperatorCall::SetRow {
+                    input: SetInput::Values {
+                        kind: SetKind::Union,
+                        ..
+                    }
+                } | OperatorCall::SetRow {
+                    input: SetInput::Positions {
+                        kind: SetKind::Union,
+                        ..
+                    }
+                }
+            ) {
+                let _previous = self.0.fetch_add(1, Ordering::SeqCst);
+            }
+            OperatorsUseCaseImpl::new().operators(call)
+        }
+    }
+    let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
+    let engine = ExecutionUseCaseImpl::new(
+        union_semantic_calls.clone(),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
     let mut authored = authored_request(2);
     let relation = Relation::ModuleIdentity;
     let file_column = kinds(relation)
@@ -892,6 +929,11 @@ fn exercise_project_observation_union(refused: bool) {
             &mut symbols,
         )
         .unwrap();
+    assert_eq!(
+        union_semantic_calls.0.load(Ordering::SeqCst),
+        0,
+        "preparing member handles and an ordinary frontier does not invoke Union semantics"
+    );
     let result = run.rule(RuleIndex(1), demand(), &mut symbols).unwrap();
     if refused {
         assert!(
@@ -907,6 +949,11 @@ fn exercise_project_observation_union(refused: bool) {
         assert_eq!(table.count, RowCount(1));
         assert_eq!(table.cells, [Value::File(FileId(0))]);
     }
+    assert_eq!(
+        union_semantic_calls.0.load(Ordering::SeqCst),
+        if refused { 0 } else { 2 },
+        "the singleton union schedules its one member as both inputs: two real SetRow Union semantic calls produce one distinct output row; explicit frontier refusal permits none"
+    );
     assert_eq!(
         project.reads.load(Ordering::SeqCst),
         reads,
