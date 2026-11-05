@@ -404,7 +404,50 @@ fn ragged_semantic_child_normalizes_its_complete_prefix_before_column_chain_fall
 
 #[test]
 fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal() {
-    for (key, invalid_filter, hits) in [(1, false, 4), (99, false, 0), (1, true, 1)] {
+    use ryo_operators::inbound::use_cases::operators::interface::{
+        JoinInput, JoinRow, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
+    };
+    #[derive(Debug)]
+    struct AfterFirstMatch {
+        witness: Arc<Witness>,
+        refuse: bool,
+    }
+    impl OperatorsUseCase for AfterFirstMatch {
+        fn operators(
+            &self,
+            call: OperatorCall<'_>,
+        ) -> Result<OperatorAnswer, PortableOperatorFault> {
+            match call {
+                OperatorCall::EqualityJoin {
+                    input:
+                        JoinInput::Values {
+                            left: JoinRow::Columns(left),
+                            left_on,
+                            driver,
+                            ..
+                        },
+                } if self.refuse => {
+                    self.witness.calls.fetch_add(1, Ordering::Relaxed);
+                    self.witness.columns.fetch_add(1, Ordering::Relaxed);
+                    let key = left_on
+                        .iter()
+                        .map(|column| {
+                            left.cell(*column)
+                                .expect("the actual prepared left key exists")
+                        })
+                        .collect::<Vec<_>>();
+                    assert!(
+                        driver
+                            .next(&key)
+                            .expect("the actual indexed candidate is readable")
+                    );
+                    Err(PortableOperatorFault::ShapeMismatch)
+                }
+                call => self.witness.operators(call),
+            }
+        }
+    }
+    for (key, refuse_after_match, hits) in [(1, false, 4), (99, false, 0), (1, true, 1)] {
         let mut symbols = Symbols::default();
         let name = intern_derived(&mut symbols, ByteSlice(b""), NameText("function"));
         let body = intern_derived(&mut symbols, ByteSlice(b""), NameText("body"));
@@ -454,13 +497,6 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
             unreachable!()
         };
         *distinct = RepeatedRows::Kept;
-        if invalid_filter {
-            let Operation::Select { comparisons, .. } = &mut authored.steps[2].operation else {
-                unreachable!()
-            };
-            comparisons[0].test = Test::Matches;
-            comparisons[0].right = Operand::Literal(QueryLiteral::Text(LiteralText("[".into())));
-        }
         let witness = Arc::new(Witness::default());
         let actual = execute(
             authored,
@@ -468,7 +504,10 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
             &mut symbols,
             b"",
             false,
-            witness.clone(),
+            Arc::new(AfterFirstMatch {
+                witness: witness.clone(),
+                refuse: refuse_after_match,
+            }),
             Faults::default(),
         )
         .unwrap();
@@ -476,16 +515,17 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
             actual.column_prepared,
             "this proof requires the actual compiled column alternative"
         );
-        assert_eq!(witness.columns.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            witness.columns.load(Ordering::Relaxed),
+            if refuse_after_match { 1 } else { 3 },
+            "the real column capability is called once per left row, stopping on its first refusal"
+        );
         assert_eq!(
             actual.fed[1].0[1], hits,
             "count every actual next_match result, including the match before a semantic failure"
         );
-        if invalid_filter {
-            assert!(matches!(
-                actual.result,
-                Err(OperatingError::InvalidRegex { .. })
-            ));
+        if refuse_after_match {
+            assert!(matches!(actual.result, Err(OperatingError::ShapeMismatch)));
         } else {
             let expected = if key == 99 {
                 vec![]
