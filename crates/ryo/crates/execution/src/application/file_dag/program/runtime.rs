@@ -1419,7 +1419,7 @@ fn empty_output_kinds(
 ) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError> {
     let mut kinds = gate.kinds.clone()?;
     for instruction in region.instructions.iter().skip(1) {
-        kinds = crate::domain::operation_schema::service::continuation_kinds(
+        kinds = crate::domain::operation_schema::projection::continuation_kinds(
             &instruction.operation,
             &kinds,
         )?;

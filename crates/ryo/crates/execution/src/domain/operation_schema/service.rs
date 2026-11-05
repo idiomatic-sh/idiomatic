@@ -1,4 +1,5 @@
 //! The `operation_schema` service: output column algebra with no row values, source bytes or execution storage.
+use super::projection::projected;
 
 use super::types::InputShape;
 use super::types::bindings::value::BindingShape;
@@ -27,21 +28,6 @@ pub(crate) fn schema_input<'a>(
         .ok_or(OperatingError::MissingInput {
             position: place.0 + 1,
         })
-}
-
-/// Project columns without consulting a row; a repeated column remains repeated.
-pub(crate) fn projected(
-    kinds: &[CellKind],
-    columns: &[ColumnIndex],
-) -> Result<Vec<CellKind>, OperatingError> {
-    columns
-        .iter()
-        .map(|column| {
-            column_in(kinds, *column)
-                .copied()
-                .ok_or_else(|| TableModelError::NoSuchColumn { index: column.0 }.into())
-        })
-        .collect()
 }
 
 /// A fused join's logical RHS remains the original closure projection, without executing edges.
@@ -386,21 +372,4 @@ fn appended(
     let mut output = kinds.to_vec();
     output.push(kind);
     Ok(output)
-}
-
-/// Carry the schema of an empty first instruction through the compiler's closed
-/// row-continuation family without evaluating predicates or acquiring bindings.
-pub(crate) fn continuation_kinds(
-    operation: &Operation,
-    input: &[CellKind],
-) -> Result<Vec<CellKind>, OperatingError> {
-    match operation {
-        Operation::Select { kept, .. } if kept.is_empty() => Ok(input.to_vec()),
-        Operation::Project {
-            columns,
-            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
-            ..
-        } => projected(input, columns),
-        _ => Err(OperatingError::WrongOperation),
-    }
 }

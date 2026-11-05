@@ -83,7 +83,7 @@ pub(crate) fn collected_layout(
             return if kept.is_empty() {
                 Ok(input.kinds.to_vec())
             } else {
-                crate::domain::operation_schema::service::projected(input.kinds, kept)
+                crate::domain::operation_schema::projection::projected(input.kinds, kept)
             };
         }
         Operation::Capture { pattern, .. } => kinds.extend(std::iter::repeat_n(
