@@ -129,11 +129,9 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
         )
         .unwrap();
     let child_error = regex_error("[");
-    assert_ne!(
-        child_error,
-        regex_error("("),
-        "child and later head failures must be distinguishable"
-    );
+    // Regex compilation intentionally exposes the same generic reason for
+    // these malformed patterns. The independent continuation count below proves
+    // ordering instead of attributing the failure from indistinguishable text.
     failed(
         file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
         child_error.clone(),
@@ -146,9 +144,10 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
         .iter()
         .map(|fed| fed.0)
         .collect();
-    assert!(
-        work.iter().any(|fed| *fed != [0; 3]),
-        "first attempt must reach actual continuation work"
+    assert_eq!(
+        work,
+        [[2, 0, 0], [1, 0, 0]],
+        "the shared head visits both word rows, but its accepted first row must reach the child before the cached later head error; returning the head error first leaves child work at zero"
     );
     failed(
         file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
@@ -289,11 +288,20 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let intents = [FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Collected,
-        observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
-    }; 2];
+    // Collected Join admits both views. Forwarded Join with two streamed
+    // producers owns the left-empty gate that this readiness control exercises.
+    let intents = [
+        FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Forwarded,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        },
+        FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        },
+    ];
     let mut file = request
         .open_file(
             input(FileId(0), b"abc", &elements, &intents, &no_catalog),
@@ -304,10 +312,19 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2]),
     );
-    assert_eq!(
-        complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()).count,
-        RowCount(0),
+    let mut delivered = Vec::new();
+    let emission = file
+        .emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+            delivered.push(row.to_vec());
+            Ok(())
+        })
+        .expect("forwarded Join completes without evaluating its gated RHS");
+    assert!(matches!(emission, RowEmission::Complete));
+    assert!(
+        delivered.is_empty(),
+        "the empty left publishes no joined rows"
     );
+    counts(&file, 1, 4);
     assert_eq!(
         file.walk_counts().predicate_rows.0,
         1,

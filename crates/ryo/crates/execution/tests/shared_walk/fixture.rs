@@ -183,10 +183,17 @@ pub(super) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> 
     }
 }
 pub(super) fn complete(outcome: RuleOutcome) -> Table {
-    let RootOutcome::Complete(table) = outcome.emit else {
-        panic!("complete actual native publication required")
-    };
-    table
+    match outcome.emit {
+        RootOutcome::Complete(table) => table,
+        RootOutcome::Failed(error) => panic!("native publication failed: {error:?}"),
+        RootOutcome::Unknown(error) => panic!("native publication unknown: {error:?}"),
+        RootOutcome::Partial { table, affected } => {
+            panic!("native publication partial: {table:?}; affected {affected:?}")
+        }
+        RootOutcome::Skipped(_) => panic!("native publication was skipped"),
+        RootOutcome::NoQuery => panic!("native publication has no query"),
+        RootOutcome::Deferred { phase } => panic!("native publication deferred to {phase:?}"),
+    }
 }
 pub(super) fn failed(outcome: RuleOutcome, expected: OperatingError) {
     let RootOutcome::Failed(error) = outcome.emit else {
