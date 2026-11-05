@@ -1,5 +1,5 @@
 //! Static native lookup shape. Unsupported readable shapes decline, never become faults.
-use super::contract::types::{Finding, NativeForm};
+use super::contract::types::{DerivedFault, Finding, NativeForm, PreparedDerived, ViewRequest};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
     view.get(usize::try_from(column.0).unwrap_or(usize::MAX))
@@ -38,4 +38,20 @@ pub(crate) fn finding(
         }
     }
     None
+}
+
+impl PreparedDerived {
+    /// Interpret optional native support without building a lookup payload.
+    pub fn native_finding(&self, form: NativeForm) -> Result<Option<Finding>, DerivedFault> {
+        self.validate()?;
+        let ViewRequest::NativeLookup {
+            left_on,
+            right_on,
+            view,
+        } = self.request()
+        else {
+            return Err(DerivedFault::WrongOperation);
+        };
+        Ok(finding(form, left_on, right_on, view))
+    }
 }

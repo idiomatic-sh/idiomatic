@@ -628,3 +628,121 @@ fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
         );
     }
 }
+
+#[test]
+fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallback() {
+    use ryo_derived::domain::contract::types::ViewRequest;
+    use ryo_values::domain::plan_parts::types::{Comparison, Operand, Test};
+    let (elements, mut symbols) = wide_tree(1, true);
+    let right = tree_rows(&elements, TreeForm::Elements);
+    let mut materialized = Table::default();
+    materialize(&right, &mut materialized, &mut Vec::new());
+    // The root's actual completed kind is a real provider symbol, not an invented id.
+    let root_kind = materialized.cells[1];
+    for empty in [true, false] {
+        for delivery in [false, true] {
+            for required in [0, 1, 2] {
+                let left = if empty {
+                    table_of(&[CellKind::Symbol], &[])
+                } else {
+                    table_of(&[CellKind::Symbol], &[&[root_kind]])
+                };
+                let filter = if required == 1 {
+                    vec![Comparison {
+                        test: Test::Equal,
+                        left: Operand::Column(ColumnIndex(1)),
+                        right: Operand::Column(ColumnIndex(1)),
+                        origin: None,
+                    }]
+                } else {
+                    vec![]
+                };
+                let view: &[u32] = if required == 2 { &[0, 1, 2, 3, 4] } else { &[] };
+                // Elements kind column1 is readable but not a native lookup key.
+                let op = operation(&[0], &[1], &[(Side::Left, 0)], filter, view);
+                let actual = invoke(
+                    &op,
+                    [Rows::Computed(&left), right.clone()],
+                    &mut symbols,
+                    b"abcd",
+                    delivery,
+                    real_port(),
+                    Faults::default(),
+                )
+                .unwrap();
+                assert_eq!(actual.native_prepared, false);
+                if required != 0 {
+                    assert!(
+                        matches!(actual.result, Err(OperatingError::WrongOperation)),
+                        "{:?}",
+                        actual.result
+                    );
+                    assert!(actual.prefix.is_empty());
+                    assert!(actual.derived_builds.is_empty());
+                } else {
+                    let result = actual.result.unwrap();
+                    assert_eq!(result.kinds, [CellKind::Symbol]);
+                    assert_eq!(result.count.0, usize::from(!empty));
+                    assert_eq!(result.cells, if empty { vec![] } else { vec![root_kind] });
+                    if empty {
+                        assert!(actual.derived_builds.is_empty());
+                    } else {
+                        assert!(
+                            matches!(
+                                actual.derived_builds.as_slice(),
+                                [
+                                    ViewRequest::NativeLookup { .. },
+                                    ViewRequest::Equality { .. }
+                                ]
+                            ),
+                            "{:?}",
+                            actual.derived_builds
+                        );
+                    }
+                }
+            }
+            // Supported native node keys must still accept a real filter, including empty LHS.
+            let left = if empty {
+                table_of(&[CellKind::Node], &[])
+            } else {
+                table_of(&[CellKind::Node], &[&[node(1)]])
+            };
+            let op = operation(
+                &[0],
+                &[0],
+                &[(Side::Left, 0)],
+                vec![Comparison {
+                    test: Test::Equal,
+                    left: Operand::Column(ColumnIndex(0)),
+                    right: Operand::Column(ColumnIndex(0)),
+                    origin: None,
+                }],
+                &[],
+            );
+            let actual = invoke(
+                &op,
+                [Rows::Computed(&left), right.clone()],
+                &mut symbols,
+                b"abcd",
+                delivery,
+                real_port(),
+                Faults::default(),
+            )
+            .unwrap();
+            let result = actual.result.unwrap();
+            assert_eq!(result.kinds, [CellKind::Node]);
+            assert_eq!(result.cells, if empty { vec![] } else { vec![node(1)] });
+            assert_eq!(result.count.0, usize::from(!empty));
+            if empty {
+                assert!(actual.derived_builds.is_empty());
+            } else {
+                assert!(
+                    actual
+                        .derived_builds
+                        .iter()
+                        .any(|request| matches!(request, ViewRequest::NativeLookup { .. }))
+                );
+            }
+        }
+    }
+}

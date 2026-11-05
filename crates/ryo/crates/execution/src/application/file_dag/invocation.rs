@@ -143,8 +143,30 @@ impl<'f> InvocationResources<'f> {
         if join.reach.is_some() {
             validate(DerivedKind::PartitionOrder)?;
             validate(DerivedKind::ClosureAdjacency)
-        } else if matches!(right, BorrowedRows::Tree(_)) {
-            validate(DerivedKind::NativeLookup)
+        } else if let BorrowedRows::Tree(tree) = right {
+            validate(DerivedKind::NativeLookup)?;
+            let native = prepared(contract, DerivedKind::NativeLookup)?;
+            let form = match tree.form {
+                crate::domain::table_cells::types::TreeForm::Elements => {
+                    ryo_derived::domain::contract::types::NativeForm::Elements
+                }
+                crate::domain::table_cells::types::TreeForm::Edges => {
+                    ryo_derived::domain::contract::types::NativeForm::Edges
+                }
+            };
+            if native
+                .plan
+                .semantic
+                .native_finding(form)
+                .map_err(crate::domain::operator::contract::derived::portable_fault)?
+                .is_some()
+            {
+                return Ok(());
+            }
+            if join.has_filter || !join.view.is_empty() {
+                return Err(OperatingError::WrongOperation);
+            }
+            validate(DerivedKind::Equality)
         } else {
             // The ordinary values driver has no native filter/view protocol.
             if join.has_filter || !join.view.is_empty() {

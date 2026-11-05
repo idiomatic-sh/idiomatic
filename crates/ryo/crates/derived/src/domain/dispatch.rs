@@ -118,15 +118,8 @@ pub(crate) fn build(
             texts,
             &mut room.row,
         )?)),
-        (
-            ViewRequest::NativeLookup {
-                left_on,
-                right_on,
-                view,
-            },
-            DerivedInputs::Native(form),
-        ) => {
-            let Some(finding) = super::native::finding(form, left_on, right_on, view) else {
+        (ViewRequest::NativeLookup { .. }, DerivedInputs::Native(form)) => {
+            let Some(finding) = prepared.native_finding(form)? else {
                 return Ok(BuildOutcome::Declined);
             };
             PayloadData::NativeLookup(finding)
