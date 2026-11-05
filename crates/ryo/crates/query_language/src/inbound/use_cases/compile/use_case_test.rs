@@ -1,5 +1,11 @@
 //! What the `compile` use case promises, against the fakes of the ports it calls.
 
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+};
+use ryo_values::domain::plans::types::StepScope;
 use std::sync::Arc;
 
 use super::errors::CompileError;
@@ -34,6 +40,8 @@ struct Given {
     syntax: SyntaxFake,
     catalog: CatalogFake,
     text: &'static str,
+    observations: Vec<BoundObservationInput>,
+    hosted: Vec<HostedRelation>,
 }
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
@@ -80,6 +88,8 @@ fn text_the_fake_reads() -> Given {
         },
         catalog: CatalogFake::default(),
         text: "emit",
+        observations: Vec::new(),
+        hosted: Vec::new(),
     }
 }
 
@@ -88,6 +98,8 @@ fn text_the_fake_refuses() -> Given {
         syntax: SyntaxFake::default(),
         catalog: CatalogFake::default(),
         text: "let a = ;",
+        observations: Vec::new(),
+        hosted: Vec::new(),
     }
 }
 
@@ -453,8 +465,128 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
     );
 }
 
+/// An external schema supplied at the real inbound API, without supplying any facts.
+fn observed(name: &str, columns: &[&str]) -> BoundObservationInput {
+    BoundObservationInput {
+        name: ObservationBindingName(name.into()),
+        columns: columns
+            .iter()
+            .map(|name| ObservationColumn {
+                name: ObservationColumnName((*name).into()),
+                kind: CellKind::File,
+            })
+            .collect(),
+        scope: StepScope::PerFile,
+    }
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_distinct_observation_schema_is_admitted"),
+        word: Word::Succeeds,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("blank_observation_name_is_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed(" ", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("observation_cannot_shadow_catalog_relation"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("function", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("duplicate_observation_sources_are_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![
+                    observed("external", &["file"]),
+                    observed("external", &["file"]),
+                ],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("blank_observation_column_is_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &[" "])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("duplicate_observation_columns_are_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &["file", "file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("observation_cannot_shadow_hosted_relation"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed("external", &["file"])],
+                hosted: vec![HostedRelation {
+                    name: HostedName("external".into()),
+                    columns: vec![HostedColumn {
+                        name: ColumnLabel("file".into()),
+                        kind: CellKind::File,
+                    }],
+                }],
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
     Case {
         name: CaseName("compiles_valid_text_to_a_plan"),
         word: Word::Succeeds,
@@ -545,9 +677,9 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let given = given();
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
-        observations: Vec::new(),
+        observations: given.observations,
         text: ryo_values::domain::program::types::QueryBundle::from(QueryText(given.text.into())),
-        hosted: Vec::new(),
+        hosted: given.hosted,
     };
     let first = use_case.compile(request.clone())?;
     let second = use_case.compile(request)?;
