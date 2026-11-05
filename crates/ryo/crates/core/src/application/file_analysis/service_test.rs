@@ -841,7 +841,7 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker for
         })
     }
     fn keep(
-        &mut self,
+        &self,
         bucket: ryo_values::domain::stored_facts::types::Bucket,
         words: ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep<'_>,
     ) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {

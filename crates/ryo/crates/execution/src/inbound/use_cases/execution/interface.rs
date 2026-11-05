@@ -192,3 +192,12 @@ pub trait ObservationPublication {
         selected: &[bool],
     ) -> Result<(), OperatingError>;
 }
+
+pub trait PreparedReporting {
+    fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata];
+    fn replay_closure(
+        &self,
+        again: ryo_values::domain::stores::types::Reuse,
+        first: &[Bucket],
+    ) -> Result<(ryo_values::domain::stores::types::Reuse, Vec<Bucket>), OperatingError>;
+}

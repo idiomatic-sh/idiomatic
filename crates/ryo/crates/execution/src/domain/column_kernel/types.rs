@@ -8,7 +8,7 @@ use crate::domain::derived_views::types::DerivedContract;
 
 /// The default evaluator remains the production strategy until measured proof permits a switch.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum KernelStrategy {
+pub enum KernelStrategy {
     #[default]
     Existing,
     Column,

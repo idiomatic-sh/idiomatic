@@ -1,5 +1,5 @@
 //! Normalize demanded phase roots at the existing table codec boundary before Symbols are dropped.
-use {ryo_values::domain::records::types::CrossPublicationTransfer, ryo_values::domain::records::types::PackedObservedRoot};
+use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
 use crate::domain::{
     crossing::types::ObservedRoot,
     finish::publication::escape_cross_publication,

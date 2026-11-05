@@ -31,13 +31,13 @@ pub(super) enum Partition {
 }
 /// Positive applicability is evidence, not a Complete-empty population.
 #[derive(Clone)]
-pub(crate) struct ApplicabilityProof {
+pub struct ApplicabilityProof {
     producer: RuleIndex,
     file: FileGeneration,
     reason: ApplicabilityReason,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ApplicabilityReason {
+pub enum ApplicabilityReason {
     SyntaxRejected,
     DiagnosticNotApplicable,
 }

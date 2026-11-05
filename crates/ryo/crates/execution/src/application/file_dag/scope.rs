@@ -29,10 +29,11 @@ pub(crate) enum ScopePartials<'a> {
 pub(in crate::application::file_dag) fn open_program_owner(
     program: &Arc<crate::domain::executable_program::types::ExecutableProgram>,
     derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    stable: bool,
 ) -> Rc<RelationOwner> {
     Rc::new(RelationOwner::for_scope(
         ScopePermit { _private: () },
-        true,
+        stable,
         program
             .regions()
             .len()

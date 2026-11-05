@@ -15,8 +15,14 @@ use super::types::{
     StepFed, Streaming, TaskIndex, Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, Worker};
-use crate::application::file_dag::program::facade::{self, ProgramServices};
-use crate::application::rule_compilation::types::Compiled;
+use ryo_execution::inbound::use_cases::execution::{
+    interface::{
+        ExecutionCompilation, ExecutionRequest, ExecutionUseCase, PreparedExecution,
+        PreparedQueries, PreparedReporting,
+    },
+    types::{CompiledPlans, CompiledQueries, FrontierDemand, FrontierRequest, PreparationError},
+    use_case::{CompilationUseCaseImpl, ExecutionUseCaseImpl},
+};
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
 use crate::domain::answering::types::Todo;
@@ -26,7 +32,6 @@ use crate::domain::budget::service::{fit, repository_size, within};
 use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
 use crate::domain::features::service::{fed_over, work_over};
-use crate::domain::hosted::service::identity as hosted_identity;
 use crate::domain::keeping::service::{rendered_of, rows_of};
 use crate::domain::kind_check::service::{first_unknown, kinds_asked, unknown_message};
 use crate::domain::lowering::types::Counting;
@@ -37,6 +42,7 @@ use crate::domain::ordering::types::{Admittance, Ordered, Turn};
 use crate::domain::placement::service::decide;
 use crate::domain::placement::types::PlacedScopes;
 use crate::domain::reporting::service::report_refused;
+use ryo_values::domain::hosted::service::identity as hosted_identity;
 
 use crate::domain::project::service::{project_rules, reads_any, reads_project, with_consulted};
 use crate::domain::project::types::{PlanReads, Projected};
@@ -50,18 +56,23 @@ use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::repository::service::{by_path, configuration, paths_of};
 use crate::domain::rules::service::{ids_of, owner_of, scopes_of};
-use ryo_values::domain::rule_requests::types::RuleSpec;
 use crate::domain::storing::service::{
     decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh,
 };
-use {crate::domain::storing::types::Decision, crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain, crate::domain::storing::types::ReadAlone, ryo_values::domain::stores::types::Reuse, crate::domain::storing::types::Reused, crate::domain::storing::types::ToKeep};
 use crate::domain::table_model::constants::{column_heading, line_heading};
 use crate::domain::table_model::types::Frontier;
 use crate::domain::trust::service::{project_unknowns, scoped_needs};
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::service::wants;
 use crate::domain::visit::types::Keeping;
+use ryo_values::domain::rule_requests::types::RuleSpec;
+use {
+    crate::domain::storing::types::Decision, crate::domain::storing::types::HandedAgain,
+    crate::domain::storing::types::ReadAlone, crate::domain::storing::types::Reused,
+    crate::domain::storing::types::ToKeep, ryo_values::domain::stores::types::MadeAgain,
+    ryo_values::domain::stores::types::Reuse,
+};
 
 use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::workers::service::{absorb, gathering, note_slots, order, size_at, tables_for};
@@ -69,24 +80,24 @@ use crate::domain::workers::types::{
     CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Replaying, Visited, WorkersMet,
 };
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
-use ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::{ManifestReading, ProjectInput, ProjectNotes};
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::lint_store::types::StoreKeeping;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use crate::outbound::memory::interface::MemoryPort;
-use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
-use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::rows::types::{LentCell, Summary};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
+use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes;
+use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 
 use ryo_relations::domain::relations::types::WorkerNumber;
@@ -126,7 +137,7 @@ pub struct LintUseCaseImpl {
     /// Decides which files a rule's include and exclude globs govern.
     matching: Arc<dyn MatchingPort>,
     /// Owns rule compilation, independent per-request binding and bounded session plans.
-    compilation: crate::application::rule_compilation::service::RuleCompilation,
+    compilation: CompilationUseCaseImpl,
     /// Says how much memory the machine has, which sizes the lint's budget.
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
@@ -185,9 +196,7 @@ impl LintUseCaseImpl {
             facts,
             language,
             matching,
-            compilation: crate::application::rule_compilation::service::RuleCompilation::new(
-                query_language,
-            ),
+            compilation: CompilationUseCaseImpl::new(query_language),
             memory,
             operators,
             derived,
@@ -203,10 +212,7 @@ impl LintUseCaseImpl {
 
     /// The same, keeping the plans it compiles in `plans`, which other use cases share.
     #[must_use]
-    pub fn compiling_into(
-        mut self,
-        plans: crate::application::rule_compilation::types::CompiledPlans,
-    ) -> Self {
+    pub fn compiling_into(mut self, plans: CompiledPlans) -> Self {
         self.compilation = self.compilation.compiling_into(plans);
         self
     }
@@ -434,8 +440,9 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         session: &ryo_values::domain::runs::types::Session,
     ) -> Result<Digest, LintError> {
-        if reads_any(&ryo_values::domain::run_metadata::service::from_plans(plans))
-            == PlanReads::DoesNotRead
+        if reads_any(&ryo_values::domain::run_metadata::service::from_plans(
+            plans,
+        )) == PlanReads::DoesNotRead
         {
             return Ok(Digest([0; 16]));
         }
@@ -580,14 +587,7 @@ impl LintUseCaseImpl {
         };
         let mut worker = Worker::new(
             {
-                let mut tables = tables_for(
-                    WorkerNumber(0),
-                    setting.metadata,
-                    Arc::clone(setting.program.matchers()),
-                    self.unlowered,
-                    self.counting,
-                );
-                tables.pool.kernel_strategy = self.file_analysis.kernel_strategy();
+                let mut tables = tables_for(WorkerNumber(0), setting.metadata);
                 tables
             },
             self.facts.worker()?,
@@ -739,20 +739,20 @@ impl LintUseCaseImpl {
         &self,
         rules: &[RuleSpec],
         hosted: &[HostRelation],
-    ) -> Result<Compiled, LintError> {
-        let compiled = self.compilation.prepare(rules, hosted)?;
+    ) -> Result<CompiledQueries, LintError> {
+        let compiled = self.compilation.compile(rules, hosted)?;
         // A word a rule writes for a kind that no linked language has fails the run before a file is read: nothing runs until it is fixed.
         // Rules that write no word for a kind need no vocabulary.
         if compiled
-            .plans
+            .plans()
             .iter()
-            .zip(&compiled.bindings)
+            .zip(compiled.bindings())
             .all(|(plan, bound)| kinds_asked(plan, bound).is_empty())
         {
             return Ok(compiled);
         }
         let vocabularies = self.language.kind_vocabularies();
-        if let Some(unknown) = first_unknown(&compiled.plans, &compiled.bindings, &vocabularies) {
+        if let Some(unknown) = first_unknown(compiled.plans(), compiled.bindings(), &vocabularies) {
             return Err(LintError::UnknownKind {
                 id: rules
                     .get(unknown.rule.0)
@@ -776,14 +776,7 @@ impl LintUseCaseImpl {
         for number in 0..self.workers.0 {
             states.push(Worker::new(
                 {
-                    let mut tables = tables_for(
-                        WorkerNumber(number),
-                        run.metadata,
-                        Arc::clone(run.program.matchers()),
-                        self.unlowered,
-                        self.counting,
-                    );
-                    tables.pool.kernel_strategy = self.file_analysis.kernel_strategy();
+                    let mut tables = tables_for(WorkerNumber(number), run.metadata);
                     tables
                 },
                 self.facts.worker()?,
@@ -937,10 +930,7 @@ impl LintUseCaseImpl {
             answering: run.answering,
             unknown: &unknown.0,
         };
-        if matches!(
-            run.program.observation_request(),
-            crate::domain::file_program::types::ObservationRequest::Bound { .. }
-        ) {
+        if let Some(batches) = run.program.observation_batches() {
             for each in todo {
                 self.within_budget(listing.budget, || vec![each.id.clone()])?;
             }
@@ -953,7 +943,7 @@ impl LintUseCaseImpl {
                         program: std::sync::Arc::clone(&run.program),
                         scheduler: self.scheduler.as_ref(),
                         workers: self.workers,
-                        observations: run.program.observation_request(),
+                        batches,
                         first_bucket: run.first_bucket,
                         facts: kept_facts.as_ref(),
                         project: handle.facts.as_ref(),
@@ -985,15 +975,15 @@ impl LintUseCaseImpl {
                         reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
                     )]
                     let first = run.first_bucket[each.rule.0];
-                    let required = crate::application::file_dag::program::facade::required_partitions(
-                        &run.program, each.rule, crossing.domain.files, crossing.domain.covered, crossing.domain.skipped, crossing.services,
-                    ).map_err(|error| LintError::from(crate::domain::rules::service::failed(&each.id, &error)))?;
-                    let inputs = crate::application::cross_file::frontiers::prepare(
-                        run.program.as_ref(), each.rule, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,
-                        &mut cross, &required, crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
-                    ).map_err(|error| match error {
-                        crate::application::cross_file::frontiers::PreparationError::Facts(error) => LintError::from(error),
-                        crate::application::cross_file::frontiers::PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),
+                    let scope = run.services.project_scope(each.rule, crossing.domain.files, crossing.domain.covered, crossing.domain.skipped)
+                        .map_err(|error| LintError::from(crate::domain::rules::service::failed(&each.id, &error)))?;
+                    let inputs = run.services.prepare_frontiers(FrontierRequest {
+                        scope: &scope, rule: each.rule, first, facts: kept_facts.as_ref(),
+                        project: handle.facts.as_ref(), project_symbols: &handle.symbols,
+                        demand: FrontierDemand::Diagnostic,
+                    }, &mut cross).map_err(|error| match error {
+                        PreparationError::Facts(error) => LintError::from(error),
+                        PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),
                     })?;
                     let result = self.cross_file.evaluate(&crossing, each, inputs, &mut cross);
                     observed_inputs("before_cross_cleanup", &Vec::new(), &mut cross);
@@ -1331,18 +1321,8 @@ impl LintUseCase for LintUseCaseImpl {
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let compiled = self.checked_rules(&rules, &request.hosted)?;
-        let Compiled {
-            plans,
-            bindings,
-            schedule,
-            observations,
-        } = &compiled;
-        crate::application::rule_compilation::service::observed(
-            &rules,
-            &plans,
-            &bindings,
-            &request.hosted,
-        );
+        let plans = compiled.plans();
+        let bindings = compiled.bindings();
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = self.wanting(&rules, &plans, &ids)?;
         drop(compiling);
@@ -1375,33 +1355,30 @@ impl LintUseCase for LintUseCaseImpl {
             resolved,
             request.source_language.as_ref(),
         );
-        let identities = crate::application::rule_compilation::identity::with_producers(
-            self.digest.as_ref(),
-            stored_rules,
-            &plans,
-            &schedule,
-            &observations,
-        )?;
+        let identities =
+            self.compilation
+                .identify(&compiled, self.digest.as_ref(), stored_rules)?;
         let stored_rules = identities.rules;
         let (nothing_handed, nothing_wanted) =
             (ReadHanded::default(), BucketsWanted::These(Vec::new()));
         let unknown = self.language.unknown_reasons();
-        let executor = crate::application::file_dag::execution::CommonOperatorEngine::new(
-            self.operators.as_ref(),
-        );
-        let services = ProgramServices::new(&executor, Arc::clone(&self.derived), &listing.files);
+        let execution =
+            ExecutionUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
         let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
-        let program = facade::prepare(
-            compiled,
-            &rules,
-            &rule_digests,
-            &request.hosted,
-            Arc::clone(&self.derived),
-            identities.observations,
-        )
-        .map_err(|error| {
-            crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
-        })?;
+        let program = Arc::new(
+            execution
+                .prepare_compiled(
+                    compiled,
+                    rules.clone(),
+                    rule_digests,
+                    request.hosted.clone(),
+                    identities.observations,
+                )
+                .map_err(|error| {
+                    crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+                })?,
+        );
+        let services = execution.begin(&program, &listing.files);
         let metadata = program.metadata();
         let mut setting = VisitSetting {
             program: Arc::clone(&program),
@@ -1441,14 +1418,11 @@ impl LintUseCase for LintUseCaseImpl {
             read_again,
         } = self.reused(&setting, &listing, &manifests, &stored_rules, &ids)?;
         let (again, producer_buckets) =
-            crate::application::rule_compilation::replay::observation_closure(
-                again,
-                program.as_ref(),
-                &first_bucket,
-            )
-            .map_err(|error| {
-                crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
-            })?;
+            program
+                .replay_closure(again, &first_bucket)
+                .map_err(|error| {
+                    crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+                })?;
         setting.replaying = match again {
             Reuse::Cross(_) => Replaying::FindingsAndHanded,
             Reuse::Whole | Reuse::Again => Replaying::Findings,

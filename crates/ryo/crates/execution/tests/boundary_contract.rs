@@ -130,6 +130,8 @@ fn public_file_run_publishes_once_and_finishes() {
     let mut file = request
         .open_file(
             FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -184,6 +186,8 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
     let mut file = request
         .open_file(
             FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -216,6 +220,8 @@ fn public_open_refuses_file_outside_request() {
     assert!(matches!(
         request.open_file(
             FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
                 file: FileId(9),
                 evaluation: &[],
                 publication: &[],

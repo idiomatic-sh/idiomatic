@@ -148,7 +148,7 @@ pub(in crate::application) struct OutputMetadata {
     pub root: OutputRoot,
     pub consumers: Vec<usize>,
 }
-pub(in crate::application) struct ObservationMetadata {
+pub(crate) struct ObservationMetadata {
     pub layout: ObservationReadinessLayout,
     pub slots: Box<[ObservationSlot]>,
     pub frontiers: Box<[ObservedFrontierRoot]>,

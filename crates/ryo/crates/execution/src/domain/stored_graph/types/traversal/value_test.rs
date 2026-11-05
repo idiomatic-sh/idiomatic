@@ -4,10 +4,49 @@ use super::value::{ABSENT, GraphTraversal, UNKNOWN};
 
 use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Rows;
+use ryo_derived::domain::contract::types::{
+    BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, RowCells, ViewRequest,
+};
+use ryo_derived::inbound::use_cases::derived::{
+    interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
+};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
+
+/// The real semantic builder borrows the test's physical source table; this object provides no executor or owner policy.
+struct SourceRows<'a>(&'a Table);
+impl RowCells for SourceRows<'_> {
+    fn bulk(&self) -> Option<BulkRows<'_>> {
+        Some(BulkRows::Computed(self.0))
+    }
+    fn validate(&self) -> Result<(), DerivedFault> {
+        if self.0.kinds.len().checked_mul(self.0.count.0) == Some(self.0.cells.len()) {
+            Ok(())
+        } else {
+            Err(DerivedFault::ShapeMismatch)
+        }
+    }
+    fn kinds(&self) -> &[CellKind] {
+        &self.0.kinds
+    }
+    fn count(&self) -> usize {
+        self.0.count.0
+    }
+    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
+        if row >= self.count() {
+            return None;
+        }
+        let column = usize::try_from(column.0).ok()?;
+        if column >= self.0.kinds.len() {
+            return None;
+        }
+        self.0
+            .cells
+            .get(row.checked_mul(self.0.kinds.len())?.checked_add(column)?)
+            .copied()
+    }
+}
 
 fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::CompactGraph> {
     let mut table = Table {
@@ -17,14 +56,25 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::Compac
     for edge in edges {
         push_row(&mut table, &edge.map(|value| Value::Number(Integer(value))));
     }
-    let payload = crate::domain::positions::service_test::prepared_payload(
-        ryo_derived::domain::contract::types::ViewRequest::Adjacency {
+    let semantics = DerivedUseCaseImpl::new();
+    let prepared = semantics.prepare(
+        ViewRequest::Adjacency {
             endpoints: [ColumnIndex(0), ColumnIndex(1)],
             keys: vec![],
         },
-        &Rows::Computed(&table),
-    )
-    .expect("valid graph schema");
+        vec![table.kinds.clone()],
+    );
+    let outcome = semantics
+        .build(
+            &prepared,
+            DerivedInputs::Rows(&SourceRows(&table)),
+            &mut BuildWorkspace::default(),
+            None,
+        )
+        .expect("valid graph schema");
+    let BuildOutcome::Built(payload) = outcome else {
+        panic!("ordinary finite fixture must build its adjacency")
+    };
     payload
         .share_adjacency()
         .expect("successful adjacency payload")

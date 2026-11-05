@@ -1,6 +1,10 @@
 //! Bounded read, parse and per-file evaluation using injected ports.
-use crate::application::file_dag::program::facade::{
-    self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand,
+use ryo_execution::inbound::use_cases::execution::interface::{
+    ExecutionRequest, FileExecution, PreparedExecution,
+};
+use ryo_execution::inbound::use_cases::execution::types::{
+    ApplicabilityReason, CaptureContext, EmitDemand, FileInput, ObservationDemand, RootOutcome,
+    RuleDemand, SourceRows,
 };
 // ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
@@ -20,7 +24,7 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, failure_partials, prepare, read_failure_demanded,
+    begin, engine_asked, failure_partials, prepare, read_failure_demanded,
     settle as settle_file, start_partials,
 };
 use crate::domain::reading::types::{EngineAsked, EngineRows, PrimaryFailureKind};
@@ -384,12 +388,6 @@ impl FileAnalysis {
         file: FileId,
         semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
-        let _route_counts =
-            crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
-        #[cfg(feature = "diagnostic-row-progress")]
-        if let Some(path) = visit.setting.paths.get(file.0 as usize) {
-            crate::application::file_dag::route_counts::file_name(path.0.as_ref());
-        }
         let tables = &mut worker.tables;
         let acceptance = syntax_acceptance(&tables.elements);
         let original_mask = tables.mask.clone();
@@ -406,23 +404,30 @@ impl FileAnalysis {
             .setting
             .program
             .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
-        let mut run = facade::open_file(
-            &visit.setting.program,
-            file,
-            facade::ScopePartials::File {
+        let refused = std::cell::RefCell::new(None);
+        let read = |relation| {
+            worker
+                .facts
+                .rows(relation)
+                .map(SourceRows::Stored)
+                .map_err(|error| {
+                    *refused.borrow_mut() = Some(error);
+                    crate::domain::operating::errors::OperatingError::NotRead
+                })
+        };
+        let mut run = visit.setting.services.open_file(
+            FileInput {
+                file,
                 evaluation,
                 publication: &physical,
+                demanded: &demanded,
+                source: &tables.bytes.0,
+                elements: &tables.elements,
+                read: &read,
+                semantic: Some(semantic),
+                kinds: tables.kind_vocabulary.as_ref().map(Arc::clone),
             },
-            &demanded,
-            visit.setting.services,
-            &tables.bytes.0,
             &mut tables.symbols,
-            Some(semantic),
-            tables
-                .pool
-                .kind_vocabulary
-                .as_ref()
-                .map(std::sync::Arc::clone),
         )?;
         for rule in visit.setting.program.rule_order() {
             if !demanded
@@ -437,30 +442,11 @@ impl FileAnalysis {
                 .copied()
                 .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
             {
-                run.skip_rule(rule, crate::application::file_dag::program::facade::ApplicabilityReason::SyntaxRejected)?;
+                run.skip_rule(rule, ApplicabilityReason::SyntaxRejected)?;
                 continue;
             }
             let emit = governs_rule(tables, rule) == Governing::Governs;
-            let refused = std::cell::RefCell::new(None);
             let outcome = {
-                let rows = &*worker.facts;
-                let read = |relation| {
-                    if let Some(form) = crate::domain::table_cells::service::native_form(relation) {
-                        return Ok(crate::domain::table_model::types::Rows::Tree(
-                            crate::domain::table_cells::types::TreeRows {
-                                elements: &tables.elements,
-                                file,
-                                form,
-                            },
-                        ));
-                    }
-                    rows.rows(relation)
-                        .map(crate::domain::table_model::types::Rows::Stored)
-                        .map_err(|error| {
-                            *refused.borrow_mut() = Some(error);
-                            crate::domain::operating::errors::OperatingError::NotRead
-                        })
-                };
                 run.rule(
                     rule,
                     RuleDemand {
@@ -471,7 +457,6 @@ impl FileAnalysis {
                         },
                         observations: ObservationDemand::Required,
                     },
-                    &read,
                     &mut tables.symbols,
                 )
             };
@@ -568,24 +553,6 @@ impl FileAnalysis {
                 }
             }
             let captures = {
-                let rows = &*worker.facts;
-                let read = |relation| {
-                    if let Some(form) = crate::domain::table_cells::service::native_form(relation) {
-                        return Ok(crate::domain::table_model::types::Rows::Tree(
-                            crate::domain::table_cells::types::TreeRows {
-                                elements: &tables.elements,
-                                file,
-                                form,
-                            },
-                        ));
-                    }
-                    rows.rows(relation)
-                        .map(crate::domain::table_model::types::Rows::Stored)
-                        .map_err(|error| {
-                            *refused.borrow_mut() = Some(error);
-                            crate::domain::operating::errors::OperatingError::NotRead
-                        })
-                };
                 run.capture_frontiers(
                     rule,
                     *visit
@@ -593,16 +560,11 @@ impl FileAnalysis {
                         .first_bucket
                         .get(rule.0)
                         .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?,
-                    &read,
                     &mut tables.symbols,
-                    facade::CaptureContext {
-                        file,
-                        rule_digest: visit.setting.program.rule_digest(rule)?,
+                    CaptureContext {
                         worker: tables.number,
-                        retained: crate::domain::finish::types::Retained {
-                            arena: crate::domain::finish::types::Arena(&mut tables.arena.0),
-                            places: &mut tables.places,
-                        },
+                        arena: &mut tables.arena.0,
+                        places: &mut tables.places,
                         words: &mut tables.words,
                     },
                 )
@@ -643,19 +605,18 @@ impl FileAnalysis {
                     },
                 )?;
                 run.commit_frontier(rule, capture.input)?;
-                if visit.setting.keeping == Keeping::Keeps {
-                    tables.packed = capture.words;
-                    capture_frontier(
-                        tables,
-                        visit.setting.answering,
-                        capture.bucket,
-                        capture.proof,
-                    );
+                if visit.setting.keeping == Keeping::Keeps
+                    && visit.setting.answering == Answering::Findings
+                {
+                    tables.captured.push(ryo_values::domain::records::types::Kept {
+                        bucket: capture.bucket,
+                        proof: capture.proof,
+                        words: ryo_values::domain::stored_facts::types::KeptWords(capture.words),
+                    });
                 }
             }
             let counts = run.counts(rule)?;
             let counted = tables
-                .pool
                 .fed
                 .get_mut(rule.0)
                 .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?;
@@ -668,7 +629,7 @@ impl FileAnalysis {
                 }
             }
         }
-        tables.current_observations = run.observation_snapshot();
+        tables.current_observations = run.finish()?.readiness;
         if let Some(root) = &tables.current_observations {
             tables
                 .observations
@@ -677,7 +638,6 @@ impl FileAnalysis {
                     root: Arc::clone(root),
                 });
         }
-        drop(run);
         settle_file(tables, visit.setting.answering);
         worker.facts.release()?;
         Ok(())

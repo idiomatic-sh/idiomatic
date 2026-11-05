@@ -318,8 +318,8 @@ pub(super) struct LintRun<'a> {
     /// Required file applicability for both per-file and cross-file diagnostic Emit.
     pub placed: &'a crate::domain::placement::types::PlacedScopes,
     /// The sole request-prepared executable program and its required application capabilities.
-    pub program: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
-    pub services: &'a crate::application::file_dag::program::facade::ProgramServices<'a>,
+    pub program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    pub services: &'a ryo_execution::inbound::use_cases::execution::types::RequestExecution,
     /// What the caller asked.
     pub request: &'a LintRequest,
     /// The rules, compiled.

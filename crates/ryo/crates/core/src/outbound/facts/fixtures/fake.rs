@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::collections::relations::interface::Relatio
 use ryo_relations::domain::relations::types::{FileId, NodeId, Offset, Span};
 use ryo_relations::domain::terms::types::Symbol;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_relations::domain::relations::service::{all, columns, kinds};
@@ -67,7 +67,7 @@ struct FakeWorker {
     /// The columns of each relation, in the order of all relations.
     tables: Vec<Vec<FactColumn>>,
     /// The words kept in each bucket.
-    words: BTreeMap<Bucket, KeptBucket>,
+    words: Mutex<BTreeMap<Bucket, KeptBucket>>,
 }
 
 impl FactsWorker for FakeWorker {
@@ -99,12 +99,13 @@ impl FactsWorker for FakeWorker {
         })
     }
 
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         counted(&self.calls, self.fails)?;
         if words.words.0.is_empty() {
             return Err(refusal());
         }
-        let kept = self.words.entry(bucket).or_default();
+        let mut buckets = self.words.lock().map_err(|_| refusal())?;
+        let kept = buckets.entry(bucket).or_default();
         let start = kept.words.0.0.len();
         kept.words.0.0.extend_from_slice(&words.words.0);
         kept.sources.push(BucketSource {
@@ -126,7 +127,9 @@ impl FactsWorker for FakeWorker {
 
     fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         counted(&self.calls, self.fails)?;
-        Ok(Box::new(FakeFinish { kept: self.words }))
+        Ok(Box::new(FakeFinish {
+            kept: self.words.into_inner().map_err(|_| refusal())?,
+        }))
     }
 }
 
@@ -176,7 +179,7 @@ impl FactsPort for FactsFake {
                 .iter()
                 .map(|relation| vec![FactColumn::default(); columns(*relation).len()])
                 .collect(),
-            words: BTreeMap::new(),
+            words: Mutex::new(BTreeMap::new()),
         }))
     }
 

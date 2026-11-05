@@ -215,7 +215,17 @@ fn resident_rows_survive_other_reads_and_word_flushes(
     let expected = snapshot(worker.as_ref())?;
     for amount in [2, (1_usize << 20_u32) + 17, 3] {
         let _scope_rows = worker.rows(Relation::Scope)?;
+        let pinned = worker.rows(Relation::Function)?;
         worker.keep(Bucket(7), test_words(&PackedWords(vec![1; amount])))?;
+        if pinned.kinds != expected.0.as_slice()
+            || pinned
+                .columns
+                .iter()
+                .map(|column| column.0.as_slice())
+                .ne(expected.1.iter().map(Vec::as_slice))
+        {
+            return Ok(0);
+        }
         if snapshot(worker.as_ref())? != expected {
             return Ok(0);
         }

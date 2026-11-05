@@ -1,7 +1,8 @@
 //! Project root delivery through the same prepared executable invocation.
-use super::program::facade::{
-    self, EmitDemand, ObservationDemand, PreparedProgram, ProgramServices, ProjectObservation,
-    RootOutcome, RuleDemand,
+use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
+use ryo_execution::inbound::use_cases::execution::types::{
+    EmitDemand, ObservationDemand, ObservedPublication, PreparedFrontiers, ProjectInput,
+    ProjectObservation, ProjectScope, RequestExecution, RootOutcome, RuleDemand,
 };
 use crate::domain::{
     coverage::types::RuleIndex,
@@ -9,7 +10,6 @@ use crate::domain::{
     operating::errors::OperatingError,
 };
 use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
-use std::sync::Arc;
 
 /// Pure phase rows plus the actual admitted owner proof of each Complete named root.
 pub(crate) struct ProgramEvaluated {
@@ -17,22 +17,31 @@ pub(crate) struct ProgramEvaluated {
     pub fed: Vec<crate::domain::operator::types::RowsFed>,
     pub publications: Vec<(
         ryo_values::domain::observations::types::ObservationIndex,
-        facade::ObservedPublication,
+        ObservedPublication,
     )>,
 }
 
 pub(crate) fn evaluate_cross_roots(
-    program: &Arc<PreparedProgram>,
-    services: &ProgramServices<'_>,
+    request: &RequestExecution,
     rule: RuleIndex,
-    required: facade::RequiredPartitions,
-    partials: facade::ScopePartials<'_>,
-    frontiers: facade::ProjectFrontiers<'_>,
+    scope: &ProjectScope,
+    evaluation: &crate::domain::coverage::types::Partials,
+    publication: &crate::domain::coverage::types::Partials,
+    ordinary: PreparedFrontiers,
+    bound: &[ryo_execution::inbound::use_cases::execution::types::BoundInput],
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     arenas: &[ryo_values::domain::stored_facts::types::ArenaBytes],
 ) -> Result<ProgramEvaluated, OperatingError> {
-    let mut run = facade::open_project(
-        program, required, partials, frontiers, symbols, arenas, services,
+    let mut run = request.open_project(
+        ProjectInput {
+            scope,
+            evaluation,
+            publication,
+            ordinary,
+            bound,
+            arenas,
+        },
+        symbols,
     )?;
     let outcome = run.rule(
         rule,
@@ -42,6 +51,7 @@ pub(crate) fn evaluate_cross_roots(
         },
         symbols,
     )?;
+    run.finish();
     let mut roots = PhaseRoots::default();
     match outcome.emit {
         RootOutcome::Complete(table) => roots.emit = Some(table),

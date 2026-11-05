@@ -119,6 +119,7 @@ impl ExecutionRequest for RequestExecution {
             input.demanded,
             Arc::clone(&self.services),
             input.source,
+            matches!(input.language, SourceLanguage::Recognized) && input.resident_stability == facts::ResidentStability::Stable,
             symbols,
             input.semantic,
             input.kinds,
@@ -513,5 +514,18 @@ impl ExecutionUseCaseImpl {
             kernels: Arc::new(CommonOperatorEngine::new(Arc::clone(&self.operators))),
             derived: Arc::clone(&self.derived),
         })
+    }
+}
+
+impl PreparedReporting for PreparedProgram {
+    fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata] {
+        self.inner.metadata()
+    }
+    fn replay_closure(
+        &self,
+        again: ryo_values::domain::stores::types::Reuse,
+        first: &[Bucket],
+    ) -> Result<(ryo_values::domain::stores::types::Reuse, Vec<Bucket>), OperatingError> {
+        self.inner.replay_closure(again, first)
     }
 }

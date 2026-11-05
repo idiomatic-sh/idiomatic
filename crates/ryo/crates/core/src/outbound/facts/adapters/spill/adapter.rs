@@ -3,7 +3,7 @@
 
 use std::io::Write as _;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_relations::domain::relations::service::{all, columns, kinds};
@@ -67,7 +67,7 @@ struct SpillWorker {
     /// The columns of each relation for the worker's file, in the order of all relations.
     tables: Vec<Vec<FactColumn>>,
     /// The file the worker's words go to, and where each bucket's stretches are in it.
-    spill: Spill,
+    spill: Mutex<Spill>,
 }
 
 impl SpillWorker {
@@ -180,12 +180,12 @@ impl FactsWorker for SpillWorker {
         })
     }
 
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         let bytes = &words.words.0;
         if bytes.is_empty() {
             return Err(refused());
         }
-        let spill = &mut self.spill;
+        let mut spill = self.spill.lock().map_err(|_| refused())?;
         let offset = SpillOffset(
             spill
                 .written
@@ -205,10 +205,10 @@ impl FactsWorker for SpillWorker {
             });
         // The file is made only when what waits reaches the bound: a run that keeps little spills nothing to disk.
         if spill.pending.0.len() >= FLUSH_AT {
-            if matches!(self.spill.file, SpillFile::Missing) {
-                self.spill.file = SpillFile::Open(self.open()?);
+            if matches!(spill.file, SpillFile::Missing) {
+                spill.file = SpillFile::Open(self.open()?);
             }
-            flush(&mut self.spill)?;
+            flush(&mut spill)?;
         }
         Ok(())
     }
@@ -220,13 +220,14 @@ impl FactsWorker for SpillWorker {
         Ok(())
     }
 
-    fn finished(mut self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
+        let mut spill = self.spill.into_inner().map_err(|_| refused())?;
         // A spill that never reached its bound keeps its words in memory: it has no file to write them to.
-        if matches!(self.spill.file, SpillFile::Open(_)) {
-            flush(&mut self.spill)?;
+        if matches!(spill.file, SpillFile::Open(_)) {
+            flush(&mut spill)?;
         }
         Ok(Box::new(SpillFinish {
-            spilled: vec![self.spill],
+            spilled: vec![spill],
         }))
     }
 }
@@ -316,7 +317,7 @@ impl FactsPort for FactsSpillAdapter {
                 .iter()
                 .map(|relation| vec![FactColumn::default(); columns(*relation).len()])
                 .collect(),
-            spill: Spill::default(),
+            spill: Mutex::new(Spill::default()),
         }))
     }
 

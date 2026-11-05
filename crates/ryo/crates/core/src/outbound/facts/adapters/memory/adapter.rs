@@ -3,6 +3,7 @@
 //! column of a bucket into one, in the order of the workers.
 
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 
 use ryo_relations::domain::relations::service::{all, columns, kinds};
 use ryo_relations::domain::relations::types::Relation;
@@ -38,7 +39,7 @@ struct MemoryWorker {
     /// The columns of each relation for the worker's file, in the order of all relations.
     tables: Vec<Vec<FactColumn>>,
     /// The words kept so far, in a column for each bucket.
-    words: BTreeMap<Bucket, KeptBucket>,
+    words: Mutex<BTreeMap<Bucket, KeptBucket>>,
 }
 
 impl FactsWorker for MemoryWorker {
@@ -72,11 +73,12 @@ impl FactsWorker for MemoryWorker {
         })
     }
 
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         if words.words.0.is_empty() {
             return Err(refused(RefusalText(SCHEMAS)));
         }
-        let kept = self.words.entry(bucket).or_default();
+        let mut buckets = self.words.lock().map_err(|_| refused(RefusalText(SCHEMAS)))?;
+        let kept = buckets.entry(bucket).or_default();
         let start = kept.words.0.0.len();
         kept.words.0.0.extend_from_slice(&words.words.0);
         kept.sources.push(BucketSource {
@@ -104,7 +106,9 @@ impl FactsWorker for MemoryWorker {
     }
 
     fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
-        Ok(Box::new(MemoryFinish { kept: self.words }))
+        Ok(Box::new(MemoryFinish {
+            kept: self.words.into_inner().map_err(|_| refused(RefusalText(SCHEMAS)))?,
+        }))
     }
 }
 
@@ -154,7 +158,7 @@ impl FactsPort for FactsMemoryAdapter {
                 .iter()
                 .map(|relation| vec![FactColumn::default(); columns(*relation).len()])
                 .collect(),
-            words: BTreeMap::new(),
+            words: Mutex::new(BTreeMap::new()),
         }))
     }
 

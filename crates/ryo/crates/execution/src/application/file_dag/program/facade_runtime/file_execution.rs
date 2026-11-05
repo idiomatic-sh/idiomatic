@@ -26,6 +26,7 @@ pub(crate) fn open_file<'a>(
     demanded: &[bool],
     services: Arc<ProgramServices>,
     source: &'a [u8],
+    reuse_eligible: bool,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
@@ -36,7 +37,7 @@ pub(crate) fn open_file<'a>(
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let owner = open_program_owner(program.program(), Arc::clone(services.derived()));
+    let owner = open_program_owner(program.program(), Arc::clone(services.derived()), reuse_eligible);
     let ScopePartials::File { publication, .. } = partials else {
         return Err(OperatingError::WrongOperation);
     };

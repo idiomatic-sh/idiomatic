@@ -2,16 +2,16 @@
 
 use super::types::ProviderFault;
 use crate::domain::budget::errors::BudgetError;
-use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::visit::errors::VisitError;
 use crate::outbound::corpus::errors::CorpusError;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::rows::errors::RowsError;
 use crate::outbound::scheduler::errors::SchedulerError;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::rule_requests::errors::RulesError;
 
 /// Why `lint` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -298,18 +298,20 @@ impl std::fmt::Display for ProviderFault {
     }
 }
 
-impl From<crate::application::rule_compilation::errors::RuleCompilationError> for LintError {
-    fn from(error: crate::application::rule_compilation::errors::RuleCompilationError) -> Self {
+impl From<ryo_execution::inbound::use_cases::execution::types::RuleCompilationError> for LintError {
+    fn from(
+        error: ryo_execution::inbound::use_cases::execution::types::RuleCompilationError,
+    ) -> Self {
         match error {
-            crate::application::rule_compilation::errors::RuleCompilationError::Observations(
+            ryo_execution::inbound::use_cases::execution::types::RuleCompilationError::Observations(
                 reason,
             ) => Self::ObservationBindings {
                 reason: reason.to_string(),
             },
-            crate::application::rule_compilation::errors::RuleCompilationError::Rules(reason) => {
+            ryo_execution::inbound::use_cases::execution::types::RuleCompilationError::Rules(reason) => {
                 reason.into()
             }
-            crate::application::rule_compilation::errors::RuleCompilationError::Query {
+            ryo_execution::inbound::use_cases::execution::types::RuleCompilationError::Query {
                 id,
                 error,
             } => Self::Query { id, error },

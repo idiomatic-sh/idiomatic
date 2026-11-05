@@ -1618,7 +1618,7 @@ fn changed_nested_module() -> Result<Value, Failure> {
 
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
-    use crate::application::rule_compilation::types::CompiledPlans;
+    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
     use crate::outbound::query_language::factory;
     use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
@@ -1717,7 +1717,7 @@ fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
         rules: vec!["one"; PER_RUN],
         ..violations()
     };
-    let plans = crate::application::rule_compilation::types::CompiledPlans::default();
+    let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
     let use_case = world(given()).use_case.compiling_into(plans.clone());
     let runs = crate::application::rule_compilation::constants::COMPILED_PLANS / PER_RUN + 2;
     let mut most = 0;
@@ -1759,7 +1759,7 @@ fn lint_under_ids(use_case: &LintUseCaseImpl, tag: &str, count: usize) -> Result
 
 /// Lints one request that names more rules than the cap: answers 1 when the plans kept are no more than the cap.
 fn one_request_over_the_cap() -> Result<Value, Failure> {
-    let plans = crate::application::rule_compilation::types::CompiledPlans::default();
+    let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
     let use_case = world(violations()).use_case.compiling_into(plans.clone());
     lint_under_ids(
         &use_case,
@@ -1786,7 +1786,7 @@ fn one_request_over_the_cap() -> Result<Value, Failure> {
 /// Fills the plans of a session to the cap, then lints one rule more: answers 1 when only the plan kept longest was dropped and the
 /// plans of the runs before it all stayed.
 fn eviction_drops_one_plan_at_a_time() -> Result<Value, Failure> {
-    let plans = crate::application::rule_compilation::types::CompiledPlans::default();
+    let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
     let use_case = world(violations()).use_case.compiling_into(plans.clone());
     let cap = crate::application::rule_compilation::constants::COMPILED_PLANS;
     lint_under_ids(&use_case, "old", cap / 2)?;
@@ -1872,7 +1872,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 ..violations()
             };
             let (first, second) = (request(&rule("one")), request(&rule("two")));
-            let plans = crate::application::rule_compilation::types::CompiledPlans::default();
+            let plans = ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default();
             let use_case = world(rule("one")).use_case.compiling_into(plans.clone());
             let _first = use_case.lint(first)?;
             let _second = use_case.lint(second)?;

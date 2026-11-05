@@ -91,7 +91,10 @@ pub struct RequestExecution {
     pub(super) services:
         Arc<crate::application::file_dag::program::facade_runtime::ProgramServices>,
 }
+pub enum SourceLanguage { Recognized, Unrecognized }
 pub struct FileInput<'a, 'facts> {
+    pub language: SourceLanguage,
+    pub resident_stability: facts::ResidentStability,
     pub file: ryo_relations::domain::relations::types::FileId,
     pub evaluation: &'a [Partial],
     pub publication: &'a [Partial],
@@ -193,5 +196,7 @@ pub use ryo_values::domain::records::types::CrossPublicationTransfer;
 pub use crate::domain::operator::types::RowsFed;
 pub use ryo_values::domain::records::types::PackedObservedRoot;
 
-pub use crate::domain::operator::types::TreeSteps;
 pub use crate::domain::lowering::types::Counting;
+pub use crate::domain::operator::types::TreeSteps;
+
+pub use crate::domain::column_kernel::types::KernelStrategy;

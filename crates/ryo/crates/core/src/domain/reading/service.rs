@@ -28,9 +28,8 @@ use ryo_language::domain::elements::service::clear_elements;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::Kept;
 use ryo_values::domain::records::types::PlacedRule;
-use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, KeptWords, ReadInPart};
+use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, ReadInPart};
 
 /// Readies the worker for a file it reads: counts it, notes where its text will begin in the worker's arena and empties what the
 /// last file left.
@@ -186,22 +185,6 @@ pub(crate) fn prepare_frontier(
     tables.packed.0.clear();
     pack_onto(WordSlice(&tables.words.0), &mut tables.packed);
     Some(frontier_bucket(first, place))
-}
-
-/// Capture the prepared words only after the caller successfully retained them.
-pub(crate) fn capture_frontier(
-    tables: &mut Tables,
-    answering: &Answering,
-    bucket: Bucket,
-    proof: ryo_values::domain::records::types::FrontierProof,
-) {
-    if *answering == Answering::Findings {
-        tables.captured.push(Kept {
-            bucket,
-            proof,
-            words: KeptWords(tables.packed.clone()),
-        });
-    }
 }
 
 /// Gives back what a huge file made the tables grow past, and puts the file's findings in their order: rows of the rules' own

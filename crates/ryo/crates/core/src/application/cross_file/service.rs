@@ -1,7 +1,10 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
 use crate::application::run_coordination::crossing::cross_rule_with_inputs;
-use crate::application::file_dag::program::facade;
 use crate::application::run_coordination::settings::CrossingInput;
+use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, PreparedExecution};
+use ryo_execution::inbound::use_cases::execution::types::{
+    PreparedFrontiers, ProjectScope, PublicationSlot, BoundInput,
+};
 use crate::domain::answering::types::{Crossed, Todo};
 use crate::domain::crossing::service::placeable;
 use crate::domain::crossing::types::Placeability;
@@ -18,10 +21,10 @@ use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
 };
 use crate::domain::reporting::service::order_found;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use {ryo_values::domain::rule_requests::errors::RulesError};
 use crate::domain::rules::service::failed;
 use ryo_values::domain::rows::service::cell;
-use {ryo_values::domain::files::types::SourceView};
+use ryo_values::domain::files::types::SourceView;
 use crate::outbound::corpus::interface::CorpusPort;
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;
@@ -59,10 +62,15 @@ impl CrossFile {
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
-        frontier: super::types::PreparedFrontiers,
+        frontier: PreparedFrontiers,
         cross: &mut Symbols,
     ) -> Result<Crossed, RulesError> {
-        let scope = facade::publication_owner(&crossing.program, crossing.services)
+        let scope = crossing.services.project_scope(
+            todo.rule,
+            crossing.files,
+            crossing.covered,
+            crossing.skipped,
+        )
             .map_err(|error| failed(&todo.id, &error))?;
         self.evaluate_phase(
             crossing,
@@ -70,7 +78,7 @@ impl CrossFile {
             frontier,
             cross,
             &[],
-            super::types::PublicationSlot::Unused,
+            PublicationSlot::Unused,
             &scope,
         )
         .map(|result| result.crossed)
@@ -79,20 +87,12 @@ impl CrossFile {
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
-        frontier: super::types::PreparedFrontiers,
+        frontier: PreparedFrontiers,
         cross: &mut Symbols,
-        bound_inputs: &[super::types::BoundInput],
-        publication: super::types::PublicationSlot,
-        scope: &facade::PublicationScope,
+        bound_inputs: &[BoundInput],
+        publication: PublicationSlot,
+        scope: &ProjectScope,
     ) -> Result<super::types::CrossedWithPublications, RulesError> {
-        #[cfg(feature = "diagnostic-row-progress")]
-        let _project_progress =
-            crate::application::file_dag::route_counts::FileScope::begin(usize::MAX);
-        #[cfg(feature = "diagnostic-row-progress")]
-        let _project_rule =
-            crate::application::file_dag::route_counts::rule(todo.rule.0, todo.id.0.as_ref());
-        #[cfg(feature = "diagnostic-row-progress")]
-        crate::application::file_dag::route_counts::file_name("<project>");
         let emit = crossing
             .program
             .emit(todo.rule)
@@ -165,7 +165,7 @@ impl CrossFile {
         let observations = if roots.observations.is_empty() {
             None
         } else {
-            let super::types::PublicationSlot::Reserved(worker) = publication else {
+            let PublicationSlot::Reserved(worker) = publication else {
                 return Err(refuse(
                     &"demanded observation phase has no reserved publication arena",
                 ));
