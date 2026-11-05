@@ -1,6 +1,7 @@
-//! The `stored_selection` service's cases, on values alone.
+//! Generic stored-selection cache policy and independent public-owner output controls.
+//! Synthetic schemas below parameterize the private generic cache contract;
+//! they are never supplied as catalog providers to the public execution owner.
 
-use crate::application::file_dag::cross_execution::compute;
 use crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture;
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
@@ -9,6 +10,7 @@ use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
+use crate::inbound::use_cases::execution::{fixtures as public_owner, types::SourceRows};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
@@ -59,24 +61,29 @@ type Failure = OperatingError;
 
 use crate::domain::stored_selection::fixtures::program;
 
-/// Exact ordinary operator execution remains the independent result oracle.
+/// Generic cache policy data is projected from a genuine provider schema for
+/// the independent public-owner oracle. No catalog reader receives a synthetic schema.
 fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failure> {
-    let mut symbols = Symbols::default();
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &program.identity.bindings,
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
+    baseline_with_symbols(source, program, &mut Symbols::default())
+}
+fn baseline_with_symbols(
+    source: ColumnsView<'_>,
+    program: &Selector,
+    symbols: &mut Symbols,
+) -> Result<Table, Failure> {
+    use ryo_relations::domain::relations::{
+        service::{kinds, node_id},
+        types::{FileId, Flag, Offset, Position, Span},
     };
-    let operation = Operation::Select {
-        from: Source::Relation(Relation::Function),
+    use ryo_values::domain::{
+        plan_parts::types::{ParameterName, StepId},
+        plans::types::{ParameterType, PlanParameter},
+        query_bindings::types::ParameterBinding,
+    };
+    let mut logical = Table::default();
+    materialize(&Rows::Stored(source), &mut logical, &mut Vec::new());
+    let select = Operation::Select {
+        from: Source::Step(StepId(0)),
         comparisons: program.identity.comparisons.clone(),
         kept: if program.distinct {
             Vec::new()
@@ -84,23 +91,102 @@ fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failur
             program.columns.clone()
         },
     };
-    let mut out = Table::default();
-    compute(&operation, &[Rows::Stored(source)], &mut context, &mut out)?;
+    let (mut plan, hosted, facts) = if logical.kinds.iter().all(|kind| *kind == CellKind::Number) {
+        let authored =
+            public_owner::table_inputs(select, &[&logical], &program.identity.bindings, symbols);
+        (authored.plan, authored.hosted, authored.facts)
+    } else {
+        let (relation, projection) = match logical.kinds.as_slice() {
+            [CellKind::Symbol] => (Relation::Defines, vec![1]),
+            [CellKind::Symbol, CellKind::Number] => (Relation::BraceFormatField, vec![2, 1]),
+            [CellKind::Number, CellKind::Flag, CellKind::Symbol] => {
+                (Relation::FormatParse, vec![6, 8, 1])
+            }
+            _ => panic!("explicit cache-policy fixture projection required"),
+        };
+        for (&column, kind) in projection.iter().zip(&logical.kinds) {
+            assert_eq!(kinds(relation)[column as usize], *kind);
+        }
+        let mut canonical = Table {
+            kinds: kinds(relation).to_vec(),
+            ..Table::default()
+        };
+        for row in logical.cells.chunks(logical.kinds.len()) {
+            let mut cells = kinds(relation)
+                .iter()
+                .map(|kind| match kind {
+                    CellKind::Node => Cell::Node(node_id(FileId(0), Position(0))),
+                    CellKind::File => Cell::File(FileId(0)),
+                    CellKind::Symbol => Cell::Symbol(Symbol(0)),
+                    CellKind::Number => Cell::Number(Integer(0)),
+                    CellKind::Flag => Cell::Flag(Flag::Lowered),
+                    CellKind::Span => Cell::Span(Span {
+                        start: Offset(0),
+                        end: Offset(0),
+                    }),
+                })
+                .collect::<Vec<_>>();
+            for (&column, &value) in projection.iter().zip(row) {
+                cells[column as usize] = value;
+            }
+            canonical.cells.extend(cells);
+            canonical.count.0 += 1;
+        }
+        let plan = public_owner::plan(vec![
+            Operation::Select {
+                from: Source::Relation(relation),
+                comparisons: vec![],
+                kept: projection.into_iter().map(ColumnIndex).collect(),
+            },
+            select,
+        ]);
+        (plan, vec![], vec![(relation, canonical)])
+    };
     if program.distinct {
-        let mut projected = Table::default();
-        compute(
-            &Operation::Project {
-                from: Source::Relation(program.relation),
+        plan.steps.push(ryo_values::domain::plans::types::PlanStep {
+            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            operation: Operation::Project {
+                from: Source::Step(plan.emit.step),
                 columns: program.columns.clone(),
                 distinct: RepeatedRows::Dropped,
             },
-            &[Rows::Computed(&out)],
-            &mut context,
-            &mut projected,
-        )?;
-        return Ok(projected);
+        });
+        plan.emit.step = StepId((plan.steps.len() - 1) as u32);
     }
-    Ok(out)
+    plan.parameters = program
+        .identity
+        .bindings
+        .iter()
+        .enumerate()
+        .map(|(at, binding)| PlanParameter {
+            name: ParameterName(format!("parameter-{at}").into()),
+            kind: match binding {
+                ParameterBinding::Number(_) => ParameterType::Number,
+                ParameterBinding::Flag(_) => ParameterType::Flag,
+                ParameterBinding::Text(_) => ParameterType::Text,
+                ParameterBinding::Texts(_) => ParameterType::Texts,
+                ParameterBinding::Numbers(_) => ParameterType::Numbers,
+                ParameterBinding::TextSets(_) => ParameterType::TextSets,
+                ParameterBinding::Tables(_) => ParameterType::Tables,
+            },
+        })
+        .collect();
+    let read = |relation| {
+        facts
+            .iter()
+            .find(|(actual, _)| *actual == relation)
+            .map(|(_, table)| SourceRows::Computed(table))
+            .ok_or(OperatingError::NotRead)
+    };
+    public_owner::published_from(
+        plan,
+        program.identity.bindings.clone(),
+        hosted,
+        b"",
+        &ryo_language::domain::elements::types::Elements::default(),
+        symbols,
+        &read,
+    )
 }
 
 /// Compare compact and ordinary results before checking the requested cache boundary.
@@ -394,30 +480,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
         &mut Vec::new(),
     );
     drop(context);
-    let mut ordinary = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let mut expected = Table::default();
-    compute(
-        &Operation::Select {
-            from: Source::Relation(Relation::Defines),
-            comparisons: class_selector.identity.comparisons.clone(),
-            kept: class_selector.columns.clone(),
-        },
-        &[Rows::Stored(source)],
-        &mut ordinary,
-        &mut expected,
-    )?;
+    let expected = baseline_with_symbols(source, &class_selector, &mut symbols)?;
     assert_eq!(actual, expected);
     assert_eq!(actual.count.0, 4);
     assert_eq!(
@@ -570,30 +633,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     );
     drop(context);
     for (selector, result) in selectors.iter().zip(actual) {
-        let mut ordinary = OperatorContext {
-            phase: crate::domain::operating::types::AfterTheFiles::Before,
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &selector.identity.bindings,
-            symbols: (&mut symbols).into(),
-            source: SourceView(b""),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        let mut expected = Table::default();
-        compute(
-            &Operation::Select {
-                from: Source::Relation(Relation::Defines),
-                comparisons: selector.identity.comparisons.clone(),
-                kept: selector.columns.clone(),
-            },
-            &[Rows::Stored(source)],
-            &mut ordinary,
-            &mut expected,
-        )?;
+        let expected = baseline_with_symbols(source, &selector, &mut symbols)?;
         assert_eq!(result, expected);
     }
     let constrained = SelectionFixture::new(
@@ -786,7 +826,10 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
         Err(OperatingError::WrongBinding)
     ));
     drop(context);
-    let mut ordinary = OperatorContext {
+    // The generic selection policy preserves authored predicate order. Test that
+    // pure comparison boundary directly: public preparation separately rejects
+    // Tables where a scalar/list predicate binding is required.
+    let mut predicate_context = OperatorContext {
         phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
@@ -799,32 +842,28 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let mut expected = Table::default();
-    compute(
-        &Operation::Select {
-            from: Source::Relation(Relation::Defines),
-            comparisons: first.identity.comparisons.clone(),
-            kept: first.columns.clone(),
-        },
-        &[Rows::Stored(source)],
-        &mut ordinary,
-        &mut expected,
-    )?;
-    assert_eq!(actual, expected);
-    assert_eq!(actual.count.0, 0);
+    let row = [Cell::Symbol(present)];
+    assert_eq!(
+        crate::domain::comparing::service::holds_all(
+            &first.identity.comparisons,
+            &row,
+            &[CellKind::Symbol],
+            crate::domain::operating::types::NameCount(0),
+            &mut predicate_context
+        )?,
+        crate::domain::table_model::types::Verdict::Fails
+    );
     assert!(matches!(
-        compute(
-            &Operation::Select {
-                from: Source::Relation(Relation::Defines),
-                comparisons: reversed.identity.comparisons.clone(),
-                kept: reversed.columns.clone(),
-            },
-            &[Rows::Stored(source)],
-            &mut ordinary,
-            &mut Table::default(),
+        crate::domain::comparing::service::holds_all(
+            &reversed.identity.comparisons,
+            &row,
+            &[CellKind::Symbol],
+            crate::domain::operating::types::NameCount(0),
+            &mut predicate_context
         ),
         Err(OperatingError::WrongBinding)
     ));
+    assert_eq!(actual.count.0, 0);
     Ok(())
 }
 
@@ -887,30 +926,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
         &mut Vec::new(),
     );
     drop(context);
-    let mut ordinary = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let mut expected = Table::default();
-    compute(
-        &Operation::Select {
-            from: Source::Relation(Relation::Defines),
-            comparisons: selector.identity.comparisons.clone(),
-            kept: selector.columns.clone(),
-        },
-        &[Rows::Stored(source)],
-        &mut ordinary,
-        &mut expected,
-    )?;
+    let expected = baseline_with_symbols(source, &selector, &mut symbols)?;
     assert_eq!(actual, expected);
     assert_eq!(actual.count.0, 3);
     Ok(())

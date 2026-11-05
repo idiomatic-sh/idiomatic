@@ -2,16 +2,11 @@
 use super::*;
 use resource_fixture::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, JoinColumn, Side},
-    plans::types::Operation,
-};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    crate::domain::operating::types::OperatorContext,
     crate::domain::operator::contract::views::BorrowedRows,
     crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
@@ -20,55 +15,29 @@ const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let fixture =
         ResourceFixture::new(&[Relation::Function], &[], super::super::indexes::LIMIT).unwrap();
-    let left = Table {
-        kinds: vec![CellKind::Number],
-        cells: vec![Value::Number(Integer(1))],
-        count: ryo_values::domain::rows::types::RowCount(1),
-    };
-    let operation = Operation::Join {
-        left: Input::Relation(Relation::Function),
-        right: Input::Relation(Relation::Function),
-        left_on: vec![ColumnIndex(0)],
-        right_on: vec![ColumnIndex(0)],
-        output: vec![JoinColumn {
-            side: Side::Right,
-            column: ColumnIndex(1),
-        }],
-        filter: vec![],
-        view: vec![],
-        reach: None,
-    };
-    let (mut symbols, mut scratch, mut memo) =
-        (Symbols::default(), OperatorScratch::default(), vec![]);
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-        scratch: &mut scratch,
-        memo: &mut memo,
-    };
-    let mut out = Table::default();
-    fixture
-        .collect(
-            &operation,
-            &[
-                Rows::Computed(&left),
-                Rows::Stored(ColumnsView {
-                    kinds: KINDS,
-                    columns,
-                }),
-            ],
-            &mut context,
-            &mut out,
-        )
+    let input = Rows::Stored(ColumnsView {
+        kinds: KINDS,
+        columns,
+    });
+    let held = fixture
+        .index(Relation::Function, &input, &[ColumnIndex(0)])
         .unwrap();
-    assert_eq!(out.cells, [Value::Number(Integer(10))]);
+    let DerivedView::Equality(index) = held.view().unwrap() else {
+        panic!("actual equality view")
+    };
+    assert_eq!(
+        index.rows(),
+        &[
+            ryo_values::domain::rows::types::RowIndex(0),
+            ryo_values::domain::rows::types::RowIndex(1)
+        ]
+    );
+    assert_eq!(
+        columns[1].0[index.rows()[0].0],
+        10,
+        "the indexed first matching row retains its payload"
+    );
+    drop(held);
     assert!(fixture.no_invocation_index_handles());
     assert_eq!(fixture.shared_index_backings(), 1);
     fixture

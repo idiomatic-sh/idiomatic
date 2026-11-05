@@ -1,4 +1,4 @@
-//! All operation classes execute through the production engine in both modes.
+//! Independent authored rows and expectations for every operation class.
 use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
@@ -31,14 +31,14 @@ impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
             .collect())
     }
 }
-pub(super) const FROM: Input = Input::Relation(Relation::Function);
-pub(super) const RIGHT: Input = Input::Relation(Relation::Scope);
-pub(super) const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);
+pub(crate) const FROM: Input = Input::Relation(Relation::Function);
+pub(crate) const RIGHT: Input = Input::Relation(Relation::Scope);
+pub(crate) const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);
 pub(crate) const SOURCE: &[u8] = b"a a";
-pub(super) fn n(value: i64) -> Value {
+pub(crate) fn n(value: i64) -> Value {
     Value::Number(Integer(value))
 }
-pub(super) fn span(start: u32, end: u32) -> Value {
+pub(crate) fn span(start: u32, end: u32) -> Value {
     Value::Span(Span {
         start: Offset(start),
         end: Offset(end),
@@ -57,7 +57,7 @@ fn table(kinds: &[CellKind], rows: &[Vec<Value>]) -> Table {
     }
     table
 }
-pub(super) fn numbers(values: &[i64]) -> Table {
+pub(crate) fn numbers(values: &[i64]) -> Table {
     table(
         &[CellKind::Number],
         &values
@@ -66,7 +66,7 @@ pub(super) fn numbers(values: &[i64]) -> Table {
             .collect::<Vec<_>>(),
     )
 }
-pub(super) fn matrix(rows: &[&[i64]]) -> Table {
+pub(crate) fn matrix(rows: &[&[i64]]) -> Table {
     table(
         &vec![CellKind::Number; rows.first().map_or(0, |row| row.len())],
         &rows

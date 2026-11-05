@@ -160,7 +160,7 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
         columns: &columns,
     };
     let selector = program(2);
-    let selection = SelectionFixture::new(
+    let selection = SelectionFixture::with_graph(
         &[Relation::Function],
         &[],
         vec![selector.clone(), selector.clone()],

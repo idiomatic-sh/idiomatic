@@ -116,3 +116,88 @@ fn file_owner_reuses_only_recognized_stable_sources() {
         file.finish().expect("finish file owner");
     }
 }
+
+#[cfg(test)]
+mod rowsets_test;
+
+#[cfg(test)]
+mod ordered_match_test;
+
+#[cfg(test)]
+mod union_test;
+
+#[cfg(test)]
+mod rank_test;
+#[cfg(test)]
+mod replace_test;
+#[cfg(test)]
+mod rows_test;
+
+#[cfg(test)]
+mod text_test;
+
+#[cfg(test)]
+mod cycles_test;
+#[cfg(test)]
+mod digest_test;
+
+#[cfg(test)]
+mod provider_test;
+
+#[cfg(test)]
+mod tree_join_test;
+
+#[cfg(test)]
+mod select_test;
+
+#[cfg(test)]
+mod extend_test;
+
+#[cfg(test)]
+mod closure_test;
+
+#[cfg(test)]
+mod graph_test;
+#[cfg(test)]
+mod span_join_test;
+
+#[cfg(test)]
+mod kinds_test;
+
+#[cfg(test)]
+mod axis_test;
+
+#[cfg(test)]
+mod capability_test;
+
+#[cfg(test)]
+mod axis_graph_test;
+
+#[cfg(test)]
+mod conformance_test;
+
+#[cfg(test)]
+mod conformance_boundary_test;
+#[cfg(test)]
+mod conformance_scale_test;
+
+#[cfg(test)]
+mod selection_view_test;
+
+#[cfg(test)]
+mod dispatch_test;
+
+#[cfg(test)]
+mod schema_test;
+
+#[cfg(test)]
+mod binding_schema_test;
+
+#[cfg(test)]
+mod traversal_schema_test;
+
+#[cfg(test)]
+mod prepared_matching_test;
+
+#[cfg(test)]
+mod project_input_test;

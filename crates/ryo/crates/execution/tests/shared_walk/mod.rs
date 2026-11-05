@@ -1,5 +1,7 @@
 //! The public file owner shares one measured outer walk among distinct selectors.
 #[cfg(test)]
+mod compact;
+#[cfg(test)]
 mod fixture;
 #[cfg(test)]
 mod order;

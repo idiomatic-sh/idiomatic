@@ -68,14 +68,68 @@ impl SelectionFixture {
         authored: impl IntoIterator<Item = Arc<Selector>>,
         kinds: &'static [CellKind],
     ) -> Result<Self, OperatingError> {
+        let plans = wanted
+            .iter()
+            .copied()
+            .map(super::resource_fixture::source_plan)
+            .collect::<Vec<_>>();
+        Self::prepared(wanted, partials, active, authored, kinds, &plans)
+    }
+    pub(crate) fn with_graph(
+        wanted: &[Relation],
+        partials: &[Partial],
+        active: Vec<Arc<Selector>>,
+        authored: impl IntoIterator<Item = Arc<Selector>>,
+        kinds: &'static [CellKind],
+    ) -> Result<Self, OperatingError> {
+        use ryo_values::domain::{
+            plan_parts::types::{ColumnIndex, Input},
+            plans::types::Operation,
+        };
+        let mut plans = wanted
+            .iter()
+            .copied()
+            .map(super::resource_fixture::source_plan)
+            .collect::<Vec<_>>();
+        if let Some(&relation) = wanted.first() {
+            let mut graph = super::resource_fixture::source_plan(relation);
+            graph.steps[0].operation = Operation::Axis {
+                from: Input::Relation(relation),
+                edges: Input::Relation(relation),
+                domain: Input::Relation(relation),
+                direction: ryo_values::domain::plan_parts::types::Direction::Descendant,
+                id: ColumnIndex(0),
+                parent: ColumnIndex(0),
+                child: ColumnIndex(0),
+                domain_id: ColumnIndex(0),
+                domain_filter: vec![],
+                domain_view: vec![],
+                output: vec![],
+            };
+            plans.push(graph);
+        }
+        Self::prepared(wanted, partials, active, authored, kinds, &plans)
+    }
+    fn prepared(
+        _wanted: &[Relation],
+        partials: &[Partial],
+        active: Vec<Arc<Selector>>,
+        authored: impl IntoIterator<Item = Arc<Selector>>,
+        kinds: &'static [CellKind],
+        plans: &[ryo_values::domain::plans::types::Plan],
+    ) -> Result<Self, OperatingError> {
         let owner = Rc::new(RelationOwner::new(
             true,
             (std::sync::Arc::new(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
-        let mut cache = super::super::indexes::new(wanted, partials, super::super::indexes::LIMIT)
-            .ok_or(OperatingError::ShapeMismatch)?;
+        let descriptors = super::resource_fixture::prepared_sources(plans);
+        owner
+            .derived
+            .prepare_program_file(&descriptors, &vec![true; plans.len()], partials)?;
+        let mut backend = owner.derived.backend.borrow_mut();
+        let cache = backend.as_mut().ok_or(OperatingError::ShapeMismatch)?;
         cache.selectors = active;
         let prepared = super::super::selection::prepare_views_with_schemas(
             authored,
@@ -84,9 +138,9 @@ impl SelectionFixture {
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         )?;
-        super::super::selection::install_views(&mut cache, prepared);
-        super::super::indexes::candidate_columns(&mut cache);
-        *owner.derived.backend.borrow_mut() = Some(cache);
+        super::super::selection::install_views(cache, prepared);
+        super::super::indexes::candidate_columns(cache);
+        drop(backend);
         Ok(Self { owner })
     }
 

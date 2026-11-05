@@ -33,12 +33,14 @@ enum Scenario {
     Whole,
     Trust,
     Features,
+    Catalog,
     Affected,
     ForeignAffected,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Expected {
+    Catalog(std::borrow::Cow<'static, [ryo_values::domain::plans::types::QueryOperator]>),
     KnownKind(usize),
     Placement {
         before: usize,
@@ -67,6 +69,38 @@ type Input = Scenario;
 type Value = Expected;
 type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("every_public_operator_has_its_registered_description_and_example"),
+        word: Word::Succeeds,
+        input: || Scenario::Catalog,
+        expect: Expect::Value(Expected::Catalog(std::borrow::Cow::Borrowed(&[
+            ryo_values::domain::plans::types::QueryOperator::SpanBetween,
+            ryo_values::domain::plans::types::QueryOperator::SpanBounds,
+            ryo_values::domain::plans::types::QueryOperator::SourceMatches,
+            ryo_values::domain::plans::types::QueryOperator::RenderSyntax,
+            ryo_values::domain::plans::types::QueryOperator::FitsRendered,
+            ryo_values::domain::plans::types::QueryOperator::Replace,
+            ryo_values::domain::plans::types::QueryOperator::OrderedMatch,
+            ryo_values::domain::plans::types::QueryOperator::OrderedDfs,
+            ryo_values::domain::plans::types::QueryOperator::Select,
+            ryo_values::domain::plans::types::QueryOperator::Project,
+            ryo_values::domain::plans::types::QueryOperator::Extend,
+            ryo_values::domain::plans::types::QueryOperator::Join,
+            ryo_values::domain::plans::types::QueryOperator::Union,
+            ryo_values::domain::plans::types::QueryOperator::Intersection,
+            ryo_values::domain::plans::types::QueryOperator::Difference,
+            ryo_values::domain::plans::types::QueryOperator::Antijoin,
+            ryo_values::domain::plans::types::QueryOperator::GroupCount,
+            ryo_values::domain::plans::types::QueryOperator::GroupDigest,
+            ryo_values::domain::plans::types::QueryOperator::Capture,
+            ryo_values::domain::plans::types::QueryOperator::Words,
+            ryo_values::domain::plans::types::QueryOperator::Rank,
+            ryo_values::domain::plans::types::QueryOperator::Axis,
+            ryo_values::domain::plans::types::QueryOperator::Rows,
+            ryo_values::domain::plans::types::QueryOperator::Closure,
+            ryo_values::domain::plans::types::QueryOperator::Cycles,
+        ]))),
+    },
     Case {
         name: CaseName("a linked kind is accepted"),
         word: Word::Succeeds,
@@ -185,6 +219,24 @@ fn vocabularies() -> KindVocabularies {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let metadata = MetadataUseCaseImpl;
     match scenario {
+        Scenario::Catalog => {
+            let mut unknown_relations = 0;
+            for operator in metadata.operators() {
+                let description = metadata.describe(*operator);
+                assert!(!description.name.0.is_empty());
+                assert!(!description.summary.0.is_empty());
+                assert!(description.example.0.contains("example"));
+                unknown_relations += example_unknown_relations(&description.example.0);
+            }
+            assert_eq!(
+                unknown_relations, 0,
+                "every example names only actual catalog relations"
+            );
+            Ok(Expected::Catalog(std::borrow::Cow::Borrowed(
+                metadata.operators(),
+            )))
+        }
+
         Scenario::KnownKind => {
             let plan = plan(Relation::SyntaxTree, Some("fn"));
             assert!(metadata.kind_refusal(&plan, &vocabularies()).is_none());
@@ -347,4 +399,32 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// Retain the former operator-service example/catalog assertion through public descriptors.
+fn example_unknown_relations(example: &str) -> usize {
+    use ryo_relations::domain::relations::{service::relation_named, types::NameRef};
+    let fields = [
+        "from",
+        "from=",
+        "left=",
+        "right=",
+        "edges=",
+        "relation=",
+        "domain=",
+    ];
+    example
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .filter(|quoted| {
+            let before = example
+                .split(&format!("\"{quoted}\""))
+                .next()
+                .unwrap_or_default()
+                .trim_end();
+            fields.iter().any(|field| before.ends_with(field))
+                && relation_named(NameRef(quoted)).is_none()
+        })
+        .count()
 }

@@ -715,6 +715,12 @@ impl FileRun<'_> {
         self.execution.route_observation(rule, step)
     }
     #[cfg(test)]
+    pub(crate) fn resource_fixture_counts(
+        &self,
+    ) -> crate::application::file_dag::derived::owner::resource_fixture::Snapshot {
+        self.owner.derived.resource_fixture_counts()
+    }
+    #[cfg(test)]
     pub(crate) fn observation_routes(
         &self,
         slot: usize,

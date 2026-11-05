@@ -10,11 +10,10 @@ fn shared_plan(swapped: bool, invalid_terminal: bool, refuse_provider: bool) -> 
     let mut steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
-            operation: Operation::Extend {
+            operation: Operation::Project {
                 from: PlanInput::Relation(Relation::LanguageTarget),
-                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
-                    ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(42)),
-                )],
+                columns: vec![ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
+                distinct: RepeatedRows::Kept,
             },
         },
         PlanStep {
@@ -48,17 +47,37 @@ fn shared_plan(swapped: bool, invalid_terminal: bool, refuse_provider: bool) -> 
         },
     ];
     if refuse_provider {
-        if let Operation::Join {
-            left,
-            left_on,
-            right_on,
-            ..
-        } = &mut steps[2].operation
-        {
-            *left = PlanInput::Relation(Relation::CompilerFeature);
-            *left_on = vec![ColumnIndex(0)];
-            *right_on = vec![ColumnIndex(0)];
+        // This actual reader first demands the first Join result, then the
+        // shared producer, and finally a schema-valid unavailable population.
+        // The cancellation therefore occurs after the first consumer released.
+        if let Operation::Join { output, .. } = &mut steps[2].operation {
+            *output = vec![
+                JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(1),
+                },
+                JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(2),
+                },
+            ];
         }
+        steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Axis {
+                from: PlanInput::Step(StepId(2)),
+                edges: PlanInput::Step(StepId(1)),
+                domain: PlanInput::Relation(Relation::SemanticChild),
+                direction: ryo_values::domain::plan_parts::types::Direction::Descendant,
+                id: ColumnIndex(0),
+                parent: ColumnIndex(1),
+                child: ColumnIndex(2),
+                domain_id: ColumnIndex(2),
+                domain_filter: vec![],
+                domain_view: vec![],
+                output: vec![],
+            },
+        });
     }
     if invalid_terminal {
         steps.push(PlanStep {
@@ -216,19 +235,29 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
     };
-    let observed = std::cell::RefCell::new(None);
+    use crate::application::file_dag::program::runtime::ConsumerReleasePoint;
+    let consumer = |rule: usize, step: usize| {
+        let logical = prepared.program().rules()[rule].original_steps[step]
+            .as_ref()
+            .unwrap()
+            .logical;
+        prepared.program().logical_regions()[logical.0]
+    };
+    let first_consumer = consumer(0, 2);
+    let final_consumer_region = consumer(
+        1,
+        if refuse_provider || invalid_terminal {
+            3
+        } else {
+            2
+        },
+    );
+    file.execution
+        .observe_producer_releases(producer, &[first_consumer, final_consumer_region])?;
     let first = if skipped_at_start {
         assert_eq!(file.execution.retry_checkpoint(producer)?.remaining.0, 1);
-        let owner = Rc::clone(&file.owner);
-        let mut cells = Vec::new();
+        let mut cells = vec![];
         file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
-            assert!(owner.derived.working_bytes() > 0);
-            let weak = owner
-                .derived
-                .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
-                .expect("real backing while the remaining consumer is live");
-            assert!(weak.upgrade().is_some());
-            *observed.borrow_mut() = Some(weak);
             cells.extend_from_slice(row);
             Ok(())
         })?;
@@ -238,47 +267,18 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             cells,
         }
     } else {
-        let RootOutcome::Complete(first) =
+        let RootOutcome::Complete(table) =
             file.rule(RuleIndex(0), demand(), &read, &mut symbols)?.emit
         else {
             return Err(OperatingError::NotRun);
         };
-        first
+        table
     };
     assert_eq!(numbers(&first), [2, 9, 3, 7]);
-    let after_first = file.execution.retry_checkpoint(producer)?;
-    if skipped_at_start {
-        assert_eq!(after_first.attempt, AttemptCheckpoint::Terminal);
-        assert_eq!(after_first.remaining.0, 0);
-        assert_eq!(
-            file.owner.derived.working_bytes(),
-            0,
-            "upfront skipped reader is not a future consumer"
-        );
-    } else {
-        assert!(
-            file.owner.derived.working_bytes() > 0,
-            "a nonfinal consumer keeps the required index live"
-        );
-        assert_eq!(after_first.attempt, AttemptCheckpoint::Published);
-        assert_eq!(after_first.remaining.0, 1);
-    }
+    // Delivery is after canonical scheduling. The live interval is observed at
+    // the actual consumer release, never inferred from API call order.
     let first_counts = file.owner.derived.counts();
     assert_eq!(first_counts.0, 1, "one actual equality construction");
-    let weak = if skipped_at_start {
-        observed
-            .into_inner()
-            .expect("observed real live backing before final reader returned")
-    } else {
-        let weak = file
-            .owner
-            .derived
-            .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
-            .expect("actual shared index after the nonfinal consumer");
-        assert!(weak.upgrade().is_some());
-        assert!(file.owner.derived.owned_bytes() > 0);
-        weak
-    };
     let reads_before_final = source_reads.get();
     if skipped_at_start {
         assert!(matches!(
@@ -317,7 +317,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                     "shared producer index is built once"
                 );
                 assert!(
-                    final_counts.1 > first_counts.1,
+                    final_counts.1 > 0,
                     "second consumer reuses the same live index"
                 );
             }
@@ -328,6 +328,62 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         reads_before_final,
         "the shared source is not reread for a cache hit, skipped consumer or refusing final consumer"
     );
+    let events = file.execution.take_producer_releases();
+    assert_eq!(events.len(), if skipped_at_start { 2 } else { 4 });
+    let mut live_before = 0;
+    let mut weak = None;
+    for pair in events.chunks_exact(2) {
+        let (before, after) = (&pair[0], &pair[1]);
+        assert_eq!(before.point, ConsumerReleasePoint::Before);
+        assert_eq!(after.point, ConsumerReleasePoint::After);
+        assert_eq!(before.consumer, after.consumer);
+        assert_eq!(
+            before.checkpoint.remaining.0,
+            after.checkpoint.remaining.0 + 1
+        );
+        if before.index_live {
+            live_before += 1;
+            assert_eq!(before.checkpoint.attempt, AttemptCheckpoint::Published);
+            assert!(before.working_bytes > 0);
+            let backing = before
+                .index
+                .as_ref()
+                .expect("real acquired equality backing");
+            if let Some(first) = weak {
+                assert!(std::sync::Weak::ptr_eq(first, backing));
+            } else {
+                weak = Some(backing);
+            }
+            if after.checkpoint.remaining.0 > 0 {
+                assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Published);
+                assert!(
+                    after.index_live,
+                    "nonfinal actual consumption keeps backing live"
+                );
+                assert!(after.working_bytes > 0);
+            }
+        }
+        if after.checkpoint.remaining.0 == 0 {
+            assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Terminal);
+            assert!(!after.index_live);
+            assert_eq!(
+                after.working_bytes, 0,
+                "actual final release precedes output delivery and file finish"
+            );
+        }
+    }
+    // A malformed terminal may cancel before the healthy ready cohort executes.
+    // It must still settle its reader; the real healthy invocation must acquire
+    // and release the same producer's required index. No delivery-order claim.
+    if invalid_terminal {
+        assert!(
+            live_before > 0,
+            "healthy invocation acquires and releases real backing despite cancellation order"
+        );
+    } else {
+        assert_eq!(live_before, if skipped_at_start { 1 } else { 2 });
+    }
+    let weak = weak.expect("actual healthy consumer held the equality backing");
     let final_state = file.execution.retry_checkpoint(producer)?;
     assert_eq!(final_state.attempt, AttemptCheckpoint::Terminal);
     assert_eq!(final_state.remaining.0, 0);

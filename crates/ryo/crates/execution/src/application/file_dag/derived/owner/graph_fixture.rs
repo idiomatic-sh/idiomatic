@@ -96,7 +96,7 @@ impl GraphFixture {
                     direction: Direction::Descendant,
                     id: ColumnIndex(0),
                     parent: ColumnIndex(0),
-                    child: ColumnIndex(1),
+                    child: ColumnIndex(0),
                     domain_id: ColumnIndex(0),
                     domain_filter: vec![],
                     domain_view: vec![],
@@ -114,16 +114,20 @@ impl GraphFixture {
         }
     }
     fn setup(&self) {
-        let plan = self.request();
-        self.owner.derived.prepare_file(
-            true,
-            &self.wanted,
-            &self.partials,
-            &[],
-            &[plan],
-            &crate::domain::operator::types::PreparedPool::default(),
-            |_| true,
-        );
+        let mut plans = self
+            .wanted
+            .iter()
+            .copied()
+            .map(super::resource_fixture::source_plan)
+            .collect::<Vec<_>>();
+        if !self.wanted.is_empty() {
+            plans.push(self.request());
+        }
+        let prepared = super::resource_fixture::prepared_sources(&plans);
+        self.owner
+            .derived
+            .prepare_program_file(&prepared, &vec![true; plans.len()], &self.partials)
+            .unwrap();
         self.owner.derived.set_optional_limit(self.limit).unwrap();
     }
     /// Attach observation/policy access to an existing real selection owner;
@@ -139,12 +143,16 @@ impl GraphFixture {
             partials: vec![],
             limit,
         };
-        let plan = fixture.request();
-        super::super::graph_cache::service::reserve(
-            fixture.owner.derived.backend.borrow_mut().as_mut().unwrap(),
-            &[plan],
-            &crate::domain::operator::types::PreparedPool::default(),
-            |_| true,
+        assert!(
+            fixture
+                .owner
+                .derived
+                .backend
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .graph_enabled,
+            "the shared selection owner must declare graph demand before any publication"
         );
         fixture
     }
