@@ -15,7 +15,8 @@ enum Input {
     Duplicate,
 }
 type Value = Option<Cow<'static, str>>;
-const CASES: &[Case<Input, Value, ()>] = &[
+type Failure = ();
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unordered metadata is refused"),
         word: Word::Refuses,
@@ -71,7 +72,7 @@ const CASES: &[Case<Input, Value, ()>] = &[
         expect: Expect::Value(Some(Cow::Borrowed("framed"))),
     },
 ];
-fn subject(input: Input) -> Result<Value, ()> {
+fn subject(input: Input) -> Result<Value, Failure> {
     use ryo::linter::RelativePath;
     let metadata = match input {
         Input::Unordered | Input::Duplicate => {

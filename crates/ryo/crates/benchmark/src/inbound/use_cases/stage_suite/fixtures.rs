@@ -130,6 +130,7 @@ patch = "patches/project.patch"
 }
 
 fn supporting_queries_are_staged_but_never_receive_default_or_case_owner_credit() {
+    let suite = local();
     let source = tempfile::tempdir().unwrap();
     let destination = tempfile::tempdir().unwrap();
     let root = source.path();
@@ -179,7 +180,11 @@ expected = []
     assert_eq!(cases.len(), 2);
     assert!(cases.iter().all(|case| case.rule.as_ref() == "A001"));
     assert!(
-        crate::application::case_preparation::service::reference_wires(&local(), &snapshot)
+        suite
+            .case_reference_wires(
+                ArtifactPath(&snapshot),
+                &suite.profile(ArtifactPath(&snapshot)).unwrap().defaults
+            )
             .unwrap()
             .is_empty()
     );
@@ -190,14 +195,22 @@ expected = []
     )
     .unwrap();
     assert!(
-        crate::application::case_preparation::service::reference_wires(&local(), &snapshot)
+        suite
+            .case_reference_wires(
+                ArtifactPath(&snapshot),
+                &suite.profile(ArtifactPath(&snapshot)).unwrap().defaults
+            )
             .unwrap()
             .is_empty()
     );
     // Missing owned case evidence remains an error, rather than being silently skipped.
     std::fs::remove_file(snapshot.join("rules/A001/cases.toml")).unwrap();
     assert!(
-        crate::application::case_preparation::service::reference_wires(&local(), &snapshot)
+        suite
+            .case_reference_wires(
+                ArtifactPath(&snapshot),
+                &suite.profile(ArtifactPath(&snapshot)).unwrap().defaults
+            )
             .is_err()
     );
     std::fs::remove_file(root.join("rules/B002/query.ryoql")).unwrap();
@@ -262,7 +275,14 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
         &parent.path().join("cases"),
     )
     .expect("typed case");
-    let wires = crate::application::case_preparation::service::reference_wires(&adapter, &staged)
+    let wires = adapter
+        .case_reference_wires(
+            ArtifactPath(&staged),
+            &adapter
+                .profile(ArtifactPath(&staged))
+                .expect("staged profile")
+                .defaults,
+        )
         .expect("authored evidence");
     assert_eq!(wires.len(), 1);
     let wire = &wires[0];

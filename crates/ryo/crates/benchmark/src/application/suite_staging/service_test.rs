@@ -2,13 +2,16 @@
 use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-const CASES: &[Case<(), (), ()>] = &[Case {
+type Input = ();
+type Value = ();
+type Failure = ();
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("missing profile stops staging"),
     word: Word::Refuses,
     input: || (),
     expect: Expect::Error(()),
 }];
-fn subject(_: ()) -> Result<(), ()> {
+fn subject(_: Input) -> Result<Value, Failure> {
     let root = tempfile::tempdir().unwrap();
     let destination = root.path().join("snapshot");
     let result = service::stage(

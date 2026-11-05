@@ -166,8 +166,10 @@ fn decoded_source_admission_preserves_report_and_given_scope() {
 }
 
 type Scenario = fn();
+type Input = Scenario;
+type Value = ();
 type Failure = std::convert::Infallible;
-const CASES: &[Case<Scenario, (), Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     #[cfg(unix)]
     Case {
         name: CaseName(
@@ -209,7 +211,7 @@ const CASES: &[Case<Scenario, (), Failure>] = &[
         expect: Expect::Value(()),
     },
 ];
-fn subject(scenario: Scenario) -> Result<(), Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario();
     Ok(())
 }

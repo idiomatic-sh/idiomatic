@@ -1,7 +1,10 @@
 //! Actual public suite verification over independent source inputs and real child processes.
 use super::fixtures::{Refusal, Scenario, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-const CASES: &[Case<Scenario, usize, Refusal>] = &[
+type Input = Scenario;
+type Value = usize;
+type Failure = Refusal;
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("two authored cases execute through the actual public operation"),
         word: Word::Succeeds,
@@ -21,11 +24,14 @@ const CASES: &[Case<Scenario, usize, Refusal>] = &[
         expect: Expect::Error(Refusal::Unaccounted),
     },
 ];
+fn subject(input: Input) -> Result<Value, Failure> {
+    exercise(input)
+}
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, exercise);
+    run(CASES, Word::Succeeds, subject);
 }
 #[test]
 fn refuses() {
-    run(CASES, Word::Refuses, exercise);
+    run(CASES, Word::Refuses, subject);
 }

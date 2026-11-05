@@ -7,7 +7,8 @@ type Value = (usize, usize);
 enum Refusal {
     InvalidCoordinates,
 }
-const CASES: &[Case<Input, Value, Refusal>] = &[
+type Failure = Refusal;
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("first zero-based partition"),
         word: Word::Succeeds,
@@ -33,7 +34,7 @@ const CASES: &[Case<Input, Value, Refusal>] = &[
         expect: Expect::Error(Refusal::InvalidCoordinates),
     },
 ];
-fn subject((index, count): Input) -> Result<Value, Refusal> {
+fn subject((index, count): Input) -> Result<Value, Failure> {
     CaseShard::new(index, count)
         .map(|shard| (shard.index(), shard.count()))
         .map_err(|error| {

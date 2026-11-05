@@ -2,7 +2,6 @@
 use crate::domain::suite::service::require_accounted;
 use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::suite::types::certificate::value::Certificate;
-use crate::inbound::use_cases::verify_cases::interface::VerifyCasesUseCase as _;
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
@@ -106,14 +105,17 @@ pub(super) fn certify(
     let profiles = [reference.prepare(&probe)?, candidate.prepare(&probe)?];
     let cases = match &prepared_cases {
         super::case_inventory::PreparedCases::Profile => {
-            crate::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
-                suite, reference, candidate, execution,
-            )
-            .verify_cases(
-                &directory.join(super::constants::RULE_DIRECTORY),
-                scratch,
+            let rules = directory.join(super::constants::RULE_DIRECTORY);
+            let prepared =
+                crate::application::case_preparation::service::cases(suite, &rules, scratch)?;
+            crate::application::run::service::verify_prepared_shard(
+                suite,
+                reference,
+                candidate,
+                execution,
+                &rules,
+                prepared,
                 ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
-                ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Interim,
             )?
         }
         super::case_inventory::PreparedCases::Registered {

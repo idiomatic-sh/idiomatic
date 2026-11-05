@@ -22,7 +22,11 @@ pub(super) fn attach(
     let profile = rules
         .parent()
         .ok_or_else(|| Error::Invalid("missing case profile boundary".into()))?;
-    let wires = crate::application::case_preparation::service::reference_wires(suite, profile)
+    let tool = suite
+        .profile(ArtifactPath(profile))
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let wires = suite
+        .case_reference_wires(ArtifactPath(profile), &tool.defaults)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let mut seen = std::collections::BTreeSet::new();
     for wire in wires {

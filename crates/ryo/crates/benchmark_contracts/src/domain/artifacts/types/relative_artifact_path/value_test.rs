@@ -2,8 +2,10 @@
 use super::value::RelativeArtifactPath;
 use ryo::cases::{Case, CaseName, Expect, Word, run};
 use std::path::Path;
+type Input = &'static str;
+type Value = ();
 type Failure = ();
-const CASES: &[Case<&str, (), Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("nested source retains borrowed address"),
         word: Word::Succeeds,
@@ -35,7 +37,7 @@ const CASES: &[Case<&str, (), Failure>] = &[
         expect: Expect::Error(()),
     },
 ];
-fn subject(input: &str) -> Result<(), Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
     let path = Path::new(input);
     let relative = RelativeArtifactPath::try_from(path).map_err(|_| ())?;
     assert!(

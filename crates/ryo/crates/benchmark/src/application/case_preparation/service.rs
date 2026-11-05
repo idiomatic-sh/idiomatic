@@ -7,20 +7,6 @@ use ryo_benchmark_contracts::domain::{
     workloads::types::PreparedCase,
 };
 use std::path::Path;
-/// Select declared case owners before the adapter reads their optional evidence wires.
-pub(crate) fn reference_wires(
-    suite: &dyn SuitePort,
-    profile: &Path,
-) -> Result<
-    Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
-    crate::outbound::suite::types::discrepancy::ArtifactError,
-> {
-    let tool = suite.profile(ArtifactPath(profile)).map_err(|error| {
-        crate::outbound::suite::types::discrepancy::ArtifactError::Invalid(error.to_string())
-    })?;
-    suite.case_reference_wires(ArtifactPath(profile), &tool.defaults)
-}
-
 /// Load, admit and materialize the independent sources through the physical suite port.
 pub(crate) fn cases(
     suite: &dyn SuitePort,
