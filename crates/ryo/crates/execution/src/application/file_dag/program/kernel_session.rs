@@ -465,10 +465,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                 .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
                             if let Some(result) = batch.class(class) {
                                 workspace.work.found(0, batch.visits(class).0);
-                                let positions = &result.positions;
-                                let tree_rows = Rows::Tree(*tree);
-                                let mut cells = Vec::new();
-                                let mut projected = Vec::new();
                                 let ryo_values::domain::plans::types::Operation::Select {
                                     kept,
                                     ..
@@ -478,34 +474,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                         OperatingError::WrongOperation,
                                     ));
                                 };
-                                for position in &positions.0 {
-                                    let row = read_row(
-                                        &tree_rows,
-                                        RowIndex(*position as usize),
-                                        &mut cells,
-                                    )
-                                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRead))?;
-                                    let row = if kept.is_empty() {
-                                        row
-                                    } else {
-                                        projected.clear();
-                                        for column in kept {
-                                            projected.push(*row.get(column.0 as usize).ok_or(
-                                                InvocationFailure::Semantic(
-                                                    OperatingError::NotRead,
-                                                ),
-                                            )?);
-                                        }
-                                        &projected
-                                    };
-                                    output
-                                        .row(context, row)
-                                        .map_err(InvocationFailure::Semantic)?;
-                                }
-                                return result
-                                    .completion
-                                    .clone()
-                                    .map_err(InvocationFailure::Semantic);
+                                return crate::domain::replay::service::selected(
+                                    result, *tree, kept, context, output,
+                                )
+                                .map_err(InvocationFailure::Semantic);
                             }
                         }
                     }

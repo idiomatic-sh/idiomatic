@@ -38,3 +38,36 @@ pub(crate) fn scan(
     }
     Ok(())
 }
+
+/// Deliver a selection's accepted prefix before its terminal predicate error.
+/// The existing continuation decides downstream semantics and sink refusal order.
+pub(crate) fn selected(
+    result: &crate::domain::shared_walk::types::ClassResult,
+    tree: crate::domain::table_cells::types::TreeRows<'_>,
+    kept: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<(), OperatingError> {
+    let source = Rows::Tree(tree);
+    let mut cells = Vec::new();
+    let mut projected = Vec::new();
+    for position in &result.positions.0 {
+        let row = read_row(
+            &source,
+            ryo_values::domain::rows::types::RowIndex(*position as usize),
+            &mut cells,
+        )
+        .ok_or(OperatingError::NotRead)?;
+        let row = if kept.is_empty() {
+            row
+        } else {
+            projected.clear();
+            for column in kept {
+                projected.push(*row.get(column.0 as usize).ok_or(OperatingError::NotRead)?);
+            }
+            &projected
+        };
+        emit.row(context, row)?;
+    }
+    result.completion.clone()
+}
