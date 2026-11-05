@@ -624,3 +624,64 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         request.finish();
     }
 }
+
+#[test]
+fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
+    use ryo_execution::inbound::use_cases::execution::{
+        interface::{ExecutionCompilation, PreparedExecution, PreparedQueries},
+        use_case::CompilationUseCaseImpl,
+    };
+    use ryo_values::domain::plan_parts::types::RepeatedRows;
+    let engine = engine();
+    let mut raw = authored_request(1);
+    raw.plans[0].steps.extend([
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Project {
+                from: Input::Step(StepId(0)),
+                columns: vec![ColumnIndex(0)],
+                distinct: RepeatedRows::Kept,
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Project {
+                from: Input::Relation(Relation::Function),
+                columns: vec![ColumnIndex(1)],
+                distinct: RepeatedRows::Kept,
+            },
+        },
+    ]);
+    raw.plans[0].frontier = vec![
+        Input::Step(StepId(2)),
+        Input::Step(StepId(0)),
+        Input::Step(StepId(2)),
+    ];
+    let original = raw.plans[0].clone();
+    let compiler = CompilationUseCaseImpl::new(Arc::new(AuthoredQueryProvider(original.clone())));
+    let compiled = compiler
+        .compile(&raw.rules, &raw.hosted)
+        .expect("independent compile");
+    assert_eq!(
+        compiled.plans(),
+        [original.clone()],
+        "independent preparation must not perform observation pruning/remapping"
+    );
+    let program = engine
+        .prepare_compiled(
+            compiled,
+            raw.rules,
+            raw.digests,
+            raw.hosted,
+            ObservationIdentity::Independent,
+        )
+        .expect("prepare exact handover");
+    assert_eq!(
+        program.frontiers(RuleIndex(0)).expect("frontier metadata"),
+        original.frontier
+    );
+    assert_eq!(
+        program.emit(RuleIndex(0)).expect("emit metadata"),
+        &original.emit
+    );
+}

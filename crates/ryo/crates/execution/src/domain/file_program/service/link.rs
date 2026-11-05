@@ -23,7 +23,7 @@ pub(crate) fn link(
     mut plans: Vec<Plan>,
     bindings: Vec<Vec<ResolvedObservationBinding>>,
 ) -> Result<LinkedObservationPlans, ObservationError> {
-    if bindings.is_empty() && plans.iter().all(|plan| plan.observations.is_empty()) {
+    if bindings.iter().all(Vec::is_empty) && plans.iter().all(|plan| plan.observations.is_empty()) {
         return Ok(LinkedObservationPlans { plans, bindings });
     }
     let mut wanted: Vec<_> = plans
