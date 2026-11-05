@@ -1588,3 +1588,29 @@ given.files.'src/lib.rs' = "mod domain;"
 given.files.'src/domain/mod.rs' = "pub mod concept;"
 given.files.'src/domain/concept/mod.rs' = "pub fn misplaced_logic() {}"
 then.findings = [{ path = "src/domain/concept/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "population-directory-service"
+scenario = "A private population directory and generic service compile through normal parent and child declarations."
+given.files."src/lib.rs" = "mod program;\n"
+given.files."src/program.rs" = "mod project_population;\n"
+given.files."src/program/project_population/mod.rs" = "pub(super) mod service;\n"
+given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
+
+[[scenarios]]
+id = "population-parent-missing"
+scenario = "A placed population namespace still needs its parent module declaration."
+given.files."src/lib.rs" = "mod program;\n"
+given.files."src/program.rs" = "//! The program has not declared the population module.\n"
+given.files."src/program/project_population/mod.rs" = "pub(super) mod service;\n"
+given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
+then.findings = [{ path = "src/program/project_population/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "population-service-missing"
+scenario = "An existing service file without its namespace declaration remains uncompiled."
+given.files."src/lib.rs" = "mod program;\n"
+given.files."src/program.rs" = "mod project_population;\n"
+given.files."src/program/project_population/mod.rs" = "//! A directory module without the service declaration.\n"
+given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
+then.findings = [{ path = "src/program/project_population/service.rs", line = 1 }]
