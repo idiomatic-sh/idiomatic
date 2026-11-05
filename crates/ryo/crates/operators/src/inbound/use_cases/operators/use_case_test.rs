@@ -8,7 +8,9 @@ use std::borrow::Cow;
 
 mod groups;
 mod ordered;
+#[cfg(test)]
 mod ordered_existence_test;
+#[cfg(test)]
 mod positions_test;
 mod rows;
 mod text;

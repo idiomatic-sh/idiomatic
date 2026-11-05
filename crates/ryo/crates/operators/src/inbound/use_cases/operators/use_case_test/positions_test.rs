@@ -1,5 +1,4 @@
 //! Public acceptance of deferred position rows and bag order.
-#[test]
 fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
     use crate::domain::contract::types::{OperatorAnswer, OperatorCall};
     use crate::domain::equality_join::types::{JoinInput, JoinInterrupted, PositionJoinDriver};
@@ -35,4 +34,23 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
         Ok(OperatorAnswer::Written)
     );
     assert_eq!(target, vec![99, 4, 2, 9, 3, 4, 2, 1, 7, 4, 2, 9, 3]);
+}
+
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+type Input = fn();
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("position_representation_keeps_slots_deferred_ordered_and_duplicate"),
+    word: Word::Succeeds,
+    input: || position_representation_keeps_slots_deferred_ordered_and_duplicate,
+    expect: Expect::Value(()),
+}];
+fn subject(input: Input) -> Result<Value, Failure> {
+    input();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

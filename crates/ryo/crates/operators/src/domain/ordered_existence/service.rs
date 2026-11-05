@@ -75,7 +75,3 @@ pub(crate) fn flag(
     scratch.key.clear();
     result
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

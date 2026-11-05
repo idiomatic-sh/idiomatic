@@ -1,17 +1,19 @@
 //! Empty semantic input must clear reused scratch without consulting row callbacks.
 use super::{
-    ColumnIndex, OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum, flag,
+    service::flag,
+    types::{OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum},
 };
 use crate::domain::equality_join::types::JoinInterrupted;
 use crate::domain::ordered_existence::types::ExtremumWitness;
-use ryo_relations::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 struct Empty;
 impl OrderedExistenceDriver for Empty {
     fn len(&self) -> usize {
         0
     }
-    fn key_cell(&mut self, _: usize, _: ColumnIndex) -> Result<Value, JoinInterrupted> {
+    fn key_cell(&mut self, _: usize, _: ColumnIndex) -> Result<ValueCell, JoinInterrupted> {
         panic!("empty input cannot read a key")
     }
     fn number(&mut self, _: usize, _: ColumnIndex) -> Result<Integer, JoinInterrupted> {
@@ -22,29 +24,46 @@ impl OrderedExistenceDriver for Empty {
     }
 }
 
-#[test]
-fn empty_input_clears_prior_partition_state_for_both_orders() {
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+type Input = PartitionExtremum;
+type Value = ();
+type Failure = crate::domain::contract::types::PortableOperatorFault;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("minimum_clears_prior_state"),
+        word: Word::Succeeds,
+        input: || PartitionExtremum::Minimum,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("maximum_clears_prior_state"),
+        word: Word::Succeeds,
+        input: || PartitionExtremum::Maximum,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(extremum: Input) -> Result<Value, Failure> {
     let mut scratch = OrderedExistenceScratch::default();
-    for extremum in [PartitionExtremum::Minimum, PartitionExtremum::Maximum] {
-        scratch.key.push(Value::Number(Integer(9)));
-        scratch.groups.insert(
-            vec![Value::Number(Integer(9))],
-            ExtremumWitness {
-                value: Integer(3),
-                row: 8,
-            },
-        );
-        assert!(
-            flag(
-                &[ColumnIndex(0)],
-                ColumnIndex(1),
-                extremum,
-                &mut Empty,
-                &mut scratch
-            )
-            .is_ok()
-        );
-        assert!(scratch.groups.is_empty());
-        assert!(scratch.key.is_empty());
-    }
+    scratch.key.push(ValueCell::Number(Integer(9)));
+    scratch.groups.insert(
+        vec![ValueCell::Number(Integer(9))],
+        ExtremumWitness {
+            value: Integer(3),
+            row: 8,
+        },
+    );
+    flag(
+        &[ColumnIndex(0)],
+        ColumnIndex(1),
+        extremum,
+        &mut Empty,
+        &mut scratch,
+    )?;
+    assert!(scratch.groups.is_empty());
+    assert!(scratch.key.is_empty());
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

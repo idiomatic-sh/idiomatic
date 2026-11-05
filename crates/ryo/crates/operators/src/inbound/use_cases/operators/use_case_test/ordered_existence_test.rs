@@ -108,7 +108,6 @@ fn oracle(rows: &[[Value; 3]], extremum: PartitionExtremum) -> Vec<usize> {
         .collect()
 }
 
-#[test]
 fn finite_extrema_matches_pair_oracle_with_ties_bags_partitions_and_integer_limits() {
     let cases: &[&[[i64; 3]]] = &[
         &[],
@@ -132,7 +131,6 @@ fn finite_extrema_matches_pair_oracle_with_ties_bags_partitions_and_integer_limi
     }
 }
 
-#[test]
 fn projected_dominated_keys_poison_the_entire_unchanged_antijoin_key_group() {
     // Review arithmetic corrected: maximum7 belongs to k, not k'. Both keys are
     // produced by dominated rows, so the unchanged antijoin removes ALL THREE.
@@ -183,7 +181,6 @@ fn projected_dominated_keys_poison_the_entire_unchanged_antijoin_key_group() {
     assert!(anti.rows.is_empty());
 }
 
-#[test]
 fn read_and_emit_interruption_stop_callbacks_and_allow_clean_scratch_reuse() {
     let mut scratch = OrderedExistenceScratch::default();
     let mut input = driver(&[[0, 0, 1], [0, 1, 2]]);
@@ -207,7 +204,6 @@ fn read_and_emit_interruption_stop_callbacks_and_allow_clean_scratch_reuse() {
     assert!(input.emitted.is_empty());
 }
 
-#[test]
 fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns() {
     let source = driver(&[[10, 20, 5], [10, 21, 7], [11, 22, 9], [11, 22, 9]]).rows;
     let mut input = driver(&[[10, 20, 5], [10, 21, 7], [11, 22, 9], [11, 22, 9]]);
@@ -284,4 +280,47 @@ fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns(
             .map(|row| row.to_vec())
             .collect::<Vec<_>>()
     );
+}
+
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+type Input = fn();
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "finite_extrema_matches_pair_oracle_with_ties_bags_partitions_and_integer_limits",
+        ),
+        word: Word::Succeeds,
+        input: || finite_extrema_matches_pair_oracle_with_ties_bags_partitions_and_integer_limits,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("projected_dominated_keys_poison_the_entire_unchanged_antijoin_key_group"),
+        word: Word::Succeeds,
+        input: || projected_dominated_keys_poison_the_entire_unchanged_antijoin_key_group,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("read_and_emit_interruption_stop_callbacks_and_allow_clean_scratch_reuse"),
+        word: Word::Succeeds,
+        input: || read_and_emit_interruption_stop_callbacks_and_allow_clean_scratch_reuse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "original_project_reads_join_coordinates_with_reordered_repeated_left_columns",
+        ),
+        word: Word::Succeeds,
+        input: || original_project_reads_join_coordinates_with_reordered_repeated_left_columns,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    input();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
