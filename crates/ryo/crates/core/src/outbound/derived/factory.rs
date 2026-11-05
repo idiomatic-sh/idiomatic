@@ -9,9 +9,3 @@ pub fn use_case(
 ) -> impl DerivedPort {
     semantics
 }
-#[cfg(test)]
-pub(crate) fn test_port() -> std::sync::Arc<dyn DerivedPort> {
-    std::sync::Arc::new(use_case(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    ))
-}

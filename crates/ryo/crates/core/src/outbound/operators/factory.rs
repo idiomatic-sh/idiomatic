@@ -11,12 +11,3 @@ pub fn use_case(
 ) -> impl OperatorsPort {
     operators
 }
-
-/// Actual portable semantic use case for contract fixtures.
-#[cfg(test)]
-pub(crate) fn test_port()
--> std::sync::Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort> {
-    std::sync::Arc::new(
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-    )
-}
