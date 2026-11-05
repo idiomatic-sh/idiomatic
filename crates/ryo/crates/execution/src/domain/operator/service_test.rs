@@ -11,6 +11,7 @@ use ryo_values::{
 };
 #[derive(Clone, Copy)]
 enum Scenario {
+    Valid,
     Foreign,
     Missing,
     InvalidValue,
@@ -26,6 +27,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let kinds = [CellKind::File];
     match scenario {
+        Scenario::Valid => registered(OperationKind::Project).prepare(
+            &project,
+            &[InputShape { kinds: &kinds, tree: None }],
+            &[],
+        ),
         Scenario::Foreign => registered(OperationKind::Project).prepare(
             &Operation::Union {
                 left: Source::Relation(Relation::Function),
@@ -50,9 +56,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &[],
         ),
     }
-    .and_then(|contract| contract.schema.map(|_| ()))
+    .and_then(|contract| {
+        if matches!(scenario, Scenario::Valid) {
+            assert_eq!(contract.schema, Ok(vec![CellKind::File]));
+            assert_eq!(contract.output_kinds, Ok(vec![CellKind::File]));
+        }
+        contract.schema.map(|_| ())
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_valid_projection_retains_its_output_schema"),
+        word: Word::Succeeds,
+        input: || Scenario::Valid,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("an_operator_refuses_an_operation_that_is_not_its_own"),
         word: Word::Refuses,
@@ -75,4 +93,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
