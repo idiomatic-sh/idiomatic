@@ -208,7 +208,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
 }
 
 #[cfg(test)]
-mod axis_test;
+mod axis;
 
 #[test]
 fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {

@@ -247,3 +247,6 @@ fn shared_positions(
 }
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+
+#[cfg(test)]
+pub(crate) mod fixtures;

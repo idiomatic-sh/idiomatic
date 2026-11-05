@@ -9,9 +9,9 @@ use std::borrow::Cow;
 mod groups;
 mod ordered;
 #[cfg(test)]
-mod ordered_existence_test;
+mod ordered_existence;
 #[cfg(test)]
-mod positions_test;
+mod positions;
 mod rows;
 mod text;
 

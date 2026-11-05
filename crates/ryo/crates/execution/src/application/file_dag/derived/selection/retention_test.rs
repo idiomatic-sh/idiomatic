@@ -1,5 +1,5 @@
 //! Admission and once-charged cache policy are exercised under their application owner.
-use crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture;
+use crate::application::file_dag::derived::selection::fixtures::SelectionFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{

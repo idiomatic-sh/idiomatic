@@ -1,6 +1,6 @@
 //! Graph admission reclaims only dormant resources owned by the real file owner.
 
-use crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture;
+use crate::application::file_dag::derived::selection::fixtures::SelectionFixture;
 use crate::application::file_dag::derived::{indexes::LIMIT, owner::graph_fixture::GraphFixture};
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::stored_selection::fixtures::program;
