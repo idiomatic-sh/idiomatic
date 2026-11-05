@@ -2,7 +2,7 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use super::service::{catalog, fed_over, kind_of, tally};
+use super::service::{catalog, fed_over, tally};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::types::RowsFed;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -13,6 +13,7 @@ use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::Test;
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::{
     Emit, Feature, Operation, OperationKind, Plan, PlanStep, StepScope,
 };
@@ -80,7 +81,7 @@ fn subject(scenario: Input) -> Value {
                 .map(|each| vec![RowsFed([*each, 0, 0])])
                 .collect();
             fed_over(
-                &crate::domain::run_metadata::service::from_plans(&plans),
+                &ryo_values::domain::run_metadata::service::from_plans(&plans),
                 &fed,
             )
             .into_iter()
@@ -94,7 +95,7 @@ fn subject(scenario: Input) -> Value {
         }
         Scenario::Catalog => u64::try_from(catalog().len()).unwrap_or(u64::MAX),
         Scenario::SelectFed(wanted) => tally(
-            &crate::domain::run_metadata::service::from_plans(&[select_over_function()])[0],
+            &ryo_values::domain::run_metadata::service::from_plans(&[select_over_function()])[0],
             &[RowsFed([1500, 0, 0])],
         )
         .into_iter()

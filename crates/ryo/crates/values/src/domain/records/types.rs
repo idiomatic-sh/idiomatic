@@ -381,3 +381,6 @@ pub enum FrontierRefusalReason {
     /// The selected producer has no executable query.
     NoQuery,
 }
+
+/// Canonical read-only retention measurements over portable payloads.
+pub mod retention;

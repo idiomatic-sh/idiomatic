@@ -114,7 +114,7 @@ pub(crate) enum Recovery {
 
 /// Actual root readiness for one immutable request file generation.
 #[derive(Clone, Debug)]
-pub(crate) struct FileObservationReadiness {
+pub struct FileObservationReadiness {
     pub file: FileId,
     pub root: std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>,
 }

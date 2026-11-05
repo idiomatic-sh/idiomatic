@@ -8,7 +8,7 @@ use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, Rul
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Frontier };
 use crate::domain::table_words::service::{encode_table, pack};

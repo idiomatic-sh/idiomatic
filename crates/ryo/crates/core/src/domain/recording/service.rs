@@ -6,7 +6,7 @@ use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::{
     CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown,
 };
-use crate::domain::finish::types::RuleNumber;
+use ryo_values::domain::runs::types::RuleNumber;
 use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::placement::service::governs;

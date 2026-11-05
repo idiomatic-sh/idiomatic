@@ -9,7 +9,7 @@ use crate::application::file_dag::pipeline::service::evaluate_file_with_executor
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::service::GraphInputs;
 use crate::domain::coverage::types::{Lacking, Partial, Partials};
-use crate::domain::features::service::kind_of;
+use ryo_values::domain::plans::service::kind_of;
 use crate::domain::file_program::service::compile_prepared;
 use crate::domain::operating::{
     errors::OperatingError,

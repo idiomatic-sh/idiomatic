@@ -1,7 +1,7 @@
 //! Failures of file and project analysis.
 use crate::domain::admission::errors::AdmissionError;
 use crate::domain::budget::errors::BudgetError;
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::memory::errors::MemoryError;

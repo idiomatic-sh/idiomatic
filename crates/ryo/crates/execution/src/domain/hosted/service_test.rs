@@ -4,8 +4,8 @@ use ryo_language::domain::symbols::types::Symbols;
 
 use super::service::{lines, table_of};
 use super::types::NumberedFiles;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
@@ -106,12 +106,12 @@ fn typed_identity_distinguishes_text_separator_collisions_without_changing_prese
         "preserve the historical readable representation"
     );
     assert_ne!(
-        super::service::identity(&[left.clone()]),
-        super::service::identity(&[right])
+        ryo_values::domain::hosted::service::identity(&[left.clone()]),
+        ryo_values::domain::hosted::service::identity(&[right])
     );
     assert_eq!(
-        super::service::identity(&[left.clone()]),
-        super::service::identity(&[left])
+        ryo_values::domain::hosted::service::identity(&[left.clone()]),
+        ryo_values::domain::hosted::service::identity(&[left])
     );
     for (first, second) in [
         ("é\ntext:y", "z"),
@@ -120,8 +120,8 @@ fn typed_identity_distinguishes_text_separator_collisions_without_changing_prese
         ("", "\t\n"),
     ] {
         assert_ne!(
-            super::service::identity(&[relation(first, second)]),
-            super::service::identity(&[relation(second, first)])
+            ryo_values::domain::hosted::service::identity(&[relation(first, second)]),
+            ryo_values::domain::hosted::service::identity(&[relation(second, first)])
         );
     }
 }

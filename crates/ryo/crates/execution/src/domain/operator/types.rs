@@ -62,7 +62,7 @@ pub(crate) struct RuleWorkspace {
 
 /// How many rows a step was fed: the rows of each of its inputs, by the input's place.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct RowsFed(pub [u64; 3]);
+pub struct RowsFed(pub [u64; 3]);
 
 /// How a plan is laid out for the worker that runs it: which steps keep their rows in a table, and what columns each step answers.
 #[derive(Debug, Default)]

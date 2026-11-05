@@ -287,7 +287,7 @@ impl FileRun<'_> {
                 );
                 Ok(CapturedFrontier {
                     input,
-                    bucket: crate::domain::reading::service::frontier_bucket(first, input),
+                    bucket: ryo_values::domain::stored_facts::service::frontier_bucket(first, input),
                     proof: ryo_values::domain::records::types::FrontierProof {
                         version: 1,
                         rule: u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,

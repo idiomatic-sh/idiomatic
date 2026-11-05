@@ -3,7 +3,7 @@ pub(crate) mod fixtures;
 use crate::application::file_dag::testing::{
     execute, execute_with_port, execute_with_semantic, same_rows,
 };
-use crate::domain::features::service::kind_of;
+use ryo_values::domain::plans::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::service::registered;
 use crate::outbound::operators::interface::OperatorsPort;

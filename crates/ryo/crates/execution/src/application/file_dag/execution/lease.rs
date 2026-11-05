@@ -33,7 +33,7 @@ pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
-        crate::domain::features::service::kind_of(self.operation)
+        ryo_values::domain::plans::service::kind_of(self.operation)
     }
 
     fn new(

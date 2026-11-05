@@ -117,3 +117,7 @@ pub struct ExecutionOptions {
     /// Enable eligible column kernels.
     pub column_kernel: bool,
 }
+
+/// A rule, by its place among the rules of a run.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RuleNumber(pub u32);

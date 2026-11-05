@@ -8,7 +8,7 @@ use crate::domain::ordering::types::Ordered;
 use crate::domain::placement::types::PlacedScopes;
 use crate::domain::render::types::Answering;
 use ryo_values::domain::rule_requests::types::RuleParameters;
-use crate::domain::storing::types::Reuse;
+use ryo_values::domain::stores::types::Reuse;
 use crate::domain::table_model::types::{};
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::Wants;
@@ -325,7 +325,7 @@ pub(super) struct LintRun<'a> {
     /// The rules, compiled.
     pub rules: &'a [RuleSpec],
     /// Pure rule facts retained for source demand, frontier and work accounting.
-    pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
     /// The rules' ids.
     pub ids: &'a [RuleId],
     /// What the rules read of the files.

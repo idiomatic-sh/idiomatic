@@ -153,3 +153,8 @@ pub struct CaptureContext<'a> {
     pub retained: crate::domain::finish::types::Retained<'a>,
     pub words: &'a mut ryo_relations::domain::relations::types::Words,
 }
+pub use crate::domain::crossing::types::CrossPublicationTransfer;
+pub use crate::domain::coverage::types::FileObservationReadiness;
+
+pub use crate::domain::crossing::types::PackedObservedRoot;
+pub use crate::domain::operator::types::RowsFed;

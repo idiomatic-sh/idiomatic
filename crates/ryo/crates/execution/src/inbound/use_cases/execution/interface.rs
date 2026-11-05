@@ -167,3 +167,8 @@ pub trait ObservationExecution {
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError>;
     fn finish_stage(self) -> Result<(), OperatingError>;
 }
+
+pub trait ObservationPublication {
+    fn install(&mut self, rule: RuleIndex, slot: PublicationSlot, transfer: CrossPublicationTransfer, publications: Vec<(ryo_values::domain::observations::types::ObservationIndex, ObservedPublication)>) -> Result<(), OperatingError>;
+    fn restore_frontiers(&mut self, facts: &dyn facts::FactsFinish, corpus: &[CorpusInput], covered: &[Covered], skipped: &[Skipped], readiness: &[FileObservationReadiness], first_bucket: &[Bucket], selected: &[bool]) -> Result<(), OperatingError>;
+}

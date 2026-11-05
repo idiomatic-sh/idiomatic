@@ -455,3 +455,41 @@ impl ObservationExecution for ObservationStage<'_> {
             .finish()
     }
 }
+
+impl ObservationPublication for ObservationStage<'_> {
+    fn install(&mut self, rule: RuleIndex, slot: PublicationSlot, transfer: CrossPublicationTransfer, publications: Vec<(ryo_values::domain::observations::types::ObservationIndex, ObservedPublication)>) -> Result<(), OperatingError> {
+        self.publications.install(rule, slot, transfer, publications)
+    }
+    fn restore_frontiers(&mut self, facts: &dyn facts::FactsFinish, corpus: &[CorpusInput], covered: &[Covered], skipped: &[Skipped], frames: &[FileObservationReadiness], first_bucket: &[Bucket], selected: &[bool]) -> Result<(), OperatingError> {
+        use crate::application::file_dag::{observations::cross::{frontier_readiness, PreparedFrontier}, completion::CoverageState};
+        let metadata = self.request.program.observation_metadata().ok_or(OperatingError::NotRun)?;
+        let files = (0..corpus.len()).map(|file| u32::try_from(file).map(ryo_relations::domain::relations::types::FileId).map_err(|_| OperatingError::NotRun)).collect::<Result<Vec<_>,_>>()?;
+        let readiness = match frontier_readiness(metadata, &files, frames) {
+            Ok(readiness) => readiness,
+            Err(OperatingError::ObservationIncomplete { .. }) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+        let mut physical = std::collections::BTreeMap::<Bucket, Result<PreparedFrontier,OperatingError>>::new();
+        for (slot, root) in metadata.frontiers.iter().enumerate() {
+            let needed = metadata.outputs.get(root.producer.0).and_then(|outputs| outputs.get(root.output.0 as usize)).ok_or(OperatingError::NotRun)?.consumers.iter().any(|consumer| selected.get(*consumer).copied().unwrap_or(false));
+            if !needed { continue; }
+            let first = *first_bucket.get(root.producer.0).ok_or(OperatingError::NotRun)?;
+            let bucket = ryo_values::domain::stored_facts::service::frontier_bucket(first, root.frontier);
+            if let std::collections::btree_map::Entry::Vacant(entry) = physical.entry(bucket) {
+                let required = facade_runtime::required_partitions(&self.request.program, root.producer, corpus, covered, skipped, &self.request.services)?;
+                let payload = facts.kept(bucket).map_err(|error| OperatingError::ObservationIncomplete { reason: error.to_string() })?;
+                let restored = facade::validate_restored_frontier(&self.request.program, root.producer, root.frontier, first, bucket, &required, payload, &self.publication).and_then(|token| {
+                    if !matches!(token.coverage(), CoverageState::Complete) { return Err(OperatingError::ObservationIncomplete { reason: "named producer frontier has incomplete physical coverage".into() }); }
+                    self.publications.prepare_frontier(token)
+                });
+                entry.insert(restored);
+            }
+            match physical.get(&bucket).ok_or(OperatingError::NotRun)? {
+                Ok(prepared) => self.publications.install_frontier(slot, prepared, &readiness)?,
+                Err(OperatingError::ObservationIncomplete { .. }) => (),
+                Err(error) => return Err(error.clone()),
+            }
+        }
+        Ok(())
+    }
+}

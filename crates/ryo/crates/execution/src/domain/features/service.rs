@@ -4,77 +4,11 @@ use ryo_relations::domain::relations::service::all;
 
 use super::types::{FeatureRows, StepWork};
 use crate::domain::operator::types::RowsFed;
-use crate::domain::run_metadata::types::{FeatureSource, RuleMetadata, StepMetadata};
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Test;
-use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
+use ryo_values::domain::plans::types::{Feature, OperationKind};
 use ryo_values::domain::records::types::RowTotal;
-
-/// The kind of an operation.
-#[must_use]
-pub(crate) fn kind_of(operation: &Operation) -> OperationKind {
-    match operation {
-        Operation::SpanBetween { .. } => OperationKind::SpanBetween,
-        Operation::SourceMatches { .. } => OperationKind::SourceMatches,
-        Operation::RenderSyntax { .. } => OperationKind::RenderSyntax,
-        Operation::FitsRendered { .. } => OperationKind::FitsRendered,
-        Operation::SpanBounds { .. } => OperationKind::SpanBounds,
-        Operation::Select { .. } => OperationKind::Select,
-        Operation::Project { .. } => OperationKind::Project,
-        Operation::Extend { .. } => OperationKind::Extend,
-        Operation::Join { .. } => OperationKind::Join,
-        Operation::Union { .. } => OperationKind::Union,
-        Operation::Intersection { .. } => OperationKind::Intersection,
-        Operation::Difference { .. } => OperationKind::Difference,
-        Operation::Antijoin { .. } => OperationKind::Antijoin,
-        Operation::Replace { .. } => OperationKind::Replace,
-        Operation::OrderedMatch { .. } => OperationKind::OrderedMatch,
-        Operation::OrderedDfs { .. } => OperationKind::OrderedDfs,
-        Operation::GroupCount { .. } => OperationKind::GroupCount,
-        Operation::GroupDigest { .. } => OperationKind::GroupDigest,
-        Operation::Capture { .. } => OperationKind::Capture,
-        Operation::Words { .. } => OperationKind::Words,
-        Operation::Rank { .. } => OperationKind::Rank,
-        Operation::Axis { .. } => OperationKind::Axis,
-        Operation::Closure { .. } => OperationKind::Closure,
-        Operation::Cycles { .. } => OperationKind::Cycles,
-        Operation::Rows { .. } => OperationKind::Rows,
-        Operation::Hosted { .. } => OperationKind::Hosted,
-    }
-}
-
-/// The comparisons an operation makes.
-pub(crate) fn comparisons_of(operation: &Operation) -> &[Comparison] {
-    match operation {
-        Operation::Select { comparisons, .. } => comparisons,
-        Operation::Join { filter, .. } => filter,
-        Operation::Axis { domain_filter, .. } => domain_filter,
-        Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::Replace { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Words { .. }
-        | Operation::Closure { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => &[],
-    }
-}
+use ryo_values::domain::run_metadata::types::{FeatureSource, RuleMetadata, StepMetadata};
 
 /// Every feature the language has: each operation, each way of comparing, each direction of an axis, each relation.
 #[must_use]

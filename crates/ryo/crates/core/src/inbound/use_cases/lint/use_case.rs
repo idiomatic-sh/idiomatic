@@ -436,7 +436,7 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         session: &ryo_values::domain::runs::types::Session,
     ) -> Result<Digest, LintError> {
-        if reads_any(&crate::domain::run_metadata::service::from_plans(plans))
+        if reads_any(&ryo_values::domain::run_metadata::service::from_plans(plans))
             == PlanReads::DoesNotRead
         {
             return Ok(Digest([0; 16]));

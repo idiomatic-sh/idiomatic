@@ -80,7 +80,7 @@ use crate::domain::reading::service::{
 };
 use crate::domain::reading::types::EngineRows;
 use crate::domain::render::types::{RowNumber, RowOrder};
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::table_model::service::push_row;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::visit::types::{Noting, RoleRead};
@@ -189,7 +189,7 @@ fn plan(comparing: u32, frontier: usize) -> Plan {
 }
 
 fn worker(plans: &[Plan]) -> Tables {
-    let metadata = crate::domain::run_metadata::service::from_plans(plans);
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(plans);
     let matchers = std::sync::Arc::new(
         crate::domain::matching::types::prepared::value::PreparedMatchers::new(plans),
     );

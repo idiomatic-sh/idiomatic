@@ -171,7 +171,7 @@ pub(crate) struct PreparedProgram {
     rules: Box<[RuleMetadata]>,
     observations: Option<ObservationMetadata>,
     schedule: RuleSchedule,
-    semantic_metadata: Vec<crate::domain::run_metadata::types::RuleMetadata>,
+    semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
     hosted: Box<[HostRelation]>,
     matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     derived: super::super::derived::prepared::PreparedDerived,
@@ -326,7 +326,7 @@ impl PreparedProgram {
             .flat_map(|root| root.reads.iter().cloned())
             .collect())
     }
-    pub(crate) fn metadata(&self) -> &[crate::domain::run_metadata::types::RuleMetadata] {
+    pub(crate) fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata] {
         &self.semantic_metadata
     }
     pub(crate) fn observation_request(
@@ -345,11 +345,11 @@ impl PreparedProgram {
     }
     pub(crate) fn replay_closure(
         &self,
-        again: crate::domain::storing::types::Reuse,
+        again: ryo_values::domain::stores::types::Reuse,
         first: &[ryo_values::domain::stored_facts::types::Bucket],
     ) -> Result<
         (
-            crate::domain::storing::types::Reuse,
+            ryo_values::domain::stores::types::Reuse,
             Vec<ryo_values::domain::stored_facts::types::Bucket>,
         ),
         OperatingError,
@@ -398,7 +398,7 @@ impl PreparedProgram {
                 .and_then(|outputs| outputs.get(root.output.0 as usize))
                 .ok_or(OperatingError::NotRun)?;
             if consumers.iter().any(|consumer| needed[*consumer]) {
-                buckets.insert(crate::domain::reading::service::frontier_bucket(
+                buckets.insert(ryo_values::domain::stored_facts::service::frontier_bucket(
                     *first.get(root.producer.0).ok_or(OperatingError::NotRun)?,
                     root.frontier,
                 ));
@@ -647,7 +647,7 @@ pub(crate) fn prepare(
         rules: metadata.into_boxed_slice(),
         observations: named,
         schedule,
-        semantic_metadata: crate::domain::run_metadata::service::from_plans(&plans),
+        semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&plans),
         hosted: hosted.to_vec().into_boxed_slice(),
         matchers,
         derived,

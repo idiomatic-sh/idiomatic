@@ -46,7 +46,7 @@ pub(super) fn records_of<'a>(files: &[CorpusInput], kept: &'a [Record]) -> Vec<O
 /// alone, and what the store kept of them.
 pub(super) fn handed_of(
     read: Option<&Arc<dyn ReadStore>>,
-    metadata: &[crate::domain::run_metadata::types::RuleMetadata],
+    metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
     first_bucket: &[Bucket],
     again: &Reuse,
     producer_buckets: &[Bucket],
@@ -82,7 +82,7 @@ pub(super) fn memory_enabled() -> bool {
 pub(super) fn observed_memory(
     phase: &'static str,
     owner: &'static str,
-    bytes: crate::domain::recording::types::retention::value::RetainedBytes,
+    bytes: ryo_values::domain::records::types::retention::value::RetainedBytes,
 ) {
     tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner,
         objects = bytes.objects, metadata_capacity_bytes = bytes.metadata,
@@ -101,7 +101,7 @@ pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
         observed_memory(
             phase,
             "fresh_records",
-            crate::domain::recording::types::retention::value::RetainedBytes::records(records),
+            ryo_values::domain::records::types::retention::value::RetainedBytes::records(records),
         );
     }
 }
@@ -115,7 +115,7 @@ pub(super) fn observed_arenas(
         observed_memory(
             phase,
             "worker_arenas",
-            crate::domain::recording::types::retention::value::RetainedBytes::arenas(arenas),
+            ryo_values::domain::records::types::retention::value::RetainedBytes::arenas(arenas),
         );
     }
 }
@@ -128,7 +128,7 @@ pub(super) fn observed_inputs(
 ) {
     if memory_enabled() {
         let mut bytes =
-            crate::domain::recording::types::retention::value::RetainedBytes::inputs(inputs);
+            ryo_values::domain::records::types::retention::value::RetainedBytes::inputs(inputs);
         let places = ryo_language::domain::symbols::service::places_mut(symbols);
         bytes.places_live =
             places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
@@ -150,7 +150,7 @@ pub(super) fn observed_notes(
         observed_memory(
             phase,
             "worker_notes",
-            crate::domain::recording::types::retention::value::RetainedBytes::worker_notes(notes),
+            ryo_values::domain::records::types::retention::value::RetainedBytes::worker_notes(notes),
         );
     }
 }
@@ -169,7 +169,7 @@ pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
         observed_memory(
             phase,
             "store_handed",
-            crate::domain::recording::types::retention::value::RetainedBytes::stored(handed),
+            ryo_values::domain::records::types::retention::value::RetainedBytes::stored(handed),
         );
     }
 }
@@ -183,7 +183,7 @@ pub(super) fn observed_staged(
         observed_memory(
             phase,
             "store_staged_descriptors",
-            crate::domain::recording::types::retention::value::RetainedBytes::staged(kept),
+            ryo_values::domain::records::types::retention::value::RetainedBytes::staged(kept),
         );
     }
 }

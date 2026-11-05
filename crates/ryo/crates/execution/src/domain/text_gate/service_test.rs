@@ -5,10 +5,10 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::FileId;
 
 use super::service::{needed_of, needed_of_rest, text_gate, undecided};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_cells::types::{ColumnPlaces, TreeForm, TreeRows};
 use crate::domain::table_scratch::types::{ComparisonNumbers, KindsBy};
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
 };

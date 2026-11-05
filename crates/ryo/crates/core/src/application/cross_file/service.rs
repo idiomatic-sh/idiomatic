@@ -18,7 +18,7 @@ use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
 };
 use crate::domain::reporting::service::order_found;
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::failed;
 use crate::domain::table_model::service::cell;
 use crate::domain::table_texts::types::SourceView;

@@ -383,3 +383,26 @@ pub struct StoredFrontierReadiness {
     pub file: StoredFileNumber,
     pub root: std::sync::Arc<crate::domain::records::types::FrontierReadiness>,
 }
+
+/// Which rules that read across files a run makes again.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MadeAgain {
+    /// None: what they found is as the store kept it.
+    Nothing,
+    /// Every one: what a file shows the project or every rule changed, or files were added or removed.
+    All,
+    /// These, by their place, in order: what the changed files hand them changed, and nothing else did.
+    These(Vec<crate::domain::records::types::PlacedRule>),
+}
+
+/// How much of what the last run kept a run uses again.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Reuse {
+    /// Nothing: every file is read and every rule run.
+    Whole,
+    /// The files as they were, and the findings of the rules that read across files.
+    Again,
+    /// The files as they were, and what they handed the steps that read across files, which are made again for the rules named;
+    /// the others' findings are as the store kept them.
+    Cross(MadeAgain),
+}

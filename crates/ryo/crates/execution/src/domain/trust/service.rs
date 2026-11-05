@@ -270,7 +270,7 @@ fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
     };
     let masks = plan.steps.iter().map(|step| {
         crate::domain::operator::contract::service::modes(
-            crate::domain::features::service::kind_of(&step.operation),
+            ryo_values::domain::plans::service::kind_of(&step.operation),
         )
         .4
     });

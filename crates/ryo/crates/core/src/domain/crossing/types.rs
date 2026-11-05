@@ -8,7 +8,6 @@ use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Skipped;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// What the cross-file steps of every rule read besides the rows the files handed over.
 #[derive(Clone, Debug)]
@@ -18,7 +17,7 @@ pub(crate) struct CrossingInput<'a> {
     /// Actual generation-bound readiness beside the producer frontier words.
     pub observations: &'a [crate::domain::coverage::types::FileObservationReadiness],
     /// Pure source and accounting facts extracted before executable plans are consumed.
-    pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
     /// The relations the steps of each rule trust the absence of rows of.
@@ -81,28 +80,4 @@ pub(crate) struct PhaseRoots {
     pub emit: Option<ryo_values::domain::rows::types::Table>,
     /// Only roots explicitly retained by request demand linking.
     pub observations: Vec<ObservedRoot>,
-}
-
-/// A portable named output. Readiness and words agree: only Complete carries words.
-#[derive(Clone, Debug)]
-pub(crate) struct PackedObservedRoot {
-    pub output: ryo_values::domain::observations::types::ObservationIndex,
-    pub words: Option<ryo_values::domain::stored_facts::types::KeptWords>,
-    pub readiness: ryo_values::domain::observations::types::ProducerReadiness,
-    /// Every arena actually referenced by encoded places, including inherited re-exports.
-    pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,
-}
-/// One closure owns its reserved arena and returns only owned bytes/words.
-#[derive(Clone, Debug)]
-pub(crate) struct CrossPublicationTransfer {
-    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    pub arena: ArenaBytes,
-    pub roots: Vec<PackedObservedRoot>,
-}
-
-/// One required source that cannot provide rows; never represented by an empty Table.
-#[derive(Clone, Debug)]
-pub(crate) struct RefusedFrontier {
-    pub input: ryo_values::domain::plan_parts::types::Input,
-    pub error: crate::domain::operating::errors::OperatingError,
 }

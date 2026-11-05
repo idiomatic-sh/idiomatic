@@ -1,8 +1,8 @@
 //! The `frontiers` service's cases, on values alone.
 
 use super::service::{decode_input, project_input, project_relation};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::service::push_row;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;

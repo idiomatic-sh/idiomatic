@@ -1,14 +1,14 @@
 //! The `step_classes` service's cases: the merge makes one class of the steps that select the same elements.
 
 use super::service::merge;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, Function, Input as PlanInput, LiteralText, Operand,
     ParameterId, QueryLiteral, StepId, Test, WholeNumber,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The kinds the one step of each rule selects, an empty one for the elements with no text.
 type Input = &'static [&'static str];

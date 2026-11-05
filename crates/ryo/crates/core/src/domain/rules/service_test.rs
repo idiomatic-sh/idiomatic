@@ -1,46 +1,22 @@
 //! The `rules` service's cases, on values alone.
 
-use super::errors::RulesError;
-use super::service::{bind, check_ids, failed, governing, id_at, ids_of, owner_of, scopes_of};
-use super::types::{};
+use super::service::{failed, governing, ids_of, owner_of, scopes_of};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::finish::types::RuleNumber;
 use crate::domain::placement::types::{GlobOwner, GlobSide, Mask, ScopePlacement};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ParameterName, QueryText, StepId, WholeNumber,
-};
-use ryo_values::domain::plans::types::{Emit, ParameterType, Plan, PlanParameter};
+use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::RuleNumber;
 
 /// What a row of the cases does with the rules of a run.
 #[derive(Clone, Copy)]
 enum Scenario {
-    /// Checks the ids of three rules that differ.
-    CheckedIds,
-    /// Checks the ids of rules, one of which has an id of blanks.
-    BlankId,
-    /// Checks the ids of rules, the third of which has the id of the first.
-    DuplicateId,
-    /// Binds the two parameters of a plan, declared in the other order than the rule gives them.
-    Bound,
-    /// Binds a plan that declares a parameter the rule gives nothing for.
-    Unbound,
-    /// Reads the ids of three rules.
     Ids,
-    /// Reads how many include and exclude globs each of three rules has.
     Scopes,
-    /// Asks whose a glob of the placement is.
     OwnerOfOwned,
-    /// Asks whose a glob is that nobody owns.
     OwnerOfNobody,
-    /// Asks the id of the rule at a place the rules have.
-    IdAtPlace,
-    /// Asks which of three rules govern the file of a mask.
     Governing,
-    /// Says why a rule failed.
     Failed,
 }
 
@@ -78,37 +54,6 @@ fn ids() -> Vec<RuleId> {
         .collect()
 }
 
-fn parameter(name: &str) -> PlanParameter {
-    PlanParameter {
-        name: ParameterName(name.into()),
-        kind: ParameterType::Number,
-    }
-}
-
-fn given(name: &str, number: i64) -> Given {
-    Given {
-        name: ParameterName(name.into()),
-        value: ParameterBinding::Number(WholeNumber(number)),
-    }
-}
-
-fn plan_with(parameters: Vec<PlanParameter>) -> Plan {
-    Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters,
-        steps: Vec::new(),
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: Vec::new(),
-            headings: Vec::new(),
-        },
-        frontier: Vec::new(),
-        comparison_origins: Vec::new(),
-    }
-}
-
 fn placement() -> ScopePlacement {
     ScopePlacement {
         globs: globs(&["*.rs", "*.md"]),
@@ -133,47 +78,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         spec("c", &[], &[]),
     ];
     Ok(match scenario {
-        Scenario::CheckedIds => {
-            check_ids(&rules)?;
-            [3, 0, 0]
-        }
-        Scenario::BlankId => {
-            check_ids(&[spec("a", &[], &[]), spec("  ", &[], &[])])?;
-            [0, 0, 0]
-        }
-        Scenario::DuplicateId => {
-            check_ids(&[
-                spec("a", &[], &[]),
-                spec("b", &[], &[]),
-                spec("a", &[], &[]),
-            ])?;
-            [0, 0, 0]
-        }
-        Scenario::Bound => {
-            let mut rule = spec("a", &[], &[]);
-            rule.given = vec![given("first", 1), given("second", 2)];
-            let plan = plan_with(vec![parameter("second"), parameter("first")]);
-            let mut bound = [0; 3];
-            for (slot, binding) in bound.iter_mut().zip(bind(&plan, &rule)?) {
-                *slot = match binding {
-                    ParameterBinding::Number(number) => number.0,
-                    ParameterBinding::Flag(_)
-                    | ParameterBinding::Text(_)
-                    | ParameterBinding::Numbers(_)
-                    | ParameterBinding::Texts(_)
-                    | ParameterBinding::TextSets(_)
-                    | ParameterBinding::Tables(_) => -1,
-                };
-            }
-            bound
-        }
-        Scenario::Unbound => {
-            let mut rule = spec("a", &[], &[]);
-            rule.given = vec![given("first", 1)];
-            let plan = plan_with(vec![parameter("first"), parameter("limit")]);
-            let bound = bind(&plan, &rule)?;
-            [i64::try_from(bound.len()).unwrap_or(i64::MAX), 0, 0]
-        }
         Scenario::Ids => {
             let mut read = [0; 3];
             for (slot, id) in read.iter_mut().zip(ids_of(&rules)) {
@@ -199,7 +103,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let owner = owner_of(&placed, &Glob("*.py".into()), &named);
             [owner.map_or(0, |id| byte(&id.0)), 0, 0]
         }
-        Scenario::IdAtPlace => [byte(&id_at(&ids(), RuleIndex(2)).0), 0, 0],
         Scenario::Governing => {
             let mut read = [0; 3];
             for (slot, id) in read.iter_mut().zip(governing(&Mask(vec![0b101]), &ids())) {
@@ -212,18 +115,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("rules_with_different_ids_are_accepted"),
-        word: Word::Succeeds,
-        input: || Scenario::CheckedIds,
-        expect: Expect::Value([3, 0, 0]),
-    },
-    Case {
-        name: CaseName("a_rule_gets_its_parameters_by_the_place_the_plan_reads_them_at"),
-        word: Word::Succeeds,
-        input: || Scenario::Bound,
-        expect: Expect::Value([2, 1, 0]),
-    },
     Case {
         name: CaseName("the_ids_are_read_in_the_order_of_the_rules"),
         word: Word::Succeeds,
@@ -249,46 +140,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([0, 0, 0]),
     },
     Case {
-        name: CaseName("the_id_at_a_place_is_the_id_of_the_rule_there"),
-        word: Word::Succeeds,
-        input: || Scenario::IdAtPlace,
-        expect: Expect::Value([99, 0, 0]),
-    },
-    Case {
         name: CaseName("the_rules_whose_bit_is_set_govern_the_file"),
         word: Word::Succeeds,
         input: || Scenario::Governing,
         expect: Expect::Value([97, 99, 0]),
-    },
-    Case {
-        name: CaseName("blank_rule_id_is_refused"),
-        word: Word::Refuses,
-        input: || Scenario::BlankId,
-        expect: Expect::Error(RulesError::BlankRuleId),
-    },
-    Case {
-        name: CaseName("duplicate_rule_id_is_refused_naming_the_id"),
-        word: Word::Refuses,
-        input: || Scenario::DuplicateId,
-        expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::DuplicateRuleId { id } if &*id.0 == "a") {
-                Selection::Matches
-            } else {
-                Selection::Differs
-            }
-        }),
-    },
-    Case {
-        name: CaseName("a_parameter_nothing_is_bound_to_is_refused_naming_the_rule"),
-        word: Word::Refuses,
-        input: || Scenario::Unbound,
-        expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::MissingParameter { id } if &*id.0 == "a") {
-                Selection::Matches
-            } else {
-                Selection::Differs
-            }
-        }),
     },
     Case {
         name: CaseName("a_rule_that_could_not_run_fails_with_the_words_of_what_refused_it"),
@@ -313,13 +168,8 @@ fn succeeds() {
 }
 
 #[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-
-#[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
 
-use ryo_values::domain::rule_requests::types::{RuleSpec,RuleParameters,Given};
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};

@@ -3,8 +3,8 @@
 use ryo_relations::domain::relations::types::{CellKind, Position};
 
 use super::service::walk_kinds;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 
 use crate::domain::table_scratch::types::ElementPlaces;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};

@@ -236,7 +236,7 @@ fn prepare_frontiers(
     todo: &Todo,
     ready: &[bool],
     symbols: &mut Symbols,
-) -> Result<super::types::PreparedFrontiers, crate::domain::rules::errors::RulesError> {
+) -> Result<super::types::PreparedFrontiers, ryo_values::domain::rule_requests::errors::RulesError> {
     let failed =
         |error: &dyn std::fmt::Display| crate::domain::rules::service::failed(&todo.id, error);
     let first = *run

@@ -1,6 +1,6 @@
 //! Conflicting failures exercise the original metadata and empty-result boundaries.
 use super::execution::CommonOperatorEngine;
-use crate::domain::features::service::kind_of;
+use ryo_values::domain::plans::service::kind_of;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::service::registered;

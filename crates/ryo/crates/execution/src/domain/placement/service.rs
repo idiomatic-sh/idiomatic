@@ -8,7 +8,7 @@ use super::types::{
     Bit, BitMask, GlobKey, GlobOwner, GlobSide, Governing, Mask, PlacedScopes, RuleScope,
     ScopePlacement, WordIndex,
 };
-use crate::domain::finish::types::RuleNumber;
+use ryo_values::domain::runs::types::RuleNumber;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::{Hits, MatchCandidate};

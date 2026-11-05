@@ -114,7 +114,7 @@ impl ResourceFixture {
             })
             .collect::<Vec<_>>();
         let contract = super::super::prepare::operator(
-            registered(crate::domain::features::service::kind_of(operation)),
+            registered(ryo_values::domain::plans::service::kind_of(operation)),
             operation,
             &schemas,
             context.bindings,
@@ -252,7 +252,7 @@ impl ResourceFixture {
             })
             .collect::<Vec<_>>();
         let contract = super::super::prepare::operator(
-            registered(crate::domain::features::service::kind_of(operation)),
+            registered(ryo_values::domain::plans::service::kind_of(operation)),
             operation,
             &schemas,
             context.bindings,

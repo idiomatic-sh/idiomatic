@@ -24,4 +24,5 @@ pub(crate) struct Flat(pub Vec<u64>);
 pub(crate) struct InterfaceBytes(pub Vec<u8>);
 
 /// Optional diagnostic accounting over the record and frontier representations.
-pub(crate) mod retention;
+#[cfg(test)]
+mod retention;

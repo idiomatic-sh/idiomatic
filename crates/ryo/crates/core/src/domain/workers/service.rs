@@ -13,7 +13,7 @@ use crate::domain::operator::types::{PreparedPool, RowsFed, TreeSteps};
 use crate::domain::placement::service::{governed, governs, place};
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
-use crate::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::run_metadata::types::RuleMetadata;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;

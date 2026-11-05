@@ -4,7 +4,7 @@ use super::errors::RuleCompilationError;
 use super::service::RuleCompilation;
 use super::types::CompiledPlans;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};

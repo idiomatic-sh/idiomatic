@@ -11,7 +11,7 @@ use crate::domain::operating::types::OperatorContext;
 
 use crate::domain::operator::types::RowsFed;
 
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::failed;
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;

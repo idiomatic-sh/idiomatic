@@ -2,7 +2,7 @@
 
 use super::service::apply;
 use super::types::MadeText;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::Function;
 
 /// A function, the texts of its arguments and the text it is expected to make.

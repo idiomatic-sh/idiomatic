@@ -6,7 +6,7 @@ use crate::domain::operator::types::RowsFed;
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
 use crate::domain::rules::service::id_at;
-use crate::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::run_metadata::types::RuleMetadata;
 use crate::domain::workers::service::add_fed;
 use ryo_values::domain::runs::types::RuleId;
 

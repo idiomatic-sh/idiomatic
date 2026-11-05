@@ -16,7 +16,7 @@ pub(crate) fn prepare(
 ) -> WorkspaceProgram {
     use OperationKind::*;
     let first = |lifetime, kinds| WorkspaceProgram::FirstOccurrences { lifetime, kinds };
-    match crate::domain::features::service::kind_of(operation) {
+    match ryo_values::domain::plans::service::kind_of(operation) {
         Project => match operation {
             Operation::Project {
                 distinct: RepeatedRows::Dropped,

@@ -1569,7 +1569,7 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
         },
     ];
     let prepared = crate::application::file_dag::derived::prepare::operator(
-        crate::domain::operator::service::registered(crate::domain::features::service::kind_of(
+        crate::domain::operator::service::registered(ryo_values::domain::plans::service::kind_of(
             &operation,
         )),
         &operation,

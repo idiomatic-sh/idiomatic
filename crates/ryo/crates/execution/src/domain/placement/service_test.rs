@@ -3,7 +3,7 @@
 use super::service::{decide, governs, place};
 use super::types::{Governing, Mask, PlacedScopes, RuleScope};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::finish::types::RuleNumber;
+use ryo_values::domain::runs::types::RuleNumber;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::matching::interface::MatchingPort as _;

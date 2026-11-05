@@ -1,5 +1,5 @@
 //! Prepare every operation once for one request, shared by all file workers.
-use crate::domain::features::service::kind_of;
+use ryo_values::domain::plans::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::OperatorContract;

@@ -1,7 +1,8 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{Operation, Plan, StepScope};
+use super::types::{Operation, OperationKind, Plan, StepScope};
 use crate::domain::plan_parts::service::step_in;
+use crate::domain::plan_parts::types::Comparison;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::{InputCount, Inputs};
@@ -106,5 +107,70 @@ pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) 
         }
         Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => visit(edges),
         Operation::Rows { .. } | Operation::Hosted { .. } => {}
+    }
+}
+
+/// The kind of an operation.
+#[must_use]
+pub fn kind_of(operation: &Operation) -> OperationKind {
+    match operation {
+        Operation::SpanBetween { .. } => OperationKind::SpanBetween,
+        Operation::SourceMatches { .. } => OperationKind::SourceMatches,
+        Operation::RenderSyntax { .. } => OperationKind::RenderSyntax,
+        Operation::FitsRendered { .. } => OperationKind::FitsRendered,
+        Operation::SpanBounds { .. } => OperationKind::SpanBounds,
+        Operation::Select { .. } => OperationKind::Select,
+        Operation::Project { .. } => OperationKind::Project,
+        Operation::Extend { .. } => OperationKind::Extend,
+        Operation::Join { .. } => OperationKind::Join,
+        Operation::Union { .. } => OperationKind::Union,
+        Operation::Intersection { .. } => OperationKind::Intersection,
+        Operation::Difference { .. } => OperationKind::Difference,
+        Operation::Antijoin { .. } => OperationKind::Antijoin,
+        Operation::Replace { .. } => OperationKind::Replace,
+        Operation::OrderedMatch { .. } => OperationKind::OrderedMatch,
+        Operation::OrderedDfs { .. } => OperationKind::OrderedDfs,
+        Operation::GroupCount { .. } => OperationKind::GroupCount,
+        Operation::GroupDigest { .. } => OperationKind::GroupDigest,
+        Operation::Capture { .. } => OperationKind::Capture,
+        Operation::Words { .. } => OperationKind::Words,
+        Operation::Rank { .. } => OperationKind::Rank,
+        Operation::Axis { .. } => OperationKind::Axis,
+        Operation::Closure { .. } => OperationKind::Closure,
+        Operation::Cycles { .. } => OperationKind::Cycles,
+        Operation::Rows { .. } => OperationKind::Rows,
+        Operation::Hosted { .. } => OperationKind::Hosted,
+    }
+}
+
+/// The comparisons an operation makes.
+pub fn comparisons_of(operation: &Operation) -> &[Comparison] {
+    match operation {
+        Operation::Select { comparisons, .. } => comparisons,
+        Operation::Join { filter, .. } => filter,
+        Operation::Axis { domain_filter, .. } => domain_filter,
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => &[],
     }
 }

@@ -1,10 +1,10 @@
 //! The `rules` concept's failures.
 
-use ryo_values::domain::runs::types::RuleId;
+use crate::domain::runs::types::RuleId;
 
 /// Why a rule of a run is refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum RulesError {
+pub enum RulesError {
     /// A bound producer's observation is unavailable in this generation.
     #[error("rule `{}` has incomplete observation input: {reason}", id.0)]
     ObservationIncomplete { id: RuleId, reason: String },

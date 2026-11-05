@@ -14,7 +14,7 @@ use crate::domain::placement::service::governs;
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 
@@ -31,16 +31,6 @@ use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Kept;
 use ryo_values::domain::records::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, KeptWords, ReadInPart};
-
-/// The bucket the rows of the frontier's input at `input` of a rule wait in, the rule's first bucket being `first`.
-#[must_use]
-pub(crate) fn frontier_bucket(first: Bucket, input: InputNumber) -> Bucket {
-    Bucket(
-        first
-            .0
-            .saturating_add(u32::try_from(input.0).unwrap_or(u32::MAX)),
-    )
-}
 
 /// Readies the worker for a file it reads: counts it, notes where its text will begin in the worker's arena and empties what the
 /// last file left.
@@ -225,7 +215,7 @@ pub(crate) fn settle(tables: &mut Tables, answering: &Answering) {
 /// The buckets of the frontiers of the rules `rules`, by their place among `plans`, in order: every bucket when `rules` is all.
 #[must_use]
 pub(crate) fn buckets_of(
-    metadata: &[crate::domain::run_metadata::types::RuleMetadata],
+    metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
     first: &[Bucket],
     rules: Option<&[PlacedRule]>,
 ) -> Vec<Bucket> {
@@ -260,3 +250,5 @@ pub(crate) fn first_buckets(plans: &[Plan]) -> Vec<Bucket> {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::stored_facts::service::frontier_bucket;

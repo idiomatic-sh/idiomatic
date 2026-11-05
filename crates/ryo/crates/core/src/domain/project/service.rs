@@ -1,8 +1,8 @@
 //! The `project` service: free functions named by verb over what the rules read of the project, with no IO and no ports.
 
 use super::types::PlanReads;
-use crate::domain::run_metadata::types::RuleMetadata;
-use crate::domain::storing::types::MadeAgain;
+use ryo_values::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::stores::types::MadeAgain;
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;

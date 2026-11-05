@@ -2,7 +2,7 @@
 
 use super::types::ProviderFault;
 use crate::domain::budget::errors::BudgetError;
-use crate::domain::rules::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::visit::errors::VisitError;
 use crate::outbound::corpus::errors::CorpusError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;

@@ -1,13 +1,12 @@
 //! Exact capacities of the owned handover components at a lifecycle boundary.
 
-use crate::domain::table_model::types::Frontier;
-use ryo_values::domain::records::types::{FileOutcome, HandedNotes, Handing, Record, RecordWords};
-use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
-use ryo_values::domain::stores::types::StoredHanded;
+use crate::domain::records::types::{FileOutcome, HandedNotes, Handing, Record, RecordWords};
+use crate::domain::stored_facts::types::{ArenaBytes, KeptWords};
+use crate::domain::stores::types::StoredHanded;
 
 /// Separate owned components, never an RSS estimate or a claim to cover every allocation.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct RetainedBytes {
+pub struct RetainedBytes {
     /// Number of records, arenas, frontiers or packed inputs represented.
     pub objects: usize,
     /// Capacity bytes of the measured owning vectors, excluding their nested payloads below.
@@ -44,7 +43,7 @@ pub(crate) struct RetainedBytes {
 
 impl RetainedBytes {
     /// Fresh records retain normalized packed handovers independently of the facts worker.
-    pub(crate) fn records(records: &Vec<Record>) -> Self {
+    pub fn records(records: &Vec<Record>) -> Self {
         let mut bytes = Self {
             objects: records.len(),
             metadata: capacity(records),
@@ -93,7 +92,7 @@ impl RetainedBytes {
     }
 
     /// The corresponding stored handover owns these same payloads after the records move.
-    pub(crate) fn stored(handed: &StoredHanded) -> Self {
+    pub fn stored(handed: &StoredHanded) -> Self {
         let mut bytes = Self {
             objects: handed.frontier.len(),
             metadata: capacity(&handed.frontier)
@@ -121,7 +120,7 @@ impl RetainedBytes {
     }
 
     /// Store publication retains only descriptor metadata for fresh staged rows.
-    pub(crate) fn staged(kept: &ryo_values::domain::stores::types::KeptRows) -> Self {
+    pub fn staged(kept: &crate::domain::stores::types::KeptRows) -> Self {
         Self {
             objects: kept.staged.len(),
             metadata: capacity(&kept.staged),
@@ -136,7 +135,7 @@ impl RetainedBytes {
     }
 
     /// Worker arenas are separate owners from normalized record handover text.
-    pub(crate) fn arenas(arenas: &Vec<ArenaBytes>) -> Self {
+    pub fn arenas(arenas: &Vec<ArenaBytes>) -> Self {
         Self {
             objects: arenas.len(),
             metadata: capacity(arenas),
@@ -147,22 +146,24 @@ impl RetainedBytes {
     }
 
     /// Original worker language notes may coexist with the copy normalized into fresh records.
-    pub(crate) fn worker_notes(notes: &crate::domain::workers::types::FreshNotes) -> Self {
-        Self {
-            objects: notes.0.len(),
-            metadata: capacity(&notes.0),
-            notes_live: notes.0.iter().map(|entry| entry.notes.notes.0.len()).sum(),
-            notes_capacity: notes
-                .0
-                .iter()
-                .map(|entry| entry.notes.notes.0.capacity())
-                .sum(),
+    pub fn worker_notes<'a>(
+        metadata: usize,
+        notes: impl IntoIterator<Item = &'a crate::domain::stored_facts::types::FileNotes>,
+    ) -> Self {
+        let mut bytes = Self {
+            metadata,
             ..Self::default()
+        };
+        for notes in notes {
+            bytes.objects += 1;
+            bytes.notes_live += notes.notes.0.len();
+            bytes.notes_capacity += notes.notes.0.capacity();
         }
+        bytes
     }
 
     /// A temporary caller-owned packed bucket; provider-internal storage is outside this measure.
-    pub(crate) fn packed(words: &KeptWords) -> Self {
+    pub fn packed(words: &KeptWords) -> Self {
         Self {
             objects: 1,
             packed_live: words.0.0.len(),
@@ -172,24 +173,24 @@ impl RetainedBytes {
     }
 
     /// Exact decoded frontier storage, independent of whether the cells are physically resident pages.
-    pub(crate) fn inputs(inputs: &Vec<Frontier>) -> Self {
+    pub fn inputs<'a>(metadata: usize, inputs: impl IntoIterator<Item = &'a Table>) -> Self {
         let mut bytes = Self {
-            objects: inputs.len(),
-            metadata: capacity(inputs),
+            metadata,
             ..Self::default()
         };
-        for input in inputs {
-            bytes.metadata += capacity(&input.table.kinds);
-            bytes.cells_live += input.table.cells.len()
-                * size_of::<ryo_relations::domain::relations::types::Value>();
-            bytes.cells_capacity += capacity(&input.table.cells);
-            bytes.rows += input.table.count.0;
+        for table in inputs {
+            bytes.objects += 1;
+            bytes.metadata += capacity(&table.kinds);
+            bytes.cells_live +=
+                table.cells.len() * size_of::<ryo_relations::domain::relations::types::Value>();
+            bytes.cells_capacity += capacity(&table.cells);
+            bytes.rows += table.count.0;
         }
         bytes
     }
 
     /// One table while it is being decoded, before its final shrink.
-    pub(crate) fn table(table: &Table) -> Self {
+    pub fn table(table: &Table) -> Self {
         Self {
             objects: 1,
             metadata: capacity(&table.kinds),
@@ -207,4 +208,4 @@ fn capacity<T>(values: &Vec<T>) -> usize {
     values.capacity().saturating_mul(size_of::<T>())
 }
 
-use ryo_values::domain::rows::types::Table;
+use crate::domain::rows::types::Table;

@@ -49,7 +49,7 @@ use crate::domain::rules::service::governing;
 use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};
 
-use crate::domain::finish::types::RuleNumber;
+use ryo_values::domain::runs::types::RuleNumber;
 use crate::domain::workers::service::{checking, file_at, govern, governs_rule};
 
 use crate::domain::workers::types::{Checking, FileOrder};
@@ -1129,7 +1129,7 @@ impl FileAnalysis {
                 .copied()
                 == Some(true)
             && setting.first_bucket.get(rule.0).copied().map(|first| {
-                crate::domain::reading::service::frontier_bucket(first, InputNumber(input))
+                ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(input))
             }) == Some(bucket)
             && match &proof.coverage {
                 FrontierCoverage::Complete => true,

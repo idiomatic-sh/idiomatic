@@ -185,7 +185,7 @@ pub(crate) fn prepare_for(
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
 ) -> Result<OperatorContract, crate::domain::operating::errors::OperatingError> {
-    if crate::domain::features::service::kind_of(operation) != expected {
+    if ryo_values::domain::plans::service::kind_of(operation) != expected {
         return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
     }
     let (mut streaming, mut collected, _resource_class, effects, absence_inputs) = modes(expected);

@@ -32,17 +32,6 @@ pub(crate) enum Decision {
     Cross,
 }
 
-/// Which rules that read across files a run makes again.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum MadeAgain {
-    /// None: what they found is as the store kept it.
-    Nothing,
-    /// Every one: what a file shows the project or every rule changed, or files were added or removed.
-    All,
-    /// These, by their place, in order: what the changed files hand them changed, and nothing else did.
-    These(Vec<PlacedRule>),
-}
-
 /// What a run keeps in its store, before it is made into the store's tables.
 pub(crate) struct ToKeep<'a> {
     /// The rules, with their digests.
@@ -64,18 +53,6 @@ pub(crate) struct ToKeep<'a> {
     /// Project-entry observations used by the demanded namespace fact.
     pub project_observations:
         &'a [ryo_language::domain::project_context::types::EntryObservation],
-}
-
-/// How much of what the last run kept a run uses again.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Reuse {
-    /// Nothing: every file is read and every rule run.
-    Whole,
-    /// The files as they were, and the findings of the rules that read across files.
-    Again,
-    /// The files as they were, and what they handed the steps that read across files, which are made again for the rules named;
-    /// the others' findings are as the store kept them.
-    Cross(MadeAgain),
 }
 
 /// What a run uses again of what the last kept.
@@ -114,3 +91,5 @@ pub(crate) struct HandedAgain {
     /// What the store kept of them.
     pub handed: ryo_values::domain::stores::types::ReadHanded,
 }
+
+use ryo_values::domain::stores::types::{MadeAgain, Reuse};

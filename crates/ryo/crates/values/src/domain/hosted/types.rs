@@ -69,3 +69,7 @@ pub enum HostKind {
 /// not list is no file; a span is no value of a column the host declares.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostRow(pub Vec<crate::domain::records::types::Cell>);
+
+/// Versioned typed bytes for the exact host declaration and row population.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostIdentity(pub Vec<u8>);

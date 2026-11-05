@@ -131,7 +131,7 @@ fn observed_decode(
     places: &Vec<NamePlace>,
 ) {
     if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
-        let bytes = crate::domain::recording::types::retention::value::RetainedBytes::table(table);
+        let bytes = ryo_values::domain::records::types::retention::value::RetainedBytes::table(table);
         let place_width = size_of::<NamePlace>();
         tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner = "decoding_input",
             packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),

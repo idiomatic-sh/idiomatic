@@ -129,7 +129,7 @@ fn subject(scenario: Input) -> Value {
             ];
             let ids = [RuleId("a".into()), RuleId("b".into()), RuleId("c".into())];
             todo_list(
-                &crate::domain::run_metadata::service::from_plans(&plans),
+                &ryo_values::domain::run_metadata::service::from_plans(&plans),
                 &ids,
             )
             .iter()

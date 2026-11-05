@@ -44,7 +44,7 @@ pub(crate) fn authorize(
     const ORDERED_MATCH: u32 = 8192;
     const SOURCE_MATCHES: u32 = 16384;
     const REDUCTION: u32 = 32768;
-    let allowed = match crate::domain::features::service::kind_of(operation) {
+    let allowed = match ryo_values::domain::plans::service::kind_of(operation) {
         OperationKind::Project => {
             if matches!(route, PhysicalRoute::Column(_)) {
                 PROJECT | JOIN

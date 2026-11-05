@@ -35,3 +35,17 @@ pub(crate) mod table_words;
 pub(crate) mod tree_join;
 pub(crate) mod trust;
 pub(crate) mod walks;
+
+pub(crate) mod column_kernel;
+pub(crate) mod crossing;
+pub(crate) mod describing;
+pub(crate) mod finish;
+pub(crate) mod frontiers;
+pub(crate) mod functions;
+pub(crate) mod hosted;
+pub(crate) mod replay;
+pub(crate) mod rules;
+pub(crate) mod step_classes;
+pub(crate) mod stored_graph;
+pub(crate) mod text_gate;
+pub(crate) mod tree_walk;
