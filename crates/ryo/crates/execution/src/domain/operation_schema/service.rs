@@ -387,3 +387,20 @@ fn appended(
     output.push(kind);
     Ok(output)
 }
+
+/// Carry the schema of an empty first instruction through the compiler's closed
+/// row-continuation family without evaluating predicates or acquiring bindings.
+pub(crate) fn continuation_kinds(
+    operation: &Operation,
+    input: &[CellKind],
+) -> Result<Vec<CellKind>, OperatingError> {
+    match operation {
+        Operation::Select { kept, .. } if kept.is_empty() => Ok(input.to_vec()),
+        Operation::Project {
+            columns,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+            ..
+        } => projected(input, columns),
+        _ => Err(OperatingError::WrongOperation),
+    }
+}

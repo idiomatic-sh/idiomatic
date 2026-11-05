@@ -890,7 +890,7 @@ impl ProgramExecution {
                                     super::admission::ProducerRoot::Region(id),
                                     &self.partition,
                                     &admitted,
-                                    gate.kinds.clone(),
+                                    empty_output_kinds(region, gate),
                                 )
                                 .map_err(InvocationFailure::Semantic)?;
                             return Ok(InvocationOutcome::Published(
@@ -916,7 +916,7 @@ impl ProgramExecution {
                                 super::admission::ProducerRoot::Region(id),
                                 &self.partition,
                                 &admitted,
-                                gate.kinds.clone(),
+                                empty_output_kinds(region, gate),
                             )
                             .map_err(InvocationFailure::Semantic)?;
                         return Ok(InvocationOutcome::Published(
@@ -1411,4 +1411,18 @@ impl Emit for Tee<'_> {
         }
         result
     }
+}
+
+fn empty_output_kinds(
+    region: &Region,
+    gate: &crate::domain::operator::contract::types::EmptyResult,
+) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError> {
+    let mut kinds = gate.kinds.clone()?;
+    for instruction in region.instructions.iter().skip(1) {
+        kinds = crate::domain::operation_schema::service::continuation_kinds(
+            &instruction.operation,
+            &kinds,
+        )?;
+    }
+    Ok(kinds)
 }
