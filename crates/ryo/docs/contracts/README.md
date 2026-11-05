@@ -2,14 +2,14 @@
 
 **Full categories: Relations INCOMPLETE (69 public catalog members, and framework routes); operators INCOMPLETE (26 kinds); derived views INCOMPLETE (13 required mechanisms: 12 public registered kinds plus `RawKeyOrder`).** The member and route checklists below are the acceptance scope.
 
-**Latest public runtime: `b75c59ce3d` (2026-11-05).** No ownership category is complete.
+**Latest combined runtime: `b67594e51`; latest rule-fixture worker: `a57cc5450` (2026-11-05).** Integrated source `71cb55781a` still awaits the combined gate. No ownership category is complete.
 
 - Public boundaries221/222: **71/71 pass**. Restoring whole-program scratch sizing makes the dormant-class control fail **257 versus 1**; restoring the candidate passes all 71. This proves the bounded allocation-work guard, not whole-program memory performance.
-- Candidate full rule inventory226: **413 PASS / 0 FAIL**, complete, using the immutable `b75c59ce3d` worker. This verifies registered rule fixtures, not mixed-syntax project completeness.
+- Full rule inventory249: **413 PASS / 0 FAIL**, complete in **591.804 s**, using immutable `a57cc5450` worker (`ca2dfe247c0ec9f764bc457d0c7cb930d26bab84eac4e703c33a1dd48e77c5cf`). This verifies registered rule fixtures, not current integrated source, Django timing or mixed-syntax project completeness. Local evidence: `/tmp/ryo-position-full413-249-20261105`.
 - Full-Django213 **failed** after **3,039.41 s / 5.30 GB**, with I001 frontier proof mismatch and no report. Warm was cancelled after the correctness failure; edit did not run. Rust214 refused pending recorded rules before timing.
 - Tiny mixed-syntax224 passes the repaired transport boundary but still fails with **nine unknowns**. RUF100 incorrectly becomes unavailable for the valid file too. Partition-aware named availability and absence-sensitive consumption remain open; do not label this case fixed.
 - Tiny valid-file225: **10.59 → 9.88 s**, **1.988 → 1.985 GB**, exactly equal complete reports for 413 rules. One diagnostic comparison only. Profile217 attributed **6.272 s** to compilation and left **2.567 s** of preparation unaccounted.
-- Internal tests: migration integrated at `01c42f64a`; build229 fails with **66 compiler errors**. Repairs target current contracts; no runtime claim until the combined suite passes.
+- Internal tests: combined245 compiles and runs; its remaining failures are listed below. The reviewed publication/admission fixes are integrated; empty-Join payload and error-order controls are the final source batch before the next combined gate.
 - TM: run230 reports **76 findings in 11 repaired files**, zero suppressed. Earlier run221’s zero findings did not prove correct placement: its existence-only template accepted concept-named test files. The test-layout family and its enforcement are being corrected; architecture remains open.
 - Shared-position diagnostic248: three alternating pairs, one valid file and all 413 rules. Median wall **9.997 → 9.759 s (2.4% lower)**; CPU **9.984 → 9.756 s**; peak RSS **1.236 → 1.237 GB (unchanged)**. All six complete reports match exactly, with zero unknowns. This is a small-input check, not a Django speedup. [Source identities and measurements](evidence/shared-positions/measurements.json).
 - Combined contracts245 on `b67594e51`: execution **399 pass / 19 fail**, matching **4 / 1**, other four libraries **191 / 0**, public boundary **74 / 1**. Admission ordering/first-borrow and domain repairs pass within that scope; no full contract or shared-walk completion.
