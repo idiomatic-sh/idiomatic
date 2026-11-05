@@ -12,48 +12,48 @@ use ryo_values::{
         plans::types::{Operation, OperationKind},
     },
 };
-type Input = (DemandOrder, usize);
-type Value = Vec<usize>;
+type Input = (DemandOrder, usize, &'static [usize]);
+type Value = ();
 type Failure = crate::domain::operating::errors::OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("no_inputs"),
         word: Word::Succeeds,
-        input: || (DemandOrder::None, 0),
-        expect: Expect::Value(vec![]),
+        input: || (DemandOrder::None, 0, &[]),
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("unary"),
         word: Word::Succeeds,
-        input: || (DemandOrder::Unary, 1),
-        expect: Expect::Value(vec![0]),
+        input: || (DemandOrder::Unary, 1, &[0]),
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("empty_ordered"),
         word: Word::Succeeds,
-        input: || (DemandOrder::LeftThenRight, 0),
-        expect: Expect::Value(vec![]),
+        input: || (DemandOrder::LeftThenRight, 0, &[]),
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("one_ordered"),
         word: Word::Succeeds,
-        input: || (DemandOrder::LeftThenRight, 1),
-        expect: Expect::Value(vec![0]),
+        input: || (DemandOrder::LeftThenRight, 1, &[0]),
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("two_ordered"),
         word: Word::Succeeds,
-        input: || (DemandOrder::LeftThenRight, 2),
-        expect: Expect::Value(vec![0, 1]),
+        input: || (DemandOrder::LeftThenRight, 2, &[0, 1]),
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("three_ordered"),
         word: Word::Succeeds,
-        input: || (DemandOrder::LeftThenRight, 3),
-        expect: Expect::Value(vec![0, 1, 2]),
+        input: || (DemandOrder::LeftThenRight, 3, &[0, 1, 2]),
+        expect: Expect::Value(()),
     },
 ];
-fn subject((order, count): Input) -> Result<Value, Failure> {
+fn subject((order, count, expected): Input) -> Result<Value, Failure> {
     let operation = Operation::Axis {
         from: PlanInput::Relation(Relation::Function),
         edges: PlanInput::Relation(Relation::SyntaxChild),
@@ -85,13 +85,15 @@ fn subject((order, count): Input) -> Result<Value, Failure> {
     assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
     contract.semantics.demand = order;
     let program = demand(contract.semantics, count);
-    Ok(program
+    let actual = program
         .actions()
         .iter()
         .map(|action| match action {
             DemandAction::Admit(input) => input.0,
         })
-        .collect())
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+    Ok(())
 }
 #[test]
 fn succeeds() {
