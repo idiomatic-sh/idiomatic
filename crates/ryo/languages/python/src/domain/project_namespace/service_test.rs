@@ -142,6 +142,16 @@ fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
     assert_eq!(
         rows.iter()
             .filter(|row| row.path.as_ref() == "acme")
+            .map(|row| (row.kind, row.state))
+            .collect::<Vec<_>>(),
+        vec![
+            (EntryKind::Module, MembershipState::Present),
+            (EntryKind::Namespace, MembershipState::Present),
+        ]
+    );
+    assert_eq!(
+        rows.iter()
+            .filter(|row| row.path.as_ref() == "acme")
             .count(),
         2
     );

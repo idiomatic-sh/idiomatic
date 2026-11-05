@@ -103,43 +103,47 @@ fn classify(
     search_roots: Option<&[FilePath]>,
     filesystem: &str,
     candidate: &impl Fn(&FilePath, bool) -> Option<bool>,
-) -> EntryKind {
+) -> Vec<EntryKind> {
     let Some(search_roots) = search_roots else {
-        return EntryKind::Unknown;
+        return vec![EntryKind::Unknown];
     };
-    let mut namespace = false;
+    let mut module_present = false;
+    let mut package_present = false;
+    let mut namespace_present = false;
     let mut unknown = false;
     for search in search_roots {
         let [module, stub, directory, initializer, stub_initializer] =
             entry_paths(search, filesystem).map(|(path, file)| candidate(&path, file));
-        if module == Some(true) || stub == Some(true) {
-            return EntryKind::Module;
-        }
-        if directory == Some(true) && (initializer == Some(true) || stub_initializer == Some(true))
-        {
-            return EntryKind::Package;
-        }
-        if directory == Some(true)
-            && module == Some(false)
-            && stub == Some(false)
+        module_present |= module == Some(true) || stub == Some(true);
+        package_present |= directory == Some(true)
+            && (initializer == Some(true) || stub_initializer == Some(true));
+        // These are observed entries, not import-resolution precedence. A
+        // sibling module file cannot erase an independently observed directory.
+        namespace_present |= directory == Some(true)
             && initializer == Some(false)
-            && stub_initializer == Some(false)
-        {
-            namespace = true;
-        } else if [module, stub, directory, initializer, stub_initializer]
+            && stub_initializer == Some(false);
+        unknown |= [module, stub, directory, initializer, stub_initializer]
             .into_iter()
-            .any(|state| state.is_none())
-        {
-            unknown = true;
+            .any(|state| state.is_none());
+    }
+    let mut kinds = Vec::new();
+    for (present, kind) in [
+        (module_present, EntryKind::Module),
+        (package_present, EntryKind::Package),
+        (namespace_present, EntryKind::Namespace),
+    ] {
+        if present {
+            kinds.push(kind);
         }
     }
-    if unknown {
-        EntryKind::Unknown
-    } else if namespace {
-        EntryKind::Namespace
-    } else {
-        EntryKind::Absent
+    if kinds.is_empty() {
+        kinds.push(if unknown {
+            EntryKind::Unknown
+        } else {
+            EntryKind::Absent
+        });
     }
+    kinds
 }
 
 /// Interpret only the supplied observations. Missing observations remain Unknown, never Absent.
@@ -152,7 +156,7 @@ pub(crate) fn memberships(
 ) -> NamespaceMemberships {
     let paths: BTreeSet<(String, String)> =
         roots.iter().flat_map(|root| prefixes(&root.path)).collect();
-    let mut classified: BTreeMap<String, EntryKind> = paths
+    let mut classified: BTreeMap<String, Vec<EntryKind>> = paths
         .iter()
         .map(|(dotted, filesystem)| {
             (
@@ -169,16 +173,21 @@ pub(crate) fn memberships(
         let Some((parent, _)) = path.rsplit_once('.') else {
             continue;
         };
-        if matches!(
-            classified.get(path),
-            Some(EntryKind::Module | EntryKind::Package | EntryKind::Namespace)
-        ) && !matches!(
-            classified.get(parent),
-            Some(EntryKind::Module | EntryKind::Package | EntryKind::Namespace)
-        ) {
-            classified.insert(path.clone(), EntryKind::Unknown);
+        let present = |kinds: Option<&Vec<EntryKind>>| {
+            kinds.is_some_and(|kinds| {
+                kinds.iter().any(|kind| {
+                    matches!(
+                        kind,
+                        EntryKind::Module | EntryKind::Package | EntryKind::Namespace
+                    )
+                })
+            })
+        };
+        if present(classified.get(path)) && !present(classified.get(parent)) {
+            classified.insert(path.clone(), vec![EntryKind::Unknown]);
         }
     }
+
     let mut rows = BTreeSet::new();
     for imported in roots {
         for (path, _) in prefixes(&imported.path) {
@@ -187,22 +196,23 @@ pub(crate) fn memberships(
     }
     let rows = rows
         .into_iter()
-        .map(|(file, root, path)| {
-            let kind = classified.get(&path).copied().unwrap_or(EntryKind::Unknown);
-            let state = match kind {
-                EntryKind::Module | EntryKind::Package | EntryKind::Namespace => {
-                    MembershipState::Present
+        .flat_map(|(file, root, path)| {
+            classified[&path].iter().map(move |&kind| {
+                let state = match kind {
+                    EntryKind::Module | EntryKind::Package | EntryKind::Namespace => {
+                        MembershipState::Present
+                    }
+                    EntryKind::Absent => MembershipState::Absent,
+                    EntryKind::Unknown => MembershipState::Unknown,
+                };
+                Membership {
+                    file,
+                    root: root.clone(),
+                    path: path.clone().into_boxed_str(),
+                    state,
+                    kind,
                 }
-                EntryKind::Absent => MembershipState::Absent,
-                EntryKind::Unknown => MembershipState::Unknown,
-            };
-            Membership {
-                file,
-                root,
-                path: path.into_boxed_str(),
-                state,
-                kind,
-            }
+            })
         })
         .collect();
     NamespaceMemberships {
