@@ -1,5 +1,7 @@
 //! One public prepare/open/run protocol; ownership is never delegated to callers.
 use super::types::*;
+pub use crate::domain::readiness::types::ReadinessCounts;
+pub use crate::domain::readiness::types::ReadinessEvents;
 pub use crate::domain::shared_walk::types::WalkCounts;
 pub use crate::domain::shared_walk::types::WalkPassCount;
 pub use crate::domain::shared_walk::types::WalkPredicateRows;
@@ -63,6 +65,8 @@ pub trait ExecutionRequest {
 /// }
 /// ```
 pub trait FileExecution {
+    /// Actual bound-root readiness polling and dependency wakeups in this owner.
+    fn readiness_counts(&self) -> ReadinessCounts;
     /// Actual shared native pass work already performed by this file owner.
     fn walk_counts(&self) -> WalkCounts;
     /// Deliver the already committed canonical publication to the callback.

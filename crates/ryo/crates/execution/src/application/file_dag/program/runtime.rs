@@ -245,6 +245,7 @@ pub(crate) struct ProgramExecution {
     slots: RefCell<Vec<Slot>>,
     retirement: RefCell<RetirementWork>,
     cleanup_failure: RefCell<Option<OperatingError>>,
+    readiness_counts: RefCell<crate::domain::readiness::types::ReadinessCounts>,
 }
 /// Constructors are private to the outer execution owner; no primitive can open
 /// another scope or choose a scheduler.
@@ -296,6 +297,7 @@ impl ProgramExecution {
             }),
             slots: RefCell::new(slots),
             cleanup_failure: RefCell::new(None),
+            readiness_counts: RefCell::new(Default::default()),
         }
     }
     fn record_column(
@@ -606,67 +608,39 @@ impl ProgramExecution {
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
-        let mut pending = roots.to_vec();
-        let mut known: std::collections::HashSet<_> = roots.iter().copied().collect();
-        let mut ready = Vec::new();
-        let mut waiting = std::collections::HashMap::new();
-        while !pending.is_empty() {
-            let mut blocked = Vec::new();
-            let mut discovered = Vec::new();
-            let mut terminal_progress = false;
-            for id in pending.drain(..) {
-                match self.poll(id, inputs, kernels, completion, context, true) {
+        use crate::domain::readiness::types::{
+            ReadinessAction, ReadinessOutcome, RegionCount, ready_queue::value::ReadyQueue,
+        };
+        let mut queue = ReadyQueue::new(RegionCount(self.program.regions().len()), roots)?;
+        let result = (|| {
+            while let Some(action) = queue.next()? {
+                let (id, prepare) = match action {
+                    ReadinessAction::Prepare(id) => (id, true),
+                    ReadinessAction::Evaluate(id) => (id, false),
+                };
+                let outcome = match self.poll(id, inputs, kernels, completion, context, prepare) {
                     Ok(InvocationOutcome::Suspended(dependency)) => {
-                        waiting.insert(id, dependency);
-                        let mut cursor = dependency;
-                        let mut seen = std::collections::HashSet::new();
-                        while let Some(next) = waiting.get(&cursor).copied() {
-                            if cursor == id || !seen.insert(cursor) {
-                                return Err(OperatingError::NotRun);
-                            }
-                            cursor = next;
-                        }
-                        blocked.push(id);
-                        if known.insert(dependency) {
-                            discovered.push(dependency);
-                        }
+                        ReadinessOutcome::Waiting(dependency)
                     }
-                    Ok(InvocationOutcome::Ready) => {
-                        waiting.remove(&id);
-                        if !ready.contains(&id) {
-                            ready.push(id);
-                        }
-                    }
-                    // A terminal source refusal belongs to its own root. Other
-                    // independent roots still reach their actual admission head.
-                    Ok(_) | Err(_) => {
-                        waiting.remove(&id);
-                        terminal_progress = true;
-                    }
-                }
+                    Ok(InvocationOutcome::Ready) if prepare => ReadinessOutcome::Ready,
+                    Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
+                    // A failed producer wakes its dependants so each resumes its
+                    // actual admission action, records the same failure and retires.
+                    Ok(_) | Err(_) => ReadinessOutcome::Terminal,
+                };
+                queue.observe(id, outcome)?;
             }
-            if !discovered.is_empty() {
-                discovered.extend(blocked);
-                pending = discovered;
-                continue;
-            }
-            // Every currently reachable head has submitted its exact class.
-            // Resume collected work, keeping forwarded roots parked for their
-            // caller's sink. A callback borrow never enters this queue.
-            let mut advanced = terminal_progress;
-            for id in ready.drain(..) {
-                let _outcome = self.invoke(id, inputs, kernels, completion, context);
-                advanced = true;
-            }
-            if blocked.is_empty() {
-                break;
-            }
-            if !advanced {
-                return Err(OperatingError::NotRun);
-            }
-            pending = blocked;
-        }
-        Ok(())
+            Ok(())
+        })();
+        let counts = queue.counts();
+        *self.readiness_counts.borrow_mut() += counts;
+        tracing::trace!(target: "ryo::diagnostic::execution", event = "readiness_queue",
+            preparations = counts.preparations.0, evaluations = counts.evaluations.0,
+            suspensions = counts.suspensions.0, wakeups = counts.wakeups.0);
+        result
+    }
+    pub(super) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
+        *self.readiness_counts.borrow()
     }
     pub(in crate::application::file_dag::program) fn published(
         &self,

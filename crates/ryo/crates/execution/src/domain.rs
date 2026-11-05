@@ -53,3 +53,5 @@ pub(crate) mod spelling;
 pub(crate) mod completion;
 
 pub(crate) mod source_partitions;
+
+pub(crate) mod readiness;

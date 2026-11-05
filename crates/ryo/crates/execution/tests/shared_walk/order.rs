@@ -7,11 +7,13 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{FileId, Relation},
+    types::{CellKind, FileId, Integer, Relation, Value},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId, Test},
+    hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
+    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId, Test},
     plans::types::{Operation, PlanStep, StepScope},
+    records::types::Cell,
     rows::types::{RowCount, Table},
 };
 
@@ -638,5 +640,235 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
         }
         file.finish().unwrap();
     }
+    request.finish();
+}
+
+fn readiness_intent() -> FileRuleIntent {
+    FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::Disabled,
+    }
+}
+fn readiness_chain() -> Vec<PlanStep> {
+    let mut steps = vec![PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Hosted {
+            relation: HostedNumber(0),
+        },
+    }];
+    for (left, right) in [(0, 0), (1, 0), (1, 2)] {
+        steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Union {
+                left: Input::Step(StepId(left)),
+                right: Input::Step(StepId(right)),
+            },
+        });
+    }
+    for _ in 0..96 {
+        let prior = StepId(u32::try_from(steps.len() - 1).unwrap());
+        steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Union {
+                left: Input::Step(prior),
+                right: Input::Step(prior),
+            },
+        });
+    }
+    steps
+}
+fn readiness_hosted() -> HostRelation {
+    HostRelation {
+        name: HostName("numbers".into()),
+        columns: vec![HostColumn {
+            name: HostColumnName("number".into()),
+            kind: HostKind::Number,
+        }],
+        rows: [3, 1, 3, 2]
+            .into_iter()
+            .map(|n| HostRow(vec![Cell::Number(Integer(n))]))
+            .collect(),
+    }
+}
+fn readiness_expected() -> Table {
+    Table {
+        kinds: vec![CellKind::Number],
+        count: RowCount(3),
+        cells: [3, 1, 2]
+            .into_iter()
+            .map(|n| Value::Number(Integer(n)))
+            .collect(),
+    }
+}
+#[test]
+fn diamond_deep_chain_and_duplicate_roots_wake_only_actual_waiters() {
+    for empty in [false, true] {
+        exercise_readiness_chain(empty);
+    }
+}
+fn exercise_readiness_chain(empty: bool) {
+    let (engine, _) = engine();
+    let mut authored = authored_request(3);
+    let steps = readiness_chain();
+    let length = steps.len() as u64;
+    for (index, plan) in authored.plans.iter_mut().enumerate() {
+        plan.steps = steps.clone();
+        let last = Input::Step(StepId(u32::try_from(steps.len() - 1).unwrap()));
+        let first = Input::Step(StepId(0));
+        let (left, right) = if index == 1 {
+            (first, last)
+        } else {
+            (last, first)
+        };
+        plan.steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Union { left, right },
+        });
+        plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).unwrap());
+    }
+    authored.hosted = vec![readiness_hosted()];
+    if empty {
+        authored.hosted[0].rows.clear();
+    }
+    let expected = if empty {
+        Table {
+            kinds: vec![CellKind::Number],
+            count: RowCount(0),
+            cells: vec![],
+        }
+    } else {
+        readiness_expected()
+    };
+    let prepared = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&prepared, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+            &mut symbols,
+        )
+        .unwrap();
+    assert_eq!(file.readiness_counts().preparations.0, 0);
+    assert_eq!(
+        complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        expected.clone()
+    );
+    let work = file.readiness_counts();
+    assert!(
+        work.suspensions.0 >= 96,
+        "the actual deep chain reached demanded dependencies: {work:?}"
+    );
+    assert!(
+        work.preparations.0 <= 4 * length,
+        "blocked ancestors must not be rescanned: {work:?}"
+    );
+    assert!(
+        work.evaluations.0 <= 2 * length,
+        "one evaluation per distinct physical region: {work:?}"
+    );
+    assert_eq!(work.wakeups, work.suspensions);
+    assert_eq!(
+        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        expected.clone()
+    );
+    assert_eq!(
+        file.readiness_counts(),
+        work,
+        "the duplicate logical root replays the same publication"
+    );
+    assert_eq!(
+        complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
+        expected.clone()
+    );
+    assert_eq!(
+        file.readiness_counts(),
+        work,
+        "the exact duplicate terminal is not polled twice"
+    );
+    file.finish().unwrap();
+    request.finish();
+}
+#[test]
+fn failed_shared_producer_wakes_both_roots_and_does_not_erase_independent_output() {
+    let (engine, _) = engine();
+    let mut authored = authored_request(3);
+    let mut failing = readiness_chain();
+    failing[0].operation = Operation::Select {
+        from: Input::Relation(Relation::Function),
+        comparisons: vec![],
+        kept: vec![],
+    };
+    for (index, plan) in authored.plans[..2].iter_mut().enumerate() {
+        plan.steps = failing.clone();
+        let last = Input::Step(StepId(u32::try_from(failing.len() - 1).unwrap()));
+        let first = Input::Step(StepId(0));
+        let (left, right) = if index == 0 {
+            (first, last)
+        } else {
+            (last, first)
+        };
+        plan.steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Union { left, right },
+        });
+        plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).unwrap());
+    }
+    authored.plans[2].steps = vec![PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Hosted {
+            relation: HostedNumber(0),
+        },
+    }];
+    authored.hosted = vec![readiness_hosted()];
+    let prepared = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&prepared, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let calls = std::cell::Cell::new(0);
+    let read = |relation| {
+        assert_eq!(relation, Relation::Function);
+        calls.set(calls.get() + 1);
+        Err::<SourceRows<'_>, _>(OperatingError::NotRead)
+    };
+    let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &read),
+            &mut symbols,
+        )
+        .unwrap();
+    for index in [0, 1] {
+        assert!(matches!(
+            file.rule(RuleIndex(index), demand(), &mut symbols)
+                .unwrap()
+                .emit,
+            RootOutcome::Unknown(OperatingError::NotRead)
+        ));
+    }
+    assert_eq!(
+        calls.get(),
+        1,
+        "one actual failed source admission, no waiting-parent retries"
+    );
+    let mut expected = readiness_expected();
+    expected.count = RowCount(4);
+    expected.cells = [3, 1, 3, 2]
+        .into_iter()
+        .map(|n| Value::Number(Integer(n)))
+        .collect();
+    assert_eq!(
+        complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
+        expected
+    );
+    let work = file.readiness_counts();
+    assert!(
+        work.preparations.0 <= 4 * failing.len() as u64,
+        "failure unwinds each waiter once: {work:?}"
+    );
+    assert_eq!(work.wakeups, work.suspensions);
+    file.finish().unwrap();
     request.finish();
 }

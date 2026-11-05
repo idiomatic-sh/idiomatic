@@ -345,9 +345,8 @@ impl FileRun<'_> {
         };
         self.execution
             .prepare_roots(&queued, &mut sources, &kernels, &completion, &mut context)?;
-        // Named roots are independent demanded roots even when the diagnostic
-        // has a forwarded delivery. Publish their readiness without requiring a
-        // collected diagnostic API call.
+        // Named roots have their own declared demand. Publish their readiness
+        // through the same evaluation contract before delivering any diagnostic.
         let mut named = Vec::new();
         for (index, intent) in self.intents.iter().enumerate() {
             let FileRuleIntent::Run {
@@ -729,6 +728,9 @@ impl FileRun<'_> {
             .as_ref()
             .map_err(Clone::clone)?;
         self.execution.region_observation(*region)
+    }
+    pub(crate) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
+        self.execution.readiness_counts()
     }
     pub(crate) fn walk_counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.walk.counts()

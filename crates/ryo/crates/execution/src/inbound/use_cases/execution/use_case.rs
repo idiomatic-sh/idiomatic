@@ -187,6 +187,10 @@ impl ExecutionRequest for RequestExecution {
     }
 }
 impl FileExecution for FileSession<'_, '_> {
+    fn readiness_counts(&self) -> ReadinessCounts {
+        self.inner.readiness_counts()
+    }
+
     fn walk_counts(&self) -> WalkCounts {
         self.inner.walk_counts()
     }
