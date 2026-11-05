@@ -700,3 +700,107 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         &original.emit
     );
 }
+
+#[derive(Debug, Default)]
+struct ReductionAudit {
+    reductions: std::sync::atomic::AtomicUsize,
+    emissions: std::sync::atomic::AtomicUsize,
+}
+impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ReductionAudit {
+    fn operators(
+        &self,
+        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+    > {
+        use ryo_operators::inbound::use_cases::operators::{
+            interface::{OperatorCall, OperatorsUseCase},
+            use_case::OperatorsUseCaseImpl,
+        };
+        match &call {
+            OperatorCall::ReduceCount { .. } => {
+                self.reductions
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            OperatorCall::Aggregate { .. } => {
+                self.emissions
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            _ => {}
+        }
+        OperatorsUseCase::operators(&OperatorsUseCaseImpl::new(), call)
+    }
+}
+#[test]
+fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
+    let semantics = Arc::new(ReductionAudit::default());
+    let engine = ExecutionUseCaseImpl::new(
+        semantics.clone(),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let mut input = authored_request(1);
+    input.plans[0].steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::GroupCount {
+            from: Input::Step(StepId(0)),
+            keys: vec![],
+            distinct: None,
+        },
+    });
+    input.plans[0].emit.step = StepId(1);
+    let program = engine.prepare(input).expect("prepare real count");
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let table = source();
+    let read = |relation| {
+        if relation == Relation::Function {
+            Ok(SourceRows::Computed(&table))
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    };
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mut symbols = Symbols::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
+                file: FileId(0),
+                evaluation: &[],
+                publication: &[],
+                demanded: &[true],
+                source: b"abc",
+                elements: &elements,
+                read: &read,
+                semantic: None,
+                kinds: None,
+            },
+            &mut symbols,
+        )
+        .expect("open count file");
+    let RootOutcome::Complete(table) = file
+        .rule(RuleIndex(0), demand(), &mut symbols)
+        .expect("count through owner")
+        .emit
+    else {
+        panic!("complete count")
+    };
+    assert_eq!(table.count, RowCount(1));
+    assert_eq!(table.cells, [Value::Number(Integer(1))]);
+    assert_eq!(
+        semantics
+            .reductions
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
+    assert_eq!(
+        semantics
+            .emissions
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
+    file.finish().expect("finish count");
+    request.finish();
+}
