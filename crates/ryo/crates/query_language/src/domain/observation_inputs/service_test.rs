@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::hosted::types::{HostedName, HostedRelation};
 use ryo_values::domain::observations::types::{
-    BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
 use ryo_values::domain::plans::types::StepScope;
 
@@ -119,8 +119,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn declaration(name: &str, columns: &[&str]) -> BoundObservationSchema {
-    BoundObservationSchema {
+fn declaration(name: &str, columns: &[&str]) -> BoundObservationInput {
+    BoundObservationInput {
         name: ObservationBindingName(name.into()),
         columns: columns
             .iter()

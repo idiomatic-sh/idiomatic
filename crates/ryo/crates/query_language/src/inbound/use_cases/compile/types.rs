@@ -15,7 +15,7 @@ pub struct CompileRequest {
     /// The relations the host declares, which a query names as it names ryo's: their rows come with the run.
     pub hosted: Vec<HostedRelation>,
     /// Resolved named producer contracts from the request graph's declaration pass.
-    pub observations: Vec<ryo_values::domain::observations::types::BoundObservationSchema>,
+    pub observations: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
 }
 
 /// The plan the engine walks.

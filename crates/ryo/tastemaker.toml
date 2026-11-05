@@ -301,7 +301,7 @@ specs = [
     { resource = "languages", path = "ryo_relations::domain::terms::types::ParameterKind", as = "ParameterKind" },
     { resource = "languages", path = "ryo_relations::domain::relations::types::Rows", as = "Rows" },
     { resource = "languages", path = "ryo_language::inbound::use_cases::project::types::Refused", as = "Refused" },
-    { resource = "query", path = "crate::domain::observation::types::BoundObservationSchema", as = "BoundObservationSchema" },
+    { resource = "query", path = "crate::domain::observation::types::BoundObservationInput", as = "BoundObservationInput" },
     { resource = "query", path = "crate::domain::observation::types::ObservationKind", as = "ObservationKind" },
     { resource = "linter", path = "crate::domain::observation::types::ObservationKind", as = "ObservationKind" },
     { resource = "query", path = "crate::domain::observation::types::ObservationBindingName", as = "ObservationBindingName" },

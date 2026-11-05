@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     observations::types::{
-        BoundObservationSchema, ObservationBinding, ObservationBindingId, ObservationBindingName,
+        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
         ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
         ObservationReadinessLayout, PlanObservation,
     },
@@ -72,7 +72,7 @@ fn fixture(per_file: bool) -> Arc<facade::PreparedProgram> {
                     output: ObservationName("output".into()),
                 }],
             });
-            inputs.push(BoundObservationSchema {
+            inputs.push(BoundObservationInput {
                 name: ObservationBindingName("input".into()),
                 columns: columns(),
                 scope: producer_phase,

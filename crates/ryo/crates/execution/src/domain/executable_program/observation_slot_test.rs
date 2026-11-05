@@ -10,7 +10,7 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::{
     observations::types::{
-        BoundObservationSchema, ObservationBindingId, ObservationBindingName, ObservationColumn,
+        BoundObservationInput, ObservationBindingId, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationIndex, ObservationName, ObservationReadinessLayout,
         PlanObservation,
     },
@@ -61,8 +61,8 @@ fn columns() -> Vec<ObservationColumn> {
         kind: CellKind::File,
     }]
 }
-fn schema(name: &str) -> BoundObservationSchema {
-    BoundObservationSchema {
+fn schema(name: &str) -> BoundObservationInput {
+    BoundObservationInput {
         name: ObservationBindingName(name.into()),
         columns: columns(),
         scope: StepScope::PerFile,

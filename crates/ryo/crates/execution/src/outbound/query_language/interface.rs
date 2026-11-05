@@ -18,7 +18,7 @@ pub trait QueryLanguagePort: Send + Sync {
         &self,
         bundle: &QueryBundle,
         hosted: &[HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError>;
 
     /// Compiles RyoQL text into a plan, a query naming the relations the host declared as it names ryo's own.
@@ -30,6 +30,6 @@ pub trait QueryLanguagePort: Send + Sync {
         &self,
         bundle: &QueryBundle,
         hosted: &[HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError>;
 }

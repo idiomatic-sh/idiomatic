@@ -21,7 +21,7 @@ use crate::domain::program::types::QueryOrigin;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plan {
     /// Ordered schemas of explicit bound inputs; source IDs remain stable through request pruning.
-    pub observation_inputs: Vec<crate::domain::observations::types::BoundObservationSchema>,
+    pub observation_inputs: Vec<crate::domain::observations::types::BoundObservationInput>,
     /// The `param` lines.
     pub parameters: Vec<PlanParameter>,
     /// The steps, each reading only the relations and the steps before it.

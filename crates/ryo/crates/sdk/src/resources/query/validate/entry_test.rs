@@ -84,9 +84,9 @@ fn refuses() {
 fn declared_observation_context_reaches_root_native_and_fragment_sources() {
     use crate::domain::observation::types::ObservationKind;
     use crate::domain::observation::types::{
-        BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
     };
-    let declared = BoundObservationSchema {
+    let declared = BoundObservationInput {
         name: ObservationBindingName("published".into()),
         columns: vec![ObservationColumn {
             name: ObservationColumnName("path".into()),

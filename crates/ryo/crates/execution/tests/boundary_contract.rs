@@ -396,7 +396,7 @@ impl query_language::QueryLanguagePort for AuthoredQueryProvider {
         &self,
         _: &QueryBundle,
         _: &[ryo_values::domain::hosted::types::HostedRelation],
-        _: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        _: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, query_language::QueryLanguageError> {
         Ok(self.0.clone())
     }
@@ -404,7 +404,7 @@ impl query_language::QueryLanguagePort for AuthoredQueryProvider {
         &self,
         _: &QueryBundle,
         _: &[ryo_values::domain::hosted::types::HostedRelation],
-        _: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        _: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<
         ryo_values::domain::descriptions::types::ValidateReport,
         query_language::QueryLanguageError,

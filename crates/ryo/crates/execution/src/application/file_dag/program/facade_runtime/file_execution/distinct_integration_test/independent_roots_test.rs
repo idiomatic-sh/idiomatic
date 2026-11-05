@@ -5,7 +5,7 @@ use ryo_operators::inbound::use_cases::operators::{
     use_case::OperatorsUseCaseImpl,
 };
 use ryo_values::domain::observations::types::{
-    BoundObservationSchema, ObservationBinding, ObservationBindingId, ObservationBindingName,
+    BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
     ObservationColumn, ObservationColumnName, ObservationIndex, ObservationName,
     ObservationProducer, ObservationReadinessLayout, PlanObservation, ProducerReadiness,
 };
@@ -84,7 +84,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             comparisons: vec![],
             kept: vec![],
         };
-        consumer.observation_inputs.push(BoundObservationSchema {
+        consumer.observation_inputs.push(BoundObservationInput {
             name: ObservationBindingName("input".into()),
             columns: output_columns.clone(),
             scope: StepScope::PerFile,

@@ -309,7 +309,7 @@ fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_sou
 #[test]
 fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
     use ryo::query::{
-        BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
         ObservationKind, ObservationScope, QueryModuleSource, RyoQlQuery, ValidateRequest,
     };
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
@@ -374,7 +374,7 @@ fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
                 Vec::new()
             },
             observations: if code == "RUF100" {
-                vec![BoundObservationSchema {
+                vec![BoundObservationInput {
                     name: ObservationBindingName("suppression_matches".into()),
                     columns: vec![
                         ObservationColumn {

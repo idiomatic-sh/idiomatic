@@ -19,7 +19,7 @@ use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     observations::types::{
-        BoundObservationSchema, ObservationBinding, ObservationBindingId, ObservationBindingName,
+        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
         ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
         ObservationReadinessLayout, PlanObservation,
     },
@@ -127,7 +127,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
     });
     consumer_plan
         .observation_inputs
-        .push(BoundObservationSchema {
+        .push(BoundObservationInput {
             name: ObservationBindingName("values".into()),
             columns: columns(),
             scope: if consumer == 0 {

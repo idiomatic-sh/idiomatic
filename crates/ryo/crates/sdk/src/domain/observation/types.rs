@@ -43,7 +43,7 @@ pub enum ObservationScope {
 }
 /// The typed context required to validate a query consuming a named observation.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BoundObservationSchema {
+pub struct BoundObservationInput {
     /// The local query source name.
     pub name: ObservationBindingName,
     /// Required columns in order.

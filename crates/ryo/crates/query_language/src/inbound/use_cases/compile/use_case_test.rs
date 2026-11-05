@@ -676,7 +676,7 @@ fn authored_observation_keeps_independent_root_through_optimization() {
 fn bound_observation_preserves_declared_schema_and_phase() {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::observations::types::{
-        BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
     };
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::plans::types::StepScope;
@@ -687,7 +687,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
     );
     let report = compiler.compile(CompileRequest {
         hosted: Vec::new(),
-        observations: vec![BoundObservationSchema {
+        observations: vec![BoundObservationInput {
             name: ObservationBindingName("published".into()),
             columns: vec![ObservationColumn { name: ObservationColumnName("file".into()), kind: CellKind::File }, ObservationColumn { name: ObservationColumnName("span".into()), kind: CellKind::Span }],
             scope: StepScope::CrossFile,

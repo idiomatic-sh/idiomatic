@@ -7,7 +7,7 @@ use ryo_values::domain::program::types::QueryBundle;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidateRequest {
     /// Typed named producer inputs available to this query.
-    pub observations: Vec<ryo_values::domain::observations::types::BoundObservationSchema>,
+    pub observations: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
     /// The query.
     pub text: QueryBundle,
     /// The relations the host declares, which the query may name: none when the caller declares none.

@@ -7,7 +7,7 @@ use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::{
     hosted::types::HostName,
     observations::types::{
-        BoundObservationSchema, ObservationBinding, ObservationBindingName, ObservationIndex,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationIndex,
         ObservationName, PlanObservation,
     },
     plan_parts::types::{ColumnIndex, ParameterName, StepId, WholeNumber},
@@ -70,7 +70,7 @@ fn observed(phase: StepScope) -> (RuleSpec, Plan, ResolvedObservationBinding) {
             },
         ],
     });
-    let schema = BoundObservationSchema {
+    let schema = BoundObservationInput {
         name,
         columns: vec![],
         scope: phase,

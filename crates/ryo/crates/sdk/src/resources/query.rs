@@ -72,7 +72,7 @@ pub use run::errors::RunError;
 // Portable declarations used by context-aware query validation.
 pub use crate::domain::observation::types::ObservationScope;
 pub use crate::domain::observation::types::{
-    BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
 
 pub use crate::domain::observation::types::ObservationKind;

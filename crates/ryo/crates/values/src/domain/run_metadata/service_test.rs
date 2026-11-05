@@ -3,7 +3,7 @@ use super::service::from_plans;
 use super::types::FeatureSource;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    observations::types::{BoundObservationSchema, ObservationBindingId, ObservationBindingName},
+    observations::types::{BoundObservationInput, ObservationBindingId, ObservationBindingName},
     plan_parts::types::{
         ColumnIndex, Comparison, Direction, Input as PlanInput, LiteralText, Operand, QueryLiteral,
         RepeatedRows, StepId, Test,
@@ -291,12 +291,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 ],
             );
             plan.observation_inputs = vec![
-                BoundObservationSchema {
+                BoundObservationInput {
                     name: ObservationBindingName("per_file".into()),
                     columns: Vec::new(),
                     scope: StepScope::PerFile,
                 },
-                BoundObservationSchema {
+                BoundObservationInput {
                     name: ObservationBindingName("cross_file".into()),
                     columns: Vec::new(),
                     scope: StepScope::CrossFile,

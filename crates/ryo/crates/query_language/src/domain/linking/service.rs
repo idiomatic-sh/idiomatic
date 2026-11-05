@@ -28,7 +28,7 @@ pub(crate) fn link_with_observations(
     bundle: &QueryBundle,
     mut root: Program,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
-    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<Program, LinkError> {
     let root_id = bundle.root.id.clone();
     assign_root_identities(&mut root);
@@ -1079,7 +1079,7 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
 /// Root local definitions cannot shadow external inputs; hygienic private fragment definitions remain local.
 fn bind_declared_sources(
     root: &mut Program,
-    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     imports: &Imported,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     source: &QuerySourceId,

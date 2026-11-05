@@ -196,7 +196,7 @@ impl QueryLanguagePort for LockCheckingCompiler {
         &self,
         bundle: &QueryBundle,
         hosted: &[HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
         self.compiler.validate(bundle, hosted, observations)
     }
@@ -204,7 +204,7 @@ impl QueryLanguagePort for LockCheckingCompiler {
         &self,
         bundle: &QueryBundle,
         hosted: &[HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
         let available = self
             .plans

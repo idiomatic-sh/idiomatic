@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::{
     types::{NameRef, Relation},
 };
 use ryo_values::domain::{
-    hosted::types::HostedRelation, observations::types::BoundObservationSchema,
+    hosted::types::HostedRelation, observations::types::BoundObservationInput,
 };
 use std::collections::BTreeSet;
 
@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 pub(crate) fn validate_inputs(
     catalog: &[Relation],
     hosted: &[HostedRelation],
-    inputs: &[BoundObservationSchema],
+    inputs: &[BoundObservationInput],
 ) -> Result<(), ObservationInputsError> {
     let mut names = BTreeSet::new();
     for input in inputs {

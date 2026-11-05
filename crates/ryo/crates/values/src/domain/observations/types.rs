@@ -58,7 +58,7 @@ pub enum ObservationProducer {
 }
 /// The schema of a consumer's bound input, supplied during query compilation.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BoundObservationSchema {
+pub struct BoundObservationInput {
     /// Local source name in the consumer query.
     pub name: ObservationBindingName,
     /// Required ordered columns.

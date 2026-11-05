@@ -160,7 +160,7 @@ impl QueryLanguagePort for QueryLanguageFake {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[HostedRelation],
-        _observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
         if bundle.root.text.contains(REFUSED) {
             return Err(refused());
@@ -179,7 +179,7 @@ impl QueryLanguagePort for QueryLanguageFake {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
-        _observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
         let _calls_before = self.calls.fetch_add(1, Ordering::SeqCst);
         if bundle.root.text.contains(REFUSED) {

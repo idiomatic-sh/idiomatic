@@ -45,7 +45,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
         self.typecheck
             .0
@@ -63,7 +63,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<plans::Plan, QueryLanguageError> {
         let report = self
             .compile

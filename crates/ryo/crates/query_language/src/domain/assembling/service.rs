@@ -51,7 +51,7 @@ pub(crate) fn lower_with_observations(
     program: &syntax::Program,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
-    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<plans::Plan, LoweringError> {
     let observation_inputs = observations.to_vec();
     let mut kinds = Vec::new();

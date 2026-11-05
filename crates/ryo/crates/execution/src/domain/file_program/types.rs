@@ -91,14 +91,14 @@ pub(crate) struct ResolvedObservationBinding {
     /// Local compiled input identity.
     pub input: ryo_values::domain::observations::types::ObservationBindingId,
     /// The actual inferred schema and phase.
-    pub schema: ryo_values::domain::observations::types::BoundObservationSchema,
+    pub schema: ryo_values::domain::observations::types::BoundObservationInput,
     /// Actual typed producers; no runtime name lookup remains.
     pub producers: Vec<ResolvedObservationProducer>,
 }
 /// Compile-time descriptors and their resolved graph references travel together.
 pub(crate) struct PreparedObservationInputs {
     /// Compiler declarations in original local input order.
-    pub schemas: Vec<ryo_values::domain::observations::types::BoundObservationSchema>,
+    pub schemas: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
     /// Corresponding resolved graph roots.
     pub bindings: Vec<ResolvedObservationBinding>,
 }

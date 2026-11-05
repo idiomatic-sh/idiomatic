@@ -39,7 +39,7 @@ pub(crate) fn validate_with_observations(
     program: &Program,
     catalog: &[Relation],
     hosted: &[HostedName],
-    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<(), ValidationError> {
     if program.linked {
         let mut identities = BTreeSet::new();

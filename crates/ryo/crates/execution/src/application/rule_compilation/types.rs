@@ -31,7 +31,7 @@ pub(crate) struct CachedPlan {
     /// Explicit binding declarations and inferred schema/phase are part of compilation identity.
     pub observation_bindings: Vec<ryo_values::domain::observations::types::ObservationBinding>,
     /// Typed producer inputs used by this cached query plan.
-    pub observation_inputs: Vec<ryo_values::domain::observations::types::BoundObservationSchema>,
+    pub observation_inputs: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
     /// The plan with every declared observation root retained, never request-pruned.
     pub plan: Plan,
 }

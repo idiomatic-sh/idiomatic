@@ -128,7 +128,7 @@ impl RuleCompilation {
         &self,
         rule: &RuleSpec,
         declared: &[ryo_values::domain::hosted::types::HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ryo_values::domain::plans::types::Plan, RuleCompilationError> {
         if let Some(plan) = self
             .compiled
@@ -165,7 +165,7 @@ impl RuleCompilation {
         &self,
         rule: &RuleSpec,
         declared: &[ryo_values::domain::hosted::types::HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
         plan: &ryo_values::domain::plans::types::Plan,
     ) {
         let cached = CachedPlan {

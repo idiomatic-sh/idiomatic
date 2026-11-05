@@ -1,5 +1,5 @@
 //! Private conversion of SDK-owned observation declarations into planner inputs.
-use super::types::{BoundObservationSchema, ObservationColumn, ObservationKind, ObservationScope};
+use super::types::{BoundObservationInput, ObservationColumn, ObservationKind, ObservationScope};
 
 /// Preserve every declared semantic kind at the SDK boundary.
 pub(crate) fn columns(
@@ -26,12 +26,12 @@ pub(crate) fn columns(
 
 /// Carry the same explicit context through validation and compilation.
 pub(crate) fn declarations(
-    inputs: Vec<BoundObservationSchema>,
-) -> Vec<ryo_values::domain::observations::types::BoundObservationSchema> {
+    inputs: Vec<BoundObservationInput>,
+) -> Vec<ryo_values::domain::observations::types::BoundObservationInput> {
     inputs
         .into_iter()
         .map(
-            |input| ryo_values::domain::observations::types::BoundObservationSchema {
+            |input| ryo_values::domain::observations::types::BoundObservationInput {
                 name: ryo_values::domain::observations::types::ObservationBindingName(input.name.0),
                 columns: columns(input.columns),
                 scope: match input.scope {
