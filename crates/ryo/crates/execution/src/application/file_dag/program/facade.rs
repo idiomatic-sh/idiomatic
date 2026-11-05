@@ -231,7 +231,7 @@ impl PreparedProgram {
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<crate::domain::positions::types::ClassPlace> {
-        self.walk.class_for(&self.program, instruction)
+        self.walk.class_for(instruction)
     }
     pub(super) fn rule_id(
         &self,

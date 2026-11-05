@@ -3,7 +3,7 @@
 use crate::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
-    positions::types::{ClassPlace, Slots},
+    positions::types::ClassPlace,
     step_classes::{
         service::merge,
         types::{Merge, StepClass},
@@ -23,17 +23,27 @@ pub(crate) struct RowsVisited(pub u64);
 #[derive(Debug)]
 pub(crate) struct PreparedWalk {
     classes: Merge,
+    physical: Vec<Option<ClassPlace>>,
 }
 
 impl PreparedWalk {
     pub(crate) fn compile(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Self {
         Self {
             classes: merge(plans, bindings),
+            physical: Vec::new(),
         }
     }
 
-    /// Resolve only a physical selection head whose rows this walk can deliver.
+    /// Direct lookup in the immutable physical program, prepared once per request.
     pub(crate) fn class_for(
+        &self,
+        instruction: &crate::domain::executable_program::types::Instruction,
+    ) -> Option<ClassPlace> {
+        self.physical.get(instruction.logical.0).copied().flatten()
+    }
+
+    /// Resolve only a physical selection head whose rows this walk can deliver.
+    fn resolve_class(
         &self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
         instruction: &crate::domain::executable_program::types::Instruction,
@@ -114,14 +124,38 @@ impl PreparedWalk {
                             .instructions
                             .iter()
                             .find(|instruction| instruction.logical == origin.logical)
-                            .and_then(|instruction| self.class_for(program, instruction))
+                            .and_then(|instruction| self.resolve_class(program, instruction))
                             == Some(ClassPlace(at))
                     })
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        for (class, members) in self.classes.classes.iter_mut().zip(retained) {
+        let mut remap = vec![None; self.classes.classes.len()];
+        let mut compact = Vec::new();
+        for (old, (mut class, members)) in std::mem::take(&mut self.classes.classes)
+            .into_iter()
+            .zip(retained)
+            .enumerate()
+        {
+            if members.is_empty() {
+                continue;
+            }
             class.members = members;
+            class.first = class.members[0];
+            remap[old] = Some(ClassPlace(compact.len()));
+            compact.push(class);
+        }
+        self.classes.classes = compact;
+        for rule in &mut self.classes.class_of {
+            for class in rule {
+                *class = class.and_then(|old| remap[old.0]);
+            }
+        }
+        self.physical = vec![None; program.logical_regions().len()];
+        for region in program.regions() {
+            if let Some(head) = region.instructions.first() {
+                self.physical[head.logical.0] = self.resolve_class(program, head);
+            }
         }
     }
 
@@ -134,35 +168,33 @@ impl PreparedWalk {
     }
 }
 
-/// None declined before semantic work; a reached class retains its own result.
+/// Sparse results for only classes reached in this admitted population.
 #[derive(Debug)]
 pub(crate) struct NativeBatch {
-    classes: Vec<Option<crate::domain::shared_walk::types::ClassResult>>,
+    class_count: ClassCount,
+    classes: std::collections::BTreeMap<
+        ClassPlace,
+        (crate::domain::shared_walk::types::ClassResult, RowsVisited),
+    >,
     counts: crate::domain::shared_walk::types::WalkCounts,
-    visits: Vec<RowsVisited>,
 }
 
 impl NativeBatch {
     pub(crate) fn for_program(program: &PreparedWalk) -> Self {
         Self::empty(ClassCount(program.classes().len()))
     }
-
-    /// A later ready cohort fills only previously unevaluated classes.
+    /// Preflight the whole transfer before committing any class or counter.
     pub(crate) fn merge(&mut self, next: Self) -> Result<(), OperatingError> {
-        if self.classes.len() != next.classes.len()
-            || self
+        if self.class_count != next.class_count
+            || next
                 .classes
-                .iter()
-                .zip(&next.classes)
-                .any(|(a, b)| a.is_some() && b.is_some())
+                .keys()
+                .any(|class| self.classes.contains_key(class))
         {
             return Err(OperatingError::WrongOperation);
         }
-        for (at, result) in next.classes.into_iter().enumerate() {
-            if result.is_some() {
-                self.classes[at] = result;
-                self.visits[at] = next.visits[at];
-            }
+        for (class, result) in next.classes {
+            let _previous = self.classes.insert(class, result);
         }
         self.counts.passes.0 = self.counts.passes.0.saturating_add(next.counts.passes.0);
         self.counts.source_rows.0 = self
@@ -175,9 +207,18 @@ impl NativeBatch {
             .predicate_rows
             .0
             .saturating_add(next.counts.predicate_rows.0);
+        self.counts.scratch_classes.0 = self
+            .counts
+            .scratch_classes
+            .0
+            .saturating_add(next.counts.scratch_classes.0);
+        self.counts.result_slots.0 = self
+            .counts
+            .result_slots
+            .0
+            .saturating_add(next.counts.result_slots.0);
         Ok(())
     }
-
     pub(crate) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.counts
     }
@@ -187,65 +228,38 @@ impl NativeBatch {
     pub(in crate::domain::shared_walk) fn record_source_row(&mut self) {
         self.counts.source_rows.0 = self.counts.source_rows.0.saturating_add(1);
     }
+    pub(in crate::domain::shared_walk) fn record_scratch_reset(&mut self) {
+        self.counts.scratch_classes.0 = self.counts.scratch_classes.0.saturating_add(1);
+    }
     pub(crate) fn class(
         &self,
         place: ClassPlace,
     ) -> Option<&crate::domain::shared_walk::types::ClassResult> {
-        self.classes.get(place.0).and_then(Option::as_ref)
+        self.classes.get(&place).map(|(result, _)| result)
     }
-
-    /// Candidate rows actually offered to a reached class, including its first error row.
     pub(crate) fn visits(&self, place: ClassPlace) -> RowsVisited {
-        self.visits[place.0]
+        self.classes
+            .get(&place)
+            .map_or(RowsVisited::default(), |(_, visits)| *visits)
     }
-
-    pub(in crate::domain::shared_walk) fn empty(count: ClassCount) -> Self {
-        let mut classes = Vec::with_capacity(count.0);
-        classes.resize_with(count.0, || None);
+    pub(in crate::domain::shared_walk) fn empty(class_count: ClassCount) -> Self {
         Self {
-            classes,
-            visits: vec![RowsVisited::default(); count.0],
-            counts: crate::domain::shared_walk::types::WalkCounts::default(),
+            class_count,
+            classes: Default::default(),
+            counts: Default::default(),
         }
     }
-
-    pub(in crate::domain::shared_walk) fn set(
+    pub(in crate::domain::shared_walk) fn store(
         &mut self,
         place: ClassPlace,
-        result: Result<Slots, OperatingError>,
+        result: crate::domain::shared_walk::types::ClassResult,
+        visits: RowsVisited,
     ) {
-        use crate::domain::shared_walk::types::ClassResult;
-        self.classes[place.0] = Some(match result {
-            Ok(positions) => ClassResult {
-                positions,
-                completion: Ok(()),
-            },
-            Err(error) => ClassResult {
-                positions: self.classes[place.0]
-                    .take()
-                    .map(|result| result.positions)
-                    .unwrap_or_default(),
-                completion: Err(error),
-            },
-        });
-    }
-
-    pub(in crate::domain::shared_walk) fn output(
-        &mut self,
-        place: ClassPlace,
-    ) -> Option<&mut Slots> {
-        match &mut self.classes[place.0] {
-            Some(result) if result.completion.is_ok() => Some(&mut result.positions),
-            Some(_) | None => None,
-        }
-    }
-
-    pub(in crate::domain::shared_walk) fn record_visit(&mut self, place: ClassPlace) {
-        self.visits[place.0].0 = self.visits[place.0].0.saturating_add(1);
-        self.counts.predicate_rows.0 = self.counts.predicate_rows.0.saturating_add(1);
+        let _previous = self.classes.insert(place, (result, visits));
+        self.counts.result_slots.0 = self.counts.result_slots.0.saturating_add(1);
+        self.counts.predicate_rows.0 = self.counts.predicate_rows.0.saturating_add(visits.0);
     }
 }
 
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::query_bindings::types::ParameterBinding;

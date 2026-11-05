@@ -2,6 +2,8 @@
 #[cfg(test)]
 mod fixture;
 #[cfg(test)]
+mod cohort;
+#[cfg(test)]
 mod order;
 use crate::boundary_fixture::{corpus, demand};
 use fixture::*;

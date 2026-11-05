@@ -37,5 +37,5 @@ pub(crate) struct Keys(pub Vec<u64>);
 pub(crate) struct Keeps(pub Vec<bool>);
 
 /// A class of the steps that select from the elements of a tree, by its place among the classes of the call's rules.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ClassPlace(pub usize);

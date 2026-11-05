@@ -23,6 +23,8 @@ pub(crate) enum Eligibility {
 /// Reusable file-local comparison work. No request plan or published rows live here.
 #[derive(Debug, Default)]
 pub(crate) struct ClassWork {
+    pub result: Option<ClassResult>,
+    pub visits: prepared_walk::value::RowsVisited,
     pub kinds: KindCount,
     pub rest: ComparisonNumbers,
     pub needed: ColumnPlaces,
@@ -30,12 +32,17 @@ pub(crate) struct ClassWork {
     pub eligible: Eligibility,
 }
 
+/// Dense position in one admitted cohort, never a compiled class identity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CohortPlace(pub usize);
+
 #[derive(Debug, Default)]
 pub(crate) struct WalkWork {
+    pub active: Vec<ClassPlace>,
     pub work: Vec<ClassWork>,
-    pub by_kind: Vec<Vec<ClassPlace>>,
+    pub by_kind: Vec<Vec<CohortPlace>>,
     pub columns_by_kind: Vec<ColumnPlaces>,
-    pub every: Vec<ClassPlace>,
+    pub every: Vec<CohortPlace>,
     pub cells: Vec<Value>,
 }
 
@@ -48,12 +55,17 @@ pub struct WalkSourceRows(pub u64);
 /// Rows actually offered to a class predicate, including its first failing row.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WalkPredicateRows(pub u64);
+/// Actual cohort scratch resets and stored class result allocations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkClassWork(pub u64);
 /// Read-only work performed by the actual shared walk, never a schedule or capability.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WalkCounts {
     pub passes: WalkPassCount,
     pub source_rows: WalkSourceRows,
     pub predicate_rows: WalkPredicateRows,
+    pub scratch_classes: WalkClassWork,
+    pub result_slots: WalkClassWork,
 }
 
 /// Accepted rows precede the first terminal predicate error in source order.

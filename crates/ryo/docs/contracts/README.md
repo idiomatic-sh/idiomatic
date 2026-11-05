@@ -2,17 +2,16 @@
 
 **Full categories: Relations INCOMPLETE (69 public catalog members, and framework routes); operators INCOMPLETE (26 kinds); derived views INCOMPLETE (13 required mechanisms: 12 public registered kinds plus `RawKeyOrder`).** The member and route checklists below are the acceptance scope.
 
-**Latest measured source: `f0738752d` (2026-11-05).** No ownership category is complete.
+**Frozen verification source: `a9fc28a5c9` (2026-11-05).** No ownership category is complete.
 
-- Public execution boundaries: **63/63 pass** (run193).
-- RUF100: **27/27 cases pass** (run195); all 14 failures from run185 are fixed.
-- B008: **FAIL**, aggregate 120-second timeout. 122 candidate cases completed without recorded mismatches; 129 are required.
-- Last complete inventory run185: **411 PASS / 2 FAIL**. The newer two-rule run does not establish a new full-inventory total.
-- B008 diagnostic run196: **311,791 suspended preparation polls across 1,945 regions**. Repeated blocked-work polling is the next scheduler target. Non-instrumented fixture baseline198: **0.961 s / 30.2 MB**; no candidate speedup or full-Django acceptance yet.
-- Paired Astra/Opus review found no remaining bounded source blocker and verified the public-test evidence. Its overall verdict remains **UNASSESSED**; broader ownership, internal fixtures, lifetime and performance remain unverified.
-- Scoped TM197: **241 findings / 0 suppressed across 77 changed Rust files**. This is not a whole-workspace count or comparable to a smaller path selection.
+- Full rule inventory212: **413 PASS / 0 FAIL**. Public execution boundaries204: **65/65 pass** on identical execution source.
+- B008 fixture209: **0.961 → 0.0678 s**, exact output unchanged; suspended polls **311,791 → 1,943**. This is one diagnostic fixture, not a Django speedup; the builds differ in Core's fixtures feature.
+- Full-Django213 cold/warm/edit and Rust214 remain pending. The cold process exceeded 30 CPU-minutes; no completed timing or performance acceptance is established.
+- Current candidate: compact physical selection classes and direct instruction lookup prepared once; cohort-sized scratch and sparse admitted-source results. Actual scratch resets and stored result slots are exposed through the existing public walk counters. Source written; compilation, TM, behavioral controls and independent review remain pending.
+- Internal tests still need migration to mandatory production contracts. Scoped TM197 remains **241 findings / 0 suppressed across 77 changed Rust files**; this is not a current whole-workspace count.
+- Paired Astra/Opus review of the frozen scheduler found no bounded source blocker; overall **UNASSESSED**. It does not approve this new candidate or close ownership, lifetime, TM or performance gaps.
 
-Engine-issued file/project phase now determines text identity across hosted sources and primitive leases. Explicitly declared empty observations use the ordinary typed Union and publication owner; missing or unavailable producers still refuse. These are bounded correctness improvements, not category completion. Evidence and live work are tracked in Beads `ryo-7tkn.19`; previous source reports remain in Git history.
+Evidence, commands, source identities and live processes remain in Beads `ryo-7tkn.19`. The candidate preserves the single interpreter, admission/error order, source identity and publication ownership. It does not extend selection eligibility or claim completion of the full shared walk.
 
 ## 1. Ownership matrix
 

@@ -13,7 +13,7 @@ use crate::{
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use std::{
     cell::{Ref, RefCell},
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct WalkSourceIdentity {
@@ -22,7 +22,7 @@ struct WalkSourceIdentity {
 }
 
 struct SourceWork {
-    ready: Vec<ClassPlace>,
+    ready: BTreeSet<ClassPlace>,
     batch: NativeBatch,
 }
 
@@ -74,11 +74,11 @@ impl FileWalk {
         };
         let mut sources = self.batches.borrow_mut();
         let source = sources.entry(key).or_insert_with(|| SourceWork {
-            ready: Vec::new(),
+            ready: BTreeSet::new(),
             batch: NativeBatch::for_program(prepared.walk()),
         });
-        if source.batch.class(class).is_none() && !source.ready.contains(&class) {
-            source.ready.push(class);
+        if source.batch.class(class).is_none() {
+            source.ready.insert(class);
         }
         Ok(true)
     }
@@ -112,7 +112,7 @@ impl FileWalk {
             let source = sources.get(&identity).ok_or(OperatingError::NotRun)?;
             // Commit queue removal only after a complete batch is accepted.
             // A transport/permit failure must not silently discard other waiters.
-            source.ready.clone()
+            source.ready.iter().copied().collect::<Vec<_>>()
         };
         if !ready.is_empty() {
             let mut work = self.work.borrow_mut();
@@ -129,7 +129,9 @@ impl FileWalk {
             let mut sources = self.batches.borrow_mut();
             let source = sources.get_mut(&identity).ok_or(OperatingError::NotRun)?;
             source.batch.merge(batch)?;
-            source.ready.retain(|class| !ready.contains(class));
+            for class in &ready {
+                source.ready.remove(class);
+            }
         }
         Ref::filter_map(self.batches.borrow(), |batches| {
             batches.get(&identity).map(|source| &source.batch)
@@ -148,6 +150,11 @@ impl FileWalk {
                     .predicate_rows
                     .0
                     .saturating_add(counts.predicate_rows.0);
+                total.scratch_classes.0 = total
+                    .scratch_classes
+                    .0
+                    .saturating_add(counts.scratch_classes.0);
+                total.result_slots.0 = total.result_slots.0.saturating_add(counts.result_slots.0);
                 total
             },
         )

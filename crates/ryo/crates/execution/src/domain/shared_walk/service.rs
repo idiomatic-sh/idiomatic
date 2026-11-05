@@ -2,7 +2,7 @@
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
-    ClassWork, Eligibility, KindCount, WalkWork,
+    ClassWork, CohortPlace, Eligibility, KindCount, WalkWork,
     prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
 };
 use crate::domain::{
@@ -53,7 +53,7 @@ fn class_context<'a>(
 }
 
 /// The columns looked up for all eligible classes in one kind group.
-fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[ClassPlace]) {
+fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[CohortPlace]) {
     union.0.clear();
     for place in places {
         if let Some(each) = work.get(place.0) {
@@ -72,8 +72,6 @@ fn consider(
     row: &[Value],
     class: &StepClass,
     each: &mut ClassWork,
-    batch: &mut NativeBatch,
-    place: ClassPlace,
     position: Position,
     names: NameCount,
     source_kinds: &[CellKind],
@@ -86,7 +84,7 @@ fn consider(
     let Some(bound) = bindings.get(class.first.rule.0) else {
         return;
     };
-    batch.record_visit(place);
+    each.visits.0 = each.visits.0.saturating_add(1);
     let mut class_context = class_context(context, bound, &mut each.memo);
     match holds_all(
         &class.comparisons,
@@ -96,14 +94,16 @@ fn consider(
         &mut class_context,
     ) {
         Ok(Verdict::Holds) => {
-            if let Some(done) = batch.output(place) {
-                done.0.push(position.0);
+            if let Some(result) = &mut each.result {
+                result.positions.0.push(position.0);
             }
         }
         Ok(Verdict::Fails) => {}
         Err(error) => {
             each.eligible = Eligibility::Declined;
-            batch.set(place, Err(error));
+            if let Some(result) = &mut each.result {
+                result.completion = Err(error);
+            }
         }
     }
 }
@@ -135,10 +135,6 @@ pub(crate) fn evaluate(
     {
         return batch;
     }
-    let mut selected = vec![false; program.classes().len()];
-    for place in ready {
-        selected[place.0] = true;
-    }
     let source_kinds = kinds_of(rows);
     let count = count_of(rows).0;
     // Representation/schema failures decline before any semantic predicate work.
@@ -164,14 +160,22 @@ pub(crate) fn evaluate(
     };
 
     let WalkWork {
+        active,
         work,
         by_kind,
         columns_by_kind,
         every,
         cells,
     } = scratch;
-    work.resize_with(program.classes().len(), ClassWork::default);
+    active.clear();
+    active.extend_from_slice(ready);
+    active.sort_unstable_by_key(|class| class.0);
+    active.dedup();
+    work.resize_with(active.len(), ClassWork::default);
     for each in work.iter_mut() {
+        batch.record_scratch_reset();
+        each.result = None;
+        each.visits = Default::default();
         each.kinds = KindCount(0);
         each.rest.0.clear();
         each.needed.0.clear();
@@ -194,11 +198,9 @@ pub(crate) fn evaluate(
         tests: std::mem::take(&mut context.scratch.select_scratch.kind_tests),
     };
 
-    for (at, class) in program.classes().iter().enumerate() {
-        // Only heads admitted by the engine's actual demand interpreter participate.
-        if !selected[at] {
-            continue;
-        }
+    for (at, place) in active.iter().enumerate() {
+        // Dense scratch is cohort-local; compiled class identities remain immutable.
+        let class = &program.classes()[place.0];
         let (Some(bound), Some(each)) = (bindings.get(class.first.rule.0), work.get_mut(at)) else {
             continue;
         };
@@ -238,15 +240,18 @@ pub(crate) fn evaluate(
                 if passes(&kinds, *kind) == Verdict::Holds
                     && let Some(group) = by_kind.get_mut(usize::from(kind.0))
                 {
-                    group.push(ClassPlace(at));
+                    group.push(CohortPlace(at));
                     each.kinds.0 += 1;
                 }
             }
         } else {
-            every.push(ClassPlace(at));
+            every.push(CohortPlace(at));
         }
         each.eligible = Eligibility::Ready;
-        batch.set(ClassPlace(at), Ok(Slots::default()));
+        each.result = Some(super::types::ClassResult {
+            positions: Slots::default(),
+            completion: Ok(()),
+        });
     }
 
     context.scratch.select_scratch.kind_names = kinds.names;
@@ -263,7 +268,7 @@ pub(crate) fn evaluate(
         needed_together(columns, work, group);
     }
     if by_kind.iter().all(Vec::is_empty) && every.is_empty() {
-        return batch;
+        return finish(batch, active, work);
     }
     batch.record_pass();
     // Every representation uses this same source-ordered outer walk. Only the
@@ -296,15 +301,14 @@ pub(crate) fn evaluate(
             row
         };
         for place in group {
-            if let (Some(class), Some(each)) =
-                (program.classes().get(place.0), work.get_mut(place.0))
-            {
+            if let (Some(class), Some(each)) = (
+                program.classes().get(active[place.0].0),
+                work.get_mut(place.0),
+            ) {
                 consider(
                     row,
                     class,
                     each,
-                    &mut batch,
-                    *place,
                     position,
                     names,
                     source_kinds,
@@ -314,11 +318,16 @@ pub(crate) fn evaluate(
             }
         }
     }
-    for (at, each) in work.iter().enumerate() {
-        if each.kinds.0 > 1
-            && let Some(done) = batch.output(ClassPlace(at))
-        {
-            done.0.sort_unstable();
+    finish(batch, active, work)
+}
+
+fn finish(mut batch: NativeBatch, active: &[ClassPlace], work: &mut [ClassWork]) -> NativeBatch {
+    for (place, each) in active.iter().copied().zip(work) {
+        if let Some(mut result) = each.result.take() {
+            if each.kinds.0 > 1 {
+                result.positions.0.sort_unstable();
+            }
+            batch.store(place, result, each.visits);
         }
     }
     batch
