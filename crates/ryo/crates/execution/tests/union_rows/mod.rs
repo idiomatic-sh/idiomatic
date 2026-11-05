@@ -34,7 +34,7 @@ fn program(engine: &ExecutionUseCaseImpl, left: &[i64], right: &[i64]) -> Prepar
         .into_iter()
         .enumerate()
         .map(|(side, rows)| HostRelation {
-            name: HostName(format!("union-side-{side}")),
+            name: HostName(format!("union-side-{side}").into()),
             columns: vec![HostColumn {
                 name: HostColumnName("value".into()),
                 kind: HostKind::Number,
