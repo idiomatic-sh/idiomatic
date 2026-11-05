@@ -141,35 +141,35 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         (
             PROGRAM,
             format!(
-                "{SIBLING} fn forge(execution: &ProgramExecution, region: RegionId) {{ let _ = KernelAdmission {{ execution, region }}; }} }}"
+                "{SIBLING} fn forge(execution: &ProgramExecution, region: RegionId) {{ let _ = KernelAdmission {{ execution, region }}; }} const _: fn(&ProgramExecution, RegionId) = forge; }}"
             ),
             Some(("E0451", "execution", "region")),
         ),
         (
             PROGRAM,
             format!(
-                "{SIBLING} fn admitted<'a>(execution: &'a ProgramExecution, inputs: &'a [AdmittedInput]) {{ let _ = KernelPermit::admitted(execution, inputs); }} }}"
+                "{SIBLING} fn admitted<'a>(execution: &'a ProgramExecution, inputs: &'a [AdmittedInput]) {{ let _ = KernelPermit::admitted(execution, inputs); }} const _: for<'a> fn(&'a ProgramExecution, &'a [AdmittedInput]) = admitted; }}"
             ),
             Some(("E0308", "KernelAdmission", "ProgramExecution")),
         ),
         (
             PROGRAM,
             format!(
-                "{SIBLING} fn ordered<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::ordered(execution, input); }} }}"
+                "{SIBLING} fn ordered<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::ordered(execution, input); }} const _: for<'a> fn(&'a ProgramExecution, &'a AdmittedInput) = ordered; }}"
             ),
             Some(("E0308", "KernelAdmission", "ProgramExecution")),
         ),
         (
             PROGRAM,
             format!(
-                "{SIBLING} fn column<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::column(execution, input, input); }} }}"
+                "{SIBLING} fn column<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::column(execution, input, input); }} const _: for<'a> fn(&'a ProgramExecution, &'a AdmittedInput) = column; }}"
             ),
             Some(("E0308", "KernelAdmission", "ProgramExecution")),
         ),
         (
             PROGRAM,
             format!(
-                "{SIBLING} fn retarget(permit: KernelPermit<'_>, region: RegionId) {{ let _ = KernelPermit {{ region, ..permit }}; }} }}"
+                "{SIBLING} fn retarget(permit: KernelPermit<'_>, region: RegionId) {{ let _ = KernelPermit {{ region, ..permit }}; }} const _: for<'a> fn(KernelPermit<'a>, RegionId) = retarget; }}"
             ),
             Some(("E0451", "region", "private")),
         ),
@@ -208,7 +208,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         let Some((code, first, second)) = refusal else {
             assert!(
                 output.status.success(),
-                "authorized production control failed: {}",
+                "authorized production control failed; parsed errors: {errors:#?}; stderr: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
             assert!(errors.is_empty(), "{errors:#?}");
