@@ -671,7 +671,7 @@ struct RuleConfigurationSchema {
     disabled_rules: std::collections::BTreeMap<String, Vec<String>>,
 }
 impl From<RuleContextTablesSchema>
-    for ryo_benchmark_contracts::domain::context::ryo_benchmark_contracts::domain::context::types::RuleContextTables
+    for ryo_benchmark_contracts::domain::context::types::RuleContextTables
 {
     fn from(value: RuleContextTablesSchema) -> Self {
         Self {
@@ -682,7 +682,7 @@ impl From<RuleContextTablesSchema>
     }
 }
 impl TryFrom<RuleConfigurationSchema>
-    for ryo_benchmark_contracts::domain::context::ryo_benchmark_contracts::domain::context::types::RuleConfiguration
+    for ryo_benchmark_contracts::domain::context::types::RuleConfiguration
 {
     type Error = String;
     fn try_from(value: RuleConfigurationSchema) -> Result<Self, Self::Error> {
@@ -715,7 +715,7 @@ struct RuleContextDeclarationSchema {
     defaults: RuleConfigurationSchema,
 }
 impl TryFrom<RuleContextDeclarationSchema>
-    for ryo_benchmark_contracts::domain::context::ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration
+    for ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration
 {
     type Error = String;
     fn try_from(value: RuleContextDeclarationSchema) -> Result<Self, Self::Error> {

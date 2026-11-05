@@ -1,17 +1,18 @@
 //! The moved value preserves construction and exact display spelling.
 use super::value::ToolDigest;
 use ryo::cases::{Case, CaseName, Expect, Word, run};
-const CASES: &[Case<&'static str, String, ()>] = &[Case {
+use std::borrow::Cow;
+const CASES: &[Case<&'static str, Cow<'static, str>, ()>] = &[Case {
     name: CaseName("construction preserves display spelling"),
     word: Word::Succeeds,
     input: || "fixture",
-    expect: Expect::Value("fixture".into()),
+    expect: Expect::Value(Cow::Borrowed("fixture")),
 }];
-fn subject(input: &'static str) -> Result<String, ()> {
+fn subject(input: &'static str) -> Result<Cow<'static, str>, ()> {
     let from_borrowed = ToolDigest::from(input);
     let from_owned = ToolDigest::from(input.to_owned());
     assert_eq!(from_borrowed, from_owned);
-    Ok(from_borrowed.to_string())
+    Ok(from_borrowed.to_string().into())
 }
 #[test]
 fn succeeds() {
