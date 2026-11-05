@@ -3,7 +3,6 @@ pub(crate) mod column_kernel_service_test;
 #[cfg(test)]
 pub(crate) mod column_topology_test;
 pub(crate) mod comparing_service_test;
-pub(crate) mod crossing_service_test;
 pub(crate) mod file_program_service_test;
 pub(crate) mod kind_sets_service_test;
 pub(crate) mod kind_sets_types_vocabulary_value_test;
@@ -38,7 +37,6 @@ pub(crate) mod operator_collections_operators_union_item_test;
 pub(crate) mod operator_collections_operators_words_item_test;
 pub(crate) mod operator_contract_test;
 pub(crate) mod operator_service_test;
-pub(crate) mod reading_service_test;
 pub(crate) mod recording_service_test;
 pub(crate) mod stored_graph_service_test;
 pub(crate) mod stored_selection_service_test;

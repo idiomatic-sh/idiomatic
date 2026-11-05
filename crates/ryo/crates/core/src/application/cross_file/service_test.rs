@@ -582,3 +582,78 @@ use ryo_values::domain::rows::types::Table;
 use ryo_execution::inbound::use_cases::metadata::{
     interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
 };
+
+#[test]
+fn current_project_roots_keep_the_original_two_group_four_cell_result() {
+    use ryo_execution::inbound::use_cases::execution::{
+        interface::ProjectExecution,
+        types::{EmitDemand, ObservationDemand, Partials, ProjectInput, RootOutcome, RuleDemand},
+    };
+    let world = world(counting_plan(1, Vec::new()));
+    let mut symbols = Symbols::default();
+    let ordinary =
+        prepared(&world, &frontier_rows(), &mut symbols).expect("actual source-bound frontier");
+    let scope = world
+        .request
+        .project_scope(RuleIndex(0), &world.files, &world.covered, &[])
+        .expect("scope");
+    let partials = Partials::default();
+    let mut run = world
+        .request
+        .open_project(
+            ProjectInput {
+                scope: &scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: &world.arenas,
+            },
+            &mut symbols,
+        )
+        .expect("project");
+    let done = run
+        .rule(
+            RuleIndex(0),
+            RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::Required,
+            },
+            &mut symbols,
+        )
+        .expect("rule");
+    let RootOutcome::Complete(table) = done.emit else {
+        panic!("complete group root")
+    };
+    assert_eq!(
+        [table.count.0, done.counts.fed.len(), table.cells.len()],
+        [2, 2, 4]
+    );
+    run.finish();
+}
+
+#[test]
+fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics() {
+    use ryo_values::domain::runs::types::{SkipReason, Skipped};
+    let mut world = world(counting_plan(0, Vec::new()));
+    let path = ryo_language::domain::files::types::FilePath("rejected.py".into());
+    world.paths = vec![path.clone()];
+    world.needs[0].cross.push(RelationRead {
+        relation: Relation::Function,
+        kinds: vec![],
+    });
+    let skipped = [Skipped {
+        rule: world.ids[0].clone(),
+        path,
+        reason: SkipReason::SyntaxRejected,
+    }];
+    let mut input = crossing(&world);
+    input.domain.skipped = &skipped;
+    let partials = partials_for(&input, RuleIndex(0));
+    assert!(partials.entries.is_empty(), "no provider partial invented");
+    assert_eq!(
+        partials.unavailable_files,
+        [FileId(0)],
+        "skipped source remains unavailable for absence checks"
+    );
+}
