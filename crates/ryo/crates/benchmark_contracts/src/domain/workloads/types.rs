@@ -12,6 +12,7 @@ use self::tool_version::value::ToolVersion;
 use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use crate::domain::context::types::CaseContext;
 use crate::domain::context::types::ContextManifest;
+use crate::domain::context::types::RuleConfiguration;
 use crate::domain::context::types::RuleContextDeclaration;
 use crate::domain::context::types::project_context_mode::value::ProjectContextMode;
 use crate::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
