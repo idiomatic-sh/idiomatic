@@ -7,7 +7,10 @@ use super::super::graph_cache::{
     },
 };
 use super::*;
-use crate::application::file_dag::{relations::RelationOwner, workspace::InvocationWorkspace};
+use crate::application::file_dag::{
+    relations::{PublishedInput, RelationOwner},
+    workspace::InvocationWorkspace,
+};
 use crate::domain::{
     coverage::types::Partial,
     operation_schema::types::InputShape,
@@ -156,10 +159,24 @@ impl GraphFixture {
         );
         fixture
     }
-    fn workspace(&self, input: Input, rows: &Rows<'_>) -> InvocationWorkspace {
+    fn workspace(
+        &self,
+        input: Input,
+        rows: &Rows<'_>,
+    ) -> Result<(InvocationWorkspace, PublishedInput), OperatingError> {
+        // A computed population is a real owned publication, never a stable
+        // relation alias. Resident/selected rows retain their exact source witness.
+        let publication = match rows {
+            Rows::Computed(table) => self.owner.computed((*table).clone())?,
+            Rows::Compact(table) => self.owner.compact(Arc::new((*table).clone()))?,
+            _ => match input {
+                Input::Relation(relation) => self.owner.source(relation, rows)?,
+                Input::Step(_) | Input::BoundObservation(_) => return Err(OperatingError::NotRun),
+            },
+        };
         let mut workspace = InvocationWorkspace::new(Rc::clone(&self.owner));
-        workspace.capture_inputs(&[input], &[rows.clone()]).unwrap();
-        workspace
+        workspace.capture_admitted(vec![publication.clone()]);
+        Ok((workspace, publication))
     }
     pub(in crate::application::file_dag) fn prepare(
         request: ViewRequest,
@@ -202,8 +219,14 @@ impl GraphFixture {
         input: Input,
         rows: &Rows<'_>,
     ) -> Result<Option<GraphHandle>, OperatingError> {
-        let workspace = self.workspace(input, rows);
-        let Some(source) = workspace.graph_input(0, rows)? else {
+        let (workspace, publication) = self.workspace(input, rows)?;
+        let admitted_rows = self
+            .owner
+            .resolve(publication.as_ref(), &|relation| match input {
+                Input::Relation(expected) if expected == relation => Ok(rows.clone()),
+                _ => Err(OperatingError::NotRead),
+            })?;
+        let Some(source) = workspace.graph_input(0, &admitted_rows)? else {
             return Ok(None);
         };
         self.owner.derived.acquire_graph(
@@ -220,8 +243,14 @@ impl GraphFixture {
         column: ColumnIndex,
     ) -> Result<Option<DomainHandle>, OperatingError> {
         let plan = Self::prepare(ViewRequest::Membership { column }, rows);
-        let workspace = self.workspace(input, rows);
-        let Some(source) = workspace.graph_input(0, rows)? else {
+        let (workspace, publication) = self.workspace(input, rows)?;
+        let admitted_rows = self
+            .owner
+            .resolve(publication.as_ref(), &|relation| match input {
+                Input::Relation(expected) if expected == relation => Ok(rows.clone()),
+                _ => Err(OperatingError::NotRead),
+            })?;
+        let Some(source) = workspace.graph_input(0, &admitted_rows)? else {
             return Ok(None);
         };
         self.owner
