@@ -18,6 +18,38 @@ pub(super) struct ProjectSources<'a> {
     pub(super) publication: &'a PublicationScope,
 }
 impl ProjectSources<'_> {
+    fn ordinary_place(
+        &self,
+        source: crate::domain::executable_program::types::InputSource,
+    ) -> Option<usize> {
+        use crate::application::file_dag::frontiers::types::FrontierInput;
+        self.ordinary.iter().enumerate().find_map(|(at, input)| {
+            let original = match input.as_ref()? {
+                FrontierInput::Decoded { frontier, .. } => frontier.input,
+                FrontierInput::Compact { input, .. } => *input,
+            };
+            self.sources
+                .iter()
+                .any(|binding| {
+                    binding.input == original
+                        && matches!(&binding.root, Ok(actual) if *actual == source)
+                })
+                .then_some(at)
+        })
+    }
+    fn provides(&self, source: crate::domain::executable_program::types::InputSource) -> bool {
+        matches!(
+            source,
+            crate::domain::executable_program::types::InputSource::ObservationMember { .. }
+        ) || self.cache.iter().any(|(root, _)| *root == source)
+            || self.ordinary_place(source).is_some()
+            || self.refused.iter().any(|refused| {
+                self.sources.iter().any(|binding| {
+                    binding.input == refused.input
+                        && matches!(&binding.root, Ok(actual) if *actual == source)
+                })
+            })
+    }
     /// Called only by an actual DemandAction::Admit. Raw source handles and
     /// errors remain untouched when a branch does not demand them.
     fn admit(
@@ -36,22 +68,7 @@ impl ProjectSources<'_> {
         }
         let program = self.program;
         let rule = self.rule;
-        let mut pending = None;
-        for (at, input) in self.ordinary.iter().enumerate() {
-            let Some(input) = input else { continue };
-            let original = match input {
-                FrontierInput::Decoded { frontier, .. } => frontier.input,
-                FrontierInput::Compact { input, .. } => *input,
-            };
-            if self.sources.iter().any(|binding| {
-                binding.input == original
-                    && matches!(&binding.root, Ok(actual) if *actual == source)
-            }) {
-                pending = Some(at);
-                break;
-            }
-        }
-        if let Some(at) = pending {
+        if let Some(at) = self.ordinary_place(source) {
             let actual_partition = match self.publication.execution.get() {
                 Some(execution) => execution.partition(),
                 None => return Some(Err(OperatingError::NotRead)),
@@ -192,18 +209,12 @@ impl Inputs for SourceInputs<'_, '_> {
         source: crate::domain::executable_program::types::InputSource,
     ) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> {
         use crate::domain::executable_program::types::InputSource;
-        if let Some(project) = &self.project {
-            // Restored frontier handles are themselves the demanded source;
-            // scheduling their original per-file producer would cross phase.
-            if matches!(source, InputSource::ObservationMember { .. })
-                || project
-                    .sources
-                    .iter()
-                    .any(|binding| matches!(&binding.root, Ok(root) if *root == source))
-                || project.cache.iter().any(|(root, _)| *root == source)
-            {
-                return Ok(None);
-            }
+        if self
+            .project
+            .as_ref()
+            .is_some_and(|project| project.provides(source))
+        {
+            return Ok(None);
         }
         if let InputSource::Observation(slot) = source {
             if self.observations.contains_key(&slot) {
