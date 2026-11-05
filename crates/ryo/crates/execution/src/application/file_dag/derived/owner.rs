@@ -15,6 +15,7 @@ mod diagnostics;
 mod lifetime;
 mod observations;
 pub(super) mod selection;
+#[cfg(test)]
 pub(in crate::application::file_dag) use observations::IndexObservation;
 mod acquisition;
 mod backings;

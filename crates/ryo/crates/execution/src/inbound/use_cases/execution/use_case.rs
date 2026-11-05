@@ -189,16 +189,7 @@ impl FileExecution for FileSession<'_, '_> {
         ) -> Result<(), OperatingError>,
     ) -> Result<RowEmission, OperatingError> {
         let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        self.inner
-            .emit_rows(rule, &read, symbols, each)
-            .map(|coverage| match coverage {
-                crate::application::file_dag::completion::CoverageState::Complete => {
-                    RowEmission::Complete
-                }
-                crate::application::file_dag::completion::CoverageState::Partial { files } => {
-                    RowEmission::Partial { affected: files }
-                }
-            })
+        self.inner.emit_rows(rule, &read, symbols, each)
     }
     fn finish(self) -> Result<FileFinished, OperatingError> {
         Ok(FileFinished {

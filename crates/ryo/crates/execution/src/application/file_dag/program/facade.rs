@@ -666,3 +666,11 @@ fn source(
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 use ryo_values::domain::rule_requests::types::RuleSpec;
+
+/// Successful row delivery preserves physical uncertainty rather than fabricating an empty table.
+pub enum RowEmission {
+    Complete,
+    Partial {
+        affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,
+    },
+}

@@ -525,7 +525,7 @@ impl FileRun<'_> {
         each: &mut dyn FnMut(
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
-    ) -> Result<crate::application::file_dag::completion::CoverageState, OperatingError> {
+    ) -> Result<super::super::facade::RowEmission, OperatingError> {
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,
@@ -576,7 +576,7 @@ impl FileRun<'_> {
         }
         let id = metadata.emit_root.as_ref().map_err(Clone::clone)?;
         let mut output = ForwardRows(each);
-        match self.execution.invoke(
+        let coverage = match self.execution.invoke(
             *id,
             &mut sources,
             &kernels,
@@ -584,8 +584,16 @@ impl FileRun<'_> {
             context,
             Delivery::Forward(&mut output),
         )? {
-            InvocationOutcome::Published(input) => input.coverage(),
-            InvocationOutcome::Forwarded(coverage) => Ok(coverage),
-        }
+            InvocationOutcome::Published(input) => input.coverage()?,
+            InvocationOutcome::Forwarded(coverage) => coverage,
+        };
+        Ok(match coverage {
+            crate::application::file_dag::completion::CoverageState::Complete => {
+                super::super::facade::RowEmission::Complete
+            }
+            crate::application::file_dag::completion::CoverageState::Partial { files } => {
+                super::super::facade::RowEmission::Partial { affected: files }
+            }
+        })
     }
 }

@@ -208,10 +208,4 @@ pub use crate::domain::coverage::types::{FilePartial, Lacking, LackingKind};
 pub use crate::domain::file_program::errors::ObservationError;
 pub use crate::domain::spelling::errors::SpellingError;
 
-/// Successful row delivery preserves physical uncertainty rather than fabricating an empty table.
-pub enum RowEmission {
-    Complete,
-    Partial {
-        affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,
-    },
-}
+pub use crate::application::file_dag::program::facade::RowEmission;
