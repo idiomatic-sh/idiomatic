@@ -118,14 +118,14 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 fn world(plan: Plan) -> World {
     world_with(
         vec![plan],
-        Arc::new(
+        Arc::new(crate::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        ),
+        )),
     )
 }
 fn world_with(
     plans: Vec<Plan>,
-    operators: Arc<dyn ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase>,
+    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
 ) -> World {
     let applicability =
         vec![ryo_values::domain::runs::types::RuleApplicability::Always; plans.len()];
@@ -133,7 +133,7 @@ fn world_with(
 }
 fn world_with_applicability(
     plans: Vec<Plan>,
-    operators: Arc<dyn ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase>,
+    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
     applicability: &[ryo_values::domain::runs::types::RuleApplicability],
 ) -> World {
     use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
@@ -444,8 +444,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
+            let done = evaluate_fixture(
+                &crossing(&rules),
+                &todo(0),
+                frontier,
+                &mut cross,
+                &scope,
+                &_phase,
+            )?;
             [
                 done.rendered
                     .as_ref()
@@ -460,8 +466,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done =
-                service().evaluate(&crossing(&rules), &todo(3), frontier, &mut cross, &scope)?;
+            let done = evaluate_fixture(
+                &crossing(&rules),
+                &todo(3),
+                frontier,
+                &mut cross,
+                &scope,
+                &_phase,
+            )?;
             [
                 done.rendered
                     .as_ref()
@@ -474,8 +486,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let (_phase, scope, frontier) = prepared(&rules, &[], &mut cross)?;
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
+            let done = evaluate_fixture(
+                &crossing(&rules),
+                &todo(0),
+                frontier,
+                &mut cross,
+                &scope,
+                &_phase,
+            )?;
             [
                 done.rendered
                     .as_ref()
@@ -711,9 +729,9 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
     let (_phase, _scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
         .expect("frontiers admitted by the original request");
     let engine = ExecutionUseCaseImpl::new(
-        Arc::new(
+        Arc::new(crate::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        ),
+        )),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
     let next = engine.begin(&rules.program, &rules.files);
@@ -721,12 +739,13 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
     let foreign = next_phase
         .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
         .expect("independent request over the same program and corpus");
-    let result = service().evaluate(
+    let result = evaluate_fixture(
         &crossing(&rules),
         &todo(0),
         frontier,
         &mut symbols,
         &foreign,
+        &next_phase,
     );
     match result {
         Err(error) => assert_eq!(
@@ -789,18 +808,18 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
                 &mut symbols,
             )
             .unwrap();
-            let result = service()
-                .evaluate(
-                    &crossing(&rules),
-                    &Todo {
-                        rule: RuleIndex(rule),
-                        id: rules.ids[rule].clone(),
-                    },
-                    frontier,
-                    &mut symbols,
-                    &scope,
-                )
-                .unwrap();
+            let result = evaluate_fixture(
+                &crossing(&rules),
+                &Todo {
+                    rule: RuleIndex(rule),
+                    id: rules.ids[rule].clone(),
+                },
+                frontier,
+                &mut symbols,
+                &scope,
+                &phase,
+            )
+            .unwrap();
             let rendered = result.rendered.expect("actual core project rendering");
             assert_eq!(
                 [rendered.order.len(), result.fed.len(), rendered.cells.len()],
@@ -840,7 +859,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &mut symbols,
         )
         .unwrap();
-        let result = service().evaluate(
+        let result = evaluate_fixture(
             &crossing(&rules),
             &Todo {
                 rule: RuleIndex(1),
@@ -849,6 +868,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             old_frontier,
             &mut symbols,
             &different,
+            &phase,
         );
         assert!(
             matches!(result, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[1], &OperatingError::NotRead))
@@ -863,7 +883,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &mut symbols,
         )
         .unwrap();
-        let result = service().evaluate(
+        let result = evaluate_fixture(
             &crossing(&rules),
             &Todo {
                 rule: RuleIndex(1),
@@ -872,6 +892,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             changed_frontier,
             &mut symbols,
             &changed_scope,
+            &phase,
         );
         assert!(
             matches!(result, Err(error) if error == crate::domain::rules::service::failed(
@@ -902,7 +923,14 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
         let scope = phase
             .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
             .unwrap();
-        let failed = service().evaluate(&crossing(&rules), &todo(0), foreign, &mut symbols, &scope);
+        let failed = evaluate_fixture(
+            &crossing(&rules),
+            &todo(0),
+            foreign,
+            &mut symbols,
+            &scope,
+            &phase,
+        );
         assert!(
             matches!(failed, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead))
         );
@@ -917,9 +945,15 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &mut symbols,
         )
         .unwrap();
-        let result = service()
-            .evaluate(&crossing(&rules), &todo(0), frontier, &mut symbols, &scope)
-            .unwrap();
+        let result = evaluate_fixture(
+            &crossing(&rules),
+            &todo(0),
+            frontier,
+            &mut symbols,
+            &scope,
+            &phase,
+        )
+        .unwrap();
         assert_eq!(result.rendered, first_rendered);
         assert_eq!(
             calls.reductions.load(Ordering::SeqCst),
@@ -978,18 +1012,18 @@ fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate() {
                 &mut symbols,
             )
             .unwrap();
-            let done = service()
-                .evaluate(
-                    &crossing(&rules),
-                    &Todo {
-                        rule: RuleIndex(rule),
-                        id: rules.ids[rule].clone(),
-                    },
-                    frontier,
-                    &mut symbols,
-                    &scope,
-                )
-                .unwrap();
+            let done = evaluate_fixture(
+                &crossing(&rules),
+                &Todo {
+                    rule: RuleIndex(rule),
+                    id: rules.ids[rule].clone(),
+                },
+                frontier,
+                &mut symbols,
+                &scope,
+                &phase,
+            )
+            .unwrap();
             let rendered = done
                 .rendered
                 .expect("valid population renders through the actual core route");
@@ -1039,19 +1073,52 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
                 &mut symbols,
             )
             .unwrap();
-            let raw = crate::application::run_coordination::crossing::cross_rule_with_inputs(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
+            use ryo_execution::inbound::use_cases::execution::{
+                interface::ProjectRootExecution,
+                types::{
+                    EmitDemand, ObservationDemand, OperatingError, ProjectInput, ProjectTask,
+                    RootOutcome, RuleDemand,
                 },
-                frontier,
-                &[],
+            };
+            let evaluation = partials_for(&crossing(&rules).domain, RuleIndex(rule));
+            let reads = rules.program.observation_reads(RuleIndex(rule)).unwrap();
+            let publication = crate::domain::crossing::service::partials_for_reads(
+                &crossing(&rules).domain,
+                RuleIndex(rule),
+                &reads,
+            );
+            let ProjectBatch::Complete(mut outcomes) = phase.evaluate(
+                vec![ProjectTask {
+                    rule: RuleIndex(rule),
+                    demand: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::Required,
+                    },
+                    input: ProjectInput {
+                        scope: &scope,
+                        evaluation: &evaluation,
+                        publication: &publication,
+                        ordinary: frontier,
+                        bound: &[],
+                        arenas: &rules.arenas,
+                    },
+                }],
                 &mut symbols,
-                &scope,
-            )
-            .unwrap();
-            let table = raw.roots.emit.expect("the actual prepared population");
+                |_| Ok::<(), std::convert::Infallible>(()),
+            ) else {
+                unreachable!()
+            };
+            assert_eq!(outcomes.len(), 1);
+            let table = match outcomes.pop().unwrap().unwrap().emit {
+                RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => table,
+                RootOutcome::Failed(error) | RootOutcome::Unknown(error) => {
+                    panic!("actual prepared population refused: {error}")
+                }
+                _ => panic!(
+                    "actual prepared population absent: {}",
+                    OperatingError::NotRun
+                ),
+            };
             let first = if rule == 0 { 1 } else { 9 };
             assert_eq!(
                 table.cells,
@@ -1071,18 +1138,18 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
                 &mut symbols,
             )
             .unwrap();
-            let done = service()
-                .evaluate(
-                    &crossing(&rules),
-                    &Todo {
-                        rule: RuleIndex(rule),
-                        id: rules.ids[rule].clone(),
-                    },
-                    frontier,
-                    &mut symbols,
-                    &scope,
-                )
-                .unwrap();
+            let done = evaluate_fixture(
+                &crossing(&rules),
+                &Todo {
+                    rule: RuleIndex(rule),
+                    id: rules.ids[rule].clone(),
+                },
+                frontier,
+                &mut symbols,
+                &scope,
+                &phase,
+            )
+            .unwrap();
             assert!(done.unknowns.is_empty());
             let rendered = done.rendered.unwrap();
             assert_eq!([rendered.order.len(), rendered.cells.len()], [2, 4]);
@@ -1153,9 +1220,15 @@ fn many_distinct_project_populations_allocate_only_reached_region_state() {
             &mut symbols,
         )
         .unwrap();
-        let result = service()
-            .evaluate(&crossing(&rules), &todo(0), frontier, &mut symbols, &scope)
-            .unwrap();
+        let result = evaluate_fixture(
+            &crossing(&rules),
+            &todo(0),
+            frontier,
+            &mut symbols,
+            &scope,
+            &phase,
+        )
+        .unwrap();
         assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
         let state = phase.state_counts();
         assert_eq!(state.populations.0, population + 1);
@@ -1605,4 +1678,35 @@ fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort() {
         drop(scopes);
         phase.finish().unwrap();
     }
+}
+
+/// Fixture assembly only: the sole application batch operation owns admission/evaluation.
+fn evaluate_fixture(
+    crossing: &CrossingInput<'_>,
+    todo: &Todo,
+    frontier: PreparedFrontiers,
+    symbols: &mut Symbols,
+    scope: &ProjectScope,
+    phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
+) -> Result<crate::domain::answering::types::Crossed, RulesError> {
+    let ProjectBatch::Complete(mut results) = service().evaluate_batch(
+        crossing,
+        vec![super::types::ProjectTask {
+            todo,
+            scope,
+            frontier,
+            bound: &[],
+            slot: PublicationSlot::Unused,
+        }],
+        phase,
+        symbols,
+        |_| Ok(()),
+    ) else {
+        panic!("fixture host declares no memory limit")
+    };
+    assert_eq!(results.len(), 1, "one authored task has one result");
+    results
+        .pop()
+        .expect("the exact result count was checked")
+        .map(|result| result.crossed)
 }

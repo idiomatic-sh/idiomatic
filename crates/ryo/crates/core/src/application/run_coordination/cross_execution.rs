@@ -1,12 +1,5 @@
 //! Project root delivery through the same prepared executable invocation.
 use crate::domain::crossing::types::{ObservedRoot, PhaseRoots};
-#[cfg(test)]
-use ryo_execution::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
-#[cfg(test)]
-use ryo_execution::inbound::use_cases::execution::types::{
-    EmitDemand, ObservationDemand, PreparedFrontiers, ProjectInput, ProjectScope, RequestExecution,
-    RuleDemand,
-};
 use ryo_execution::inbound::use_cases::execution::types::{
     ObservedPublication, ProjectObservation, RootOutcome,
 };
@@ -22,40 +15,6 @@ pub(crate) struct ProgramEvaluated {
     )>,
 }
 
-#[cfg(test)]
-pub(crate) fn evaluate_cross_roots(
-    request: &RequestExecution,
-    rule: RuleIndex,
-    scope: &ProjectScope,
-    evaluation: &ryo_execution::inbound::use_cases::metadata::interface::Partials,
-    publication: &ryo_execution::inbound::use_cases::metadata::interface::Partials,
-    ordinary: PreparedFrontiers,
-    bound: &[ryo_execution::inbound::use_cases::execution::types::BoundInput],
-    symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    arenas: &[ryo_values::domain::stored_facts::types::ArenaBytes],
-) -> Result<ProgramEvaluated, OperatingError> {
-    let mut run = request.open_project(
-        ProjectInput {
-            scope,
-            evaluation,
-            publication,
-            ordinary,
-            bound,
-            arenas,
-        },
-        symbols,
-    )?;
-    let outcome = run.rule(
-        rule,
-        RuleDemand {
-            emit: EmitDemand::Enabled,
-            observations: ObservationDemand::Required,
-        },
-        symbols,
-    )?;
-    run.finish();
-    collected(outcome)
-}
 pub(crate) fn collected(
     outcome: ryo_execution::inbound::use_cases::execution::types::ProjectRuleOutcome,
 ) -> Result<ProgramEvaluated, OperatingError> {
@@ -121,5 +80,3 @@ pub(crate) fn collected(
 }
 
 use ryo_execution::inbound::use_cases::execution::types::OperatingError;
-#[cfg(test)]
-use ryo_execution::inbound::use_cases::execution::types::RuleIndex;

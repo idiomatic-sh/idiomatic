@@ -1,6 +1,4 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
-#[cfg(test)]
-use crate::application::run_coordination::crossing::cross_rule_with_inputs;
 use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::answering::types::{Crossed, Todo};
 use crate::domain::crossing::service::placeable;
@@ -20,10 +18,6 @@ use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::types::PublicationSlot;
-#[cfg(test)]
-use ryo_execution::inbound::use_cases::execution::types::{
-    BoundInput, PreparedFrontiers, ProjectScope,
-};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -68,44 +62,6 @@ impl CrossFile {
             corpus,
             publication,
         }
-    }
-    /// Evaluate, place and render one cross-file rule without publishing it.
-    /// Reuse the scope that admitted these frontiers. Demanded observation phases
-    /// use the explicit reserved-slot entry.
-    #[cfg(test)]
-    pub(crate) fn evaluate(
-        &self,
-        crossing: &CrossingInput<'_>,
-        todo: &Todo,
-        frontier: PreparedFrontiers,
-        cross: &mut Symbols,
-        scope: &ProjectScope,
-    ) -> Result<Crossed, RulesError> {
-        self.evaluate_phase(
-            crossing,
-            todo,
-            frontier,
-            cross,
-            &[],
-            PublicationSlot::Unused,
-            scope,
-        )
-        .map(|result| result.crossed)
-    }
-    #[cfg(test)]
-    fn evaluate_phase(
-        &self,
-        crossing: &CrossingInput<'_>,
-        todo: &Todo,
-        frontier: PreparedFrontiers,
-        cross: &mut Symbols,
-        bound_inputs: &[BoundInput],
-        publication: PublicationSlot,
-        scope: &ProjectScope,
-    ) -> Result<super::types::CrossedWithPublications, RulesError> {
-        let evaluated =
-            cross_rule_with_inputs(crossing, todo, frontier, bound_inputs, cross, scope)?;
-        self.complete_phase(crossing, todo, evaluated, cross, publication)
     }
     /// One application call submits all currently available tasks to the engine stage.
     pub(crate) fn evaluate_batch(
