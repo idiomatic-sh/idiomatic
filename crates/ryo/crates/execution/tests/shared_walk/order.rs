@@ -168,13 +168,12 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     request.finish();
 }
 #[test]
-fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal() {
+fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::DynamicRegex]);
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"ab(");
-    let first = expected(FileId(0), &elements, &[1]);
     let mut file = request
         .open_file(
             input(
@@ -194,11 +193,11 @@ fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal()
     let mut attempts = 0;
     let refused = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
         attempts += 1;
-        assert_eq!(row, first.cells);
+        let _ = row;
         Err(OperatingError::WrongBinding)
     });
-    assert!(matches!(refused, Err(OperatingError::WrongBinding)));
-    assert_eq!(attempts, 1);
+    assert!(matches!(refused, Err(ref error) if *error == regex_error("(")));
+    assert_eq!(attempts, 0, "semantic failure must precede all delivery");
     counts(&file, 1, 4);
     let mut delivered = vec![];
     let retried = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
@@ -206,7 +205,7 @@ fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal()
         Ok(())
     });
     assert!(matches!(retried,Err(ref error) if *error==regex_error("(")));
-    assert_eq!(delivered, vec![first.cells]);
+    assert!(delivered.is_empty());
     counts(&file, 1, 4);
     assert_eq!(
         semantics.selects(),
@@ -240,7 +239,7 @@ fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal()
 }
 
 #[test]
-fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
+fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let (engine, _) = engine();
     let mut authored = authored_request(2);
@@ -288,8 +287,7 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    // Collected Join admits both views. Forwarded Join with two streamed
-    // producers owns the left-empty gate that this readiness control exercises.
+    // Both delivery APIs use the same Join dependency contract.
     let intents = [
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Forwarded,
@@ -313,13 +311,11 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
         expected(FileId(0), &elements, &[2]),
     );
     let mut delivered = Vec::new();
-    let emission = file
-        .emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-            delivered.push(row.to_vec());
-            Ok(())
-        })
-        .expect("forwarded Join completes without evaluating its gated RHS");
-    assert!(matches!(emission, RowEmission::Complete));
+    let emission = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+        delivered.push(row.to_vec());
+        Ok(())
+    });
+    assert!(matches!(emission, Err(ref error) if *error == regex_error("[")));
     assert!(
         delivered.is_empty(),
         "the empty left publishes no joined rows"
@@ -327,8 +323,8 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
     counts(&file, 1, 4);
     assert_eq!(
         file.walk_counts().predicate_rows.0,
-        1,
-        "only the independent other-kind selector may evaluate a row; a requested rule does not make its gated RHS ready"
+        2,
+        "both the independent selector and the demanded Join RHS are evaluated"
     );
     file.finish().unwrap();
     request.finish();
@@ -396,7 +392,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
 }
 
 #[test]
-fn a_collected_frontier_does_not_consume_a_forwarded_diagnostics_error_prefix() {
+fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
     use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     for capture_first in [true, false] {
         let (engine, _) = engine();
@@ -450,10 +446,9 @@ fn a_collected_frontier_does_not_consume_a_forwarded_diagnostics_error_prefix() 
                     Ok(())
                 });
                 assert!(matches!(result, Err(error) if error == regex_error("(")));
-                assert_eq!(
-                    delivered,
-                    expected(FileId(0), &elements, &[1]).cells,
-                    "internal collection cannot discard the diagnostic's accepted prefix"
+                assert!(
+                    delivered.is_empty(),
+                    "failed evaluation publishes no prefix"
                 );
             }
         }
@@ -465,7 +460,7 @@ fn a_collected_frontier_does_not_consume_a_forwarded_diagnostics_error_prefix() 
 }
 
 #[test]
-fn identical_join_diagnostics_keep_opposite_declared_modes_in_both_invocation_orders() {
+fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
     let (engine, _) = engine();
     let authored = conditional_join_request(2);
     let program = engine
@@ -496,13 +491,11 @@ fn identical_join_diagnostics_keep_opposite_declared_modes_in_both_invocation_or
         for rule in invocation_order {
             if rule == RuleIndex(0) {
                 let mut rows = Vec::new();
-                let emission = file
-                    .emit_rows(rule, &mut symbols, &mut |row| {
-                        rows.push(row.to_vec());
-                        Ok(())
-                    })
-                    .expect("forwarded Join skips the failing RHS after its empty left");
-                assert!(matches!(emission, RowEmission::Complete));
+                let emission = file.emit_rows(rule, &mut symbols, &mut |row| {
+                    rows.push(row.to_vec());
+                    Ok(())
+                });
+                assert!(matches!(emission, Err(ref error) if *error == regex_error("[")));
                 assert!(
                     rows.is_empty(),
                     "forwarded empty Join has no diagnostic rows"
@@ -565,7 +558,7 @@ fn conditional_join_request(count: usize) -> PreparedRequest {
 }
 
 #[test]
-fn a_forwarded_diagnostic_does_not_change_its_frontiers_collected_demand_program() {
+fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
     use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let (engine, _) = engine();
     let mut authored = conditional_join_request(1);
@@ -605,15 +598,13 @@ fn a_forwarded_diagnostic_does_not_change_its_frontiers_collected_demand_program
                 assert_eq!(captured.len(), 1);
                 assert!(
                     matches!(&captured[0].outcome, Err(error) if *error == regex_error("[")),
-                    "the collected frontier must demand its failing RHS even when the diagnostic skips it"
+                    "frontier and diagnostic must report the same failing RHS"
                 );
             } else {
-                let outcome = file
-                    .emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-                        panic!("empty forwarded Join cannot emit a row")
-                    })
-                    .expect("forwarded diagnostic independently skips the failing RHS");
-                assert!(matches!(outcome, RowEmission::Complete));
+                let outcome = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
+                    panic!("empty forwarded Join cannot emit a row")
+                });
+                assert!(matches!(outcome, Err(ref error) if *error == regex_error("[")));
             }
         }
         file.finish().unwrap();

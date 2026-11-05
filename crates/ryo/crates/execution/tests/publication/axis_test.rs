@@ -137,7 +137,7 @@ x
 }
 
 #[test]
-fn ordinary_incremental_select_preserves_prefix_before_late_predicate_failure() {
+fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
     let bytes = b"x
 '['
 ";
@@ -165,7 +165,7 @@ fn ordinary_incremental_select_preserves_prefix_before_late_predicate_failure() 
         .expect("prepare actual incremental Select");
     let corpus = corpus();
     let request = engine.begin(&prepared, &corpus);
-    let (elements, mut symbols, _root, children) = native_tree(bytes);
+    let (elements, mut symbols, _root, _children) = native_tree(bytes);
     let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
     let mut file = request
         .open_file(
@@ -196,15 +196,8 @@ fn ordinary_incremental_select_preserves_prefix_before_late_predicate_failure() 
     });
     assert!(matches!(result, Err(OperatingError::InvalidRegex { .. })));
     assert!(
-        exposed
-            .iter()
-            .any(|row| row[0] == Value::Node(node_id(FileId(0), children[0]))),
-        "incremental delivery retains the first valid child before the later refusal"
-    );
-    assert!(
-        !exposed
-            .iter()
-            .any(|row| row[0] == Value::Node(node_id(FileId(0), children[1])))
+        exposed.is_empty(),
+        "semantic failure publishes no partial result"
     );
     file.finish().expect("release incremental refusal");
     request.finish();
