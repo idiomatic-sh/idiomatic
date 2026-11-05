@@ -63,7 +63,7 @@ fn typed_program_keeps_emitted_projection() {
             scope: plans::StepScope::PerFile,
             operation: plans::Operation::Project {
                 from: parts::Input::Relation(Relation::Function),
-                columns: vec![parts::ColumnIndex(1)],
+                columns: vec![parts::ColumnIndex(2)],
                 distinct: parts::RepeatedRows::Dropped,
             }
         }]

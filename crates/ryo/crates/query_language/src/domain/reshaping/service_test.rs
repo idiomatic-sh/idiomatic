@@ -47,7 +47,7 @@ fn group_count_keeps_key_and_count_column() {
         builder.steps[0].operation,
         plans::Operation::GroupCount {
             from: parts::Input::Relation(Relation::Function),
-            keys: vec![parts::ColumnIndex(1)],
+            keys: vec![parts::ColumnIndex(2)],
             distinct: None
         }
     );

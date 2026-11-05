@@ -46,8 +46,8 @@ fn projected_file_key_controls_scope() {
     let scoped = super::service::scoped(&builder, input);
     let fields = scoped.fields.clone();
     for (column, expected) in [
-        (1, plans::StepScope::PerFile),
-        (2, plans::StepScope::CrossFile),
+        (2, plans::StepScope::PerFile),
+        (1, plans::StepScope::CrossFile),
     ] {
         let operation = plans::Operation::Project {
             from: input,

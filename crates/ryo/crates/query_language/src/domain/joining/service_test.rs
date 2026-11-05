@@ -67,13 +67,13 @@ fn typed_join_keeps_keys_and_selected_side() {
     };
     assert_eq!(left, parts::Input::Relation(Relation::Function));
     assert_eq!(right, left);
-    assert_eq!(left_on, vec![parts::ColumnIndex(1)]);
+    assert_eq!(left_on, vec![parts::ColumnIndex(2)]);
     assert_eq!(right_on, left_on);
     assert_eq!(
         output[0],
         parts::JoinColumn {
             side: parts::Side::Left,
-            column: parts::ColumnIndex(1)
+            column: parts::ColumnIndex(2)
         }
     );
     assert!(filter.is_empty() && view.is_empty() && reach.is_none());

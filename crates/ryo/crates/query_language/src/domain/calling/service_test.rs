@@ -46,7 +46,7 @@ fn project_keeps_exact_file_column() {
         builder.steps[0].operation,
         plans::Operation::Project {
             from: parts::Input::Relation(Relation::Function),
-            columns: vec![parts::ColumnIndex(1)],
+            columns: vec![parts::ColumnIndex(2)],
             distinct: parts::RepeatedRows::Dropped,
         }
     );

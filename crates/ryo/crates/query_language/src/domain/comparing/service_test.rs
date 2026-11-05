@@ -36,7 +36,7 @@ fn typed_comparison_keeps_operands_and_test() {
         comparison,
         parts::Comparison {
             test: parts::Test::Equal,
-            left: parts::Operand::Column(parts::ColumnIndex(2)),
+            left: parts::Operand::Column(parts::ColumnIndex(1)),
             right: parts::Operand::Literal(parts::QueryLiteral::Text(parts::LiteralText(
                 "main".into()
             ))),
