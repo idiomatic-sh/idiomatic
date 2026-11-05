@@ -97,7 +97,7 @@ fn precision_mode(value: FormatQuantityMode) -> &'static str {
 ryo::reads! {
     FormatParseItem => languages::FormatParse, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        given index = prepare::<RuffLiteralCFormat>(tree, model, symbols);
+        given index = prepare::<RuffLiteralCFormat>(tree, &model.format_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             given parsed = result(&index, occurrence);
@@ -122,7 +122,7 @@ ryo::reads! {
 ryo::reads! {
     FormatFieldItem => languages::FormatField, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        given index = prepare::<RuffLiteralCFormat>(tree, model, symbols);
+        given index = prepare::<RuffLiteralCFormat>(tree, &model.format_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             when result(&index, occurrence) {

@@ -6,12 +6,10 @@ use super::types::{
 use crate::domain::format_syntax::types::FormatResultIndex;
 use crate::domain::format_syntax::{
     interface::FormatSyntax,
-    types::{FormatDialect, FormatParseResult, FormatParseState},
+    types::{FormatDialect, FormatParseResult, FormatParseState, FormatVisibility},
 };
 use crate::domain::{
-    model::types::Declarations,
     nodes::types::Node,
-    semantic_syntax::types::Visibility,
     syntax::{
         service::{below, kind, literal, standing},
         types::{Kind, Literal, Standing},
@@ -19,7 +17,7 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Symbols, Tree};
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 
 /// Discard current source identities and bodies while retaining collection capacities.
 pub(crate) fn clear(index: &mut RawFormatIndex) {
@@ -188,22 +186,25 @@ fn occurrence<P>(
 }
 
 /// Both raw readers share one demand-driven cache; decoded and brace caches are untouched.
+/// The caller supplies semantic source order and visibility without lending other indexes.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    model: &'a Declarations,
+    held: &'a RefCell<RawFormatIndex>,
     symbols: &mut Symbols,
+    positions: impl Iterator<Item = Position>,
+    mut visibility: impl FnMut(Position, &mut Symbols) -> FormatVisibility,
 ) -> Ref<'a, RawFormatIndex>
 where
     P: FormatSyntax,
 {
     if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
-        &model.raw_format.borrow().memo,
+        &held.borrow().memo,
         P::RAW_GRAMMAR.0,
     ) {
-        clear(&mut model.raw_format.borrow_mut());
+        clear(&mut held.borrow_mut());
     }
-    if model.raw_format.borrow().state == FormatParseState::Fresh {
-        let mut index = model.raw_format.borrow_mut();
+    if held.borrow().state == FormatParseState::Fresh {
+        let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(&mut index.memo, P::RAW_GRAMMAR.0);
         let source_complete = if !languages::has_incomplete_syntax(tree.elements)
             && !languages::has_incomplete_lexical_stream(tree.elements)
@@ -217,12 +218,11 @@ where
         } else {
             FormatParseState::Partial
         };
-        for node in crate::domain::semantic_syntax::service::positions(tree) {
+        for node in positions {
             if kind(tree, node) != Kind::Node(Node::Constant)
                 || literal(tree, node) != Literal::String
                 || standing(tree, node) != Standing::Own
-                || crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols)
-                    != Visibility::Visible
+                || visibility(node, symbols) != FormatVisibility::Visible
             {
                 continue;
             }
@@ -230,7 +230,7 @@ where
         }
         crate::domain::grammar_cache::service::empty(&mut index.memo);
     }
-    model.raw_format.borrow()
+    held.borrow()
 }
 
 /// The token sequence belonging to one retained source expression.

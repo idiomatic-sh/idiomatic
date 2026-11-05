@@ -1,13 +1,12 @@
 //! Lazily parse decoded brace-format strings once per distinct input value.
-use super::super::model::types::Declarations;
 use super::super::nodes::types::Node;
-use super::super::semantic_syntax::types::Visibility;
 use super::super::syntax::service::kind;
 use super::super::syntax::types::Kind;
 use super::interface::BraceFormatSyntax;
 use super::types::{BraceFormatIndex, BraceFormatOccurrence, BraceFormatResult, BraceFormatState};
 use crate::domain::format_syntax::types::{
-    DecodedInput, FormatOwnedBytes, FormatResultIndex, FormatScratch, StringOccurrence,
+    DecodedInput, FormatOwnedBytes, FormatResultIndex, FormatScratch, FormatVisibility,
+    StringOccurrence,
 };
 use ryo::languages::{Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
@@ -96,30 +95,29 @@ where
 }
 
 /// Prepare once, and only when a brace-format relation is read.
+/// Source order and candidate visibility come from the caller's semantic projection.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    model: &'a Declarations,
+    held: &'a RefCell<BraceFormatIndex>,
     symbols: &mut Symbols,
+    positions: impl Iterator<Item = Position>,
+    mut visibility: impl FnMut(Position, &mut Symbols) -> FormatVisibility,
 ) -> Ref<'a, BraceFormatIndex>
 where
     P: BraceFormatSyntax,
 {
-    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
-        &model.brace_format.borrow().memo,
-        P::GRAMMAR.0,
-    ) {
-        clear(&mut model.brace_format.borrow_mut());
+    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(&held.borrow().memo, P::GRAMMAR.0)
+    {
+        clear(&mut held.borrow_mut());
     }
-    let held: &RefCell<BraceFormatIndex> = &model.brace_format;
     if held.borrow().state == BraceFormatState::Fresh {
         let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(&mut index.memo, P::GRAMMAR.0);
-        for at in super::super::semantic_syntax::service::positions(tree) {
+        for at in positions {
             if !matches!(kind(tree, at), Kind::Node(Node::Constant | Node::JoinedStr))
                 || super::super::format_parsing::service::is_string_occurrence(tree, at)
                     != StringOccurrence::String
-                || super::super::semantic_syntax::service::visibility(tree, model, at, symbols)
-                    != Visibility::Visible
+                || visibility(at, symbols) != FormatVisibility::Visible
             {
                 continue;
             }

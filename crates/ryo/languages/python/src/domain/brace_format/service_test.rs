@@ -18,7 +18,17 @@ fn percent_only_demand_never_prepares_brace_grammar() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let _percent = prepare_percent::<RuffLiteralCFormat>(&tree, &model, &mut file.symbols);
+    let _percent = prepare_percent::<RuffLiteralCFormat>(
+        &tree,
+        &model.format_parsing,
+        &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
 }
 
@@ -34,8 +44,14 @@ fn brace_parser_is_not_run_during_model_initialization() {
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
     drop(prepare::<RuffLiteralBraceFormat>(
         &tree,
-        &model,
+        &model.brace_format,
         &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     assert_eq!(
         state(&model.brace_format.borrow()),
@@ -54,8 +70,14 @@ fn model_reinitialization_clears_brace_results_for_replacement_sources() {
     initialize_model(&first_tree, &mut model);
     drop(prepare::<RuffLiteralBraceFormat>(
         &first_tree,
-        &model,
+        &model.brace_format,
         &mut first.symbols,
+        crate::domain::semantic_syntax::service::positions(&first_tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&first_tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     assert_eq!(model.brace_format.borrow().occurrences.len(), 1);
 
@@ -67,7 +89,17 @@ fn model_reinitialization_clears_brace_results_for_replacement_sources() {
     };
     initialize_model(&second_tree, &mut model);
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
-    let index = prepare::<RuffLiteralBraceFormat>(&second_tree, &model, &mut second.symbols);
+    let index = prepare::<RuffLiteralBraceFormat>(
+        &second_tree,
+        &model.brace_format,
+        &mut second.symbols,
+        crate::domain::semantic_syntax::service::positions(&second_tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&second_tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert!(
         matches!(&index.values[0].result, super::types::BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
     );

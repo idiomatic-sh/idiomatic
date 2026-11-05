@@ -71,8 +71,14 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
         let start = source.find(spelling).expect("literal in source");
         let decoded = crate::domain::format_parsing::service::prepare::<RuffLiteralCFormat>(
             &tree,
-            &model,
+            &model.format_parsing,
             &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
         );
         assert_eq!(
             usize::try_from(languages::start_at(tree.elements, decoded.occurrences[0].node).0)
@@ -85,8 +91,14 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
         drop(decoded);
         let raw = crate::domain::raw_format::service::prepare::<RuffLiteralCFormat>(
             &tree,
-            &model,
+            &model.raw_format,
             &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
         );
         assert_eq!(
             usize::try_from(languages::start_at(tree.elements, raw.occurrences[0].node).0)
@@ -99,8 +111,14 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
         drop(raw);
         let brace = crate::domain::brace_format::service::prepare::<RuffLiteralBraceFormat>(
             &tree,
-            &model,
+            &model.brace_format,
             &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
         );
         assert_eq!(
             usize::try_from(languages::start_at(tree.elements, brace.occurrences[0].node).0)
@@ -153,13 +171,43 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
         );
         drop(crate::domain::format_parsing::service::prepare::<
             RuffLiteralCFormat,
-        >(&tree, &model, &mut file.symbols));
+        >(
+            &tree,
+            &model.format_parsing,
+            &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
+        ));
         drop(crate::domain::raw_format::service::prepare::<
             RuffLiteralCFormat,
-        >(&tree, &model, &mut file.symbols));
+        >(
+            &tree,
+            &model.raw_format,
+            &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
+        ));
         drop(crate::domain::brace_format::service::prepare::<
             RuffLiteralBraceFormat,
-        >(&tree, &model, &mut file.symbols));
+        >(
+            &tree,
+            &model.brace_format,
+            &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
+        ));
         drop(
             crate::domain::literal_expression_parsing::service::prepare::<RuffStringAnnotation>(
                 &tree,
@@ -263,11 +311,33 @@ fn completed_active_results_are_invalidated_when_parser_implementation_changes()
     let mut symbols = Symbols::default();
     initialize_model(&tree, &mut model);
     assert!(matches!(
-        prepare::<ParsedGrammar>(&tree, &model, &mut symbols).values[0].result,
+        prepare::<ParsedGrammar>(
+            &tree,
+            &model.format_parsing,
+            &mut symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| (crate::domain::semantic_syntax::service::visibility(
+                &tree, &model, at, symbols
+            ) == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        )
+        .values[0]
+            .result,
         FormatParseResult::Parsed(_)
     ));
     assert!(matches!(
-        prepare::<RejectedGrammar>(&tree, &model, &mut symbols).values[0].result,
+        prepare::<RejectedGrammar>(
+            &tree,
+            &model.format_parsing,
+            &mut symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| (crate::domain::semantic_syntax::service::visibility(
+                &tree, &model, at, symbols
+            ) == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        )
+        .values[0]
+            .result,
         FormatParseResult::Malformed(_)
     ));
 }

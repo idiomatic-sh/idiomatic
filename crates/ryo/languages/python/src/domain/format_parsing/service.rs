@@ -7,11 +7,10 @@ use ryo::languages::{self, Position, Symbols, Tree};
 use super::super::format_syntax::interface::FormatSyntax;
 use super::super::format_syntax::types::{
     CachedFormat, DecodedInput, FormatDialect, FormatOccurrence, FormatOwnedBytes,
-    FormatParseIndex, FormatParseResult, FormatParseState, FormatScratch, StringOccurrence,
+    FormatParseIndex, FormatParseResult, FormatParseState, FormatScratch, FormatVisibility,
+    StringOccurrence,
 };
-use super::super::model::types::Declarations;
 use super::super::nodes::types::Node;
-use super::super::semantic_syntax::types::Visibility;
 use super::super::syntax::service::{below, interpolation, kind, literal, standing};
 use super::super::syntax::types::{Interpolation, Kind, Literal, Standing};
 use super::super::tokens::types::Token;
@@ -187,21 +186,24 @@ where
 }
 
 /// Build the string occurrence index and parse each distinct decoded input at most once.
+/// The caller supplies semantic source order and visibility; only candidate strings ask
+/// for visibility, and an already prepared index consumes neither operation.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    model: &'a Declarations,
+    held: &'a RefCell<FormatParseIndex>,
     symbols: &mut Symbols,
+    positions: impl Iterator<Item = Position>,
+    mut visibility: impl FnMut(Position, &mut Symbols) -> FormatVisibility,
 ) -> Ref<'a, FormatParseIndex>
 where
     P: FormatSyntax,
 {
     if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
-        &model.format_parsing.borrow().memo,
+        &held.borrow().memo,
         P::DECODED_GRAMMAR.0,
     ) {
-        clear(&mut model.format_parsing.borrow_mut());
+        clear(&mut held.borrow_mut());
     }
-    let held: &RefCell<FormatParseIndex> = &model.format_parsing;
     if held.borrow().state == FormatParseState::Fresh {
         let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(
@@ -215,12 +217,10 @@ where
         } else {
             index.state = FormatParseState::Complete;
         }
-        let positions = super::super::semantic_syntax::service::positions(tree);
         for at in positions {
             if is_string_occurrence(tree, at) != StringOccurrence::String
                 || standing(tree, at) != Standing::Own
-                || super::super::semantic_syntax::service::visibility(tree, model, at, symbols)
-                    != Visibility::Visible
+                || visibility(at, symbols) != FormatVisibility::Visible
             {
                 continue;
             }

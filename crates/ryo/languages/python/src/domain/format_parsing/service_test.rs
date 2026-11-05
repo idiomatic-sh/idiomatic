@@ -93,19 +93,61 @@ fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset() {
         "model setup does not parse formats"
     );
 
-    let first = prepare::<CountingParser>(&tree, &model, &mut symbols);
+    let visited = std::cell::Cell::new(0_usize);
+    let visible = std::cell::Cell::new(0_usize);
+    let first = prepare::<CountingParser>(
+        &tree,
+        &model.format_parsing,
+        &mut symbols,
+        crate::domain::semantic_syntax::service::positions(&tree)
+            .inspect(|_| visited.set(visited.get() + 1)),
+        |at, symbols| {
+            visible.set(visible.get() + 1);
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(COUNTING_PARSES.load(Ordering::SeqCst), 1);
     assert_eq!(first.occurrences.len(), 2);
+    assert_eq!(
+        visible.get(),
+        2,
+        "only candidate strings ask for visibility"
+    );
     assert_eq!(
         result(&first, &first.occurrences[0]),
         result(&first, &first.occurrences[1])
     );
     drop(first);
-    let second = prepare::<CountingParser>(&tree, &model, &mut symbols);
+    let prepared_visits = visited.get();
+    let second = prepare::<CountingParser>(
+        &tree,
+        &model.format_parsing,
+        &mut symbols,
+        crate::domain::semantic_syntax::service::positions(&tree)
+            .inspect(|_| visited.set(visited.get() + 1)),
+        |at, symbols| {
+            visible.set(visible.get() + 1);
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(
         COUNTING_PARSES.load(Ordering::SeqCst),
         1,
         "both readers share the retained parse"
+    );
+    assert_eq!(
+        visited.get(),
+        prepared_visits,
+        "prepared indexes do not traverse again"
+    );
+    assert_eq!(
+        visible.get(),
+        2,
+        "prepared indexes do not repeat semantic visibility"
     );
     drop(second);
 
@@ -121,7 +163,21 @@ fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset() {
         FormatParseState::Fresh,
         "source replacement clears the retained format index"
     );
-    let _again = prepare::<CountingParser>(&replacement_tree, &model, &mut symbols);
+    let _again = prepare::<CountingParser>(
+        &replacement_tree,
+        &model.format_parsing,
+        &mut symbols,
+        crate::domain::semantic_syntax::service::positions(&replacement_tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(
+                &replacement_tree,
+                &model,
+                at,
+                symbols,
+            ) == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(
         COUNTING_PARSES.load(Ordering::SeqCst),
         2,
@@ -140,7 +196,17 @@ fn malformed_results_are_cached_and_unavailable_results_mark_partial() {
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
     let mut symbols = Symbols::default();
-    let malformed = prepare::<MalformedParser>(&tree, &model, &mut symbols);
+    let malformed = prepare::<MalformedParser>(
+        &tree,
+        &model.format_parsing,
+        &mut symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(MALFORMED_PARSES.load(Ordering::SeqCst), 1);
     assert_eq!(malformed.state, FormatParseState::Complete);
     assert_eq!(malformed.values.len(), 1);
@@ -151,7 +217,17 @@ fn malformed_results_are_cached_and_unavailable_results_mark_partial() {
     drop(malformed);
 
     crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
-    let unavailable = prepare::<UnavailableParser>(&tree, &model, &mut symbols);
+    let unavailable = prepare::<UnavailableParser>(
+        &tree,
+        &model.format_parsing,
+        &mut symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(unavailable.state, FormatParseState::Partial);
     assert_eq!(unavailable.values.len(), 1);
     assert_eq!(

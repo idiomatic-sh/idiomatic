@@ -7,6 +7,21 @@ pub(crate) enum FormatDialect {
     PercentString,
 }
 
+/// Whether a candidate format occurrence belongs to the caller's semantic projection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FormatVisibility {
+    /// The source occurrence participates in format relations.
+    Visible,
+    /// The source occurrence is outside the selected semantic syntax.
+    Hidden,
+}
+
+impl From<bool> for FormatVisibility {
+    fn from(visible: bool) -> Self {
+        if visible { Self::Visible } else { Self::Hidden }
+    }
+}
+
 /// Why a format input could not be parsed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FormatErrorKind {

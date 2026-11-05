@@ -74,7 +74,17 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     initialize_model(&tree, &mut model);
     assert_eq!(model.raw_format.borrow().state, FormatParseState::Fresh);
     assert_eq!(PARSES.load(Ordering::SeqCst), 0);
-    let index = prepare::<Counting>(&tree, &model, &mut file.symbols);
+    let index = prepare::<Counting>(
+        &tree,
+        &model.raw_format,
+        &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(PARSES.load(Ordering::SeqCst), 2);
     assert_eq!(index.values.len(), 2);
     assert_eq!(index.occurrences.len(), 2);
@@ -86,7 +96,17 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     assert_eq!(model.format_parsing.borrow().state, FormatParseState::Fresh);
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
     drop(index);
-    drop(prepare::<Counting>(&tree, &model, &mut file.symbols));
+    drop(prepare::<Counting>(
+        &tree,
+        &model.raw_format,
+        &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    ));
     assert_eq!(
         PARSES.load(Ordering::SeqCst),
         2,
@@ -94,13 +114,25 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     );
     drop(decoded::<RuffLiteralCFormat>(
         &tree,
-        &model,
+        &model.format_parsing,
         &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     drop(brace::<RuffLiteralBraceFormat>(
         &tree,
-        &model,
+        &model.brace_format,
         &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     assert_eq!(PARSES.load(Ordering::SeqCst), 2);
     let mut next = parsed(b"'%x'\n").expect("replacement source");
@@ -115,7 +147,17 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     assert!(model.raw_format.borrow().segments.is_empty());
     assert!(model.raw_format.borrow().by_input.is_empty());
     assert_eq!(model.raw_format.borrow().segments.capacity(), capacity);
-    drop(prepare::<Counting>(&next_tree, &model, &mut next.symbols));
+    drop(prepare::<Counting>(
+        &next_tree,
+        &model.raw_format,
+        &mut next.symbols,
+        crate::domain::semantic_syntax::service::positions(&next_tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&next_tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    ));
     assert_eq!(PARSES.load(Ordering::SeqCst), 3);
 }
 
@@ -130,14 +172,26 @@ fn raw_format_is_not_demanded_by_decoded_or_brace_readers() {
     initialize_model(&tree, &mut model);
     drop(decoded::<RuffLiteralCFormat>(
         &tree,
-        &model,
+        &model.format_parsing,
         &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     assert_eq!(model.raw_format.borrow().state, FormatParseState::Fresh);
     drop(brace::<RuffLiteralBraceFormat>(
         &tree,
-        &model,
+        &model.brace_format,
         &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     assert_eq!(model.raw_format.borrow().state, FormatParseState::Fresh);
 }
@@ -151,7 +205,17 @@ fn raw_format_malformed_segments_are_atomic_and_success_order_is_flattened() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffLiteralCFormat>(&tree, &model, &mut file.symbols);
+    let index = prepare::<RuffLiteralCFormat>(
+        &tree,
+        &model.raw_format,
+        &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(index.state, FormatParseState::Complete);
     let pieces = segments(&index, &index.occurrences[0]);
     assert_eq!(pieces.len(), 3);
@@ -199,7 +263,17 @@ fn raw_format_unavailable_segment_withholds_precise_global_order() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<Unavailable>(&tree, &model, &mut file.symbols);
+    let index = prepare::<Unavailable>(
+        &tree,
+        &model.raw_format,
+        &mut file.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(index.state, FormatParseState::Partial);
     assert!(!bool::from(index.occurrences[0].complete));
     assert!(matches!(
@@ -221,7 +295,17 @@ fn raw_format_missing_token_text_is_not_an_empty_valid_body() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffLiteralCFormat>(&tree, &model, &mut Symbols::default());
+    let index = prepare::<RuffLiteralCFormat>(
+        &tree,
+        &model.raw_format,
+        &mut Symbols::default(),
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    );
     assert_eq!(index.state, FormatParseState::Partial);
     assert!(index.values.is_empty());
     assert!(!bool::from(index.occurrences[0].complete));

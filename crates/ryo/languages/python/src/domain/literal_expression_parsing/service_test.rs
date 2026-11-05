@@ -49,17 +49,39 @@ fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes() {
     );
     drop(decoded::<RuffLiteralCFormat>(
         &tree,
-        &model,
+        &model.format_parsing,
         &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     drop(brace::<RuffLiteralBraceFormat>(
         &tree,
-        &model,
+        &model.brace_format,
         &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
     ));
     drop(crate::domain::raw_format::service::prepare::<
         RuffLiteralCFormat,
-    >(&tree, &model, &mut source.symbols));
+    >(
+        &tree,
+        &model.raw_format,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+    ));
     CALLS.with(|count| assert_eq!(count.get(), 0));
     assert_eq!(
         model.literal_expression_parsing.borrow().state,
