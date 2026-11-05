@@ -388,7 +388,9 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 
 use ryo_values::domain::run_metadata::service::from_plans;
 
+#[cfg(test)]
 mod coverage_test;
+#[cfg(test)]
 mod normalization_test;
 
 use super::fixtures::matcher;
