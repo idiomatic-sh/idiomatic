@@ -89,6 +89,17 @@ impl SyntaxPort for SyntaxFake {
             });
         }
         self.read(QueryView(&bundle.root.text))
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => SyntaxError::Located {
+                    origin: QueryOrigin {
+                        source_id: bundle.root.id.clone(),
+                        span,
+                        trace: Vec::new(),
+                    },
+                    message,
+                },
+                SyntaxError::Located { .. } => error,
+            })
             .map(|root| ParsedQueryBundle {
                 root,
                 fragments: std::collections::BTreeMap::default(),
