@@ -22,6 +22,20 @@ pub struct PreparedRequest {
 /// ```compile_fail,E0603
 /// use ryo_execution::application::file_dag::relations::RelationOwner;
 /// ```
+/// Even a valid public handle cannot expose the private execution owner.
+/// Root admission and scheduling remain behind the inbound protocol.
+/// ```compile_fail,E0616
+/// use ryo_execution::inbound::use_cases::execution::types::PreparedProgram;
+/// fn bypass(program: &PreparedProgram) { let _ = &program.inner; }
+/// ```
+/// ```compile_fail,E0616
+/// use ryo_execution::inbound::use_cases::execution::types::FileSession;
+/// fn bypass(file: &FileSession<'_, '_>) { let _ = &file.inner; }
+/// ```
+/// ```compile_fail,E0616
+/// use ryo_execution::inbound::use_cases::execution::types::ProjectSession;
+/// fn bypass(project: &ProjectSession<'_>) { let _ = &project.inner; }
+/// ```
 /// Public prepared handles can be accepted and inspected through the inbound contract.
 /// ```
 /// use ryo_execution::inbound::use_cases::execution::{

@@ -759,3 +759,6 @@ mod shared_walk;
 
 #[cfg(test)]
 mod file_intents;
+
+#[cfg(test)]
+mod scheduler;

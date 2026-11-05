@@ -25,6 +25,49 @@ Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and 
 
 **Query source ownership:** shared immutable catalogs are integrated. Diagnostic232 proves the scoped memory reduction above; combined245 passes SDK43, query-language89 and values21 tests. Public API snapshot/semver checks, unresolved TM findings, all-route sharing and full-Django acceptance remain open.
 
+### Phase 2 source-route proof batch (authored, not executed)
+
+The 2026-11-05 B4d/B5 source batch extends the public inbound owner controls in
+`crates/execution/tests/scheduler/{sources,delivery,physical}/test.rs`. It does
+not close any matrix checkbox: the combined compiler/runtime/TM run and exact-source
+independent review remain required. The authoritative source family is the six
+variants of `domain/executable_program/types.rs::InputSource`; its exhaustive
+production supply dispatch is
+`application/file_dag/program/facade_runtime/source_admission.rs::Inputs::supply`.
+The public `FileExecution` and `ProjectExecution` protocols feed that owner;
+providers in these tests supply immutable rows and cannot run a plan.
+
+| Source / dispatch family | Actual production proof and scope |
+| --- | --- |
+| `Relation` | New `scheduler/sources`: named producer reads Function through the inbound owner; new `scheduler/delivery`: failures, refusal retry, dormant independent source and fresh-generation admission. Existing `project_phase::project_relations_defer_at_file_scope_and_join_real_captured_rows_once` covers ordinary project facts/restored frontiers. |
+| `Hosted` | New `scheduler/physical::ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delivery`; existing `shared_walk/readiness::diamond_deep_chains_and_duplicate_inputs_wake_only_actual_waiters` covers deep/diamond/duplicate dependencies and empty inputs. |
+| `Region` | New named producer and ordered dependency controls require actual region scheduling; public readiness counters must remain unchanged on logical aliases and terminal delivery retry. |
+| `Observation` | New `scheduler/sources::direct_bound_root_and_union_share_the_actual_member_before_producer_delivery` delivers and captures a direct bound root in both producer/consumer delivery orders. |
+| `EmptyObservation` | Existing `project_phase/declared_empty::declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_project`; missing declaration, schema mismatch and no-query negative controls live beside it. |
+| `ObservationMember` | New consumer-first named file test and refused-member negative; existing `project_phase` named-project publication/union test supplies real stage-issued member handles and refuses an unavailable frontier. |
+
+Physical dispatch must be identified by production strategy observations, never
+inferred from equal output. Reused controls are
+`distinct_integration/route_controls::ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root`
+(ordered existence and legitimate decline),
+`distinct_integration/selected_join::selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells`
+(selected rows), `distinct_integration/join/column_chain` (fused column strategy,
+provider/partial/refusal and empty-RHS boundaries), and `compiled_parity` (actual
+native-position route counts versus registered-call fallback). Public
+`shared_walk/compact::selected_join_shares_work_preserves_counts_and_exports_owned_frontiers`
+and `shared_walk::two_distinct_singleton_selectors_share_one_actual_native_walk`
+connect those strategies to inbound execution and retirement. The new ordered
+Hosted test establishes shared scheduling for OrderedMatch, not entry into the
+separate ordered-existence optimization.
+
+Rust public-boundary compile-fail examples in inbound execution `types.rs` and
+`interface.rs` reject forged owners and late root mutation. They prove external
+privacy only; internal permit/owner construction requires its own module/privacy
+and TM bad/good controls. Exact scheduler proof role placements are declared in
+`crates/ryo/tastemaker.toml`; no alternate executor or marker inventory is added.
+Known LP2 foreign-file lineage remains Phase 1 output-correctness scope. No
+full-Django timing or 413-rule acceptance is claimed by this authored batch.
+
 ## 1. Ownership matrix
 
 `☑` means the engine is the sole authority for that cell on the named **actual route**, with source and test evidence. `☐` means split or unproved ownership; `—` means the axis does not apply. A checked cell is not a speed claim. The numbered rows cover 34 audited contract families; letters keep narrow proven subroutes separate from broader unproved work. The crate column identifies the current semantic home and any proposed isolation; it does not transfer the engine's scheduling or storage authority. The [common-owner tests and review](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md) cover the scoped selection, derived-view, and graph rows; fanout and remaining terminal paths stay open.
@@ -94,7 +137,7 @@ Completion is binary: **INCOMPLETE** or **VERIFIED**. A category becomes VERIFIE
 | R4 engine facts | [corpus inventory/read](../../crates/core/src/outbound/corpus/adapters/ignore/adapter.rs), [write_engine_rows](../../crates/core/src/application/file_analysis/service.rs): walked/listed/given, unread and replay | FilesystemFile, FilesystemLineCount, FilesystemExecutable and FilesystemReadFailure; E902 strict eight-case proof exists, while full replay and owner routes remain open. LanguageTarget is a provider reader despite catalog Class Engine | ☐ |
 | R5 relation consumption | [facts port](../../crates/execution/src/outbound/facts/interface.rs), [file analysis](../../crates/core/src/application/file_analysis/service.rs), [stored records](../../crates/core/src/inbound/use_cases/lint/use_case.rs): ordinary/native/hosted query, partiality and retained replay | The public catalog has 69 typed relation members, including namespace membership. Direct TreeRows only SyntaxTree/SyntaxChild. The eight public project/manifest members are produced per file but consumed only cross-file; per-file G/T, K, L/LC, N, J and C are N/A for those inputs. Physical owner/refusal routes are in the [relation framework audit](audits/2026-11-03-relation-routes/owner-routes.md) and [65-member route map](audits/2026-11-03-relation-routes/member-map.md) | ☐ |
 | O1 registered primitive | [26-kind exhaustive registry](../../crates/execution/src/domain/operator/contract/registration.rs) and [portable call contract](../../crates/operators/src/domain/contract/types.rs): input validation, ordered bags and errors | All 26 operators | ☐ |
-| O2 per-file execution | file/project root orchestration → required graph invoke_node; thin retain/forward delivery | 24 per-file kinds; `Rows` and `Hosted` are cross-file only by planner scope | ☐ |
+| O2 per-file execution | file/project root orchestration → required graph invoke_node; thin retain/forward delivery | 26 registered kinds; the planner normally scopes `Rows`/`Hosted` cross-file, while authored inbound controls exercise their request-invariant inputs in per-file execution | ☐ |
 | O3 physical strategies | [kernel strategy dispatch](../../crates/execution/src/application/file_dag/program/kernel_session.rs) and [representation handlers](../../crates/execution/src/domain/table_model/collections/representations): stored, selected, computed, tree and positioned populations; the old optimized executor is removed | Applicable strategies remain under the common permit; all-kind route and refusal proof is open | ☐ |
 | O4 native positioned | [six-operation evaluator](../../crates/execution/src/domain/native_positions/service.rs): Select, Project, Join, Axis, Antijoin and Union; the old recursive fragment executor is removed | Those six physical families; unsupported shapes decline before work and GroupCount uses the registered reduction route | ☐ |
 | O5 fused column | [column kernel](../../crates/execution/src/domain/column_kernel/service.rs): final Project over Select filter over Join; eligible strategy, refusal, ordered output and no fallback after semantic error | Project final, Select and Join descriptors; remaining fused Select/Project meaning stays in the execution layer pending semantic-caller closure | ☐ |
