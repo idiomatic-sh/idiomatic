@@ -1,47 +1,13 @@
-//! Compile and exercise the production codec independently of obsolete engine
-//! fixtures. Only its diagnostic byte-count dependency is stubbed; encoding,
-//! admission, decoding and external value/row carriers are the real source.
-#[path = "../src/domain/table_words/errors.rs"]
-mod errors;
-#[path = "../src/domain/table_words/service.rs"]
-mod service;
-#[path = "../src/domain/table_words/types.rs"]
-mod types;
-mod domain {
-    pub mod recording {
-        pub mod types {
-            pub mod retention {
-                pub mod value {
-                    pub struct RetainedBytes {
-                        pub cells_live: usize,
-                        pub cells_capacity: usize,
-                        pub rows: usize,
-                        pub metadata: usize,
-                    }
-                    impl RetainedBytes {
-                        pub fn table(table: &ryo_values::domain::rows::types::Table) -> Self {
-                            Self {
-                                cells_live: table.cells.len()
-                                    * size_of::<ryo_relations::domain::relations::types::Value>(),
-                                cells_capacity: table.cells.capacity()
-                                    * size_of::<ryo_relations::domain::relations::types::Value>(),
-                                rows: table.count.0,
-                                metadata: 0,
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-use ryo_relations::domain::relations::types::{
-    CellKind, FileId, Integer, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value,
-    Words, WorkerNumber,
-};
-use ryo_values::domain::{
+//! Exercise the owning Values codec directly, including compact backing and refusal rollback.
+use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::domain::table_words::{service, types};
+use crate::domain::{
     rows::types::{RowCount, Table},
     stored_facts::types::{KeptWords, PackedWords},
+};
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Integer, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash,
+    Value as Cell, Words, WorkerNumber,
 };
 use std::sync::Arc;
 use types::{DecodeMode, WordSlice};
@@ -58,18 +24,18 @@ fn table() -> Table {
         kinds: vec![CellKind::Number, CellKind::Symbol, CellKind::Number],
         count: RowCount(2),
         cells: vec![
-            Value::Number(Integer(9)),
-            Value::Name(Name {
+            Cell::Number(Integer(9)),
+            Cell::Name(Name {
                 hash: TextHash(17),
                 place: PlaceNumber(0),
             }),
-            Value::Number(Integer(9)),
-            Value::Number(Integer(-7)),
-            Value::Name(Name {
+            Cell::Number(Integer(9)),
+            Cell::Number(Integer(-7)),
+            Cell::Name(Name {
                 hash: TextHash(19),
                 place: PlaceNumber(1),
             }),
-            Value::Number(Integer(-7)),
+            Cell::Number(Integer(-7)),
         ],
     }
 }
@@ -94,7 +60,7 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
         DecodeMode::Complete => service::decode_complete(&input.0, &mut old_places),
     };
     let new = service::admit_compact(input, &mut new_places, mode);
-    assert_eq!(old.is_err(), new.is_err());
+    assert_eq!(old.as_ref().err(), new.as_ref().err());
     assert_eq!(old_places, new_places);
     if let (Ok(old), Ok((meta, _))) = (old, new) {
         assert_eq!(service::compact_kinds(&meta), old.kinds);
@@ -109,7 +75,7 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
             .is_some_and(|cells| cells == old.cells.len());
         assert_eq!(service::compact_rectangular(&meta), expected_rectangular);
         if expected_rectangular {
-            let mut scratch = vec![Value::Number(Integer(0)); old.kinds.len()];
+            let mut scratch = vec![Cell::Number(Integer(0)); old.kinds.len()];
             for row in 0..old.count.0 {
                 let expected = &old.cells[row * old.kinds.len()..(row + 1) * old.kinds.len()];
                 assert_eq!(
@@ -119,7 +85,7 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
                 for (column, value) in expected.iter().enumerate() {
                     let actual = service::compact_cell(&meta, row, column).unwrap();
                     assert_eq!(actual, *value);
-                    if let (Value::Name(a), Value::Name(b)) = (actual, value) {
+                    if let (Cell::Name(a), Cell::Name(b)) = (actual, value) {
                         assert_eq!(a.place, b.place);
                     }
                 }
@@ -132,7 +98,6 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
         assert_eq!(new_places, before, "materialization never re-admits names");
     }
 }
-#[test]
 fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
     let frames = [table(), table()];
     for mode in [DecodeMode::Permissive, DecodeMode::Complete] {
@@ -149,13 +114,12 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
     let actual = service::materialize_compact(&meta).unwrap();
     assert_eq!(
         actual.cells[7],
-        Value::Name(Name {
+        Cell::Name(Name {
             hash: TextHash(17),
             place: PlaceNumber(2)
         })
     );
 }
-#[test]
 fn truncated_tail_rolls_back_that_frame_or_complete_input() {
     let first = packed(&[table()]);
     let second = packed(&[table()]);
@@ -174,7 +138,6 @@ fn truncated_tail_rolls_back_that_frame_or_complete_input() {
     assert_eq!(service::compact_rows(&meta), 2);
     assert_eq!(places.len(), 2);
 }
-#[test]
 fn noncanonical_cut_and_incompatible_schema_preserve_modes() {
     for bytes in [vec![0x80], vec![0x80, 0x00], vec![0xff; 12]] {
         for mode in [DecodeMode::Permissive, DecodeMode::Complete] {
@@ -184,13 +147,12 @@ fn noncanonical_cut_and_incompatible_schema_preserve_modes() {
     let other = Table {
         kinds: vec![CellKind::File],
         count: RowCount(1),
-        cells: vec![Value::File(FileId(3))],
+        cells: vec![Cell::File(FileId(3))],
     };
     for mode in [DecodeMode::Permissive, DecodeMode::Complete] {
         differential(packed(&[table(), other.clone()]), mode);
     }
 }
-#[test]
 fn declared_cell_overflow_does_not_admit_current_frame_names() {
     let first = packed(&[table()]);
     let mut words = Words(vec![2, u64::MAX]);
@@ -204,7 +166,6 @@ fn declared_cell_overflow_does_not_admit_current_frame_names() {
         differential(Arc::new(KeptWords(PackedWords(bytes.clone()))), mode);
     }
 }
-#[test]
 fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     let mut places = vec![];
     let (mut meta, _) = service::admit_compact(
@@ -219,7 +180,6 @@ fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     assert!(rows.cells.is_empty());
     assert_eq!(rows.kinds, vec![CellKind::Number]);
 }
-#[test]
 fn compact_lease_pins_backing_until_metadata_is_retired() {
     let input = packed(&[table()]);
     let weak = Arc::downgrade(&input);
@@ -239,7 +199,6 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
     assert!(weak.upgrade().is_none());
 }
 
-#[test]
 fn compact_random_access_all_value_kinds_and_zero_width_frames() {
     use ryo_relations::domain::relations::types::{Flag, NodeId, Offset, Span};
     use ryo_relations::domain::terms::types::Symbol;
@@ -255,16 +214,16 @@ fn compact_random_access_all_value_kinds_and_zero_width_frames() {
         ],
         count: RowCount(1),
         cells: vec![
-            Value::Node(NodeId(u64::MAX)),
-            Value::Symbol(Symbol(13)),
-            Value::File(FileId(8)),
-            Value::Span(Span {
+            Cell::Node(NodeId(u64::MAX)),
+            Cell::Symbol(Symbol(13)),
+            Cell::File(FileId(8)),
+            Cell::Span(Span {
                 start: Offset(7),
                 end: Offset(19),
             }),
-            Value::Number(Integer(i64::MIN)),
-            Value::Flag(Flag::Raised),
-            Value::Name(Name {
+            Cell::Number(Integer(i64::MIN)),
+            Cell::Flag(Flag::Raised),
+            Cell::Name(Name {
                 hash: TextHash(17),
                 place: PlaceNumber(0),
             }),
@@ -290,17 +249,16 @@ fn compact_random_access_all_value_kinds_and_zero_width_frames() {
     }
 }
 
-#[test]
 fn permissive_mixed_width_frames_preserve_flat_rows_and_name_places() {
     let a = Table {
         kinds: vec![CellKind::Number, CellKind::Number],
         count: RowCount(1),
-        cells: vec![Value::Number(Integer(1)), Value::Number(Integer(2))],
+        cells: vec![Cell::Number(Integer(1)), Cell::Number(Integer(2))],
     };
     let b = Table {
         kinds: vec![CellKind::Symbol],
         count: RowCount(1),
-        cells: vec![Value::Name(Name {
+        cells: vec![Cell::Name(Name {
             hash: TextHash(11),
             place: PlaceNumber(0),
         })],
@@ -309,13 +267,137 @@ fn permissive_mixed_width_frames_preserve_flat_rows_and_name_places() {
         kinds: vec![CellKind::Symbol, CellKind::Number, CellKind::Number],
         count: RowCount(1),
         cells: vec![
-            Value::Name(Name {
+            Cell::Name(Name {
                 hash: TextHash(12),
                 place: PlaceNumber(1),
             }),
-            Value::Number(Integer(3)),
-            Value::Number(Integer(4)),
+            Cell::Number(Integer(3)),
+            Cell::Number(Integer(4)),
         ],
     };
     differential(packed(&[a, b, c]), DecodeMode::Permissive);
+}
+
+type Input = fn() -> Result<(), Failure>;
+type Value = ();
+type Failure = crate::domain::table_words::errors::WordsDecodeError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("multiple_frames_repeated_columns_and_name_rebase_match_production_decoder"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                multiple_frames_repeated_columns_and_name_rebase_match_production_decoder();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("truncated_tail_rolls_back_that_frame_or_complete_input"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                truncated_tail_rolls_back_that_frame_or_complete_input();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("noncanonical_cut_and_incompatible_schema_preserve_modes"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                noncanonical_cut_and_incompatible_schema_preserve_modes();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("declared_cell_overflow_does_not_admit_current_frame_names"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                declared_cell_overflow_does_not_admit_current_frame_names();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("empty_bucket_schema_is_metadata_not_unloaded_rows"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                empty_bucket_schema_is_metadata_not_unloaded_rows();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("compact_lease_pins_backing_until_metadata_is_retired"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                compact_lease_pins_backing_until_metadata_is_retired();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("compact_random_access_all_value_kinds_and_zero_width_frames"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                compact_random_access_all_value_kinds_and_zero_width_frames();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("permissive_mixed_width_frames_preserve_flat_rows_and_name_places"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                permissive_mixed_width_frames_preserve_flat_rows_and_name_places();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("incomplete_input_refuses_without_publishing_places"),
+        word: Word::Refuses,
+        input: || incomplete_input,
+        expect: Expect::Refusal(|error| selects(matches!(error, Failure::Incomplete))),
+    },
+];
+fn subject(check: Input) -> Result<Value, Failure> {
+    check()
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+fn incomplete_input() -> Result<(), Failure> {
+    let before = vec![place(99)];
+    let mut places = before.clone();
+    let result = service::admit_compact(
+        Arc::new(KeptWords(PackedWords(vec![0x80]))),
+        &mut places,
+        DecodeMode::Complete,
+    )
+    .map(|_| ());
+    assert_eq!(places, before);
+    result
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

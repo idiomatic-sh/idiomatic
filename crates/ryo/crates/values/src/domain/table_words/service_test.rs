@@ -151,3 +151,6 @@ fn exact_size_packing_matches_legacy_varints_and_retains_no_capacity_slack() {
 }
 
 use crate::domain::rows::types::Table;
+
+#[cfg(test)]
+mod compact_test;
