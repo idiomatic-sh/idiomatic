@@ -53,10 +53,20 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let first = owner.source_compact(Arc::clone(&compact)).unwrap();
-    owner.admit(first.as_ref(), crate::domain::operator::contract::views::BorrowedRows::Compact(&compact)).unwrap();
+    owner
+        .admit(
+            first.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
+        )
+        .unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
     let second = owner.source_compact(Arc::clone(&compact)).unwrap();
-    owner.admit(second.as_ref(), crate::domain::operator::contract::views::BorrowedRows::Compact(&compact)).unwrap();
+    owner
+        .admit(
+            second.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
+        )
+        .unwrap();
     assert!(!first.same_record(&second));
     // A second publication of the same immutable Compact and word buffer
     // adds only its own record. Shared backing allocations are not charged
@@ -472,7 +482,11 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         crate::application::file_dag::derived::owner::resource_fixture::prepared_sources(&[plan]);
     owner
         .derived
-        .prepare_program_file(&prepared, &[true], &partials)
+        .prepare_program_file(
+            &prepared,
+            &[crate::domain::coverage::types::RuleIndex(0)],
+            &partials,
+        )
         .unwrap();
     assert!(
         !owner.derived.relation_eligible(relation),

@@ -9,6 +9,8 @@ fn capture(run: impl FnOnce()) -> State {
             counts: HashMap::new(),
             overflow: 0,
             rules: HashMap::new(),
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: ProgressState::new(),
         });
     });
     run();

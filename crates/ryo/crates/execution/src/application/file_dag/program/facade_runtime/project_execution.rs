@@ -150,6 +150,7 @@ pub(crate) struct ProjectRun<'a> {
 }
 pub(crate) fn open_project<'a>(
     program: &'a Arc<PreparedProgram>,
+    required: RequiredPartitions,
     partials: ScopePartials<'a>,
     mut frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
