@@ -13,17 +13,13 @@ pub(crate) fn take_read_row_counts() -> (u64, u64) {
     READ_ROW_COUNTS.with(|counts| counts.replace((0, 0)))
 }
 
-use ryo_language::domain::elements::service::{
-    has_incomplete_syntax, kind_names, real_count, syntax_acceptance,
-};
-use ryo_language::domain::elements::types::SyntaxAcceptance;
-use ryo_relations::domain::relations::service::{from_bits, kinds};
+use ryo_language::domain::elements::service::real_count;
+use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::types::{
-    Bits, CellKind, ColumnsView, Flag, Integer, Position, Relation, Value,
+    Bits, CellKind, ColumnsView, Flag, Integer, Position, Value,
 };
 
 use super::types::Rows;
-use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
@@ -197,71 +193,6 @@ pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
     let count = view.columns.first().map_or(0, |column| column.0.len());
     view.columns.len() == view.kinds.len()
         && view.columns.iter().all(|column| column.0.len() == count)
-}
-
-/// Whether the actual relation reader supplies one complete, stable file population for
-/// successful-result reuse. The caller must pass the source the executor will actually read;
-/// native syntax rows come from the file-owned tree even when the facts adapter exposes a
-/// vacant relation view. That tree and its source generation remain unchanged for the rule loop.
-pub(crate) fn complete_for_reuse(
-    relation: Relation,
-    rows: &Rows<'_>,
-    partials: &[Partial],
-    stable: bool,
-) -> bool {
-    if !stable || partials.iter().any(|partial| partial.relation == relation) {
-        return false;
-    }
-    match rows {
-        Rows::Stored(view) => {
-            rectangular(*view)
-                && view.kinds == kinds(relation)
-                && view
-                    .columns
-                    .first()
-                    .is_none_or(|column| column.0.len() <= u32::MAX as usize)
-        }
-        Rows::Tree(tree)
-            if crate::domain::table_cells::service::native_form(relation) == Some(tree.form) =>
-        {
-            let elements = tree.elements;
-            let count = real_count(elements).0;
-            let names = kind_names(elements);
-            let physical = match tree.form {
-                TreeForm::Elements => {
-                    elements.start.len() == count
-                        && elements.end.len() == count
-                        && elements.text.len() == count
-                        && elements
-                            .kind
-                            .iter()
-                            .all(|kind| usize::from(kind.0) < names.len())
-                }
-                // Child rows are positions1..count. Parent and ordinal are
-                // actually read by edge_of; roles may be deliberately omitted
-                // and retain the reader's documented NO_SYMBOL semantics.
-                TreeForm::Edges => {
-                    elements.parent.len() == count
-                        && elements.ordinal.len() == count
-                        && (elements.field.is_empty() || elements.field.len() == count)
-                        && elements
-                            .parent
-                            .iter()
-                            .skip(1)
-                            .all(|parent| (parent.0 as usize) < count)
-                }
-            };
-            syntax_acceptance(elements) == SyntaxAcceptance::Accepted
-                && !has_incomplete_syntax(elements)
-                && physical
-                && count <= u32::MAX as usize
-        }
-        Rows::Tree(_)
-        | Rows::Computed(_)
-        | Rows::Compact(_)
-        | Rows::Selected(_)
-        | Rows::Positioned(_) => false,
-    }
 }
 
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.

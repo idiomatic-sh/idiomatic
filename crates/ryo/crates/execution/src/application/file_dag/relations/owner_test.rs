@@ -9,7 +9,6 @@ use crate::domain::{
             publication::PublishedRelation,
             types::{PhysicalShape, RepresentationKind},
         },
-        service::complete_for_reuse,
         types::{Rows, SelectedRows, StoredSelection},
     },
 };
@@ -425,8 +424,6 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         );
     }
     assert_eq!(owner.checks.get(), 1);
-    assert!(complete_for_reuse(relation, &rows, &[], true));
-    assert!(!complete_for_reuse(relation, &rows, &partials, true));
     owner.derived.prepare_file(
         true,
         &[relation],

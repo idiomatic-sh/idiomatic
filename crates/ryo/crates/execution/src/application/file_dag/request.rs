@@ -156,13 +156,8 @@ impl RequestOperators {
         )?;
         let physical=plans.iter().enumerate().map(|(rule,plan)| {
             let selectors = &selection_plans[rule];
-            plan.steps.iter().enumerate().map(|(at,step)| {
-                let alias=match &step.operation {
-                    Operation::Select{comparisons,kept,..} if comparisons.is_empty()&&kept.is_empty()=>Some(0),
-                    Operation::Project{columns,distinct,..} if *distinct==ryo_values::domain::plan_parts::types::RepeatedRows::Kept && rules[rule][at].input_kinds.first().is_some_and(|kinds|columns.len()==kinds.len()&&columns.iter().enumerate().all(|(at,column)|column.0 as usize==at))=>Some(0),
-                    _=>None,
-                };
-                crate::domain::table_model::collections::representations::publication::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten(),alias}
+            plan.steps.iter().enumerate().map(|(at,_step)| {
+                crate::domain::table_model::collections::representations::publication::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten()}
             }).collect()
         }).collect();
         let ordered_existence = Arc::new(

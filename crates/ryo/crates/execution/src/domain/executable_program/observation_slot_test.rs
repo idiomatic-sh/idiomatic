@@ -160,7 +160,6 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         &operators,
         ObservationRequest::Bound {
             layout: ObservationReadinessLayout(Digest([7; 16])),
-            batches: &batches,
             bindings: &bindings,
         },
     );

@@ -8,6 +8,10 @@ pub(in crate::application::file_dag) fn publish(
     resources: [Option<super::super::derived::view::AcquiredView>; 2],
 ) -> Result<PublishedInput, OperatingError> {
     owner.generation(source)?;
+    if !matches!(&source.record().body, RelationBody::Source(identity) if identity.relation == selection.relation)
+    {
+        return Err(OperatingError::NotRead);
+    }
     let (population, _) = admitted.identity(owner)?;
     if population != owner.result_population(source)
         || !owner.matches_current(source, admitted.rows())

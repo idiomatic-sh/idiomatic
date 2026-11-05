@@ -1,7 +1,7 @@
 //! Finite request descriptors; no executable Plan or mutable worker pool survives.
 use crate::domain::{
     coverage::types::{Partial, RuleIndex},
-    executable_program::types::{ExecutableProgram, InputSource, RegionId},
+    executable_program::types::{ExecutableProgram, InputSource},
     operating::errors::OperatingError,
     operator::contract::types::RequestOperators,
     stored_selection::types::{PreparedSelectionViews, Selector},
@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 pub(in crate::application::file_dag) struct SelectorUse {
     pub rule: RuleIndex,
-    pub region: RegionId,
     pub selector: Arc<Selector>,
 }
 pub(in crate::application::file_dag) struct PreparedDerived {
@@ -94,7 +93,6 @@ impl PreparedDerived {
                 if let Some(selector) = &selected.steps[at] {
                     selectors.push(SelectorUse {
                         rule: RuleIndex(rule),
-                        region: region_id,
                         selector: Arc::clone(selector),
                     });
                 }

@@ -39,6 +39,7 @@ impl AcquiredView {
             backings: Arc::clone(&self.backings),
         }
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn partition_order_capacity(
         &self,
     ) -> Result<usize, OperatingError> {

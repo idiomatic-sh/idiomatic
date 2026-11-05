@@ -544,6 +544,3 @@ pub(crate) fn compile_prepared_observations(
             .collect(),
     }
 }
-
-#[cfg(test)]
-mod service_test;

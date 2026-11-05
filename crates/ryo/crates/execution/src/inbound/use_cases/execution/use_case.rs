@@ -109,6 +109,13 @@ impl ExecutionRequest for RequestExecution {
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError> {
+        let mut vocabulary = input.kinds;
+        let vocabulary = crate::domain::kind_sets::service::prepare_vocabulary(
+            &mut vocabulary,
+            input.elements,
+            symbols,
+            ryo_values::domain::files::types::SourceView(input.source),
+        );
         let inner = facade_runtime::open_file(
             &self.program,
             input.file,
@@ -123,7 +130,7 @@ impl ExecutionRequest for RequestExecution {
                 && input.resident_stability == facts::ResidentStability::Stable,
             symbols,
             input.semantic,
-            input.kinds,
+            vocabulary,
         )?;
         Ok(FileSession {
             inner,

@@ -352,91 +352,9 @@ pub(crate) fn request<'a>(
         return Ok(ObservationRequest::Independent);
     }
     match schedule {
-        RuleSchedule::Dependencies { batches, .. } => Ok(ObservationRequest::Bound {
-            layout,
-            batches,
-            bindings,
-        }),
+        RuleSchedule::Dependencies { .. } => Ok(ObservationRequest::Bound { layout, bindings }),
         RuleSchedule::Independent => Err(ObservationError::InvalidReference),
     }
-}
-
-/// Close an existing warm replay selection over declared publications. This selects work for
-/// the existing ready batches; it neither executes producers nor invents a second ordering.
-/// Per-file producers are loaded from their retained buckets rather than run in consumer scope.
-pub(crate) fn replay_closure(
-    graph: &crate::domain::file_program::types::GraphObservations,
-    selected: &[RuleIndex],
-) -> Result<Vec<RuleIndex>, ObservationError> {
-    use crate::domain::file_program::types::GraphObservationRoot;
-    if selected.is_empty() {
-        return Ok(Vec::new());
-    }
-    let mut marked = vec![false; graph.bindings.len()];
-    let mut queue = std::collections::VecDeque::new();
-    for rule in selected {
-        let mark = marked
-            .get_mut(rule.0)
-            .ok_or(ObservationError::InvalidReference)?;
-        if !*mark {
-            *mark = true;
-            queue.push_back(*rule);
-        }
-    }
-    while let Some(rule) = queue.pop_front() {
-        // A producer change invalidates every actual dependent consumer transitively.
-        for output in graph
-            .outputs
-            .get(rule.0)
-            .ok_or(ObservationError::InvalidReference)?
-        {
-            for consumer in &output.consumers {
-                let mark = marked
-                    .get_mut(*consumer)
-                    .ok_or(ObservationError::InvalidReference)?;
-                if !*mark {
-                    *mark = true;
-                    queue.push_back(RuleIndex(*consumer));
-                }
-            }
-        }
-        // Cross outputs are invocation-owned. A selected consumer needs their actual
-        // producers in this invocation even when the producer's own Emit is per-file.
-        for binding in graph
-            .bindings
-            .get(rule.0)
-            .ok_or(ObservationError::InvalidReference)?
-        {
-            for producer in &binding.input.producers {
-                let ResolvedObservationProducer::Output {
-                    rule: producer,
-                    output,
-                } = producer
-                else {
-                    continue;
-                };
-                let root = graph
-                    .outputs
-                    .get(producer.0)
-                    .and_then(|outputs| outputs.get(output.0 as usize))
-                    .ok_or(ObservationError::InvalidReference)?;
-                if matches!(root.root, GraphObservationRoot::CrossFile) {
-                    let mark = marked
-                        .get_mut(producer.0)
-                        .ok_or(ObservationError::InvalidReference)?;
-                    if !*mark {
-                        *mark = true;
-                        queue.push_back(*producer);
-                    }
-                }
-            }
-        }
-    }
-    Ok(marked
-        .into_iter()
-        .enumerate()
-        .filter_map(|(index, selected)| selected.then_some(RuleIndex(index)))
-        .collect())
 }
 
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.

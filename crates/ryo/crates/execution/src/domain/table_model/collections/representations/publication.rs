@@ -12,5 +12,4 @@ pub(crate) trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Syn
 #[derive(Clone, Debug, Default)]
 pub(crate) struct PreparedPhysical {
     pub selector: Option<Arc<Selector>>,
-    pub alias: Option<usize>,
 }

@@ -111,7 +111,6 @@ pub(crate) enum ObservationRequest<'a> {
     /// Actual resolved bindings and original-index topology, never a second executor.
     Bound {
         layout: ryo_values::domain::observations::types::ObservationReadinessLayout,
-        batches: &'a [Vec<crate::domain::coverage::types::RuleIndex>],
         bindings: &'a [Vec<ResolvedObservationBinding>],
     },
 }
