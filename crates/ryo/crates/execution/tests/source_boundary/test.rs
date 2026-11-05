@@ -205,41 +205,44 @@ fn actual_runtime_authority_is_private_to_its_owner() {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        let Some((code, first, second)) = refusal else {
-            assert!(
-                output.status.success(),
-                "authorized production control failed; parsed errors: {errors:#?}; stderr: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            assert!(errors.is_empty(), "{errors:#?}");
-            continue;
-        };
-        assert!(
-            !output.status.success(),
-            "forbidden sibling probe compiled: {probe}"
-        );
-        assert!(
-            !errors.is_empty(),
-            "no Rust diagnostic: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        for error in errors {
-            assert_eq!(
-                error.code.as_ref().map(|code| code.code.as_str()),
-                Some(code),
-                "{error:#?}"
-            );
-            let rendered = error.rendered.as_deref().unwrap_or(&error.message);
-            assert!(
-                rendered.contains(first) && rendered.contains(second),
-                "{rendered}"
-            );
-            assert!(
-                error.spans.iter().any(|span| span.is_primary
-                    && span.file_name.ends_with(owner)
-                    && span.line_start > original.lines().count()),
-                "{error:#?}"
-            );
+        match refusal {
+            None => {
+                assert!(
+                    output.status.success(),
+                    "authorized production control failed; parsed errors: {errors:#?}; stderr: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                assert!(errors.is_empty(), "{errors:#?}");
+            }
+            Some((code, first, second)) => {
+                assert!(
+                    !output.status.success(),
+                    "forbidden sibling probe compiled: {probe}"
+                );
+                assert!(
+                    !errors.is_empty(),
+                    "no Rust diagnostic: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                for error in errors {
+                    assert_eq!(
+                        error.code.as_ref().map(|code| code.code.as_str()),
+                        Some(code),
+                        "{error:#?}"
+                    );
+                    let rendered = error.rendered.as_deref().unwrap_or(&error.message);
+                    assert!(
+                        rendered.contains(first) && rendered.contains(second),
+                        "{rendered}"
+                    );
+                    assert!(
+                        error.spans.iter().any(|span| span.is_primary
+                            && span.file_name.ends_with(owner)
+                            && span.line_start > original.lines().count()),
+                        "{error:#?}"
+                    );
+                }
+            }
         }
     }
 }
