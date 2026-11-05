@@ -534,7 +534,7 @@ pub(crate) fn prepare(
         &partitions,
         &operators,
     )?);
-    walk.retain_program_consumers(&program);
+    walk.retain_program_consumers(&program)?;
     let native_orders = program
         .regions()
         .iter()

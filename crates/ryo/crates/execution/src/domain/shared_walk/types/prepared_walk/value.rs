@@ -93,7 +93,7 @@ impl PreparedWalk {
     pub(crate) fn retain_program_consumers(
         &mut self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
-    ) {
+    ) -> Result<(), OperatingError> {
         let retained = self
             .classes
             .classes
@@ -153,10 +153,19 @@ impl PreparedWalk {
         }
         self.physical = vec![None; program.logical_regions().len()];
         for region in program.regions() {
-            if let Some(head) = region.instructions.first() {
-                self.physical[head.logical.0] = self.resolve_class(program, head);
+            let Some(head) = region.instructions.first() else {
+                continue;
+            };
+            // Synthetic observation unions are not graph-backed selection heads.
+            // Resolve eligibility before indexing the ordinary logical namespace.
+            if let Some(class) = self.resolve_class(program, head) {
+                *self
+                    .physical
+                    .get_mut(head.logical.0)
+                    .ok_or(OperatingError::NotRun)? = Some(class);
             }
         }
+        Ok(())
     }
 
     pub(crate) fn classes(&self) -> &[StepClass] {
