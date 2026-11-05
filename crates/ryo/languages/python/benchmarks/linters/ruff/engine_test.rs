@@ -1,6 +1,7 @@
 //! Real SDK evidence for missing files, unread or partial inputs and typed findings.
 use super::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -958,16 +959,16 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
     write_suppress_module(&imported_profile)?;
 
     let suite = ryo_benchmark::outbound::suite::factory::local();
-    let inline_cases = suite.cases(
-        ryo_benchmark::outbound::suite::types::ArtifactPath(&inline_rules),
-        ryo_benchmark::outbound::suite::types::ArtifactPath(&temporary.path().join("inline-cases")),
-    )?;
-    let imported_cases = suite.cases(
-        ryo_benchmark::outbound::suite::types::ArtifactPath(&imported_rules),
-        ryo_benchmark::outbound::suite::types::ArtifactPath(
-            &temporary.path().join("imported-cases"),
-        ),
-    )?;
+    let inline_cases =
+        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &suite,
+        )
+        .prepare_cases(&inline_rules, &temporary.path().join("inline-cases"))?;
+    let imported_cases =
+        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &suite,
+        )
+        .prepare_cases(&imported_rules, &temporary.path().join("imported-cases"))?;
     let imported_by_name = case_identities(imported_cases);
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(
@@ -1055,18 +1056,22 @@ fn assert_single_rule_fragment_equivalence(
     let imported_parent = imported_rules
         .parent()
         .ok_or_else(|| Error::Invalid("imported rule directory has no parent".to_owned()))?;
-    let inline_cases = suite.cases(
-        ryo_benchmark::outbound::suite::types::ArtifactPath(inline_parent),
-        ryo_benchmark::outbound::suite::types::ArtifactPath(
+    let inline_cases =
+        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &suite,
+        )
+        .prepare_cases(
+            inline_parent,
             &root.join(format!("single-inline-cases-{rule}")),
-        ),
-    )?;
-    let imported_cases = suite.cases(
-        ryo_benchmark::outbound::suite::types::ArtifactPath(imported_parent),
-        ryo_benchmark::outbound::suite::types::ArtifactPath(
+        )?;
+    let imported_cases =
+        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &suite,
+        )
+        .prepare_cases(
+            imported_parent,
             &root.join(format!("single-imported-cases-{rule}")),
-        ),
-    )?;
+        )?;
     let imported_by_name: BTreeMap<_, _> = imported_cases
         .into_iter()
         .map(|case| ((case.name.0.clone(), case.rule.as_ref().to_owned()), case))

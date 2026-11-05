@@ -1,5 +1,6 @@
 //! Authored project cases reach the SDK through the real suite and prepared worker boundaries.
 use super::*;
+use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::suite::{factory as suite, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::requests::types::WorkerState;
@@ -26,10 +27,11 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
         "\n[[cases]]\nname = \"explicit-python-unrelated-toml-still-parses\"\ncomparison = \"full\"\nfiles = { \"other.toml\" = \"def broken(\\n\" }\ncontext = { logical-root = \"project\" }\nexpected = [{ rule = \"invalid-syntax\", file = \"other.toml\", start = 12, end = 12 }]\n",
     );
     std::fs::write(&cases_path, cases_text)?;
-    let cases = suite::local().cases(
-        ArtifactPath(&rules),
-        ArtifactPath(&scratch.path().join("cases")),
-    )?;
+    let cases =
+        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &suite::local(),
+        )
+        .prepare_cases(&rules, &scratch.path().join("cases"))?;
     let selected = [
         "invalid-toml-and-invalid-python",
         "other-toml-python-source-without-manifest-diagnostic",

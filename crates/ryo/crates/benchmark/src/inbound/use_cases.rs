@@ -15,3 +15,8 @@ pub mod verify_inventory;
 pub mod validate_case_receipts;
 
 pub mod publish;
+
+pub mod prepare_cases;
+pub mod stage_suite;
+pub mod verify_cases;
+pub mod verify_reference_cases;

@@ -19,7 +19,7 @@ impl AuditUseCaseImpl {
 }
 impl AuditUseCase for AuditUseCaseImpl {
     fn audit(&self, directory: &Path, tool: &Tool) -> Result<Audit, Error> {
-        crate::application::run::service::audit(self.suite.as_ref(), directory, tool)
+        crate::application::suite_auditing::service::audit(self.suite.as_ref(), directory, tool)
     }
 }
 

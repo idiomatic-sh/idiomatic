@@ -1,5 +1,4 @@
 //! Neither contestant can certify a case by silently dropping its expected finding.
-use super::service::{verify, verify_reference_cases};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
@@ -19,7 +18,6 @@ enum Scenario {
     MissingReference,
     NoCases,
     OmittedInput,
-    MissingQuery,
     StartupFailure,
     FullAgreement,
     MissingFrontend,
@@ -49,12 +47,6 @@ const CASES: &[Case<Scenario, usize, &'static str>] = &[
         word: Word::Refuses,
         input: || Scenario::StartupFailure,
         expect: Expect::Error("candidate startup"),
-    },
-    Case {
-        name: CaseName("removed query refuses before either contestant executes"),
-        word: Word::Refuses,
-        input: || Scenario::MissingQuery,
-        expect: Expect::Error("unaccounted default"),
     },
     Case {
         name: CaseName("both contestants establish the independent expectation"),
@@ -139,28 +131,16 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
         },
         ..Default::default()
     };
-    let result = if matches!(scenario, Scenario::MissingQuery) {
-        super::service::verify_accounted(
-            &suite,
-            &reference,
-            &candidate,
-            &execution,
-            Path::new("profile"),
-            Path::new("scratch"),
-        )
-    } else {
-        verify(
-            &suite,
-            &reference,
-            &candidate,
-            &execution,
-            Path::new("rules"),
-            Path::new("scratch"),
-        )
-    };
-    if matches!(scenario, Scenario::MissingQuery) {
-        assert!(execution.history.lock().expect("history").is_empty());
-    } else if matches!(scenario, Scenario::StartupFailure) {
+    let result = super::service::verify_prepared_shard(
+        &suite,
+        &reference,
+        &candidate,
+        &execution,
+        Path::new("rules"),
+        suite.prepared.clone(),
+        ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
+    );
+    if matches!(scenario, Scenario::StartupFailure) {
         assert_eq!(execution.history.lock().expect("history").len(), 1);
     } else if !matches!(scenario, Scenario::NoCases) {
         assert_eq!(execution.history.lock().expect("history").len(), 2);
@@ -217,12 +197,12 @@ fn reference_only_accepts_exact_full_report_multiplicity_without_candidate() {
         status: 0,
         ..Default::default()
     };
-    let result = verify_reference_cases(
+    let result = super::service::verify_prepared_reference_cases(
         &suite,
         &reference,
         &execution,
         Path::new("rules"),
-        Path::new("scratch"),
+        suite.prepared.clone(),
     );
     assert!(result.is_ok(), "reference fixtures must match: {result:?}");
     if let Ok(count) = result {
@@ -262,12 +242,12 @@ fn reference_only_preserves_frontend_findings_in_rule_comparison() {
         status: 0,
         ..Default::default()
     };
-    let result = verify_reference_cases(
+    let result = super::service::verify_prepared_reference_cases(
         &suite,
         &reference,
         &execution,
         Path::new("rules"),
-        Path::new("scratch"),
+        suite.prepared.clone(),
     );
     assert!(
         result.is_ok(),
@@ -305,12 +285,12 @@ fn reference_only_rejects_wrong_byte_end_offset() {
         status: 0,
         ..Default::default()
     };
-    let result = verify_reference_cases(
+    let result = super::service::verify_prepared_reference_cases(
         &suite,
         &reference,
         &execution,
         Path::new("rules"),
-        Path::new("scratch"),
+        suite.prepared.clone(),
     );
     assert!(result.is_err(), "wrong byte endpoint must fail");
     if let Err(error) = result {
@@ -345,12 +325,12 @@ fn reference_only_rejects_missing_duplicate_and_unexpected_empty_case_finding() 
             status: 0,
             ..Default::default()
         };
-        let result = verify_reference_cases(
+        let result = super::service::verify_prepared_reference_cases(
             &suite,
             &reference,
             &execution,
             Path::new("rules"),
-            Path::new("scratch"),
+            suite.prepared.clone(),
         );
         assert!(
             result.is_err(),
@@ -370,12 +350,12 @@ fn reference_only_refuses_empty_cases_and_reference_launch_failure() {
         status: 0,
         ..Default::default()
     };
-    let no_cases = verify_reference_cases(
+    let no_cases = super::service::verify_prepared_reference_cases(
         &empty,
         &reference,
         &execution,
         Path::new("rules"),
-        Path::new("scratch"),
+        empty.prepared.clone(),
     );
     let empty_cases_error = no_cases.expect_err("empty reference cases must be refused");
     assert!(matches!(empty_cases_error, Error::Invalid(_)));
@@ -390,12 +370,12 @@ fn reference_only_refuses_empty_cases_and_reference_launch_failure() {
         status: 2,
         ..Default::default()
     };
-    let launch_failure = verify_reference_cases(
+    let launch_failure = super::service::verify_prepared_reference_cases(
         &suite,
         &launch_reference,
         &launch_execution,
         Path::new("rules"),
-        Path::new("scratch"),
+        suite.prepared.clone(),
     );
     let reference_exit_error = launch_failure.expect_err("nonzero reference exit must be refused");
     assert!(matches!(reference_exit_error, Error::Invalid(_)));
@@ -721,13 +701,14 @@ fn native_both_sides_require_intended_behavior_even_when_wrong_oracle_matches() 
     };
     let rules = Path::new("/profile/rules");
     assert_eq!(
-        verify(
+        super::service::verify_prepared_shard(
             &suite,
             &reference,
             &intended,
             &execution,
             rules,
-            Path::new("scratch")
+            suite.prepared.clone(),
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
         .expect("distinct exact expectations both hold")
         .0,
@@ -740,13 +721,14 @@ fn native_both_sides_require_intended_behavior_even_when_wrong_oracle_matches() 
     );
     let wrong_oracle = CoveredCandidate(LinterFake::default());
     assert!(
-        verify(
+        super::service::verify_prepared_shard(
             &suite,
             &reference,
             &wrong_oracle,
             &execution,
             rules,
-            Path::new("scratch")
+            suite.prepared.clone(),
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
         .is_err(),
         "agreement with incorrect oracle must fail intended contract"
@@ -772,12 +754,12 @@ fn native_reference_only_checks_the_distinct_pinned_reference_expectation() {
         ..Default::default()
     };
     assert_eq!(
-        verify_reference_cases(
+        super::service::verify_prepared_reference_cases(
             &suite,
             &reference,
             &execution,
             Path::new("/profile/rules"),
-            Path::new("scratch")
+            suite.prepared.clone()
         )
         .expect("pinned reference expectation holds")
         .0,
@@ -788,12 +770,12 @@ fn native_reference_only_checks_the_distinct_pinned_reference_expectation() {
         ..Default::default()
     };
     assert!(
-        verify_reference_cases(
+        super::service::verify_prepared_reference_cases(
             &suite,
             &wrong_reference,
             &execution,
             Path::new("/profile/rules"),
-            Path::new("scratch")
+            suite.prepared.clone()
         )
         .is_err(),
         "intended candidate output cannot replace pinned reference behavior"
@@ -801,12 +783,12 @@ fn native_reference_only_checks_the_distinct_pinned_reference_expectation() {
     let mut stale = suite;
     stale.discrepancy_artifacts_valid = false;
     assert!(
-        verify_reference_cases(
+        super::service::verify_prepared_reference_cases(
             &stale,
             &reference,
             &execution,
             Path::new("/profile/rules"),
-            Path::new("scratch")
+            stale.prepared.clone()
         )
         .is_err(),
         "reference-only path cannot bypass independent evidence"
@@ -887,13 +869,14 @@ fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidat
                 status: 0,
                 ..Default::default()
             };
-            let result = verify(
+            let result = super::service::verify_prepared_shard(
                 &suite,
                 &reference,
                 &LinterFake::default(),
                 &execution,
                 Path::new("rules"),
-                root.path(),
+                suite.prepared.clone(),
+                ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
             );
             assert_eq!(reference.calls.get(), 2);
             if drift {

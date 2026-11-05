@@ -4,6 +4,7 @@ use crate::outbound::{
     linter::interface::LinterPort,
     suite::{interface::SuitePort, types::ArtifactPath},
 };
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -109,9 +110,7 @@ pub(super) fn run(
                     "directory":invocation.directory.to_string_lossy(), "exit":raw.status.0, "signal":raw.signal,
                     "observer_no_deadline":execution.observes_completed_processes_without_deadline(),
                 });
-                if let Some(digest) = crate::domain::suite::input_metadata::digest(
-                    case.request.file_metadata.as_ref(),
-                )? {
+                if let Some(digest) = ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((case.request.file_metadata.as_ref(),).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))? {
                     captured["file_metadata_sha256"] = serde_json::json!(digest.0);
                 }
                 Ok::<_, Error>(captured)

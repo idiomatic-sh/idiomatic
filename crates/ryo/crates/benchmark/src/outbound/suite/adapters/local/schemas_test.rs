@@ -133,8 +133,6 @@ fn refuses() {
 /// Decode and validate the same envelope used by the suite adapter.
 fn report_subject(text: Input) -> Result<Value, Failure> {
     let cases = super::cases(text).map_err(|_refusal| "invalid report envelope")?;
-    crate::domain::suite::service::validate_case_sources(&cases)
-        .map_err(|_refusal| "invalid report envelope")?;
     Ok(
         matches!(cases.cases.first(), Some(case) if case.comparison == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full),
     )
@@ -180,8 +178,6 @@ fn project_scope_wire_keeps_undeclared_distinct_from_declared_empty() {
 
     let case = "[[cases]]\nname='sibling'\ncomparison='full'\nrequested-files=['main.py']\nproject-search-roots=['']\nfiles={'main.py'='import localmod', 'localmod.py'='value=1'}\ngiven-project-inventory={completeness='partial', entries=[{path='localmod.py', state='file'}]}\nexpected=[]\n";
     let decoded = super::cases(case).expect("declared root and entry state");
-    crate::domain::suite::service::validate_case_sources(&decoded)
-        .expect("unselected sibling is staged under explicit Given authority");
     let observed = decoded.cases[0]
         .given_project_inventory
         .as_ref()

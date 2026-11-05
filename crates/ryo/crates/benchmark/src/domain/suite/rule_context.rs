@@ -61,7 +61,7 @@ pub fn check(
         ));
     }
     for (file, rules) in &prepared.configuration.disabled_rules {
-        crate::domain::suite::service::relative_path(std::path::Path::new(file.0.as_ref()))?;
+        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(file.0.as_ref())))?;
         if !files.contains(file) {
             return Err(Error::Invalid(format!(
                 "rule configuration names an unrequested file: {}",

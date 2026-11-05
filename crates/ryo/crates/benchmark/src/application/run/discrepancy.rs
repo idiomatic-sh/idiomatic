@@ -5,6 +5,7 @@ use crate::outbound::{
     suite::{interface::SuitePort, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
@@ -21,8 +22,7 @@ pub(super) fn attach(
     let profile = rules
         .parent()
         .ok_or_else(|| Error::Invalid("missing case profile boundary".into()))?;
-    let wires = suite
-        .case_reference_wires(ArtifactPath(profile))
+    let wires = crate::application::case_preparation::service::reference_wires(suite, profile)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let mut seen = std::collections::BTreeSet::new();
     for wire in wires {
@@ -116,7 +116,7 @@ fn convert(
         ));
     }
     let evidence = wire.evidence.into_iter().map(|item| {
-        crate::domain::suite::service::relative_path(item.artifact().0)?;
+        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(item.artifact().0))?;
         let language_spec = matches!(&item, EvidenceWire::LanguageSpec { .. });
         match (basis, item) {
             (DiscrepancyBasis::LanguageDefect, EvidenceWire::LanguageSpec { path, sha256, language_version, target_configuration, version_rationale })
@@ -128,7 +128,7 @@ fn convert(
                 Ok(DiscrepancyEvidence::Language { path, sha256: digest(sha256)?, kind, language_version, target_configuration, version_rationale })
             }
             (DiscrepancyBasis::ToolContract, EvidenceWire::PublicToolContract { path, sha256, source_revision, source_path, rationale }) => {
-                crate::domain::suite::service::relative_path(std::path::Path::new(&source_path))?;
+                ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(&source_path)))?;
                 if source_revision.len() != 40 || !source_revision.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) || rationale.trim().is_empty() {
                     return Err(Error::Invalid("tool contract evidence needs a pinned public source revision and policy reason".into()));
                 }
@@ -407,7 +407,7 @@ pub(super) fn validate(
             evidence: &evidence,
         })
         .map_err(|error| Error::Invalid(error.to_string()))?;
-    if crate::domain::suite::input_metadata::digest(case.request.file_metadata.as_ref())?
+    if ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((case.request.file_metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))?
         != identity.file_metadata_sha256
         || settings != identity.settings_sha256
         || output_digest(&case.expected) != identity.intended_output_sha256

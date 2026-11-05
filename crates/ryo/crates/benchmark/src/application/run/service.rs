@@ -77,62 +77,8 @@ pub(super) fn validate_report(request: &RunRequest, report: &RunReport) -> Resul
 
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
 use crate::outbound::suite::interface::SuitePort;
+use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use std::path::Path;
-/// Verify each rule's independently authored findings through both selected contestants.
-///
-/// # Errors
-/// Refuses missing cases, startup failures and differences against independently authored findings.
-pub fn verify(
-    suite: &dyn SuitePort,
-    reference: &dyn LinterPort,
-    candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    rules: &Path,
-    scratch: &Path,
-) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
-{
-    verify_shard(
-        suite,
-        reference,
-        candidate,
-        execution,
-        rules,
-        scratch,
-        CaseSelection::default(),
-    )
-}
-
-/// A deterministic partition of the globally audited case inventory.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CaseShard {
-    /// Zero-based shard number.
-    pub index: usize,
-    /// Number of disjoint shards.
-    pub count: usize,
-}
-
-impl CaseShard {
-    /// Validate shard coordinates.
-    ///
-    /// # Errors
-    /// Refuses a zero shard count or an index outside that count.
-    pub fn new(index: usize, count: usize) -> Result<Self, Error> {
-        if count == 0 || index >= count {
-            return Err(Error::Invalid("invalid case shard coordinates".into()));
-        }
-        Ok(Self { index, count })
-    }
-}
-
-/// Optional partition and durable case IDs for a verification invocation.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct CaseSelection<'a> {
-    /// Globally audited deterministic shard, or all cases.
-    pub shard: Option<CaseShard>,
-    /// An explicit subset of IDs assigned to this shard, or the whole shard.
-    pub ids: Option<&'a std::collections::BTreeSet<String>>,
-}
-
 /// Audited global inventory and its exact selected partition.
 struct Selection {
     /// Number of cases before partitioning.
@@ -152,7 +98,7 @@ fn select_cases(
         Some(shard) => cases
             .into_iter()
             .enumerate()
-            .filter_map(|(index, case)| (index % shard.count == shard.index).then_some(case))
+            .filter_map(|(index, case)| (index % shard.count() == shard.index()).then_some(case))
             .collect::<Vec<_>>(),
         None => cases,
     };
@@ -178,27 +124,20 @@ fn select_cases(
     })
 }
 
-/// Verify one deterministic shard after loading and validating the entire case inventory.
-///
-/// Cases are ordered by `(rule, name)` before assigning index modulo shard count. The
-/// suite loader and profile accounting run over the full inventory before this partition.
-///
-/// # Errors
-/// Propagates inventory, execution and observation errors, and refuses mismatched case reports.
-pub fn verify_shard(
+/// Execute admitted materialized cases through the same verification workflow.
+pub(crate) fn verify_prepared_shard(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
     execution: &dyn ExecutionPort,
     rules: &Path,
-    scratch: &Path,
+    mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
     selection: CaseSelection<'_>,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
 {
-    let mut cases = suite.cases(
-        crate::outbound::suite::types::ArtifactPath(rules),
-        crate::outbound::suite::types::ArtifactPath(scratch),
-    )?;
+    if cases.is_empty() {
+        return Err(Error::Invalid(super::constants::NO_CASES.into()));
+    }
     super::input_metadata::admit(suite, rules, &cases)?;
     super::discrepancy::attach(suite, rules, &mut cases)?;
     let Selection {
@@ -359,25 +298,14 @@ pub fn verify_shard(
     }
 }
 
-/// Check independently authored cases against only the reference executable.
-///
-/// This is useful while preparing or auditing expected fixtures, when a candidate
-/// query may not yet compile. It does not compare a candidate and cannot produce a
-/// correctness certificate.
-///
-/// # Errors
-/// Refuses missing cases, reference launch failures, or differences from authored findings.
-pub fn verify_reference_cases(
-    suite: &dyn SuitePort,
-    reference: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    rules: &Path,
-    scratch: &Path,
+/// Execute admitted cases through the actual reference-only verification workflow.
+pub(crate) fn verify_prepared_reference_cases(
+    suite: &dyn SuitePort, reference: &dyn LinterPort, execution: &dyn ExecutionPort,
+    rules: &Path, mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
-    let mut cases = suite.cases(
-        crate::outbound::suite::types::ArtifactPath(rules),
-        crate::outbound::suite::types::ArtifactPath(scratch),
-    )?;
+    if cases.is_empty() {
+        return Err(Error::Invalid(super::constants::NO_CASES.into()));
+    }
     super::input_metadata::admit(suite, rules, &cases)?;
     super::discrepancy::attach(suite, rules, &mut cases)?;
     let count = cases.len();
@@ -486,59 +414,6 @@ pub fn verify_reference_cases(
     }
 }
 
-/// Verify a complete accounted profile before either contestant can execute a case.
-///
-/// # Errors
-/// Refuses unaccounted defaults before executing any case and propagates verification failures.
-pub fn verify_accounted(
-    suite: &dyn SuitePort,
-    reference: &dyn LinterPort,
-    candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    profile: &Path,
-    scratch: &Path,
-) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
-{
-    verify_accounted_shard(
-        suite,
-        reference,
-        candidate,
-        execution,
-        profile,
-        scratch,
-        CaseSelection::default(),
-    )
-}
-
-/// Verify the full profile accounting and then execute one deterministic case shard.
-///
-/// # Errors
-/// Refuses invalid profile accounting or case selection and propagates verification failures.
-pub fn verify_accounted_shard(
-    suite: &dyn SuitePort,
-    reference: &dyn LinterPort,
-    candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    profile: &Path,
-    scratch: &Path,
-    selection: CaseSelection<'_>,
-) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
-{
-    let path = crate::outbound::suite::types::ArtifactPath(profile);
-    let tool = suite.profile(path)?;
-    let audit = audit(suite, profile, &tool)?;
-    crate::domain::suite::service::require_accounted(&audit, &tool)?;
-    verify_shard(
-        suite,
-        reference,
-        candidate,
-        execution,
-        &profile.join(super::constants::RULES),
-        scratch,
-        selection,
-    )
-}
-
 /// Serialize an exact diagnostic multiset without changing order or dropping duplicates.
 pub(super) fn finding_values(
     findings: &[ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding],
@@ -552,20 +427,4 @@ pub(super) fn finding_values(
             })
         })
         .collect()
-}
-
-#[cfg(test)]
-#[path = "shard_tests.rs"]
-mod shard_tests;
-
-/// Read raw suite observations and issue only an exact inventory-bound audit.
-/// # Errors
-/// Propagates artifact failures and refuses inconsistent observed identities.
-pub fn audit(
-    suite: &dyn crate::outbound::suite::interface::SuitePort,
-    directory: &std::path::Path,
-    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
-) -> Result<crate::domain::suite::types::audit::value::Audit, Error> {
-    let observed = suite.audit(crate::outbound::suite::types::ArtifactPath(directory), tool)?;
-    crate::domain::suite::service::audited(tool, observed)
 }

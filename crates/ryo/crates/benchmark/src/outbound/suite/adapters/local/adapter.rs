@@ -1,90 +1,20 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use super::{constants, discrepancy_artifacts};
-use crate::domain::suite::service::relative_path;
-use crate::domain::suite::service::validate_case_sources;
-use crate::domain::suite::service::validate_cases;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
 use ryo_benchmark_contracts::domain::workloads::types::Cases;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// Validate default dispositions and require independent sources for every authored query.
-fn audit(directory: &Path, tool: &Tool) -> Result<AuthoredInventory, Error> {
-    validate_query_modules(directory, &tool.query_modules)?;
-    let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
-    if defaults.is_empty() || defaults.len() != tool.defaults.len() {
-        return Err(Error::Invalid(constants::INVALID_DEFAULTS.into()));
-    }
-    for (rule, issue) in tool.deferred.iter().chain(&tool.pending) {
-        if !defaults.contains(rule)
-            || issue.0.is_empty()
-            || (tool.deferred.contains_key(rule) && tool.pending.contains_key(rule))
-        {
-            return Err(Error::Invalid(format!(
-                "invalid or overlapping default disposition: {rule} -> {issue}"
-            )));
-        }
-    }
-    let mut supporting_seen = BTreeSet::new();
-    let mut implemented = BTreeSet::new();
-    for entry in std::fs::read_dir(directory.join(constants::RULES))? {
-        let entry = entry?;
-        let rule = entry
-            .file_name()
-            .into_string()
-            .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
-        let rule = super::schemas::rule(&rule)?;
-        if !defaults.contains(&rule) && !tool.supporting_rules.contains(&rule) {
-            return Err(Error::Invalid(format!(
-                "rule {rule} is not a shipped default"
-            )));
-        }
-        let query = match std::fs::read_to_string(entry.path().join(constants::QUERY)) {
-            Ok(query) => Some(query),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-            Err(error) => return Err(error.into()),
-        };
-        if query.as_ref().is_some_and(|query| query.trim().is_empty()) {
-            return Err(Error::Invalid(format!("empty query for {rule}")));
-        }
-        if tool.supporting_rules.contains(&rule) {
-            if query.is_none() {
-                return Err(Error::Invalid(format!(
-                    "supporting rule has no query: {rule}"
-                )));
-            }
-            supporting_seen.insert(rule);
-            continue;
-        }
-        let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
-            entry.path().join(constants::CASES),
-        )?)?;
-        validate_case_sources(&cases)?;
-        if query.is_some() {
-            validate_cases(&rule, &cases)?;
-            if tool.deferred.contains_key(&rule) || tool.pending.contains_key(&rule) {
-                return Err(Error::Invalid(format!(
-                    "authored rule still has a deferred or pending disposition: {rule}"
-                )));
-            }
-            let _already_present = implemented.insert(rule);
-        }
-    }
-    if supporting_seen.len() != tool.supporting_rules.len() {
-        return Err(Error::Invalid(
-            "declared supporting query is missing".into(),
-        ));
-    }
-    Ok(AuthoredInventory {
-        missing: defaults.difference(&implemented).cloned().collect(),
-        implemented: implemented.into_iter().collect(),
-    })
+fn rule_directory(rules: &Path, rule: &ryo::linter::RuleId) -> Result<std::path::PathBuf, Error> {
+    let name = rule.to_string();
+    let relative = RelativeArtifactPath::try_from(Path::new(&name))?;
+    Ok(rules.join(relative.as_ref()))
 }
 
 /// Refuse module paths that escape the profile or traverse symlinks.
@@ -96,15 +26,15 @@ fn validate_query_modules(
     for (id, relative) in modules {
         let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
             .map_err(|error| Error::Invalid(error.to_string()))?;
-        relative_path(relative)?;
+        let relative = RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
-        for component in relative.components() {
+        for component in relative.as_ref().components() {
             current.push(component);
             let metadata = std::fs::symlink_metadata(&current)?;
             if metadata.file_type().is_symlink() {
                 return Err(Error::Invalid(format!(
                     "query module is a symlink: {}",
-                    relative.display()
+                    relative.as_ref().display()
                 )));
             }
         }
@@ -112,7 +42,7 @@ fn validate_query_modules(
         if !canonical.starts_with(&root) || !canonical.is_file() {
             return Err(Error::Invalid(format!(
                 "query module is outside profile or not a file: {}",
-                relative.display()
+                relative.as_ref().display()
             )));
         }
         let _module_text = std::fs::read_to_string(canonical)?;
@@ -202,14 +132,12 @@ impl SuitePort for SuiteLocalAdapter {
     fn case_reference_wires(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
+        owners: &[ryo::linter::RuleId],
     ) -> Result<
         Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
         crate::outbound::suite::types::discrepancy::ArtifactError,
     > {
-        let tool = self.profile(ArtifactPath(profile)).map_err(|error| {
-            crate::outbound::suite::types::discrepancy::ArtifactError::Invalid(error.to_string())
-        })?;
-        super::discrepancy_artifacts::case_reference_wires(profile, &tool)
+        super::discrepancy_artifacts::case_reference_wires(profile, owners)
     }
     fn verify_discrepancy_artifacts(
         &self,
@@ -220,12 +148,60 @@ impl SuitePort for SuiteLocalAdapter {
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }
-    fn cases(
+    fn rule_ids(
         &self,
-        ArtifactPath(rules): ArtifactPath<'_>,
-        ArtifactPath(scratch): ArtifactPath<'_>,
-    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error> {
-        prepare_cases(rules, scratch)
+        ArtifactPath(profile): ArtifactPath<'_>,
+    ) -> Result<Vec<ryo::linter::RuleId>, Error> {
+        std::fs::read_dir(profile)?
+            .map(|entry| {
+                let name = entry?
+                    .file_name()
+                    .into_string()
+                    .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
+                super::schemas::rule(&name)
+            })
+            .collect()
+    }
+    fn rule_query(
+        &self,
+        ArtifactPath(profile): ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<Option<String>, Error> {
+        match std::fs::read_to_string(rule_directory(profile, rule)?.join(constants::QUERY)) {
+            Ok(query) => Ok(Some(query)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+    fn rule_cases(
+        &self,
+        ArtifactPath(profile): ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<Cases, Error> {
+        super::schemas::cases(&std::fs::read_to_string(
+            rule_directory(profile, rule)?.join(constants::CASES),
+        )?)
+    }
+    fn verify_query_modules(
+        &self,
+        ArtifactPath(profile): ArtifactPath<'_>,
+        tool: &Tool,
+    ) -> Result<(), Error> {
+        validate_query_modules(profile, &tool.query_modules)
+    }
+    fn materialize_case(
+        &self,
+        ArtifactPath(destination): ArtifactPath<'_>,
+        case: &ryo_benchmark_contracts::domain::workloads::types::Case,
+    ) -> Result<crate::outbound::suite::types::MaterializedCase, Error> {
+        super::input_metadata::materialize(destination, case)
+    }
+    fn materialize_inventory(
+        &self,
+        ArtifactPath(root): ArtifactPath<'_>,
+        inventory: &ryo::linter::GivenProjectInventory,
+    ) -> Result<(), Error> {
+        super::input_metadata::materialize_inventory(root, inventory)
     }
     fn seal_context(
         &self,
@@ -252,8 +228,8 @@ impl SuitePort for SuiteLocalAdapter {
         std::fs::create_dir(destination)?;
         std::fs::write(destination.join(constants::MANIFEST), bytes)?;
         for project in manifest.projects {
-            relative_path(&project.patch)?;
-            let target = destination.join(&project.patch);
+            let relative = RelativeArtifactPath::try_from(project.patch.as_path())?;
+            let target = destination.join(relative.as_ref());
             if let Some(parent) = target.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -274,49 +250,15 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(directory): ArtifactPath<'_>,
         ArtifactPath(destination): ArtifactPath<'_>,
         authored: &[ryo::linter::RuleId],
+        definitions: &BTreeSet<ryo::linter::RuleId>,
         purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
         let tool = super::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)?;
         validate_query_modules(directory, &tool.query_modules)?;
-        let mut definitions: BTreeSet<_> = authored
-            .iter()
-            .cloned()
-            .chain(tool.supporting_rules.iter().cloned())
-            .collect();
-        let defaults = crate::domain::suite::observations::project_profile(
-            &tool.rule_observations,
-            authored,
-            tool.rule_observation_selection,
-        );
-        definitions.extend(crate::domain::suite::observations::closure(
-            authored.iter().cloned(),
-            |id| defaults.get(id).map(Vec::as_slice),
-        ));
-        for owner in authored {
-            let cases = super::schemas::cases(&std::fs::read_to_string(
-                directory
-                    .join(constants::RULES)
-                    .join(owner.to_string())
-                    .join(constants::CASES),
-            )?)?;
-            for case in cases.cases {
-                let selected = case.selected_rules.as_deref().unwrap_or(authored);
-                let profile_declarations = crate::domain::suite::observations::project_profile(
-                    &tool.rule_observations,
-                    selected,
-                    tool.rule_observation_selection,
-                );
-                let declarations = case
-                    .rule_observations
-                    .as_ref()
-                    .unwrap_or(&profile_declarations);
-                definitions.extend(crate::domain::suite::observations::closure(
-                    selected.iter().cloned(),
-                    |id| declarations.get(id).map(Vec::as_slice),
-                ));
-            }
+        for rule in authored.iter().chain(definitions.iter()) {
+            let _path = rule_directory(&directory.join(constants::RULES), rule)?;
         }
         std::fs::create_dir(destination)?;
         let original = std::fs::read_to_string(directory.join(constants::MANIFEST))?;
@@ -367,7 +309,8 @@ impl SuitePort for SuiteLocalAdapter {
             std::fs::write(target, std::fs::read(source)?)?;
         }
         for rule in authored {
-            relative_path(rule.to_string())?;
+            let rule_path = rule.to_string();
+            let _relative = RelativeArtifactPath::try_from(Path::new(&rule_path))?;
             let target = destination.join(constants::RULES).join(rule.to_string());
             std::fs::create_dir(&target)?;
             let bytes = std::fs::read(
@@ -438,14 +381,6 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), Error> {
         verify_executable(executable, tool)
     }
-
-    fn audit(
-        &self,
-        ArtifactPath(directory): ArtifactPath<'_>,
-        tool: &Tool,
-    ) -> Result<AuthoredInventory, Error> {
-        audit(directory, tool)
-    }
 }
 
 /// Hash artifact names and contents with deterministic recursive framing.
@@ -472,246 +407,4 @@ fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
         return Err(Error::Invalid(constants::INVALID_EVIDENCE_KIND.into()));
     }
     Ok(())
-}
-
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-/// Materialize validated independent sources into isolated per-case directories.
-fn prepare_cases(
-    rules: &Path,
-    scratch: &Path,
-) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error> {
-    use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-    use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
-    let mut prepared = Vec::new();
-    let profile = rules
-        .parent()
-        .ok_or_else(|| Error::Invalid("case rules have no profile parent".into()))?
-        .join(constants::MANIFEST);
-    let profile = match std::fs::read_to_string(profile) {
-        Ok(text) => Some(super::schemas::tool(&text)?),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(error.into()),
-    };
-    let context_mode = profile.as_ref().map_or(
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
-        |tool| tool.project_context_mode,
-    );
-    for entry in std::fs::read_dir(rules)? {
-        let entry = entry?;
-        let rule = entry
-            .file_name()
-            .into_string()
-            .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID_TEXT.into()))?;
-        let rule = super::schemas::rule(&rule)?;
-        if profile
-            .as_ref()
-            .is_some_and(|profile| !crate::domain::suite::service::owns_cases(profile, &rule))
-        {
-            continue;
-        }
-        let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
-            entry.path().join(constants::CASES),
-        )?)?;
-        validate_case_sources(&cases)?;
-        if profile
-            .as_ref()
-            .is_some_and(|tool| tool.file_observation.is_some())
-            && cases.cases.iter().any(|case| {
-                case.file_metadata
-                    .as_ref()
-                    .is_none_or(|values| values.len() != case.files.len())
-            })
-        {
-            return Err(Error::Invalid(
-                "file-observation-required profile needs explicit metadata for every source".into(),
-            ));
-        }
-        match std::fs::read_to_string(entry.path().join(constants::QUERY)) {
-            Ok(query) if !query.trim().is_empty() => {}
-            Ok(_) => return Err(Error::Invalid(format!("empty query for {rule}"))),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(error.into()),
-        }
-        validate_cases(&rule, &cases)?;
-        for (index, case) in cases.cases.into_iter().enumerate() {
-            let project_search_roots = case.project_search_roots.or_else(|| {
-                profile
-                    .as_ref()
-                    .and_then(|tool| tool.project_search_roots.clone())
-            });
-            let given_project_inventory = case.given_project_inventory.unwrap_or_default();
-            if given_project_inventory.completeness
-                == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-                && project_search_roots.is_none()
-            {
-                return Err(Error::Invalid(
-                    "complete Given project inventory requires declared search roots".into(),
-                ));
-            }
-            if context_mode
-                == ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk
-                && (!given_project_inventory.entries.is_empty()
-                    || given_project_inventory.completeness
-                        != ryo::linter::ProjectInventoryCompleteness::Partial)
-            {
-                return Err(Error::Invalid(
-                    "Given project inventory cannot override a sealed disk context".into(),
-                ));
-            }
-            let boundary = scratch.join(rule.to_string()).join(index.to_string());
-            let context_manifest = match (context_mode, &case.context) {
-                (
-                    ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
-                    None,
-                ) => None,
-                (
-                    ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
-                    Some(context),
-                ) => Some(
-                    crate::outbound::context::adapters::local::adapter::materialize(
-                        &boundary,
-                        context,
-                        &case.files,
-                    )?,
-                ),
-                _ => {
-                    return Err(Error::Invalid(
-                        "case context must agree with explicit profile context mode".into(),
-                    ));
-                }
-            };
-            let root = context_manifest.as_ref().map_or(boundary, |manifest| {
-                manifest.boundary.join(&manifest.logical_root)
-            });
-            std::fs::create_dir_all(&root)?;
-            for (file, source) in &case.files {
-                relative_path(file.0.as_ref())?;
-                let path = root.join(file.0.as_ref());
-                std::fs::create_dir_all(
-                    path.parent()
-                        .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PARENT.into()))?,
-                )?;
-                std::fs::write(&path, source.0.as_bytes())?;
-                if let Some(executable) = case
-                    .file_metadata
-                    .as_ref()
-                    .and_then(|values| values.get(file))
-                {
-                    super::input_metadata::stage(&path, *executable)?;
-                }
-            }
-            let rule_context = crate::domain::suite::rule_context::resolve(
-                profile
-                    .as_ref()
-                    .and_then(|profile| profile.rule_context.as_ref()),
-                case.rule_context.as_ref(),
-            )?;
-            let selected_rules = case.selected_rules.or_else(|| {
-                rule_context
-                    .as_ref()
-                    .and_then(|_| profile.as_ref().map(|profile| profile.defaults.clone()))
-            });
-            for entry in &given_project_inventory.entries {
-                let path = root.join(entry.path.0.as_ref());
-                match entry.state {
-                    ryo::linter::ProjectEntryState::File if !path.is_file() => {
-                        return Err(Error::Invalid(
-                            "Given project file entry lacks staged source bytes".into(),
-                        ));
-                    }
-                    ryo::linter::ProjectEntryState::Directory => {
-                        if path.is_file() {
-                            return Err(Error::Invalid(
-                                "Given project directory collides with a source file".into(),
-                            ));
-                        }
-                        std::fs::create_dir_all(&path)?;
-                    }
-                    ryo::linter::ProjectEntryState::Missing if path.exists() => {
-                        return Err(Error::Invalid(
-                            "Given project missing entry collides with staged context".into(),
-                        ));
-                    }
-                    ryo::linter::ProjectEntryState::Other => {
-                        return Err(Error::Invalid(
-                            "Given project non-file entry requires a materialization contract"
-                                .into(),
-                        ));
-                    }
-                    ryo::linter::ProjectEntryState::File
-                    | ryo::linter::ProjectEntryState::Missing
-                    | ryo::linter::ProjectEntryState::Unknown => {}
-                }
-            }
-            let request = RunRequest {
-                performance: case.performance,
-                rule_context,
-                selected_rules,
-                rule_observations: case.rule_observations,
-                project_search_roots,
-                given_project_inventory,
-                staged_sources: Some(case.files.keys().cloned().collect()),
-                file_metadata: case.file_metadata,
-                context_manifest,
-                root,
-                files: case
-                    .requested_files
-                    .unwrap_or_else(|| case.files.keys().cloned().collect()),
-                state: scratch
-                    .join(constants::CACHE)
-                    .join(rule.to_string())
-                    .join(index.to_string()),
-            };
-            let expected = expected_report(&rule, request.files.clone(), case.expected);
-            prepared.push(PreparedCase {
-                reference_discrepancy: None,
-                comparison: case.comparison,
-                rule: rule.clone(),
-                name: case.name,
-                request,
-                expected,
-            });
-        }
-    }
-    if prepared.is_empty() {
-        return Err(Error::Invalid(constants::NO_EXECUTABLE_CASES.into()));
-    }
-    Ok(prepared)
-}
-
-/// Preserve each authored diagnostic identity and sort the independent expected multiset.
-fn expected_report(
-    rule: &ryo::linter::RuleId,
-    files: Vec<ryo::linter::RelativePath>,
-    expected: Vec<ryo_benchmark_contracts::domain::workloads::types::Expected>,
-) -> RunReport {
-    let mut report =
-        RunReport {
-            execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
-            project_context: None,
-            files,
-            skipped: Vec::new(),
-            coverage: None,
-            diagnostics: expected
-                .into_iter()
-                .map(|finding| {
-                    ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
-                    rule: match finding.identity {
-                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent => {
-                            rule.clone()
-                        }
-                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(
-                            value,
-                        ) => value,
-                    },
-                    file: finding.file,
-                    start: finding.start,
-                    end: finding.end,
-                }
-                })
-                .collect(),
-        };
-    report.diagnostics.sort();
-    report
 }

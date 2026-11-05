@@ -1,5 +1,6 @@
 //! Actual shared receipt policy, including legacy compatibility and missing-mode forgery.
 use super::*;
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use serde_json::json;
 
 fn pair(executable: bool) -> (Value, Vec<Value>) {
@@ -7,7 +8,7 @@ fn pair(executable: bool) -> (Value, Vec<Value>) {
         ryo::linter::RelativePath("input.txt".into()),
         executable,
     )]);
-    let digest = crate::domain::suite::input_metadata::digest(Some(&values))
+    let digest = ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((Some(&values)).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))
         .unwrap()
         .unwrap()
         .0;

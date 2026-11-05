@@ -161,7 +161,7 @@ fn project_search_roots(
                 .into_iter()
                 .map(|root| {
                     if !root.is_empty() {
-                        crate::domain::suite::service::relative_path(&root)?;
+                        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&root))?;
                     }
                     Ok(ryo::linter::RelativePath(root.into_boxed_str()))
                 })
@@ -175,7 +175,7 @@ fn given_project_inventory(
 ) -> Result<ryo::linter::GivenProjectInventory, Error> {
     let inventory: ryo::linter::GivenProjectInventory = inventory.into();
     for entry in &inventory.entries {
-        crate::domain::suite::service::relative_path(entry.path.0.as_ref())?;
+        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))?;
     }
     Ok(inventory)
 }
@@ -204,7 +204,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             let _module = ryo::query::QueryModuleSource::try_new(&id, "module source")
                 .map_err(|error| Error::Invalid(error.to_string()))?;
             let path = std::path::PathBuf::from(path);
-            crate::domain::suite::service::relative_path(&path)?;
+            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&path))?;
             if query_modules.insert(id, path).is_some() {
                 return Err(Error::Invalid("duplicate query module ID".into()));
             }

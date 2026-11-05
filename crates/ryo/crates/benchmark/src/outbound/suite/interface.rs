@@ -3,7 +3,6 @@ use super::types::ArtifactPath;
 use super::types::ArtifactSet;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 /// Read external suite artifacts and audit their authored default coverage.
@@ -104,6 +103,7 @@ pub trait SuitePort {
     fn case_reference_wires(
         &self,
         profile: ArtifactPath<'_>,
+        owners: &[ryo::linter::RuleId],
     ) -> Result<
         Vec<super::types::discrepancy::CaseReferenceWire>,
         super::types::discrepancy::ArtifactError,
@@ -151,23 +151,52 @@ pub trait SuitePort {
         directory: ArtifactPath<'_>,
         destination: ArtifactPath<'_>,
         authored: &[ryo::linter::RuleId],
+        definitions: &std::collections::BTreeSet<ryo::linter::RuleId>,
         purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error>;
-    /// Materialize the snapshot's independent case sources without executing contestants.
-    ///
+    /// Read rule directory identities without deciding which rules own evidence.
     /// # Errors
-    ///
-    /// Returns an error for malformed cases, invalid source paths, or failed materialization.
-    fn cases(
+    /// Refuses unreadable directories and malformed rule identities.
+    fn rule_ids(&self, rules: ArtifactPath<'_>) -> Result<Vec<ryo::linter::RuleId>, Error>;
+
+    /// Read an optional exact query; absence remains distinct from empty source.
+    /// # Errors
+    /// Refuses unreadable query bytes and invalid UTF8.
+    fn rule_query(
         &self,
         rules: ArtifactPath<'_>,
-        scratch: ArtifactPath<'_>,
-    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error>;
+        rule: &ryo::linter::RuleId,
+    ) -> Result<Option<String>, Error>;
 
-    /// Validate authored queries and cases against the pinned default inventory.
-    ///
+    /// Decode one owner's case declarations without deciding polarity or coverage.
     /// # Errors
-    ///
-    /// Returns an error for invalid artifacts, unsupported rule identities or unreadable inputs.
-    fn audit(&self, directory: ArtifactPath<'_>, tool: &Tool) -> Result<AuthoredInventory, Error>;
+    /// Refuses missing or malformed case data.
+    fn rule_cases(
+        &self,
+        rules: ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Cases, Error>;
+
+    /// Verify physical module paths, symlink boundaries and readable source bytes.
+    /// # Errors
+    /// Refuses unsafe, missing or unreadable declared modules.
+    fn verify_query_modules(&self, profile: ArtifactPath<'_>, tool: &Tool) -> Result<(), Error>;
+
+    /// Materialize only sources already selected by application preparation.
+    /// # Errors
+    /// Refuses escaping sources and physical context contradictions.
+    fn materialize_case(
+        &self,
+        destination: ArtifactPath<'_>,
+        case: &ryo_benchmark_contracts::domain::workloads::types::Case,
+    ) -> Result<super::types::MaterializedCase, Error>;
+
+    /// Check and materialize Given entries after request configuration is admitted.
+    /// # Errors
+    /// Refuses entry collisions and unsupported physical entry kinds.
+    fn materialize_inventory(
+        &self,
+        root: ArtifactPath<'_>,
+        inventory: &ryo::linter::GivenProjectInventory,
+    ) -> Result<(), Error>;
 }

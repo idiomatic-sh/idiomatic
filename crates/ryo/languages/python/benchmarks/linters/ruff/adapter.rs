@@ -1,8 +1,8 @@
 //! Ruff owns its invocation and requested-source IO; schemas normalize its process response.
 use super::{constants, schemas, settings::LinterRuffSettings};
 use ryo::linter::{RelativePath, RuleId, SourceText};
-use ryo_benchmark::domain::suite::service::relative_path;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -71,7 +71,7 @@ impl LinterPort for LinterRuffAdapter {
         }
         arguments.push(constants::END_OPTIONS.into());
         for file in &request.files {
-            relative_path(file.0.as_ref())?;
+            RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
             arguments.push(file.0.as_ref().into());
         }
         Ok(Invocation {
@@ -87,7 +87,7 @@ impl LinterPort for LinterRuffAdapter {
         schemas::check_status(&output)?;
         let mut sources = BTreeMap::new();
         for file in &request.files {
-            relative_path(file.0.as_ref())?;
+            RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
             let key = file.clone();
             if request.context_manifest.as_ref().is_some_and(|manifest| {
                 ryo_benchmark::domain::suite::service::declares_missing(manifest, file)
@@ -147,7 +147,7 @@ impl LinterRuffAdapter {
             let file = path
                 .to_str()
                 .ok_or_else(|| Error::Invalid(constants::NON_UTF8_PATH.into()))?;
-            relative_path(file)?;
+            RelativeArtifactPath::try_from(Path::new(file))?;
             files.push(RelativePath(file.into()));
         }
         files.sort();

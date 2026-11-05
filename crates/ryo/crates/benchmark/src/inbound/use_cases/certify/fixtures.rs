@@ -444,6 +444,74 @@ pub fn exercise(
     }
 }
 
+/// Assemble the existing independent source cases and real process port for a public suite operation.
+/// This helper supplies inputs and ports only; the caller invokes the actual use case.
+pub fn with_verification_sources<R>(
+    operation: impl FnOnce(
+        &dyn crate::outbound::suite::interface::SuitePort,
+        &dyn LinterPort,
+        &dyn LinterPort,
+        &dyn crate::outbound::execution::interface::ExecutionPort,
+        &std::path::Path,
+        &std::path::Path,
+        &std::path::Path,
+    ) -> R,
+) -> R {
+    let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
+    let profile = root.path().join(constants::FIXTURE_PROFILE_DIRECTORY);
+    let rules = profile.join(constants::FIXTURE_RULE_DIRECTORY_NAME);
+    std::fs::create_dir_all(rules.join(constants::FIXTURE_RULE_ID))
+        .expect(constants::FIXTURE_PRECONDITION);
+    let executable = root.path().join(constants::FIXTURE_TOOL_FILE);
+    let launches = root.path().join("launches");
+    #[cfg(windows)]
+    let script = format!(
+        "@echo launch>>\"{}\"\r\n@echo fixture 1\r\n",
+        launches.display()
+    );
+    #[cfg(not(windows))]
+    let script = format!(
+        "#!/bin/sh\nprintf 'launch\\n' >> '{}'\nprintf 'fixture 1\\n'\n",
+        launches.display()
+    );
+    std::fs::write(&executable, &script).expect(constants::FIXTURE_PRECONDITION);
+    executable_permissions(&executable);
+    std::fs::write(
+        profile.join(constants::FIXTURE_PROFILE_FILE),
+        format!(
+            "tool='fixture'\nversion='1'\nsha256=['{:x}']\ndefaults=['A']\n",
+            Sha256::digest(script.as_bytes())
+        ),
+    )
+    .expect(constants::FIXTURE_PRECONDITION);
+    std::fs::write(
+        rules.join(constants::FIXTURE_QUERY_FILE),
+        constants::FIXTURE_QUERY_CONTENT,
+    )
+    .expect(constants::FIXTURE_PRECONDITION);
+    std::fs::write(
+        rules.join(constants::FIXTURE_CASES_FILE),
+        toml::to_string(&case_document()).expect(constants::FIXTURE_PRECONDITION),
+    )
+    .expect(constants::FIXTURE_PRECONDITION);
+    let suite = crate::outbound::suite::factory::local();
+    let reference = Contestant {
+        executable: executable.clone(),
+        arguments: Vec::new(),
+    };
+    let candidate = reference.clone();
+    let execution = crate::outbound::execution::factory::process();
+    operation(
+        &suite,
+        &reference,
+        &candidate,
+        &execution,
+        &rules,
+        &root.path().join("prepared"),
+        &launches,
+    )
+}
+
 /// Encode independent positive and negative case records.
 fn case_document() -> toml::Value {
     let record = |name: toml::Value, source: toml::Value, expected: Vec<toml::Value>| {

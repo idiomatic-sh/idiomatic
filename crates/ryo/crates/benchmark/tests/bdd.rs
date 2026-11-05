@@ -23,6 +23,18 @@ mod verify_inventory;
 #[path = "../src/inbound/use_cases/publish/acceptance.rs"]
 mod publish;
 
+#[path = "../src/inbound/use_cases/prepare_cases/acceptance.rs"]
+mod prepare_cases;
+
+#[path = "../src/inbound/use_cases/stage_suite/acceptance.rs"]
+mod stage_suite;
+
+#[path = "../src/inbound/use_cases/verify_cases/acceptance.rs"]
+mod verify_cases;
+
+#[path = "../src/inbound/use_cases/verify_reference_cases/acceptance.rs"]
+mod verify_reference_cases;
+
 /// Stateless world: each acceptance step constructs independently owned boundaries.
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior;

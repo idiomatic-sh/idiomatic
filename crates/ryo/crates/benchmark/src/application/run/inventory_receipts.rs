@@ -1,4 +1,5 @@
 //! Validate native case observations; expectation comparison stays in the existing verifier.
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use std::collections::HashSet;
 
 use serde_json::Value;
@@ -38,7 +39,7 @@ pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
             .ok_or("file metadata must be an object")?;
         let mut parsed = std::collections::BTreeMap::new();
         for (path, value) in values {
-            crate::domain::suite::service::relative_path(std::path::Path::new(path))
+            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(path)))
                 .map_err(|error| error.to_string())?;
             if !files.iter().any(|file| file.as_str() == Some(path)) {
                 return Err("metadata names an undeclared source".into());
@@ -60,7 +61,7 @@ pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
         return Err("required input observations are missing".into());
     }
     Ok(serde_json::json!(
-        crate::domain::suite::input_metadata::digest(metadata.as_ref())
+        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))
             .map_err(|error| error.to_string())?
             .map(|value| value.0)
     ))
@@ -79,7 +80,7 @@ fn project_inputs_digest(case: &Value) -> Result<Value, String> {
                 .map(|value| {
                     let root = value.as_str().ok_or("project search root is not text")?;
                     if !root.is_empty() {
-                        crate::domain::suite::service::relative_path(root)
+                        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(root))
                             .map_err(|error| error.to_string())?;
                     }
                     Ok(ryo::linter::RelativePath(root.to_owned().into_boxed_str()))
@@ -96,7 +97,7 @@ fn project_inputs_digest(case: &Value) -> Result<Value, String> {
         wire.into()
     };
     for entry in &inventory.entries {
-        crate::domain::suite::service::relative_path(entry.path.0.as_ref())
+        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))
             .map_err(|error| error.to_string())?;
     }
     Ok(serde_json::json!(

@@ -11,7 +11,7 @@ use ryo_benchmark_contracts::domain::process::types::ProcessObservation;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 fn artifact(value: ProcessArtifactWire) -> Result<ProcessArtifact, Error> {
-    crate::domain::suite::service::relative_path(&value.path)?;
+    ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&value.path))?;
     Ok(ProcessArtifact {
         path: value.path,
         sha256: digest(value.sha256)?,
@@ -23,7 +23,7 @@ fn parts(values: Vec<OutputPartWire>) -> Result<Vec<OutputPart>, Error> {
         .map(|value| match value {
             OutputPartWire::Literal { value } => Ok(OutputPart::Literal(value)),
             OutputPartWire::InputPath { file, encoding } => {
-                crate::domain::suite::service::relative_path(&file)?;
+                ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&file))?;
                 Ok(OutputPart::InputPath {
                     file,
                     encoding: match encoding {

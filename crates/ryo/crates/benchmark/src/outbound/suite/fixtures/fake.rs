@@ -3,7 +3,6 @@ use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 #[expect(
@@ -71,6 +70,7 @@ impl SuitePort for SuiteFake {
     fn case_reference_wires(
         &self,
         _: ArtifactPath<'_>,
+        _: &[ryo::linter::RuleId],
     ) -> Result<
         Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
         crate::outbound::suite::types::discrepancy::ArtifactError,
@@ -97,17 +97,6 @@ impl SuitePort for SuiteFake {
             .cloned()
             .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
-    fn cases(
-        &self,
-        _: ArtifactPath<'_>,
-        _: ArtifactPath<'_>,
-    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error> {
-        if self.prepared.is_empty() {
-            Err(Error::Invalid("no executable rule cases".into()))
-        } else {
-            Ok(self.prepared.clone())
-        }
-    }
     fn stage_projects(&self, _: ArtifactPath<'_>, _: ArtifactPath<'_>) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
@@ -126,11 +115,46 @@ impl SuitePort for SuiteFake {
         _: ArtifactPath<'_>,
         _: ArtifactPath<'_>,
         _: &[ryo::linter::RuleId],
+        _: &std::collections::BTreeSet<ryo::linter::RuleId>,
         _: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
     fn fingerprint(&self, _: ArtifactSet<'_>) -> Result<ArtifactDigest, Error> {
+        Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
+    }
+    fn rule_ids(&self, _: ArtifactPath<'_>) -> Result<Vec<ryo::linter::RuleId>, Error> {
+        Ok(Vec::new())
+    }
+    fn rule_query(
+        &self,
+        _: ArtifactPath<'_>,
+        _: &ryo::linter::RuleId,
+    ) -> Result<Option<String>, Error> {
+        Ok(None)
+    }
+    fn rule_cases(
+        &self,
+        _: ArtifactPath<'_>,
+        _: &ryo::linter::RuleId,
+    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Cases, Error> {
+        Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
+    }
+    fn verify_query_modules(&self, _: ArtifactPath<'_>, _: &Tool) -> Result<(), Error> {
+        Ok(())
+    }
+    fn materialize_case(
+        &self,
+        _: ArtifactPath<'_>,
+        _: &ryo_benchmark_contracts::domain::workloads::types::Case,
+    ) -> Result<crate::outbound::suite::types::MaterializedCase, Error> {
+        Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
+    }
+    fn materialize_inventory(
+        &self,
+        _: ArtifactPath<'_>,
+        _: &ryo::linter::GivenProjectInventory,
+    ) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
     fn profile(&self, _: ArtifactPath<'_>) -> Result<Tool, Error> {
@@ -160,23 +184,6 @@ impl SuitePort for SuiteFake {
                 "tool does not match configured fixture profile".into(),
             )),
         }
-    }
-
-    fn audit(&self, _: ArtifactPath<'_>, tool: &Tool) -> Result<AuthoredInventory, Error> {
-        if tool.defaults.is_empty() {
-            return Err(Error::Invalid(
-                "empty or duplicated default rule inventory".into(),
-            ));
-        }
-        let (implemented, missing) = tool
-            .defaults
-            .iter()
-            .cloned()
-            .partition(|rule| self.prepared.iter().any(|case| &case.rule == rule));
-        Ok(AuthoredInventory {
-            implemented,
-            missing,
-        })
     }
 }
 #[cfg(test)]

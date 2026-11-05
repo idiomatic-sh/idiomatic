@@ -1,50 +1,35 @@
-//! Missing implementations remain visible and an empty selection is not coverage.
+//! Physical artifact observations shared by suite adapters; audit policy stays in application.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::interface::SuitePort;
-use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use crate::outbound::suite::{
+    interface::SuitePort,
+    types::{ArtifactPath, ArtifactSet},
+};
+use ryo_benchmark_contracts::domain::{
+    reports::errors::ReportsError as Error, workloads::types::Tool,
+};
+
 #[derive(Clone, Copy, Debug)]
-/// Artifact operations exercised against missing inputs as well as valid inventories.
 pub enum Operation {
-    /// Audit an inventory with one unimplemented default.
-    Audit,
-    /// Refuse an empty default inventory.
-    Empty,
-    /// Read a missing profile.
     Profile,
-    /// Read a missing shared workload.
     Projects,
-    /// Verify a missing executable.
     Verify,
-    /// Hash a missing artifact.
     Fingerprint,
-    /// Hash one missing executable's exact bytes.
     Digest,
-    /// Stage a missing rule inventory.
     Stage,
-    /// Stage a missing project manifest.
     StageProjects,
-    /// Materialize missing independent cases.
-    Cases,
+    RuleIds,
+    RuleQuery,
+    RuleCases,
 }
-/// Artifact operation to exercise.
 type Input = Operation;
-/// Counts of authored and missing default rules.
-type Value = (usize, usize);
+type Value = usize;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// Canonical contract failure classifications.
 pub enum Refusal {
-    /// The reference default inventory is empty.
-    EmptyDefaults,
-    /// The implementation returned an unexpected failure category.
     Unexpected,
-    /// The requested artifact does not exist.
     MissingArtifact,
-    /// Empty materialized rule sources cannot establish correctness.
-    NoCases,
 }
-/// Named observations every implementation must satisfy.
+type Failure = Refusal;
+
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("missing profile is refused"),
@@ -89,115 +74,90 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::MissingArtifact),
     },
     Case {
-        name: CaseName("empty case sources are refused"),
-        word: Word::Refuses,
-        input: || Operation::Cases,
-        expect: Expect::Error(Failure::NoCases),
-    },
-    Case {
-        name: CaseName("missing implementation stays missing"),
+        name: CaseName("empty rule directory is an empty observation"),
         word: Word::Succeeds,
-        input: || Operation::Audit,
-        expect: Expect::Value((0, 1)),
+        input: || Operation::RuleIds,
+        expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("empty inventory is refused"),
+        name: CaseName("missing query remains absent"),
+        word: Word::Succeeds,
+        input: || Operation::RuleQuery,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("missing case declaration is refused"),
         word: Word::Refuses,
-        input: || Operation::Empty,
-        expect: Expect::Error(Failure::EmptyDefaults),
+        input: || Operation::RuleCases,
+        expect: Expect::Error(Failure::MissingArtifact),
     },
 ];
-/// Run the shared observations against the supplied implementation.
-///
-/// # Panics
-///
-/// Panics when fixture setup fails or the implementation violates a contract observation.
-#[expect(
-    clippy::expect_used,
-    reason = "fixture setup failures must fail the contract test"
-)]
+
+/// Exercise actual physical observations; policy expectations are proved by the application tests.
 pub fn check(adapter: &impl SuitePort) {
     let temporary = tempfile::tempdir().expect("suite fixture");
     std::fs::create_dir_all(temporary.path().join("rules")).expect("rules fixture");
-    let subject = |operation| {
-        let selected = !matches!(operation, Operation::Empty);
-        let tool = Tool {
-            rule_observation_selection:
-                ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
-            supporting_rules: Vec::new(),
-            rule_observations: Default::default(),
-            rule_context: None,
-            file_observation: None,
-            project_context_mode:
-                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-            tool: "fixture".into(),
-            version: "1".into(),
-            sha256: vec![String::new().into()],
-            deferred: std::collections::BTreeMap::default(),
-            pending: std::collections::BTreeMap::default(),
-            query_modules: std::collections::BTreeMap::default(),
-            rule_applicability: std::collections::BTreeMap::default(),
-            parser_configuration: None,
-            source_language: None,
-            project_search_roots: None,
-            defaults: if selected {
-                vec!["fixture".try_into().expect("rule identifier")]
-            } else {
-                Vec::new()
-            },
-        };
-        let missing = temporary.path().join("missing");
-        let destination = temporary.path().join("destination");
-        let result = match operation {
-            Operation::Audit | Operation::Empty => adapter
-                .audit(ArtifactPath(temporary.path()), &tool)
-                .map(|audit| (audit.implemented.len(), audit.missing.len())),
-            Operation::Profile => adapter.profile(ArtifactPath(&missing)).map(|_| (0, 0)),
-            Operation::Projects => adapter.projects(ArtifactPath(&missing)).map(|_| (0, 0)),
+    let tool = Tool {
+        rule_observation_selection:
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+        supporting_rules: Vec::new(),
+        rule_observations: Default::default(),
+        rule_context: None,
+        file_observation: None,
+        project_context_mode: Default::default(),
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: vec![String::new().into()],
+        deferred: Default::default(),
+        pending: Default::default(),
+        query_modules: Default::default(),
+        rule_applicability: Default::default(),
+        parser_configuration: None,
+        source_language: None,
+        project_search_roots: None,
+        defaults: vec!["fixture".try_into().expect("rule identifier")],
+    };
+    let subject =
+        |operation| {
+            let missing = temporary.path().join("missing");
+            let destination = temporary.path().join("destination");
+            let result = match operation {
+            Operation::Profile => adapter.profile(ArtifactPath(&missing)).map(|_| 0),
+            Operation::Projects => adapter.projects(ArtifactPath(&missing)).map(|_| 0),
             Operation::Verify => adapter
                 .verify_tool(ArtifactPath(&missing), &tool)
-                .map(|()| (0, 0)),
-            Operation::Fingerprint => adapter.fingerprint(ArtifactSet(&[missing])).map(|_| (0, 0)),
-            Operation::Stage => {
-                let audit = adapter
-                    .audit(ArtifactPath(temporary.path()), &tool)
-                    .expect("valid inventory");
-                adapter
-                    .stage(
-                        ArtifactPath(&missing),
-                        ArtifactPath(&destination),
-                        &audit.implemented,
-                        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-                    )
-                    .map(|()| (0, 0))
-            }
-            Operation::Digest => adapter.digest(ArtifactPath(&missing)).map(|_| (0, 0)),
+                .map(|()| 0),
+            Operation::Fingerprint => adapter.fingerprint(ArtifactSet(&[missing])).map(|_| 0),
+            Operation::Digest => adapter.digest(ArtifactPath(&missing)).map(|_| 0),
+            Operation::Stage => adapter
+                .stage(
+                    ArtifactPath(&missing),
+                    ArtifactPath(&destination),
+                    &[],
+                    &Default::default(),
+                    ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+                )
+                .map(|()| 0),
             Operation::StageProjects => adapter
                 .stage_projects(ArtifactPath(&missing), ArtifactPath(&destination))
-                .map(|()| (0, 0)),
-            Operation::Cases => adapter
-                .cases(
-                    ArtifactPath(&temporary.path().join("rules")),
-                    ArtifactPath(&destination),
-                )
-                .map(|_| (0, 0)),
+                .map(|()| 0),
+            Operation::RuleIds => adapter
+                .rule_ids(ArtifactPath(&temporary.path().join("rules")))
+                .map(|ids| ids.len()),
+            Operation::RuleQuery => adapter
+                .rule_query(ArtifactPath(&temporary.path().join("rules")), &tool.defaults[0])
+                .map(|query| usize::from(query.is_some())),
+            Operation::RuleCases => adapter
+                .rule_cases(ArtifactPath(&temporary.path().join("rules")), &tool.defaults[0])
+                .map(|cases| cases.cases.len()),
         };
-        result.map_err(|error| match error {
-            Error::Invalid(message) if message == "empty or duplicated default rule inventory" => {
-                Failure::EmptyDefaults
-            }
-            Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                Failure::MissingArtifact
-            }
-            Error::Invalid(message) if message == "no executable rule cases" => Failure::NoCases,
-            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
-                Failure::Unexpected
-            }
-        })
-    };
+            result.map_err(|error| match error {
+                Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    Failure::MissingArtifact
+                }
+                _ => Failure::Unexpected,
+            })
+        };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
 }
-
-/// Classified artifact validation refusal.
-type Failure = Refusal;

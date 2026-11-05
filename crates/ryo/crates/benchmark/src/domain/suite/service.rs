@@ -89,25 +89,6 @@ pub fn require_accounted(
     Ok(())
 }
 
-/// Refuse absolute, empty and traversing paths before boundary access.
-///
-/// # Errors
-/// Refuses empty, absolute, traversing or otherwise non-normal relative paths.
-pub fn relative_path(path: impl AsRef<Path>) -> Result<(), Error> {
-    let path = path.as_ref();
-    if path.as_os_str().is_empty()
-        || path
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
-    {
-        return Err(Error::Invalid(format!(
-            "unsafe corpus path {}",
-            path.display()
-        )));
-    }
-    Ok(())
-}
-
 /// Require independent positive/negative cases for the enclosing rule with valid source spans and names.
 ///
 /// # Errors
@@ -148,7 +129,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             ));
         }
         for name in case.files.keys() {
-            relative_path(name.0.as_ref())?;
+            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
         }
         if let Some(requested) = &case.requested_files {
             let selected: std::collections::BTreeSet<_> = requested.iter().collect();
@@ -164,7 +145,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                     ));
                 }
                 for path in requested {
-                    relative_path(path.0.as_ref())?;
+                    ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(path.0.as_ref()))?;
                     if !case.files.contains_key(path)
                         && !context_missing(&context.logical_root, &context.missing, path)
                     {
@@ -197,7 +178,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         }
         if let Some(values) = &case.file_metadata {
             for name in values.keys() {
-                relative_path(name.0.as_ref())?;
+                ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
                 if !case.files.contains_key(name) {
                     return Err(Error::Invalid(
                         "file metadata names an undeclared source".into(),
@@ -341,4 +322,36 @@ pub(crate) fn audited(
         implemented: observed.implemented,
         missing: observed.missing,
     })
+}
+
+/// Preserve every authored diagnostic identity and the independently expected multiset.
+pub(crate) fn expected_report(
+    rule: &ryo::linter::RuleId,
+    files: Vec<ryo::linter::RelativePath>,
+    expected: Vec<ryo_benchmark_contracts::domain::workloads::types::Expected>,
+) -> ryo_benchmark_contracts::domain::reports::types::RunReport {
+    let mut report = ryo_benchmark_contracts::domain::reports::types::RunReport {
+        execution_metadata:
+            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
+        project_context: None,
+        files,
+        skipped: Vec::new(),
+        coverage: None,
+        diagnostics: expected
+            .into_iter()
+            .map(
+                |finding| ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
+                    rule: match finding.identity {
+                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent => rule.clone(),
+                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(value) => value,
+                    },
+                    file: finding.file,
+                    start: finding.start,
+                    end: finding.end,
+                },
+            )
+            .collect(),
+    };
+    report.diagnostics.sort();
+    report
 }

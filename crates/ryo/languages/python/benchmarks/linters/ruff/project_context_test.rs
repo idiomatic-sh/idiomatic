@@ -1,5 +1,6 @@
 //! Real local-adapter project context and retained-cache lifecycle checks.
 use super::PreparedEngine as _;
+use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::{
     engine::factory,
     suite::{interface::SuitePort as _, types::ArtifactPath},
@@ -47,10 +48,11 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
             profile.join(format!("fragments/{name}.ryoql")),
         )?;
     }
-    let cases = ryo_benchmark::outbound::suite::factory::local().cases(
-        ArtifactPath(&profile.join("rules")),
-        ArtifactPath(&root.join("cases")),
-    )?;
+    let cases =
+        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &ryo_benchmark::outbound::suite::factory::local(),
+        )
+        .prepare_cases(&profile.join("rules"), &root.join("cases"))?;
     Ok((profile, cases))
 }
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {

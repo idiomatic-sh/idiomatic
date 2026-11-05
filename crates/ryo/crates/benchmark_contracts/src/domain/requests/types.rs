@@ -122,3 +122,14 @@ pub enum CertificationCases {
         output: PathBuf,
     },
 }
+
+/// Optional partition and durable case IDs for a verification invocation.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CaseSelection<'a> {
+    /// Globally audited deterministic shard, or all cases.
+    pub shard: Option<case_shard::value::CaseShard>,
+    /// An explicit subset of IDs assigned to this shard, or the whole shard.
+    pub ids: Option<&'a std::collections::BTreeSet<String>>,
+}
+
+pub mod case_shard;

@@ -29,12 +29,12 @@ pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
     if let Some(roots) = &request.project_search_roots {
         for root in roots {
             if !root.0.is_empty() {
-                crate::domain::suite::service::relative_path(root.0.as_ref())?;
+                ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(root.0.as_ref()))?;
             }
         }
     }
     for entry in &request.given_project_inventory.entries {
-        crate::domain::suite::service::relative_path(entry.path.0.as_ref())?;
+        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))?;
     }
     if request.given_project_inventory.completeness
         == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope

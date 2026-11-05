@@ -1,6 +1,7 @@
 //! Convert one verification outcome into a durable boundary-owned observation.
 use super::service::finding_values;
 use crate::outbound::suite::interface::SuitePort;
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
@@ -57,7 +58,7 @@ pub(super) fn write(
         &crate::domain::suite::service::materialized_sources(&case.request),
     );
     let metadata_identity =
-        crate::domain::suite::input_metadata::digest(case.request.file_metadata.as_ref());
+        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((case.request.file_metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })));
     let project_identity = crate::domain::suite::project_inputs::digest(
         case.request.project_search_roots.as_deref(),
         &case.request.given_project_inventory,

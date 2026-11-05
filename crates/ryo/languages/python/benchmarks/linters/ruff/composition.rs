@@ -1,5 +1,6 @@
 //! Python composition provides its linked language only at this outer edge.
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
+use ryo_benchmark::inbound::use_cases::stage_suite::interface::StageSuiteUseCase as _;
 mod commands;
 mod constants;
 mod diagnostic_protocol;
@@ -168,9 +169,12 @@ pub(crate) fn run(
                 .tempdir_in(&cache)?
                 .keep();
             let selected_profile = selected_scratch.join(constants::PROFILE_DIRECTORY);
-            suite_source.stage(
-                ArtifactPath(&commands::directory()),
-                ArtifactPath(&selected_profile),
+            ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
+                suite_source.as_ref(),
+            )
+            .stage_suite(
+                &commands::directory(),
+                &selected_profile,
                 audit.authored(),
                 ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Execution,
             )?;

@@ -1,34 +1,7 @@
 //! Pure identity of declared file observations, separate from unchanged source-byte framing.
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
-
-/// None is the historical unspecified case; an explicitly empty table has its own identity.
-pub fn digest(
-    metadata: Option<&BTreeMap<RelativePath, bool>>,
-) -> Result<Option<ArtifactDigest>, Error> {
-    metadata
-        .map(|values| {
-            let mut hash = Sha256::new();
-            hash.update(b"ryo-case-file-metadata-v1\0");
-            for (path, executable) in values {
-                let bytes = path.0.as_bytes();
-                hash.update(
-                    u64::try_from(bytes.len())
-                        .map_err(|_| {
-                            Error::Invalid("metadata path length exceeds canonical encoding".into())
-                        })?
-                        .to_le_bytes(),
-                );
-                hash.update(bytes);
-                hash.update([u8::from(*executable)]);
-            }
-            Ok(ArtifactDigest(format!("{:x}", hash.finalize())))
-        })
-        .transpose()
-}
 
 /// A required observation must be explicit for every declared source, even for negative cases.
 pub fn require(
@@ -38,7 +11,7 @@ pub fn require(
 ) -> Result<(), Error> {
     if let Some(values) = metadata {
         for path in values.keys() {
-            super::service::relative_path(std::path::Path::new(path.0.as_ref()))?;
+            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(path.0.as_ref()))?;
             if !files.contains(path) {
                 return Err(Error::Invalid("metadata names an undeclared source".into()));
             }

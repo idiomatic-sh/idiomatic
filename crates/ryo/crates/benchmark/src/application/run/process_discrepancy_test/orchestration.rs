@@ -58,14 +58,14 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
     };
     let bounded = crate::outbound::execution::fixtures::fake::ExecutionFake::default();
     assert!(
-        service::verify_shard(
+        service::verify_prepared_shard(
             &suite,
             &reference,
             &candidate,
             &bounded,
             &fixture.rules,
-            fixture.root.path(),
-            service::CaseSelection::default()
+            suite.prepared.clone(),
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
         .unwrap_err()
         .to_string()
@@ -77,14 +77,14 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
     );
     std::fs::remove_file(suite.case_receipt.as_ref().unwrap()).unwrap();
     assert_eq!(
-        service::verify_shard(
+        service::verify_prepared_shard(
             &suite,
             &reference,
             &candidate,
             &PairExecution,
             &fixture.rules,
-            fixture.root.path(),
-            service::CaseSelection::default()
+            suite.prepared.clone(),
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
         .unwrap()
         .0,
@@ -102,14 +102,14 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
     suite.prepared[0].reference_discrepancy = None;
     std::fs::remove_file(suite.case_receipt.as_ref().unwrap()).unwrap();
     assert!(
-        service::verify_shard(
+        service::verify_prepared_shard(
             &suite,
             &reference,
             &candidate,
             &PairExecution,
             &fixture.rules,
-            fixture.root.path(),
-            service::CaseSelection::default()
+            suite.prepared.clone(),
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
         .is_err(),
         "an untagged process failure remains a failure"

@@ -45,7 +45,7 @@ impl Inventory {
             ));
         }
         for rule in rules {
-            crate::domain::suite::service::relative_path(rule)?;
+            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(rule))?;
         }
         Ok(Self {
             rules: rules

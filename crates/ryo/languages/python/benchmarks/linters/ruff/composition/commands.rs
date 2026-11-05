@@ -7,6 +7,11 @@ use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
+use ryo_benchmark::inbound::use_cases::{
+    stage_suite::interface::StageSuiteUseCase as _,
+    verify_cases::interface::VerifyCasesUseCase as _,
+    verify_reference_cases::interface::VerifyReferenceCasesUseCase as _,
+};
 use ryo_benchmark::outbound::suite::{interface::SuitePort, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
@@ -162,9 +167,12 @@ pub(super) fn verify_cases(
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
-    suite_source.stage(
-        ArtifactPath(&source),
-        ArtifactPath(&profile),
+    ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
+        suite_source.as_ref(),
+    )
+    .stage_suite(
+        &source,
+        &profile,
         audit.authored(),
         ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
     )?;
@@ -180,23 +188,29 @@ pub(super) fn verify_cases(
         candidate_observation_selection,
         candidate_observations,
     ));
-    let count = ryo_benchmark::application::run::service::verify_accounted_shard(
-        suite_source.as_ref(),
-        reference.as_ref(),
-        candidate.as_ref(),
-        execution.as_ref(),
-        &profile,
-        &root.join(constants::CASES_DIRECTORY),
-        ryo_benchmark::application::run::service::CaseSelection {
-            shard,
-            ids: case_selection.as_ref(),
-        },
-    )?;
+    let count =
+        ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
+            suite_source.as_ref(),
+            reference.as_ref(),
+            candidate.as_ref(),
+            execution.as_ref(),
+        )
+        .verify_cases(
+            &profile.join(constants::RULES_DIRECTORY),
+            &root.join(constants::CASES_DIRECTORY),
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection {
+                shard,
+                ids: case_selection.as_ref(),
+            },
+            ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
+        )?;
     Ok(count)
 }
 
 /// Parse explicit zero-based shard coordinates using the validated application type.
-fn parse_shard(value: &str) -> Result<ryo_benchmark::application::run::service::CaseShard, Error> {
+fn parse_shard(
+    value: &str,
+) -> Result<ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard, Error> {
     let coordinates = value
         .strip_prefix("--shard=")
         .ok_or_else(|| Error::Invalid("expected --shard=INDEX/COUNT".into()))?;
@@ -209,7 +223,9 @@ fn parse_shard(value: &str) -> Result<ryo_benchmark::application::run::service::
     let count = count
         .parse()
         .map_err(|_invalid_count| Error::Invalid("invalid case shard count".into()))?;
-    ryo_benchmark::application::run::service::CaseShard::new(index, count)
+    ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard::new(
+        index, count,
+    )
 }
 
 /// Validate authored fixture expectations against Ruff without loading a Ryo candidate.
@@ -232,10 +248,7 @@ pub(super) fn verify_reference_cases(
     let reference = reference(executable, tool)?;
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
-    ryo_benchmark::application::run::service::verify_reference_cases(
-        &suite_source,
-        &reference,
-        &execution,
+    ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     )
