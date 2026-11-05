@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 struct ContinuesAfterSetFailure {
     observed_denials: AtomicUsize,
 }
-impl OperatorsPort for ContinuesAfterSetFailure {
+impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ContinuesAfterSetFailure {
     fn operators(
         &self,
         call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
