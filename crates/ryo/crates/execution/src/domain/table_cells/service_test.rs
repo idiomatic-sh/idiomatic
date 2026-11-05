@@ -11,8 +11,8 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::service::read_tree_cells;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::TableModelError;
 
 /// A scenario: what a row asks of the part.

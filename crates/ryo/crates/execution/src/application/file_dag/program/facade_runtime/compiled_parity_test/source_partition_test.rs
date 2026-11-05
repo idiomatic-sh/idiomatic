@@ -6,10 +6,7 @@ use crate::application::file_dag::program::{
     kernel_session::KernelSession,
     runtime::{Delivery, InvocationOutcome, ProgramExecution},
 };
-use crate::domain::{
-
-    coverage::types::{Lacking, Partial, Partials, RuleIndex},
-};
+use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{HostedNumber, ParameterId, ParameterName, TableKey},

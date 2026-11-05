@@ -17,7 +17,6 @@ use ryo_values::domain::stored_facts::types::{
 };
 
 use crate::application::file_dag::settings::VisitSetting;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial, RuleIndex};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
@@ -26,6 +25,7 @@ use crate::domain::recording::service::{
     cover, finish_file, frontier_flat, made_ran, moved_words, replay, stored_of,
 };
 use crate::domain::recording::types::{BucketWords, Flat};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::service::push_row;
 
 use crate::domain::trust::types::{Needs, RelationRead};

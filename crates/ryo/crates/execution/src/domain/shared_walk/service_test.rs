@@ -1,6 +1,5 @@
 //! The prepared native pass keeps independent class results and never publishes.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::{
     completion::service::{completion, name_kind},
     elements::service::{enter_node, leave_node, table_builder, token},
@@ -12,10 +11,11 @@ use ryo_relations::domain::{
     relations::types::{FileId, KindBits, Offset, Relation},
     terms::types::NameText,
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{
-        ColumnIndex, Comparison, Input, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
-        Test,
+        ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, ParameterId,
+        QueryLiteral, StepId, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
 };
@@ -29,7 +29,7 @@ use {
     crate::domain::shared_walk::types::prepared_walk::value::NativeBatch,
     crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
     crate::domain::table_cells::types::TreeForm, crate::domain::table_cells::types::TreeRows,
-    crate::domain::table_model::types::table_scratch::types::OperatorScratch,
+    crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
 
@@ -40,7 +40,7 @@ fn plan(name: &str) -> Plan {
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {
-                from: Input::Relation(Relation::SyntaxTree),
+                from: PlanInput::Relation(Relation::SyntaxTree),
                 comparisons: vec![Comparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(if name.is_empty() { 2 } else { 1 })),

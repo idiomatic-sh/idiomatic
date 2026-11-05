@@ -7,12 +7,12 @@ use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Value 
 use ryo_values::domain::plans::types::QueryOperator;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::words::item::WordsItem;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

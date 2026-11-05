@@ -152,7 +152,9 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         &plans,
         &[vec![], vec![], vec![], vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ),
     )
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared_observations(

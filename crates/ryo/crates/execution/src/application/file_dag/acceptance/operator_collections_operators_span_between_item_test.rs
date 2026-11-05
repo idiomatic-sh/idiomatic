@@ -1,12 +1,12 @@
 //! Exact byte offsets, absence and refusal through actual compiled owner execution.
 use super::compiled_span_fixture as compiled;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,
     types::{FileId, Offset, Relation, Span, Value},
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId},
     plans::types::{Operation, QueryOperator},

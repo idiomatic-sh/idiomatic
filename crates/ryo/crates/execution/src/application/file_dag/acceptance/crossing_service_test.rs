@@ -2,7 +2,6 @@
 use crate::application::file_dag::crossing::cross_rule;
 
 use crate::application::file_dag::settings::CrossingInput;
-use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::answering::types::Todo;
 use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, RuleIndex};
 use crate::domain::crossing::service::{partials_for, placeable};
@@ -17,6 +16,7 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
     Value as Cell, Words, WorkerNumber,
 };
+use ryo_values::cases::{Case, CaseName, Expect, Selection, Word, run};
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};

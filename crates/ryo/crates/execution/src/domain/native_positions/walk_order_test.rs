@@ -4,7 +4,6 @@ use super::{
     axis::axis,
     types::{PositionInput, PositionWork},
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::types::{
     ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth,
 };
@@ -15,6 +14,7 @@ use crate::domain::positions::service_test::{SMALL_SOURCE, SmallTree, rows_over,
 use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction;

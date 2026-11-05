@@ -11,13 +11,13 @@ use ryo_values::domain::plans::types::QueryOperator;
 use ryo_language::domain::symbols::types::Symbols;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Applied;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

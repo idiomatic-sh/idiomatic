@@ -1,14 +1,14 @@
 //! Independent descriptor derivation cases; no relation rows or symbol table is available.
 
 use crate::application::file_dag::pipeline::service_test::plan;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, Operand, ParameterId, RepeatedRows, StepId, Test,
     WholeNumber,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 #[test]
 fn exact_numeric_comparison_retains_ordinary_execution_until_selector_parity_is_proven() {

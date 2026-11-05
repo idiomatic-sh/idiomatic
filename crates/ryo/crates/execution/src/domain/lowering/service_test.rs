@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::Relation;
 
 use super::service::lower;
 use super::types::Counting;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::JoinColumn;

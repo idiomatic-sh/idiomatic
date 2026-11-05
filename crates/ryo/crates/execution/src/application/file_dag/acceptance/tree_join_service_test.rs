@@ -15,12 +15,12 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::rows::service::push_row;
 

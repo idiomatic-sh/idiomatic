@@ -2,10 +2,10 @@
 
 use super::super::interface::ComparisonsItem as _;
 use super::item::FloatTextItem;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::{Datum, TextView};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 

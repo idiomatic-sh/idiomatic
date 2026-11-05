@@ -2,7 +2,6 @@
 
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::KnownSyntax;
 use crate::application::file_dag::cross_execution::compute;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::service::schema_of;
 use crate::domain::operation_schema::types::InputShape;
@@ -14,6 +13,7 @@ use ryo_language::domain::symbols::{
     types::{ByteSlice, Symbols},
 };
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
 use {crate::domain::features::service::catalog, ryo_values::domain::plans::service::kind_of};

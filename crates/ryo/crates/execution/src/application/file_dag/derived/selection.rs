@@ -246,4 +246,4 @@ fn shared_positions(
     Ok(Arc::clone(rows.backing()))
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

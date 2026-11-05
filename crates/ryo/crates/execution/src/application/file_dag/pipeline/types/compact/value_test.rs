@@ -1,7 +1,7 @@
 //! Real compact Feed/hold, join, frontier and provider-refusal differential proof.
 use crate::application::file_dag::feed::Feed;
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, Operand, RepeatedRows, StepId, Test,
 };

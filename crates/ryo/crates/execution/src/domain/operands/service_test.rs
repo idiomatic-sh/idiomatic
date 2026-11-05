@@ -4,9 +4,9 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
 
 use super::service::resolve;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::functions::types::MadeText;
 use crate::domain::operating::errors::OperatingError;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{Operand, ParameterId, QueryLiteral, WholeNumber};
 use {
     crate::domain::table_texts::types::Datum, crate::domain::table_texts::types::Texts,

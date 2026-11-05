@@ -1,7 +1,6 @@
 //! Traversal schemas preserve representation-sensitive projections and reject bad metadata.
 
 use crate::application::file_dag::cross_execution::compute;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::traversal::value::TraversalShape;
@@ -16,6 +15,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell,
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, Input as Source, JoinColumn, Side,

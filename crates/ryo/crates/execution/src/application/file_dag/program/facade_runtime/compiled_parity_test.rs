@@ -8,7 +8,6 @@ use crate::application::file_dag::{
     },
     scope::ScopePartials,
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::errors::OperatingError,
@@ -21,6 +20,7 @@ use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{

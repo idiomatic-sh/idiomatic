@@ -9,7 +9,6 @@ use ryo_values::domain::plans::types::QueryOperator;
 use ryo_language::domain::symbols::types::Symbols;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::axis::item::AxisItem;
@@ -21,6 +20,7 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Position};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction;

@@ -7,7 +7,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 
 use super::service::datum;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::rows::errors::TableModelError;
 use ryo_values::domain::stored_facts::types::ArenaBytes;

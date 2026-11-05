@@ -9,12 +9,12 @@ use ryo_values::domain::plan_parts::types::CapturePattern;
 use ryo_values::domain::plans::types::QueryOperator;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::capture::item::CaptureItem;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plans::types::Operation;

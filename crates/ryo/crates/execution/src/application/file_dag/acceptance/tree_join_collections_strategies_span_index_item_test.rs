@@ -11,7 +11,6 @@ use ryo_relations::domain::relations::types::{
 use ryo_language::domain::symbols::types::Symbols;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
@@ -22,6 +21,7 @@ use crate::domain::tree_join::collections::strategies::interface::StrategiesItem
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
 use ryo_derived::domain::contract::types::Finding;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side};
 use ryo_values::domain::plans::types::Operation;

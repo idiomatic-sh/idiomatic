@@ -95,9 +95,11 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
                 relation: Relation::Function,
                 identity: Arc::new(SelectionIdentity {
                     comparisons: vec![],
-                    bindings: vec![ryo_values::domain::query_bindings::types::ParameterBinding::Number(
-                        ryo_values::domain::plan_parts::types::WholeNumber(bound),
-                    )],
+                    bindings: vec![
+                        ryo_values::domain::query_bindings::types::ParameterBinding::Number(
+                            ryo_values::domain::plan_parts::types::WholeNumber(bound),
+                        ),
+                    ],
                 }),
                 rows: Arc::new(positions),
                 columns,

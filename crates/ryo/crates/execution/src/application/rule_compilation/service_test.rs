@@ -3,12 +3,10 @@ use super::constants::COMPILED_PLANS;
 use super::errors::RuleCompilationError;
 use super::service::RuleCompilation;
 use super::types::CompiledPlans;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rule_requests::errors::RulesError;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostedRelation,
@@ -16,6 +14,8 @@ use ryo_values::domain::hosted::types::{
 use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumber};
 use ryo_values::domain::plans::types::{ParameterType, Plan, PlanParameter};
 use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use std::sync::{Arc, PoisonError, atomic::Ordering};
 
@@ -256,4 +256,4 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-use ryo_values::domain::rule_requests::types::{RuleSpec,RuleParameters,Given};
+use ryo_values::domain::rule_requests::types::{Given, RuleParameters, RuleSpec};

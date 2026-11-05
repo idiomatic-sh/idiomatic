@@ -14,11 +14,11 @@ use ryo_values::domain::plan_parts::types::RepeatedRows;
 
 use super::service::evaluate_file;
 use crate::application::file_dag::cross_execution::evaluate_cross;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::Partials;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;

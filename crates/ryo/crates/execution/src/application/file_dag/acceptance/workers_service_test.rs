@@ -11,7 +11,6 @@ use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 
 use crate::application::file_dag::settings::VisitSetting;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::{RowsFed, TreeSteps};
@@ -26,6 +25,7 @@ use crate::domain::workers::types::{
 };
 use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::matching::interface::MatchingPort as _;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::runs::types::MemoryBytes;
 

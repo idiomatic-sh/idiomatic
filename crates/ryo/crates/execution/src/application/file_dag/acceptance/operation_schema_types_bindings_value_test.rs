@@ -1,9 +1,9 @@
 //! Binding schemas check configuration without creating values in execution storage.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, FlagState, LiteralText, Operand, ParameterId, QueryLiteral, TableKey,
     Test, WholeNumber,

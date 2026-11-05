@@ -16,11 +16,11 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 
 use super::types::Rows;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::types::On;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::TableModelError;
 use {
@@ -481,10 +481,13 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
         let computed = prepared_index(&Rows::Computed(&materialized), &key_columns)
             .expect("valid computed key");
         for row in 0..materialized.count.0 {
-            let row = super::service::row_in(&materialized, RowIndex(row)).expect("row");
+            let row = ryo_values::domain::rows::service::row_in(&materialized, RowIndex(row))
+                .expect("row");
             let key = key_columns
                 .iter()
-                .map(|column| super::service::cell(row, *column).expect("key column"))
+                .map(|column| {
+                    ryo_values::domain::rows::service::cell(row, *column).expect("key column")
+                })
                 .collect::<Vec<_>>();
             assert_eq!(
                 matching_stored(

@@ -4,19 +4,19 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::count_groups;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_groups::types::CountRoom;
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::inbound::use_cases::operators::interface::{
     OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::TableModelError;
 
 #[derive(Debug)]
 pub(super) struct TestOperators;
 pub(super) static OPERATORS: TestOperators = TestOperators;
-impl OperatorsPort for TestOperators {
+impl OperatorsUseCase for TestOperators {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
             .operators(call)

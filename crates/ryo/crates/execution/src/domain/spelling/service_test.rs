@@ -10,7 +10,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 use super::errors::SpellingError;
 use super::service::check_spellings;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 
 use ryo_values::domain::rows::service::push_row;
 

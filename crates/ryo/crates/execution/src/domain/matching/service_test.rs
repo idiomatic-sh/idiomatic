@@ -1,10 +1,10 @@
 //! Regular-expression boundary, error and compilation-reuse cases.
 
 use super::service::matches;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::{Datum, TextView};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = (&'static str, &'static str);
 type Value = Verdict;
@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ("anything", "["),
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(matches!(error, OperatingError::InvalidRegex { .. }))
+            ryo_values::cases::selects(matches!(error, OperatingError::InvalidRegex { .. }))
         }),
     },
 ];

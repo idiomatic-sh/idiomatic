@@ -12,11 +12,11 @@ use ryo_relations::domain::terms::types::NameText;
 
 use super::service::{count, in_tree, row, value};
 use super::types::{Keeps, Keys, Positions, Slots};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::types::{
     Counting, ElementPart, LoweredColumn, LoweredShape, Lowering, RowPosition, RowWidth,
 };
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// A tree of four elements: a `file` node holding the tokens `word`, `other` and `word`, in this order, at positions 1 to 3.
 pub(crate) struct SmallTree {
@@ -253,13 +253,15 @@ fn succeeds() {
 
 fn raw_order() -> (
     std::sync::Arc<ryo_derived::domain::contract::types::PreparedDerived>,
-    std::sync::Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
+    std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ryo_derived::domain::contract::types::DerivedPayload,
 ) {
     use ryo_derived::domain::contract::types::{
         BuildOutcome, BuildWorkspace, DerivedInputs, ViewRequest,
     };
-    let port = crate::outbound::derived::factory::test_port();
+    let port = std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    );
     let prepared = port.prepare(ViewRequest::RawKeyOrder { stride: 2 }, Vec::new());
     let BuildOutcome::Built(payload) = port
         .build(
@@ -303,7 +305,7 @@ impl ryo_derived::domain::contract::types::RowCells for SemanticRows<'_> {
         crate::domain::table_model::service::count_of(&self.0).0
     }
     fn cell(&self, row: usize, column: ColumnIndex) -> Option<Cell> {
-        ryo_values::domain::rows::service::cell_at(&self.0, RowIndex(row), column)
+        crate::domain::table_model::service::cell_at(&self.0, RowIndex(row), column)
     }
 }
 pub(crate) fn prepared_payload(
@@ -313,7 +315,9 @@ pub(crate) fn prepared_payload(
     use ryo_derived::domain::contract::types::{
         BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs,
     };
-    let port = crate::outbound::derived::factory::test_port();
+    let port = std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    );
     let prepared = port.prepare(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
@@ -358,7 +362,9 @@ pub(crate) fn prepared_order(
         keys: columns.to_vec(),
     };
     let payload = prepared_payload(request.clone(), rows)?;
-    let port = crate::outbound::derived::factory::test_port();
+    let port = std::sync::Arc::new(
+        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+    );
     let plan = port.prepare(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],

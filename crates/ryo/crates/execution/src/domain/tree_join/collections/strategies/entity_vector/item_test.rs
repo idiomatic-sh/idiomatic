@@ -10,12 +10,12 @@ use ryo_language::domain::symbols::types::Symbols;
 
 use super::super::types::NodeColumns;
 use super::item::EntityVectorItem;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
 use ryo_derived::domain::contract::types::Finding;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::TableModelError;
 

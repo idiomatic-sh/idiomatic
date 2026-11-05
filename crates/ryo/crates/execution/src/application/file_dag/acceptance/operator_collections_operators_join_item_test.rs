@@ -16,7 +16,6 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::QueryOperator;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
 use crate::domain::operation_schema::types::InputShape;
@@ -25,6 +24,7 @@ use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand, QueryLiteral,

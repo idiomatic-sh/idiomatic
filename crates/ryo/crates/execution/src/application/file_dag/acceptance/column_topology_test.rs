@@ -1,5 +1,4 @@
 //! Request-wide physical replacement must respect every reader of canonical nodes.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::{
@@ -12,6 +11,7 @@ use crate::domain::{
     operator::contract::types::RequestOperators,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     observations::types::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,

@@ -5,8 +5,8 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 
 use super::service::{blocked, matters};
 use super::types::{Bearing, Blocking, RelationRead};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison, Operand, QueryLiteral, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
 

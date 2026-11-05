@@ -18,7 +18,7 @@ use ryo_language::domain::{
     },
     symbols::types::{ByteSlice, Symbols},
 };
-use ryo_relations::domain::relations::types::{CellKind, FileId, KindBits, Offset, Value};
+use ryo_relations::domain::relations::types::{CellKind, FileId, KindBits, Offset, Value as Cell};
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
 fn input<'a>(
     tree: TreeRows<'a>,
@@ -65,7 +65,7 @@ fn tuple_geometry_preserves_bags_and_refuses_invalid_coordinates() -> Result<(),
     for row in [RowIndex(0), RowIndex(1)] {
         assert_eq!(
             PositionedItem.cell(contract.input, row, ColumnIndex(0)),
-            Ok(CellRead::Value(Value::File(FileId(7))))
+            Ok(CellRead::Value(Cell::File(FileId(7))))
         );
     }
     positions.slots.0.push(1);
@@ -93,7 +93,7 @@ fn tuple_geometry_preserves_bags_and_refuses_invalid_coordinates() -> Result<(),
     Ok(())
 }
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 type Input = fn() -> Result<(), OperatingError>;
 type Value = ();
 type Failure = OperatingError;

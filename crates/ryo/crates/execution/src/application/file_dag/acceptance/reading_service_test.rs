@@ -68,7 +68,6 @@ use ryo_values::domain::table_words::service::pack;
 use ryo_values::domain::table_words::types::WordSlice;
 
 use crate::application::file_dag::settings::VisitSetting;
-use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::coverage::types::{Recovery, RuleIndex};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
@@ -79,6 +78,7 @@ use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Tables;
 use crate::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_values::cases::{Case, CaseName, Expect, Selection, Word, run};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::Cell as Typed;

@@ -4,8 +4,8 @@ use super::{
     axis::axis,
     types::{PositionInput, PositionWork},
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepId},
     plans::types::Operation,

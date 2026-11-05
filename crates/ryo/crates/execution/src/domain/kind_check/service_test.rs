@@ -2,9 +2,8 @@
 //! message names the word and the languages.
 
 use super::service::{first_unknown, refusal, unknown_message};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
 use ryo_values::domain::plan_parts::types::{
@@ -12,6 +11,7 @@ use ryo_values::domain::plan_parts::types::{
     StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// What a row gives the check: how the kind is compared, with what, and the texts bound to the parameters.
 type Given = (Test, Operand, Vec<ParameterBinding>);

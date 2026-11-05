@@ -1,7 +1,6 @@
 //! Logical set lifetimes keep bag scopes and deferred errors explicit.
 use super::types::WorkspaceLifetime as Lifetime;
 use super::workspace::begin;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::types::{PrimitiveWorkspace, WorkspaceProgram},
@@ -9,6 +8,7 @@ use crate::domain::{
     table_model::types::Addition,
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 #[derive(Clone, Copy)]
 enum Scenario {
     Invocation,

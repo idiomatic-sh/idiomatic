@@ -13,7 +13,6 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::kind_sets::service::{names_a_kind, satisfies};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
@@ -22,6 +21,7 @@ use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

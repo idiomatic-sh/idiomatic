@@ -8,13 +8,13 @@ use ryo_relations::domain::relations::types::{
 
 use crate::application::file_dag::cross_execution::{compute, evaluate_cross};
 use crate::application::file_dag::testing::TestOperator as _;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::Partials;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::project::item::ProjectItem;
 use crate::domain::table_model::types::{Frontier, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

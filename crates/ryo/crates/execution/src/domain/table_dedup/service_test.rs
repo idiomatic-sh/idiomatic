@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::distinct;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::TableModelError;
 use ryo_values::domain::rows::service::push_row;
 

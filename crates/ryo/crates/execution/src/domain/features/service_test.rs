@@ -3,8 +3,8 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use super::service::{catalog, fed_over, tally};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::types::RowsFed;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

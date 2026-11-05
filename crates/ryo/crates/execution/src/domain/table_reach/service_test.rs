@@ -6,10 +6,10 @@ use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 use super::borrowed::reach_breadth;
 use super::service::reach_all;
 use super::types::{Edges, Walk};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_model::types::Rows;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::TableModelError;
 use ryo_values::domain::rows::service::push_row;
 

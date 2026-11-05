@@ -2,11 +2,10 @@
 
 use super::service::{decide, governs, place};
 use super::types::{Governing, Mask, PlacedScopes, RuleScope};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::matching::errors::MatchingError;
-use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::files::types::FilePath;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::runs::types::RuleNumber;
@@ -49,7 +48,7 @@ fn subject((scopes, path): Input) -> Result<Value, Failure> {
     let placement = decide(&scopes);
     let globs = placement.globs.clone();
     let placed = PlacedScopes {
-        matcher: MatchingFake.compile(&globs)?,
+        matcher: CompiledMatching.compile(&globs)?,
         placement,
     };
     let (mut mask, mut hits) = (Mask::default(), Hits::default());
@@ -103,4 +102,53 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+// Explicit composition of the real semantic matcher for the pure placement contract.
+struct CompiledMatching;
+impl crate::outbound::matching::interface::MatchingPort for CompiledMatching {
+    fn compile(
+        &self,
+        globs: &[Glob],
+    ) -> Result<ryo_values::domain::files::types::GlobsMatcher, MatchingError> {
+        use ryo_matching::inbound::use_cases::matching::{
+            interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+        };
+        let compiled = MatchingUseCaseImpl::new()
+            .compile_globs(&globs.iter().map(|g| g.0.as_ref()).collect::<Vec<_>>())
+            .map_err(matching_error)?;
+        Ok(ryo_values::domain::files::types::GlobsMatcher {
+            matches: std::sync::Arc::new(move |path, hits| {
+                MatchingUseCaseImpl::new().match_globs(
+                    &compiled,
+                    std::path::Path::new(path.0),
+                    &mut hits.0,
+                );
+            }),
+        })
+    }
+    fn parse(&self, glob: &Glob) -> Result<(), MatchingError> {
+        use ryo_matching::inbound::use_cases::matching::{
+            interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+        };
+        MatchingUseCaseImpl::new()
+            .parse_glob(&glob.0)
+            .map_err(matching_error)
+    }
+}
+fn matching_error(
+    error: ryo_matching::inbound::use_cases::matching::errors::MatchingError,
+) -> MatchingError {
+    match error {
+        ryo_matching::inbound::use_cases::matching::errors::MatchingError::BadGlob {
+            glob,
+            reason,
+        } => MatchingError::BadGlob { glob, reason },
+        ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
+            reason,
+        } => MatchingError::BadGlob {
+            glob: String::new(),
+            reason,
+        },
+    }
 }

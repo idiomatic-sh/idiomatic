@@ -2,7 +2,6 @@
 
 use crate::application::file_dag::cross_execution::compute;
 use crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -19,6 +18,7 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, LiteralText, Operand, ParameterId, QueryLiteral,
