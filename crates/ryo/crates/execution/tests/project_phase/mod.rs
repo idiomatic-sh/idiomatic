@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(test)]
 mod declared_empty;
 mod applicability;
+mod restoration;
 mod source_facts;
 use self::source_facts::{CapturedFacts, ProjectFacts};
 
