@@ -18,6 +18,10 @@ Treat missing mappings or enforcement as failures, not exemptions.
 3. Keep scheduling, cache identity, invalidation, data acquisition, publication,
    and lifetime under the execution engine. Semantic crates must not depend on
    the engine or mint its authority.
+   Preserve the [approved shared file-walk plan](../../crates/ryo/docs/contracts/execution-plan.md):
+   compile rules request-wide; one demand-driven walk reuses file facts and
+   derived work across rules before explicit project and semantic stages.
+   Never regress to rule-by-rule full-file execution or duplicate pipelines.
 4. Use Rust visibility and crate dependencies to make forbidden execution
    paths inaccessible. The main engine imports each contract crate's inbound
    use cases through explicit typed signatures and injected ports, never a
