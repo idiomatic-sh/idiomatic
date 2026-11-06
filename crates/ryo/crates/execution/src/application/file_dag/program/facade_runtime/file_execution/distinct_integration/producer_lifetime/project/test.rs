@@ -62,6 +62,21 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
+    for (rule, program) in prepared.program().rules().iter().enumerate() {
+        for (step, origin) in program.original_steps.iter().enumerate() {
+            let origin = origin.as_ref().unwrap_or_else(|error| {
+                panic!("{exit:?}: compiled rule {rule} step {step}: {error:?}")
+            });
+            let region = prepared.program().logical_regions()[origin.logical.0];
+            assert!(
+                prepared.program().regions()[region.0]
+                    .instructions
+                    .iter()
+                    .any(|instruction| { instruction.logical == origin.logical }),
+                "{exit:?}: compiled rule {rule} step {step} must retain its actual instruction"
+            );
+        }
+    }
     let corpus = [CorpusInput::Available(CorpusEntry {
         executable: ExecutablePermission::Unknown,
         path: FilePath("project-roots.input".into()),
@@ -222,7 +237,12 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
     }
     let mut transferred = Vec::new();
     for (at, result) in completed.into_iter().enumerate() {
-        let result = result?;
+        let result = result.unwrap_or_else(|error| {
+            panic!(
+                "{exit:?}: project batch result for rule {at}: {error:?}; \
+                readiness={counts:?}; resources={builds:?}; required={live}"
+            )
+        });
         match result.emit {
             RootOutcome::Complete(table) => transferred.push(table),
             RootOutcome::Failed(error) if at == 3 && matches!(exit, PhaseExit::SemanticFailure) => {
@@ -241,7 +261,9 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
         );
         assert_eq!(transferred[0].count.0, 2);
     }
-    phase.finish()?;
+    phase.finish().unwrap_or_else(|error| {
+        panic!("{exit:?}: phase finish after every terminal result: {error:?}")
+    });
     assert_eq!(
         owner.derived.working_bytes(),
         0,
@@ -264,13 +286,21 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
 }
 
 #[test]
-fn project_batch_success_failure_and_cancellation_release_actual_phase_leases() {
-    for exit in [
-        PhaseExit::Complete,
-        PhaseExit::SemanticFailure,
-        PhaseExit::RefuseBeforeWork,
-        PhaseExit::RefuseLaterCohort,
-    ] {
-        exercise(exit).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
-    }
+fn project_batch_success_releases_actual_phase_leases() {
+    exercise(PhaseExit::Complete).expect("successful project lifecycle");
+}
+
+#[test]
+fn project_batch_semantic_failure_releases_actual_phase_leases() {
+    exercise(PhaseExit::SemanticFailure).expect("failed project lifecycle");
+}
+
+#[test]
+fn project_batch_refusal_before_work_releases_actual_phase_leases() {
+    exercise(PhaseExit::RefuseBeforeWork).expect("project refusal before work");
+}
+
+#[test]
+fn project_batch_refusal_before_later_cohort_releases_actual_phase_leases() {
+    exercise(PhaseExit::RefuseLaterCohort).expect("project refusal before later cohort");
 }
