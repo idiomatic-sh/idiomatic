@@ -1,14 +1,20 @@
 //! Registered cases and native observation rows the receipt validation is proven over.
 use crate::domain::registered_inputs::service::project_inputs_digest;
 use crate::outbound::inventory::types::case_document::{
-    CaseDocument, Comparison, ContextIdentity, EntryState, FileObservation, InventoryCompleteness,
-    ProjectEntry, ProjectInventoryDocument,
+    CaseContextIdentity, CaseDocument, Comparison, ContextIdentity, EntryState,
+    ExpectationContract, FileMetadata, FileObservation, InventoryCompleteness, ProjectEntry,
+    ProjectInventory, ProjectInventoryDocument, ProjectScope,
 };
 use crate::outbound::suite::types::{
     finding::{ByteOffset, Finding},
-    observation_document::{ContextMode, ObservationDocument},
+    observation_document::{
+        ContextMode, ContextRun, FileMetadataDigest, IntentMatch, ObservationDocument,
+        ProjectContextRecord, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
+        RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord,
+    },
     reference_discrepancy::{
-        DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind, ReferenceDiscrepancy,
+        DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind, ObservedExecutable,
+        ReferenceDiscrepancy,
     },
     text::{
         CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
@@ -52,18 +58,18 @@ pub fn registered_case(rule: &str, name: &str) -> CaseDocument {
         comparison: Comparison::Rule,
         expected: Vec::new(),
         project_context_mode: ContextMode::Isolated,
-        context_identity: None,
+        context_identity: CaseContextIdentity::Isolated,
         reference_discrepancy: None,
-        expectation_contract: None,
-        rule_context: None,
-        rule_observations: None,
-        selected_rules: None,
-        file_observation: None,
-        file_metadata: None,
+        expectation_contract: ExpectationContract::Unwritten,
+        rule_context: RuleContextRecord::Undeclared,
+        rule_observations: RuleObservationsRecord::Undeclared,
+        selected_rules: RuleCohort::Undeclared,
+        file_observation: FileObservation::Undeclared,
+        file_metadata: FileMetadata::Undeclared,
         file_metadata_sha256: None,
-        project_search_roots: None,
-        given_project_inventory: None,
-        project_inputs_sha256: None,
+        project_search_roots: ProjectScope::Undeclared,
+        given_project_inventory: ProjectInventory::Undeclared,
+        project_inputs_sha256: ProjectInputsDigest::Undeclared,
     }
 }
 
@@ -81,11 +87,11 @@ pub fn observed_row(rule: &str, name: &str, side: Side) -> ObservationDocument {
         error: None,
         case_passed: YesNo::Yes,
         files: vec![PathText("input.txt".into())],
-        source_sha256: Some(sha("source-pin")),
-        file_metadata_sha256: None,
-        project_inputs_sha256: None,
+        source_sha256: SourceIdentity::Sealed(sha("source-pin")),
+        file_metadata_sha256: FileMetadataDigest::Undeclared,
+        project_inputs_sha256: ProjectInputsDigest::Undeclared,
         expected: Vec::new(),
-        reference_expected: Some(Vec::new()),
+        reference_expected: ReferenceExpectation::Derived(Vec::new()),
         diagnostics: Some(Vec::new()),
         skipped: Some(Vec::new()),
         observation_schema: SchemaName("benchmark-case/v2".into()),
@@ -97,17 +103,17 @@ pub fn observed_row(rule: &str, name: &str, side: Side) -> ObservationDocument {
             skipped: 0,
             unknown_or_unread: 0,
         }),
-        context_manifest: None,
-        project_context: None,
-        rule_context: None,
-        rule_observations: None,
-        selected_rules: None,
+        context_manifest: ContextRun::Isolated,
+        project_context: ProjectContextRecord::NotCarried,
+        rule_context: RuleContextRecord::Undeclared,
+        rule_observations: RuleObservationsRecord::Undeclared,
+        selected_rules: RuleCohort::Undeclared,
         actual_request_root: None,
         documented_reference_discrepancy: YesNo::No,
-        documented_tool_contract_difference: None,
+        documented_tool_contract_difference: ToolContractRecord::Unrecorded,
         discrepancy_validation: None,
         raw_parity_matches_intended: None,
-        diagnostics_match_intended: None,
+        diagnostics_match_intended: IntentMatch::Unreported,
         process_observation: None,
     }
 }
@@ -184,7 +190,7 @@ fn documented_discrepancy(settings: Sha256Text) -> Documents {
         identity: DiscrepancyIdentity {
             tool: ReasonText("tool".into()),
             version: ReasonText("1".into()),
-            observed_executable_sha256: None,
+            observed_executable_sha256: ObservedExecutable::NotObserved,
             profile: sha("profile-pin"),
             settings: settings.clone(),
             source: sha("source-pin"),
@@ -193,13 +199,13 @@ fn documented_discrepancy(settings: Sha256Text) -> Documents {
             file_metadata: None,
         },
         approved_executable_sha256: vec![Sha256Text("tool-pin".into())],
-        reference_expected: Some(vec![finding.clone()]),
+        reference_expected: ReferenceExpectation::Derived(vec![finding.clone()]),
         intended_expected: Vec::new(),
         reason: ReasonText("independent expectation".into()),
         process: None,
     });
     let mut base = observed("case");
-    base.reference_expected = Some(vec![finding.clone()]);
+    base.reference_expected = ReferenceExpectation::Derived(vec![finding.clone()]);
     base.discrepancy_validation = Some(DiscrepancyValidation {
         discrepancy_basis: DiscrepancyBasis::LanguageDefect,
         process_observation_group_sha256: None,
@@ -213,7 +219,7 @@ fn documented_discrepancy(settings: Sha256Text) -> Documents {
         file_metadata_sha256: None,
     });
     base.documented_reference_discrepancy = YesNo::Yes;
-    base.documented_tool_contract_difference = Some(YesNo::No);
+    base.documented_tool_contract_difference = ToolContractRecord::Recorded(YesNo::No);
     let mut rows = sides(&base);
     rows[0].diagnostics = Some(vec![finding]);
     (vec![case], rows)
@@ -247,14 +253,14 @@ pub fn with_file_metadata(executable: bool) -> Documents {
     .flatten()
     .map(|value| Sha256Text(value.0));
     let mut case = registered("mode");
-    case.file_observation = Some(FileObservation::PosixExecutable);
-    case.file_metadata = Some(std::collections::BTreeMap::from([(
+    case.file_observation = FileObservation::PosixExecutable;
+    case.file_metadata = FileMetadata::Declared(std::collections::BTreeMap::from([(
         PathText("input.txt".into()),
         flag,
     )]));
     case.file_metadata_sha256 = digest.clone();
     let mut base = observed("mode");
-    base.file_metadata_sha256 = digest;
+    base.file_metadata_sha256 = FileMetadataDigest::from(digest);
     (vec![case], sides(&base))
 }
 
@@ -266,11 +272,11 @@ pub fn declaring_the_other_mode() -> Documents {
 /// A case that never declared file metadata at all.
 pub fn unspecified_legacy() -> Documents {
     let (mut cases, mut rows) = with_file_metadata(false);
-    cases[0].file_observation = None;
-    cases[0].file_metadata = None;
+    cases[0].file_observation = FileObservation::Undeclared;
+    cases[0].file_metadata = FileMetadata::Undeclared;
     cases[0].file_metadata_sha256 = None;
     for row in &mut rows {
-        row.file_metadata_sha256 = None;
+        row.file_metadata_sha256 = FileMetadataDigest::Undeclared;
     }
     (cases, rows)
 }
@@ -285,23 +291,24 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
             state,
         }],
     };
-    declared.0[0].project_search_roots = Some(vec![PathText("src".into())]);
-    declared.0[0].given_project_inventory = Some(inventory(EntryState::File));
+    declared.0[0].project_search_roots = ProjectScope::Roots(vec![PathText("src".into())]);
+    declared.0[0].given_project_inventory =
+        ProjectInventory::Declared(inventory(EntryState::File));
     let digest = project_inputs_digest(
         &crate::application::inventory_receipts::service::registered_inputs(&declared.0[0]),
     )
     .ok()
     .flatten()
     .map(|value| Sha256Text(value.0));
-    declared.0[0].project_inputs_sha256 = digest.clone();
+    declared.0[0].project_inputs_sha256 = ProjectInputsDigest::from(digest.clone());
     for row in &mut declared.1 {
-        row.project_inputs_sha256 = digest.clone();
+        row.project_inputs_sha256 = ProjectInputsDigest::from(digest.clone());
     }
     declared.0[0].project_search_roots =
-        Some(roots.iter().map(|root| PathText((*root).into())).collect());
-    declared.0[0].given_project_inventory = Some(inventory(state));
+        ProjectScope::Roots(roots.iter().map(|root| PathText((*root).into())).collect());
+    declared.0[0].given_project_inventory = ProjectInventory::Declared(inventory(state));
     if let Some(identity) = row_identity {
-        declared.1[0].project_inputs_sha256 = Some(sha(identity));
+        declared.1[0].project_inputs_sha256 = ProjectInputsDigest::Declared(sha(identity));
     }
     declared
 }
@@ -311,11 +318,15 @@ pub fn with_selected_rules(
     case_cohort: Option<&[&str]>,
     row_cohorts: [Option<&[&str]>; 2],
 ) -> Documents {
-    let names = |cohort: &[&str]| cohort.iter().map(|rule| RuleName((*rule).into())).collect();
+    let names = |cohort: Option<&[&str]>| {
+        cohort.map_or(RuleCohort::Undeclared, |cohort| {
+            RuleCohort::Declared(cohort.iter().map(|rule| RuleName((*rule).into())).collect())
+        })
+    };
     let (mut cases, mut rows) = with_file_metadata(false);
-    cases[0].selected_rules = case_cohort.map(names);
+    cases[0].selected_rules = names(case_cohort);
     for (row, cohort) in rows.iter_mut().zip(row_cohorts) {
-        row.selected_rules = cohort.map(names);
+        row.selected_rules = names(cohort);
     }
     (cases, rows)
 }
@@ -325,11 +336,15 @@ pub fn with_rule_observations(
     case_value: Option<&str>,
     row_values: [Option<&str>; 2],
 ) -> Documents {
-    let declaration = |text: &str| CanonicalJson(text.into());
+    let declaration = |text: Option<&str>| {
+        text.map_or(RuleObservationsRecord::Undeclared, |text| {
+            RuleObservationsRecord::Declared(CanonicalJson(text.into()))
+        })
+    };
     let (mut cases, mut rows) = with_file_metadata(false);
-    cases[0].rule_observations = case_value.map(declaration);
+    cases[0].rule_observations = declaration(case_value);
     for (row, value) in rows.iter_mut().zip(row_values) {
-        row.rule_observations = value.map(declaration);
+        row.rule_observations = declaration(value);
     }
     (cases, rows)
 }

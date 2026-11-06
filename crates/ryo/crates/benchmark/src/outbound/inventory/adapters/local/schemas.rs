@@ -3,15 +3,21 @@
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, Registration, RegistrationAuthority,
     case_document::{
-        CaseDocument, Comparison, ContextIdentity, EntryState, FileObservation,
-        InventoryCompleteness, ProjectEntry, ProjectInventoryDocument,
+        CaseContextIdentity, CaseDocument, Comparison, ContextIdentity,
+        EntryState, ExpectationContract, FileMetadata, FileObservation, InventoryCompleteness,
+        ProjectEntry, ProjectInventory, ProjectInventoryDocument, ProjectScope,
     },
 };
 use crate::outbound::suite::types::{
     finding::{ByteOffset, Finding},
-    observation_document::ContextMode,
+    observation_document::{
+        ContextMode, FileMetadataDigest, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
+        RuleContextRecord, RuleObservationsRecord,
+    },
     process::ProcessFailureWire,
-    reference_discrepancy::{DiscrepancyIdentity, ReferenceDiscrepancy},
+    reference_discrepancy::{
+        DiscrepancyIdentity, ObservedExecutable, ReferenceDiscrepancy,
+    },
     text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text},
 };
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
@@ -316,7 +322,8 @@ impl From<DiscrepancySchema> for ReferenceDiscrepancy {
             identity: DiscrepancyIdentity {
                 tool: ReasonText(identity.tool),
                 version: ReasonText(identity.version),
-                observed_executable_sha256: sha(identity.observed_executable_sha256),
+                observed_executable_sha256: sha(identity.observed_executable_sha256)
+                    .map_or(ObservedExecutable::NotObserved, ObservedExecutable::Observed),
                 profile: Sha256Text(identity.profile_sha256),
                 settings: Sha256Text(identity.settings_sha256),
                 source: Sha256Text(identity.source_sha256),
@@ -329,7 +336,11 @@ impl From<DiscrepancySchema> for ReferenceDiscrepancy {
                 .into_iter()
                 .map(Sha256Text)
                 .collect(),
-            reference_expected: wire.reference_expected.map(findings),
+            reference_expected: wire
+                .reference_expected
+                .map_or(ReferenceExpectation::Underivable, |rows| {
+                    ReferenceExpectation::Derived(findings(rows))
+                }),
             intended_expected: findings(wire.intended_expected),
             reason: ReasonText(wire.reason),
             process: wire.process,
@@ -377,25 +388,41 @@ impl From<CaseSchema> for CaseDocument {
             },
             expected: findings(wire.expected),
             project_context_mode: wire.project_context_mode.into(),
-            context_identity: wire.context_identity.map(|identity| ContextIdentity {
-                mode: identity.mode.into(),
-                logical_root: path(identity.logical_root),
-                manifest_hash: Sha256Text(identity.manifest_hash),
-                present_paths: identity.present_paths.into_iter().map(path).collect(),
-                missing_paths: identity.missing_paths.into_iter().map(path).collect(),
-            }),
+            context_identity: wire.context_identity.map_or(
+                CaseContextIdentity::Isolated,
+                |identity| {
+                    CaseContextIdentity::Listed(ContextIdentity {
+                        mode: identity.mode.into(),
+                        logical_root: path(identity.logical_root),
+                        manifest_hash: Sha256Text(identity.manifest_hash),
+                        present_paths: identity.present_paths.into_iter().map(path).collect(),
+                        missing_paths: identity.missing_paths.into_iter().map(path).collect(),
+                    })
+                },
+            ),
             reference_discrepancy: wire.reference_discrepancy.map(Into::into),
-            expectation_contract: wire.expectation_contract.map(Into::into),
-            rule_context: canonical(wire.rule_context),
-            rule_observations: canonical(wire.rule_observations),
-            selected_rules: wire
-                .selected_rules
-                .map(|rules| rules.into_iter().map(RuleName).collect()),
-            file_observation: wire.file_observation.map(|value| match value {
-                FileObservationSchema::PosixExecutable => FileObservation::PosixExecutable,
+            expectation_contract: wire
+                .expectation_contract
+                .map_or(ExpectationContract::Unwritten, |wire| {
+                    ExpectationContract::Declared(wire.into())
+                }),
+            rule_context: canonical(wire.rule_context)
+                .map_or(RuleContextRecord::Undeclared, RuleContextRecord::Declared),
+            rule_observations: canonical(wire.rule_observations).map_or(
+                RuleObservationsRecord::Undeclared,
+                RuleObservationsRecord::Declared,
+            ),
+            selected_rules: wire.selected_rules.map_or(RuleCohort::Undeclared, |rules| {
+                RuleCohort::Declared(rules.into_iter().map(RuleName).collect())
             }),
-            file_metadata: wire.file_metadata.map(|values| {
-                values
+            file_observation: wire
+                .file_observation
+                .map_or(FileObservation::Undeclared, |value| match value {
+                    FileObservationSchema::PosixExecutable => FileObservation::PosixExecutable,
+                }),
+            file_metadata: wire.file_metadata.map_or(FileMetadata::Undeclared, |values| {
+                FileMetadata::Declared(
+                    values
                     .into_iter()
                     .map(|(file, executable)| {
                         (
@@ -407,14 +434,17 @@ impl From<CaseSchema> for CaseDocument {
                             },
                         )
                     })
-                    .collect()
+                    .collect(),
+                )
             }),
             file_metadata_sha256: sha(wire.file_metadata_sha256),
             project_search_roots: wire
                 .project_search_roots
-                .map(|roots| roots.into_iter().map(path).collect()),
-            given_project_inventory: wire.given_project_inventory.map(|inventory| {
-                ProjectInventoryDocument {
+                .map_or(ProjectScope::Undeclared, |roots| {
+                    ProjectScope::Roots(roots.into_iter().map(path).collect())
+                }),
+            given_project_inventory: wire.given_project_inventory.map_or(ProjectInventory::Undeclared, |inventory| {
+                ProjectInventory::Declared(ProjectInventoryDocument {
                     completeness: match inventory.completeness {
                         CompletenessSchema::Partial => InventoryCompleteness::Partial,
                         CompletenessSchema::CompleteWithinDeclaredScope => {
@@ -435,9 +465,9 @@ impl From<CaseSchema> for CaseDocument {
                             },
                         })
                         .collect(),
-                }
+                })
             }),
-            project_inputs_sha256: sha(wire.project_inputs_sha256),
+            project_inputs_sha256: ProjectInputsDigest::from(sha(wire.project_inputs_sha256)),
         }
     }
 }

@@ -8,6 +8,117 @@ use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, ExecutionMetadata, RuleCoverage,
 };
 
+/// The identity of the case sources the side read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SourceIdentity {
+    /// The sources were sealed under this digest.
+    Sealed(Sha256Text),
+    /// The source identity was unavailable.
+    Unavailable,
+}
+
+/// The digest of the declared file metadata.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FileMetadataDigest {
+    /// The case declares file metadata, under this digest.
+    Declared(Sha256Text),
+    /// The case declares no file metadata.
+    Undeclared,
+}
+
+impl From<Option<Sha256Text>> for FileMetadataDigest {
+    fn from(digest: Option<Sha256Text>) -> Self {
+        digest.map_or(Self::Undeclared, Self::Declared)
+    }
+}
+
+/// The digest of the declared project inputs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProjectInputsDigest {
+    /// The case declares project inputs, under this digest.
+    Declared(Sha256Text),
+    /// The case declares no project inputs.
+    Undeclared,
+}
+
+impl From<Option<Sha256Text>> for ProjectInputsDigest {
+    fn from(digest: Option<Sha256Text>) -> Self {
+        digest.map_or(Self::Undeclared, Self::Declared)
+    }
+}
+
+/// What the reference is expected to report.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ReferenceExpectation {
+    /// The reference expectation was derived.
+    Derived(Vec<Finding>),
+    /// The reference expectation cannot be derived.
+    Underivable,
+}
+
+/// The listed context a side ran in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ContextRun {
+    /// The side ran on the case's own files.
+    Isolated,
+    /// The side ran in a listed-disk context.
+    Listed(ContextManifest),
+}
+
+/// The project context receipt of the report, compared for equality.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProjectContextRecord {
+    /// The report carries a project context.
+    Carried(CanonicalJson),
+    /// The report carries no project context.
+    NotCarried,
+}
+
+/// The prepared rule context, compared for equality.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RuleContextRecord {
+    /// The case declares a rule context.
+    Declared(CanonicalJson),
+    /// The case declares no rule context.
+    Undeclared,
+}
+
+/// The declared rule observations, compared for equality.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RuleObservationsRecord {
+    /// The case declares rule observations.
+    Declared(CanonicalJson),
+    /// The case declares no rule observations.
+    Undeclared,
+}
+
+/// The explicit rule cohort of a case.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RuleCohort {
+    /// The case or a rule context declares this cohort.
+    Declared(Vec<RuleName>),
+    /// No cohort is declared.
+    Undeclared,
+}
+
+/// Whether a documented tool contract difference was recorded.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolContractRecord {
+    /// The row records the answer.
+    Recorded(YesNo),
+    /// A row written before the answer existed.
+    Unrecorded,
+}
+
+/// Whether the diagnostics matched the intended behavior.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IntentMatch {
+    /// The row records the answer.
+    Matched(YesNo),
+    /// The side produced no report to compare.
+    Unreported,
+}
+
 /// Whether the case's sources are staged alone or in a listed project context.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ContextMode {
@@ -88,16 +199,16 @@ pub struct ObservationDocument {
     pub case_passed: YesNo,
     /// The sources the side read.
     pub files: Vec<PathText>,
-    /// Digest of the sources: absent when the source identity was unavailable.
-    pub source_sha256: Option<Sha256Text>,
-    /// Digest of the declared file metadata: written when the case declares file metadata.
-    pub file_metadata_sha256: Option<Sha256Text>,
-    /// Digest of the declared project inputs: written when the case declares project inputs.
-    pub project_inputs_sha256: Option<Sha256Text>,
+    /// Digest of the sources.
+    pub source_sha256: SourceIdentity,
+    /// Digest of the declared file metadata.
+    pub file_metadata_sha256: FileMetadataDigest,
+    /// Digest of the declared project inputs.
+    pub project_inputs_sha256: ProjectInputsDigest,
     /// What the registered case expects.
     pub expected: Vec<Finding>,
-    /// What the reference is expected to report: absent when it cannot be derived.
-    pub reference_expected: Option<Vec<Finding>>,
+    /// What the reference is expected to report.
+    pub reference_expected: ReferenceExpectation,
     /// What the side reported: absent for a process failure or a failed run.
     pub diagnostics: Option<Vec<Finding>>,
     /// The rule/file pairs the side skipped: absent for a process failure or a failed run.
@@ -110,28 +221,28 @@ pub struct ObservationDocument {
     pub execution_metadata: Option<ExecutionMetadata>,
     /// Rule/file accounting: absent when the producer cannot account.
     pub coverage: Option<RuleCoverage>,
-    /// The listed context the side ran in: present in a listed-disk run.
-    pub context_manifest: Option<ContextManifest>,
-    /// The project context receipt, compared for equality: present when the report carries one.
-    pub project_context: Option<CanonicalJson>,
-    /// The prepared rule context, compared for equality: written when the case declares one.
-    pub rule_context: Option<CanonicalJson>,
-    /// The declared rule observations, compared for equality: written when the case declares them.
-    pub rule_observations: Option<CanonicalJson>,
-    /// An explicit rule cohort: written when the case declares one.
-    pub selected_rules: Option<Vec<RuleName>>,
+    /// The context the side ran in.
+    pub context_manifest: ContextRun,
+    /// The project context receipt.
+    pub project_context: ProjectContextRecord,
+    /// The prepared rule context.
+    pub rule_context: RuleContextRecord,
+    /// The declared rule observations.
+    pub rule_observations: RuleObservationsRecord,
+    /// The explicit rule cohort.
+    pub selected_rules: RuleCohort,
     /// The directory the request ran under: written by the current writer.
     pub actual_request_root: Option<PathText>,
     /// Whether a documented language defect was recorded.
     pub documented_reference_discrepancy: YesNo,
-    /// Whether a documented tool contract difference was recorded: absent in rows written before it existed.
-    pub documented_tool_contract_difference: Option<YesNo>,
+    /// Whether a documented tool contract difference was recorded.
+    pub documented_tool_contract_difference: ToolContractRecord,
     /// What the side attests it validated: present for a documented discrepancy.
     pub discrepancy_validation: Option<DiscrepancyValidation>,
     /// Whether the raw report matched the intended behavior: absent without a report.
     pub raw_parity_matches_intended: Option<YesNo>,
-    /// Whether the diagnostics matched the intended behavior: absent without a report.
-    pub diagnostics_match_intended: Option<YesNo>,
+    /// Whether the diagnostics matched the intended behavior.
+    pub diagnostics_match_intended: IntentMatch,
     /// The reference process: present when it failed instead of reporting.
     pub process_observation: Option<ProcessObservation>,
 }

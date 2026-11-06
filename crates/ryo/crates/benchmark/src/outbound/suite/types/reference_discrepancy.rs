@@ -1,8 +1,18 @@
 //! A documented difference from the reference tool, and the validation a native side attests.
 use super::finding::Finding;
+use super::observation_document::ReferenceExpectation;
 use super::process::ProcessFailureWire;
 use super::text::{PathText, ReasonText, Sha256Text};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+
+/// The executable the evidence was observed with.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObservedExecutable {
+    /// Written for a language defect or a tool contract difference.
+    Observed(Sha256Text),
+    /// Absent for an explicit process failure.
+    NotObserved,
+}
 
 /// The sealed identities a discrepancy is bound to.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -11,9 +21,8 @@ pub struct DiscrepancyIdentity {
     pub tool: ReasonText,
     /// The reference tool's version.
     pub version: ReasonText,
-    /// The executable bytes the evidence was observed with: written for a language defect or a
-    /// tool contract difference, absent for an explicit process failure.
-    pub observed_executable_sha256: Option<Sha256Text>,
+    /// The executable bytes the evidence was observed with.
+    pub observed_executable_sha256: ObservedExecutable,
     /// The pinned profile.
     pub profile: Sha256Text,
     /// The normalized invocation settings.
@@ -37,8 +46,8 @@ pub struct ReferenceDiscrepancy {
     pub identity: DiscrepancyIdentity,
     /// The executables the evidence may be observed with.
     pub approved_executable_sha256: Vec<Sha256Text>,
-    /// What the reference reports: absent for an explicit process failure.
-    pub reference_expected: Option<Vec<Finding>>,
+    /// What the reference reports.
+    pub reference_expected: ReferenceExpectation,
     /// What the intended behavior reports.
     pub intended_expected: Vec<Finding>,
     /// Why the difference is accepted.

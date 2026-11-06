@@ -2,7 +2,8 @@
 use crate::application::run::constants;
 use crate::domain::suite::types::inventory::Inventory;
 use crate::outbound::inventory::types::{
-    CapturedObservation, Registration, case_document::CaseDocument,
+    CapturedObservation, Registration,
+    case_document::CaseDocument,
 };
 use crate::outbound::suite::types::{observation_document::ObservationDocument, text::Side};
 use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;

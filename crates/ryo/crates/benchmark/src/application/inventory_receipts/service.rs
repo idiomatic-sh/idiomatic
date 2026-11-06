@@ -7,11 +7,15 @@ use crate::domain::registered_inputs::{
     types::{ObservationDeclaration, RegisteredInputs},
 };
 use crate::outbound::inventory::types::case_document::{
-    CaseDocument, EntryState, FileObservation, InventoryCompleteness,
+    CaseContextIdentity, CaseDocument, EntryState, ExpectationContract,
+    FileMetadata, FileObservation, InventoryCompleteness, ProjectInventory, ProjectScope,
 };
 use crate::outbound::suite::types::{
     finding::Finding,
-    observation_document::{ContextMode, ObservationDocument},
+    observation_document::{
+        ContextMode, ContextRun, FileMetadataDigest, ObservationDocument, ProjectContextRecord,
+        ProjectInputsDigest, ReferenceExpectation, SourceIdentity, ToolContractRecord,
+    },
     text::{PathText, Sha256Text, Side, YesNo},
 };
 use ryo::linter::{
@@ -33,22 +37,24 @@ pub(crate) fn registered_inputs(case: &CaseDocument) -> RegisteredInputs {
     RegisteredInputs {
         files: case.files.iter().map(relative).collect(),
         observation: match case.file_observation {
-            Some(FileObservation::PosixExecutable) => ObservationDeclaration::Required,
-            None => ObservationDeclaration::Absent,
+            FileObservation::PosixExecutable => ObservationDeclaration::Required,
+            FileObservation::Undeclared => ObservationDeclaration::Absent,
         },
-        metadata: case.file_metadata.as_ref().map(|values| {
-            values
-                .iter()
-                .map(|(path, executable)| (relative(path), *executable))
-                .collect()
-        }),
-        search_roots: case
-            .project_search_roots
-            .as_ref()
-            .map(|roots| roots.iter().map(relative).collect()),
-        inventory: case.given_project_inventory.as_ref().map_or_else(
-            GivenProjectInventory::default,
-            |inventory| GivenProjectInventory {
+        metadata: match &case.file_metadata {
+            FileMetadata::Declared(values) => Some(
+                values
+                    .iter()
+                    .map(|(path, executable)| (relative(path), *executable))
+                    .collect(),
+            ),
+            FileMetadata::Undeclared => None,
+        },
+        search_roots: match &case.project_search_roots {
+            ProjectScope::Roots(roots) => Some(roots.iter().map(relative).collect()),
+            ProjectScope::Undeclared => None,
+        },
+        inventory: match &case.given_project_inventory {
+            ProjectInventory::Declared(inventory) => GivenProjectInventory {
                 entries: inventory
                     .entries
                     .iter()
@@ -70,7 +76,16 @@ pub(crate) fn registered_inputs(case: &CaseDocument) -> RegisteredInputs {
                     }
                 },
             },
-        ),
+            ProjectInventory::Undeclared => GivenProjectInventory::default(),
+        },
+    }
+}
+
+/// The diagnostics a document derived for the reference, when it did.
+fn derived(expected: &ReferenceExpectation) -> Option<&Vec<Finding>> {
+    match expected {
+        ReferenceExpectation::Derived(rows) => Some(rows),
+        ReferenceExpectation::Underivable => None,
     }
 }
 
@@ -142,15 +157,18 @@ pub(crate) fn validate_with_artifacts(
         let declared_inputs = registered_inputs(case);
         let metadata = digest_text(inputs::metadata_digest(&declared_inputs)?);
         let project_inputs = digest_text(inputs::project_inputs_digest(&declared_inputs)?);
+        let metadata_digest = FileMetadataDigest::from(metadata.clone());
+        let inputs_digest = ProjectInputsDigest::from(project_inputs);
         if case.file_metadata_sha256 != metadata {
             return Err(Failure::FileMetadataDigestDiffers);
         }
-        if case.project_inputs_sha256 != project_inputs {
+        if case.project_inputs_sha256 != inputs_digest {
             return Err(Failure::ProjectInputsDigestDiffers);
         }
-        let declared = case
-            .expectation_contract
-            .unwrap_or(ComparisonContract::Diagnostics);
+        let declared = match case.expectation_contract {
+            ExpectationContract::Declared(contract) => contract,
+            ExpectationContract::Unwritten => ComparisonContract::Diagnostics,
+        };
         let expected = normalized(Some(&case.expected))?;
         let certificate = case.reference_discrepancy.as_ref();
         let basis = certificate.map(|certificate| certificate.basis);
@@ -167,7 +185,7 @@ pub(crate) fn validate_with_artifacts(
                 if process {
                     Vec::new()
                 } else {
-                    normalized(certificate.reference_expected.as_ref())?
+                    normalized(derived(&certificate.reference_expected))?
                 }
             }
         };
@@ -194,22 +212,22 @@ pub(crate) fn validate_with_artifacts(
             if row.complete != YesNo::Yes
                 || row.error.is_some()
                 || row.case_passed != YesNo::Yes
-                || row.source_sha256.as_ref() != Some(&case.source_sha256)
-                || row.file_metadata_sha256 != metadata
-                || row.project_inputs_sha256 != project_inputs
+                || row.source_sha256 != SourceIdentity::Sealed(case.source_sha256.clone())
+                || row.file_metadata_sha256 != metadata_digest
+                || row.project_inputs_sha256 != inputs_digest
                 || row.files != case.files
                 || normalized(Some(&row.expected))? != expected
                 || if process {
-                    row.reference_expected.is_some()
+                    matches!(row.reference_expected, ReferenceExpectation::Derived(_))
                 } else {
-                    normalized(row.reference_expected.as_ref())? != reference_expected
+                    normalized(derived(&row.reference_expected))? != reference_expected
                 }
             {
                 return Err(Failure::ObservationStale);
             }
             if (row.documented_reference_discrepancy == YesNo::Yes)
                 != (basis == Some(DiscrepancyBasis::LanguageDefect))
-                || (row.documented_tool_contract_difference == Some(YesNo::Yes))
+                || (row.documented_tool_contract_difference == ToolContractRecord::Recorded(YesNo::Yes))
                     != (basis == Some(DiscrepancyBasis::ToolContract))
             {
                 return Err(Failure::DiscrepancyAuthorityDiffers);
@@ -245,18 +263,24 @@ pub(crate) fn validate_with_artifacts(
                 }
             }
             if case.project_context_mode == ContextMode::Isolated {
-                if row.context_manifest.is_some() || row.project_context.is_some() {
+                if row.context_manifest != ContextRun::Isolated
+                    || row.project_context != ProjectContextRecord::NotCarried
+                {
                     return Err(Failure::UnexpectedProjectContext);
                 }
             } else {
-                let manifest = row
-                    .context_manifest
-                    .as_ref()
-                    .map(|value| (value.mode, &value.logical_root, &value.manifest_hash));
-                let identity = case
-                    .context_identity
-                    .as_ref()
-                    .map(|value| (value.mode, &value.logical_root, &value.manifest_hash));
+                let manifest = match &row.context_manifest {
+                    ContextRun::Listed(value) => {
+                        Some((value.mode, &value.logical_root, &value.manifest_hash))
+                    }
+                    ContextRun::Isolated => None,
+                };
+                let identity = match &case.context_identity {
+                    CaseContextIdentity::Listed(value) => {
+                        Some((value.mode, &value.logical_root, &value.manifest_hash))
+                    }
+                    CaseContextIdentity::Isolated => None,
+                };
                 if manifest != identity {
                     return Err(Failure::StaleProjectContext);
                 }
