@@ -9,7 +9,7 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Addressable, Builder, Sourced};
 use crate::domain::resolving::service::read_source;
 use crate::domain::syntax::constants::parameter_kind_named;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::program::types::{Condition, Expression, QueryView};

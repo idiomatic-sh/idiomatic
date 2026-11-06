@@ -6,7 +6,7 @@ use crate::domain::validation::errors::ValidationError;
 use crate::domain::validation::service::validate;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::catalog::interface::CatalogPort as _;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::program::types::QueryView;
 

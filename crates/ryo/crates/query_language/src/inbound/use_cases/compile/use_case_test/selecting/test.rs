@@ -7,7 +7,7 @@ use crate::selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
 use crate::domain::selecting::service::lower_select;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};

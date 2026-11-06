@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
 use crate::domain::assembling::service::lower;
 use crate::domain::lowering::errors::LoweringError;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::hosted::types::ColumnLabel;
 use ryo_values::domain::hosted::types::HostedColumn;

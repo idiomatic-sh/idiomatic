@@ -11,7 +11,7 @@ use crate::domain::resolving::service::{input_argument, positions_of, words_of};
 use crate::domain::rewriting::service::same_sets;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::types::ArgumentSlot;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};

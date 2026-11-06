@@ -1,7 +1,7 @@
 //! Real syntax parsing and fragment linking composed at the inbound boundary.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::program::types::{Expression, WordText, WrittenLiteral};
 use ryo_values::domain::program::types::{Program, QueryBundle};

@@ -194,7 +194,7 @@ fn same_text_twice() -> Given {
 
 #[test]
 fn fragment_contract_compiles_against_real_relation_columns() {
-    use crate::outbound::syntax::factory::winnow;
+    use crate::outbound::syntax::fixtures::winnow::winnow;
     let root = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
             ryo_values::domain::program::service::source_id("root").unwrap(),
@@ -225,7 +225,7 @@ fn fragment_contract_compiles_against_real_relation_columns() {
 
 #[test]
 fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
-    use crate::outbound::syntax::factory::winnow;
+    use crate::outbound::syntax::fixtures::winnow::winnow;
 
     let use_case = CompileUseCaseImpl::new(
         Arc::new(winnow()),
@@ -286,7 +286,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
 
 #[test]
 fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
-    use crate::outbound::syntax::factory::winnow;
+    use crate::outbound::syntax::fixtures::winnow::winnow;
 
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
@@ -328,7 +328,7 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
 
 #[test]
 fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
-    use crate::outbound::syntax::factory::winnow;
+    use crate::outbound::syntax::fixtures::winnow::winnow;
 
     let root_with_caller = "import query from \"query\";\nlet secret = select id from \"syntax-tree\";\nlet result = query();\nemit result subject id key(id);";
     let caller_capture = "output relation<id: node, n: number>;\nlet counted = group-count(from=secret, keys=[\"id\"], count=\"n\");\nreturn counted;";
@@ -396,7 +396,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
 
 #[test]
 fn a_fused_fragment_comparison_keeps_its_original_source_span() {
-    use crate::outbound::syntax::factory::winnow;
+    use crate::outbound::syntax::fixtures::winnow::winnow;
     use ryo_values::domain::plans::types::Operation;
 
     let module = "input nodes: relation<id: node, kind: symbol>;\noutput relation<id: node, kind: symbol>;\nlet selected = select id, kind from nodes where kind = \"totally-unknown\";\nlet projected = select id, kind from selected;\nreturn projected;";
@@ -713,7 +713,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
     use ryo_values::domain::program::types::QueryBundle;
 
     let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::factory::winnow()),
+        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
         Arc::new(crate::outbound::catalog::factory::language()),
     );
     for predicate in [
@@ -776,7 +776,7 @@ fn authored_observation_keeps_independent_root_through_optimization() {
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::program::types::QueryBundle;
     let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::factory::winnow()),
+        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
         Arc::new(crate::outbound::catalog::factory::language()),
     );
     let report = compiler
@@ -822,7 +822,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
     use ryo_values::domain::plans::types::StepScope;
     use ryo_values::domain::program::types::QueryBundle;
     let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::factory::winnow()),
+        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
         Arc::new(crate::outbound::catalog::factory::language()),
     );
     let report = compiler.compile(CompileRequest {
