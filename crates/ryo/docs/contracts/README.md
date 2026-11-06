@@ -28,7 +28,7 @@ The bounded 2/3 overlap keeps Phase 3 source work moving while Phase 2 finishes 
 
 ### Phase 2 completion checklist
 
-Inventory audit: `bf525425c7`, retained Astra/Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. All 83 rows below require evidence for their entire scope; authored or integrated code is not a completed boundary.
+Inventory audit: `bf525425c7`; current [paired source review](audits/2026-11-06-shared-walk/review.json) binds narrow row proofs to `c5abcc1da4` and validation280. All 83 rows require evidence for their entire scope; the overall verdict remains blocking.
 
 Current implementation checkpoint: `c5abcc1da4`. Phase 2 scheduling corrections and Phase 3 shared-walk source are integrated. No phase is verified.
 
@@ -45,142 +45,142 @@ Current implementation checkpoint: `c5abcc1da4`. Phase 2 scheduling corrections 
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | A1 | Wake actual dependants; do not repeatedly poll blocked ancestors. | integrated |
-| ☐ | A2.1 | Compile logical-to-physical class lookup once, including synthetic observation IDs. | integrated |
-| ☐ | A2.2 | Allocate scratch, pending classes and results only for admitted work. | integrated |
-| ☐ | A2.3 | Merge later cohorts atomically and preserve earlier results after failure. | integrated |
-| ☐ | A3 | Independently review the complete combined Phase 2 source. | correction source reviewed; full proof pending |
-| ☐ | A4 | Retain dormant-class, later-cohort, failure, retry and generation controls. | integrated |
-| ☐ | A5 | Integrate every assigned Phase 2 batch into one immutable candidate. | in progress |
-| ☐ | A6 | Run the public production-boundary suite on that candidate. | pending |
-| ☐ | A7 | Prove counters detect actual excess work with independent negative controls. | historical proof; new counters pending |
-| ☐ | A8 | Run the actual readiness and sparse-merge domain tests. | historical proof; rerun pending |
-| ☐ | A9 | Resolve Phase-2-owned structural TM, placement and boundary findings without suppression. | in progress |
+| ☑ | A1 | Wake actual dependants; do not repeatedly poll blocked ancestors. | Proof280 / review: readiness, runtime280. |
+| ☑ | A2.1 | Compile logical-to-physical class lookup once, including synthetic observation IDs. | Proof280 / review: classes, runtime280. |
+| ☑ | A2.2 | Allocate scratch, pending classes and results only for admitted work. | Proof280 / review: classes, runtime280. |
+| ☑ | A2.3 | Merge later cohorts atomically and preserve earlier results after failure. | Proof280 / review: classes, runtime280. |
+| ☑ | A3 | Independently review the complete combined Phase 2 source. | Paired review completed; overall verdict BLOCKING. |
+| ☑ | A4 | Retain dormant-class, later-cohort, failure, retry and generation controls. | Proof280 / review: classes, routes, lifecycle, runtime280. |
+| ☑ | A5 | Integrate every assigned Phase 2 batch into one immutable candidate. | Proof280 / review: paired, runtime280. |
+| ☑ | A6 | Run the public production-boundary suite on that candidate. | Proof280 / review: runtime280. |
+| ☐ | A7 | Prove counters detect actual excess work with independent negative controls. | **open** — Historical actual dense-scratch mutation is retained; independent negative falsifiers do not yet cover all newly exposed Phase2 preparation/queue/reader-initialization counters. No performance run is requested. Evidence: classes, fileprep, runtime280. |
+| ☑ | A8 | Run the actual readiness and sparse-merge domain tests. | Proof280 / review: readiness, classes, runtime280. |
+| ☐ | A9 | Resolve Phase-2-owned structural TM, placement and boundary findings without suppression. | **open** — Structural findings remain in the current scope; asset scenario PASS or a zero-finding subpath does not close the combined scope. Evidence: tm281. |
 
 **B1–B3 — Scheduling inventory**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B1 | Identify request/file/project owners; distinguish result delivery from scheduling. | source audited |
-| ☐ | B2 | Remove repeated request-wide class bookkeeping from cohorts and populations. | partly integrated |
-| ☐ | B3 | Refresh the complete constructor/admission/dispatch/publication/retry/retirement route census after integration. | pending |
+| ☑ | B1 | Identify request/file/project owners; distinguish result delivery from scheduling. | Proof280 / review: paired. |
+| ☑ | B2 | Remove repeated request-wide class bookkeeping from cohorts and populations. | Proof280 / review: classes, runtime280. |
+| ☐ | B3 | Refresh the complete constructor/admission/dispatch/publication/retry/retirement route census after integration. | **open** — Route census must be reconciled with every current callable construction/admission/dispatch/publication/retry/retirement boundary, including the P3-1 raw semantic-service entry. Evidence: routes, paired. |
 
 **B4a — Project ownership**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B4a.1 | Require one phase owner and symbol generation across ordinary project rules. | integrated |
-| ☐ | B4a.2 | Use the same interpreter and lifecycle for named and ordinary project work. | integrated |
-| ☐ | B4a.3 | Reuse equal populations and isolate distinct valid populations. | integrated |
-| ☐ | B4a.4 | Include payload/provenance, refusals, policy and bound members in identity. | integrated |
-| ☐ | B4a.5 | Test differing applicability under one global partition declaration, in both orders. | tests integrated |
-| ☐ | B4a.6 | Test equal-policy/different-payload isolation and equal-input reuse. | tests integrated |
-| ☐ | B4a.7 | Reject foreign generations and changed partition proofs; isolate population release. | tests integrated |
-| ☐ | B4a.8 | Allocate project state for reached regions, not populations × whole program. | tests integrated |
-| ☐ | B4a.9 | Release phase ownership on success/error and preserve primary-error precedence. | integrated; proof pending |
-| ☐ | B4a.10 | Reject contradictory producer-scope rebinding before mutating indexes. | integrated; control unrun |
+| ☑ | B4a.1 | Require one phase owner and symbol generation across ordinary project rules. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.2 | Use the same interpreter and lifecycle for named and ordinary project work. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.3 | Reuse equal populations and isolate distinct valid populations. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.4 | Include payload/provenance, refusals, policy and bound members in identity. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.5 | Test differing applicability under one global partition declaration, in both orders. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.6 | Test equal-policy/different-payload isolation and equal-input reuse. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.7 | Reject foreign generations and changed partition proofs; isolate population release. | Proof280 / review: population, lifecycle, runtime280. |
+| ☑ | B4a.8 | Allocate project state for reached regions, not populations × whole program. | Proof280 / review: population, lifecycle, runtime280. |
+| ☐ | B4a.9 | Release phase ownership on success/error and preserve primary-error precedence. | **open** — Actual success/budget-error cleanup passes, and source preserves primary-error precedence. A dedicated cleanup-failure plus primary-failure control was not identified for the entire conjunction; keep this broad row open. Evidence: budget, lifecycle. |
+| ☑ | B4a.10 | Reject contradictory producer-scope rebinding before mutating indexes. | Proof280 / review: lifecycle, runtime280. |
 
 **B4b — Project root scheduling**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B4b.1 | Require complete declared project root sets at the engine entry. | integrated; verification pending |
-| ☐ | B4b.2 | Group roots by exact engine-issued population and policy identity. | integrated; verification pending |
-| ☐ | B4b.3 | Advance every compatible root group through the common readiness queue. | integrated; verification pending |
-| ☐ | B4b.4 | Migrate ordinary core callers to batch preparation before ordered delivery. | integrated; verification pending |
-| ☐ | B4b.5 | Migrate named producer/consumer stages; keep dependency policy in the engine. | integrated; verification pending |
-| ☐ | B4b.6 | Cover diagnostic, named, direct non-Region, empty and restored roots. | integrated; verification pending |
-| ☐ | B4b.7 | Remove separate per-root depth-first dependency advancement. | integrated; verification pending |
-| ☐ | B4b.8 | Preserve conditional demand, duplicate obligations, diamonds and failure wakeups. | controls integrated; unrun |
-| ☐ | B4b.9 | Prove prepared delivery/retry performs no further scheduling, evaluation or provider reads. | controls integrated; unrun |
-| ☐ | B4b.10 | Settle cancellation, budgets, errors and cleanup across the submitted batch. | integrated; proof pending |
-| ☐ | B4b.11 | Expose real project scheduling counts and test shared versus distinct populations. | integrated; proof pending |
-| ☐ | B4b.12 | Make singleton entries use the same queue or replay prepared results. | integrated; verification pending |
+| ☐ | B4b.1 | Require complete declared project root sets at the engine entry. | **open** — Production ordinary/named callers batch declared task sets, but the entry/structural contract does not establish that every production caller must submit its complete declared set before first execution. Singleton same-queue use remains legitimate; this is not a request to remove it. Evidence: population, paired. |
+| ☑ | B4b.2 | Group roots by exact engine-issued population and policy identity. | Proof280 / review: population, routes, budget, runtime280. |
+| ☑ | B4b.3 | Advance every compatible root group through the common readiness queue. | Proof280 / review: population, routes, budget, runtime280. |
+| ☑ | B4b.4 | Migrate ordinary core callers to batch preparation before ordered delivery. | Proof280 / review: population, routes, budget, runtime280. |
+| ☑ | B4b.5 | Migrate named producer/consumer stages; keep dependency policy in the engine. | Proof280 / review: population, routes, budget, runtime280. |
+| ☑ | B4b.6 | Cover diagnostic, named, direct non-Region, empty and restored roots. | Proof280 / review: population, routes, budget, runtime280. |
+| ☑ | B4b.7 | Remove separate per-root depth-first dependency advancement. | Proof280 / review: readiness, paired. |
+| ☑ | B4b.8 | Preserve conditional demand, duplicate obligations, diamonds and failure wakeups. | Proof280 / review: readiness, fileprep, routes, runtime280. |
+| ☑ | B4b.9 | Prove prepared delivery/retry performs no further scheduling, evaluation or provider reads. | Proof280 / review: population, lifecycle, routes, runtime280. |
+| ☐ | B4b.10 | Settle cancellation, budgets, errors and cleanup across the submitted batch. | **open** — Budget and primary-error batch controls now pass. Entire cancellation/cleanup-failure combination scope is not independently closed; do not leave budget itself labelled unrun. Evidence: budget, lifecycle. |
+| ☑ | B4b.11 | Expose real project scheduling counts and test shared versus distinct populations. | Proof280 / review: population, runtime280. |
+| ☑ | B4b.12 | Make singleton entries use the same queue or replay prepared results. | Proof280 / review: population, lifecycle, routes, runtime280. |
 
 **B4c — Per-file preparation**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B4c.1 | Compile intent-specific root and reader multisets once per request. | integrated; verification pending |
-| ☐ | B4c.2 | Compile frontier-input → named-output lookup once per request. | integrated; verification pending |
-| ☐ | B4c.3 | Build ordered active roots once per file without linear queued.contains searches. | integrated; verification pending |
-| ☐ | B4c.4 | Allocate named-root state only for demanded/readiness-output obligations. | integrated; verification pending |
-| ☐ | B4c.5 | Allocate runtime slots, counters and scratch only for reached regions. | integrated |
-| ☐ | B4c.6 | Allocate readiness entries only for discovered roots/dependencies; reject invalid IDs. | integrated; verification pending |
-| ☐ | B4c.7 | Apply dormant cancellation obligations without traversing/materializing the unselected graph. | integrated; verification pending |
-| ☐ | B4c.8 | Compile selector ranges once; count only active selector groups per file. | integrated; verification pending |
-| ☐ | B4c.9 | Keep graph and other activation metadata proportional to relevant rules. | integrated; verification pending |
-| ☐ | B4c.10 | Prove opening/binding does no provider or kernel work for disabled/skipped/refused/rootless intents. | controls integrated; unrun |
-| ☐ | B4c.11 | Measure preparation work and falsify dense dormant processing. | controls integrated; unrun |
-| ☐ | B4c.12 | Preserve duplicate reader multiplicity and cancellation/release when roots are deduplicated. | proof pending |
+| ☑ | B4c.1 | Compile intent-specific root and reader multisets once per request. | Proof280 / review: fileprep, runtime280. |
+| ☑ | B4c.2 | Compile frontier-input → named-output lookup once per request. | Proof280 / review: fileprep, runtime280. |
+| ☑ | B4c.3 | Build ordered active roots once per file without linear queued.contains searches. | Proof280 / review: fileprep, runtime280. |
+| ☑ | B4c.4 | Allocate named-root state only for demanded/readiness-output obligations. | Proof280 / review: fileprep, runtime280. |
+| ☑ | B4c.5 | Allocate runtime slots, counters and scratch only for reached regions. | Proof280 / review: fileprep, population, runtime280. |
+| ☑ | B4c.6 | Allocate readiness entries only for discovered roots/dependencies; reject invalid IDs. | Proof280 / review: readiness, runtime280. |
+| ☑ | B4c.7 | Apply dormant cancellation obligations without traversing/materializing the unselected graph. | Proof280 / review: fileprep, runtime280. |
+| ☑ | B4c.8 | Compile selector ranges once; count only active selector groups per file. | Proof280 / review: fileprep, runtime280. |
+| ☐ | B4c.9 | Keep graph and other activation metadata proportional to relevant rules. | **open** — Concrete remaining implementation work: derived/owner/setup.rs:33 iterates prepared.graph_rules across the request and binary-searches demanded rules. First reader initialization also aggregates selected-root provenance. Relevant-rule proportional activation is not fully implemented. Evidence: fileprep, paired. |
+| ☑ | B4c.10 | Prove opening/binding does no provider or kernel work for disabled/skipped/refused/rootless intents. | Proof280 / review: fileprep, routes, runtime280. |
+| ☐ | B4c.11 | Measure preparation work and falsify dense dormant processing. | **open** — Real sparse allocation/work controls pass, but a complete preparation-work falsifier is not established for the remaining activation family. This is contract-work proof, not authorization for benchmark/tuning. Evidence: fileprep, readiness. |
+| ☐ | B4c.12 | Preserve duplicate reader multiplicity and cancellation/release when roots are deduplicated. | **open** — Duplicate root multiplicity is compiled/tested and internal producer release controls pass separately; a joint deduplicated external-root cancellation/real-lease proof is missing. Do not substitute exact-last-use optimization from Phase4. Evidence: fileprep, lifecycle. |
 
 **B4d — Every source and physical route**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B4d.1 | Relation: owner-controlled provider admission and unavailable-source handling. | tests integrated |
-| ☐ | B4d.2 | Hosted: request-owned rows, dependencies and retries through the same scheduler. | tests integrated |
-| ☐ | B4d.3 | Region: shared producer results and duplicate dependency scheduling. | tests integrated |
-| ☐ | B4d.4 | Observation: direct aliases and union roots use actual producer publications. | tests integrated |
-| ☐ | B4d.5 | EmptyObservation: only validated declarations can publish typed emptiness. | tests integrated |
-| ☐ | B4d.6 | ObservationMember: Current/restored provenance and refusal survive scheduling. | tests integrated |
-| ☐ | B4d.7 | Direct roots without a Region use mandatory admission, not another evaluator. | batch proof pending |
-| ☐ | B4d.8 | Ordinary evaluation and shared-class replay use the same invocation authority. | tests integrated |
-| ☐ | B4d.9 | Native SyntaxTree/SyntaxChild positions use owner-issued source identity. | tests integrated |
-| ☐ | B4d.10 | Selected and column strategies preserve admission, population and retirement authority. | tests integrated |
-| ☐ | B4d.11 | Observe actual ordered-existence entry/decline; do not substitute OrderedMatch output tests. | tests integrated |
-| ☐ | B4d.12 | Strategy decline precedes observable work; real errors cannot retry another engine. | current all-route proof pending |
-| ☐ | B4d.13 | Cover file/project, collected/callback and named/capture/restored entry combinations. | partly integrated |
-| ☐ | B4d.14 | Require explicit classification and proof for new source/physical implementations. | enforcement pending |
+| ☑ | B4d.1 | Relation: owner-controlled provider admission and unavailable-source handling. | Proof280 / review: routes, population, runtime280. |
+| ☑ | B4d.2 | Hosted: request-owned rows, dependencies and retries through the same scheduler. | Proof280 / review: routes, population, runtime280. |
+| ☑ | B4d.3 | Region: shared producer results and duplicate dependency scheduling. | Proof280 / review: routes, population, runtime280. |
+| ☑ | B4d.4 | Observation: direct aliases and union roots use actual producer publications. | Proof280 / review: routes, population, runtime280. |
+| ☑ | B4d.5 | EmptyObservation: only validated declarations can publish typed emptiness. | Proof280 / review: routes, population, runtime280. |
+| ☑ | B4d.6 | ObservationMember: Current/restored provenance and refusal survive scheduling. | Proof280 / review: routes, population, runtime280. |
+| ☑ | B4d.7 | Direct roots without a Region use mandatory admission, not another evaluator. | Proof280 / review: routes, runtime280. |
+| ☑ | B4d.8 | Ordinary evaluation and shared-class replay use the same invocation authority. | Proof280 / review: routes, authority, runtime280. |
+| ☑ | B4d.9 | Native SyntaxTree/SyntaxChild positions use owner-issued source identity. | Proof280 / review: routes, lifecycle, runtime280. |
+| ☑ | B4d.10 | Selected and column strategies preserve admission, population and retirement authority. | Proof280 / review: routes, lifecycle, runtime280. |
+| ☑ | B4d.11 | Observe actual ordered-existence entry/decline; do not substitute OrderedMatch output tests. | Proof280 / review: routes, lifecycle, runtime280. |
+| ☐ | B4d.12 | Strategy decline precedes observable work; real errors cannot retry another engine. | **open** — Central shared acquisition declines representations before effects and preserves errors, but an exhaustive all-strategy decline/error matrix is not established. Opus P3-2 invalid-Project counterexample is rejected, not an outstanding production fault. Evidence: routes, phase3. |
+| ☐ | B4d.13 | Cover file/project, collected/callback and named/capture/restored entry combinations. | **open** — Existing public controls pass, but complete file/project × delivery × named/capture/restored route coverage has not been enumerated and falsified as a whole. Evidence: routes. |
+| ☐ | B4d.14 | Require explicit classification and proof for new source/physical implementations. | **open** — New operation barriers are exhaustive; no complete enforced registration/proof obligation exists for every new source/physical implementation. Evidence: paired, tm281. |
 
 **B5 — Architecture and contracts**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | B5.1 | Keep one production interpreter; kernels cannot resolve dependencies. | final audit pending |
-| ☐ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | integrated; current proof pending |
-| ☐ | B5.3 | Only actual ready gates may submit shared-walk classes. | integrated; boundary proof pending |
-| ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | six real-source cases pass275; paired review pending |
-| ☐ | B5.5 | Require owner, generation, partition, root and population scope at all lifecycle boundaries. | current proof pending |
-| ☐ | B5.6 | Reject scope rebinding that would retain one scope and index another. | negative control written |
-| ☐ | B5.7 | Retry delivery only after sink refusal; preserve terminal failures and generation isolation. | tests integrated |
-| ☐ | B5.8 | Prove cancellation/error/finish release real leases without premature release. | new batch proof pending |
-| ☐ | B5.9 | Enforce nu-hex ownership, acyclic boundaries and private implementation; do not widen access. | findings remain |
-| ☐ | B5.10 | Place new concepts/tests and run bad/good TM structural scenarios. | partly integrated |
-| ☐ | B5.11 | Run forbidden-access and authorized examples; verify intended failure reasons. | pending |
-| ☐ | B5.12 | Register and execute required execution/core/public/domain/contract suites. | pending |
-| ☐ | B5.13 | Require structural/contract gates and valid independent review in normal CI. | machinery present; current proof pending |
-| ☐ | B5.14 | Review exact combined source, separating deferred output faults from architectural violations. | pending |
+| ☑ | B5.1 | Keep one production interpreter; kernels cannot resolve dependencies. | Proof280 / review: readiness, paired. |
+| ☑ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | Proof280 / review: authority, runtime280. |
+| ☐ | B5.3 | Only actual ready gates may submit shared-walk classes. | **open** — Eight real-source probes now pass for constructor/field/factory boundaries, but P3-1 permits crate-internal raw shared_walk::service::evaluate dispatch outside the rule placement. Entire internal dispatch guarantee remains open. Evidence: authority, tm281. |
+| ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | **open** — Eight real-source probes now pass for constructor/field/factory boundaries, but P3-1 permits crate-internal raw shared_walk::service::evaluate dispatch outside the rule placement. Entire internal dispatch guarantee remains open. Evidence: authority, tm281. |
+| ☐ | B5.5 | Require owner, generation, partition, root and population scope at all lifecycle boundaries. | **open** — Scope checks and negatives pass on tested lifecycle routes; full entry-to-retirement owner/generation/partition/root/population boundary census remains open. Evidence: population, lifecycle, authority. |
+| ☑ | B5.6 | Reject scope rebinding that would retain one scope and index another. | Proof280 / review: lifecycle, runtime280. |
+| ☑ | B5.7 | Retry delivery only after sink refusal; preserve terminal failures and generation isolation. | Proof280 / review: lifecycle, routes, runtime280. |
+| ☐ | B5.8 | Prove cancellation/error/finish release real leases without premature release. | **open** — Actual Weak/working-byte controls pass for internal consumers, failures and finish. All newly batched/deduplicated external root cancellation/error/finish combinations remain unproven. Evidence: lifecycle, budget. |
+| ☐ | B5.9 | Enforce nu-hex ownership, acyclic boundaries and private implementation; do not widen access. | **open** — Structural findings remain in the current scope; asset scenario PASS or a zero-finding subpath does not close the combined scope. Evidence: tm281. |
+| ☐ | B5.10 | Place new concepts/tests and run bad/good TM structural scenarios. | **open** — Structural findings remain in the current scope; asset scenario PASS or a zero-finding subpath does not close the combined scope. Evidence: tm281. |
+| ☑ | B5.11 | Run forbidden-access and authorized examples; verify intended failure reasons. | Proof280 / review: authority, runtime280. |
+| ☑ | B5.12 | Register and execute required execution/core/public/domain/contract suites. | Proof280 / review: runtime280, authority. |
+| ☐ | B5.13 | Require structural/contract gates and valid independent review in normal CI. | **open** — Trusted normal-CI validation machinery exists; current-source success/failure proof for missing/stale/invalid review and mandatory structural/runtime gates is not supplied. Evidence: paired, tm281. |
+| ☑ | B5.14 | Review exact combined source, separating deferred output faults from architectural violations. | Paired review completed; overall verdict BLOCKING. |
 
 **C — Phase checkpoint**
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | C1 | Retain exact full-rule baseline receipts; do not present them as candidate proof. | historical evidence retained |
-| ☐ | C2 | Retain full-Django failures, workload identity and measured resources. | historical evidence retained |
-| ☐ | C3 | Retain tiny controls and phase profiles with their limited scope. | historical evidence retained |
-| ☐ | C4a | Verify frontier/partition/owner admission contracts on the new scheduler. | pending |
-| ☐ | C5 | Build an immutable combined worker and measure useful workloads with actual work counters. | Performance measurement deferred until after phases 2–6 by the latest user instruction; not a Phase 2 blocking checkpoint. |
-| ☐ | C6 | Retain configured Rust guards and their failures; do not omit rules or raise limits. | failures retained |
-| ☐ | C7 | Bind compile, contracts, TM, counters, diagnostics and review to the same source. | pending |
+| ☑ | C1 | Retain exact full-rule baseline receipts; do not present them as candidate proof. | Proof280 / review: historical. |
+| ☑ | C2 | Retain full-Django failures, workload identity and measured resources. | Proof280 / review: historical. |
+| ☑ | C3 | Retain tiny controls and phase profiles with their limited scope. | Proof280 / review: historical. |
+| ☐ | C4a | Verify frontier/partition/owner admission contracts on the new scheduler. | **open** — Narrow partition/owner admission controls pass, but complete new-scheduler route coverage remains open. Deferred LP2 output lineage is not being reopened in this phase. Evidence: routes, population, lifecycle. |
+| ☐ | C5 | Build an immutable combined worker and measure useful workloads with actual work counters. | **deferred** — No performance/tuning/benchmark checks during phases2–6. Move this measurement obligation to the later acceptance checkpoint; do not run it to clear current contracts. Evidence: historical. |
+| ☐ | C6 | Retain configured Rust guards and their failures; do not omit rules or raise limits. | **open** — Historical Rust guard failures remain recorded; this review did not verify every configured guard/limit unchanged on the current source. No guard run or limit change authorized. Evidence: historical. |
+| ☐ | C7 | Bind compile, contracts, TM, counters, diagnostics and review to the same source. | **open** — Compile and contract receipts bind to the one-line cfg(test) successor; structural TM remains failing, source verdict blocking, diagnostics/performance deferred. No combined closure. Evidence: runtime280, tm281, paired. |
 
 C4b (all output/completeness corrections, including LP-2) is explicitly deferred to Phase 1. Structural/ownership failures stay in Phase 2. Full shared scans belong to Phase 3, derived acquisition/last-use optimization to Phase 4, fusion to Phase 5, persistent reuse/invalidation to Phase 6. Existing full-suite output gates remain final acceptance; they do not block structural migration.
 
 **Phase 3 — Shared file walk (matrix 20b; source wave from `238f9538b`)**
 
-All entries remain unchecked pending complete scope review. Validation280 on `c5abcc1da4` compiles the integrated batch and passes execution431/431 and public boundaries90/90. These suites do not establish full configured-inventory sharing or complete structural enforcement; no performance measurement was run.
+Checkmarks below are narrow source-bound proofs from the [paired review](audits/2026-11-06-shared-walk/review.json): Phase 2 has 60 verified rows, 22 open and one deferred measurement; Phase 3 has seven verified and five open. These are not completion percentages. New source changes still require successor validation. Validation280 on `c5abcc1da4` compiles the integrated batch and passes execution431/431 and public boundaries90/90. These suites do not establish full configured-inventory sharing or complete structural enforcement; no performance measurement was run.
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
-| ☐ | P3.1 | Require a file-generation walk owner for every production file invocation; reject project-stage substitution and foreign generations. | `KernelSession::{file,project}`, runtime-issued permit partition and `FileWalk` generation; three misuse controls authored in `compiled_parity/source_partition/test.rs`; included in passing validation280; complete scope review pending |
-| ☐ | P3.2 | Resolve all physical source heads once for the request and explicitly classify every operation's source barrier. | `PreparedWalk` records shared classes or exhaustive all-26-operation barriers; new operations require a classifier arm; integrated build280 PASS; complete scope review pending |
-| ☐ | P3.3 | Share exact ordered predicate prefixes and source column demands across distinct ready classes with equal referenced bindings. | Request-prepared prefixes/column masks, sparse per-row verdicts; missing/distinct binding and reordered-prefix controls authored; included in passing validation280; complete scope review pending |
-| ☐ | P3.4 | Acquire Positions, StoredSelection and ordinary replay results through one file owner; decline representations before predicate work and preserve real errors. | `WalkPartition::acquire` and `WalkDelivery`; shared-result consumers migrated; integrated build280 PASS; complete scope review pending |
-| ☐ | P3.5 | Share direct pure Project source heads while preserving zero-column output, repeated columns and duplicate rows. | Project-with-duplicates-kept classes use the same source walk; explicit projection shape and production inbound control authored; included in passing validation280; complete scope review pending |
+| ☑ | P3.1 | Require a file-generation walk owner for every production file invocation; reject project-stage substitution and foreign generations. | All six kernel entry routes validate required file/project generation scope; two valid and three misuse controls execute in280. |
+| ☑ | P3.2 | Resolve all physical source heads once for the request and explicitly classify every operation's source barrier. | Physical source resolution/column demands are request-prepared; exhaustive26-operation barrier enum and request preparation controls pass. |
+| ☑ | P3.3 | Share exact ordered predicate prefixes and source column demands across distinct ready classes with equal referenced bindings. | Exact referenced bindings and authored prefix order drive shared prefix decisions; real counter, distinct/missing binding and first-error controls pass. |
+| ☑ | P3.4 | Acquire Positions, StoredSelection and ordinary replay results through one file owner; decline representations before predicate work and preserve real errors. | Positions/Stored/Rows consumers use the same validated acquisition owner; representation decline is before prepare/predicate work and portable errors do not fallback. Actual route controls pass. |
+| ☑ | P3.5 | Share direct pure Project source heads while preserving zero-column output, repeated columns and duplicate rows. | Real direct pure Project test preserves zero columns, duplicate/reordered projections, duplicates and source row order; invalid-schema bypass alleged by Opus is unreachable. |
 | ☐ | P3.6 | Only runtime-ready gates may populate the admitted source queue; prevent arbitrary ready-list issuance. | `PermittedWalk` private fields and construction inside `FileWalk`; removed sibling `KernelPermit::walk` factory; real-source Rust negative probes PASS in boundary280 |
 | ☐ | P3.7 | Preserve provider refusal/physical identity and observation, dependency, partition, error and continuation barriers. | Provider facts remain revalidated at admitted access; no saved provider borrow bypasses refusal; existing barrier controls retained plus new scope/binding controls; included in passing validation280; complete scope review pending |
-| ☐ | P3.8 | Count source passes, offered rows, decoded rows, actual predicate decisions, reused prefix decisions and sparse class storage. | Counters increment at actual work; 413-distinct-class production-inbound scale control authored; this synthetic control is not the real Ruff inventory; included in passing validation280; complete scope review pending |
-| ☐ | P3.9 | Undemanded roots perform no provider/kernel/scratch/result work, and delivery/retry reuses admitted results. | Existing dormant/dependent/fault/replay controls retained; new complete-counter replay assertion authored; included in passing validation280; complete scope review pending |
+| ☑ | P3.8 | Count source passes, offered rows, decoded rows, actual predicate decisions, reused prefix decisions and sparse class storage. | Counters increment actual source/decoded/predicate/reused decisions and admitted storage; actual synthetic413-class control passes. No configured-Ruff claim. |
+| ☑ | P3.9 | Undemanded roots perform no provider/kernel/scratch/result work, and delivery/retry reuses admitted results. | Dormant and dependency-gated root controls plus full-counter retry/replay comparisons pass. |
 | ☐ | P3.10 | Keep result leases free of mutable cache borrows through reentrant delivery. | Shared class results use immutable leases; no `RefCell` guard escapes acquisition; existing real reentrant controls retained; included in passing validation280; complete scope review pending |
 | ☐ | P3.11 | Enforce owner placement/privacy and required file session state with positive and negative structural controls across every execution source layer. | P3-1 correction from `c5abcc1da4`: `shared-walk-owner` now covers `execution/src/**` and rejects resolved inbound/domain/outbound/module/item aliases; exact semantic-owner/test homes only. Eighteen asset scenarios PASS, including fake-test and visibility-path controls. Actual whole execution/src TM check: 2,852 findings / 0 suppressed overall FAIL; owner-rule findings 0, and selected-publication boundary findings 0 in kernel_session/selection after moving policy to the declared selection owner. Raw receipts `/tmp/ryo-phase3-owner-boundary-repair-20261106/{validate,check-final}.json`. New source movement uncompiled/unrun; remaining source cycles and broader TM findings remain open; independent successor review pending. |
 | ☐ | P3.12 | Prove actual full configured rule inventory sharing and every production physical/source route on one frozen combined source. | Actual configured413 inventory proof pending; build/runtime pass, TM and independent acceptance remain open |
