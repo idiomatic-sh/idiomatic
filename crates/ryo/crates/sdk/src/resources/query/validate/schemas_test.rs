@@ -85,7 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || CoreError::UnknownKind {
             reason: String::new(),
-            origin: ryo_values::domain::program::types::Attribution::Unlocated,
+            origin: None,
         },
         expect: Expect::Value(0),
     },
@@ -146,7 +146,7 @@ fn an_uncompilable_fragment_error_keeps_its_module_location() {
         trace: Vec::new(),
     };
     let mut core_error = refused(RefusedKind::Invalid, 7, 12);
-    core_error.origin = Some(core_origin);
+    core_error.origin = ryo_values::domain::program::types::Attribution::Located(core_origin);
     let converted = error(TEXT, CoreError::Uncompilable { error: core_error });
     assert!(matches!(
         converted,

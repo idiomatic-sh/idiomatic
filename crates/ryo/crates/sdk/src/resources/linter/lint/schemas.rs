@@ -437,11 +437,11 @@ fn compile_error(error: RefusedQuery) -> ValidateError {
         RefusedKind::Catalog => ValidateError::Catalog { reason: message },
     };
     match origin {
-        Some(origin) => ValidateError::Located {
+        ryo_values::domain::program::types::Attribution::Located(origin) => ValidateError::Located {
             origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
             error: Box::new(error),
         },
-        None => error,
+        ryo_values::domain::program::types::Attribution::Unlocated => error,
     }
 }
 

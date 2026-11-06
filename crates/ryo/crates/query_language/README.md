@@ -60,6 +60,10 @@ The `query_language` domain's `pruning` concept: the steps nothing reads, droppe
 
 The `query_language` domain's `pushing` concept: the lookups into a join of edges and elements made before the join.
 
+### rendering
+
+The `query_language` domain's `rendering` concept: the calls that read the physical text of the syntax tree, its rendering of a node and the width of a replacement.
+
 ### reshaping
 
 The `query_language` domain's `reshaping` concept: the calls that count, digest, capture, split or rank rows, lowered to steps.
@@ -76,9 +80,13 @@ The `query_language` domain's `rewriting` concept: the idiom of a plan that says
 
 The `query_language` domain's `selecting` concept: a `select` lowered to the join, the filter and the projection the query wrote.
 
+### spanning
+
+The `query_language` domain's `spanning` concept: the calls that compose the byte spans of rows and project their start and end.
+
 ### substituting
 
-The `query_language` domain's `substituting` concept: validating and lowering literal regular-expression replacement and ordered request/reply matching, including their keys, ordering and output columns.
+The `query_language` domain's `substituting` concept: validating and lowering literal regular-expression replacement, source occurrence matching and ordered request/reply matching, including their keys, ordering and output columns.
 
 ### syntax
 

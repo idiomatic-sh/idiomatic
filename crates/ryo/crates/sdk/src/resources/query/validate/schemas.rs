@@ -4,7 +4,6 @@ use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
 use ryo_relations::domain::relations::types::Span as CoreSpan;
 use ryo_values::domain::descriptions::types::ValidateReport as CoreReport;
-use ryo_values::domain::program::types::QueryOrigin as CoreOrigin;
 use ryo_values::domain::program::types::RefusedKind;
 use ryo_values::domain::program::types::RefusedQuery;
 
@@ -201,15 +200,20 @@ fn refused(error: RefusedQuery) -> ValidateError {
 }
 
 /// Keep the standalone SDK's error variants while locating errors in named bundle sources.
-fn located(error: ValidateError, origin: Option<CoreOrigin>) -> ValidateError {
+fn located(
+    error: ValidateError,
+    origin: ryo_values::domain::program::types::Attribution,
+) -> ValidateError {
     match origin {
-        Some(origin) if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() => {
+        ryo_values::domain::program::types::Attribution::Located(origin)
+            if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+        {
             ValidateError::Located {
                 origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
                 error: Box::new(error),
             }
         }
-        None | Some(_) => error,
+        ryo_values::domain::program::types::Attribution::Unlocated | ryo_values::domain::program::types::Attribution::Located(_) => error,
     }
 }
 
@@ -220,7 +224,7 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
             CoreError::Uncompilable { error } => {
                 let origin = error.origin.clone();
                 match origin {
-                    Some(origin)
+                    ryo_values::domain::program::types::Attribution::Located(origin)
                         if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
                     {
                         ValidateError::Located {
