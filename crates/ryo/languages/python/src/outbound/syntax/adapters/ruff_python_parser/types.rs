@@ -100,7 +100,7 @@ pub(super) struct Writer<'b, 'w, 't> {
     /// Source spelling retained only to distinguish normalized identifiers.
     pub source: languages::NameText<'t>,
     /// Reused scalar formatting buffer; `String` formatting has no failure path.
-    pub scalar: String,
+    pub scalar: ScalarBuffer,
 }
 
 /// Decoded bytes displayed as an unambiguous scalar payload without allocating a temporary string.
@@ -133,10 +133,34 @@ impl std::fmt::Display for DebugSpelling<'_> {
     }
 }
 
+/// The text of one parser diagnostic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct DiagnosticMessage(pub String);
+
+impl From<&str> for DiagnosticMessage {
+    fn from(text: &str) -> Self {
+        Self(text.to_owned())
+    }
+}
+
+impl From<String> for DiagnosticMessage {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}
+
+/// A reusable text buffer scalar payloads are formatted into.
+#[derive(Debug, Default)]
+pub(super) struct ScalarBuffer(pub String);
+
+/// The rendered spelling of one syntax form.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct RenderedText(pub String);
+
 /// One parser-library syntax diagnostic, before byte-range normalization.
 pub(super) struct SemanticSyntaxDiagnostic {
     /// The diagnostic text emitted by the parser.
-    pub message: String,
+    pub message: DiagnosticMessage,
     /// The parser-native source range.
     pub range: ruff_text_size::TextRange,
     /// Stable provider-owned classification code.

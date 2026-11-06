@@ -5,7 +5,7 @@ use super::constants::{
     DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER, DUPLICATE_TYPE_PARAMETER_MESSAGE,
     TYPE_PARAMETER_DEFAULT_ORDER,
 };
-use super::types::{BoundName, SemanticSyntaxDiagnostic};
+use super::types::{BoundName, DiagnosticMessage, SemanticSyntaxDiagnostic};
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Parameters, Stmt, TypeParams};
 use ruff_text_size::Ranged as _;
@@ -106,7 +106,7 @@ impl VisitorState {
     pub(super) fn report(
         &mut self,
         code: DiagnosticCode,
-        message: impl Into<String>,
+        message: impl Into<DiagnosticMessage>,
         range: ruff_text_size::TextRange,
     ) {
         self.errors.push(SemanticSyntaxDiagnostic {

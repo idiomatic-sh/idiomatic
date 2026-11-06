@@ -4,8 +4,8 @@ use super::future::{else_without_except, unknown_futures};
 use super::lexical::{decoded_of, opens};
 use super::schemas::{concrete_node_kind, token_kind};
 use super::types::{
-    AnnotationCandidate, AnnotationContext, Decoded, Depth, FutureAnnotations, ParserRefusal,
-    Said, Strings, TokenIndex, Writer,
+    AnnotationCandidate, AnnotationContext, Decoded, Depth, FutureAnnotations, ParserRefusal, Said,
+    ScalarBuffer, Strings, TokenIndex, Writer,
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::syntax::constants::{
@@ -91,7 +91,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
             parsed_tokens: tokens,
             length,
             source,
-            scalar: String::new(),
+            scalar: ScalarBuffer::default(),
         }
     }
 
@@ -327,7 +327,7 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
 fn scalar_properties(
     node: AnyNodeRef<'_>,
     builder: &mut languages::TableBuilder<'_>,
-    scratch: &mut String,
+    scratch: &mut ScalarBuffer,
 ) {
     use crate::domain::syntax::constants::{
         BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
@@ -387,14 +387,14 @@ fn scalar_properties(
 /// Format into a reusable `String` before adding a scalar property; formatting a `String` is infallible.
 fn scalar_property(
     builder: &mut languages::TableBuilder<'_>,
-    scratch: &mut String,
+    scratch: &mut ScalarBuffer,
     property: languages::PropertyId,
     value: impl std::fmt::Display,
 ) {
     use std::fmt::Write as _;
-    scratch.clear();
+    scratch.0.clear();
     // `String` implements `fmt::Write` infallibly; assert that contract while consuming the result.
-    let result = write!(scratch, "{value}");
+    let result = write!(scratch.0, "{value}");
     debug_assert!(result.is_ok(), "formatting into String is infallible");
-    languages::node_property(builder, property, languages::NameText(scratch));
+    languages::node_property(builder, property, languages::NameText(&scratch.0));
 }

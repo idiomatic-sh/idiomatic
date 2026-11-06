@@ -216,7 +216,7 @@ fn diagnose_semantic_errors(
         languages::diagnose_with_metadata(
             builder,
             DiagnosticMetadata::new(error.phase, error.impact, error.code),
-            languages::ReportText(&error.message),
+            languages::ReportText(&error.message.0),
             Offset(error.range.start().to_u32()),
             Offset(error.range.end().to_u32()),
         );

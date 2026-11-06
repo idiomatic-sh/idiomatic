@@ -12,7 +12,7 @@ use ryo::languages::{
 };
 
 use super::schemas::concrete_node_kind;
-use super::types::Strings;
+use super::types::{RenderedText, Strings};
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::types::PythonSourceKind;
 use crate::settings::PythonParserSettings;
@@ -53,7 +53,10 @@ impl PythonSemanticSession {
     }
 }
 
-fn source_slice<'a>(expr: &Expr, source: &'a str) -> Option<&'a str> {
+fn source_slice<'a>(
+    expr: &Expr,
+    source: languages::NameText<'a>,
+) -> Option<languages::NameText<'a>> {
     let range = expr.range();
     let (Ok(start), Ok(end)) = (
         usize::try_from(range.start().to_u32()),
@@ -61,7 +64,7 @@ fn source_slice<'a>(expr: &Expr, source: &'a str) -> Option<&'a str> {
     ) else {
         return None;
     };
-    source.get(start..end)
+    source.0.get(start..end).map(languages::NameText)
 }
 
 fn target(expr: &Expr) -> Flag {
@@ -79,23 +82,27 @@ fn target(expr: &Expr) -> Flag {
 
 /// Render only the syntax forms whose embedding can be proven from the AST.
 /// Other valid forms remain explicit Unknown instead of silently losing a row.
-fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
+fn render(
+    expr: &Expr,
+    context: RenderContext,
+    source: languages::NameText<'_>,
+) -> Option<RenderedText> {
     match expr {
-        Expr::Name(name) => Some(name.id.to_string()),
-        Expr::Attribute(attribute) => Some(format!(
+        Expr::Name(name) => Some(RenderedText(name.id.to_string())),
+        Expr::Attribute(attribute) => Some(RenderedText(format!(
             "{}.{}",
-            render(&attribute.value, RenderContext::AttributeReceiver, source)?,
+            render(&attribute.value, RenderContext::AttributeReceiver, source)?.0,
             attribute.attr
-        )),
-        Expr::Subscript(subscript) => Some(format!(
+        ))),
+        Expr::Subscript(subscript) => Some(RenderedText(format!(
             "{}[{}]",
-            render(&subscript.value, RenderContext::AttributeReceiver, source)?,
-            render(&subscript.slice, RenderContext::PositionalArgument, source)?
-        )),
+            render(&subscript.value, RenderContext::AttributeReceiver, source)?.0,
+            render(&subscript.slice, RenderContext::PositionalArgument, source)?.0
+        ))),
         Expr::Tuple(tuple) => {
             let mut items = Vec::with_capacity(tuple.elts.len());
             for item in &tuple.elts {
-                items.push(render(item, RenderContext::PositionalArgument, source)?);
+                items.push(render(item, RenderContext::PositionalArgument, source)?.0);
             }
             let mut text = items.join(LIST_SEPARATOR);
             if items.len() == 1 {
@@ -104,21 +111,21 @@ fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
             if context == RenderContext::AttributeReceiver
                 || context == RenderContext::PositionalArgument
             {
-                Some(format!("({text})"))
+                Some(RenderedText(format!("({text})")))
             } else {
-                Some(text)
+                Some(RenderedText(text))
             }
         }
         Expr::List(list) => {
             let mut items = Vec::with_capacity(list.elts.len());
             for item in &list.elts {
-                items.push(render(item, RenderContext::PositionalArgument, source)?);
+                items.push(render(item, RenderContext::PositionalArgument, source)?.0);
             }
-            Some(format!("[{}]", items.join(LIST_SEPARATOR)))
+            Some(RenderedText(format!("[{}]", items.join(LIST_SEPARATOR))))
         }
-        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => {
-            Some(format!("*{}", render(&starred.value, context, source)?))
-        }
+        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(RenderedText(
+            format!("*{}", render(&starred.value, context, source)?.0),
+        )),
         Expr::StringLiteral(_)
         | Expr::BytesLiteral(_)
         | Expr::NumberLiteral(_)
@@ -131,7 +138,7 @@ fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
             if context == RenderContext::AttributeReceiver {
                 return None;
             }
-            source_slice(expr, source).map(str::to_owned)
+            source_slice(expr, source).map(|slice| RenderedText(slice.0.to_owned()))
         }
         _ => None,
     }
@@ -159,7 +166,7 @@ struct Slot(usize);
 struct Requested<'a> {
     wanted: HashMap<ElementKey, Vec<Wanted>>,
     answers: Vec<Option<RenderOutcome>>,
-    source: &'a str,
+    source: languages::NameText<'a>,
 }
 
 impl<'a> Visitor<'a> for Requested<'_> {
@@ -174,12 +181,18 @@ impl<'a> Visitor<'a> for Requested<'_> {
             )),
         };
         if let Some(indices) = self.wanted.get(&key) {
-            for &Wanted { slot: Slot(index), context } in indices {
-                let answer = if context == RenderContext::AssignmentTarget && target(expr) == Flag::Lowered {
+            for &Wanted {
+                slot: Slot(index),
+                context,
+            } in indices
+            {
+                let answer = if context == RenderContext::AssignmentTarget
+                    && target(expr) == Flag::Lowered
+                {
                     RenderOutcome::NotApplicable
                 } else {
                     render(expr, context, self.source)
-                        .map(|text| RenderOutcome::Known(Arc::from(text)))
+                        .map(|text| RenderOutcome::Known(Arc::from(text.0)))
                         .unwrap_or(RenderOutcome::Unsupported(UNSUPPORTED))
                 };
                 self.answers[index] = Some(match self.answers[index].take() {
@@ -213,7 +226,7 @@ impl SemanticSession for PythonSemanticSession {
         let mut asked = Requested {
             wanted: HashMap::new(),
             answers: vec![None; requests.len()],
-            source,
+            source: languages::NameText(source),
         };
         for (index, request) in requests.iter().enumerate() {
             let Some(&key) = self.elements.get(
@@ -222,14 +235,10 @@ impl SemanticSession for PythonSemanticSession {
                 asked.answers[index] = Some(RenderOutcome::Unsupported(UNSUPPORTED));
                 continue;
             };
-            asked
-                .wanted
-                .entry(key)
-                .or_default()
-                .push(Wanted {
-                    slot: Slot(index),
-                    context: request.context,
-                });
+            asked.wanted.entry(key).or_default().push(Wanted {
+                slot: Slot(index),
+                context: request.context,
+            });
         }
         if let Some(module) = parsed.syntax().as_module() {
             asked.visit_body(&module.body);

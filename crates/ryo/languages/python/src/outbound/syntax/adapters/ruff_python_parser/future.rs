@@ -6,7 +6,8 @@ use super::constants::{
     UNKNOWN_FEATURE,
 };
 use super::types::{
-    FutureAnnotations, FutureValidity, ParserRefusal, Said, SemanticSyntaxDiagnostic,
+    DiagnosticMessage, FutureAnnotations, FutureValidity, ParserRefusal, Said,
+    SemanticSyntaxDiagnostic,
 };
 use ruff_python_ast::Stmt;
 use ruff_python_ast::token::{TokenKind, Tokens};
@@ -24,7 +25,12 @@ struct FutureImports<'a> {
 }
 
 impl FutureImports<'_> {
-    fn report(&mut self, code: DiagnosticCode, range: ruff_text_size::TextRange, message: String) {
+    fn report(
+        &mut self,
+        code: DiagnosticCode,
+        range: ruff_text_size::TextRange,
+        message: DiagnosticMessage,
+    ) {
         self.valid = FutureValidity(false);
         self.errors.push(SemanticSyntaxDiagnostic {
             message,
