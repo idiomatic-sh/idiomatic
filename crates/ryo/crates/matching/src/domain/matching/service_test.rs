@@ -1,5 +1,6 @@
 //! Regex algorithm controls for UTF-8 spans and compilation refusal.
 use super::service;
+use super::types::{AuthoredRegex, CompilerReason, Haystack};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = (
@@ -8,7 +9,7 @@ type Input = (
     &'static [std::ops::Range<usize>],
 );
 type Value = ();
-type Failure = String;
+type Failure = CompilerReason;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -28,16 +29,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ("[", "", &[]),
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(error.contains('[') && error.contains("unclosed character class"))
+            crate::selects!(error.0.contains('[') && error.0.contains("unclosed character class"))
         }),
     },
 ];
 
 fn subject((pattern, text, expected): Input) -> Result<Value, Failure> {
-    let regex = service::compile_regex(pattern)?;
+    let regex = service::compile_regex(AuthoredRegex(pattern))?;
     let mut ranges = Vec::new();
-    let result = service::visit_regex_matches(&regex, text, &mut |range| {
-        ranges.push(range);
+    let result = service::visit_regex_matches(&regex, Haystack(text), &mut |span| {
+        ranges.push(span.0);
         std::ops::ControlFlow::Continue(())
     });
     assert_eq!(result, std::ops::ControlFlow::Continue(()));
