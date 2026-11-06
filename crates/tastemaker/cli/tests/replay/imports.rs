@@ -23,11 +23,24 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
         ),
         (
             "tastemaker.toml",
-            "workspace = { name = 'visibility', dependencies = [{ package = 'p', path = 'package' }] }\ntemplates = [{ template = 'p/guard', file = 'src/owner/{module}.rs', imports = { default = 'deny' } }]\n",
+            concat!(
+                "workspace = { name = 'visibility', dependencies = [{ package = 'p', path = 'package' }] }\n",
+                "templates = [\n",
+                "{ template = 'p/guard', file = 'src/owner/{module}.rs', imports = { default = 'deny' } },\n",
+                "{ template = 'p/support', file = 'Cargo.toml' },\n",
+                "{ template = 'p/support', file = 'src/lib.rs' },\n",
+                "{ template = 'p/support', file = 'src/owner.rs' },\n",
+                "{ template = 'p/support', file = 'tastemaker.lock' },\n",
+                "]\n",
+            ),
         ),
         ("package/package.toml", "name = 'p'\n"),
         (
             "package/templates/guard/0.1.0/template.toml",
+            include_str!("../fixtures/replay/roles/templates/value/0.1.0/template.toml"),
+        ),
+        (
+            "package/templates/support/0.1.0/template.toml",
             include_str!("../fixtures/replay/roles/templates/value/0.1.0/template.toml"),
         ),
     ] {
@@ -36,7 +49,7 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
         std::fs::write(destination, text).unwrap();
     }
     std::fs::create_dir_all(project.join("src/owner")).unwrap();
-    let proof = tm(&["validate", "template/guard", "--format", "json"], project);
+    let proof = tm(&["validate", "--format", "json"], project);
     assert!(
         proof.status.success(),
         "the real fixture template passes its positive and negative scenarios: {} {}",
