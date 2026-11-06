@@ -158,7 +158,7 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
                 .collect();
             let allowed = PORT_NAMES
                 .iter()
-                .find(|(path, _)| **path == file.as_str())
+                .find(|(path, _)| *path == file.as_str())
                 .map_or(&[][..], |(_, allowed)| *allowed);
             for line in &lines {
                 assert!(
