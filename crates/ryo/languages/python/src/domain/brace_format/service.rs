@@ -1,19 +1,20 @@
 //! Lazily parse decoded brace-format strings once per distinct input value.
+use crate::domain::brace_format::types::{CachedBraceFormat};
+use crate::domain::format_syntax::types::{RetainedFormatIndex};
 use super::super::nodes::types::Node;
 use super::super::syntax::service::kind;
 use super::super::syntax::types::Kind;
 use super::interface::BraceFormatSyntax;
-use super::types::{BraceFormatIndex, BraceFormatResult, BraceFormatState};
+use super::types::{BraceFormatResult, BraceFormatState};
 use crate::domain::format_syntax::types::FormatOccurrence;
 use crate::domain::format_syntax::types::{
     DecodedInput, FormatOwnedBytes, FormatResultIndex, FormatScratch, FormatVisibility,
-    StringOccurrence,
-};
+    StringOccurrence};
 use ryo::languages::{Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 
 /// Reset source identities; retain only byte-budgeted content-only grammar results.
-pub(crate) fn clear(index: &mut BraceFormatIndex) {
+pub(crate) fn clear(index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for (input, at) in index.by_input.drain(..) {
         if let Some(value) = index.values.get_mut(at.0) {
@@ -36,7 +37,7 @@ pub(crate) fn clear(index: &mut BraceFormatIndex) {
 }
 
 /// Cache one original literal occurrence by its decoded input value.
-fn occurrence<P>(tree: &Tree<'_>, index: &mut BraceFormatIndex, at: Position)
+fn occurrence<P>(tree: &Tree<'_>, index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>, at: Position)
 where
     P: BraceFormatSyntax,
 {
@@ -99,11 +100,11 @@ where
 /// Source order and candidate visibility come from the caller's semantic projection.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    held: &'a RefCell<BraceFormatIndex>,
+    held: &'a RefCell<RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>,
     symbols: &mut Symbols,
     positions: impl Iterator<Item = Position>,
     mut visibility: impl FnMut(Position, &mut Symbols) -> FormatVisibility,
-) -> Ref<'a, BraceFormatIndex>
+) -> Ref<'a, RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>
 where
     P: BraceFormatSyntax,
 {
@@ -134,20 +135,20 @@ where
 
 /// Occurrences in source order.
 #[must_use]
-pub(crate) fn occurrences(index: &BraceFormatIndex) -> &[FormatOccurrence] {
+pub(crate) fn occurrences(index: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>) -> &[FormatOccurrence] {
     &index.occurrences
 }
 
 /// State of the retained index.
 #[must_use]
-pub(crate) fn state(index: &BraceFormatIndex) -> BraceFormatState {
+pub(crate) fn state(index: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>) -> BraceFormatState {
     index.state
 }
 
 /// Result associated with an occurrence.
 #[must_use]
 pub(crate) fn result<'a>(
-    index: &'a BraceFormatIndex,
+    index: &'a RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
     occurrence: &FormatOccurrence,
 ) -> Option<&'a BraceFormatResult> {
     index

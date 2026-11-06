@@ -1,14 +1,14 @@
 //! Independent boundary checks for typed constant keys.
 
+use crate::domain::constant_keys::types::{KeyClass, RetainedKeyIndex};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::service::{clear, intern_with_hash, key_of, prepare};
 use crate::domain::{
-    constant_keys::types::{ConstantKeyIndex, KeyHash, KeyState, KeyWord, LiteralKind},
+    constant_keys::types::{KeyHash, KeyState, KeyWord, LiteralKind},
     model::types::Declarations,
     semantic_syntax::{service::{positions, visibility}, types::Visibility},
     syntax::service::{kind, written},
-    syntax::types::Kind,
-};
+    syntax::types::Kind};
 use crate::fixtures::reading::{initialize_model, parsed};
 use ryo::languages::{self, ByteSlice, Tree};
 
@@ -207,7 +207,7 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
 }
 
 fn full_keys_disambiguate_hash_collisions() {
-    let mut index = ConstantKeyIndex::default();
+    let mut index = RetainedKeyIndex::<KeyClass, KeyWord, KeyHash, KeyState>::default();
     index.scratch.push(KeyWord::Literal(
         LiteralKind::Integer,
         Some(languages::Symbol(10)),

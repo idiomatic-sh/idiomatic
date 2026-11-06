@@ -1,8 +1,7 @@
 //! Lazily intern bottom-up parsed expression keys; source formatting and runtime value equality are separate.
-use crate::domain::constant_keys::types::{KeyRecord, KeyRecordIndex};
+use crate::domain::constant_keys::types::{KeyRecord, KeyRecordIndex, RetainedKeyIndex};
 use crate::domain::model::types::{
-    ExpressionShapeIndex, ShapeHash, ShapeState, ShapeWord,
-};
+    ShapeHash, ShapeState, ShapeWord};
 use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
@@ -11,13 +10,10 @@ use crate::domain::{
     syntax::{
         constants::{
             BYTES_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY,
-            SCALAR_KIND, SCALAR_VALUE,
-        },
+            SCALAR_KIND, SCALAR_VALUE},
         service::{below, identifier_text, interpolation, is_token, kind, literal},
-        types::{Kind, Leaf, Literal},
-    },
-    tokens::types::Token,
-};
+        types::{Kind, Leaf, Literal}},
+    tokens::types::Token};
 use ryo::languages::{self, NameText, Position, Symbols, Tree};
 use std::cell::Ref;
 use std::hash::{Hash as _, Hasher as _};
@@ -42,7 +38,7 @@ fn decoded_string_value(
     found.then(|| languages::end_name(symbols, tree.source, from))
 }
 /// Invalidate source-dependent classes while retaining all backing capacity.
-pub(crate) fn clear(index: &mut ExpressionShapeIndex) {
+pub(crate) fn clear(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>) {
     index.classes.clear();
     index.words.clear();
     index.records.clear();
@@ -52,14 +48,14 @@ pub(crate) fn clear(index: &mut ExpressionShapeIndex) {
 }
 /// The existing canonical representative of one occurrence.
 #[must_use]
-pub(crate) fn shape_of(index: &ExpressionShapeIndex, at: Position) -> Option<Position> {
+pub(crate) fn shape_of(index: &RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>, at: Position) -> Option<Position> {
     let Ok(slot) = usize::try_from(at.0) else {
         return None;
     };
     index.classes.get(slot).copied().flatten()
 }
 /// Intern a full key. Hash collisions share a bucket, never an expression identity.
-pub(super) fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: ShapeHash) -> Position {
+pub(super) fn intern(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>, at: Position, hash: ShapeHash) -> Position {
     let mut candidate = index.buckets.get(&hash).copied();
     while let Some(place) = candidate {
         let Some(record) = index.records.get(place.0) else {
@@ -288,7 +284,7 @@ pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
     model: &'a crate::domain::model::types::Declarations,
     symbols: &mut Symbols,
-) -> Option<Ref<'a, ExpressionShapeIndex>> {
+) -> Option<Ref<'a, RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>> {
     let held = &model.expression_shapes;
     if held.borrow().state == ShapeState::Fresh {
         let mut index = held.borrow_mut();
@@ -315,7 +311,7 @@ pub(crate) fn prepare<'a>(
                 index.state = ShapeState::Partial;
                 continue;
             }
-            let ExpressionShapeIndex {
+            let RetainedKeyIndex {
                 classes, scratch, ..
             } = &mut *index;
             if languages::children(tree.elements, at).any(|child| {

@@ -1,4 +1,5 @@
 //! Lazily cache the decoded grammar result once per distinct source string.
+use crate::domain::format_syntax::types::{RetainedFormatIndex};
 use crate::domain::format_syntax::types::FormatResultIndex;
 use std::cell::{Ref, RefCell};
 
@@ -7,16 +8,15 @@ use ryo::languages::{self, Position, Symbols, Tree};
 use super::super::format_syntax::interface::FormatSyntax;
 use super::super::format_syntax::types::{
     CachedFormat, DecodedInput, FormatDialect, FormatOccurrence, FormatOwnedBytes,
-    FormatParseIndex, FormatParseResult, FormatParseState, FormatScratch, FormatVisibility,
-    StringOccurrence,
-};
+    FormatParseResult, FormatParseState, FormatScratch, FormatVisibility,
+    StringOccurrence};
 use super::super::nodes::types::Node;
 use super::super::syntax::service::{below, interpolation, kind, literal, standing};
 use super::super::syntax::types::{Interpolation, Kind, Literal, Standing};
 use super::super::tokens::types::Token;
 
 /// Reset current identities and admit small, content-only results for one following source.
-pub(crate) fn clear(index: &mut FormatParseIndex) {
+pub(crate) fn clear(index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for (input, at) in index.by_input.drain(..) {
         if let Some(value) = index.values.get_mut(at.0) {
@@ -105,7 +105,7 @@ pub(crate) fn owned_bytes(result: &FormatParseResult) -> FormatOwnedBytes {
 }
 
 /// Add one occurrence, sharing a prior parse when its decoded value has already appeared.
-fn occurrence<P>(tree: &Tree<'_>, index: &mut FormatParseIndex, at: Position)
+fn occurrence<P>(tree: &Tree<'_>, index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>, at: Position)
 where
     P: FormatSyntax,
 {
@@ -190,11 +190,11 @@ where
 /// for visibility, and an already prepared index consumes neither operation.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    held: &'a RefCell<FormatParseIndex>,
+    held: &'a RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
     symbols: &mut Symbols,
     positions: impl Iterator<Item = Position>,
     mut visibility: impl FnMut(Position, &mut Symbols) -> FormatVisibility,
-) -> Ref<'a, FormatParseIndex>
+) -> Ref<'a, RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>
 where
     P: FormatSyntax,
 {
@@ -233,20 +233,20 @@ where
 
 /// The current completeness state of the retained parse.
 #[must_use]
-pub(crate) fn state(index: &FormatParseIndex) -> FormatParseState {
+pub(crate) fn state(index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>) -> FormatParseState {
     index.state
 }
 
 /// The original visible string occurrences and their cached parsed result indexes.
 #[must_use]
-pub(crate) fn occurrences(index: &FormatParseIndex) -> &[FormatOccurrence] {
+pub(crate) fn occurrences(index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>) -> &[FormatOccurrence] {
     &index.occurrences
 }
 
 /// The cached result for one occurrence, when the occurrence was static.
 #[must_use]
 pub(crate) fn result<'a>(
-    index: &'a FormatParseIndex,
+    index: &'a RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
     occurrence: &FormatOccurrence,
 ) -> Option<&'a FormatParseResult> {
     index

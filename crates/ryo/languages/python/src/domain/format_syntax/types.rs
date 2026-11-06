@@ -180,7 +180,6 @@ impl<Output, Value, State: Default> Default for RetainedFormatIndex<Output, Valu
 }
 
 /// The retained index of percent-format parses.
-pub(crate) type FormatParseIndex = RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>;
 
 /// Whether the source-local format index is fresh, complete or partial.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

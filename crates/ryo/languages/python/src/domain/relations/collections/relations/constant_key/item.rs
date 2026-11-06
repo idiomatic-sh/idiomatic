@@ -1,23 +1,22 @@
 //! Read supported constant-expression equivalence classes.
 
+use crate::domain::constant_keys::types::{KeyClass, KeyHash, KeyWord, RetainedKeyIndex};
 use crate::domain::{
     constant_keys::{
         constants::INCOMPLETE,
         service::{key_of, prepare},
-        types::{ConstantKeyIndex, KeyState},
-    },
+        types::{KeyState}},
     model::types::Declarations,
     nodes::types::Node,
     semantic_syntax::types::Visibility,
     syntax::service::kind_bits,
-    syntax::types::Kind,
-};
+    syntax::types::Kind};
 use ryo::languages;
 
 /// Reads one source's supported constant-expression keys.
 pub(crate) struct ConstantKeyItem;
 /// The retained key reader's completeness state.
-fn state(index: &ConstantKeyIndex) -> KeyState {
+fn state(index: &RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>) -> KeyState {
     index.state
 }
 

@@ -5,9 +5,7 @@ use crate::domain::format_syntax::{
     interface::FormatSyntax,
     types::{
         FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult, FormatSummary,
-        ParsedFormat,
-    },
-};
+        ParsedFormat}};
 
 struct FirstGrammar;
 struct SecondGrammar;
@@ -351,11 +349,11 @@ fn completed_active_results_are_invalidated_when_parser_implementation_changes()
 
 fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
     use crate::domain::format_syntax::types::{
-        CachedFormat, FormatArgument, FormatFieldValue, FormatParseIndex, FormatParseResult,
+        CachedFormat, FormatArgument, FormatFieldValue, FormatParseResult, FormatParseState, RetainedFormatIndex,
         FormatQuantityMode, FormatSummary, ParsedFormat,
     };
     for _ in 0_usize..12_usize {
-        let mut index = FormatParseIndex::default();
+        let mut index = RetainedFormatIndex::<FormatParseResult, CachedFormat, FormatParseState>::default();
         for name in ["first", "second", "third"] {
             assert!(service::reserve(&mut index.by_input));
             let previous = index.by_input.insert(

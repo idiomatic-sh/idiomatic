@@ -126,7 +126,6 @@ impl<Class, Word, Hash, State: Default> Default for RetainedKeyIndex<Class, Word
 }
 
 /// The retained index of normalized constant-expression keys.
-pub(crate) type ConstantKeyIndex = RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>;
 
 /// Whether a candidate expression belongs to the caller's semantic projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

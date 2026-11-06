@@ -1,10 +1,12 @@
 //! The types of the `model` concept: plain data, public fields and derives, with no constructor and no inherent impl. What the
 //! language works out of a file once, before its readers run.
 
-use crate::domain::brace_format::types::BraceFormatIndex;
-use crate::domain::constant_keys::types::{ConstantKeyIndex, RetainedKeyIndex};
+use crate::domain::brace_format::types::{BraceFormatResult, BraceFormatState, CachedBraceFormat};
+use crate::domain::constant_keys::types::{KeyClass, KeyHash, KeyState, KeyWord, RetainedKeyIndex};
 use crate::domain::expression_types::types::ExpressionTypeIndex;
-use crate::domain::format_syntax::types::FormatParseIndex;
+use crate::domain::format_syntax::types::{
+    CachedFormat, FormatParseResult, FormatParseState, RetainedFormatIndex,
+};
 use crate::domain::indentation::types::IndentationIndex;
 use crate::domain::terminal_flow::types::TerminalIndex;
 use crate::domain::{labels::types::Field, syntax::types::Kind};
@@ -55,18 +57,18 @@ pub(crate) struct Declarations {
     /// Configured language target, attached to every recognized source file.
     pub language_target: (i64, i64),
     /// Lazy canonical expression classes, invalidated between source revisions.
-    pub expression_shapes: RefCell<ExpressionShapeIndex>,
+    pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>,
     /// Lazy normalized constant-expression keys, invalidated between source revisions.
-    pub constant_keys: RefCell<ConstantKeyIndex>,
+    pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
-    pub format_parsing: RefCell<FormatParseIndex>,
+    pub format_parsing: RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
     /// Lazy individual raw-token percent-format parses, independently demanded.
     pub raw_format: RefCell<crate::domain::raw_format::types::RawFormatIndex>,
     /// Independent lazy outcomes for original literal expression carriers.
     pub literal_expression_parsing:
         RefCell<crate::domain::literal_expression_parsing::types::LiteralParseIndex>,
     /// Lazy decoded brace-format parses, invalidated between source revisions.
-    pub brace_format: RefCell<BraceFormatIndex>,
+    pub brace_format: RefCell<RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>,
     /// Lazy basic expression types, invalidated between source revisions.
     pub expression_types: RefCell<ExpressionTypeIndex>,
     /// Lazy terminal function summaries, invalidated between source revisions.
@@ -161,8 +163,6 @@ pub(crate) enum ShapeState {
     Partial,
 }
 /// Storage is kept across source edits; no index is built until requested.
-pub(crate) type ExpressionShapeIndex =
-    RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>;
 /// A sparse environment frame; branches inherit their entry state without copying it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct BindingFrameId(pub usize);

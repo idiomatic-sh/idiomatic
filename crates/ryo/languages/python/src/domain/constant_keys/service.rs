@@ -1,9 +1,9 @@
 //! Lazily build full, parser-derived constant keys for supported Python expressions.
 
+use crate::domain::constant_keys::types::{RetainedKeyIndex};
 use crate::domain::constant_keys::types::{
-    BuiltKey, ConstantKeyIndex, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
-    LiteralKind, NumberKey, NumericState, RealKey,
-};
+    BuiltKey, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
+    LiteralKind, NumberKey, NumericState, RealKey};
 use crate::domain::{
     fields::service::field_of,
     labels::types::Field,
@@ -11,19 +11,16 @@ use crate::domain::{
     syntax::{
         constants::{
             BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
-            INTEGER_SCALAR, NONE_SCALAR, SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE,
-        },
+            INTEGER_SCALAR, NONE_SCALAR, SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE},
         service::{below, kind, literal},
-        types::{Kind, Literal},
-    },
-    tokens::types::Token,
-};
+        types::{Kind, Literal}},
+    tokens::types::Token};
 use ryo::languages::{self, Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
 
 /// Invalidate file-local keys while retaining reusable allocations.
-pub(crate) fn clear(index: &mut ConstantKeyIndex) {
+pub(crate) fn clear(index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>) {
     index.classes.clear();
     index.words.clear();
     index.records.clear();
@@ -34,7 +31,7 @@ pub(crate) fn clear(index: &mut ConstantKeyIndex) {
 
 /// The retained representative for one supported occurrence.
 #[must_use]
-pub(crate) fn key_of(index: &ConstantKeyIndex, at: Position) -> Option<Position> {
+pub(crate) fn key_of(index: &RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>, at: Position) -> Option<Position> {
     let Ok(slot) = usize::try_from(at.0) else {
         return None;
     };
@@ -156,7 +153,7 @@ fn literal_word(tree: &Tree<'_>, at: Position, symbols: &mut Symbols) -> Option<
 }
 
 /// Append one key component, marking the reader partial if its retained buffer cannot grow.
-fn push_word(index: &mut ConstantKeyIndex, word: KeyWord) -> Option<()> {
+fn push_word(index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>, word: KeyWord) -> Option<()> {
     if index.scratch.try_reserve(1).is_err() {
         index.state = KeyState::Partial;
         return None;
@@ -187,7 +184,7 @@ fn constant_key(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
     if interpolation_fragment(tree, at) {
         return None;
@@ -232,7 +229,7 @@ fn constant_key(
 }
 
 /// Combine already-built child keys in tuple order.
-fn tuple_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Option<BuiltKey> {
+fn tuple_key(tree: &Tree<'_>, at: Position, index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>) -> Option<BuiltKey> {
     push_word(index, KeyWord::Tuple)?;
     for child in
         languages::children(tree.elements, at).filter(|child| field_of(tree, *child) == Field::Elts)
@@ -250,7 +247,7 @@ fn tuple_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Opt
 }
 
 /// Apply unary plus or minus to a supported numeric child.
-fn unary_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Option<BuiltKey> {
+fn unary_key(tree: &Tree<'_>, at: Position, index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>) -> Option<BuiltKey> {
     let operand = child_at(tree, at, Field::Operand)?;
     let NumericState::Number(mut number) = numeric_class(&index.classes, operand)? else {
         // Oversized integer signs stay on the ordinary structural-shape fallback path.
@@ -275,7 +272,7 @@ fn unary_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Opt
 fn complex_binary_key(
     tree: &Tree<'_>,
     at: Position,
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
     let left = child_at(tree, at, Field::Left)?;
     let right = child_at(tree, at, Field::Right)?;
@@ -316,7 +313,7 @@ fn build_key(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
     index.scratch.clear();
     match kind(tree, at) {
@@ -352,7 +349,7 @@ fn integer_as_float(value: i128) -> f64 {
     value as f64
 }
 /// Hash a full key and intern it into the collision-checked record table.
-fn intern(index: &mut ConstantKeyIndex, at: Position) -> Option<Position> {
+fn intern(index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>, at: Position) -> Option<Position> {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     Hash::hash(&index.scratch, &mut hasher);
     intern_with_hash(index, at, KeyHash(Hasher::finish(&hasher)))
@@ -360,7 +357,7 @@ fn intern(index: &mut ConstantKeyIndex, at: Position) -> Option<Position> {
 
 /// Intern after a caller-selected hash, also making collision handling directly testable.
 pub(super) fn intern_with_hash(
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
     at: Position,
     hash: KeyHash,
 ) -> Option<Position> {
@@ -394,10 +391,10 @@ pub(super) fn intern_with_hash(
 /// Candidate visibility comes from the caller's semantic projection.
 pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
-    held: &'a RefCell<ConstantKeyIndex>,
+    held: &'a RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
     symbols: &mut Symbols,
     mut visible: impl FnMut(Position, &mut Symbols) -> KeyVisibility,
-) -> Ref<'a, ConstantKeyIndex> {
+) -> Ref<'a, RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>> {
     if held.borrow().state == KeyState::Fresh {
         let mut index = held.borrow_mut();
         let count = usize::try_from(languages::end_of(tree.elements).0).unwrap_or(usize::MAX);

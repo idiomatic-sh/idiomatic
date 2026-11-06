@@ -1,4 +1,6 @@
 //! Independent AST identity examples; no reference linter supplies these expected classes.
+use crate::domain::constant_keys::types::RetainedKeyIndex;
+use ryo::languages::Position;
 use super::service::clear;
 use super::service::intern;
 use super::service::prepare;
@@ -9,7 +11,6 @@ use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
 use crate::domain::model::types::Declarations;
-use crate::domain::model::types::ExpressionShapeIndex;
 use crate::domain::model::types::ShapeHash;
 use crate::domain::model::types::ShapeState;
 use crate::domain::model::types::ShapeWord;
@@ -90,7 +91,7 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
         return Ok(embedded_shapes());
     }
     if source == "collision witness" {
-        let mut index = ExpressionShapeIndex::default();
+        let mut index = RetainedKeyIndex::<Position, ShapeWord, ShapeHash, ShapeState>::default();
         index
             .scratch
             .push(ShapeWord::Identifier(languages::Symbol(1)));

@@ -108,8 +108,6 @@ pub(crate) struct CachedBraceFormat {
 }
 
 /// Retained parse state for one source tree; populated only when either brace relation is requested.
-pub(crate) type BraceFormatIndex =
-    RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>;
 
 /// Cache/read completeness.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
