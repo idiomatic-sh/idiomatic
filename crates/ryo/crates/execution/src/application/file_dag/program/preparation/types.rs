@@ -68,7 +68,7 @@ pub(crate) struct PreparedProgram {
     pub(super) file_frontier_outputs: Box<[Box<[Box<[usize]>]>]>,
     pub(super) observations: Option<ObservationMetadata>,
     pub(super) schedule: RuleSchedule,
-    pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
+    pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
     pub(super) matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) derived: crate::application::file_dag::derived::prepared::PreparedDerived,

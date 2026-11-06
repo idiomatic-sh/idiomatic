@@ -19,7 +19,7 @@ let forbidden = select * from bridges where implementation-tail != "runtime/serv
 let program-violations = select file, span from forbidden;
 let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
 let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
 let cache-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
 let local-cache = select source as file, span, source-tail, cache-part from cache-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
@@ -30,7 +30,7 @@ let lease-boundaries = union(left=foreign-leases, right=foreign-capabilities);
 let dispatch-violations = union(left=program-violations, right=lease-boundaries);
 let owner-violations = union(left=dispatch-violations, right=foreign-cache);
 let positioned-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/relations/{issuer}.rs", captures=["target-root", "issuer"]);
-let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and source-tail != "application/file_dag/program/kernel_session.rs") or (issuer = "selection" and not glob_any(source-tail, "{application/file_dag/program/selection.rs,application/file_dag/derived/owner/selection/mod.rs}")));
+let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and not glob_any(source-tail, "{application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}")) or (issuer = "selection" and not glob_any(source-tail, "{application/file_dag/program/selection.rs,application/file_dag/derived/owner/selection/mod.rs}")));
 let derived-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{*owned-tail}", captures=["target-root", "owned-tail"]);
 let raw-derived = select source as file, span, source-tail from derived-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and glob_any(owned-tail, "{graphs/types/retained/**,selection/candidates/**,selection/fanout/**,acquisition/semantics/**}");
 let foreign-derived = select file, span from raw-derived where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/derived/owner_test.rs}");
@@ -45,7 +45,7 @@ let domain-application = select file, span from all-application where source-tai
 let protected-app = union(left=app-violations, right=domain-application);
 let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
 let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
 let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
 let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease/capability/service.rs}");
@@ -55,8 +55,8 @@ let foreign-context = select file, span from local-context where source-tail != 
 let domain-entry-violations = union(left=foreign-kernel, right=foreign-registry);
 let domain-violations = union(left=domain-entry-violations, right=foreign-context);
 let neutral-backrefs = select file, span from local where
-    (glob_any(source-tail, "application/file_dag/program/protocol/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,native_walk.rs,native_join.rs}"))
-    or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{protocol/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,native_walk.rs,native_join.rs}"))
+    (glob_any(source-tail, "application/file_dag/program/protocol/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
+    or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{protocol/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
     or (source-tail = "application/file_dag/program/admission.rs" and glob_any(implementation-tail, "runtime/**"))
     or (source-tail = "application/file_dag/program/runtime/types.rs" and implementation-tail = "runtime/service.rs");
 let invocation-boundary = union(left=protected-app, right=domain-violations);
@@ -1006,3 +1006,16 @@ given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability;
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod new_route;"
 given.files.'src/application/file_dag/execution/lease/capability/new_route.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
 then.findings = [{path="src/application/file_dag/execution/lease/capability/new_route.rs",line=2}]
+
+[[scenarios]]
+id = "kernel-session-concept-may-call-the-semantic-dispatcher"
+scenario = "A concept directory beneath the kernel session may call the semantic row dispatcher."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub mod evaluation;'
+given.files.'src/application/file_dag/program/kernel_session/evaluation.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
+
+[[scenarios]]
+id = "kernel-session-lookalike-cannot-call-the-semantic-dispatcher"
+scenario = "A directory that only begins with the kernel session's name is not the kernel session."
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
+given.files.'src/application/file_dag/program/kernel_session_extra.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session_extra.rs", line = 1 }]

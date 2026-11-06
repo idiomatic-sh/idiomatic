@@ -17,7 +17,7 @@ use std::{rc::Rc, sync::Arc};
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
 pub(crate) struct PartitionedClosure<'f> {
     input: BorrowedRows<'f>,
-    proof: super::relations::admission::service::AdmittedInput<'f>,
+    proof: super::relations::admission::service::BorrowedInput<'f>,
     owner: Rc<RelationOwner>,
     partition_plan: Arc<DerivedContract>,
     closure_plan: Arc<DerivedContract>,
@@ -31,7 +31,7 @@ pub(crate) struct PartitionedClosure<'f> {
 }
 impl<'f> PartitionedClosure<'f> {
     pub(in crate::application::file_dag) fn from_prepared(
-        proof: super::relations::admission::service::AdmittedInput<'f>,
+        proof: super::relations::admission::service::BorrowedInput<'f>,
         partition_plan: Arc<DerivedContract>,
         closure_plan: Arc<DerivedContract>,
         ordered: AcquiredView,

@@ -183,7 +183,7 @@ impl PreparedProgram {
             .flat_map(|root| root.reads.iter().cloned())
             .collect())
     }
-    pub(crate) fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata] {
+    pub(crate) fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata] {
         &self.semantic_metadata
     }
 

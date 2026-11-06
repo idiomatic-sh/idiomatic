@@ -19,7 +19,10 @@ impl ExecutionUseCaseImpl {
     }
 }
 impl ExecutionUseCase for ExecutionUseCaseImpl {
-    fn prepare(&self, request: PreparedRequest) -> Result<PreparedProgram, OperatingError> {
+    fn prepare(
+        &self,
+        request: PreparedRequest,
+    ) -> Result<PreparedExecutionProgram, OperatingError> {
         let compiled = crate::domain::prepared_request::service::assemble(
             request.plans,
             request.bindings,
@@ -40,10 +43,14 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
         digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
         hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
         observations: ObservationIdentity,
-    ) -> Result<PreparedProgram, OperatingError> {
+    ) -> Result<PreparedExecutionProgram, OperatingError> {
         self.finish_preparation(queries.inner, rules, digests, hosted, observations)
     }
-    fn begin(&self, program: &PreparedProgram, corpus: &[CorpusInput]) -> RequestExecution {
+    fn begin(
+        &self,
+        program: &PreparedExecutionProgram,
+        corpus: &[CorpusInput],
+    ) -> RequestExecution {
         RequestExecution {
             program: Arc::clone(&program.inner),
             services: Arc::new(ProgramServices::new(
@@ -210,7 +217,7 @@ impl FileExecution for FileSession<'_, '_> {
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        let bound = crate::application::file_dag::program::protocol::types::CaptureContext {
+        let bound = crate::application::file_dag::program::protocol::types::CaptureScope {
             file: self.file,
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,
@@ -351,7 +358,7 @@ fn source_rows<'a, 'facts: 'a>(
     })
 }
 
-impl PreparedExecution for PreparedProgram {
+impl PreparedExecution for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
         self.inner.observation_batches()
     }
@@ -558,7 +565,7 @@ impl ExecutionUseCaseImpl {
         digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
         hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
         identity: ObservationIdentity,
-    ) -> Result<PreparedProgram, OperatingError> {
+    ) -> Result<PreparedExecutionProgram, OperatingError> {
         let inner = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
@@ -567,7 +574,7 @@ impl ExecutionUseCaseImpl {
             Arc::clone(&self.derived),
             identity,
         )?;
-        Ok(PreparedProgram {
+        Ok(PreparedExecutionProgram {
             inner,
             kernels: Arc::new(CommonOperatorEngine::new(Arc::clone(&self.operators))),
             derived: Arc::clone(&self.derived),
@@ -575,8 +582,8 @@ impl ExecutionUseCaseImpl {
     }
 }
 
-impl PreparedReporting for PreparedProgram {
-    fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata] {
+impl PreparedReporting for PreparedExecutionProgram {
+    fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata] {
         self.inner.metadata()
     }
     fn replay_closure(

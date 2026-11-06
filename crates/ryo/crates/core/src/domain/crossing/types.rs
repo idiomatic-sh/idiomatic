@@ -18,7 +18,7 @@ pub(crate) struct CrossingInput<'a> {
     pub observations:
         &'a [ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness],
     /// Pure source and accounting facts extracted before executable plans are consumed.
-    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
     /// The relations the steps of each rule trust the absence of rows of.

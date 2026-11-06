@@ -25,9 +25,10 @@ impl RequestIdentity {
                 CorpusInput::Unreadable { path, .. } => path,
             };
             let file = match input {
-                CorpusInput::Available(_) => u32::try_from(at)
-                    .ok()
-                    .map(ryo_relations::domain::relations::types::FileId),
+                CorpusInput::Available(_) => match u32::try_from(at) {
+                    Ok(index) => Some(ryo_relations::domain::relations::types::FileId(index)),
+                    Err(_) => None,
+                },
                 _ => None,
             };
             available
@@ -87,22 +88,26 @@ mod tests {
     use super::*;
     use ryo_language::domain::files::types::FilePath;
     use ryo_values::domain::files::types::InputReadFailure;
-    fn corpus(path: &str) -> Vec<CorpusInput> {
+    const EDGE_REFUSAL: &str = "actual edge refusal";
+    const FIRST: &str = "first";
+    const SECOND: &str = "second";
+    const SAME: &str = "same";
+    fn corpus(path: FilePath) -> Vec<CorpusInput> {
         vec![CorpusInput::Unreadable {
-            path: FilePath(path.into()),
-            reason: InputReadFailure("actual edge refusal".into()),
+            path,
+            reason: InputReadFailure(EDGE_REFUSAL.into()),
         }]
     }
     #[test]
     fn equal_inventory_size_does_not_authorize_corpus_substitution() {
-        let first = corpus("first.py");
+        let first = corpus(FilePath(FIRST.into()));
         let identity = RequestIdentity::new(&first);
         assert!(identity.matches_corpus(&first));
-        assert!(!identity.matches_corpus(&corpus("second.py")));
+        assert!(!identity.matches_corpus(&corpus(FilePath(SECOND.into()))));
     }
     #[test]
     fn each_run_has_a_distinct_generation_even_with_identical_metadata() {
-        let corpus = corpus("same.py");
+        let corpus = corpus(FilePath(SAME.into()));
         let first = Arc::new(RequestIdentity::new(&corpus));
         let same = Arc::clone(&first);
         let later = Arc::new(RequestIdentity::new(&corpus));

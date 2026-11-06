@@ -140,7 +140,7 @@ pub(crate) fn settle(tables: &mut Tables, answering: &Answering) {
 /// The buckets of the frontiers of the rules `rules`, by their place among `plans`, in order: every bucket when `rules` is all.
 #[must_use]
 pub(crate) fn buckets_of(
-    metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
+    metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
     first: &[Bucket],
     rules: Option<&[PlacedRule]>,
 ) -> Vec<Bucket> {

@@ -41,6 +41,12 @@ pub enum ApplicabilityReason {
     SyntaxRejected,
     DiagnosticNotApplicable,
 }
+/// Whether an admitted input has no rows in a given representation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum Emptiness {
+    Empty,
+    Populated,
+}
 #[derive(Clone)]
 pub(super) enum Readiness {
     Complete,
@@ -215,7 +221,7 @@ pub(super) trait Inputs {
         &self,
         input: &AdmittedInput,
         representation: crate::domain::operator::contract::types::EmptyRepresentation,
-    ) -> Result<bool, OperatingError>;
+    ) -> Result<crate::application::file_dag::program::admission::Emptiness, OperatingError>;
     fn publish(
         &mut self,
         root: ProducerRoot,
@@ -385,7 +391,7 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn from_publication(
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
-        admitted: &super::super::relations::admission::service::AdmittedInput<'_>,
+        admitted: &super::super::relations::admission::service::BorrowedInput<'_>,
         root: ProducerRoot,
         partition: Partition,
         readiness: Readiness,
@@ -618,7 +624,7 @@ pub(super) fn alias_member(
         producer
     else {
         return Err(OperatingError::ObservationIncomplete {
-            reason: "named producer has no executable query".into(),
+            reason: crate::application::file_dag::program::constants::NO_EXECUTABLE_QUERY.into(),
         });
     };
     let root = prepared

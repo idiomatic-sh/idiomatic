@@ -39,7 +39,7 @@ fn prepared_test_program(
     ids: &[RuleId],
     corpus: &[ryo_values::domain::files::types::CorpusInput],
 ) -> (
-    Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    Arc<ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram>,
     ryo_execution::inbound::use_cases::execution::types::RequestExecution,
 ) {
     use ryo_values::domain::{

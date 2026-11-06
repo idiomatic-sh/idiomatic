@@ -3,7 +3,7 @@ use super::super::super::*;
 use crate::application::file_dag::derived::owner::selection::types::{
     CandidateRows, SelectionPath,
 };
-use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
+use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
 use crate::domain::{
     operating::types::NameCount,
     stored_selection::types::{PreparedSelectorViews, SelectorHistogram},
@@ -19,7 +19,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 pub(in crate::application::file_dag::derived::owner) struct SelectionSource<'a> {
     owner: &'a DerivedOwner,
     source: &'a RelationOwner,
-    proof: &'a AdmittedInput<'a>,
+    proof: &'a BorrowedInput<'a>,
     population: PopulationId,
 }
 impl<'a> SelectionSource<'a> {
@@ -27,7 +27,7 @@ impl<'a> SelectionSource<'a> {
         owner: &'a DerivedOwner,
         relation_owner: &'a RelationOwner,
         publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
-        proof: &'a AdmittedInput<'a>,
+        proof: &'a BorrowedInput<'a>,
         source: ColumnsView<'_>,
     ) -> Result<Self, OperatingError> {
         proof.require_publication(relation_owner, publication.as_ref())?;

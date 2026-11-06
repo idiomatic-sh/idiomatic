@@ -3,7 +3,7 @@ use super::*;
 pub(in crate::application::file_dag) fn publish(
     owner: &RelationOwner,
     source: &PublishedInput,
-    admitted: &AdmittedInput<'_>,
+    admitted: &BorrowedInput<'_>,
     selection: Arc<StoredSelection>,
     resources: [Option<super::super::derived::owner::acquisition::admission::service::AcquiredView>;
         2],

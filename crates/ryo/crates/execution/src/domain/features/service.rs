@@ -8,7 +8,7 @@ use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::{Feature, OperationKind};
 use ryo_values::domain::records::types::RowTotal;
-use ryo_values::domain::run_metadata::types::{FeatureSource, RuleMetadata, StepMetadata};
+use ryo_values::domain::run_metadata::types::{FeatureSource, RuleRunMetadata, StepMetadata};
 
 /// Every feature the language has: each operation, each way of comparing, each direction of an axis, each relation.
 #[must_use]
@@ -103,7 +103,7 @@ fn fed_by_step(step: &StepMetadata, fed: &RowsFed) -> Vec<FeatureRows> {
 /// How many rows each feature of `plan` was fed, a feature counted once for each step that has it. `fed` holds the rows each
 /// step was fed, in the order of the steps.
 #[must_use]
-pub(crate) fn tally(rule: &RuleMetadata, fed: &[RowsFed]) -> Vec<FeatureRows> {
+pub(crate) fn tally(rule: &RuleRunMetadata, fed: &[RowsFed]) -> Vec<FeatureRows> {
     rule.steps
         .iter()
         .zip(fed)
@@ -114,7 +114,7 @@ pub(crate) fn tally(rule: &RuleMetadata, fed: &[RowsFed]) -> Vec<FeatureRows> {
 /// How many rows each step of each plan was fed, summed over its inputs: the work of a rule as a count, the same on any machine at any
 /// load. `fed` is the rows each step of each plan was fed, in the order of the plans.
 #[must_use]
-pub(crate) fn work_over(metadata: &[RuleMetadata], fed: &[Vec<RowsFed>]) -> Vec<Vec<StepWork>> {
+pub(crate) fn work_over(metadata: &[RuleRunMetadata], fed: &[Vec<RowsFed>]) -> Vec<Vec<StepWork>> {
     metadata
         .iter()
         .zip(fed)
@@ -138,7 +138,7 @@ pub(crate) fn work_over(metadata: &[RuleMetadata], fed: &[Vec<RowsFed>]) -> Vec<
 /// How many rows each feature of the language was fed over a run, in the catalog's order: the rows of the steps of every plan that
 /// has it, summed. `fed` is the rows each step of each plan was fed, in the order of the plans.
 #[must_use]
-pub(crate) fn fed_over(metadata: &[RuleMetadata], fed: &[Vec<RowsFed>]) -> Vec<FeatureRows> {
+pub(crate) fn fed_over(metadata: &[RuleRunMetadata], fed: &[Vec<RowsFed>]) -> Vec<FeatureRows> {
     let mut totals: std::collections::BTreeMap<Feature, u64> = std::collections::BTreeMap::new();
     for (rule, steps) in metadata.iter().zip(fed) {
         for each in tally(rule, steps) {

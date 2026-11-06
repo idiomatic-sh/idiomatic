@@ -1,5 +1,5 @@
 //! Application execution capabilities beside pure domain run configuration.
-use ryo_execution::inbound::use_cases::execution::types::{PreparedProgram, RequestExecution};
+use ryo_execution::inbound::use_cases::execution::types::{PreparedExecutionProgram, RequestExecution};
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -9,7 +9,7 @@ pub(crate) struct VisitSetting<'a> {
     /// Explicit request provider; none preserves ordinary path recognition.
     pub source_language: Option<&'a ryo_values::domain::descriptions::types::LanguageName>,
     /// One prepared executable program shared by all scopes in this request.
-    pub program: Arc<PreparedProgram>,
+    pub program: Arc<PreparedExecutionProgram>,
     /// Required application capabilities; no domain code owns or constructs them.
     pub services: &'a RequestExecution,
     pub domain: crate::domain::workers::types::VisitSetting<'a>,
@@ -29,7 +29,7 @@ impl DerefMut for VisitSetting<'_> {
 pub(crate) struct CrossingInput<'a> {
     /// Invocation-owned physical arena lease view, supplied by the application coordinator.
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
-    pub program: Arc<PreparedProgram>,
+    pub program: Arc<PreparedExecutionProgram>,
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
 }
 impl<'a> Deref for CrossingInput<'a> {

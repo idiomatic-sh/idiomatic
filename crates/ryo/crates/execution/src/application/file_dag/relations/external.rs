@@ -5,7 +5,7 @@ impl RelationOwner {
         &self,
         relation: Relation,
         rows: BorrowedRows<'a>,
-    ) -> Result<AdmittedInput<'a>, OperatingError> {
+    ) -> Result<BorrowedInput<'a>, OperatingError> {
         let record = self.source_borrowed(relation, rows)?;
         self.admit(record.as_ref(), rows)
     }

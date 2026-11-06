@@ -13,7 +13,7 @@ use ryo_values::domain::{
     files::types::CorpusInput, runs::types::Skipped, stored_facts::types::Bucket,
 };
 pub trait ExecutionUseCase {
-    fn prepare(&self, request: PreparedRequest) -> Result<PreparedProgram, OperatingError>;
+    fn prepare(&self, request: PreparedRequest) -> Result<PreparedExecutionProgram, OperatingError>;
     fn prepare_compiled(
         &self,
         queries: CompiledQueries,
@@ -21,8 +21,8 @@ pub trait ExecutionUseCase {
         digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
         hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
         observations: ObservationIdentity,
-    ) -> Result<PreparedProgram, OperatingError>;
-    fn begin(&self, program: &PreparedProgram, corpus: &[CorpusInput]) -> RequestExecution;
+    ) -> Result<PreparedExecutionProgram, OperatingError>;
+    fn begin(&self, program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution;
 }
 pub trait ExecutionRequest {
     fn observations<'a>(
@@ -248,7 +248,7 @@ pub trait ObservationPublication {
 }
 
 pub trait PreparedReporting {
-    fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata];
+    fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata];
     fn replay_closure(
         &self,
         again: ryo_values::domain::stores::types::Reuse,

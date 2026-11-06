@@ -37,7 +37,7 @@ use crate::application::file_dag::derived::owner::acquisition::selection::servic
     SelectionSource, histogram, matches, shared_positions,
 };
 use crate::application::file_dag::derived::owner::{DerivedOwner, ViewContext};
-use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
+use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
 use types::*;
 pub(in crate::application::file_dag::derived::owner) mod types;
 #[cfg(test)]
@@ -187,7 +187,7 @@ impl DerivedOwner {
         source: ColumnsView<'f>,
         relation_owner: &RelationOwner,
         publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
-        proof: &AdmittedInput<'_>,
+        proof: &BorrowedInput<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<
         Option<crate::application::file_dag::relations::handle::service::PublishedInput>,

@@ -88,7 +88,7 @@ pub(super) fn prepared(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
     hosted: Vec<HostRelation>,
-) -> Result<(ExecutionUseCaseImpl, PreparedProgram), OperatingError> {
+) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram), OperatingError> {
     let engine = ExecutionUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
@@ -123,7 +123,7 @@ pub(super) fn prepared(
 /// Repeat the supported public owner protocol over the same immutable compiled request.
 pub(super) fn run_prepared<'facts>(
     engine: &ExecutionUseCaseImpl,
-    prepared: &PreparedProgram,
+    prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
@@ -135,7 +135,7 @@ pub(super) fn run_prepared<'facts>(
 /// The same public owner with its real borrowed rendering capability.
 pub(super) fn run_prepared_context<'facts>(
     engine: &ExecutionUseCaseImpl,
-    prepared: &PreparedProgram,
+    prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,

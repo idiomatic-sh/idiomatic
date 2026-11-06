@@ -6,7 +6,7 @@ use ryo_values::domain::{
     records::types::Cell as HostCell,
 };
 
-fn program(engine: &ExecutionUseCaseImpl, left: &[i64], right: &[i64]) -> PreparedProgram {
+fn program(engine: &ExecutionUseCaseImpl, left: &[i64], right: &[i64]) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     input.plans[0].steps = vec![
         PlanStep {

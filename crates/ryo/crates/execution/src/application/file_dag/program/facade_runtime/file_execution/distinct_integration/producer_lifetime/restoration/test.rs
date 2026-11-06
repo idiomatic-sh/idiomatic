@@ -4,8 +4,11 @@ use super::fixtures::{BoundSupply, CapturedProject, Exit};
 use crate::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness,
 };
-use crate::application::file_dag::program::facade_runtime::project_execution::{ProjectRoot, evaluate_roots};
+use crate::application::file_dag::program::facade_runtime::project_execution::{
+    ProjectRoot, evaluate_roots,
+};
 use crate::application::file_dag::program::protocol::types::ProjectBatch;
+use crate::application::file_dag::program::runtime::types::IndexLiveness;
 use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint,
 };
@@ -185,11 +188,11 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         "the producer is still needed during the actual Join"
     );
     assert!(
-        before.index_live,
+        before.index_liveness == IndexLiveness::Alive,
         "required Equality backing is alive at its actual consumer boundary"
     );
     assert!(
-        before.working_bytes > 0,
+        before.working_bytes.0 > 0,
         "the actual required lookup is charged while needed"
     );
     let backing = before
@@ -210,11 +213,11 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     );
     assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Terminal);
     assert!(
-        !after.index_live,
+        after.index_liveness == IndexLiveness::Released,
         "the final compute release drops the lookup before output delivery"
     );
     assert_eq!(
-        after.working_bytes, 0,
+        after.working_bytes.0, 0,
         "true last use releases its required charge"
     );
     assert!(backing.liveness() == BackingLiveness::Released);

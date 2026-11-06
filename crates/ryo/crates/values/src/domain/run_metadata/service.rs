@@ -1,5 +1,5 @@
 //! Extract the few non-executable rule facts once while plans are transient.
-use super::types::{FeatureSlot, FeatureSource, RuleMetadata, StepMetadata};
+use super::types::{FeatureSlot, FeatureSource, RuleRunMetadata, StepMetadata};
 use crate::domain::plans::service::{comparisons_of, kind_of};
 use crate::domain::{
     plan_parts::types::Input,
@@ -11,12 +11,12 @@ use crate::domain::{
 use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
 
 #[must_use]
-pub fn from_plans(plans: &[Plan]) -> Vec<RuleMetadata> {
+pub fn from_plans(plans: &[Plan]) -> Vec<RuleRunMetadata> {
     plans.iter().map(from_plan).collect()
 }
 
-fn from_plan(plan: &Plan) -> RuleMetadata {
-    RuleMetadata {
+fn from_plan(plan: &Plan) -> RuleRunMetadata {
+    RuleRunMetadata {
         reads_project: plan.frontier.iter().any(|input| {
             matches!(input, Input::Relation(relation) if provenance_of(*relation) == Provenance::Manifests)
         }),

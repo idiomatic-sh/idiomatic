@@ -7,6 +7,12 @@ use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use ryo_derived::domain::contract::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
+/// Whether an index over an empty input is skipped or still built.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::application::file_dag) enum EmptyInput {
+    Skip,
+    Keep,
+}
 pub(in crate::application::file_dag) enum IndexResource<'f> {
     Derived {
         rows: BorrowedRows<'f>,
@@ -25,14 +31,17 @@ impl<'f> IndexResource<'f> {
         original: Option<&crate::domain::table_model::types::Rows<'f>>,
         admission: &super::super::workspace::InputAdmissions<'_, 'f>,
         context: &mut OperatorContext<'_>,
-        skip_empty: bool,
+        empty: EmptyInput,
     ) -> Result<Self, OperatingError> {
         use ryo_derived::domain::contract::types::DerivedKind;
         let use_ = prepared(contract, DerivedKind::Equality)?;
         let place = use_.inputs[0];
         let source = admission.input(place)?;
         // Absence's established empty-RHS gate precedes key interpretation.
-        if skip_empty && source.count() == 0 && !matches!(source, BorrowedRows::Selected { .. }) {
+        if empty == EmptyInput::Skip
+            && source.count() == 0
+            && !matches!(source, BorrowedRows::Selected { .. })
+        {
             return Ok(Self::Empty {
                 rows: source,
                 plan: use_.plan.clone(),
@@ -61,7 +70,7 @@ impl<'f> IndexResource<'f> {
                     unreachable!("prepared equality")
                 };
                 let ryo_derived::domain::contract::types::DerivedView::Equality(index) =
-                    view.view().expect("validated equality")
+                    view.view().expect(super::constants::VALIDATED_EQUALITY)
                 else {
                     unreachable!("prepared equality")
                 };

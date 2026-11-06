@@ -20,7 +20,7 @@ use std::{
 mod accounting;
 pub(in crate::application::file_dag) mod generation;
 pub(crate) mod publication;
-use admission::service::AdmittedInput;
+use admission::service::BorrowedInput;
 use generation::service::GenerationLease;
 use handle::service::PublishedInput;
 use number::service::AdmittedNumber;

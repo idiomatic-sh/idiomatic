@@ -4,6 +4,7 @@ use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
 use crate::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness, BackingWitness,
 };
+use crate::application::file_dag::program::runtime::types::IndexLiveness;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -239,10 +240,10 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             before.checkpoint.remaining.0,
             after.checkpoint.remaining.0 + 1
         );
-        if before.index_live {
+        if before.index_liveness == IndexLiveness::Alive {
             live_before += 1;
             assert_eq!(before.checkpoint.attempt, AttemptCheckpoint::Published);
-            assert!(before.working_bytes > 0);
+            assert!(before.working_bytes.0 > 0);
             let backing = before
                 .index
                 .as_ref()
@@ -255,17 +256,17 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             if after.checkpoint.remaining.0 > 0 {
                 assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Published);
                 assert!(
-                    after.index_live,
+                    after.index_liveness == IndexLiveness::Alive,
                     "nonfinal actual consumption keeps backing live"
                 );
-                assert!(after.working_bytes > 0);
+                assert!(after.working_bytes.0 > 0);
             }
         }
         if after.checkpoint.remaining.0 == 0 {
             assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Terminal);
-            assert!(!after.index_live);
+            assert!(after.index_liveness == IndexLiveness::Released);
             assert_eq!(
-                after.working_bytes, 0,
+                after.working_bytes.0, 0,
                 "actual final release precedes output delivery and file finish"
             );
         }

@@ -67,9 +67,9 @@ type Failure = RulesError;
 /// What the cross-file steps of every rule read, owned.
 pub(super) struct World {
     placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
-    program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+    program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram>,
     pub(super) request: ryo_execution::inbound::use_cases::execution::types::RequestExecution,
-    metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
+    metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     ids: Vec<RuleId>,
     paths: Vec<ryo_language::domain::files::types::FilePath>,
     files: Vec<ryo_values::domain::files::types::CorpusInput>,

@@ -44,7 +44,7 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     ));
     let slots = execution.file_state().slots.borrow();
     for (at, root) in roots.into_iter().enumerate() {
-        let slot = &slots[&root.0];
+        let slot = &slots[&root];
         assert!(matches!(
             slot.state,
             State::Failed(OperatingError::WrongBinding)
@@ -152,8 +152,8 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
     ));
     {
         let slots = execution.file_state().slots.borrow();
-        assert!(matches!(slots[&roots[0].0].state, State::Published(_)));
-        assert_eq!(slots[&roots[0].0].scratch[0].ordered_row.len(), 1);
+        assert!(matches!(slots[&roots[0]].state, State::Published(_)));
+        assert_eq!(slots[&roots[0]].scratch[0].ordered_row.len(), 1);
     }
     let mut accept = Sink {
         mode: SinkMode::Accept,
@@ -191,9 +191,9 @@ fn reached_slots_initialize_reader_obligations_once() {
     for _ in 0..64 {
         Slot::touched(state, &mut slots, &execution.program, roots[0]).unwrap();
     }
-    assert_eq!(state.reader_initializations.get() - before, 1);
+    assert_eq!(state.reader_initializations.get().0 - before.0, 1);
     Slot::touched(state, &mut slots, &execution.program, roots[1]).unwrap();
-    assert_eq!(state.reader_initializations.get() - before, 2);
+    assert_eq!(state.reader_initializations.get().0 - before.0, 2);
     assert_eq!(slots.len(), 2);
 }
 
@@ -322,100 +322,4 @@ fn repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup
         matches!(execution.finish(), Err(OperatingError::NotRun)),
         "without a primary result, finish reports the real first cleanup refusal"
     );
-}
-
-#[test]
-fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
-    use crate::application::file_dag::program::admission::{ProducerRoot, Readiness};
-    use crate::domain::operator::contract::views::BorrowedRows;
-    use ryo_values::domain::rows::types::{RowCount, Table};
-    let CompiledCase { execution, roots } = compiled();
-    let owner = Rc::clone(&execution.owner);
-    let kinds = execution.program.regions()[roots[0].0]
-        .instructions
-        .last()
-        .unwrap()
-        .contract
-        .output_kinds
-        .clone()
-        .unwrap();
-    let rows = Table {
-        cells: kinds
-            .iter()
-            .copied()
-            .map(super::inputs::fixtures::value)
-            .collect(),
-        kinds,
-        count: RowCount(1),
-    };
-    let a = owner.computed(rows.clone()).unwrap();
-    let b = owner.computed(rows).unwrap();
-    assert!(!a.same_record(&b));
-    for aliases in [false, true] {
-        if aliases {
-            execution
-                .file_state()
-                .bind(&owner, ProducerRoot::Region(roots[0]), &a)
-                .unwrap();
-            execution
-                .file_state()
-                .bind(&owner, ProducerRoot::Region(roots[0]), &b)
-                .unwrap();
-        }
-        let unread = |_| Err(OperatingError::NotRead);
-        let a_rows = owner.resolve(a.as_ref(), &unread).unwrap();
-        let b_rows = owner.resolve(b.as_ref(), &unread).unwrap();
-        let a_proof = owner
-            .admit(a.as_ref(), BorrowedRows::from(&a_rows))
-            .unwrap();
-        let b_proof = owner
-            .admit(b.as_ref(), BorrowedRows::from(&b_rows))
-            .unwrap();
-        if aliases {
-            assert_eq!(
-                a_proof.identity(&owner).unwrap(),
-                b_proof.identity(&owner).unwrap()
-            );
-        } else {
-            assert_ne!(
-                a_proof.identity(&owner).unwrap(),
-                b_proof.identity(&owner).unwrap()
-            );
-        }
-        for (publication, proof) in [(&a, &a_proof), (&b, &b_proof)] {
-            let admitted =
-                crate::application::file_dag::program::admission::AdmittedInput::from_publication(
-                    Rc::clone(&owner),
-                    publication.clone(),
-                    proof,
-                    ProducerRoot::Region(roots[0]),
-                    execution.partition().clone(),
-                    Readiness::Complete,
-                )
-                .unwrap();
-            assert!(
-                admitted
-                    .publication(&owner)
-                    .unwrap()
-                    .same_record(publication)
-            );
-        }
-        for (publication, proof) in [(&b, &a_proof), (&a, &b_proof)] {
-            assert!(matches!(
-                crate::application::file_dag::program::admission::AdmittedInput::from_publication(
-                    Rc::clone(&owner),
-                    publication.clone(),
-                    proof,
-                    ProducerRoot::Region(roots[0]),
-                    execution.partition().clone(),
-                    Readiness::Complete
-                ),
-                Err(OperatingError::NotRead)
-            ));
-        }
-    }
-    Rc::try_unwrap(execution)
-        .unwrap_or_else(|_| panic!("single production owner"))
-        .finish()
-        .unwrap();
 }

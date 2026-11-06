@@ -26,7 +26,7 @@ pub(crate) fn engine() -> ExecutionUseCaseImpl {
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     )
 }
-pub(crate) fn prepared(engine: &ExecutionUseCaseImpl) -> PreparedProgram {
+pub(crate) fn prepared(engine: &ExecutionUseCaseImpl) -> PreparedExecutionProgram {
     prepared_rules(engine, 1)
 }
 pub(crate) fn authored_request(count: usize) -> PreparedRequest {
@@ -79,7 +79,7 @@ pub(crate) fn authored_request(count: usize) -> PreparedRequest {
         observations: ObservationIdentity::Independent,
     }
 }
-pub(crate) fn prepared_rules(engine: &ExecutionUseCaseImpl, count: usize) -> PreparedProgram {
+pub(crate) fn prepared_rules(engine: &ExecutionUseCaseImpl, count: usize) -> PreparedExecutionProgram {
     engine
         .prepare(authored_request(count))
         .expect("valid public request")

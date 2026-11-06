@@ -7,7 +7,7 @@ use ryo_values::domain::observations::types::ObservationIndex;
 use ryo_values::domain::plans::types::StepScope;
 use ryo_values::domain::rows::types::Table;
 
-pub struct CaptureContext<'a> {
+pub struct CaptureScope<'a> {
     pub file: ryo_relations::domain::relations::types::FileId,
     /// Current rule identity validated by the store before warm replay.
     pub rule_digest: ryo_values::domain::stored_facts::types::Digest,

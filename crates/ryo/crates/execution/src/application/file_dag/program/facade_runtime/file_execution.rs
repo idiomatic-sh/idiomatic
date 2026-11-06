@@ -214,7 +214,9 @@ impl FileRun<'_> {
         if metadata.frontiers.is_empty() {
             return None;
         }
-        let count = u32::try_from(metadata.frontiers.len()).ok()?;
+        let Ok(count) = u32::try_from(metadata.frontiers.len()) else {
+            return None;
+        };
         let mut map = new_frontiers(metadata.layout, ObservationReadinessCount(count));
         for (slot, root) in metadata.frontiers.iter().enumerate() {
             let Some(state) = self
@@ -232,12 +234,12 @@ impl FileRun<'_> {
                 Some(other) => other.clone(),
                 None => continue,
             };
-            set_frontier(
-                &mut map,
-                ObservationReadinessSlot(u32::try_from(slot).ok()?),
-                readiness,
-            )
-            .ok()?;
+            let Ok(position) = u32::try_from(slot) else {
+                return None;
+            };
+            if set_frontier(&mut map, ObservationReadinessSlot(position), readiness).is_err() {
+                return None;
+            }
         }
         Some(Arc::new(map))
     }
