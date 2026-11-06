@@ -557,6 +557,10 @@ pub(crate) fn restore_frontiers(
     use ryo_values::domain::stored_facts::types::Bucket;
 
     use crate::application::file_dag::observations::cross::{PreparedFrontier, frontier_readiness};
+    // One set of inapplicable files per rule, or none for the whole run.
+    if !inapplicable.is_empty() && inapplicable.len() != program.program().rules().len() {
+        return Err(OperatingError::NotRun);
+    }
     let metadata = program
         .observation_metadata()
         .ok_or(OperatingError::NotRun)?;

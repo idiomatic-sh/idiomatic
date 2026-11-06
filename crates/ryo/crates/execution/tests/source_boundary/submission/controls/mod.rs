@@ -13,7 +13,7 @@ use crate::project_phase::negative::fixtures::{
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
         ExecutionRequest, ExecutionUseCase, FileExecution, ObservationExecution,
-        ProjectRootExecution, ProjectStage,
+        ObservationPublication, ProjectRootExecution, ProjectStage,
     },
     types::*,
 };
@@ -57,6 +57,8 @@ pub(super) fn control(method: Method) -> Control {
         Method::RootsReadinessCounts => Control::AcceptsNoRoot("reads counters"),
         Method::StageStateCounts => Control::AcceptsNoRoot("reads counters"),
         Method::StageFinish => Control::AcceptsNoRoot("releases the phase"),
+        Method::PublicationInstall => Control::Refuses(install_undeclared_rule),
+        Method::PublicationRestoreFrontiers => Control::Refuses(restore_inapplicable_per_rule),
         Method::ObservedArenas => Control::AcceptsNoRoot("reads published arenas"),
         Method::ObservedFinishStage => Control::AcceptsNoRoot("releases the stage"),
     }
@@ -196,6 +198,110 @@ pub(super) fn observed_undeclared_rule() {
         assert!(stage.binding_readiness(undeclared).is_err());
         assert!(ObservationExecution::finish(stage, undeclared).is_err());
     });
+}
+/// A publication is installed only for a rule the program declared; a declared rule's is accepted.
+pub(super) fn install_undeclared_rule() {
+    with_held(&engine(), Entry::Stage, 3, |_, held, _, _| {
+        let Held::Stage(stage) = held else {
+            panic!("the stage entry holds an observation stage")
+        };
+        let transfer = |slot| {
+            let PublicationSlot::Reserved(worker) = slot else {
+                panic!("a demanded publication arena")
+            };
+            ryo_values::domain::records::types::CrossPublicationTransfer {
+                worker,
+                arena: ryo_values::domain::stored_facts::types::ArenaBytes::default(),
+                roots: vec![],
+            }
+        };
+        let slot = stage.reserve(RuleIndex(1)).unwrap();
+        assert!(
+            stage
+                .install(RuleIndex(3), slot, transfer(slot), vec![])
+                .is_err()
+        );
+        let slot = stage.reserve(RuleIndex(2)).unwrap();
+        stage
+            .install(RuleIndex(2), slot, transfer(slot), vec![])
+            .expect("a declared rule accepts its publication");
+    });
+}
+/// Restoration takes the inapplicable files of every rule or of none; any other count is refused.
+pub(super) fn restore_inapplicable_per_rule() {
+    with_held(&engine(), Entry::Stage, 3, |_, held, corpus, covered| {
+        let Held::Stage(stage) = held else {
+            panic!("the stage entry holds an observation stage")
+        };
+        let mut restore = |inapplicable: usize| {
+            stage.restore_frontiers(
+                &crate::project_phase::negative::fixtures::NoFileFrontiers,
+                corpus,
+                covered,
+                &[],
+                &vec![InapplicableFiles::default(); inapplicable],
+                &[],
+                &[ryo_values::domain::stored_facts::types::Bucket(0); 3],
+                &[false; 3],
+            )
+        };
+        for wrong in [1, 2, 4] {
+            assert!(
+                matches!(restore(wrong), Err(OperatingError::NotRun)),
+                "{wrong} sets of inapplicable files for 3 rules"
+            );
+        }
+        restore(0).expect("none for the whole run");
+        restore(3).expect("one set per rule");
+    });
+}
+/// Methods of each entry trait in `interface.rs`, by the prefix of their `Method` variants.
+const TRAITS: [(&str, &str); 7] = [
+    ("ExecutionUseCase", "UseCase"),
+    ("ExecutionRequest", "Request"),
+    ("FileExecution", "File"),
+    ("ProjectRootExecution", "Roots"),
+    ("ProjectStage", "Stage"),
+    ("ObservationExecution", "Observed"),
+    ("ObservationPublication", "Publication"),
+];
+#[test]
+pub(super) fn every_trait_method_has_its_own_variant() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let interface =
+        std::fs::read_to_string(root.join("src/inbound/use_cases/execution/interface.rs")).unwrap();
+    let witness =
+        std::fs::read_to_string(root.join("tests/source_boundary/submission/witness/mod.rs"))
+            .unwrap();
+    for (name, prefix) in TRAITS {
+        let start = interface
+            .find(&format!("pub trait {name}"))
+            .unwrap_or_else(|| panic!("{name} is declared in interface.rs"));
+        let body = &interface[start..];
+        let body = &body[..body.find("\n}\n").expect("a trait body ends")];
+        let methods = body.lines().filter(|line| line.starts_with("    fn ")).count();
+        let variants = ALL
+            .iter()
+            .filter(|method| format!("{method:?}").starts_with(prefix))
+            .count();
+        assert_eq!(
+            methods, variants,
+            "{name} has {methods} methods and {variants} {prefix}* variants: one variant per method"
+        );
+    }
+    for &method in ALL {
+        let call = format!("witness(Method::{method:?})");
+        assert_eq!(
+            witness.matches(&call).count(),
+            1,
+            "{method:?} is witnessed by exactly one trait method"
+        );
+    }
+    assert_eq!(
+        witness.matches("witness(Method::").count(),
+        ALL.len(),
+        "every witnessed trait method names its own variant"
+    );
 }
 
 #[test]
