@@ -16,7 +16,7 @@ use ryo_values::domain::{
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
-enum Input {
+enum Scenario {
     Reuse,
     ForeignOwner,
     ExpiredAdmission,
@@ -26,8 +26,10 @@ enum Input {
     UnpermittedRaw,
     ExpiredView,
 }
+type Input = Scenario;
+type Value = ();
 type Failure = OperatingError;
-const CASES: &[Case<Input, (), Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("actual_publication_reuses_same_physical_view"),
         word: Word::Succeeds,

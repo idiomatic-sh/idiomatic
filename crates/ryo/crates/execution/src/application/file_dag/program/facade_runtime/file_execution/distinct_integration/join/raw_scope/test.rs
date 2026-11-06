@@ -5,7 +5,10 @@ use crate::{
     domain::operating::errors::OperatingError,
 };
 use ryo_values::domain::rows::types::RowCount;
-const CASES: &[Case<RawCase, RowCount, OperatingError>] = &[
+type Input = RawCase;
+type Value = RowCount;
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("native_raw_uses_required_owner_without_optional_retention"),
         word: Word::Succeeds,
@@ -41,9 +44,13 @@ const CASES: &[Case<RawCase, RowCount, OperatingError>] = &[
 ];
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, observe);
+    run(CASES, Word::Succeeds, subject);
 }
 #[test]
 fn fails() {
-    run(CASES, Word::Fails, observe);
+    run(CASES, Word::Fails, subject);
+}
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    observe(input)
 }

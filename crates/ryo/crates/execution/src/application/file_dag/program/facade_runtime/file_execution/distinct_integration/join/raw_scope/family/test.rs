@@ -6,7 +6,10 @@ use crate::{
     domain::operating::errors::OperatingError,
 };
 use ryo_derived::domain::contract::types::DerivedKind;
-const CASES: &[Case<DerivedKind, DerivedKind, OperatingError>] = &[
+type Input = DerivedKind;
+type Value = DerivedKind;
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("actual_Equality"),
         word: Word::Succeeds,
