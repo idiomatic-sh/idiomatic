@@ -40,7 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || WITH_A_BROKEN_WORKSPACE,
         expect: Expect::Value(Reading {
             rows: &[
-                "go.work at 0..0 \"file-origin\" \"parse\" \"go-workspace\" \"invalid-go-work\" \"line 1: the `use (` block is not closed\"",
+                "go.work at 0..0 \"file-origin\" \"parse\" \"go-workspace\" \"invalid-go-work\" \"line 3: the `use (` block is not closed\"",
             ],
             causes: &[],
         }),
