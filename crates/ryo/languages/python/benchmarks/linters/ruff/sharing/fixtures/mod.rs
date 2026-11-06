@@ -1,9 +1,12 @@
 //! Load canonical selected queries through existing production artifact and worker boundaries.
+use ryo_benchmark::inbound::use_cases::run_ryo::{
+    interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl,
+};
 use ryo_benchmark::outbound::{
-    engine::{factory, interface::EnginePort},
+    engine::factory,
     linter::{factory as linters, interface::LinterPort},
     suite::{factory as suites, interface::SuitePort, types::ArtifactPath},
-    worker::{factory as workers, interface::WorkerPort},
+    worker::factory as workers,
 };
 use ryo_benchmark_contracts::domain::{
     requests::types::{DiagnosticOptions, PerformanceOptions, RunRequest},
@@ -89,18 +92,7 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     );
     let invocation = candidate.prepare(&request)?;
     let payload = fs::read_to_string(Path::new(&invocation.arguments[2]))?;
-    let worker = workers::json(payload.into(), Box::new(std::io::sink())).receive()?;
-    assert_eq!(
-        worker
-            .selected_rules
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(ToString::to_string)
-            .collect::<BTreeSet<_>>(),
-        selected
-    );
-    let prepared = ryo_benchmark::application::worker_request::service::prepare(worker)?;
+    let worker = workers::json(payload.into(), Box::new(std::io::sink()));
     let destination = temporary.path().join("events.jsonl");
     let engine = factory::local_with_diagnostic_events(
         ryo::linter::Languages(vec![ryo_python::linked_with_settings(
@@ -116,10 +108,7 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
             )?,
         },
     );
-    let session = engine.load(&prepared.request)?;
-    let configured =
-        ryo_benchmark::application::worker_request::service::configure(&prepared.request, session)?;
-    configured.execute()?;
+    RunRyoUseCaseImpl::new(std::sync::Arc::new(engine), std::sync::Arc::new(worker)).run_ryo()?;
     decode(selected, &fs::read_to_string(destination)?)
 }
 
