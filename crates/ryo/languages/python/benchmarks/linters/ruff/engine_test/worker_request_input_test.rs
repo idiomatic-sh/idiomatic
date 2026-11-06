@@ -193,7 +193,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject(input: Input) -> Result<Value, Failure> {
+fn subject(input: Input) -> Result<bool, Failure> {
     match input {
         WorkerRequestScenario::WorkerModesAreExplicitAndKeepDiagnosticsOutOfTimedRun => {
             worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run();

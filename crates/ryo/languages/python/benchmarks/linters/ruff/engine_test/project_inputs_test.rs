@@ -8,7 +8,7 @@ use super::constants::{
 use super::prepared_engine_test::{PreparedEngine as _, default_frontend_projection, python_310};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark::outbound::suite::{factory as suite, types::ArtifactPath};
+use ryo_benchmark::outbound::suite::factory as suite;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
