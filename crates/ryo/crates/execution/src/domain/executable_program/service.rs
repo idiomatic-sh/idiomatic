@@ -469,7 +469,3 @@ pub(crate) fn compile(
     super::native::install(&mut executable, native_shapes);
     Ok(executable)
 }
-
-#[cfg(test)]
-#[path = "observation_slot_test.rs"]
-mod observation_slot_test;

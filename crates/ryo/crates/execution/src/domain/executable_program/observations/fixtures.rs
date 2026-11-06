@@ -1,5 +1,7 @@
 //! Frontier coordinates must use the same request-qualified slots as instruction inputs.
-use super::*;
+use crate::domain::executable_program::types::{PartitionRequirement, ProducerPartitions};
+use crate::domain::file_program::types::RequestGraph;
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::{
     coverage::types::RuleIndex,
     file_program::types::{
@@ -8,6 +10,8 @@ use crate::domain::{
     operator::contract::types::RequestOperators,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBindingId, ObservationBindingName, ObservationColumn,
@@ -19,7 +23,7 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 
-struct DeclaredFileProducers;
+pub(super) struct DeclaredFileProducers;
 impl ProducerPartitions for DeclaredFileProducers {
     fn hosted(
         &self,
@@ -50,21 +54,21 @@ impl ProducerPartitions for DeclaredFileProducers {
         match (rule.0, input.0) {
             (2 | 3, 0) => Ok(PartitionRequirement::CurrentFile),
             _ => Err(OperatingError::ObservationIncomplete {
-                reason: "undeclared fixture producer".into(),
+                reason: format!("undeclared fixture producer {rule:?}/{input:?}").into(),
             }),
         }
     }
 }
-fn columns() -> Vec<ObservationColumn> {
+fn columns(name: ObservationColumnName) -> Vec<ObservationColumn> {
     vec![ObservationColumn {
-        name: ObservationColumnName("file".into()),
+        name,
         kind: CellKind::File,
     }]
 }
-fn schema(name: &str) -> BoundObservationInput {
+fn schema(name: ObservationBindingName, column: ObservationColumnName) -> BoundObservationInput {
     BoundObservationInput {
-        name: ObservationBindingName(name.into()),
-        columns: columns(),
+        name,
+        columns: columns(column),
         scope: StepScope::PerFile,
     }
 }
@@ -91,12 +95,23 @@ fn plan(source: Input) -> Plan {
         frontier: vec![],
     }
 }
-struct Fixture {
-    plans: Vec<Plan>,
-    graph: RequestGraph,
-    operators: RequestOperators,
+pub(super) struct Fixture {
+    pub(super) plans: Vec<Plan>,
+    pub(super) graph: RequestGraph,
+    pub(super) operators: RequestOperators,
 }
-fn fixture(invalid_frontier: bool) -> Fixture {
+#[derive(Clone, Copy)]
+pub(super) enum FrontierSlots {
+    Declared,
+    UndeclaredFirst,
+}
+pub(super) struct Names {
+    pub(super) left: ObservationBindingName,
+    pub(super) right: ObservationBindingName,
+    pub(super) column: ObservationColumnName,
+}
+pub(super) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
+    let invalid_frontier = matches!(frontier, FrontierSlots::UndeclaredFirst);
     let mut producers = [
         plan(Input::Relation(Relation::LanguageTarget)),
         plan(Input::Relation(Relation::CompilerFeature)),
@@ -105,7 +120,7 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         producer.observations.push(PlanObservation {
             name: ObservationName(format!("producer-{index}").into()),
             source: Input::Step(StepId(0)),
-            columns: columns(),
+            columns: columns(names.column.clone()),
             scope: StepScope::PerFile,
         });
     }
@@ -114,9 +129,14 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         plan(Input::BoundObservation(ObservationBindingId(0))),
     ];
     for (index, consumer) in consumers.iter_mut().enumerate() {
-        consumer
-            .observation_inputs
-            .push(schema(if index == 0 { "left" } else { "right" }));
+        consumer.observation_inputs.push(schema(
+            if index == 0 {
+                names.left.clone()
+            } else {
+                names.right.clone()
+            },
+            names.column.clone(),
+        ));
         consumer
             .frontier
             .push(Input::BoundObservation(ObservationBindingId(
@@ -129,7 +149,7 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         vec![],
         vec![ResolvedObservationBinding {
             input: ObservationBindingId(0),
-            schema: schema("left"),
+            schema: schema(names.left.clone(), names.column.clone()),
             producers: vec![ResolvedObservationProducer::Output {
                 rule: RuleIndex(0),
                 output: ObservationIndex(0),
@@ -137,16 +157,12 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         }],
         vec![ResolvedObservationBinding {
             input: ObservationBindingId(0),
-            schema: schema("right"),
+            schema: schema(names.right.clone(), names.column.clone()),
             producers: vec![ResolvedObservationProducer::Output {
                 rule: RuleIndex(1),
                 output: ObservationIndex(0),
             }],
         }],
-    ];
-    let batches = vec![
-        vec![RuleIndex(0), RuleIndex(1)],
-        vec![RuleIndex(2), RuleIndex(3)],
     ];
     let operators = RequestOperators::prepare(
         &plans,
@@ -170,102 +186,4 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         graph,
         operators,
     }
-}
-#[test]
-fn two_local_zero_inputs_keep_their_distinct_request_producers() {
-    let Fixture {
-        plans,
-        graph,
-        operators,
-    } = fixture(false);
-    let metadata = graph.observations.as_ref().unwrap();
-    assert_eq!(metadata.slots.len(), 2);
-    assert_eq!(metadata.slots[0].rule, 2);
-    assert_eq!(metadata.slots[1].rule, 3);
-    assert_eq!(
-        metadata.bindings[2][0].input.producers[0],
-        ResolvedObservationProducer::Output {
-            rule: RuleIndex(0),
-            output: ObservationIndex(0)
-        }
-    );
-    assert_eq!(
-        metadata.bindings[3][0].input.producers[0],
-        ResolvedObservationProducer::Output {
-            rule: RuleIndex(1),
-            output: ObservationIndex(0)
-        }
-    );
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
-    assert_eq!(
-        program.rules[2].frontier[0],
-        Ok(InputSource::Observation(0))
-    );
-    assert_eq!(
-        program.rules[3].frontier[0],
-        Ok(InputSource::Observation(1))
-    );
-}
-#[test]
-fn undeclared_frontier_ordinal_is_a_typed_refusal() {
-    let Fixture {
-        plans,
-        graph,
-        operators,
-    } = fixture(true);
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
-    assert!(matches!(
-        &program.rules[2].frontier[0],
-        Err(OperatingError::ObservationIncomplete { .. })
-    ));
-    assert_eq!(
-        program.rules[3].frontier[0],
-        Ok(InputSource::Observation(1))
-    );
-}
-
-#[test]
-fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() {
-    let Fixture {
-        plans,
-        mut graph,
-        operators,
-    } = fixture(false);
-    graph.observations.as_mut().unwrap().slots[0].rule = 99;
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
-    assert!(matches!(
-        &program.rules[2].frontier[0],
-        Err(OperatingError::ObservationIncomplete { .. })
-    ));
-    assert_eq!(
-        program.rules[3].frontier[0],
-        Ok(InputSource::Observation(1))
-    );
-}
-
-#[test]
-fn shared_walk_census_includes_every_synthetic_observation_union() {
-    let Fixture { plans, graph, operators } = fixture(false);
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
-    let instructions = program.regions().iter().flat_map(|region| region.instructions.iter());
-    let total = instructions.clone().count();
-    let unions = instructions
-        .filter(|instruction| instruction.logical.0 >= program.logical_regions().len())
-        .count();
-    assert_eq!(unions, 2, "both named observation inputs compile a union");
-    assert!(total > program.logical_regions().len());
-    let bindings = vec![vec![]; plans.len()];
-    let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
-        &plans, &bindings,
-    );
-    walk.retain_program_consumers(&program, &bindings).unwrap();
-    let census = walk.census();
-    assert_eq!(census.instructions.0, total);
-    assert_eq!(census.observation.0, unions + 2, "union heads and observation consumers");
-    assert_eq!(
-        census.shared.0 + census.representation.0 + census.dependent.0
-            + census.observation.0 + census.row.0 + census.derived.0
-            + census.request.0 + census.continuation.0,
-        total,
-    );
 }
