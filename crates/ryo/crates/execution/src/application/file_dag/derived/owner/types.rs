@@ -8,7 +8,7 @@ use std::sync::Arc;
 /// semantics to prepare a contract; only the owner can reach the port, so no holder can build,
 /// and every view is built through admission, the ledger and a lease.
 #[derive(Clone, Debug)]
-pub(in crate::application::file_dag) struct DerivedAccess {
+pub(crate) struct DerivedAccess {
     port: Arc<dyn DerivedPort>,
 }
 impl DerivedAccess {
@@ -27,6 +27,11 @@ impl DerivedAccess {
 }
 impl From<Arc<dyn DerivedPort>> for DerivedAccess {
     fn from(port: Arc<dyn DerivedPort>) -> Self {
+        Self { port }
+    }
+}
+impl<T: DerivedPort + 'static> From<Arc<T>> for DerivedAccess {
+    fn from(port: Arc<T>) -> Self {
         Self { port }
     }
 }

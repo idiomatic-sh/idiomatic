@@ -171,6 +171,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     let derived_issuer = fs::read_to_string(source.join(super::derived::ISSUER)).unwrap();
     let kernel_service = fs::read_to_string(source.join(super::derived::KERNEL)).unwrap();
     let cache_types = fs::read_to_string(source.join(super::derived::CACHE)).unwrap();
+    let access_types = fs::read_to_string(source.join(super::derived::TYPES)).unwrap();
     let raw_scope = fs::read_to_string(source.join(super::derived::RAW_SCOPE)).unwrap();
     let activation_setup = fs::read_to_string(source.join(super::activation::SETUP)).unwrap();
     let mut probes = vec![
@@ -378,6 +379,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         fs::write(overlay.path().join(super::derived::KERNEL), &kernel_service).unwrap();
         fs::write(overlay.path().join(super::derived::RAW_SCOPE), &raw_scope).unwrap();
         fs::write(overlay.path().join(super::derived::CACHE), &cache_types).unwrap();
+        fs::write(overlay.path().join(super::derived::TYPES), &access_types).unwrap();
         fs::write(
             overlay.path().join(super::activation::SETUP),
             &activation_setup,
@@ -399,6 +401,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             super::derived::KERNEL => &kernel_service,
             super::derived::RAW_SCOPE => &raw_scope,
             super::derived::CACHE => &cache_types,
+            super::derived::TYPES => &access_types,
             _ => panic!("unclassified production overlay"),
         };
         let probe = match compilation {

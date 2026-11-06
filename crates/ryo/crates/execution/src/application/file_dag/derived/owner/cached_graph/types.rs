@@ -7,7 +7,7 @@ use crate::domain::stored_graph::types::GraphWalk;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
-pub(in crate::application::file_dag) enum CachedGraph {
+pub(crate) enum CachedGraph {
     Reach(ReachGraph),
     Axis(AxisGraph),
 }
@@ -20,7 +20,7 @@ pub(super) struct PartitionWidth(pub(super) usize);
 #[derive(Clone, Copy, Debug)]
 pub(super) struct KeyPosition(pub(super) usize);
 
-pub(in crate::application::file_dag) struct ReachGraph {
+pub(crate) struct ReachGraph {
     pub(super) access: GraphHandle,
     pub(super) left_on: Vec<ColumnIndex>,
     pub(super) bindings: Vec<KeyPosition>,
@@ -31,7 +31,7 @@ pub(in crate::application::file_dag) struct ReachGraph {
     pub(super) walk: GraphWalk,
 }
 
-pub(in crate::application::file_dag) struct AxisGraph {
+pub(crate) struct AxisGraph {
     pub(super) access: GraphHandle,
     pub(super) domain: DomainHandle,
     pub(super) id: ColumnIndex,

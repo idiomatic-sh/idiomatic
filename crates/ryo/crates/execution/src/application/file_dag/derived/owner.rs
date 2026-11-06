@@ -20,7 +20,7 @@ use types::{
 
 pub(in crate::application::file_dag) mod acquisition;
 mod backings;
-pub(in crate::application::file_dag) mod cached_graph;
+pub(crate) mod cached_graph;
 mod diagnostics;
 mod footprint;
 mod graph;
@@ -30,7 +30,7 @@ mod leases;
 mod lifetime;
 mod observations;
 mod setup;
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]

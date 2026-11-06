@@ -4,6 +4,7 @@ mod kernel;
 pub(super) const KERNEL: &str = kernel::KERNEL;
 pub(super) const RAW_SCOPE: &str = kernel::RAW_SCOPE;
 pub(super) const CACHE: &str = sealing::CACHE;
+pub(super) const TYPES: &str = sealing::TYPES;
 mod census;
 mod sealing;
 mod witness;

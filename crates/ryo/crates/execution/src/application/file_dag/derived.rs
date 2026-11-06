@@ -1,5 +1,5 @@
 //! One file-local acquisition owner for engine-prepared immutable derived views.
-pub(super) mod owner;
+pub(crate) mod owner;
 pub(crate) mod prepare;
 pub(super) mod request;
 
