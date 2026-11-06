@@ -1,0 +1,477 @@
+{
+  "schema": "contract-review-verdict/v1",
+  "source": {
+    "base": "c5abcc1da4b0f1a63de7fcc97f979284f4087656",
+    "head": "fb55bf0e4963266e6ff34065ac3020293b1ab35f",
+    "tree": "6846c12fd26fdc7a34aff77f39aab03a88dcfcf4",
+    "worktree": "/tmp/ryo-ownership-review-20261106",
+    "status_before": "",
+    "status_after": ""
+  },
+  "verdict": "blocking",
+  "axes": {
+    "enforced_boundaries": "FAIL",
+    "clear_ownership_and_flow": "FAIL",
+    "proof": "FAIL"
+  },
+  "findings": [
+    {
+      "id": "OI-1",
+      "family": "Runtime issuer aliases and retargeting",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/program/runtime/types.rs:43",
+        "crates/ryo/tastemaker/rules/runtime-authority/0.1.0/rule.toml:34"
+      ],
+      "failure": "Capability fields are runtime-module-visible, but the sole-service issuer guard recognizes written record names only. An alias or Self constructor in an already placed runtime module can bypass the named-record guard while Rust permits access. Existing probes exercise program siblings, not this expanded privacy region.",
+      "falsifier": "In existing runtime/mod.rs import self::types::KernelAdmission as Authority and construct Authority { execution, region } in a helper. Also cover aliases/Self and field or record-update retargeting across KernelAdmission, KernelPermit, ReadySelection, SemanticPermit, PermittedPhysical, ProgramExecution, RuntimeState. The actual full-source compiler positive plus TM rejection must establish the intended boundary.",
+      "proof_state": "source-confirmed guard gap; no reviewer execution; integrator requested author negative/positive probes",
+      "matrix_rows": [
+        "B5.2",
+        "B5.3",
+        "B5.4",
+        "B5.9",
+        "B5.10",
+        "P3.6",
+        "P3.11"
+      ]
+    },
+    {
+      "id": "OI-2",
+      "family": "Publication and admission proof identity",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/program/admission.rs:382",
+        "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs:126"
+      ],
+      "failure": "from_publication accepts a PublishedInput and an independent relation AdmittedInput token, derives population/generation from the token, and stores the publication without comparing their identity. Same-owner publication B plus proof A passes validate_for/publication and exposes A as B's population. Project Current-bound population keys consume this claimed population.",
+      "falsifier": "Under one live owner create unequal publications A and B; pass proof(A) with B to from_publication. Require immediate rejection before any Current-bound project identity/cache mutation; matching A/A and B/B must pass. Also cover stale/foreign owner and root/partition requirements across all construction sites.",
+      "proof_state": "independently confirmed in source by Opus and lead; current callers are compliant but API permits invalid state",
+      "matrix_rows": [
+        "B5.4",
+        "B5.5",
+        "B4a.3",
+        "B4a.4",
+        "B4d.1",
+        "B4d.6",
+        "P3.7"
+      ]
+    },
+    {
+      "id": "OI-3",
+      "family": "Terminal outcome versus cleanup failure precedence",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/program/runtime/service.rs:905",
+        "crates/ryo/crates/execution/src/application/file_dag/program/runtime/lifecycle/fixtures.rs:121",
+        "crates/ryo/crates/execution/src/application/file_dag/program/runtime/lifecycle/test.rs:264"
+      ],
+      "failure": "invoke checks global cleanup_status before consulting retained terminal state. A release failure masks the original semantic WrongBinding with cleanup NotRun and blocks replay of another completed publication.",
+      "falsifier": "Execute existing repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup after compilation; repeated primary-failure demand must retain WrongBinding, completed peer replay must survive, new work must be refused by cleanup, and finish must report cleanup error.",
+      "proof_state": "Source finding confirmed onfb55. Lead read corrective36e diff and actual validation290: named cleanup precedence test PASS. Narrow disposition fixed on36e; broader lifecycle row still open due project lease failure.",
+      "matrix_rows": [
+        "B4a.9",
+        "B4b.10",
+        "B5.7",
+        "B5.8"
+      ]
+    },
+    {
+      "id": "OI-4",
+      "family": "Full physical route census and actual configured sharing proof",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs:104",
+        "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs:259",
+        "crates/ryo/crates/execution/src/domain/executable_program/observed.rs:52",
+        "crates/ryo/languages/python/benchmarks/linters/ruff/sharing/test.rs:24"
+      ],
+      "failure": "Census instructions and barriers come from the same ordinary-logical route vector. Synthetic observation Union instructions use IDs beyond that vector and are silently skipped. The balance assertion therefore does not inventory every bound physical instruction. Separately, the 413 test needs only two dispatched classes and one multi-class cohort, so omission/decline of other eligible reached classes remains invisible.",
+      "falsifier": "Independently count all bound instructions including zero/single/multiple-producer observation unions and compare route membership, not only aggregate self-balance. Disable sharing for one otherwise eligible reached class: full sharing proof must fail. Require reached eligible class membership or justified decline/fallback accounting; canonical 413 selection and >1 sharing are necessary but insufficient.",
+      "proof_state": "Source-confirmed census omission/weak assertion onfb55 and unchanged36e. Actual290ruff_sharing FAILED0/1 at sealed-corpus setup before engine; no actual413 sharing evidence was produced.",
+      "matrix_rows": [
+        "B3",
+        "B4d.12",
+        "B4d.13",
+        "B4d.14",
+        "P3.2",
+        "P3.7",
+        "P3.12"
+      ]
+    },
+    {
+      "id": "OI-5",
+      "family": "Frozen source compile and behavioral proof",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/setup.rs:37",
+        "crates/ryo/crates/execution/src/application/file_dag/derived/prepared.rs:97",
+        "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs:211",
+        "crates/ryo/crates/execution/src/application/file_dag/program/runtime/lifecycle/test.rs:149"
+      ],
+      "failure": "Integrator build288 on this exact head exits101: RuleIndex lacks Hash at two production sites, moved private ProgramExecution.program is still accessed by project facade, and lifecycle test lacks Inputs trait import for three replay calls. No current runtime/boundary/413 suite passed.",
+      "falsifier": "One coherent successor source must compile and execute nonzero production, lifecycle, boundary and configured413 suites with exact source-bound receipts. Unrelated compile failure cannot certify negative boundary probes.",
+      "proof_state": "Build288 failed onfb55. Lead read corrective36e diff; validation290 nine-crate buildPASS and publicboundary90/90PASS, including nine embedded authority cases. Compilation defect fixed on36e; issuer aliases and SP-1 are outside these cases.",
+      "matrix_rows": [
+        "A6",
+        "B5.11",
+        "B5.12",
+        "C7",
+        "P3.10",
+        "P3.12"
+      ]
+    },
+    {
+      "id": "OI-6",
+      "family": "Project batch lifecycle evidence failure",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/test.rs:274"
+      ],
+      "failure": "Actual successor validation290 fails project_batch_success_failure_and_cancellation_release_actual_phase_leases on first Complete case with NotRun. Thus success behavior itself is unproven and subsequent SemanticFailure/RefuseBeforeWork/RefuseLaterCohort variants are not reached by this loop. Do not classify it as a deferred output fault.",
+      "falsifier": "Repair production/project fixture boundary coherently, then execute all four project exit variants with actual Weak backing and byte accounting. Successful batch must complete before failure/cancellation assertions can certify release. Preserve independent external-root and cleanup controls that now pass.",
+      "proof_state": "Executed FAIL on36e; exact cause requires author diagnosis, not inferred by reviewer.",
+      "matrix_rows": [
+        "B4a.9",
+        "B4b.10",
+        "B5.8",
+        "C7"
+      ]
+    },
+    {
+      "id": "OI-7",
+      "family": "Configured413 production proof fixture admission",
+      "severity": "blocking",
+      "paths": [
+        "crates/ryo/languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs:48"
+      ],
+      "failure": "Actualruff_sharing290 failed before engine: sealed corpus requires unique actual tracked paths covering every requested source. Canonical selection code exists, but this invocation produced no admitted configured413 sharing proof.",
+      "falsifier": "Provide a genuinely tracked sealed corpus through production suite/worker APIs and rerun the normalruff_sharing target on the combined source; do not bypass or weaken the sealing contract. Then separately satisfy OI-4 independent census/reached-eligible controls.",
+      "proof_state": "Executed0PASS/1FAIL on36e.",
+      "matrix_rows": [
+        "P3.12",
+        "C7"
+      ]
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "P3-1",
+      "status": "fixed_in_source_unverified_runtime",
+      "reason": "Whole-execution shared-walk rule now covers inbound/domain/outbound resolved aliases and exact semantic proof; source-matched TM asset receipt has zero shared-walk-owner findings. Does not resolve OI-1 or overall structural failure."
+    },
+    {
+      "id": "P3-2",
+      "status": "rejected",
+      "reason": "Opus reopened the previous invalid-empty-Project allegation without a reachable falsifier. Mandatory runtime check_schema executes before ordinary KernelPermit issuance and shared readiness (runtime/service.rs1284-1295); PreparedWalk::resolve_class rejects out-of-bounds projection columns (value.rs173-176). Previous rejection is retained; no production fault is established by the later duplicated check in kernel_session."
+    },
+    {
+      "id": "MP-1",
+      "status": "narrow_external_controls_pass_on_successor",
+      "reason": "Actual290 external-root exit suite passes all6variants and internal producer lifetime tests pass. Project suitefails on its firstComplete variant, so entire lifecycle family remainsopen.",
+      "source": "36e92e315178eceeebf14e6fed59754c2f055383"
+    },
+    {
+      "id": "OI-3",
+      "status": "fixed_on_successor",
+      "source": "36e92e315178eceeebf14e6fed59754c2f055383",
+      "reason": "Lead inspected36e: scope/population/policy/running checks precede retained terminal lookup; cleanup blocks only new work; finish still reports it. Actual290 named cleanup-precedence controlPASS. Does not close project cleanup/cancellation family."
+    },
+    {
+      "id": "Known structural residuals",
+      "status": "open",
+      "reason": "Actual TM2722/0suppressed overall FAIL;14 residual cycle edges and2oldfixture program-boundary findings remain. New preparation/protocol/runtime owner roles have zero reported placement/cycle findings; narrow success does not close whole ownership."
+    },
+    {
+      "id": "OI-5",
+      "status": "fixed_on_successor",
+      "source": "36e92e315178eceeebf14e6fed59754c2f055383",
+      "reason": "Actual9cratebuildPASS; correctedHashderive and Inputsimport; validate_project owns pointer/partition check without exposing fields. Publicboundary90/90PASS, actualsourceauthoritypositive+8negativecases included. No alias/sourceproof control was added yet."
+    }
+  ],
+  "inventory": {
+    "source_kinds": [
+      "Relation",
+      "Hosted",
+      "Region",
+      "Observation",
+      "EmptyObservation",
+      "ObservationMember(Current/restored)"
+    ],
+    "representations": [
+      "Stored",
+      "Selected",
+      "Tree",
+      "Positioned",
+      "Computed",
+      "Compact"
+    ],
+    "kernel_dispatch": [
+      "Registered",
+      "Walk",
+      "NativeJoin",
+      "Physical"
+    ],
+    "kernel_invocation": [
+      "ready",
+      "ordered",
+      "positions",
+      "selected",
+      "column",
+      "evaluate"
+    ],
+    "physical_authorizations": [
+      "Registered",
+      "Positions",
+      "Ordered",
+      "Column"
+    ],
+    "walk_delivery": [
+      "Positions",
+      "Stored",
+      "Rows"
+    ],
+    "operation_kinds": [
+      "Replace",
+      "OrderedMatch",
+      "Select",
+      "Project",
+      "Extend",
+      "Join",
+      "Union",
+      "Intersection",
+      "Difference",
+      "Antijoin",
+      "GroupCount",
+      "GroupDigest",
+      "Capture",
+      "Rank",
+      "Words",
+      "Axis",
+      "Closure",
+      "Cycles",
+      "Rows",
+      "Hosted",
+      "SpanBetween",
+      "SourceMatches",
+      "RenderSyntax",
+      "FitsRendered",
+      "SpanBounds",
+      "OrderedDfs"
+    ],
+    "walk_barriers": [
+      "Representation",
+      "DependentInput",
+      "Observation",
+      "RowSemantics",
+      "DerivedOrOrdered",
+      "RequestOwnedSource",
+      "Continuation"
+    ],
+    "constructors": {
+      "ProgramExecution::open": [
+        "facade_runtime/file_execution.rs:65",
+        "facade_runtime/project_execution.rs:217",
+        "runtime/lifecycle/inputs/fixtures.rs:115(test)",
+        "facade_runtime/compiled_parity/source_partition/test.rs:161(test)"
+      ],
+      "KernelPermit": [
+        "runtime/service.rs:1067(ordered)",
+        "runtime/service.rs:1165(column)",
+        "runtime/service.rs:1288(admitted)"
+      ],
+      "raw_walk_evaluate": [
+        "application/file_dag/program/native_walk.rs:292",
+        "domain/shared_walk/service_test.rs:27(test)"
+      ]
+    },
+    "actual_source_boundary_cases": {
+      "positive": 1,
+      "negative": 8,
+      "scope": "runtime/service authorized constructors + WalkResult Send/Sync/static; program sibling owner retarget, authority forge, three no-authority constructors, permit region retarget, walk ready-list retarget, removed walk factory",
+      "limits": "No runtime-module alias/Self issuer negative; no actual shared-cache reentrant delivery control; default-feature inner compiler."
+    },
+    "new_lifecycle_cases": {
+      "external_exit_variants": [
+        "Finish",
+        "RejectedDelivery",
+        "SemanticFailure",
+        "ProviderRefusal",
+        "SkippedAlias",
+        "UndemandedAlias"
+      ],
+      "project_exit_variants": [
+        "Complete",
+        "SemanticFailure",
+        "RefuseBeforeWork",
+        "RefuseLaterCohort"
+      ],
+      "cleanup": "repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup"
+    }
+  },
+  "matrix": {
+    "historical": "Earlier audit and validation280 preserve their named historical source-bound proofs only. Do not carry old60/22 aggregate counts forward. Newly contradicted cells are reopened; no whole category closes.",
+    "affected_rows": "OI findings identify affected rows individually. Broad B3/B4d.12-14/B5.4-5/B5.8-10/P3.7/P3.10-12 remain open. P3.10 owned result representation is source-supported but actual same-walk-cache reentrant delivery control is still missing.",
+    "stale_documentation": [
+      "Frozenfb55 README checkpoint6331a0601 and program/runtime.rs anchor predate ownership split; successor0acf checkpoint now names36e and open work.",
+      "Successor0acf boundary/sharing status still pending although290 final receipts now show boundary90PASS/sharing0PASS1FAIL; refresh without promoting broad rows."
+    ],
+    "current_checkpoint": {
+      "commit": "0acf1a421",
+      "rows_reopened": [
+        "B4a.4",
+        "B4d.6",
+        "B5.2",
+        "P3.2"
+      ],
+      "disposition": "Read granular successor README checkpoint. It correctly reopens authority/publication/census claims and identifies lifecycle failure; its boundary/sharing pending wording predates final290 receipts and needs refresh."
+    }
+  },
+  "evidence": {
+    "author_receipt": {
+      "path": "/tmp/ryo-application-ownership-inversion-20261106/source-receipt.json",
+      "source": "14fe2f927062e0611b169bf897a8fd9478515239",
+      "hash_equivalence": "62 listed paths checked:60 matching content hashes+2matching deletions;0mismatches",
+      "scope_limit": "Does not transfer claims to unlisted files or prove current compile/runtime"
+    },
+    "build288": {
+      "path": "/tmp/ryo-phase3-validation288-20261106/build.json",
+      "source": "fb55bf0e4963266e6ff34065ac3020293b1ab35f",
+      "exit": 101,
+      "production_errors": 3,
+      "additional_test_errors": 3
+    },
+    "opus": {
+      "requested_model": "opus",
+      "actual_model": "claude-opus-5-5",
+      "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+      "round_uuid": "b39e9ee8-ee15-455d-8711-3d21baf65bde",
+      "exit": 0,
+      "raw": "/tmp/ryo-ownership-review-opus-fb55/raw.json",
+      "metadata": "/tmp/ryo-ownership-review-opus-fb55/metadata.json",
+      "parsed": "/tmp/ryo-ownership-review-opus-fb55/verdict.json",
+      "clean_before_after": true,
+      "disagreement": "Lead rejects re-opened P3-2 and adds issuer-alias, cleanup-precedence and synthetic-census findings Opus missed."
+    },
+    "validation290": {
+      "path": "/tmp/ryo-phase3-validation290-20261106",
+      "source": "36e92e315178eceeebf14e6fed59754c2f055383",
+      "build": {
+        "exit": 0,
+        "scope": "ninecrates allfeatures tests"
+      },
+      "execution": {
+        "pass": 433,
+        "fail": 1,
+        "failure": "project_batch_success_failure_and_cancellation_release_actual_phase_leases:Complete:NotRun"
+      },
+      "sdk": {
+        "pass": 43,
+        "fail": 0
+      },
+      "derived_matching_operators_query_values": {
+        "pass": 155,
+        "fail": 0
+      },
+      "core": {
+        "pass": 175,
+        "fail": 6,
+        "scope": "same deferred output/persistence failures"
+      },
+      "public_boundary": {
+        "pass": 90,
+        "fail": 0,
+        "includes": "actualsourceauthoritypositive+8negativecases"
+      },
+      "sharing": {
+        "pass": 0,
+        "fail": 1,
+        "reason": "sealed corpus requires unique actual tracked paths covering every requested source"
+      },
+      "narrow_confirmed": [
+        "cleanup precedence namedcontrolPASS",
+        "external-root6exitvariantsPASS",
+        "internal consumer zero-budget/provider/refusal/skip lifetimecontrolsPASS"
+      ],
+      "limits": [
+        "Project loop stops on firstComplete error; later3variants not reached.",
+        "No measured performance or benchmark acceptance;ruff_sharing is a correctness/ownership test.",
+        "Opus has not reviewed36e or later author repairs."
+      ]
+    }
+  },
+  "exclusions": [
+    "No reviewer build/test/TM execution or repository mutation.",
+    "No performance/tuning/benchmark measurements;user deferred until phases2-6 complete.",
+    "Deferred output-correctness and persistence faults remain recorded for phases1/6.",
+    "No relation/operator/derived category closure."
+  ],
+  "manual_judgment": [
+    "Source-level API falsifiers require implementer-executed controls before closure.",
+    "Normal CI includes TM and workspace all-targets plus trusted ci/contract_review/command.py loading; fresh negative/positive review-gate receipts not supplied, so B5.13 stays open."
+  ],
+  "evidence_hashes": [
+    {
+      "path": "/tmp/ryo-ownership-review-opus-fb55/raw.json",
+      "sha256": "c72293eee6e699f03355950eab9607338d90f8d0e75698d354aebb88c415d6de"
+    },
+    {
+      "path": "/tmp/ryo-ownership-review-opus-fb55/metadata.json",
+      "sha256": "2d60fc47fa672be1d961fa2db630819ec1d1c2e83a334cfde79631f81fe0873f"
+    },
+    {
+      "path": "/tmp/ryo-application-ownership-inversion-20261106/source-receipt.json",
+      "sha256": "c49e1d693b3adb7f7aa854c71bee35f9cc76ca37042b08c89a6e2eb74f0af6a9"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation288-20261106/build.json",
+      "sha256": "d0c52935cee133455a47a7a7203852d917bc4ab51e8d7bf98f6f4e81732d96d2"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation288-20261106/build.log",
+      "sha256": "f36b6a1f6e40718c6d4afb49ea1a123c1de0c58ac099938cfba5f71191517cb0"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/identity.json",
+      "sha256": "fef057fe0f596a9b1ec7a4ebba10a7c2507ece606124d1203ab82d48e8d010dc"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/build.json",
+      "sha256": "ddd59447143e687c33ce8d27777f685218af6c2b834c4ffecd2cd239dc5a36c2"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/libraries.json",
+      "sha256": "07e0825dde2ce315892d956f428a2dcf9b9fcbcd0d294a978dea12147533da7c"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/boundary.json",
+      "sha256": "2ad43bdaca18f80047595bd48476f7e9448d7a126fecf5b6cdb0655d383744c1"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/sharing.json",
+      "sha256": "a88153f0ab03bb220638168d1f0fc8294dc81750ef3d062f5ff833cb7a8af875"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/libraries.log",
+      "sha256": "42977383b405ba325f99565ff3ccb99d3cad9f3508527079000f619419ffc9d5"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/boundary.log",
+      "sha256": "61fdeb71c8351498d40c32213d5ab8d8ad92c2035ded9c36054a9f5a1a842f56"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation290-20261106/sharing.log",
+      "sha256": "92b768a05fc35c3f05841f9b2a2161b667b35002ca203876cb8783d8405b8662"
+    }
+  ],
+  "successor_source": {
+    "head": "36e92e315178eceeebf14e6fed59754c2f055383",
+    "tree": "8bc9f20d830f14c92992d3ae0e7feac9e64e3dec",
+    "review_scope": "Lead read the four-file corrective diff and actual validation290 receipts; retained Opus round remains bound tofb55. This is no whole-source approval of successor."
+  },
+  "retained_reviewers": {
+    "lead_task": "/root/ownership_review_astra",
+    "opus_session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+    "next_round": "Resume same Opus session for one coherent exact successor source plus combined receipts; initialfb55 verdict remains blocking."
+  }
+}

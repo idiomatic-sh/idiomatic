@@ -52,9 +52,15 @@ A checkbox requires the whole named item to pass; source progress is recorded se
 | 7 QUEUED | [ ] Measure full-Django cold/warm/edit and Rust regressions; meet final objective. | No new performance measurement during phases2–6. |
 
 Latest combined nine-crate build passes. Validation290: execution433/434,
-SDK43/43, other five libraries155/155; Core175/181. Public boundary and
-actual413 sharing suites were still running/pending when this checkpoint was written.
+SDK43/43, other five libraries155/155; Core175/181. Public boundaries90/90 pass. The actual413 sharing test failed before engine
+execution because its sealed corpus omitted the tracked source path; correction
+is committed but unrun. The four project exit variants now register separately
+so one failure cannot hide the others.
 The project lease failure is an ownership blocker, not a deferred output failure.
+The [current paired review](audits/2026-11-06-ownership/review.json) records
+issuer aliases, mismatched publication/proof pairs, physical census omissions
+and the failing project/413 controls. Issuer/identity repair is in a separate
+source wave; census and tracked-fixture corrections are integrated but unrun.
 
 ### Phase 2 completion checklist
 
@@ -198,7 +204,7 @@ C4b (all output/completeness corrections, including LP-2) is explicitly deferred
 
 **Phase 3 — Shared file walk (matrix 20b; source wave from `238f9538b`)**
 
-Checkmarks below are narrow source-bound proofs from the [paired review](audits/2026-11-06-shared-walk/review.json): Phase 2 has 60 verified rows, 22 open and one deferred measurement; Phase 3 has seven verified and five open. These are not completion percentages. New source changes still require successor validation. Validation280 on `c5abcc1da4` compiles the integrated batch and passes execution431/431 and public boundaries90/90. These suites do not establish full configured-inventory sharing or complete structural enforcement; no performance measurement was run.
+Checkmarks below retain narrow historical source-bound proofs from the [earlier review](audits/2026-11-06-shared-walk/review.json). The current review has reopened contradicted claims; historical completion counts no longer describe this matrix. New source changes require successor validation. Validation280 on `c5abcc1da4` compiles the integrated batch and passes execution431/431 and public boundaries90/90. These suites do not establish full configured-inventory sharing or complete structural enforcement; no performance measurement was run.
 
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
