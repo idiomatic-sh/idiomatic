@@ -10,9 +10,9 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
-#[path = "adapter_test/scenario_test.rs"]
-mod scenario_test;
-use scenario_test::{
+#[path = "engine_test/adapter_scenario_test.rs"]
+mod adapter_scenario_test;
+use adapter_scenario_test::{
     AdapterScenario, finding_bytes, invocation_matches,
     reference_roots_must_match_the_declared_project_scope,
 };

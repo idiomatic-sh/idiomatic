@@ -1,14 +1,13 @@
 //! Actual local-adapter checks of canonical module features and annotation evaluation positions.
 use super::boundary_failure_test::{BoundaryFailure, failure};
-use super::prepared_engine_test::PreparedEngine as _;
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
-#[path = "compiler_feature_test/context_case_test.rs"]
+#[path = "engine_test/context_case_test.rs"]
 mod context_case_test;
 use context_case_test::{ContextCase, check_case, stage_modules};
-#[path = "compiler_feature_test/scope_test.rs"]
+#[path = "engine_test/scope_test.rs"]
 mod scope_test;
 use scope_test::{
     authored_suppression_cohort_queries_validate_through_public_sdk_contracts,
