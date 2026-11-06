@@ -26,7 +26,7 @@ ryo::reads! {
                     Stage::Parse => PARSE,
                     Stage::Validation => VALIDATION,
                 }))),
-                schema: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&diagnosis.schema.0))),
+                schema: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&diagnosis.read_as.0))),
                 code: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(match diagnosis.stage {
                     Stage::Parse => UNREADABLE_MANIFEST,
                     Stage::Validation => UNRESOLVED_CATALOG_ENTRY,

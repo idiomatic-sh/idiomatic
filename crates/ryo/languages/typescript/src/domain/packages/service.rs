@@ -105,7 +105,7 @@ pub(crate) fn diagnoses_in(files: &[languages::FilePath], packages: &Packages) -
         .filter_map(|refused| {
             file(files, &ManifestPath(refused.path.0.clone())).map(|at| Diagnosed {
                 file: at,
-                schema: Schema(
+                read_as: ReadAs(
                     refused
                         .path
                         .0

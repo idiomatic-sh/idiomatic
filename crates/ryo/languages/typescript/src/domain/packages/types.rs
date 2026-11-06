@@ -141,17 +141,17 @@ pub(crate) enum Stage {
     Validation,
 }
 
-/// The name of the schema a manifest is read as, which is the name of its file.
+/// The name a manifest is read as, which is the name of its file.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Schema(pub Box<str>);
+pub(crate) struct ReadAs(pub Box<str>);
 
 /// A manifest refused, as the relation `manifest-diagnostic` says of it: the file, the schema it is read as, the stage and what was said.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Diagnosed {
     /// The manifest, by its place among the files of the run.
     pub file: languages::FileId,
-    /// The schema the manifest is read as: its file name.
-    pub schema: Schema,
+    /// The name the manifest is read as.
+    pub read_as: ReadAs,
     /// The stage.
     pub stage: Stage,
     /// What was said.
