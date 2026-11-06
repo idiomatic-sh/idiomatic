@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::errors::ProgramError;
 use super::types::{
-    ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, SourceText,
+    ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, QuerySourceText,
 };
 
 /// Validate and construct a stable source identifier.
@@ -21,7 +21,7 @@ pub fn source_id(text: QuerySpelling<'_>) -> Result<QuerySourceId, ProgramError>
 
 /// Construct a source record after its identity has been checked.
 #[must_use]
-pub fn document_source(id: QuerySourceId, text: impl Into<SourceText>) -> QueryDocumentSource {
+pub fn document_source(id: QuerySourceId, text: impl Into<QuerySourceText>) -> QueryDocumentSource {
     QueryDocumentSource {
         id,
         text: text.into(),
@@ -96,7 +96,7 @@ pub fn standalone(text: QuerySpelling<'_>) -> Result<QueryBundle, ProgramError> 
 
 /// The root source's exact text.
 #[must_use]
-pub fn root_text(bundle: &QueryBundle) -> &SourceText {
+pub fn root_text(bundle: &QueryBundle) -> &QuerySourceText {
     &bundle.root.text
 }
 

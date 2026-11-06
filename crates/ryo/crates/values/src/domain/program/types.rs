@@ -33,14 +33,14 @@ pub struct QueryDocumentSource {
     /// The stable logical identity used by imports and diagnostics.
     pub id: QuerySourceId,
     /// Exact immutable UTF-8 bytes, shared by snapshots without copying source text.
-    pub text: SourceText,
+    pub text: QuerySourceText,
 }
 
 /// The exact text of one query source, shared by snapshots without copying.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SourceText(pub std::sync::Arc<str>);
+pub struct QuerySourceText(pub std::sync::Arc<str>);
 
-impl std::ops::Deref for SourceText {
+impl std::ops::Deref for QuerySourceText {
     type Target = str;
 
     fn deref(&self) -> &str {
@@ -48,25 +48,25 @@ impl std::ops::Deref for SourceText {
     }
 }
 
-impl From<&str> for SourceText {
+impl From<&str> for QuerySourceText {
     fn from(text: &str) -> Self {
         Self(text.into())
     }
 }
 
-impl From<String> for SourceText {
+impl From<String> for QuerySourceText {
     fn from(text: String) -> Self {
         Self(text.into())
     }
 }
 
-impl From<Box<str>> for SourceText {
+impl From<Box<str>> for QuerySourceText {
     fn from(text: Box<str>) -> Self {
         Self(text.into())
     }
 }
 
-impl From<std::sync::Arc<str>> for SourceText {
+impl From<std::sync::Arc<str>> for QuerySourceText {
     fn from(text: std::sync::Arc<str>) -> Self {
         Self(text)
     }
