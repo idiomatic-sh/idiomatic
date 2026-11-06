@@ -353,7 +353,7 @@ pub fn stored(tag: u8) -> Stored {
 
 /// What the files of `stored(tag)` handed.
 fn handed(tag: u8) -> StoredHanded {
-    StoredHanded {
+    StoredHanded(ryo_values::domain::stores::types::HandedRows {
         observations: Vec::new(),
         proofs: vec![ryo_values::domain::stores::types::StoredFrontierProof {
             file: StoredFileNumber(0),
@@ -387,7 +387,7 @@ fn handed(tag: u8) -> StoredHanded {
                 at: PartialScope::Repository,
             }],
         }],
-    }
+    })
 }
 
 /// The same as `stored`, with a file no language could parse.

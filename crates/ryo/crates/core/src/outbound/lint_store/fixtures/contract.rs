@@ -37,14 +37,14 @@ pub fn materialized_handed(
             words,
         });
     }
-    Ok(StoredHanded {
+    Ok(StoredHanded(ryo_values::domain::stores::types::HandedRows {
         observations: handed.observations,
         proofs: handed.proofs,
         frontier: rows,
         texts: handed.texts,
         notes: handed.notes,
         covered: handed.covered,
-    })
+    }))
 }
 
 /// What a row of the contract asks of a store.

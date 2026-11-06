@@ -14,7 +14,7 @@ use crate::domain::{
         StoredPartial,
     },
     stores::types::{
-        KeptRows, StagedRow, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes,
+        HandedRows, KeptRows, StagedRow, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes,
         StoredText, StoredWords,
     },
 };
@@ -351,13 +351,13 @@ fn records() -> RetainedBytes {
     actual
 }
 fn stored() -> RetainedBytes {
-    let mut owner = StoredHanded {
+    let mut owner = StoredHanded(HandedRows {
         frontier: Vec::with_capacity(3),
         texts: Vec::with_capacity(4),
         notes: Vec::with_capacity(5),
         covered: Vec::with_capacity(6),
-        ..StoredHanded::default()
-    };
+        ..HandedRows::default()
+    });
     owner.frontier.push(StoredWords {
         file: StoredFileNumber(0),
         bucket: Bucket(0),

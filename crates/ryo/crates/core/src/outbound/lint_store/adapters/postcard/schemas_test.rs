@@ -98,10 +98,10 @@ fn handed_reads_back(stored: &Stored) -> bool {
         words.extend(read);
     }
     rest.is_some_and(|rest| {
-        StoredHanded {
+        StoredHanded(ryo_values::domain::stores::types::HandedRows {
             frontier: words,
-            ..rest
-        } == stored.handed
+            ..rest.0
+        }) == stored.handed
     })
 }
 

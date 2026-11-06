@@ -102,10 +102,40 @@ pub struct FileAgain {
 }
 
 /// What each file handed the steps that read across files and the project, in tables of their own.
-pub type StoredHanded = HandedRows<StoredWords>;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StoredHanded(pub HandedRows<StoredWords>);
+
+impl std::ops::Deref for StoredHanded {
+    type Target = HandedRows<StoredWords>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for StoredHanded {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// One snapshot's read representation; old words need not be retained as payload bytes.
-pub type ReadHanded = HandedRows<ReadWords>;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ReadHanded(pub HandedRows<ReadWords>);
+
+impl std::ops::Deref for ReadHanded {
+    type Target = HandedRows<ReadWords>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for ReadHanded {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// Rest tables share their unchanged representation across persistent writes and snapshot reads.
 #[derive(Clone, Debug, PartialEq, Eq)]

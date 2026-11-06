@@ -1008,7 +1008,7 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
             });
         }
     }
-    Ok(StoredHanded {
+    Ok(StoredHanded(ryo_values::domain::stores::types::HandedRows {
         proofs,
         observations: rest
             .observations
@@ -1073,7 +1073,7 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
             })
             .collect(),
         covered,
-    })
+    }))
 }
 
 /// The tables of `stored` but what its files handed, as their section's bytes.

@@ -1,12 +1,13 @@
 //! Move inline handover values into the snapshot read representation, without IO.
 
-use super::types::{KeptRows, ReadHanded, ReadWordPayload, ReadWords, StoredHanded};
+use super::types::{HandedRows, KeptRows, ReadHanded, ReadWordPayload, ReadWords, StoredHanded};
 use crate::domain::stored_facts::types::Bucket;
 
 /// Custom and memory stores retain inline payloads while sharing all rest-table types.
 #[must_use]
 pub fn read_handed(stored: StoredHanded) -> ReadHanded {
-    ReadHanded {
+    let stored = stored.0;
+    ReadHanded(HandedRows {
         observations: stored.observations,
         proofs: stored.proofs,
         frontier: stored
@@ -22,7 +23,7 @@ pub fn read_handed(stored: StoredHanded) -> ReadHanded {
         texts: stored.texts,
         notes: stored.notes,
         covered: stored.covered,
-    }
+    })
 }
 
 /// Keep metadata for exactly the payload buckets copied from the prior store.
