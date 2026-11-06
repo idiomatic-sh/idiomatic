@@ -14,6 +14,7 @@ from authoring import profile_cli_tests
 from authoring import profile_config
 from authoring import profile_proof_tests
 from authoring import profile_proofs
+from authoring import native_standalone
 from authoring import profile_shards
 from authoring import profile_staging
 from authoring import profile_worker
@@ -96,7 +97,7 @@ def main() -> int:
         if not arguments.resume:
             profile_proofs.verify_files(manifest, helper_path)
         if arguments.native_standalone:
-            manifest = profile_proofs.native_standalone_manifest(manifest)
+            manifest = native_standalone.native_standalone_manifest(manifest)
             if output_directory is not None:
                 shutil.copyfile(profile_config.NATIVE_DESCRIPTOR_FILE, output_directory / 'native-standalone.json')
                 profile_config.atomic_json_write(output_directory / 'native-execution.json', {'identity': manifest['native_identity'], 'profiles': manifest['profiles'], 'limits': 'New explicit singleton execution contract; no historical correctness certification; combined cohorts are separate.'})
