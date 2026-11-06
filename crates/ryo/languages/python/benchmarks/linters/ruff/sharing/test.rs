@@ -14,6 +14,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 fn subject(_: Input) -> Result<Value, Failure> {
     let observed = observe().map_err(|error| error.to_string())?;
     verify(observed.clone())?;
+    // The trace dispatcher installs once per process, so both controls reuse this observation.
+    let mut silent = observed.clone();
     let mut omitted = observed;
     assert!(
         omitted.dispatches.len() > 1,
@@ -28,7 +30,6 @@ fn subject(_: Input) -> Result<Value, Failure> {
     );
     // Dropping every dispatch of one file generation must fail too: no generation is
     // covered by another's evidence.
-    let mut silent = observe().map_err(|error| error.to_string())?;
     silent
         .dispatches
         .retain(|dispatch| dispatch.generation != generation);
@@ -98,20 +99,47 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         2,
         "one file generation for each of the two files"
     );
-    let populations = generations
+    // A population id names a canonical producer population of the program, so it may
+    // repeat across files; the walk keys its batches by (generation, population). Each
+    // generation therefore admits the same heads on its own, and no key collapses across
+    // generations.
+    let heads_of = |generation: &str| {
+        observed
+            .ready
+            .iter()
+            .filter(|head| head.generation == generation)
+            .map(|head| head.logical)
+            .collect::<BTreeSet<_>>()
+    };
+    let per_generation = generations
         .iter()
-        .map(|generation| {
-            observed
-                .ready
-                .iter()
-                .filter(|head| head.generation == *generation)
-                .map(|head| head.population.as_str())
-                .collect::<BTreeSet<_>>()
-        })
+        .map(|generation| heads_of(generation))
         .collect::<Vec<_>>();
-    assert!(
-        populations[0].is_disjoint(&populations[1]),
-        "populations are not reused across file generations"
+    assert!(!per_generation[0].is_empty());
+    assert_eq!(
+        per_generation[0], per_generation[1],
+        "each file generation admits the same heads on its own"
+    );
+    let keys = observed
+        .ready
+        .iter()
+        .map(|head| {
+            (
+                head.generation.as_str(),
+                head.population.as_str(),
+                head.logical,
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        keys.len(),
+        observed
+            .ready
+            .iter()
+            .map(|head| (head.generation.as_str(), head.logical))
+            .collect::<BTreeSet<_>>()
+            .len(),
+        "one population per head within a generation; no key is shared across generations"
     );
     for dispatch in &observed.dispatches {
         assert!(
