@@ -157,11 +157,10 @@ fn normalize_frame(
             places: &mut places,
         },
     );
-    if table
-        .cells
-        .iter()
-        .any(|value| matches!(value, Value::Symbol(_)))
-    {
+    // `NO_SYMBOL`, the text of a node that has none, names no producer's text: it crosses as it is.
+    if table.cells.iter().any(
+        |value| matches!(value, Value::Symbol(symbol) if *symbol != ryo_relations::domain::relations::constants::NO_SYMBOL),
+    ) {
         return Err(PublicationReason::ProducerSymbolUnescaped);
     }
     Ok(places)

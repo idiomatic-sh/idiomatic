@@ -1,5 +1,5 @@
 //! The original producer-name normalization assertions, beside the actual execution-owned implementation.
-use super::service::{carry, escape};
+use super::service::{carry, escape, escape_frame};
 use super::types::{Arena, Leaves, Leaving, Retained};
 use ryo_language::domain::symbols::{
     service::{derived_of, intern, intern_derived, place_of, places_of},
@@ -20,6 +20,7 @@ enum Scenario {
     Escaped,
     EscapedWithText,
     Carried,
+    FramedWithoutText,
 }
 type Input = Scenario;
 type Value = usize;
@@ -42,6 +43,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_name_the_project_wrote_compares_with_the_name_a_file_handed_over"),
         word: Word::Succeeds,
         input: || Scenario::Carried,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_node_without_text_leaves_in_a_frame_and_a_symbol_of_no_name_does_not"),
+        word: Word::Succeeds,
+        input: || Scenario::FramedWithoutText,
         expect: Expect::Value(1),
     },
 ];
@@ -146,11 +153,39 @@ fn carried() -> Value {
     });
     usize::from(carried.is_some() && carried == escaped && text == Some(b"bee".as_slice()))
 }
+/// A frame of rows whose `text` is `NO_SYMBOL` (a node, which has no text) is published with it as it is; a symbol the producer
+/// cannot name is still refused.
+fn framed_without_text() -> Value {
+    use ryo_relations::domain::relations::constants::NO_SYMBOL;
+    use ryo_relations::domain::terms::types::Symbol;
+    let symbols = Symbols::default();
+    let frame = |cell: Cell| {
+        let mut table = names(cell);
+        let published = escape_frame(
+            &mut table,
+            Leaving {
+                symbols: &symbols,
+                source: SourceView(SOURCE),
+                file: FileId(0),
+                worker: WorkerNumber(2),
+                text: Leaves::WithText,
+            },
+            Arena(&mut Vec::new()),
+        );
+        (published, table)
+    };
+    let (published, table) = frame(Cell::Symbol(NO_SYMBOL));
+    let kept = published.is_ok_and(|places| places.is_empty())
+        && matches!(row_in(&table, RowIndex(0)), Some([Cell::Symbol(symbol)]) if *symbol == NO_SYMBOL);
+    let (unnamed, _) = frame(Cell::Symbol(Symbol(7)));
+    usize::from(kept && unnamed == Err(super::types::PublicationReason::ProducerSymbolUnescaped))
+}
 fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
         Scenario::Escaped => escaped(),
         Scenario::EscapedWithText => escaped_with_text(),
         Scenario::Carried => carried(),
+        Scenario::FramedWithoutText => framed_without_text(),
     })
 }
 #[test]
