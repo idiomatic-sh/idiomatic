@@ -4,6 +4,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_texts::types::RegexPattern;
 use ryo_matching::inbound::use_cases::matching::{
     compiled::{CompiledRegex, CompiledTextGlobs},
+    errors::MatchingError,
     interface::MatchingUseCase,
     use_case::MatchingUseCaseImpl,
 };
@@ -92,7 +93,7 @@ impl PreparedMatchers {
                 let _previous = self
                     .builds
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                crate::domain::matching::service::compile_regex(pattern)
+                compile_regex(pattern)
             })
             .as_ref()
             .map_err(Clone::clone),
@@ -112,4 +113,15 @@ impl PreparedMatchers {
             MatchingUseCaseImpl::new().compile_text_globs(&[pattern])
         }))
     }
+}
+
+/// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
+pub(crate) fn compile_regex(pattern: &str) -> Result<CompiledRegex, OperatingError> {
+    MatchingUseCaseImpl::new()
+        .compile_regex(pattern)
+        .map_err(|error| {
+            let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) =
+                error;
+            OperatingError::InvalidRegex { reason }
+        })
 }

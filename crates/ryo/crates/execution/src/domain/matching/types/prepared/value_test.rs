@@ -97,7 +97,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 0,
                 "wrong-typed operands never initialize the slot"
             );
-            let expected = crate::domain::matching::service::compile_regex("[").unwrap_err();
+            let expected = super::value::compile_regex("[").unwrap_err();
             for _ in 0..2 {
                 assert!(matches!(slots.regex("[").unwrap(),Err(ref error) if *error==expected));
             }
