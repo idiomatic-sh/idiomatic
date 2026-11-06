@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_PARAMETER_TYPE,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownParameterType { .. }))
+            selects!(matches!(error, LoweringError::UnknownParameterType { .. }))
         }),
     },
 ];

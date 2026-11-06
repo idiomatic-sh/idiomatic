@@ -10,7 +10,7 @@ use ryo_values::domain::program::types::{
 };
 
 use super::errors::LinkingError;
-use super::types::{Bindings, Imported};
+use super::types::{Bindings, BoundArguments, Imported, ParameterCheck, Refusal, ScalarMatch};
 use crate::domain::syntax::constants::{
     BOOLEAN_WORDS, fragment_scalar_kind_named, relation_cell_kind_named,
 };
@@ -57,13 +57,14 @@ pub(crate) fn link_with_observations(
     validate_import_targets(bundle, &imports)?;
     reject_cycles(&root_id, &imports, fragments)?;
 
-    let mut next = root
-        .steps
-        .iter()
-        .filter_map(|step| step.name.1.map(|identity| identity.0))
-        .max()
-        .unwrap_or(0)
-        .saturating_add(1);
+    let mut next = StepIdentity(
+        root.steps
+            .iter()
+            .filter_map(|step| step.name.1.map(|identity| identity.0))
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1),
+    );
     let mut linked = Vec::new();
     let mut root_visible = Vec::new();
     let mut contracts = Vec::new();
@@ -103,7 +104,7 @@ pub(crate) fn link_with_observations(
                     &root_visible,
                     &root_id,
                     &[],
-                    false,
+                    ParameterCheck::Lenient,
                 )?;
             }
             linked.push(remapped_step);
@@ -372,7 +373,7 @@ fn expand(
     inherited_inputs: &Bindings,
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
-    next: &mut u64,
+    next: &mut StepIdentity,
     trace: &[QueryTraceSite],
     origins: &mut Vec<QueryOrigin>,
     step_origins: &mut BTreeMap<StepIdentity, QueryOrigin>,
@@ -386,7 +387,7 @@ fn expand(
             format!("query module `{}` was not parsed", source.0),
         )
     })?;
-    let (inputs, parameters) = bind_arguments(
+    let BoundArguments { inputs, parameters } = bind_arguments(
         source,
         fragment,
         call,
@@ -424,8 +425,8 @@ fn expand(
                 )
             })?
         } else {
-            let fresh = StepIdentity(*next);
-            *next = next.saturating_add(1);
+            let fresh = *next;
+            *next = StepIdentity(next.0.saturating_add(1));
             fresh
         };
         let _previous_identity = identities.insert(identity, replacement);
@@ -558,7 +559,7 @@ fn bind_arguments(
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
     trace: &[QueryTraceSite],
-) -> Result<(Bindings, Bindings), LinkingError> {
+) -> Result<BoundArguments, LinkingError> {
     let mut given = BTreeMap::new();
     for argument in &call.arguments {
         if given
@@ -630,7 +631,7 @@ fn bind_arguments(
             )
         })?;
         let value = substitute_value(value, inherited_parameters);
-        if !scalar_matches(&parameter.kind.0, &value, root_parameters) {
+        if scalar_matches(&parameter.kind, &value, root_parameters) == ScalarMatch::Differs {
             return Err(located(
                 source,
                 call.span,
@@ -643,7 +644,7 @@ fn bind_arguments(
         }
         let _previous_parameter = parameters.insert(parameter.name.0.clone(), value);
     }
-    Ok((inputs, parameters))
+    Ok(BoundArguments { inputs, parameters })
 }
 
 /// Resolves a relation argument against inherited bindings and visible preceding steps.
@@ -674,12 +675,12 @@ fn bind_relation_argument(
 
 /// Checks a fragment scalar argument against its declared parameter type.
 fn scalar_matches(
-    kind: &str,
+    kind: &ryo_values::domain::program::types::TypeName,
     value: &ArgumentValue,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
-) -> bool {
-    let Some(expected) = fragment_scalar_kind_named(kind) else {
-        return false;
+) -> ScalarMatch {
+    let Some(expected) = fragment_scalar_kind_named(&kind.0) else {
+        return ScalarMatch::Differs;
     };
     let actual = match value {
         ArgumentValue::Text(_) => Some(ParameterType::Text),
@@ -696,7 +697,11 @@ fn scalar_matches(
         | ArgumentValue::List(_)
         | ArgumentValue::Map(_) => None,
     };
-    actual == Some(expected)
+    if actual == Some(expected) {
+        ScalarMatch::Matches
+    } else {
+        ScalarMatch::Differs
+    }
 }
 
 /// Rewrites one fragment step's local identities, inputs, parameters, and nested calls.
@@ -717,7 +722,15 @@ fn remap_step(
             remap_select(select, identities, inputs, parameters, source, trace)?;
         }
         Expression::Call(call) => {
-            remap_call(call, inputs, parameters, preceding, source, trace, true)?;
+            remap_call(
+                call,
+                inputs,
+                parameters,
+                preceding,
+                source,
+                trace,
+                ParameterCheck::Strict,
+            )?;
         }
     }
     Ok(())
@@ -854,9 +867,9 @@ fn remap_call(
     preceding: &[LetStep],
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
-    strict_parameters: bool,
+    strictness: ParameterCheck,
 ) -> Result<(), LinkingError> {
-    if strict_parameters
+    if strictness == ParameterCheck::Strict
         && let Some(parameter) = call
             .arguments
             .iter()
@@ -995,7 +1008,7 @@ fn located(
     source_id: &QuerySourceId,
     span: QuerySpan,
     trace: Vec<QueryTraceSite>,
-    message: impl Into<String>,
+    message: impl Into<Refusal>,
 ) -> LinkingError {
     LinkingError::Located {
         origin: QueryOrigin {
@@ -1003,7 +1016,7 @@ fn located(
             span,
             trace,
         },
-        message: message.into(),
+        message: message.into().0,
     }
 }
 

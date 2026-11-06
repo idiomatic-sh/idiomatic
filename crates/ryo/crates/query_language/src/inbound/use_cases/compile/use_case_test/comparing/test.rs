@@ -71,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("natural_order_refuses_integer_operands"),
         word: Word::Refuses,
         input: || "let a = select * from \"entry\" where natural_lt(integer, 10); emit a subject file key(span);",
-        expect: Expect::Refusal(|error| selects(matches!(error, LoweringError::NotText { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, LoweringError::NotText { .. }))),
     },
     Case {
         name: CaseName("successor_accepts_existing_integer_and_numeric_text"),
@@ -84,7 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let a = select * from \"literal-properties\" where integer_successor(boolean, 1); emit a subject file key(id);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -116,7 +116,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let a = select * from \"literal-properties\" where numeric_gte(boolean, 1); emit a subject file key(span);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -124,7 +124,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "param limit: list<string>; let a = select * from \"numeric-literal\" where numeric_gte(value, $limit); emit a subject file key(span);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -132,7 +132,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = select * from "comment" where matches(text, "["); emit a subject file key(span);"#,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::InvalidRegex { reason, .. } if !reason.is_empty()),
             )
         }),
@@ -166,7 +166,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || FUNCTION_OF_A_NUMBER,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::NotText { function, argument: 1, .. } if function == "pascal"
             ))
@@ -177,7 +177,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || AFFIX_OF_A_NUMBER,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::NotText { function, argument: 2, .. } if function == "starts_with"
             ))
@@ -188,7 +188,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || CONCAT_OF_ONE,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::FunctionArity { function, .. } if function == "concat"
             ))
@@ -199,7 +199,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || PASCAL_OF_TWO,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::FunctionArity { function, .. } if function == "pascal"
             ))
@@ -210,7 +210,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || FUNCTION_COMPARED_WITH_A_NUMBER,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -218,7 +218,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNLIKE,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -232,7 +232,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_KIND,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::UnknownWord { word, owner, .. } if &**word == "headline" && &**owner == "defines"
             ))
@@ -243,7 +243,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_ORIGIN,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 error.to_string()
                     == "`nope` is not an origin of package-dependency; the origins are registry, path, git, url, workspace",
             )
@@ -326,7 +326,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || FLAG_OTHER_TEXT,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -334,7 +334,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || NUMBER_AND_TEXT_ORDERED,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
 ];

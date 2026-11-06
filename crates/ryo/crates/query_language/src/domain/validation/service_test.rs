@@ -39,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::UnknownRelation,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ValidationError::UnknownRelation { name, span } if name == "nothing" && *span == SPAN),
             )
         }),
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::MissingEmitStep,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ValidationError::UnknownStep { name, span } if name == "missing" && *span == SPAN),
             )
         }),
@@ -59,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::DuplicateStep,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ValidationError::DuplicateStep { name, span } if name == "rows" && *span == SPAN),
             )
         }),
@@ -69,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::BlankObservation,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::BlankObservation { span } if *span == SPAN))
+            selects!(matches!(error, ValidationError::BlankObservation { span } if *span == SPAN))
         }),
     },
     Case {
@@ -77,7 +77,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::DuplicateObservation,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ValidationError::DuplicateObservation { name, span } if name == "exported" && *span == SPAN),
             )
         }),

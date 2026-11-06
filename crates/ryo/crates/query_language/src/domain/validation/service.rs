@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::hosted::types::HostedName;
 
 use super::errors::ValidationError;
-use super::types::Known;
+use super::types::{Identities, Known};
 use crate::domain::syntax::constants::{operator_named, slot_name};
 use crate::domain::syntax::service::{is_input, shape_named};
 use crate::domain::syntax::types::ArgumentRole;
@@ -59,7 +59,11 @@ pub(crate) fn validate_with_observations(
         }
     }
     let mut known = Known {
-        linked: program.linked,
+        identities: if program.linked {
+            Identities::Assigned
+        } else {
+            Identities::Unassigned
+        },
         steps: Vec::new(),
         hosted,
         observations,
@@ -193,7 +197,7 @@ fn check_source(
                 {
                     true
                 }
-                None if known.linked => false,
+                None if known.identities == Identities::Assigned => false,
                 None => known.steps.iter().any(|step| step.0 == text.0),
             };
             if exists {
@@ -297,7 +301,7 @@ fn check_call(
                 {
                     ()
                 }
-                ArgumentValue::Word(text) if !known.linked => {
+                ArgumentValue::Word(text) if known.identities == Identities::Unassigned => {
                     check_step(QuerySpelling(&text.0), call.span, known)?;
                 }
                 ArgumentValue::Word(text) => {

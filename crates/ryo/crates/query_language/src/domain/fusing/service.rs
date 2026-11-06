@@ -2,6 +2,7 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
+use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::remapped;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -105,7 +106,7 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     if producer.scope != steps.get(place.0)?.scope
         || !no_filter.is_empty()
         || !no_view.is_empty()
-        || !tree_lookup_supported(*relation, right_on, kept)
+        || tree_lookup_supported(*relation, right_on, kept) == TreeLookup::Unsupported
     {
         return None;
     }
@@ -124,8 +125,12 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
 
 /// Whether the resident tree lookup implements these ordered keys through this view.
 /// Other joins must keep their filter as a separate select for the generic executor.
-fn tree_lookup_supported(relation: Relation, keys: &[ColumnIndex], view: &[ColumnIndex]) -> bool {
-    match keys {
+fn tree_lookup_supported(
+    relation: Relation,
+    keys: &[ColumnIndex],
+    view: &[ColumnIndex],
+) -> TreeLookup {
+    let supported = match keys {
         [key] => source_column(view, *key).is_some_and(|column| {
             if relation == Relation::SyntaxTree {
                 matches!(column, ColumnIndex(0 | 4))
@@ -139,6 +144,11 @@ fn tree_lookup_supported(relation: Relation, keys: &[ColumnIndex], view: &[Colum
                 | (Some(ColumnIndex(4)), Some(ColumnIndex(3)))
         ),
         _ => false,
+    };
+    if supported {
+        TreeLookup::Supported
+    } else {
+        TreeLookup::Unsupported
     }
 }
 
@@ -224,7 +234,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         return None;
     };
     if producer.scope != steps.get(place.0)?.scope
-        || !tree_lookup_supported(*relation, right_on, view)
+        || tree_lookup_supported(*relation, right_on, view) == TreeLookup::Unsupported
     {
         return None;
     }

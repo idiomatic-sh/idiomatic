@@ -37,7 +37,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNALIGNED,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::BadArgument { .. }))
+            selects!(matches!(error, LoweringError::BadArgument { .. }))
         }),
     },
 ];

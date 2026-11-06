@@ -38,7 +38,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_RELATION,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownRelation { .. }))
+            selects!(matches!(error, ValidationError::UnknownRelation { .. }))
         }),
     },
     Case {
@@ -46,7 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownStep { .. }))
+            selects!(matches!(error, ValidationError::UnknownStep { .. }))
         }),
     },
     Case {
@@ -54,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_PARAMETER,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownParameter { .. }))
+            selects!(matches!(error, ValidationError::UnknownParameter { .. }))
         }),
     },
     Case {
@@ -62,7 +62,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_OPERATION,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownOperation { .. }))
+            selects!(matches!(error, ValidationError::UnknownOperation { .. }))
         }),
     },
     Case {
@@ -70,7 +70,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || MISSING_ARGUMENT,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::MissingArgument { .. }))
+            selects!(matches!(error, ValidationError::MissingArgument { .. }))
         }),
     },
     Case {
@@ -78,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || DUPLICATE_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::DuplicateStep { .. }))
+            selects!(matches!(error, ValidationError::DuplicateStep { .. }))
         }),
     },
     Case {
@@ -86,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || JOIN_WITHOUT_COLUMNS,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::JoinNeedsColumns { .. }))
+            selects!(matches!(error, ValidationError::JoinNeedsColumns { .. }))
         }),
     },
 ];

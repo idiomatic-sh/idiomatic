@@ -56,7 +56,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = render-syntax(from="function", node="id", context="assignment-target", output="rendered", extra="id"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::SemanticArgument { .. }))
+            selects!(matches!(error, LoweringError::SemanticArgument { .. }))
         }),
     },
     Case {
@@ -64,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = render-syntax(from="global", node="id", context="assignment-target", output="rendered"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::CrossFileSemantic { .. }))
+            selects!(matches!(error, LoweringError::CrossFileSemantic { .. }))
         }),
     },
     Case {
@@ -72,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = render-syntax(from="function", node="id", context="not-a-context", output="rendered"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::InvalidSemanticLiteral { .. }
             ))
@@ -83,7 +83,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = span-bounds(from="function", span="span", start-output="begin", end-output="finish", extra="span"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::SpanBoundsArgument { .. }))
+            selects!(matches!(error, LoweringError::SpanBoundsArgument { .. }))
         }),
     },
     Case {
@@ -91,7 +91,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", extra="span"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::SourceMatchesArgument { .. }))
+            selects!(matches!(error, LoweringError::SourceMatchesArgument { .. }))
         }),
     },
     Case {
@@ -99,7 +99,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = source-matches(from="global", span="span", pattern="fn", output="hit"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::CrossFileSourceMatches { .. }
             ))
@@ -110,7 +110,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", base-line="line"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::SourceMatchesLinePair { .. }))
+            selects!(matches!(error, LoweringError::SourceMatchesLinePair { .. }))
         }),
     },
     Case {
@@ -118,7 +118,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::SourceMatchesCapturePair { .. }
             ))
@@ -129,7 +129,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group", capture-output="captured"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::SourceMatchesCaptureMissing { .. }
             ))
@@ -140,7 +140,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = span-between(from="function", start="span", end="span", output="hit", extra="span"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::SpanArgument { .. }))
+            selects!(matches!(error, LoweringError::SpanArgument { .. }))
         }),
     },
     Case {
@@ -148,7 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = span-between(from="global", start="span", end="span", output="hit"); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::CrossFileSpan { .. }))
+            selects!(matches!(error, LoweringError::CrossFileSpan { .. }))
         }),
     },
     Case {
@@ -156,7 +156,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[file], left-order="start-byte", right-order="end-byte", output={file: [left,file], file: [right,file]}); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -176,7 +176,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = replace(from="function", text="name", pattern="[", replacement="", output="label"); emit a subject file key(label);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::InvalidRegex { .. }))
+            selects!(matches!(error, LoweringError::InvalidRegex { .. }))
         }),
     },
     Case {
@@ -184,7 +184,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = replace(from="source-location", text="start-byte", pattern="a", replacement="", output="label"); emit a subject file key(label);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -192,7 +192,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = replace(from="function", text="name", pattern="a", replacement="", output="name"); emit a subject file key(name);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -206,7 +206,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="function", right="function", left-on=[file], right-on=[file], left-order="name", right-order="name", output={file: [left,file]}); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -214,7 +214,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=["start-byte"], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
     Case {
@@ -222,7 +222,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::KindMismatch { .. }))
+            selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
     },
 ];

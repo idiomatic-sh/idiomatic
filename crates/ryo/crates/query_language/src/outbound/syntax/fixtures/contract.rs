@@ -41,7 +41,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_query_without_emit_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::Query(NO_EMIT),
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("reads_the_root_of_a_query_bundle"),
@@ -54,7 +54,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Bundle(NO_EMIT),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error,
+            selects!(matches!(error,
                 SyntaxError::Located { origin, .. }
                     if origin.source_id.0.as_ref() == ROOT_SOURCE
                         && origin.span.start.0 <= origin.span.end.0

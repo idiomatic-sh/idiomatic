@@ -186,7 +186,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -200,7 +200,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -217,7 +217,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -231,7 +231,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -245,7 +245,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -265,7 +265,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -285,7 +285,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || text_the_fake_refuses,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::Located { origin, error }
+            selects!(matches!(error, TypecheckError::Located { origin, error }
                 if !origin.source_id.0.is_empty()
                     && origin.trace.is_empty()
                     && matches!(error.as_ref(), TypecheckError::Syntax { span, .. } if *span == origin.span)))
@@ -296,7 +296,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, TypecheckError::UnknownRelation { .. })
                     || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::UnknownRelation { .. })),
             )
@@ -307,7 +307,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || comparing_text_with_a_number,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, TypecheckError::Type { .. })
                     || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Type { .. })),
             )
@@ -318,7 +318,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || emitting_a_step_nobody_defined,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, TypecheckError::Invalid { .. })
                     || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Invalid { .. })),
             )
@@ -328,7 +328,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_catalog_port_fails"),
         word: Word::Fails,
         input: || failing_catalog,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Catalog { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, TypecheckError::Catalog { .. }))),
     },
 ];
 

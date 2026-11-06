@@ -7,16 +7,54 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
 
-/// Treat an unrepresentable plan index as out of range on narrow targets.
-fn offset(value: u32) -> usize {
-    usize::try_from(value).unwrap_or(usize::MAX)
+/// Which step of the plan a closure sits at.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct RootStep(usize);
+
+/// What an empty list of columns means to the step that holds it.
+#[derive(Clone, Copy)]
+enum EmptyColumns {
+    /// An empty select keeps every column.
+    KeepsEvery,
+    /// An empty project keeps no column.
+    KeepsNone,
+}
+
+/// Whether a chain of steps ends at a stored relation the closure can be pulled to.
+#[derive(Clone, Copy)]
+enum GraphInput {
+    /// A stored relation, or a pure chain over one.
+    Stored,
+    /// Anything else.
+    Unsupported,
+}
+
+/// Whether a comparison is safe to evaluate in another place.
+#[derive(Clone, Copy)]
+enum Purity {
+    /// Plain values and plain tests.
+    Pure,
+    /// A function or pattern that can fail.
+    ErrorSensitive,
+}
+
+/// The graph a closure reads, with its endpoints and partition keys, after pulling through views.
+struct GraphSource {
+    /// The pulled-through input.
+    input: Input,
+    /// The source endpoint column.
+    source: ColumnIndex,
+    /// The destination endpoint column.
+    destination: ColumnIndex,
+    /// The partition keys.
+    keys: Vec<ColumnIndex>,
 }
 
 /// One closure and the pure projection map through which a consumer sees its logical RHS.
 #[derive(Clone)]
 struct Rooted {
     /// Original closure step; all of its remaining consumers must qualify together.
-    root: usize,
+    root: RootStep,
     /// Physical complete/pure graph input.
     edges: Input,
     /// Endpoint/partition metadata and logical output map.
@@ -50,8 +88,8 @@ impl<'a> DemandClosure<'a> {
             .collect();
         let mut safe = vec![true; self.steps.len()];
         for protected in self.protected {
-            if let Some(root) = rooted.get(offset(protected.0)).and_then(Option::as_ref) {
-                safe[root.root] = false;
+            if let Some(root) = rooted.get(usize::try_from(protected.0).unwrap_or(usize::MAX)).and_then(Option::as_ref) {
+                safe[root.root.0] = false;
             }
         }
         for (index, step) in self.steps.iter().enumerate() {
@@ -59,18 +97,18 @@ impl<'a> DemandClosure<'a> {
                 let Input::Step(id) = input else {
                     continue;
                 };
-                let Some(root) = rooted.get(offset(id.0)).and_then(Option::as_ref) else {
+                let Some(root) = rooted.get(usize::try_from(id.0).unwrap_or(usize::MAX)).and_then(Option::as_ref) else {
                     continue;
                 };
                 let wrapper = rooted[index]
                     .as_ref()
-                    .is_some_and(|child| child.root == root.root && index != root.root);
+                    .is_some_and(|child| child.root == root.root && index != root.root.0);
                 let keyed = candidates[index]
                     .as_ref()
                     .is_some_and(|child| child.root == root.root)
                     && matches!(&step.operation, Operation::Join { right, .. } if right == input);
                 if !wrapper && !keyed {
-                    safe[root.root] = false;
+                    safe[root.root.0] = false;
                 }
             }
         }
@@ -78,7 +116,7 @@ impl<'a> DemandClosure<'a> {
             .iter()
             .zip(candidates)
             .map(|(step, rooted)| {
-                let Some(rooted) = rooted.filter(|root| safe[root.root]) else {
+                let Some(rooted) = rooted.filter(|root| safe[root.root.0]) else {
                     return step.clone();
                 };
                 let Operation::Join {
@@ -122,18 +160,24 @@ impl<'a> DemandClosure<'a> {
                 destination,
                 keys,
             } => {
-                let (edges, source, destination, keys) =
-                    graph_source(*edges, *source, *destination, keys, self.steps)?;
+                let GraphSource {
+                    input: edges,
+                    source,
+                    destination,
+                    keys,
+                } = graph_source(*edges, *source, *destination, keys, self.steps)?;
                 Some(Rooted {
-                    root: index,
+                    root: RootStep(index),
                     edges,
                     reach: ReachLookup {
                         source,
                         destination,
                         keys: keys.clone(),
-                        columns: (0..keys.len() + 2)
-                            .map(|column| ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)))
-                            .collect(),
+                        columns: std::iter::successors(Some(ColumnIndex(0)), |previous| {
+                            Some(ColumnIndex(previous.0.saturating_add(1)))
+                        })
+                        .take(keys.len() + 2)
+                        .collect(),
                     },
                 })
             }
@@ -141,12 +185,12 @@ impl<'a> DemandClosure<'a> {
                 from: Input::Step(id),
                 columns,
                 distinct: RepeatedRows::Kept,
-            } => project(before.get(offset(id.0))?.as_ref()?, columns, false),
+            } => project(before.get(usize::try_from(id.0).unwrap_or(usize::MAX))?.as_ref()?, columns, EmptyColumns::KeepsNone),
             Operation::Select {
                 from: Input::Step(id),
                 comparisons,
                 kept,
-            } if comparisons.is_empty() => project(before.get(offset(id.0))?.as_ref()?, kept, true),
+            } if comparisons.is_empty() => project(before.get(usize::try_from(id.0).unwrap_or(usize::MAX))?.as_ref()?, kept, EmptyColumns::KeepsEvery),
             Operation::Select { .. }
             | Operation::Project { .. }
             | Operation::Extend { .. }
@@ -193,10 +237,10 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     if step.scope != StepScope::PerFile || !filter.is_empty() || !view.is_empty() {
         return None;
     }
-    let root = rooted.get(offset(id.0))?.as_ref()?;
+    let root = rooted.get(usize::try_from(id.0).unwrap_or(usize::MAX))?.as_ref()?;
     if let Input::Step(left) = left
         && rooted
-            .get(offset(left.0))
+            .get(usize::try_from(left.0).unwrap_or(usize::MAX))
             .and_then(Option::as_ref)
             .is_some_and(|other| other.root == root.root)
     {
@@ -204,7 +248,7 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     }
     let bound: Vec<_> = right_on
         .iter()
-        .map(|column| root.reach.columns.get(offset(column.0)).copied())
+        .map(|column| root.reach.columns.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
         .collect::<Option<_>>()?;
     (0..=root.reach.keys.len())
         .all(|column| bound.contains(&ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX))))
@@ -212,12 +256,12 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
 }
 
 /// Empty Select keeps every column; empty Project keeps no columns.
-fn project(root: &Rooted, columns: &[ColumnIndex], empty_identity: bool) -> Option<Rooted> {
+fn project(root: &Rooted, columns: &[ColumnIndex], empty: EmptyColumns) -> Option<Rooted> {
     let mut result = root.clone();
-    if !empty_identity || !columns.is_empty() {
+    if matches!(empty, EmptyColumns::KeepsNone) || !columns.is_empty() {
         result.reach.columns = columns
             .iter()
-            .map(|column| root.reach.columns.get(offset(column.0)).copied())
+            .map(|column| root.reach.columns.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
             .collect::<Option<_>>()?;
     }
     Some(result)
@@ -232,14 +276,14 @@ fn graph_source(
     destination: ColumnIndex,
     keys: &[ColumnIndex],
     steps: &[PlanStep],
-) -> Option<(Input, ColumnIndex, ColumnIndex, Vec<ColumnIndex>)> {
+) -> Option<GraphSource> {
     let mut used = keys.to_vec();
     used.extend([source, destination]);
     for _ in 0..=steps.len() {
         let Input::Step(id) = input else {
             break;
         };
-        let step = steps.get(offset(id.0))?;
+        let step = steps.get(usize::try_from(id.0).unwrap_or(usize::MAX))?;
         if step.scope != StepScope::PerFile {
             return None;
         }
@@ -285,7 +329,7 @@ fn graph_source(
         }
         let mapped = used
             .iter()
-            .map(|column| columns.get(offset(column.0)).copied())
+            .map(|column| columns.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
             .collect::<Option<Vec<_>>>()?;
         if columns.iter().any(|column| !mapped.contains(column)) {
             break;
@@ -293,27 +337,32 @@ fn graph_source(
         used = mapped;
         input = from;
     }
-    if !graph_input(input, steps) {
+    if matches!(graph_input(input, steps), GraphInput::Unsupported) {
         return None;
     }
     let destination = used.pop()?;
     let source = used.pop()?;
-    Some((input, source, destination, used))
+    Some(GraphSource {
+        input,
+        source,
+        destination,
+        keys: used,
+    })
 }
 
 /// Stored relations and the already supported pure selection/projection chains alone qualify.
-fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
+fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInput {
     for _ in 0..=steps.len() {
         match input {
             Input::Relation(Relation::SyntaxTree | Relation::SyntaxChild)
-            | Input::BoundObservation(_) => return false,
-            Input::Relation(_) => return true,
+            | Input::BoundObservation(_) => return GraphInput::Unsupported,
+            Input::Relation(_) => return GraphInput::Stored,
             Input::Step(id) => {
                 let Some(step) = steps
-                    .get(offset(id.0))
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                     .filter(|step| step.scope == StepScope::PerFile)
                 else {
-                    return false;
+                    return GraphInput::Unsupported;
                 };
                 input = match &step.operation {
                     Operation::Project {
@@ -323,7 +372,7 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
                     } => *from,
                     Operation::Select {
                         from, comparisons, ..
-                    } if comparisons.iter().all(pure) => *from,
+                    } if comparisons.iter().all(|comparison| matches!(purity(comparison), Purity::Pure)) => *from,
                     Operation::Select { .. }
                     | Operation::Project { .. }
                     | Operation::Extend { .. }
@@ -349,17 +398,17 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
                     | Operation::SourceMatches { .. }
                     | Operation::RenderSyntax { .. }
                     | Operation::FitsRendered { .. }
-                    | Operation::SpanBetween { .. } => return false,
+                    | Operation::SpanBetween { .. } => return GraphInput::Unsupported,
                 };
             }
         }
     }
-    false
+    GraphInput::Unsupported
 }
 
 /// Error-sensitive functions/patterns stay in their original owner-local execution path.
-fn pure(comparison: &ryo_values::domain::plan_parts::types::Comparison) -> bool {
-    !matches!(comparison.left, Operand::Function(_))
+fn purity(comparison: &ryo_values::domain::plan_parts::types::Comparison) -> Purity {
+    let plain = !matches!(comparison.left, Operand::Function(_))
         && !matches!(comparison.right, Operand::Function(_))
         && matches!(
             comparison.test,
@@ -373,5 +422,10 @@ fn pure(comparison: &ryo_values::domain::plan_parts::types::Comparison) -> bool 
                 | Test::EndsWith
                 | Test::In
                 | Test::NotIn
-        )
+        );
+    if plain {
+        Purity::Pure
+    } else {
+        Purity::ErrorSensitive
+    }
 }

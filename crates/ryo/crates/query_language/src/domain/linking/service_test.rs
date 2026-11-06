@@ -44,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ImportOfAbsentModule,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LinkingError::Located { origin, .. } if origin.span == SPAN))
+            selects!(matches!(error, LinkingError::Located { origin, .. } if origin.span == SPAN))
         }),
     },
     Case {
@@ -52,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::DuplicateAlias,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LinkingError::Located { origin, .. } if origin.span == SPAN))
+            selects!(matches!(error, LinkingError::Located { origin, .. } if origin.span == SPAN))
         }),
     },
 ];

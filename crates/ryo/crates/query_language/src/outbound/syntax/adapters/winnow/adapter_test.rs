@@ -365,32 +365,32 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_misspelled_keyword_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::MisspelledKeyword,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("a_second_emit_line_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::TwoEmits,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("an_unclosed_parenthesis_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::Unclosed,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("an_or_with_nothing_after_it_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::DanglingOr,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("a_list_after_in_is_refused_where_it_begins"),
         word: Word::Refuses,
         input: || Scenario::ListAfterIn,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, SyntaxError::Unreadable { span, .. } if span.start.0 == LIST_AT),
             )
         }),

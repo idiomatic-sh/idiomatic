@@ -37,7 +37,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_the_catalog_cannot_be_read"),
         word: Word::Fails,
         input: || Scenario::Unreadable,
-        expect: Expect::Refusal(|error| selects(matches!(error, CatalogError::Unavailable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, CatalogError::Unavailable { .. }))),
     },
 ];
 

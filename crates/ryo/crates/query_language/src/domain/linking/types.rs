@@ -75,3 +75,46 @@ impl Bindings {
         self.0.contains_key(name)
     }
 }
+
+/// Whether a call's parameters must all be declared by the fragment that makes the call.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ParameterCheck {
+    /// An undeclared parameter is refused.
+    Strict,
+    /// An undeclared parameter is left for the caller's own scope to answer.
+    Lenient,
+}
+
+/// Whether an argument has the type its parameter declares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ScalarMatch {
+    /// The argument is of the declared type.
+    Matches,
+    /// The argument is of another type, or the declared type is unknown.
+    Differs,
+}
+
+/// The two binding sets of one call: the relation inputs and the scalar parameters.
+#[derive(Clone, Debug)]
+pub(super) struct BoundArguments {
+    /// The relation inputs.
+    pub inputs: Bindings,
+    /// The scalar parameters.
+    pub parameters: Bindings,
+}
+
+/// The reason a link refuses, as the caller words it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Refusal(pub String);
+
+impl From<&str> for Refusal {
+    fn from(text: &str) -> Self {
+        Self(text.to_owned())
+    }
+}
+
+impl From<String> for Refusal {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}

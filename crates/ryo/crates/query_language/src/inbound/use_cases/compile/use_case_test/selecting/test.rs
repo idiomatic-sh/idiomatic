@@ -60,7 +60,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_IN_OR,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { name, .. } if name == "nothing"))
+            selects!(matches!(error, LoweringError::UnknownColumn { name, .. } if name == "nothing"))
         }),
     },
 ];

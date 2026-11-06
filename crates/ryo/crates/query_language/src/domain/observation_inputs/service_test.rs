@@ -50,7 +50,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::BlankName,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ObservationInputsError::BlankName))
+            selects!(matches!(error, ObservationInputsError::BlankName))
         }),
     },
     Case {
@@ -58,7 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::DuplicateInput,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "observed"),
             )
         }),
@@ -68,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::CatalogCollision,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "function"),
             )
         }),
@@ -78,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::HostedCollision,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "host.placed"),
             )
         }),
@@ -88,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::BlankColumn,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::Column { input, column } if input.0.as_ref() == "observed" && column.0.as_ref() == " "),
             )
         }),
@@ -98,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::DuplicateColumn,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::Column { input, column } if input.0.as_ref() == "observed" && column.0.as_ref() == "id"),
             )
         }),

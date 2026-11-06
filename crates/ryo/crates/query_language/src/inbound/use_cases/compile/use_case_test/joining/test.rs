@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_RIGHT,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSideColumn { alias, name, .. } if alias == "r" && name == "nothing"),
             )
         }),
@@ -75,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_LEFT,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSideColumn { alias, name, .. } if alias == "l" && name == "nothing"),
             )
         }),
@@ -85,7 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_SIDE,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSide { alias, sides, .. } if alias == "q" && sides == "`l` and `r`"),
             )
         }),
@@ -95,7 +95,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_ON_SIDE,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSide { alias, sides, .. } if alias == "q" && sides == "`l` and `r`"),
             )
         }),

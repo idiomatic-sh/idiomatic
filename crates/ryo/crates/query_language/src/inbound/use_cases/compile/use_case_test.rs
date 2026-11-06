@@ -507,7 +507,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::ObservationInputs { .. }))
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -521,7 +521,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::ObservationInputs { .. }))
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -538,7 +538,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::ObservationInputs { .. }))
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -552,7 +552,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::ObservationInputs { .. }))
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -566,7 +566,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::ObservationInputs { .. }))
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -586,7 +586,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::ObservationInputs { .. }))
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -606,7 +606,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || text_the_fake_refuses,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::Located { origin, error }
+            selects!(matches!(error, CompileError::Located { origin, error }
                 if !origin.source_id.0.is_empty()
                     && origin.trace.is_empty()
                     && matches!(error.as_ref(), CompileError::Syntax { span, .. } if *span == origin.span)))
@@ -617,7 +617,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, CompileError::UnknownRelation { .. })
                     || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::UnknownRelation { .. })),
             )
@@ -628,7 +628,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || comparing_text_with_a_number,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, CompileError::Type { .. })
                     || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::Type { .. })),
             )
@@ -639,7 +639,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || a_kind_of_defines_that_is_misspelled,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(
                     error,
                     CompileError::Type { message, .. }
@@ -661,7 +661,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || emitting_a_step_nobody_defined,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, CompileError::Invalid { .. })
                     || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::Invalid { .. })),
             )
@@ -671,7 +671,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_catalog_port_fails"),
         word: Word::Fails,
         input: || failing_catalog,
-        expect: Expect::Refusal(|error| selects(matches!(error, CompileError::Catalog { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, CompileError::Catalog { .. }))),
     },
 ];
 

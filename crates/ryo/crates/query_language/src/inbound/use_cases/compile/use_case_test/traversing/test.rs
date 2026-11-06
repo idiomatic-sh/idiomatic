@@ -62,7 +62,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::Missing,
@@ -76,7 +76,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::Missing,
@@ -90,7 +90,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=missing,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -98,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=missing,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -106,7 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=name,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::MatchingGraphEntities,
@@ -120,7 +120,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=field,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::NumericGraphOrder,
@@ -134,7 +134,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select parent, child, ordinal, field as file from \"syntax-child\"; let visits = ordered-dfs(from=\"function\",root=id,edges=e,source=parent,destination=child,order=ordinal,edge=ordinal,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::MatchingGraphKeys,
@@ -148,7 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=file,output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::ExpectedNames,
@@ -162,7 +162,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[missing],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -170,7 +170,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file,file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -178,7 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=child,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -186,7 +186,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=id); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -194,7 +194,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=file); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -226,7 +226,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file,file]); emit c subject parent key(child);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -234,7 +234,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[parent]); emit c subject parent key(child);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -242,7 +242,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[missing]); emit c subject parent key(child);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -250,7 +250,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=file); emit c subject parent key(child);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::ExpectedNames,
@@ -264,7 +264,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[42]); emit c subject parent key(child);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::ExpectedNames,
@@ -296,7 +296,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || SIBLINGS_OF_A_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::SiblingOverTree,

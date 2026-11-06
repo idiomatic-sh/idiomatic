@@ -71,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || NUMBER_AS_ROWS,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::ExpectedTables,

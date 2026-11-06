@@ -41,7 +41,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || NO_COLUMN,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || NO_SUBJECT,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_RELATION,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownRelation { .. }))
+            selects!(matches!(error, LoweringError::UnknownRelation { .. }))
         }),
     },
     Case {
@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownStep { .. }))
+            selects!(matches!(error, LoweringError::UnknownStep { .. }))
         }),
     },
 ];
