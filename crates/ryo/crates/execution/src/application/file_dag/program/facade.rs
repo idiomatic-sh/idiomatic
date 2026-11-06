@@ -597,6 +597,21 @@ pub(crate) fn prepare(
         &operators,
     )?);
     walk.retain_program_consumers(&program, &bindings)?;
+    if tracing::enabled!(target: super::constants::WALK_TARGET, tracing::Level::TRACE) {
+        let census = walk.census();
+        tracing::trace!(target: super::constants::WALK_TARGET, event = super::constants::WALK_CENSUS,
+            rules = ?rules.iter().map(|rule| rule.id.0.as_ref()).collect::<Vec<_>>(),
+            instructions = census.instructions.0, shared = census.shared.0,
+            classes = census.classes.len(), representation = census.representation.0,
+            dependent = census.dependent.0, observation = census.observation.0,
+            row = census.row.0, derived = census.derived.0, request = census.request.0,
+            continuation = census.continuation.0);
+        for class in census.classes {
+            tracing::trace!(target: super::constants::WALK_TARGET, event = super::constants::WALK_CLASS,
+                class = class.0, relation = ?walk.classes()[class.0].source);
+        }
+    }
+
     let native_orders = program
         .regions()
         .iter()

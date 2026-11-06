@@ -288,7 +288,7 @@ impl PermittedWalk<'_, '_, '_> {
     pub(in crate::application::file_dag) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
         self.permit.validate_program(self.prepared.program())?;
         self.permit.validate_walk_source(&self.source)?;
-        Ok(crate::domain::shared_walk::service::evaluate(
+        let batch = crate::domain::shared_walk::service::evaluate(
             self.prepared.walk(),
             self.source.relation(),
             self.source.rows(),
@@ -296,6 +296,15 @@ impl PermittedWalk<'_, '_, '_> {
             self.context,
             self.ready,
             self.work,
-        ))
+        );
+        let counts = batch.counts();
+        tracing::trace!(target: super::constants::WALK_TARGET, event = super::constants::WALK_DISPATCH,
+            relation = ?self.source.relation(), population = ?self.source.population(),
+            classes = ?self.ready.iter().filter(|class| batch.class(**class).is_some()).map(|class| class.0).collect::<Vec<_>>(),
+            passes = counts.passes.0, source_rows = counts.source_rows.0,
+            decoded_rows = counts.decoded_rows.0, predicate_rows = counts.predicate_rows.0,
+            predicate_tests = counts.predicate_tests.0, predicate_reuses = counts.predicate_reuses.0,
+            result_slots = counts.result_slots.0);
+        Ok(batch)
     }
 }

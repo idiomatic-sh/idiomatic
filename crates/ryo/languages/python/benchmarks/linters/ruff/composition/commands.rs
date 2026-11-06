@@ -57,8 +57,10 @@ pub(super) fn worker(
         ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
                 .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(crate::constants::FRONTEND_DIAGNOSTIC_QUERY)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(
+                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?,
         };
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
         match (tracing, trace_path) {

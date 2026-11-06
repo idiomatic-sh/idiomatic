@@ -84,3 +84,7 @@ path = "benchmarks/linters/ruff/tests.rs"
 schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000] }
 metrics = ["median-ns"]
+
+[[test]]
+name = "ruff_sharing"
+path = "benchmarks/linters/ruff/mod.rs"

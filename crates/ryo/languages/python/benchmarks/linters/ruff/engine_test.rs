@@ -521,7 +521,7 @@ emit diagnostics subject file key(id);
     } else {
         (
             "invalid-syntax",
-            crate::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
         )
     };
     Ok(factory::FrontendDiagnosticProjection {

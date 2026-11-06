@@ -100,6 +100,34 @@ impl PreparedWalk {
         &self.needed[class.0]
     }
 
+    /// Count the exact routes chosen during binding, independently of later demand.
+    pub(crate) fn census(&self) -> crate::domain::shared_walk::types::WalkCensus {
+        use crate::domain::shared_walk::types::{WalkCensus, WalkRouteCount};
+        let mut census = WalkCensus {
+            instructions: WalkRouteCount(self.physical.len()),
+            ..WalkCensus::default()
+        };
+        let mut classes = std::collections::BTreeSet::new();
+        for route in &self.physical {
+            let count = match route {
+                WalkRoute::Shared(class) => {
+                    classes.insert(class.0);
+                    &mut census.shared
+                }
+                WalkRoute::Barrier(WalkBarrier::Representation) => &mut census.representation,
+                WalkRoute::Barrier(WalkBarrier::DependentInput) => &mut census.dependent,
+                WalkRoute::Barrier(WalkBarrier::Observation) => &mut census.observation,
+                WalkRoute::Barrier(WalkBarrier::RowSemantics) => &mut census.row,
+                WalkRoute::Barrier(WalkBarrier::DerivedOrOrdered) => &mut census.derived,
+                WalkRoute::Barrier(WalkBarrier::RequestOwnedSource) => &mut census.request,
+                WalkRoute::Barrier(WalkBarrier::Continuation) => &mut census.continuation,
+            };
+            count.0 += 1;
+        }
+        census.classes = classes.into_iter().map(ClassPlace).collect();
+        census
+    }
+
     /// Direct lookup in the immutable physical program, prepared once per request.
     pub(crate) fn class_for(
         &self,

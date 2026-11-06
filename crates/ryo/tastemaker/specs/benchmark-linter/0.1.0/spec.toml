@@ -2,6 +2,9 @@ description = "The language-local artifacts and entry points of one benchmark li
 why = "Placed beside the standard adapter spec, this existing artifact spec owns thin Cargo registration/composition, pinned inventory and canonical rules/<id>/query.ryoql with cases.toml. The shared benchmark application owns execution, continuation and PASS/FAIL publication. Canonical cold/warm/edit measurements require exact equality with the immutable declared complete rule inventory, captured before projection; an explicit diagnostic mode may narrow selection but cannot publish headline benchmark metrics; a linter supplies inventory and its external adapter. The adapter spec retains adapter, settings and schemas roles. Archived profiles preserve exact historical bytes and never become a second active source. Imports and AST capability checks are structural rails, not proof that runtime policy is shared; the shared runner must pass its two-provider behavioral contract."
 specs = []
 templates = [
+  { alias = "frontend-projection-module", template = "source", file = "frontend_projection/mod.rs", count = { min = 0, max = 1 }, description = "Normal namespace of the canonical provider diagnostic projection." },
+  { alias = "frontend-projection-constants", template = "source", file = "frontend_projection/constants.rs", count = { min = 0, max = 1 }, description = "One shared canonical query used by the production worker and independent normal tests." },
+
   { alias = "run-record-actual-output-test-json", template = "evidence", file = "results/{*capture}/actual-output-test.json", count = { min = 0 }, description = "Named captured process protocol or report record. Placement does not prove completeness, integrity, registration or acceptance." },
   { alias = "run-record-all-targets-json", template = "evidence", file = "results/{*capture}/all-targets.json", count = { min = 0 }, description = "Named captured process protocol or report record. Placement does not prove completeness, integrity, registration or acceptance." },
   { alias = "run-record-artifact-hashes-json", template = "evidence", file = "results/{*capture}/artifact-hashes.json", count = { min = 0 }, description = "Named captured process protocol or report record. Placement does not prove completeness, integrity, registration or acceptance." },
@@ -1073,3 +1076,17 @@ id = "captured-python-input-is-data"
 scenario = "The exact one-line source capture has an evidence-data role; neighboring executable programs remain closed."
 given.files.'results/run/x/py310-unicode-annotation-modulo.py' = 'x: "é%s" % value'
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "shared-canonical-frontend-projection"
+scenario = "Production worker and isolated inventory test share one normally registered frontend projection vocabulary."
+given.files."frontend_projection/mod.rs" = "pub(crate) mod constants;"
+given.files."frontend_projection/constants.rs" = "pub(crate) const FRONTEND_DIAGNOSTIC_QUERY: &str = \"select diagnostics\";"
+then.only = ["idiomatic.ryo/benchmark-linter#closed"]
+
+[[scenarios]]
+id = "frontend-projection-rejects-unplaced-implementation"
+scenario = "Sharing one canonical query does not admit an arbitrary sibling implementation."
+given.files."frontend_projection/future.rs" = "fn execute() {}"
+then.only = ["idiomatic.ryo/benchmark-linter#closed"]
+then.findings = [{ rule = "idiomatic.ryo/benchmark-linter#closed", path = "frontend_projection/future.rs" }]

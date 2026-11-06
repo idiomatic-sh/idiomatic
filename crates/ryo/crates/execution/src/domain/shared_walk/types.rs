@@ -100,3 +100,20 @@ pub(crate) struct ClassResult {
     pub positions: crate::domain::positions::types::Slots,
     pub completion: Result<(), crate::domain::operating::errors::OperatingError>,
 }
+
+/// Read-only accounting of the bound physical program; never admission authority.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct WalkRouteCount(pub usize);
+#[derive(Debug, Default)]
+pub(crate) struct WalkCensus {
+    pub instructions: WalkRouteCount,
+    pub shared: WalkRouteCount,
+    pub classes: Vec<ClassPlace>,
+    pub representation: WalkRouteCount,
+    pub dependent: WalkRouteCount,
+    pub observation: WalkRouteCount,
+    pub row: WalkRouteCount,
+    pub derived: WalkRouteCount,
+    pub request: WalkRouteCount,
+    pub continuation: WalkRouteCount,
+}

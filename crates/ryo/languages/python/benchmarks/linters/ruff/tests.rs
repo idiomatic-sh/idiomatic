@@ -53,3 +53,5 @@ fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
 }
 
 mod host_policy;
+
+mod frontend_projection;
