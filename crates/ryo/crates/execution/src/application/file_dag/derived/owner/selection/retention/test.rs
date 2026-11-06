@@ -284,7 +284,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         bindings: vec![],
     });
     let selector = Arc::new(selector);
-    let views = super::super::prepare_views_with_schemas(
+    let views = super::super::preparation::service::prepare_views_with_schemas(
         [(selector).clone()],
         &|_| &[CellKind::Number; 3],
         (std::sync::Arc::new(

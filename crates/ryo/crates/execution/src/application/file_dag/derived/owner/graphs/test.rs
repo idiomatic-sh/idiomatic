@@ -449,9 +449,15 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
         )
         .unwrap()
         .unwrap();
+    let charged = fixture.snapshot().required_bytes;
+    assert!(
+        charged > 0,
+        "actual graph and domain retain required leases"
+    );
     let vertices = graph.graph().vertices().to_vec();
     let members = domain.members().to_vec();
     fixture.clear();
+    assert_eq!(fixture.snapshot().required_bytes, charged);
     assert_eq!(
         graph.graph().vertices(),
         vertices,
@@ -482,4 +488,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
         ),
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
+    drop(domain);
+    drop(graph);
+    assert_eq!(fixture.snapshot().required_bytes, 0);
 }

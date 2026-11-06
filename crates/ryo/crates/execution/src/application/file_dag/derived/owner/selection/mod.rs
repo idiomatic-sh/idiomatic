@@ -31,15 +31,12 @@ use ryo_values::domain::plan_parts::types::{
 use std::sync::Arc;
 pub(super) mod candidates;
 mod fanout;
-mod preparation;
+pub(in crate::application::file_dag) mod preparation;
 use crate::application::file_dag::derived::owner::acquisition::selection::service::matches;
 #[cfg(test)]
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
-use candidates::{candidates, first_literal};
-use fanout::fanout_candidates;
-pub(in crate::application::file_dag::derived::owner) use preparation::activate_program;
-pub(in crate::application::file_dag::derived::owner) use preparation::install_views;
-pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
+use candidates::service::{candidates, first_literal};
+use fanout::service::fanout_candidates;
 #[cfg(test)]
 use ryo_values::domain::plans::types::Plan;
 // One owner bounds the actual shared position allocations and retained predicate entries.

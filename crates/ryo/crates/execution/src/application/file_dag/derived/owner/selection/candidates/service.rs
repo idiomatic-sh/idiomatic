@@ -1,5 +1,5 @@
 //! Candidate choice and immutable equality-cache acquisition remain application policy.
-use super::*;
+use super::super::*;
 /// Use a column index only when multiple active descriptors can amortize its build.
 pub(in crate::application::file_dag::derived::owner) fn candidates(
     cache: &mut CacheBackend,
@@ -100,7 +100,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
 
 /// Only a total, authored, nonempty text equality in the first predicate can
 /// reject rows before any caller-owned comparison or error origin is visited.
-pub(super) fn first_literal<'a>(
+pub(in crate::application::file_dag::derived::owner::selection) fn first_literal<'a>(
     selector: &'a Selector,
     kinds: &[CellKind],
 ) -> Option<(ColumnIndex, &'a str)> {

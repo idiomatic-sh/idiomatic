@@ -2,7 +2,7 @@
 //! The primitive sees only borrowed values after the mutable cache borrow ends.
 use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::owner::graphs::types::handles::{
+use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
     DomainHandle, GraphHandle,
 };
 use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;

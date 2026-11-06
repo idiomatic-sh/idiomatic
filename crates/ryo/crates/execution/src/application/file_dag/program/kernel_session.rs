@@ -424,7 +424,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 permit.descriptor().contract.as_ref(),
             )
         });
-        crate::application::file_dag::derived::owner::selection::acquire(
+        super::selection::acquire(
             self.prepared,
             permit,
             shape,

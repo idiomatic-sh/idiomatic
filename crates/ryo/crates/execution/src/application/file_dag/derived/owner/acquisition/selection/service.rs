@@ -1,6 +1,6 @@
 //! Owner-bound selector acquisition; immutable views leave this scope, never the backend.
 use super::super::super::*;
-use crate::application::file_dag::derived::owner::selection::candidates::candidates;
+use crate::application::file_dag::derived::owner::selection::candidates::service::candidates;
 use crate::application::file_dag::derived::owner::selection::{
     CandidateRows, SelectionPath, histogram, shared_positions,
 };

@@ -1,7 +1,7 @@
 //! Pure traversals feed completed answers to the common resource owner.
 use super::super::{
-    handles::{DomainHandle, GraphHandle, RootAnswer},
-    retained::{GraphEntry, NearestMemo, RootMemo},
+    handles::service::{DomainHandle, GraphHandle, RootAnswer},
+    retained::types::{GraphEntry, NearestMemo, RootMemo},
 };
 use crate::application::file_dag::derived::{
     ledger::Backing,

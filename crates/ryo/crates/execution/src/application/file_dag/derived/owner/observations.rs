@@ -163,7 +163,7 @@ impl DerivedOwner {
         Arc::get_mut(&mut prepared)
             .expect("unshared request fixture")
             .groups = 0;
-        crate::application::file_dag::derived::owner::selection::install_views(cache, prepared);
+        crate::application::file_dag::derived::owner::selection::preparation::service::install_views(cache, prepared);
     }
     #[cfg(test)]
     pub(in crate::application::file_dag::derived::owner) fn fixture_reserve_spare_selections(
@@ -291,7 +291,7 @@ impl DerivedOwner {
         let cache = backend.as_mut().ok_or(OperatingError::ShapeMismatch)?;
         cache.selectors = active;
         let prepared =
-            crate::application::file_dag::derived::owner::selection::prepare_views_with_schemas(
+            crate::application::file_dag::derived::owner::selection::preparation::service::prepare_views_with_schemas(
                 authored,
                 &|_| kinds,
                 (std::sync::Arc::new(
@@ -299,7 +299,7 @@ impl DerivedOwner {
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )?;
-        crate::application::file_dag::derived::owner::selection::install_views(cache, prepared);
+        crate::application::file_dag::derived::owner::selection::preparation::service::install_views(cache, prepared);
         crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);
         drop(backend);
         Ok(())

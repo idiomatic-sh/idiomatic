@@ -5,7 +5,7 @@ use super::{
 };
 use crate::application::file_dag::derived::ledger::append_backing;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::owner::graphs::types::handles::{
+use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
     DomainHandle, GraphHandle,
 };
 use crate::application::file_dag::derived::owner::{

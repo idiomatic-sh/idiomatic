@@ -146,14 +146,15 @@ impl RequestOperators {
                 })
                 .collect::<Vec<_>>(),
         );
-        let selection_views = super::derived::owner::selection::prepare_views_with_schemas(
-            selection_plans
-                .iter()
-                .flat_map(|plan| plan.steps.iter().flatten())
-                .cloned(),
-            relation_kinds,
-            semantic,
-        )?;
+        let selection_views =
+            super::derived::owner::selection::preparation::service::prepare_views_with_schemas(
+                selection_plans
+                    .iter()
+                    .flat_map(|plan| plan.steps.iter().flatten())
+                    .cloned(),
+                relation_kinds,
+                semantic,
+            )?;
         let physical=plans.iter().enumerate().map(|(rule,plan)| {
             let selectors = &selection_plans[rule];
             plan.steps.iter().enumerate().map(|(at,_step)| {

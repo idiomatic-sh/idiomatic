@@ -5,7 +5,7 @@ use super::super::{
         service::{replace, room, slot},
         types::{
             handles::GraphHandle,
-            retained::{DomainEntry, GraphEntry},
+            retained::types::{DomainEntry, GraphEntry},
         },
     },
 };

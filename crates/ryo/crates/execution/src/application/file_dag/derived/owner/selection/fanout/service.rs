@@ -1,5 +1,5 @@
 //! Active literal metadata is prepared once; only the common owner retains completed postings.
-use super::*;
+use super::super::*;
 use crate::application::file_dag::derived::owner::cache::types::ActivePostings;
 fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
     active
@@ -18,7 +18,9 @@ fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
             })
         })
 }
-pub(super) fn prepare_active(cache: &mut CacheBackend) {
+pub(in crate::application::file_dag::derived::owner::selection) fn prepare_active(
+    cache: &mut CacheBackend,
+) {
     let previous = std::mem::take(&mut cache.active_postings);
     let Some(base) = active_bytes(&previous).and_then(|bytes| cache.bytes.checked_sub(bytes))
     else {
@@ -65,7 +67,7 @@ pub(super) fn prepare_active(cache: &mut CacheBackend) {
         cache.active_postings = active;
     }
 }
-pub(super) fn fanout_candidates(
+pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candidates(
     cache: &mut CacheBackend,
     resources: crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Selector,

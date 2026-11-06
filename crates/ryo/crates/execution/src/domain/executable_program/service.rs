@@ -454,7 +454,7 @@ pub(crate) fn compile(
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
     };
-    for selection in crate::application::file_dag::derived::owner::selection::compile(&executable, prepared) {
+    for selection in super::selection::compile(&executable, prepared) {
         let target = selection.target();
         if !matches!(
             executable.regions[target.0].instructions[0].operation,

@@ -2,7 +2,7 @@
 use super::fixtures::{Expectation, Probe};
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
 pub(super) const GRAPH_ISSUER: &str =
-    "src/application/file_dag/derived/owner/graphs/types/handles.rs";
+    "src/application/file_dag/derived/owner/graphs/types/handles/service.rs";
 pub(super) const MODULE: &str = "src/application/file_dag/derived/owner/acquisition/mod.rs";
 pub(super) const ISSUER: &str =
     "src/application/file_dag/derived/owner/acquisition/admission/service.rs";
@@ -112,13 +112,13 @@ const RAW_VIEW_ESCAPE: &str = r#"
 mod raw_view_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.view(); } const _: fn(&DerivedStorage) = escape; }
 "#;
 const GRAPH_ALLOCATION_ESCAPE: &str = r#"
-mod graph_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::GraphHandle; use ryo_derived::domain::contract::types::CompactGraph; fn escape(value: &GraphHandle) { let _: std::sync::Arc<CompactGraph> = std::sync::Arc::clone(value.graph()); } const _: fn(&GraphHandle) = escape; }
+mod graph_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle; use ryo_derived::domain::contract::types::CompactGraph; fn escape(value: &GraphHandle) { let _: std::sync::Arc<CompactGraph> = std::sync::Arc::clone(value.graph()); } const _: fn(&GraphHandle) = escape; }
 "#;
 const DOMAIN_ALLOCATION_ESCAPE: &str = r#"
-mod domain_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::DomainHandle; fn escape(value: &DomainHandle) { let _: std::sync::Arc<Vec<bool>> = std::sync::Arc::clone(value.members()); } const _: fn(&DomainHandle) = escape; }
+mod domain_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle; fn escape(value: &DomainHandle) { let _: std::sync::Arc<Vec<bool>> = std::sync::Arc::clone(value.members()); } const _: fn(&DomainHandle) = escape; }
 "#;
 const GRAPH_RECORD_FORGERY: &str = r#"
-mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { shared: true, ..value } } const _: fn(Authority) -> Authority = forge; }
+mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { shared: true, ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
 const UNADMITTED_GRAPH_DEMAND: &str = r#"
 mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::contract::types::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk) = forge; }
@@ -127,13 +127,61 @@ const PRIVATE_RETAINED_STORAGE: &str = r#"
 mod private_retained_storage { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn escape(cache: &CacheBackend) { let _ = &cache.graphs; } const _: fn(&CacheBackend) = escape; }
 "#;
 const BORROWED_LEASED_READ: &str = r#"
-mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
+mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
 "#;
 const OWNED_GRAPH_PRIVATE_FIELDS: &str = r#"
 mod owned_graph_private_fields { use super::GraphHandle as Authority; fn policy(value: &mut Authority) { value.shared = false; } const _: fn(&mut Authority) = policy; }
 "#;
+const GRAPH_SELF_FORGERY: &str = r#"
+mod graph_self_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; impl Authority { fn denied_graph(value: Self) -> Self { Self { shared: false, ..value } } } const _: fn(Authority) -> Authority = Authority::denied_graph; }
+"#;
+const DOMAIN_ALIAS_FORGERY: &str = r#"
+mod domain_alias_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle as Authority; fn forge(left: &mut Authority, right: &mut Authority) { std::mem::swap(&mut left.parent, &mut right.parent); } const _: fn(&mut Authority, &mut Authority) = forge; }
+"#;
+const GRAPH_RAW_GETTER: &str = r#"
+mod graph_raw_getter { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle; fn escape(value: &GraphHandle) { let _ = std::sync::Arc::clone(value.raw_graph()); } const _: fn(&GraphHandle) = escape; }
+"#;
+const DOMAIN_RAW_GETTER: &str = r#"
+mod domain_raw_getter { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle; fn escape(value: &DomainHandle) { let _ = std::sync::Arc::clone(value.raw_domain()); } const _: fn(&DomainHandle) = escape; }
+"#;
 pub(super) fn controls() -> Vec<Probe> {
     vec![
+        Probe {
+            owner: ROOT,
+            source: GRAPH_SELF_FORGERY.into(),
+            expected: Expectation::Refuse {
+                code: "E0451",
+                first: "shared",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: DOMAIN_ALIAS_FORGERY.into(),
+            expected: Expectation::Refuse {
+                code: "E0616",
+                first: "parent",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: GRAPH_RAW_GETTER.into(),
+            expected: Expectation::Refuse {
+                code: "E0624",
+                first: "raw_graph",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: DOMAIN_RAW_GETTER.into(),
+            expected: Expectation::Refuse {
+                code: "E0624",
+                first: "raw_domain",
+                second: "private",
+            },
+        },
         Probe {
             owner: ROOT,
             source: OWNED_STORAGE_ESCAPE.into(),

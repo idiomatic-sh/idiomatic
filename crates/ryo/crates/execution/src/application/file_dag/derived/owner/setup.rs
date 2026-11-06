@@ -38,7 +38,7 @@ impl DerivedOwner {
             cache.graph_enabled = demanded
                 .iter()
                 .any(|rule| prepared.graph_rules.contains(rule));
-            crate::application::file_dag::derived::owner::selection::activate_program(
+            crate::application::file_dag::derived::owner::selection::preparation::service::activate_program(
                 cache, prepared, demanded,
             );
         }

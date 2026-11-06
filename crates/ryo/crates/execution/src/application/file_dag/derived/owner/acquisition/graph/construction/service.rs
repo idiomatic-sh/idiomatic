@@ -4,7 +4,7 @@ use crate::application::file_dag::derived::ledger::append_backing;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
 use crate::application::file_dag::derived::{
     owner::cache::types::CacheBackend,
-    owner::graphs::types::handles::GraphHandle,
+    owner::graphs::types::handles::service::GraphHandle,
     owner::{DerivedOwner, PopulationId},
 };
 use crate::domain::{

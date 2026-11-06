@@ -3,7 +3,7 @@ use super::*;
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
-        handles::{DomainHandle, GraphHandle, RootAnswer},
+        handles::service::{DomainHandle, GraphHandle, RootAnswer},
         roots::value::DemandAnswers,
     },
 };
@@ -363,7 +363,7 @@ impl GraphFixture {
         // Measure a cold admission: this probe already owns optional leases,
         // so its ledger incremental cost would exclude the graph payload.
         graph
-            .backings
+            .backings()
             .iter()
             .map(|backing| backing.bytes)
             .sum::<usize>()
