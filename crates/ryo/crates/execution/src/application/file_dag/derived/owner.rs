@@ -1,6 +1,6 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use super::footprint::storage_bytes;
-use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
 use acquisition::semantics::service::DerivedStorage;
@@ -205,7 +205,7 @@ impl DerivedOwner {
                     .snapshot()
                     .optional_units
                     .checked_add(extra_units)
-                    .is_some_and(|units| units <= super::selection::MAX_RETAINED_POSITION_CAPACITY)
+                    .is_some_and(|units| units <= crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY)
             {
                 break;
             }
@@ -325,3 +325,8 @@ mod owner_test;
 pub(in crate::application::file_dag) mod raw_scope;
 
 use ryo_derived::domain::contract::types::DerivedKind;
+
+pub(in crate::application::file_dag) mod cache;
+pub(in crate::application::file_dag) mod graphs;
+pub(in crate::application::file_dag) mod index;
+pub(in crate::application::file_dag) mod selection;

@@ -1,6 +1,6 @@
 //! Iterative positive reach, ordered early stop and validated-forest path compression.
 
-use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
+use crate::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_derived::domain::contract::types::CompactGraph;
 
 /// No known nearest answer has been computed for this vertex/context.
@@ -37,13 +37,13 @@ impl<'a> GraphTraversal<'a> {
         &mut self,
         root: u32,
         orientation: Orientation,
-        nearest: Option<&GraphDomain>,
+        nearest: Option<&[bool]>,
     ) -> bool {
         self.begin();
         self.follow(root, orientation);
         while let Some(vertex) = self.walk.queue.pop_front() {
             self.walk.reached.push(vertex);
-            if nearest.is_some_and(|domain| domain.members.get(vertex as usize) == Some(&true)) {
+            if nearest.is_some_and(|domain| domain.get(vertex as usize) == Some(&true)) {
                 return true;
             }
             // Initial seeding already expanded the root. A real cycle may still emit it.
@@ -66,7 +66,7 @@ impl<'a> GraphTraversal<'a> {
         &mut self,
         root: u32,
         orientation: Orientation,
-        domain: &GraphDomain,
+        domain: &[bool],
         answers: &mut Vec<u32>,
     ) -> (Option<u32>, bool) {
         self.walk.expanded = 0;
@@ -88,7 +88,7 @@ impl<'a> GraphTraversal<'a> {
                 break ABSENT;
             };
             self.walk.examined += 1;
-            if domain.members[parent as usize] {
+            if domain[parent as usize] {
                 break parent;
             }
             if answers[parent as usize] != UNKNOWN {

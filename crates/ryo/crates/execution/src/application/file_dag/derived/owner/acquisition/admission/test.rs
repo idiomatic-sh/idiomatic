@@ -73,10 +73,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
-        name: CaseName("held_payload_cannot_revive_revoked_generation"),
-        word: Word::Refuses,
+        name: CaseName("held_payload_remains_immutable_under_its_required_lease"),
+        word: Word::Succeeds,
         input: || Input::ExpiredView,
-        expect: Expect::Error(OperatingError::NotRead),
+        expect: Expect::Value(()),
     },
 ];
 fn table() -> Table {

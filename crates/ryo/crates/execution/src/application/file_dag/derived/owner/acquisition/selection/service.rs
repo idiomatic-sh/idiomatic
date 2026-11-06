@@ -1,7 +1,7 @@
 //! Owner-bound selector acquisition; immutable views leave this scope, never the backend.
 use super::super::super::*;
-use crate::application::file_dag::derived::selection::candidates::candidates;
-use crate::application::file_dag::derived::selection::{
+use crate::application::file_dag::derived::owner::selection::candidates::service::candidates;
+use crate::application::file_dag::derived::owner::selection::{
     CandidateRows, SelectionPath, histogram, shared_positions,
 };
 use crate::application::file_dag::relations::{AdmittedInput, RelationOwner};
@@ -14,7 +14,7 @@ use ryo_language::domain::symbols::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 #[derive(Clone, Copy)]
-pub(in crate::application::file_dag::derived) struct SelectionSource<'a> {
+pub(in crate::application::file_dag::derived::owner) struct SelectionSource<'a> {
     owner: &'a DerivedOwner,
     source: &'a RelationOwner,
     proof: &'a AdmittedInput<'a>,
@@ -32,7 +32,7 @@ impl SelectionSource<'_> {
             .build_admitted(plan, &admitted, inputs, scratch, None)?
             .ok_or(OperatingError::WrongOperation)
     }
-    pub(in crate::application::file_dag::derived) fn acquire_postings(
+    pub(in crate::application::file_dag::derived::owner) fn acquire_postings(
         &self,
         cache: &mut CacheBackend,
         plan: &Arc<DerivedContract>,
@@ -91,14 +91,14 @@ impl SelectionSource<'_> {
                 drop(state);
                 let population = source.columns.first().map_or(0, |column| column.0.len());
                 let units = self.owner.ledger.borrow().snapshot().optional_units;
-                if groups >= crate::application::file_dag::derived::selection::MAX_FANOUT_GROUPS
-                    || literals > crate::application::file_dag::derived::selection::MAX_FANOUT_LITERALS
-                    || text_bytes > crate::application::file_dag::derived::selection::MAX_FANOUT_TEXT_BYTES
+                if groups >= crate::application::file_dag::derived::owner::selection::MAX_FANOUT_GROUPS
+                    || literals > crate::application::file_dag::derived::owner::selection::MAX_FANOUT_LITERALS
+                    || text_bytes > crate::application::file_dag::derived::owner::selection::MAX_FANOUT_TEXT_BYTES
                     || population
                         .checked_mul(2)
                         .and_then(|need| units.checked_add(need))
                         .is_none_or(|units| {
-                            units > crate::application::file_dag::derived::selection::MAX_RETAINED_POSITION_CAPACITY
+                            units > crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY
                         })
                 {
                     return Ok(None);
@@ -127,7 +127,7 @@ impl SelectionSource<'_> {
         )
     }
 
-    pub(in crate::application::file_dag::derived) fn can_retain_equality(
+    pub(in crate::application::file_dag::derived::owner) fn can_retain_equality(
         &self,
         cache: &CacheBackend,
         relation: ryo_relations::domain::relations::types::Relation,
@@ -136,7 +136,7 @@ impl SelectionSource<'_> {
     ) -> bool {
         let live_hint = self.owner.has_live_equality(source, columns);
         let allowed = live_hint
-            || crate::application::file_dag::derived::indexes::can_retain(
+            || crate::application::file_dag::derived::owner::index::service::can_retain(
                 cache, relation, source, columns,
             );
         if !allowed {
@@ -148,7 +148,7 @@ impl SelectionSource<'_> {
                 population = ?self.population, relation = ?relation, columns = ?columns,
                 rows = source.columns.first().map_or(0, |column| column.0.len()),
                 cache_bytes = cache.bytes, cache_limit = cache.limit,
-                minimum_index_bytes = crate::application::file_dag::derived::indexes::minimum_bytes(source.columns.first().map_or(0, |column| column.0.len()), columns.len()),
+                minimum_index_bytes = crate::application::file_dag::derived::owner::index::service::minimum_bytes(source.columns.first().map_or(0, |column| column.0.len()), columns.len()),
                 live_hint, ledger = ?self.owner.ledger.borrow().snapshot());
         }
         allowed
@@ -186,7 +186,7 @@ impl SelectionSource<'_> {
             },
         )
     }
-    pub(in crate::application::file_dag::derived) fn acquire(
+    pub(in crate::application::file_dag::derived::owner) fn acquire(
         &self,
         route: crate::application::file_dag::route_counts::BuildRoute,
         cache: &mut CacheBackend,
@@ -243,12 +243,12 @@ impl DerivedOwner {
         program: &Arc<Selector>,
         source: ColumnsView<'f>,
         relation_owner: &RelationOwner,
+        publication: &crate::application::file_dag::relations::PublishedInput,
         proof: &AdmittedInput<'_>,
         context: &mut OperatorContext<'_>,
-    ) -> Result<
-        Option<crate::application::file_dag::derived::selection::SelectionOutput<'f>>,
-        OperatingError,
-    > {
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        proof.require_publication(relation_owner, publication.as_ref())?;
         if !std::ptr::eq(self, &relation_owner.derived)
             || !crate::application::file_dag::relations::same_admitted_rows(
                 proof.rows(),
@@ -258,22 +258,35 @@ impl DerivedOwner {
             return Err(OperatingError::NotRead);
         }
         let population = proof.identity(relation_owner)?.0;
-        let mut backend = self.backend.borrow_mut();
-        let Some(backend) = backend.as_mut() else {
+        let produced = {
+            let mut backend = self.backend.borrow_mut();
+            let Some(backend) = backend.as_mut() else {
+                return Ok(None);
+            };
+            crate::application::file_dag::derived::owner::selection::select(
+                backend,
+                SelectionSource {
+                    owner: self,
+                    source: relation_owner,
+                    proof,
+                    population,
+                },
+                program,
+                source,
+                context,
+            )?
+        };
+        let Some(produced) = produced else {
             return Ok(None);
         };
-        crate::application::file_dag::derived::selection::select(
-            backend,
-            SelectionSource {
-                owner: self,
-                source: relation_owner,
-                proof,
-                population,
-            },
-            program,
-            source,
-            context,
+        crate::application::file_dag::relations::selection::publish(
+            relation_owner,
+            publication,
+            proof,
+            produced.rows.selection,
+            produced.resources,
         )
+        .map(Some)
     }
 }
 
@@ -320,7 +333,7 @@ impl PredicateProgram for Decision<'_> {
         )
     }
 }
-pub(in crate::application::file_dag::derived) fn matches(
+pub(in crate::application::file_dag::derived::owner) fn matches(
     cache: &mut CacheBackend,
     resources: SelectionSource<'_>,
     program: &Arc<Selector>,

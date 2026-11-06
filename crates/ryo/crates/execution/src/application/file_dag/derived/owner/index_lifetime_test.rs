@@ -13,8 +13,12 @@ use {
 };
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
-    let fixture =
-        ResourceFixture::new(&[Relation::Function], &[], super::super::indexes::LIMIT).unwrap();
+    let fixture = ResourceFixture::new(
+        &[Relation::Function],
+        &[],
+        crate::application::file_dag::derived::owner::index::service::LIMIT,
+    )
+    .unwrap();
     let input = Rows::Stored(ColumnsView {
         kinds: KINDS,
         columns,
