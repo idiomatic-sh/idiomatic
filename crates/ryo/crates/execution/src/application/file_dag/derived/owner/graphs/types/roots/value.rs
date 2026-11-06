@@ -88,6 +88,31 @@ impl<'a> DemandAnswers<'a> {
         }
         self.admit(access, root, walk)
     }
+    /// One-step or closure traversal for an axis row; the owner alone records its walk work.
+    pub(in crate::application::file_dag) fn axis(
+        &mut self,
+        access: &GraphHandle,
+        root: u32,
+        orientation: Orientation,
+        direction: ryo_values::domain::plan_parts::types::Direction,
+        walk: &mut GraphWalk,
+    ) -> Result<(), OperatingError> {
+        access.validate_owner(self.owner)?;
+        let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
+        if matches!(
+            direction,
+            ryo_values::domain::plan_parts::types::Direction::Parent
+                | ryo_values::domain::plan_parts::types::Direction::Child
+        ) {
+            traversal.direct(root, orientation);
+        } else {
+            let _ = traversal.breadth(root, orientation, None);
+        }
+        if let Some(cache) = self.cache.as_mut() {
+            cache.observe_graph_walk(walk.expanded, walk.examined);
+        }
+        Ok(())
+    }
     pub(in crate::application::file_dag) fn nearest(
         &mut self,
         access: &GraphHandle,

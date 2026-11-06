@@ -114,7 +114,7 @@ impl PartialEq for PreparedIdentity {
     fn eq(&self, other: &Self) -> bool {
         let (left, right) = (&self.0, &other.0);
         Arc::ptr_eq(left, right)
-            || (left.identity_hash == right.identity_hash
+            || (left.identity_hash() == right.identity_hash()
                 && left.kind == right.kind
                 && left.schemas == right.schemas
                 && left.metadata == right.metadata
@@ -124,7 +124,7 @@ impl PartialEq for PreparedIdentity {
 impl Eq for PreparedIdentity {}
 impl std::hash::Hash for PreparedIdentity {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::hash::Hash::hash(&self.0.identity_hash, state);
+        std::hash::Hash::hash(&self.0.identity_hash(), state);
     }
 }
 impl PreparedIdentity {

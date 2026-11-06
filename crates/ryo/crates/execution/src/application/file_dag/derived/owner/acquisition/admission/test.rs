@@ -25,6 +25,7 @@ enum Scenario {
     UnprovedDense,
     UnpermittedRaw,
     ExpiredView,
+    CloneKeepsLease,
 }
 type Input = Scenario;
 type Value = ();
@@ -76,6 +77,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("held_payload_remains_immutable_under_its_required_lease"),
         word: Word::Succeeds,
         input: || Input::ExpiredView,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("acquired_view_clone_keeps_the_required_lease_until_the_last_drops"),
+        word: Word::Succeeds,
+        input: || Input::CloneKeepsLease,
         expect: Expect::Value(()),
     },
 ];
@@ -190,6 +197,28 @@ fn subject(input: Input) -> Result<(), Failure> {
                 None,
             )
             .map(|_| ()),
+        Input::CloneKeepsLease => {
+            let required = || owner.derived.ledger.borrow().snapshot().required_bytes;
+            let before = required();
+            let first = owner.derived.acquire_stored(
+                &plan,
+                &admitted,
+                Default::default(),
+                DerivedInputs::Rows(&original),
+                &mut scratch,
+                None,
+            )?;
+            let held = required();
+            assert!(held > before, "an acquired view holds a required lease");
+            let clone = first.clone();
+            drop(first);
+            assert_eq!(required(), held, "a clone alone keeps the lease");
+            clone.view()?;
+            assert_eq!(clone.dependency().backings().len(), clone.backings().len());
+            drop(clone);
+            assert_eq!(required(), before, "the last drop releases the lease");
+            Ok(())
+        }
         Input::ExpiredView | Input::Reuse => {
             let first: AcquiredView = owner.derived.acquire_stored(
                 &plan,
