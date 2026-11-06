@@ -32,7 +32,7 @@ let representatives = union(left=module-rows, right=orphans);
 let no-interface = antijoin(left=representatives, right=interface-keys, left-on=["owner", "collection"], right-on=["owner", "collection"]);
 let strays = antijoin(left=direct-rows, right=direct-rs-paths, left-on=["path"], right-on=["path"]);
 let reserved-member-dirs = select * from item-dir-rows where glob_any(item, "{interface,types,errors}");
-let value-roles = select path as path from "tastemaker.placed" where glob_any(template, "{value,value-module,value-test}");
+let value-roles = select path as path from "tastemaker.placed" where package = "idiomatic.arch" and glob_any(template, "{value,value-module,value-test}");
 let member-dirs = antijoin(left=reserved-member-dirs, right=value-roles, left-on=["path"], right-on=["path"]);
 let fixtures-dirs = select * from item-dir-rows where glob_any(item, "fixtures");
 let non-item-dirs = union(left=reserved-member-dirs, right=fixtures-dirs);
@@ -3310,5 +3310,21 @@ given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)]
 given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
 given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
 given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"] }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"idiomatic.arch/unit-test\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
+then.only = ["idiomatic.arch/collection-members"]
+then.findings = [{path="src/collections/shapes/types/key/value.rs"}]
+
+[[scenarios]]
+id = "foreign-package-cannot-spoof-value-role"
+scenario = "A different package defining a template named value does not acquire the common role."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }, { package = \"foreign\", path = \"../../../../crates/tastemaker/cli/tests/fixtures/replay/roles\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"] }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"foreign/value\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
 then.only = ["idiomatic.arch/collection-members"]
 then.findings = [{path="src/collections/shapes/types/key/value.rs"}]

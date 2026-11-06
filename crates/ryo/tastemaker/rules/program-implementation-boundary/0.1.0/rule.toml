@@ -97,7 +97,7 @@ let authorized-implementations = union(left=engine-implementations, right=catalo
 let registered-sites = select file, span from authorized-implementations;
 let implementation-sites = select file, span from implementations;
 let unregistered-sites = antijoin(left=implementation-sites, right=registered-sites, left-on=["file", "span"], right-on=["file", "span"]);
-let implementation-proofs = select path as file from "tastemaker.placed" where glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures,program-runtime-proof}");
+let implementation-proofs = select path as file from "tastemaker.placed" where (package = "idiomatic.arch" and glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures}")) or (package = "idiomatic.ryo" and template = "program-runtime-proof");
 let unregistered-production = antijoin(left=unregistered-sites, right=implementation-proofs, left-on=["file"], right-on=["file"]);
 
 let ownership-violations = union(left=invocation-boundary, right=neutral-backrefs);
@@ -649,3 +649,12 @@ given.files.'src/application/file_dag/execution/lease/capability.rs' = 'pub mod 
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = 'pub struct Lease;'
 given.files.'src/application/caller.rs' = "use crate::application::file_dag::execution::lease::capability::service::Lease as Alternative;"
 then.findings = [{path="src/application/caller.rs",line=1}]
+
+[[scenarios]]
+id = "foreign-package-cannot-spoof-implementation-proof"
+scenario = "An unrelated package cannot authorize raw implementations by naming its template item-test."
+given.files.'src/domain/operator/collections/operators/select.rs' = "pub mod item; #[cfg(test)] mod item_test;"
+given.files.'src/domain/operator/collections/operators/select/item_test.rs' = "use super::super::interface::OperatorsItem; pub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"proof\", dependencies = [{ package = \"idiomatic.ryo\", path = \"../../..\" }, { package = \"foreign\", path = \"../../../../../tastemaker/cli/tests/fixtures/replay/roles\" }] }\nrules = [{ rule = \"idiomatic.ryo/program-implementation-boundary\", include = [\"src/**\"] }]\ntemplates = [{ template = \"foreign/item-test\", file = \"src/domain/operator/collections/operators/select/item_test.rs\" }]\n"
+then.only = ["idiomatic.ryo/program-implementation-boundary"]
+then.findings = [{path="src/domain/operator/collections/operators/select/item_test.rs", line=1}]
