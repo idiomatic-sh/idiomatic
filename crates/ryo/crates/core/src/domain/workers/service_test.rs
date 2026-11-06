@@ -184,7 +184,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 first_bucket: &[],
                 ids: &[],
                 applicability: &[],
-                applicability_can_gate: true,
+                applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
                 placed: &placed,
                 records: &[],
                 reuse: &ryo_values::domain::stores::types::Reuse::Whole,

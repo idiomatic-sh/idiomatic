@@ -7,7 +7,7 @@ use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 
 /// How many rows the answer has and how many of them were written: they differ when a limit cut the answer short.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Summary {
+pub struct AnswerCounts {
     /// Every row the answer has.
     pub total: RowTotal,
     /// The rows that were written.
@@ -40,7 +40,7 @@ impl<'a> From<LentCell<'a>> for Option<Cell<CellText<'a>>> {
 
 /// One row of the answer, kept: its cells, typed; a cell with no value is `None`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Row(pub Box<[Option<Cell>]>);
+pub struct KeptRow(pub Box<[Option<Cell>]>);
 
 /// Every row kept, for a caller that wants them all at once.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -48,11 +48,11 @@ pub struct Collected {
     /// The headings of the columns.
     pub columns: Vec<Heading>,
     /// The rows, each cell typed.
-    pub rows: Vec<Row>,
+    pub rows: Vec<KeptRow>,
     /// The files nothing read.
     pub unread: Vec<Unread>,
     /// How many rows the answer has and how many were written.
-    pub summary: Summary,
+    pub summary: AnswerCounts,
 }
 
 /// Where the collect adapter keeps every row, shared with the edge that takes them after the run: the edge makes it, hands a clone

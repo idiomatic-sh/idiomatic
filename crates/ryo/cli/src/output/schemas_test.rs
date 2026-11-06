@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use ryo_core::outbound::row_sink::errors::RowSinkError;
 use ryo_core::outbound::row_sink::interface::RowSinkPort as _;
-use ryo_core::outbound::row_sink::types::{LentCell, Summary};
+use ryo_core::outbound::row_sink::types::{LentCell, AnswerCounts};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
@@ -80,7 +80,7 @@ enum Offered {
     Cell(Option<Cell<CellText<'static>>>),
     /// The rows of an answer of two columns and one row, written in a format to a stream that does something with them, with a
     /// summary.
-    Rows(Format, Reader, Summary),
+    Rows(Format, Reader, AnswerCounts),
 }
 
 /// What a row gives the schemas.
@@ -99,8 +99,8 @@ const fn span(start: u32, end: u32) -> Cell<CellText<'static>> {
 }
 
 /// A summary of `total` rows of which `shown` were written.
-const fn summary(total: u64, shown: u64) -> Summary {
-    Summary {
+const fn summary(total: u64, shown: u64) -> AnswerCounts {
+    AnswerCounts {
         total: RowTotal(total),
         shown: RowTotal(shown),
     }

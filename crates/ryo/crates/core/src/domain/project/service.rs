@@ -77,7 +77,7 @@ pub(crate) fn with_consulted(
 pub(crate) fn unread_manifest_partials(
     wanted: &[ryo_relations::domain::relations::types::Relation],
     path: &ryo_language::domain::files::types::FilePath,
-    detail: &str,
+    detail: &ryo_values::domain::files::types::InputReadFailure,
 ) -> Vec<ryo_execution::inbound::use_cases::metadata::interface::Partial> {
     wanted
         .iter()
@@ -86,7 +86,7 @@ pub(crate) fn unread_manifest_partials(
             |relation| ryo_execution::inbound::use_cases::metadata::interface::Partial {
                 relation: *relation,
                 cause: ryo_values::domain::stored_facts::types::PartialCause(
-                    format!("cannot read primary manifest `{}`: {detail}", path.0).into(),
+                    format!("cannot read primary manifest `{}`: {}", path.0, detail.0).into(),
                 ),
                 lacking: ryo_execution::inbound::use_cases::metadata::interface::Lacking::Any,
                 at: None,

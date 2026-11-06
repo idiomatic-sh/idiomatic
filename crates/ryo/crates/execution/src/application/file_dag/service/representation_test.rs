@@ -9,13 +9,8 @@ use crate::domain::table_model::collections::representations::{
 };
 use crate::domain::table_model::types::{SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_language::domain::{
-    elements::{
-        service::{enter_node, leave_node, table_builder, token},
-        types::Elements,
-    },
-    symbols::types::{ByteSlice, Symbols},
-};
+use ryo_language::domain::{elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
     types::{ColumnsView, FactColumn, FileId, Integer, KindBits, Offset},

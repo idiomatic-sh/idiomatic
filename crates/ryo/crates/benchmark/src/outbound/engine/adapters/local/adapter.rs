@@ -103,7 +103,7 @@ impl EngineLocalAdapter {
             let _new_mapping = mapped_rules.insert(id.clone());
             let id =
                 RuleId::try_from(id.as_str()).map_err(|error| Error::Invalid(error.to_string()))?;
-            let query = if modules.is_empty() {
+            let query = if modules.content() == ryo::query::CatalogContent::Empty {
                 RyoQlQuery::try_from(query.as_str())
                     .map_err(|error| Error::Invalid(error.to_string()))?
             } else {
@@ -299,10 +299,14 @@ impl EngineExecution for LocalEngineSession<'_> {
         let report = linter::lint_with(
             &engine,
             LintRequest {
-                source_language: request
-                    .source_language
-                    .clone()
-                    .map(|name| ryo::languages::LanguageName(name.into())),
+                source_language: request.source_language.clone().map_or(
+                    ryo::linter::SourceLanguage::Recognized,
+                    |name| {
+                        ryo::linter::SourceLanguage::Named(ryo::languages::LanguageName(
+                            name.into(),
+                        ))
+                    },
+                ),
                 root: request.root.clone(),
                 project_search_scope: request.project_search_roots.clone().map_or(
                     ryo::linter::ProjectSearchScope::Undeclared,

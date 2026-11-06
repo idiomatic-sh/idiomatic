@@ -34,7 +34,7 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
         metadata: &from_plans(&plans),
         ids: &ids,
         applicability: &applicability,
-        applicability_can_gate: true,
+        applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
         needs: &needs,
         paths: &paths,
         ..setting(&placed)

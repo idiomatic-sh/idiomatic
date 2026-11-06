@@ -8,8 +8,8 @@ use std::sync::Mutex;
 use ryo_relations::domain::relations::service::{all, columns, kinds};
 use ryo_relations::domain::relations::types::Relation;
 
-use super::constants::SCHEMAS;
-use super::types::RefusalText;
+use super::constants::{RETAINED_COLUMN_WORDS, SCHEMAS};
+use super::types::FactsRefusalText;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_execution::inbound::use_cases::execution::types::facts::{
     BucketSource, ColumnsMut, KeptBucket, WordsToKeep,
@@ -32,7 +32,7 @@ impl FactsMemoryAdapter {
 }
 
 /// A refusal, as the port says it.
-fn refused(reason: RefusalText<'_>) -> FactsError {
+fn refused(reason: FactsRefusalText<'_>) -> FactsError {
     FactsError::Store {
         reason: reason.0.to_owned(),
     }
@@ -68,11 +68,11 @@ impl FactsWorker for MemoryWorker {
         let place = all()
             .iter()
             .position(|each| *each == relation)
-            .ok_or_else(|| refused(RefusalText(SCHEMAS)))?;
+            .ok_or_else(|| refused(FactsRefusalText(SCHEMAS)))?;
         let columns = self
             .tables
             .get(place)
-            .ok_or_else(|| refused(RefusalText(SCHEMAS)))?;
+            .ok_or_else(|| refused(FactsRefusalText(SCHEMAS)))?;
         Ok(ColumnsView {
             kinds: kinds(relation),
             columns,
@@ -81,12 +81,12 @@ impl FactsWorker for MemoryWorker {
 
     fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         if words.words.0.is_empty() {
-            return Err(refused(RefusalText(SCHEMAS)));
+            return Err(refused(FactsRefusalText(SCHEMAS)));
         }
         let mut buckets = self
             .words
             .lock()
-            .map_err(|_| refused(RefusalText(SCHEMAS)))?;
+            .map_err(|_| refused(FactsRefusalText(SCHEMAS)))?;
         let kept = buckets.entry(bucket).or_default();
         let start = kept.words.0.0.len();
         kept.words.0.0.extend_from_slice(&words.words.0);
@@ -100,16 +100,10 @@ impl FactsWorker for MemoryWorker {
     }
 
     fn release(&mut self) -> Result<(), FactsError> {
-        // Provider columns are a separate owner from the execution pool and file-local indexes.
-        let mut remaining = 16_usize * 1024 * 1024;
+        // A column keeps room for a small file's rows and gives the rest back: the next file grows it again when it needs more.
         for column in self.tables.iter_mut().flatten() {
             column.0.clear();
-            let bytes = column.0.capacity().saturating_mul(size_of::<u64>());
-            if bytes > remaining {
-                column.0 = Vec::new();
-            } else {
-                remaining -= bytes;
-            }
+            column.0.shrink_to(RETAINED_COLUMN_WORDS);
         }
         Ok(())
     }
@@ -119,7 +113,7 @@ impl FactsWorker for MemoryWorker {
             kept: self
                 .words
                 .into_inner()
-                .map_err(|_| refused(RefusalText(SCHEMAS)))?,
+                .map_err(|_| refused(FactsRefusalText(SCHEMAS)))?,
         }))
     }
 }

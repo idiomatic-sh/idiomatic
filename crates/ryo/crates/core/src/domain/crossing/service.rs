@@ -84,12 +84,11 @@ pub(crate) fn partials_for_reads(
             .into_iter()
             .flat_map(|id| crossing.skipped.iter().filter(move |skip| skip.rule == *id))
             .filter_map(|skip| {
-                crossing
-                    .paths
-                    .iter()
-                    .position(|path| *path == skip.path)
-                    .and_then(|place| u32::try_from(place).ok())
-                    .map(ryo_relations::domain::relations::types::FileId)
+                let place = crossing.paths.iter().position(|path| *path == skip.path)?;
+                let Ok(number) = u32::try_from(place) else {
+                    return None;
+                };
+                Some(ryo_relations::domain::relations::types::FileId(number))
             })
             .collect(),
     }

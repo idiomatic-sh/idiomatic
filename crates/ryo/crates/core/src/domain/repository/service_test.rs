@@ -1,6 +1,10 @@
 //! The `repository` service's cases, on values alone.
 
-use super::service::{by_path, configuration, paths_of};
+use super::service::{
+    by_path, catalog_schema, configuration, paths_of, schema_bytes, source_selection_identity,
+};
+use super::types::{DigestColumn, DigestRelation};
+use ryo_relations::domain::relations::types::{CellKind, NameRef};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
@@ -18,6 +22,14 @@ enum Scenario {
     Paths,
     /// Digests the same configuration twice, then with another rule, then with one more rule.
     Configured,
+    /// The identity of an explicit source selection is exact and framed.
+    SourceSelection,
+    /// The names, kinds and column order of a catalog are part of its identity.
+    SchemaIdentity,
+    /// The current catalog differs from its older identities.
+    LegacyCatalog,
+    /// Adjacent names do not alias and the real catalog is stable.
+    SchemaFrames,
 }
 
 /// What a row of the cases does with the files of a run.
@@ -25,6 +37,20 @@ type Input = Scenario;
 /// Three numbers: a file stands for its size or its number, a path for its first byte; -1 says there was nothing.
 type Value = [i64; 3];
 type Failure = ();
+
+/// A relation of the given columns, as the digest of the catalog sees it.
+fn relation<'a>(name: &'a str, columns: &[(&'a str, CellKind)]) -> DigestRelation<'a> {
+    DigestRelation {
+        name: NameRef(name),
+        columns: columns
+            .iter()
+            .map(|(name, kind)| DigestColumn {
+                name: NameRef(*name),
+                kind: *kind,
+            })
+            .collect(),
+    }
+}
 
 fn entry(path: &str, size: u64) -> CorpusEntry {
     CorpusEntry {
@@ -80,6 +106,91 @@ fn subject(scenario: Input) -> Value {
             }
             read
         }
+        Scenario::SourceSelection => {
+            use ryo_values::domain::descriptions::types::LanguageName;
+            let encode = source_selection_identity;
+            let python = LanguageName("python".into());
+            let other = LanguageName("python-other".into());
+            assert_eq!(encode(Some(&python)), encode(Some(&python)));
+            assert_ne!(encode(None), encode(Some(&python)));
+            assert_ne!(encode(Some(&python)), encode(Some(&other)));
+            assert_ne!(encode(None), encode(Some(&LanguageName("".into()))));
+            [1, 1, 1]
+        }
+        Scenario::SchemaIdentity => {
+            let columns = [("file", CellKind::File), ("path", CellKind::Symbol)];
+            let original = [relation("module", &columns)];
+            let same = [relation("module", &columns)];
+            assert_eq!(schema_bytes(&original), schema_bytes(&same));
+            let changed = [
+                [relation("renamed", &columns)],
+                [relation(
+                    "module",
+                    &[("file", CellKind::File), ("renamed", CellKind::Symbol)],
+                )],
+                [relation(
+                    "module",
+                    &[("file", CellKind::File), ("path", CellKind::Number)],
+                )],
+                [relation(
+                    "module",
+                    &[("path", CellKind::Symbol), ("file", CellKind::File)],
+                )],
+                [relation(
+                    "module",
+                    &[
+                        ("file", CellKind::File),
+                        ("path", CellKind::Symbol),
+                        ("extra", CellKind::Symbol),
+                    ],
+                )],
+            ];
+            for each in &changed {
+                assert_ne!(schema_bytes(&original), schema_bytes(each));
+            }
+            [1, 1, 1]
+        }
+        Scenario::LegacyCatalog => {
+            use ryo_relations::domain::relations::{
+                service::{column_name, columns, kind},
+                types::Relation,
+            };
+            let legacy = [relation(
+                "module-identity",
+                &[("file", CellKind::File), ("path", CellKind::Symbol)],
+            )];
+            let current = [DigestRelation {
+                name: NameRef("module-identity"),
+                columns: columns(Relation::ModuleIdentity)
+                    .into_iter()
+                    .map(|column| DigestColumn {
+                        name: column_name(column),
+                        kind: kind(column),
+                    })
+                    .collect(),
+            }];
+            assert_ne!(schema_bytes(&legacy), schema_bytes(&current));
+            let previous = [relation(
+                "module-identity",
+                &[
+                    ("file", CellKind::File),
+                    ("path", CellKind::Symbol),
+                    ("module-name", CellKind::Symbol),
+                    ("package-name", CellKind::Symbol),
+                ],
+            )];
+            assert_ne!(schema_bytes(&previous), schema_bytes(&current));
+            [1, 1, 1]
+        }
+        Scenario::SchemaFrames => {
+            assert_ne!(
+                schema_bytes(&[relation("ab", &[("c", CellKind::Number)])]),
+                schema_bytes(&[relation("a", &[("bc", CellKind::Number)])])
+            );
+            assert_eq!(catalog_schema(), catalog_schema());
+            assert!(!catalog_schema().0.is_empty());
+            [1, 1, 1]
+        }
         Scenario::Configured => {
             let digest = |rules: &[RuleSpec]| configuration(rules, &[]);
             let first = digest(&[rule("a", "select x")]);
@@ -116,21 +227,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Configured,
         expect: Expect::Value([1, 0, 0]),
     },
+    Case {
+        name: CaseName("explicit_source_selection_identity_is_exact_and_framed"),
+        word: Word::Succeeds,
+        input: || Scenario::SourceSelection,
+        expect: Expect::Value([1, 1, 1]),
+    },
+    Case {
+        name: CaseName("names_kinds_and_column_order_are_part_of_snapshot_identity"),
+        word: Word::Succeeds,
+        input: || Scenario::SchemaIdentity,
+        expect: Expect::Value([1, 1, 1]),
+    },
+    Case {
+        name: CaseName("current_module_context_schema_rejects_its_legacy_identities"),
+        word: Word::Succeeds,
+        input: || Scenario::LegacyCatalog,
+        expect: Expect::Value([1, 1, 1]),
+    },
+    Case {
+        name: CaseName("frames_distinguish_adjacent_names_and_real_catalog_is_stable"),
+        word: Word::Succeeds,
+        input: || Scenario::SchemaFrames,
+        expect: Expect::Value([1, 1, 1]),
+    },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
-}
-
-#[test]
-fn explicit_source_selection_identity_is_exact_and_framed() {
-    use ryo_values::domain::descriptions::types::LanguageName;
-    let encode = super::service::source_selection_identity;
-    let python = LanguageName("python".into());
-    let other = LanguageName("python-other".into());
-    assert_eq!(encode(Some(&python)), encode(Some(&python)));
-    assert_ne!(encode(None), encode(Some(&python)));
-    assert_ne!(encode(Some(&python)), encode(Some(&other)));
-    assert_ne!(encode(None), encode(Some(&LanguageName("".into()))));
 }

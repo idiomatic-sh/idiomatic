@@ -148,7 +148,7 @@ impl ValidatedFrontier {
             &mut context.symbols,
             transport,
         )
-        .map_err(|_| OperatingError::NotRead)?;
+        .ok_or(OperatingError::NotRead)?;
         let before = places.len();
         let result = (|| {
             let table = ryo_values::domain::table_words::service::decode_complete(

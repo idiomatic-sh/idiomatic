@@ -11,13 +11,8 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::PositionedRows,
 };
-use ryo_language::domain::{
-    elements::{
-        service::{enter_node, leave_node, table_builder},
-        types::Elements,
-    },
-    symbols::types::{ByteSlice, Symbols},
-};
+use ryo_language::domain::{elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
 use ryo_relations::domain::relations::types::{CellKind, FileId, KindBits, Offset, Value as Cell};
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
 fn input<'a>(

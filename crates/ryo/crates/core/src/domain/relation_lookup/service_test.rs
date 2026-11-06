@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::RelationLookupError;
 use super::service::resolve;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use ryo_values::domain::descriptions::types::RelationName;
 
 /// What a row asks: the relations ryo lists and the text asked for.
@@ -44,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "nothing",
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, RelationLookupError::UnknownRelation { .. }))
+            selects(Matched(matches!(error, RelationLookupError::UnknownRelation { .. })))
         }),
     },
     Case {
@@ -55,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "function",
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, RelationLookupError::UnknownRelation { .. }))
+            selects(Matched(matches!(error, RelationLookupError::UnknownRelation { .. })))
         }),
     },
 ];

@@ -51,7 +51,7 @@ pub(crate) fn sdk_request(
     LintRequest {
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
-        source_language: None,
+        source_language: ryo_sdk::linter::SourceLanguage::Recognized,
         root: root.to_path_buf(),
         rules: std::collections::BTreeMap::from([(
             RuleId::try_from("consumer").expect("rule id"),

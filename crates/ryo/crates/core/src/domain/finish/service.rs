@@ -1,8 +1,8 @@
 //! The `finish` service: free functions named by verb that turn the rows a query emits into
 //! findings, with no IO and no ports. A finding is numbers until a report is written.
 
-use ryo_language::domain::symbols::service::derived_of;
-use ryo_language::domain::symbols::service::places_of;
+use ryo_language::domain::names::service::derived_of;
+use ryo_language::domain::names::service::places_of;
 use ryo_language::domain::symbols::service::{file_in, place_of, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;

@@ -3,10 +3,8 @@ use super::{
     service::escape,
     types::{Arena, Leaves, Leaving, PublicationReason, Retained},
 };
-use ryo_language::domain::symbols::{
-    service::{derived_of, hash_in, hash_of, intern_derived, places_of},
-    types::{ByteSlice, Symbols},
-};
+use ryo_language::domain::symbols::{service::{hash_in, hash_of, intern_derived}, types::{ByteSlice, Symbols}};
+use ryo_language::domain::names::service::{derived_of, places_of};
 use ryo_relations::domain::{
     relations::types::{
         CROSS_FILE, CROSS_PLACE, FileId, NamePlace, Origin, PlaceNumber, Value, WorkerNumber,

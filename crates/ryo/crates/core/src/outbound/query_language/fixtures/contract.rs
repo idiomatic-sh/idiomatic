@@ -1,6 +1,6 @@
 //! What every `query_language` adapter must pass.
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 use ryo_values::domain::plan_parts::types::QueryText;
@@ -32,7 +32,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || QueryBundle::from(QueryText(TEXT_THAT_REFUSE_AND_IS_NOT_A_QUERY.into())),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, QueryLanguageError::Refused { .. }))
+            selects(Matched(matches!(error, QueryLanguageError::Refused { .. })))
         }),
     },
 ];

@@ -44,7 +44,7 @@ impl PredicateProgram for BoundPredicate<'_> {
         }
         let names = *self.names.get_or_insert_with(|| {
             let count = crate::domain::operating::types::NameCount(
-                ryo_language::domain::symbols::service::name_count(symbols).0,
+                ryo_language::domain::names::service::name_count(symbols).0,
             );
             self.memo.clear();
             self.memo.resize(

@@ -9,14 +9,8 @@ use ryo_derived::{
     },
     inbound::use_cases::derived::interface::DerivedUseCase,
 };
-use ryo_language::domain::{
-    completion::service::{completion, name_kind},
-    elements::{
-        service::{enter_node, leave_node, table_builder, token},
-        types::Elements,
-    },
-    symbols::types::{ByteSlice, Symbols},
-};
+use ryo_language::domain::{completion::service::{completion, name_kind}, elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_relations::domain::{
     relations::{
         constants::NO_SYMBOL,

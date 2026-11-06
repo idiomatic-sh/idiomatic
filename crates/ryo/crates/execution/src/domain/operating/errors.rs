@@ -1,6 +1,6 @@
 //! The `operating` concept's failures.
 
-use ryo_language::domain::semantics::types::RenderError;
+use ryo_language::domain::semantics::errors::SemanticsError;
 use ryo_values::domain::rows::errors::RowsError;
 
 /// Why an operator could not compute its rows.
@@ -22,7 +22,7 @@ pub enum OperatingError {
     ObservationIncomplete { reason: String },
     /// A semantic request named a stale or foreign syntax node.
     #[error(transparent)]
-    SemanticRender(#[from] RenderError),
+    SemanticRender(#[from] SemanticsError),
     /// The provider returned a different number of answers than requested.
     #[error("semantic renderer returned a malformed batch")]
     SemanticBatchShape,

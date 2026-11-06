@@ -8,7 +8,7 @@ use crate::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 
 use crate::outbound::language::fixtures::fake::LanguageFake;
-use crate::outbound::language::types::{ProjectInput, ProjectNotes};
+use crate::outbound::language::types::{ProjectToRead, ProjectNotes};
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
@@ -16,7 +16,7 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 use std::sync::{Arc, atomic::Ordering};
 
-use crate::application::run_coordination::settings::VisitSetting;
+use super::types::RequestVisitSetting;
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::execution::types::Counting;
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
@@ -194,7 +194,7 @@ fn replay_under_capture(
     };
     let visit = FileVisit {
         store: None,
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             source_language: None,
             program,
             services: &request,
@@ -205,7 +205,7 @@ fn replay_under_capture(
                 first_bucket: &[Bucket(0)],
                 ids: &ids,
                 applicability: &[],
-                applicability_can_gate: true,
+                applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
                 placed: &placed,
                 records: &[],
                 reuse: &ryo_values::domain::stores::types::Reuse::Cross(
@@ -310,7 +310,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     };
     let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
-    let setting = VisitSetting {
+    let setting = RequestVisitSetting {
         source_language: None,
         program,
         services: &request,
@@ -321,7 +321,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             first_bucket: &[],
             ids: &ids,
             applicability: &applicability,
-            applicability_can_gate: true,
+            applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
             placed: &placed,
             records: &[],
             reuse: &ryo_values::domain::stores::types::Reuse::Whole,
@@ -366,7 +366,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
 
 /// Check a rejected or undetermined source without mixing its owner tables with other cases.
 fn assert_gated_acceptance(
-    setting: &VisitSetting<'_>,
+    setting: &RequestVisitSetting<'_>,
     acceptance: SyntaxAcceptance,
     expected_reason: &str,
 ) {
@@ -404,7 +404,7 @@ fn assert_gated_acceptance(
 }
 
 /// Accepted syntax keeps enabled rules; absent applicability metadata still records unknowns.
-fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
+fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) {
     let mut tables = tables_for(WorkerNumber(0), setting.metadata);
     tables.mask = Mask(vec![0b11]);
     assert_eq!(
@@ -421,13 +421,13 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
         FileAnalysis::active_wanted(&tables, setting, SyntaxAcceptance::Accepted).as_ref(),
         [Relation::Function, Relation::Identifier]
     );
-    let always_setting = VisitSetting {
+    let always_setting = RequestVisitSetting {
         source_language: None,
         domain: crate::domain::workers::types::VisitSetting {
             metadata: &setting.metadata[1..],
             ids: &setting.ids[1..],
             applicability: &setting.applicability[1..],
-            applicability_can_gate: false,
+            applicability_can_gate: crate::domain::workers::types::Gating::NeverGates,
             needs: &setting.needs[1..],
             ..(setting.clone()).domain
         },
@@ -447,10 +447,10 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
     ));
     assert!(tables.unknowns.is_empty());
 
-    let missing_policy = VisitSetting {
+    let missing_policy = RequestVisitSetting {
         domain: crate::domain::workers::types::VisitSetting {
             applicability: &[],
-            applicability_can_gate: true,
+            applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
             ..(setting.clone()).domain
         },
         ..setting.clone()
@@ -486,13 +486,10 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
 fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use crate::outbound::language::types::FileReading;
     use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
-    use ryo_language::domain::elements::service::{
-        diagnose, diagnose_with_metadata, diagnostics, has_incomplete_lexical_stream,
-        has_incomplete_syntax, table_builder,
-    };
-    use ryo_language::domain::elements::types::{
-        DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
-    };
+    use ryo_language::domain::elements::service::{diagnostics, has_incomplete_lexical_stream, has_incomplete_syntax};
+    use ryo_language::domain::builders::service::{diagnose, diagnose_with_metadata, table_builder};
+    use ryo_language::domain::elements::types::Elements;
+    use ryo_language::domain::diagnostics::types::{SyntaxCompleteness, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact};
     use ryo_language::domain::symbols::types::ByteSlice;
     use ryo_relations::domain::relations::types::{Offset, ReportText};
 
@@ -503,11 +500,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         let mut builder = table_builder(&mut elements, &mut symbols, source);
         diagnose_with_metadata(
             &mut builder,
-            DiagnosticMetadata::new(
-                DiagnosticPhase::Validation,
-                TreeImpact::Preserved,
-                DiagnosticCode::provider_owned("fixture.target-syntax"),
-            ),
+            DiagnosticMetadata { phase: DiagnosticPhase::Validation, impact: TreeImpact::Preserved, code: DiagnosticCode("fixture.target-syntax") },
             ReportText("syntax is unsupported by this target"),
             Offset(0),
             Offset(1),
@@ -518,7 +511,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         &elements,
     );
     assert_eq!(preserved, Recovery::Whole);
-    assert!(!has_incomplete_syntax(&elements));
+    assert_eq!(has_incomplete_syntax(&elements), SyntaxCompleteness::Complete);
     assert_eq!(
         diagnostics(&elements).count(),
         1,
@@ -537,11 +530,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
             table_builder(&mut lexical_elements, &mut lexical_symbols, source);
         diagnose_with_metadata(
             &mut lexical_builder,
-            DiagnosticMetadata::new(
-                DiagnosticPhase::Parse,
-                TreeImpact::LexicallyComplete,
-                DiagnosticCode::provider_owned("fixture.parser-recovered"),
-            ),
+            DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: TreeImpact::LexicallyComplete, code: DiagnosticCode("fixture.parser-recovered") },
             ReportText("invalid syntax, complete token stream"),
             Offset(0),
             Offset(1),
@@ -552,8 +541,8 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         &lexical_elements,
     );
     assert_eq!(lexical_recovery, Recovery::LexicallyCompleteSyntaxErrors);
-    assert!(has_incomplete_syntax(&lexical_elements));
-    assert!(!has_incomplete_lexical_stream(&lexical_elements));
+    assert_eq!(has_incomplete_syntax(&lexical_elements), SyntaxCompleteness::Incomplete);
+    assert_eq!(has_incomplete_lexical_stream(&lexical_elements), SyntaxCompleteness::Complete);
     let lexical_partials = MetadataUseCaseImpl.partial_of(
         &[],
         lexical_recovery,
@@ -582,8 +571,8 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         &incomplete_elements,
     );
     assert_eq!(incomplete, Recovery::SyntaxErrors);
-    assert!(has_incomplete_syntax(&incomplete_elements));
-    assert!(has_incomplete_lexical_stream(&incomplete_elements));
+    assert_eq!(has_incomplete_syntax(&incomplete_elements), SyntaxCompleteness::Incomplete);
+    assert_eq!(has_incomplete_lexical_stream(&incomplete_elements), SyntaxCompleteness::Incomplete);
     assert_eq!(diagnostics(&incomplete_elements).count(), 1);
     assert!(
         !MetadataUseCaseImpl
@@ -625,7 +614,7 @@ fn subject(path: Input) -> Result<Value, Failure> {
         Arc::new(DigestFake),
         Arc::new(MemoryFake::default()),
     );
-    let input = ProjectInput {
+    let input = ProjectToRead {
         search_scope: &Default::default(),
         given_inventory: &Default::default(),
         observed_entries: &Default::default(),
@@ -819,7 +808,7 @@ fn visited_inputs_with_rule_demands(
     let (program, request) = prepared_test_program(&plans, ids, files);
     let visit = FileVisit {
         store: None,
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             source_language: None,
             program,
             services: &request,
@@ -831,7 +820,7 @@ fn visited_inputs_with_rule_demands(
                 first_bucket: &[],
                 ids,
                 applicability: &[],
-                applicability_can_gate: true,
+                applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
                 placed: &placed,
                 records: &records,
                 reuse: &ryo_values::domain::stores::types::Reuse::Whole,
@@ -980,7 +969,7 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() {
     use crate::outbound::corpus::{
         errors::CorpusError,
         interface::CorpusPort,
-        types::{Inventory, PathStat},
+        types::{CorpusInventory, PathStat},
     };
     use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
     struct Refuses {
@@ -993,11 +982,11 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() {
         ) -> ryo_language::domain::project_context::types::EntryObservation {
             ryo_language::domain::project_context::types::EntryObservation {
                 path: path.clone(),
-                state: ryo_language::domain::project_context::types::EntryState::Unknown,
+                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
             }
         }
-        fn inventory(&self) -> Result<Inventory, CorpusError> {
-            Ok(Inventory(vec![]))
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
+            Ok(CorpusInventory(vec![]))
         }
         fn read(&self, _: &CorpusEntry, _: &mut FileBytes) -> Result<(), CorpusError> {
             Err(CorpusError::Unreadable {
@@ -1260,7 +1249,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     };
     let visit = FileVisit {
         store: None,
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             source_language: None,
             program,
             services: &request,
@@ -1271,7 +1260,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
                 first_bucket: &[Bucket(0)],
                 ids: &ids,
                 applicability: &[],
-                applicability_can_gate: true,
+                applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
                 placed: &placed,
                 records: &[],
                 reuse: &ryo_values::domain::stores::types::Reuse::Whole,
@@ -1600,7 +1589,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let visit = FileVisit {
         store: Some(snapshot.as_ref()),
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             source_language: None,
             program,
             services: &request,
@@ -1611,7 +1600,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
                 first_bucket: &[Bucket(0)],
                 ids: &ids,
                 applicability: &[],
-                applicability_can_gate: true,
+                applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
                 placed: &placed,
                 records: &[],
                 reuse: &ryo_values::domain::stores::types::Reuse::Cross(
@@ -1634,7 +1623,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     FileAnalysis::hand_again(&mut replay, &visit, FileOrder(0), FileId(0), &record)
         .expect("invalid unrequested span is not read");
     let all_visit = FileVisit {
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             domain: crate::domain::workers::types::VisitSetting {
                 wanted_buckets: &BucketsWanted::All,
                 ..(visit.setting.clone()).domain
@@ -1703,7 +1692,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     ran.handed = Handing::Kept;
     let old_visit = FileVisit {
         store: Some(old.as_ref()),
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             domain: crate::domain::workers::types::VisitSetting {
                 stored: &persisted,
                 handed: &old_handed,
@@ -1722,7 +1711,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     .expect("unrequested bucket and other file never resolve their invalid descriptors");
     let old_all = FileVisit {
         store: old_visit.store,
-        setting: VisitSetting {
+        setting: RequestVisitSetting {
             domain: crate::domain::workers::types::VisitSetting {
                 wanted_buckets: &BucketsWanted::All,
                 ..(old_visit.setting).domain
@@ -1744,7 +1733,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
     use crate::outbound::corpus::{
         errors::CorpusError,
         interface::CorpusPort,
-        types::{Inventory, PathStat},
+        types::{CorpusInventory, PathStat},
     };
     use ryo_values::domain::files::types::{
         CorpusEntry, CorpusInput, FileBytes, FileNumber, FileSize, Nanoseconds,
@@ -1763,10 +1752,10 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
         ) -> ryo_language::domain::project_context::types::EntryObservation {
             ryo_language::domain::project_context::types::EntryObservation {
                 path: path.clone(),
-                state: ryo_language::domain::project_context::types::EntryState::Unknown,
+                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
             }
         }
-        fn inventory(&self) -> Result<Inventory, CorpusError> {
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
             unreachable!("explicit test inventory")
         }
         fn stat(&self, _: &FilePath) -> Result<PathStat, CorpusError> {
@@ -1956,9 +1945,9 @@ fn read_failure_demand_is_limited_to_governing_rules() {
             ..Needs::default()
         },
     ];
-    assert!(!read_failure_demanded(&wanted, &Mask(vec![1]), &needs, 2));
-    assert!(read_failure_demanded(&wanted, &Mask(vec![2]), &needs, 2));
-    assert!(read_failure_demanded(&wanted, &Mask(vec![1]), &[], 2));
+    assert_eq!(read_failure_demanded(&wanted, &Mask(vec![1]), &needs, crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::NotDemanded);
+    assert_eq!(read_failure_demanded(&wanted, &Mask(vec![2]), &needs, crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::Demanded);
+    assert_eq!(read_failure_demanded(&wanted, &Mask(vec![1]), &[], crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::Demanded);
 }
 
 #[test]
@@ -2079,7 +2068,7 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
     use crate::outbound::corpus::{
         errors::CorpusError,
         interface::CorpusPort,
-        types::{Inventory, PathStat},
+        types::{CorpusInventory, PathStat},
     };
     use ryo_language::domain::project_context::types::EntryObservation;
     use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
@@ -2089,7 +2078,7 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
         observations: Arc<AtomicUsize>,
     }
     impl CorpusPort for CountingCorpus {
-        fn inventory(&self) -> Result<Inventory, CorpusError> {
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
             self.inner.inventory()
         }
         fn read(&self, entry: &CorpusEntry, into: &mut FileBytes) -> Result<(), CorpusError> {
@@ -2126,7 +2115,7 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
     let scope = Default::default();
     let inventory = Default::default();
     let notes = ProjectNotes::default();
-    let input = ProjectInput {
+    let input = ProjectToRead {
         root: &root,
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         search_scope: &scope,

@@ -2,7 +2,7 @@
 
 use super::constants::MARK_OF_ELEMENT;
 use ryo_language::domain::elements::service::kind_names;
-use ryo_language::domain::symbols::service::name_count;
+use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
 
 use super::types::{Admission, Admit, FilterScratch};

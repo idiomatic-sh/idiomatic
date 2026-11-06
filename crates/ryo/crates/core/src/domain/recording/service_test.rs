@@ -1,26 +1,20 @@
 //! The `recording` service's cases, on values alone.
 
-use ryo_language::domain::elements::service::notes_mut;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Relation, Value as Cell, Words, WorkerNumber,
 };
 use ryo_values::domain::descriptions::types::RelationName;
-use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::records::types::{FileOutcome, Kept, Ran, Record, Unreadable};
-use ryo_values::domain::stored_facts::types::{
-    ArenaBase, Bucket, Digest, KeptWords, LanguageNumber,
-};
+use ryo_values::domain::records::types::Kept;
+use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, Digest, KeptWords};
 
-use crate::domain::recording::service::{
-    cover, finish_file, frontier_flat, made_ran, moved_words, replay, stored_of,
-};
-use crate::domain::recording::types::{BucketWords, Flat};
+use crate::domain::recording::service::{cover, frontier_flat, made_ran, moved_words, stored_of};
+use crate::domain::recording::types::{BucketWords, Flat, WordCount};
 use crate::domain::workers::types::VisitSetting;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Lacking, LackingKind, Partial, RuleIndex,
@@ -31,7 +25,7 @@ use ryo_values::domain::rows::service::push_row;
 
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
-use crate::domain::workers::types::{FileOrder, Tables};
+use crate::domain::workers::types::Tables;
 use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
 use ryo_values::domain::runs::types::MemoryBytes;
 use ryo_values::domain::runs::types::RuleId;
@@ -64,10 +58,6 @@ enum Scenario {
     MadeRan,
     /// Covers a file read in part that a rule governs and trusts.
     Cover,
-    /// Uses again the record of a file the rules were evaluated on.
-    ReplayRead,
-    /// Ends the visit of a file whose record the run keeps and which a language wrote notes of.
-    FinishKept,
 }
 
 /// What a row of the cases does.
@@ -101,7 +91,7 @@ fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
         first_bucket: &[],
         ids: &[],
         applicability: &[],
-        applicability_can_gate: true,
+        applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
         placed,
         records: &[],
         reuse: &ryo_values::domain::stores::types::Reuse::Whole,
@@ -149,32 +139,6 @@ fn words_of_numbers() -> Words {
     words
 }
 
-fn entry() -> CorpusEntry {
-    CorpusEntry {
-        executable: Default::default(),
-        path: FilePath("a.rs".into()),
-        size: FileSize(10),
-        modified: Nanoseconds(5),
-    }
-}
-
-fn unread() -> FileOutcome {
-    FileOutcome::Unread {
-        reason: Unreadable::NoLanguage,
-        ran: None,
-    }
-}
-
-fn ran() -> Ran {
-    made_ran(
-        &tables(),
-        FileId(4),
-        Digest([0; 16]),
-        Vec::new(),
-        ArenaBase(0),
-    )
-}
-
 fn plan_with_a_frontier() -> Plan {
     Plan {
         observation_inputs: Vec::new(),
@@ -219,53 +183,6 @@ fn cover_scenario(partials: Vec<Partial>, mask: Mask) -> Result<Value, Failure> 
         ryo_language::domain::elements::types::SyntaxAcceptance::Accepted,
     );
     Ok(count(worker.unknowns.len()) * 10 + count(worker.covered.len()))
-}
-
-fn replay_scenario(outcome: FileOutcome) -> Value {
-    let record = Record {
-        executable: Default::default(),
-        path: FilePath("a.rs".into()),
-        size: FileSize(1),
-        modified: Nanoseconds(1),
-        digest: Digest([0; 16]),
-        number: FileNumber(0),
-        outcome,
-    };
-    let mut worker = tables();
-    replay(
-        &mut worker,
-        FileId(3),
-        FileOrder(0),
-        &record,
-        &entry(),
-        Digest([1; 16]),
-    );
-    let fresh = &worker.fresh[0].record;
-    let renewed = fresh.number == FileNumber(3) && fresh.digest == Digest([1; 16]);
-    count(worker.unread.len()) * 100 + count(worker.fresh.len()) * 10 + u64::from(renewed)
-}
-
-fn finish_scenario() -> Result<Value, Failure> {
-    let placed = placed()?;
-    let setting = VisitSetting {
-        noted: Noting::Wanted,
-        ..setting(&placed)
-    };
-    let mut worker = tables();
-    notes_mut(&mut worker.elements).0.push(9);
-    worker.language = Some(LanguageNumber(0));
-    finish_file(
-        &mut worker,
-        &setting,
-        FileOrder(0),
-        &entry(),
-        Digest([1; 16]),
-        FileNumber(3),
-        Some(unread()),
-    );
-    Ok(count(worker.fresh.len()) * 100
-        + count(worker.notes.len()) * 10
-        + count(worker.partials.len()))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -316,7 +233,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                         rule_digest: Digest([17; 16]),
                         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
                     },
-                    word_count: 2,
+                    word_count: WordCount(2),
                     words: pack(WordSlice(&[5, 6])),
                 },
                 BucketWords {
@@ -327,7 +244,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                         rule_digest: Digest([18; 16]),
                         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
                     },
-                    word_count: 1,
+                    word_count: WordCount(1),
                     words: pack(WordSlice(&[7])),
                 },
             ];
@@ -346,8 +263,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             Ok(u64::from(ran.number.0) * 10 + u64::from(ran.interface == Digest([2; 16])))
         }
         Scenario::Cover => cover_scenario(vec![partial()], Mask(vec![1])),
-        Scenario::ReplayRead => Ok(replay_scenario(FileOutcome::Read(ran()))),
-        Scenario::FinishKept => finish_scenario(),
     }
 }
 
@@ -382,20 +297,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Cover,
         expect: Expect::Value(11),
     },
-    Case {
-        name: CaseName("a_file_the_store_kept_is_renumbered_and_its_record_kept_again"),
-        word: Word::Succeeds,
-        input: || Scenario::ReplayRead,
-        expect: Expect::Value(11),
-    },
-    Case {
-        name: CaseName(
-            "a_visit_ends_with_the_record_and_the_notes_when_the_run_keeps_its_findings",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::FinishKept,
-        expect: Expect::Value(110),
-    },
 ];
 
 #[test]
@@ -411,5 +312,9 @@ use ryo_values::domain::run_metadata::service::from_plans;
 mod coverage_test;
 #[cfg(test)]
 mod normalization_test;
+#[cfg(test)]
+mod replay_test;
+#[cfg(test)]
+mod retention_test;
 
 use super::fixtures::matcher;

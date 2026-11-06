@@ -15,7 +15,7 @@ use crate::domain::{
     stored_selection::types::Selector,
     table_model::service::check_columns,
 };
-use ryo_language::domain::symbols::service::name_count;
+use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

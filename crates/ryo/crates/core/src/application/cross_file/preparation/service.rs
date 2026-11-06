@@ -3,7 +3,7 @@ use super::{
     errors::BatchPreparationError,
     types::{Occurrence, PreparedProject, ProjectOccurrenceCount},
 };
-use crate::{application::cross_file::errors::CrossError, domain::answering::types::Todo};
+use crate::{application::cross_file::errors::CrossFileError, domain::answering::types::Todo};
 use ryo_execution::inbound::use_cases::execution::types::RuleIndex;
 use std::sync::Arc;
 
@@ -17,7 +17,7 @@ pub(crate) struct BatchOccurrenceSlot {
 enum State {
     Pending,
     Ready(PreparedProject),
-    Failed(CrossError),
+    Failed(CrossFileError),
 }
 struct Entry {
     todo: Todo,
@@ -33,7 +33,7 @@ pub(crate) struct Preparation {
 pub(in crate::application::cross_file) struct DeclaredProjectPreparation {
     pub(in crate::application::cross_file) todo: crate::domain::answering::types::Todo,
     pub(in crate::application::cross_file) result:
-        Result<PreparedProject, crate::application::cross_file::errors::CrossError>,
+        Result<PreparedProject, crate::application::cross_file::errors::CrossFileError>,
 }
 
 /// A complete immutable set of accounted project occurrences.
@@ -82,7 +82,7 @@ impl Preparation {
     pub(crate) fn account(
         &mut self,
         slot: BatchOccurrenceSlot,
-        result: Result<PreparedProject, CrossError>,
+        result: Result<PreparedProject, CrossFileError>,
     ) -> Result<(), BatchPreparationError> {
         if !Arc::ptr_eq(&self.owner, &slot.owner) {
             return Err(BatchPreparationError::Foreign);
@@ -104,7 +104,7 @@ impl Preparation {
     /// supply resources or the actual error; they cannot filter pending slots.
     pub(crate) fn prepare_all(
         mut self,
-        mut prepare: impl FnMut(Occurrence, &Todo) -> Result<PreparedProject, CrossError>,
+        mut prepare: impl FnMut(Occurrence, &Todo) -> Result<PreparedProject, CrossFileError>,
     ) -> Self {
         for (at, entry) in self.entries.iter_mut().enumerate() {
             if matches!(entry.state, State::Pending) {

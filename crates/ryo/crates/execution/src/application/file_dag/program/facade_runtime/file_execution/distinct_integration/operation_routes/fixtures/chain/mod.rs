@@ -68,7 +68,7 @@ pub(crate) fn run_chain(
     let mut case = fixtures::fixture(kind);
     let fusing = matches!(chain, Chain::Fused | Chain::Held);
     let mut inserted: Vec<usize> = Vec::new();
-    if ryo_language::domain::symbols::service::name_count(&case.symbols).0 == 0 {
+    if ryo_language::domain::names::service::name_count(&case.symbols).0 == 0 {
         query_intern_derived(
             &mut (&mut case.symbols).into(),
             ByteSlice(fixtures::SOURCE),

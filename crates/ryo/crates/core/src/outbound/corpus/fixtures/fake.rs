@@ -2,8 +2,8 @@
 
 use super::super::errors::CorpusError;
 use super::super::interface::CorpusPort;
-use crate::outbound::corpus::types::{Inventory, PathStat};
-use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
+use crate::outbound::corpus::types::{CorpusInventory, PathStat};
+use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
 };
@@ -41,11 +41,11 @@ fn written(bytes: &[u8]) -> Nanoseconds {
 }
 
 impl CorpusPort for CorpusFake {
-    fn inventory(&self) -> Result<Inventory, CorpusError> {
+    fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
         if self.fails {
             return Err(refusal());
         }
-        Ok(Inventory(
+        Ok(CorpusInventory(
             self.files
                 .iter()
                 .map(|file| CorpusEntry {
@@ -108,9 +108,9 @@ impl CorpusPort for CorpusFake {
             .chain(&self.outside)
             .any(|file| file.path == *path)
         {
-            EntryState::File
+            ObservedEntryState::File
         } else {
-            EntryState::Missing
+            ObservedEntryState::Missing
         };
         EntryObservation {
             path: path.clone(),

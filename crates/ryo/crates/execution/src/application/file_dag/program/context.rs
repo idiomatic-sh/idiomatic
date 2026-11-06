@@ -70,7 +70,9 @@ impl<'a> RunContext<'a> {
         program: &'b PreparedProgram,
         rule: RuleIndex,
     ) -> Result<OperatorContext<'b>, OperatingError> {
-        if !same_transport_generation(&self.symbols, &transport_permit(symbols)) {
+        if same_transport_generation(&self.symbols, &transport_permit(symbols))
+            == ryo_language::domain::symbols::types::Generation::Different
+        {
             return Err(OperatingError::NotRead);
         }
         Ok(OperatorContext {

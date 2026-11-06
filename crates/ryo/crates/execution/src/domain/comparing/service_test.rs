@@ -91,7 +91,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
             unreachable!()
         };
         let names = NameCount(
-            ryo_language::domain::symbols::service::name_count(context.symbols.as_ref()).0,
+            ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
         );
         let mut answers = Vec::new();
         for row in table.cells.chunks(table.kinds.len()) {
@@ -159,7 +159,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         unreachable!()
     };
     let names =
-        NameCount(ryo_language::domain::symbols::service::name_count(context.symbols.as_ref()).0);
+        NameCount(ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0);
     let mut answers = Vec::new();
     for row in table.cells.chunks(table.kinds.len()) {
         answers.push(holds_all(
@@ -233,7 +233,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             unreachable!()
         };
         let names = NameCount(
-            ryo_language::domain::symbols::service::name_count(context.symbols.as_ref()).0,
+            ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
         );
         let mut answers = Vec::new();
         for row in table.cells.chunks(table.kinds.len()) {

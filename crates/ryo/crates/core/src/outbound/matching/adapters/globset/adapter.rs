@@ -5,22 +5,38 @@ use std::sync::Arc;
 use ryo_execution::inbound::use_cases::execution::types::matching::{MatchingError, MatchingPort};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError as SemanticError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
-use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
 
 /// Adapts semantic results into the engine's caller-owned matcher handle.
 #[derive(Debug)]
-pub(crate) struct MatchingGlobsetAdapter;
+pub(crate) struct MatchingGlobsetAdapter<Semantics> {
+    /// The matching semantics the edge built, shared with every matcher this adapter compiles.
+    semantics: Arc<Semantics>,
+}
 
-impl MatchingPort for MatchingGlobsetAdapter {
+impl<Semantics> MatchingGlobsetAdapter<Semantics> {
+    /// The adapter over the matching semantics the edge built.
+    pub(crate) fn new(semantics: Semantics) -> Self {
+        Self {
+            semantics: Arc::new(semantics),
+        }
+    }
+}
+
+impl<Semantics> MatchingPort for MatchingGlobsetAdapter<Semantics>
+where
+    Semantics: MatchingUseCase + Send + Sync + 'static,
+{
     fn compile(&self, globs: &[Glob]) -> Result<GlobsMatcher, MatchingError> {
         let authored: Vec<&str> = globs.iter().map(|glob| glob.0.as_ref()).collect();
-        let compiled = MatchingUseCaseImpl::new()
+        let compiled = self
+            .semantics
             .compile_globs(&authored)
             .map_err(matching_error)?;
+        let semantics = Arc::clone(&self.semantics);
         Ok(GlobsMatcher {
             matches: Arc::new(move |path: MatchCandidate<'_>, hits: &mut Hits| {
-                MatchingUseCaseImpl::new().match_globs(
+                semantics.match_globs(
                     &compiled,
                     std::path::Path::new(path.0),
                     &mut hits.0,
@@ -30,7 +46,7 @@ impl MatchingPort for MatchingGlobsetAdapter {
     }
 
     fn parse(&self, glob: &Glob) -> Result<(), MatchingError> {
-        MatchingUseCaseImpl::new()
+        self.semantics
             .parse_glob(&glob.0)
             .map_err(matching_error)
     }

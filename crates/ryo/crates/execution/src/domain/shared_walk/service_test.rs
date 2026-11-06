@@ -10,7 +10,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};

@@ -75,14 +75,14 @@ impl language::interface::LanguagePort for Counting {
 
     fn project_entries(
         &self,
-        input: &language::types::ProjectInput<'_>,
+        input: &language::types::ProjectToRead<'_>,
     ) -> Vec<ryo_language::domain::files::types::FilePath> {
         self.language.project_entries(input)
     }
 
     fn project(
         &self,
-        input: &language::types::ProjectInput<'_>,
+        input: &language::types::ProjectToRead<'_>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> Result<language::types::ProjectAnswer, language::errors::LanguageError> {

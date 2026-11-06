@@ -2,7 +2,7 @@
 
 use super::errors::BudgetError;
 use super::service::{fit, repository_size, within};
-use crate::cases::{Case, CaseName, Expect, Selection, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Selection, Word, run, Matched, selects};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::runs::types::MemoryBytes;
@@ -77,7 +77,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_repository_larger_than_the_budget_is_refused"),
         word: Word::Refuses,
         input: || Scenario::FitsNot,
-        expect: Expect::Refusal(|error| selects(matches!(error, BudgetError::TooLarge { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, BudgetError::TooLarge { .. })))),
     },
     Case {
         name: CaseName("a_run_that_holds_more_than_its_budget_is_refused_naming_the_rules"),

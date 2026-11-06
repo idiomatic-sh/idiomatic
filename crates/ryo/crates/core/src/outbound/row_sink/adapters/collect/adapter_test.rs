@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::fixtures::contract::check;
 use crate::outbound::row_sink::interface::RowSinkPort as _;
-use crate::outbound::row_sink::types::{Collector, LentCell, Row, Summary};
+use crate::outbound::row_sink::types::{Collector, LentCell, KeptRow, AnswerCounts};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::row_texts::types::{Cell, CellText};
 
@@ -33,7 +33,7 @@ fn subject(cells: Input) -> Result<Value, Failure> {
     let collected = Collector::default();
     let adapter = RowSinkCollectAdapter::new(collected.clone());
     adapter.row(&mut cells.iter().copied().map(LentCell::from));
-    adapter.end(Summary::default(), &[])?;
+    adapter.end(AnswerCounts::default(), &[])?;
     let kept = collected
         .0
         .lock()
@@ -41,7 +41,7 @@ fn subject(cells: Input) -> Result<Value, Failure> {
         .rows
         .clone();
     Ok(kept
-        == [Row(Box::new([
+        == [KeptRow(Box::new([
             Some(Cell::File("a.rs".into())),
             None,
             Some(Cell::Number(Integer(7))),

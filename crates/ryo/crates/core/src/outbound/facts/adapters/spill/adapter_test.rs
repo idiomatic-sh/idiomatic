@@ -4,8 +4,9 @@
 use std::path::PathBuf;
 
 use super::adapter::FactsSpillAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::outbound::facts::fixtures::contract::{check, test_words};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::outbound::facts::fixtures::contract::check;
+use crate::outbound::facts::fixtures::words::test_words;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -47,7 +48,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("words_cannot_be_kept_in_a_directory_that_is_not_there"),
         word: Word::Fails,
         input: || Scenario::MissingDirectory,
-        expect: Expect::Refusal(|error| selects(matches!(error, FactsError::File { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, FactsError::File { .. })))),
     },
 ];
 

@@ -1,6 +1,6 @@
 //! The `entity_vector` item's cases: the elements a node names.
 
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::node_id;

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::adapter::LintStorePostcardAdapter;
 use super::schemas::{contents, contents_bytes};
 use super::types::{SectionLength, TableOfContents};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::fixtures::contract::{check, materialized_handed};
 use crate::outbound::lint_store::fixtures::fake::{
@@ -119,7 +119,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Question::AnUnwritableDirectory,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LintStoreError::Unwritable { .. }))
+            selects(Matched(matches!(error, LintStoreError::Unwritable { .. })))
         }),
     },
     Case {
@@ -133,14 +133,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Question::AnUnreadablePlace,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LintStoreError::Unreadable { .. }))
+            selects(Matched(matches!(error, LintStoreError::Unreadable { .. })))
         }),
     },
     Case {
         name: CaseName("a_keep_that_must_copy_words_from_a_store_nobody_read_is_refused"),
         word: Word::Refuses,
         input: || Question::AKeepOfWordsNobodyReadIsRefused,
-        expect: Expect::Refusal(|error| selects(matches!(error, LintStoreError::NothingRead))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintStoreError::NothingRead)))),
     },
     Case {
         name: CaseName("a_bucket_the_run_does_not_ask_for_is_never_decoded"),

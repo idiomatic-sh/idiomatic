@@ -1,9 +1,7 @@
 //! Authored request assembly; every operation runs through the public execution owner.
 use super::{interface::*, types::*, use_case::ExecutionUseCaseImpl};
-use ryo_language::domain::{
-    completion::service::{completion, name_kind},
-    elements::service::{enter_node, leave_node, table_builder, token},
-};
+use ryo_language::domain::completion::service::{completion, name_kind};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::{
     domain::elements::types::Elements,
     domain::symbols::types::{ByteSlice, Symbols},

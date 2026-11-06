@@ -1,9 +1,18 @@
 //! The `handing` service: free functions named by verb over what a file handed the steps that read across files and the rows the
 //! store keeps of it, with no IO and no ports.
 
+use crate::domain::keeping::types::{ArenaStart, Remap};
+use crate::domain::workers::types::{FileOrder, PlacedNotes, Tables};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Covered, Lacking, LackingKind, Partial, RuleIndex,
+};
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::records::types::{Handed, HandedNotes, RecordWords};
-use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_relations::domain::relations::service::relation_named;
+use ryo_relations::domain::relations::types::{FileId, NameRef, WorkerNumber};
+use ryo_values::domain::records::types::{GoverningRules, Handed, HandedNotes, RecordWords};
+use ryo_values::domain::stored_facts::types::{
+    ArenaBytes, Bucket, FileNotes, PartialCause, PartialScope, StoredPartial,
+};
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
     BucketsWanted, Stored, StoredCovered, StoredHanded, StoredNotes, StoredText, StoredWords,
@@ -76,14 +85,9 @@ pub(crate) fn hand_into(
         .into_iter()
         .filter(|each| wanted(each.bucket))
     {
-        let ordinal = u64::try_from(stored.frontier.len())
-            .ok()
-            .and_then(|inline| {
-                u64::try_from(staged.len())
-                    .ok()
-                    .and_then(|count| inline.checked_add(count))
-            })
-            .unwrap_or(u64::MAX);
+        let inline = u64::try_from(stored.frontier.len()).unwrap_or(u64::MAX);
+        let count = u64::try_from(staged.len()).unwrap_or(u64::MAX);
+        let ordinal = inline.saturating_add(count);
         stored
             .proofs
             .push(ryo_values::domain::stores::types::StoredFrontierProof {
@@ -128,6 +132,84 @@ pub(crate) fn hand_into(
             file,
             governing: handed.governing,
             partials: handed.partials,
+        });
+    }
+}
+
+/// The relations a record says were read in part, as the coverage steps take them.
+#[must_use]
+pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
+    stored
+        .iter()
+        .filter_map(|each| {
+            relation_named(NameRef(&each.relation_name.0)).map(|relation| Partial {
+                relation,
+                cause: PartialCause(each.cause.0.clone()),
+                at: match each.at {
+                    PartialScope::OneFile(file) => Some(FileId(file.0)),
+                    PartialScope::Repository => None,
+                },
+                lacking: if each.lacking_kind.0.is_empty() {
+                    Lacking::Any
+                } else {
+                    Lacking::Kind(LackingKind(each.lacking_kind.0.clone()))
+                },
+            })
+        })
+        .collect()
+}
+
+
+/// How the words a file handed the last run move to this run, read by the worker of `tables` as the file `number`: as if the run
+/// had read it, its text after what the worker's arena holds now. Taken before the file's text joins the arena.
+#[must_use]
+pub(crate) fn remap_to(tables: &Tables, number: FileId) -> Remap {
+    Remap {
+        from_file: FileId(0),
+        to_file: number,
+        from_worker: WorkerNumber(0),
+        to_worker: tables.number,
+        from_base: ArenaStart(0),
+        to_base: ArenaStart(u32::try_from(tables.arena.0.len()).unwrap_or(u32::MAX)),
+    }
+}
+
+/// Hands what a file the run does not read handed the last run but its words to the steps that read across files and the project,
+/// as if the run had read it: its text joins the worker's arena, and its notes and what of it is read in part join the worker's.
+pub(crate) fn hand_rest_again(
+    tables: &mut Tables,
+    at: FileOrder,
+    number: FileId,
+    text: &ArenaBytes,
+    notes: Option<&FileNotes>,
+    governing: &GoverningRules,
+    partials: &[StoredPartial],
+    observations: Option<&std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+) {
+    if let Some(root) = observations {
+        tables.observations.push(
+            ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
+                file: number,
+                root: std::sync::Arc::clone(root),
+            },
+        );
+    }
+    tables.arena.0.extend_from_slice(&text.0);
+    if let Some(notes) = notes {
+        tables.notes.push(PlacedNotes {
+            place: at,
+            notes: notes.clone(),
+        });
+    }
+    if !governing.0.is_empty() {
+        tables.covered.push(Covered {
+            file: number,
+            rules: governing
+                .0
+                .iter()
+                .map(|rule| RuleIndex(usize::try_from(*rule).unwrap_or(usize::MAX)))
+                .collect(),
+            partial: partials_of(partials),
         });
     }
 }

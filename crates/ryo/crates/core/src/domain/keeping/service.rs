@@ -182,15 +182,11 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
     );
     for rule in configuration.rules {
         put(&mut out, DigestPart(&rule.id.0));
-        put(
-            &mut out,
-            DigestPart(match rule.applicability {
-                ryo_values::domain::runs::types::RuleApplicability::Always => "always",
-                ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => {
-                    "accepted-syntax"
-                }
-            }),
-        );
+        // A rule's applicability is written as the number of its variant, as a number is not a text and needs no length.
+        out.0.push(match rule.applicability {
+            ryo_values::domain::runs::types::RuleApplicability::Always => 0,
+            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => 1,
+        });
         put(&mut out, DigestPart(&rule.query.root.id.0));
         put(&mut out, DigestPart(&rule.query.root.text));
         out.0.extend_from_slice(

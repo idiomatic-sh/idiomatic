@@ -11,10 +11,10 @@ pub(super) const PROBES: &[Probe] = &[
         expected: None,
         client: r#"
 mod authorized_seal {
- use crate::application::cross_file::{preparation::{service::{Preparation, SealedBatch}, errors::BatchPreparationError}, errors::CrossError};
+ use crate::application::cross_file::{preparation::{service::{Preparation, SealedBatch}, errors::BatchPreparationError}, errors::CrossFileError};
  use crate::domain::answering::types::Todo;
  fn authorized(todo: &[Todo]) -> Result<SealedBatch, BatchPreparationError> {
-  Preparation::ordinary(todo).prepare_all(|_, _| Err(CrossError::from(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRead))).seal()
+  Preparation::ordinary(todo).prepare_all(|_, _| Err(CrossFileError::from(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRead))).seal()
  }
  const _: fn(&[Todo]) -> Result<SealedBatch, BatchPreparationError> = authorized;
 }
@@ -26,13 +26,13 @@ mod authorized_seal {
         client: r#"
 mod authorized_service {
  use crate::application::cross_file::{service::CrossFile, preparation::service::SealedBatch};
- use crate::application::run_coordination::settings::CrossingInput;
+ use crate::application::cross_file::types::ProjectCrossing;
  use ryo_execution::inbound::use_cases::execution::types::ProjectPhase;
  use ryo_language::domain::symbols::types::Symbols;
- fn submit<'phase>(service: &CrossFile, crossing: &CrossingInput<'_>, batch: SealedBatch, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
+ fn submit<'phase>(service: &CrossFile, crossing: &ProjectCrossing<'_>, batch: SealedBatch, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
   let _ = service.evaluate_batch(crossing, batch, stage, symbols, |_| Ok(()));
  }
- const _: for<'phase> fn(&CrossFile, &CrossingInput<'_>, SealedBatch, &ProjectPhase<'phase>, &mut Symbols) = submit;
+ const _: for<'phase> fn(&CrossFile, &ProjectCrossing<'_>, SealedBatch, &ProjectPhase<'phase>, &mut Symbols) = submit;
 }
 "#,
     },
@@ -86,13 +86,13 @@ mod retarget_sealed {
         client: r#"
 mod raw_vector_submission {
  use crate::application::cross_file::service::CrossFile;
- use crate::application::run_coordination::settings::CrossingInput;
+ use crate::application::cross_file::types::ProjectCrossing;
  use ryo_execution::inbound::use_cases::execution::types::ProjectPhase;
  use ryo_language::domain::symbols::types::Symbols;
- fn submit<'phase>(service: &CrossFile, crossing: &CrossingInput<'_>, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
+ fn submit<'phase>(service: &CrossFile, crossing: &ProjectCrossing<'_>, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
   let _ = service.evaluate_batch(crossing, Vec::new(), stage, symbols, |_| Ok(()));
  }
- const _: for<'phase> fn(&CrossFile, &CrossingInput<'_>, &ProjectPhase<'phase>, &mut Symbols) = submit;
+ const _: for<'phase> fn(&CrossFile, &ProjectCrossing<'_>, &ProjectPhase<'phase>, &mut Symbols) = submit;
 }
 "#,
     },

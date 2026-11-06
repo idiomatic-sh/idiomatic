@@ -1,13 +1,13 @@
 //! Shared production-service controls over declared preparation and the real engine.
 #![cfg(test)]
 use crate::application::cross_file::{
-    errors::CrossError,
+    errors::CrossFileError,
     preparation::{
         errors::BatchPreparationError,
         service::Preparation,
         types::{Occurrence, PreparedProject},
     },
-    service_test::{
+    fixtures::{
         ProjectCalls, counting_plan, crossing, frontier_rows, prepared_in, service, todo,
         world_with,
     },
@@ -92,7 +92,7 @@ pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
             &frontier_rows(),
             symbols,
         )
-        .map_err(CrossError::from)?;
+        .map_err(CrossFileError::from)?;
         Ok(PreparedProject {
             scope,
             frontier,
@@ -139,7 +139,7 @@ pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
     let sealed = pending
         .prepare_all(|occurrence, todo| {
             if matches!(control, BatchControl::PreparationFailure) && occurrence == Occurrence(0) {
-                Err(CrossError::from(OperatingError::WrongBinding))
+                Err(CrossFileError::from(OperatingError::WrongBinding))
             } else {
                 prepare(todo, &mut symbols)
             }
@@ -170,7 +170,7 @@ pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
             assert!(
                 matches!(
                     outcome.result,
-                    Err(CrossError::Operating(OperatingError::WrongBinding))
+                    Err(CrossFileError::Operating(OperatingError::WrongBinding))
                 ),
                 "explicit preparation failure preserves its actual error"
             );

@@ -31,7 +31,7 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
             .expect("module bundle is loaded in the worker");
     assert_eq!(queries.len(), 1);
     assert_eq!(
-        queries.values().next().expect("rule").query.root_text(),
+        &**queries.values().next().expect("rule").query.root_text(),
         "import shared from \"python/ruff/suppress\";"
     );
     assert_eq!(

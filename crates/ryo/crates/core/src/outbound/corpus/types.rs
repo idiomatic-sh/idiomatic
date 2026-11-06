@@ -4,7 +4,7 @@ use ryo_values::domain::files::types::{CorpusEntry, CorpusInput};
 
 /// Explicit inputs retain per-path discovery failures; available files carry only real observed metadata.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Inventory(pub Vec<CorpusInput>);
+pub struct CorpusInventory(pub Vec<CorpusInput>);
 
 /// The directories a walk never goes into: a name, at any depth (the dependency, environment and build directories of the linked
 /// languages), or `./` and a path, the one directory at that path below the root.

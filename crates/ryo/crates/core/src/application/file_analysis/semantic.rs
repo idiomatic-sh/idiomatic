@@ -7,11 +7,11 @@ use ryo_execution::inbound::use_cases::execution::types::OperatingError;
 use ryo_execution::inbound::use_cases::execution::types::SemanticLookup;
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::semantics::interface::SemanticSession;
-use ryo_language::domain::semantics::types::{RenderError, RenderOutcome, RenderRequest};
+use ryo_language::domain::semantics::types::SemanticSession;
+use ryo_language::domain::semantics::service::admit;
+use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::service::{node_file, node_position};
-use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{Count, FileId};
 
 /// The application keeps this only while evaluating one freshly parsed file.
 pub(crate) struct SemanticState {
@@ -66,17 +66,7 @@ impl SemanticLookup for SemanticState {
         let mut unique = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for request in requests {
-            let file = node_file(request.node);
-            if file != self.file {
-                return Err(RenderError::ForeignFile {
-                    node: request.node,
-                    file,
-                }
-                .into());
-            }
-            if usize::try_from(node_position(request.node).0).unwrap_or(usize::MAX) >= self.nodes {
-                return Err(RenderError::StaleNode { node: request.node }.into());
-            }
+            admit(request, self.file, Count(self.nodes))?;
             if seen.insert(*request) {
                 unique.push(*request);
             }

@@ -25,10 +25,14 @@ pub enum Selection {
     Differs,
 }
 
+/// The result of a `matches!` over an error: whether it is the variant a row picks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Matched(pub bool);
+
 /// Whether an error is the one a row picks, as a selector answers it.
 #[must_use]
-pub const fn selects(matched: bool) -> Selection {
-    if matched {
+pub const fn selects(matched: Matched) -> Selection {
+    if matched.0 {
         Selection::Matches
     } else {
         Selection::Differs
@@ -97,7 +101,7 @@ where
         );
         if !kind_matches {
             failed.push(format!(
-                "{}: a {:?} row expects the wrong kind",
+                "{}: a {:?} row expects the wrong kind\n",
                 case.name.0, case.word
             ));
             continue;
@@ -107,7 +111,7 @@ where
         })) {
             Ok(answer) => answer,
             Err(_) => {
-                failed.push(format!("{}: the subject panicked", case.name.0));
+                failed.push(format!("{}: the subject panicked\n", case.name.0));
                 continue;
             }
         };
@@ -126,7 +130,7 @@ where
         };
         if !met {
             failed.push(format!(
-                "{}: expected {expected:?}, answered {answer:?}",
+                "{}: expected {expected:?}, answered {answer:?}\n",
                 case.name.0
             ));
         }
@@ -135,6 +139,6 @@ where
         failed.is_empty(),
         "{} row(s) of {word:?} failed:\n{}",
         failed.len(),
-        failed.join("\n")
+        failed.concat()
     );
 }

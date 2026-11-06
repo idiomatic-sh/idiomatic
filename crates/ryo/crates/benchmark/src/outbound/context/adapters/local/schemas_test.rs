@@ -29,7 +29,9 @@ fn manifests_and_receipts_round_trip_without_synthesizing_missing_paths() {
         dependencies: BTreeMap::from([
             (
                 "__init__.py".into(),
-                Some(ryo::linter::dependency_fingerprint(b"")),
+                Some(ryo::linter::DependencyFingerprint::from(
+                    ryo::linter::DependencyBytes(b""),
+                )),
             ),
             ("../__init__.py".into(), None),
         ]),

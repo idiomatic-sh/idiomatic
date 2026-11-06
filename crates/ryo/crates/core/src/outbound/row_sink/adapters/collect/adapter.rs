@@ -4,7 +4,7 @@ use std::sync::PoisonError;
 
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use crate::outbound::row_sink::types::{Collector, LentCell, Row, Summary};
+use crate::outbound::row_sink::types::{Collector, LentCell, KeptRow, AnswerCounts};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::service::owned;
 use ryo_values::domain::records::types::Unread;
@@ -33,7 +33,7 @@ impl RowSinkPort for RowSinkCollectAdapter {
     }
 
     fn row(&self, cells: &mut dyn Iterator<Item = LentCell<'_>>) {
-        let row = Row(cells.map(|cell| Option::from(cell).map(owned)).collect());
+        let row = KeptRow(cells.map(|cell| Option::from(cell).map(owned)).collect());
         self.into
             .0
             .lock()
@@ -42,7 +42,7 @@ impl RowSinkPort for RowSinkCollectAdapter {
             .push(row);
     }
 
-    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowSinkError> {
+    fn end(&self, summary: AnswerCounts, unread: &[Unread]) -> Result<(), RowSinkError> {
         let mut held = self.into.0.lock().unwrap_or_else(PoisonError::into_inner);
         held.unread = unread.to_vec();
         held.summary = summary;

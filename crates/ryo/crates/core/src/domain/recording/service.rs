@@ -1,22 +1,23 @@
 //! The `recording` service: free functions named by verb over what a visit of a file comes to for the store, with no IO and no ports.
 
-use super::types::{BucketWords, Flat, InterfaceBytes};
+use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
 use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::{Keeping, Noting};
-use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables, VisitSetting};
+use crate::domain::workers::types::{
+    FileOrder, FreshRecord, Gating, PlacedNotes, Tables, VisitSetting,
+};
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Blocking};
 use ryo_execution::inbound::use_cases::metadata::interface::{
-    CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown,
+    CoverageScope, Lacking, Partial, RuleIndex, Unknown,
 };
 use ryo_language::domain::elements::service::{notes_of, take_notes};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::service::{name, relation_named};
-use ryo_relations::domain::relations::types::NameRef;
+use ryo_relations::domain::relations::service::name;
 use ryo_relations::domain::relations::types::{FileId, Words, WorkerNumber};
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber};
@@ -33,29 +34,6 @@ use ryo_values::domain::stored_facts::types::{
 };
 use ryo_values::domain::table_words::service::{pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
-
-/// The relations a record says were read in part, as the coverage steps take them.
-#[must_use]
-pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
-    stored
-        .iter()
-        .filter_map(|each| {
-            relation_named(NameRef(&each.relation_name.0)).map(|relation| Partial {
-                relation,
-                cause: PartialCause(each.cause.0.clone()),
-                at: match each.at {
-                    PartialScope::OneFile(file) => Some(FileId(file.0)),
-                    PartialScope::Repository => None,
-                },
-                lacking: if each.lacking_kind.0.is_empty() {
-                    Lacking::Any
-                } else {
-                    Lacking::Kind(LackingKind(each.lacking_kind.0.clone()))
-                },
-            })
-        })
-        .collect()
-}
 
 /// The relations read in part, as a record keeps them.
 #[must_use]
@@ -103,7 +81,7 @@ pub(crate) fn moved_words(
         moved.push(BucketWords {
             bucket: each.bucket,
             proof: each.proof.clone(),
-            word_count: words.0.len(),
+            word_count: WordCount(words.0.len()),
             words: pack(WordSlice(&words.0)),
         });
     }
@@ -135,7 +113,7 @@ pub(crate) fn frontier_flat(
     }) {
         flat.0.extend([
             u64::from(each.bucket.0),
-            u64::try_from(each.word_count).unwrap_or(u64::MAX),
+            u64::try_from(each.word_count.0).unwrap_or(u64::MAX),
         ]);
         flat.0.extend(unpacked(&each.words).map(|word| word.0));
     }
@@ -146,22 +124,21 @@ pub(crate) fn frontier_flat(
             use ryo_values::domain::observations::types::ObservationReadinessRange;
             use ryo_values::domain::records::types::ObservationReadinessCount;
             use ryo_values::domain::records::types::ObservationReadinessSlot;
-            let bytes = ryo_values::domain::observations::service::frontier_identity(
+            let identity = ryo_values::domain::observations::service::frontier_identity(
                 observations,
                 ObservationReadinessRange {
-                    start: ObservationReadinessSlot(
-                        u32::try_from(start).expect("prepared status slot fits u32"),
-                    ),
+                    start: ObservationReadinessSlot(u32::try_from(start).unwrap_or(u32::MAX)),
                     length: ObservationReadinessCount(
-                        u32::try_from(end - start).expect("prepared status range fits u32"),
+                        u32::try_from(end - start).unwrap_or(u32::MAX),
                     ),
                 },
-            )
-            .expect("validated status range follows the prepared root layout")
-            .0;
+            );
+            // A range the prepared layout does not hold has no identity: it is written as an identity of no bytes, which no
+            // valid range has, so it never passes for one.
+            let bytes = identity.map_or_else(|_| Vec::new(), |identity| identity.0);
             flat.0.extend([
                 u64::MAX,
-                u64::try_from(bytes.len()).expect("readiness identity length fits u64"),
+                u64::try_from(bytes.len()).unwrap_or(u64::MAX),
             ]);
             for chunk in bytes.chunks(8) {
                 let mut word = [0; 8];
@@ -265,7 +242,9 @@ pub(crate) fn cover(
     }
     let mut rules = Vec::new();
     for (rule, needs) in setting.needs.iter().enumerate() {
-        let applicable = if setting.metadata.is_empty() || !setting.applicability_can_gate {
+        let applicable = if setting.metadata.is_empty()
+            || setting.applicability_can_gate == Gating::NeverGates
+        {
             true
         } else {
             match setting.applicability.get(rule).copied() {
@@ -411,60 +390,6 @@ pub(crate) fn finish_file(
         // What this file handed cannot be moved to another run: it keeps no record, and the next run reads it again.
         (Answering::Findings, None) => tables.unrecorded.push(file.path.clone()),
         (Answering::Rows(_), _) => {}
-    }
-}
-
-/// How the words a file handed the last run move to this run, read by the worker of `tables` as the file `number`: as if the run
-/// had read it, its text after what the worker's arena holds now. Taken before the file's text joins the arena.
-#[must_use]
-pub(crate) fn remap_to(tables: &Tables, number: FileId) -> Remap {
-    Remap {
-        from_file: FileId(0),
-        to_file: number,
-        from_worker: WorkerNumber(0),
-        to_worker: tables.number,
-        from_base: ArenaStart(0),
-        to_base: ArenaStart(u32::try_from(tables.arena.0.len()).unwrap_or(u32::MAX)),
-    }
-}
-
-/// Hands what a file the run does not read handed the last run but its words to the steps that read across files and the project,
-/// as if the run had read it: its text joins the worker's arena, and its notes and what of it is read in part join the worker's.
-pub(crate) fn hand_rest_again(
-    tables: &mut Tables,
-    at: FileOrder,
-    number: FileId,
-    text: &ArenaBytes,
-    notes: Option<&FileNotes>,
-    governing: &GoverningRules,
-    partials: &[StoredPartial],
-    observations: Option<&std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
-) {
-    if let Some(root) = observations {
-        tables.observations.push(
-            ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
-                file: number,
-                root: std::sync::Arc::clone(root),
-            },
-        );
-    }
-    tables.arena.0.extend_from_slice(&text.0);
-    if let Some(notes) = notes {
-        tables.notes.push(PlacedNotes {
-            place: at,
-            notes: notes.clone(),
-        });
-    }
-    if !governing.0.is_empty() {
-        tables.covered.push(Covered {
-            file: number,
-            rules: governing
-                .0
-                .iter()
-                .map(|rule| RuleIndex(usize::try_from(*rule).unwrap_or(usize::MAX)))
-                .collect(),
-            partial: partials_of(partials),
-        });
     }
 }
 

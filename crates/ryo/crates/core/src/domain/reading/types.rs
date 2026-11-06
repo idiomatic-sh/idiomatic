@@ -32,3 +32,29 @@ pub(crate) enum PrimaryFailureKind {
     /// The source was unstable or exceeded a representable size; not a disk-read refusal.
     Other,
 }
+
+/// How many rules a run has.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RunRuleCount(pub usize);
+
+/// Whether a rule governing the file reads the primary disk-failure observation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ReadFailureDemand {
+    /// A rule that governs the file reads it, or the metadata of the rules is incomplete.
+    Demanded,
+    /// No rule that governs the file reads it.
+    NotDemanded,
+}
+
+/// What the input edge said of a primary source it could not admit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FailureDetail<'a>(pub &'a str);
+
+/// Whether the engine observed the file itself before its source could not be admitted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ObservedFile {
+    /// Its metadata was observed, so the row of `filesystem.file` is decidable.
+    Observed,
+    /// It was not observed.
+    Unobserved,
+}

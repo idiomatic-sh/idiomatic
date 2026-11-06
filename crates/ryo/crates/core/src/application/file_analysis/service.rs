@@ -11,14 +11,13 @@ use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 // this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
-use super::types::{FileVisit, Worker};
+use super::types::{FileVisit, RequestVisitSetting, Worker};
 use crate::domain::admission::errors::AdmissionError;
 use crate::domain::admission::service::{admit_elements, admit_view, limits_of};
 
 use crate::domain::budget::service::within;
 use ryo_execution::inbound::use_cases::metadata::interface::{Recovery, RuleIndex};
 
-use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::handing::service::rows_of_file;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::Remap;
@@ -27,14 +26,17 @@ use crate::domain::reading::service::{
     begin, engine_asked, failure_partials, prepare, read_failure_demanded, settle as settle_file,
     start_partials,
 };
-use crate::domain::reading::types::{EngineAsked, EngineRows, PrimaryFailureKind};
-use crate::domain::recording::service::{
-    cover, finish_file, frontier_flat, hand_rest_again, interface_bytes, made_ran, moved_words,
-    remap_to, replay,
+use crate::domain::reading::types::{
+    EngineAsked, EngineRows, FailureDetail, ObservedFile, PrimaryFailureKind, ReadFailureDemand,
+    RunRuleCount,
 };
+use crate::domain::recording::service::{
+    cover, finish_file, frontier_flat, interface_bytes, made_ran, moved_words, replay,
+};
+use crate::domain::handing::service::{hand_rest_again, remap_to};
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::workers::types::{Held, Ready, Tables};
+use crate::domain::workers::types::{Gating, Held, Ready, ReadyBucket, Tables};
 use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -72,7 +74,9 @@ use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
 
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::language::types::{FileReading, FileToRead, ProjectInput};
+use crate::outbound::language::types::{
+    FileReading, FileToRead, ProjectToRead, SourceSelection,
+};
 
 use crate::outbound::memory::interface::MemoryPort;
 
@@ -80,6 +84,7 @@ use crate::outbound::scheduler::types::JobNumber;
 use ryo_language::domain::elements::service::{
     has_incomplete_lexical_stream, has_incomplete_syntax, syntax_acceptance,
 };
+use ryo_language::domain::diagnostics::types::SyntaxCompleteness;
 use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::service::clear_symbols;
@@ -107,8 +112,8 @@ use std::time::Instant;
 /// Whether the language read a complete tree or a recovery from missing syntax.
 pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
     match reading {
-        FileReading::Read(_) if has_incomplete_syntax(elements) => {
-            if has_incomplete_lexical_stream(elements) {
+        FileReading::Read(_) if has_incomplete_syntax(elements) == SyntaxCompleteness::Incomplete => {
+            if has_incomplete_lexical_stream(elements) == SyntaxCompleteness::Incomplete {
                 Recovery::SyntaxErrors
             } else {
                 Recovery::LexicallyCompleteSyntaxErrors
@@ -176,7 +181,7 @@ impl FileAnalysis {
     /// The parsed relations needed by rules that govern this path and whose applicability is met.
     pub(super) fn active_wanted<'a>(
         tables: &Tables,
-        setting: &'a VisitSetting<'_>,
+        setting: &'a RequestVisitSetting<'_>,
         acceptance: SyntaxAcceptance,
     ) -> Cow<'a, [Relation]> {
         if setting.metadata.is_empty() {
@@ -184,7 +189,7 @@ impl FileAnalysis {
         }
         // All rules are active for legacy plans, and complete metadata plus accepted syntax
         // activates every policy. Keep the caller's relation slice in both cases.
-        if !setting.applicability_can_gate
+        if setting.applicability_can_gate == Gating::NeverGates
             || acceptance == SyntaxAcceptance::Accepted
                 && setting.applicability.len() == setting.metadata.len()
         {
@@ -218,8 +223,8 @@ impl FileAnalysis {
     }
 
     /// Whether this setting contains a policy that can change a file's active rules.
-    pub(super) fn may_gate_rules(setting: &VisitSetting<'_>, acceptance: SyntaxAcceptance) -> bool {
-        setting.applicability_can_gate
+    pub(super) fn may_gate_rules(setting: &RequestVisitSetting<'_>, acceptance: SyntaxAcceptance) -> bool {
+        setting.applicability_can_gate == Gating::MayGate
             && !(acceptance == SyntaxAcceptance::Accepted
                 && setting.applicability.len() == setting.metadata.len())
     }
@@ -272,7 +277,7 @@ impl FileAnalysis {
     /// not applicable, not that its input was read incompletely.
     pub(super) fn gate_rules(
         tables: &mut Tables,
-        setting: &VisitSetting<'_>,
+        setting: &RequestVisitSetting<'_>,
         file: FileId,
         acceptance: SyntaxAcceptance,
     ) -> Vec<bool> {
@@ -751,12 +756,13 @@ impl FileAnalysis {
         let kept = setting.records.get(at.0).copied().flatten();
         // A file the system says is as it was is not read: what came of it is used again.
         if let Some(record) = kept.filter(|record| {
-            !read_failure_demanded(
+            read_failure_demanded(
                 setting.wanted,
                 &worker.tables.mask,
                 setting.needs,
-                setting.ids.len(),
-            ) && is_as_it_was(record, file) == Freshness::AsItWas
+                RunRuleCount(setting.ids.len()),
+            ) == ReadFailureDemand::NotDemanded
+                && is_as_it_was(record, file) == Freshness::AsItWas
         }) {
             replay(&mut worker.tables, number, at, record, file, record.digest);
             return Self::hand_again(worker, visit, at, number, record);
@@ -835,7 +841,16 @@ impl FileAnalysis {
         worker.tables.language = None;
         worker.facts.release()?;
         let asked = engine_asked(setting.wanted);
-        let mut said = failure_partials(setting.wanted, number, detail, observed_file);
+        let mut said = failure_partials(
+            setting.wanted,
+            number,
+            FailureDetail(detail),
+            if observed_file {
+                ObservedFile::Observed
+            } else {
+                ObservedFile::Unobserved
+            },
+        );
         Self::write_engine_rows(
             worker,
             EngineAsked {
@@ -972,7 +987,7 @@ impl FileAnalysis {
                                 Held::Staged(span)
                             }
                         };
-                        (each.bucket, &each.proof, held)
+                        ReadyBucket { bucket: each.bucket, proof: &each.proof, held }
                     })
                     .collect(),
             },
@@ -1011,7 +1026,7 @@ impl FileAnalysis {
                                     Held::Old(span)
                                 }
                             };
-                            (each.bucket, &each.proof, held)
+                            ReadyBucket { bucket: each.bucket, proof: &each.proof, held }
                         })
                         .collect(),
                 }
@@ -1028,7 +1043,7 @@ impl FileAnalysis {
             ready.observations,
         );
         let mut loaded = PackedWords::default();
-        for (bucket, proof, held) in ready.buckets {
+        for ReadyBucket { bucket, proof, held } in ready.buckets {
             // Filtering must precede any staged or old read, including an invalid unrequested descriptor.
             if let BucketsWanted::These(buckets) = setting.wanted_buckets
                 && buckets.binary_search(&bucket).is_err()
@@ -1075,7 +1090,7 @@ impl FileAnalysis {
     /// unselected bucket is never checked, as its words are never read.
     fn hand_words_again(
         worker: &mut Worker,
-        setting: &VisitSetting<'_>,
+        setting: &RequestVisitSetting<'_>,
         file: FileId,
         bucket: Bucket,
         proof: &ryo_values::domain::records::types::FrontierProof,
@@ -1148,7 +1163,9 @@ impl FileAnalysis {
         let setting = &visit.setting;
         let base = begin(&mut worker.tables);
         let source = FileToRead {
-            source_language: setting.source_language,
+            source_language: setting
+                .source_language
+                .map_or(SourceSelection::Recognized, SourceSelection::Named),
             path: &file.path,
             file: number,
             bytes: &worker.tables.bytes,
@@ -1199,7 +1216,9 @@ impl FileAnalysis {
         let session = if semantic_needed {
             worker.tables.language.and_then(|language| {
                 let source = FileToRead {
-                    source_language: setting.source_language,
+                    source_language: setting
+                        .source_language
+                        .map_or(SourceSelection::Recognized, SourceSelection::Named),
                     path: &file.path,
                     file: number,
                     bytes: &worker.tables.bytes,
@@ -1405,7 +1424,7 @@ impl FileAnalysis {
     /// What the languages make of the project the manifests and the links between the files make.
     pub(crate) fn project_now(
         &self,
-        input: &ProjectInput<'_>,
+        input: &ProjectToRead<'_>,
         symbols: &mut Symbols,
         facts: &mut dyn FactsWorker,
     ) -> Result<Projected, FileAnalysisError> {
@@ -1418,7 +1437,7 @@ impl FileAnalysis {
                 .map(|path| self.corpus.observe_entry(path))
                 .collect(),
         );
-        let input = ProjectInput {
+        let input = ProjectToRead {
             observed_entries: &observed_entries,
             ..*input
         };

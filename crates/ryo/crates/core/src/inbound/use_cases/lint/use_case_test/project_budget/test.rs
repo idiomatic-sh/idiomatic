@@ -2,7 +2,7 @@
 //! Real lint routes preserve budget failures and stop later project cohorts.
 use super::fixtures::{BudgetRoute, BudgetScenario, MemoryPressure, ReductionCount, observe};
 use crate::{
-    cases::{Case, CaseName, Expect, Word, run, selects},
+    cases::{Case, CaseName, Expect, Matched, Word, run, selects},
     inbound::use_cases::lint::errors::LintError,
     outbound::memory::errors::MemoryError,
 };
@@ -18,14 +18,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             pressure: MemoryPressure::Budget,
         },
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 error
                     == &LintError::MemoryBudgetExceeded {
                         used: 2_000_000,
                         budget: 1_000_000,
                         plans: vec!["second".into()],
                     },
-            )
+            ))
         }),
     },
     Case {
@@ -36,12 +36,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             pressure: MemoryPressure::Unreadable,
         },
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 error
                     == &LintError::from(MemoryError::Unreadable {
                         reason: "after first project reduction".into(),
                     }),
-            )
+            ))
         }),
     },
     Case {
@@ -61,14 +61,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             pressure: MemoryPressure::Budget,
         },
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 error
                     == &LintError::MemoryBudgetExceeded {
                         used: 2_000_000,
                         budget: 1_000_000,
                         plans: vec!["second".into()],
                     },
-            )
+            ))
         }),
     },
     Case {
@@ -79,12 +79,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             pressure: MemoryPressure::Unreadable,
         },
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 error
                     == &LintError::from(MemoryError::Unreadable {
                         reason: "after first project reduction".into(),
                     }),
-            )
+            ))
         }),
     },
     Case {

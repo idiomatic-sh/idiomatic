@@ -84,11 +84,27 @@ pub(crate) struct Ready<'a> {
     pub observations:
         Option<&'a std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
     /// Each bucket it hands, with the proof of its words and where they are.
-    pub buckets: Vec<(
-        Bucket,
-        &'a ryo_values::domain::records::types::FrontierProof,
-        Held<'a>,
-    )>,
+    pub buckets: Vec<ReadyBucket<'a>>,
+}
+
+/// One bucket a file used again hands: the proof of its words and where they are.
+#[derive(Debug)]
+pub(crate) struct ReadyBucket<'a> {
+    /// The bucket.
+    pub bucket: Bucket,
+    /// The proof of its words.
+    pub proof: &'a ryo_values::domain::records::types::FrontierProof,
+    /// Where its words are.
+    pub held: Held<'a>,
+}
+
+/// Whether a rule of the run can be gated by the acceptance of the syntax of a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Gating {
+    /// A rule can be gated, or the applicability metadata of the rules is incomplete, so every rule is taken to be.
+    MayGate,
+    /// No rule is gated: every rule runs on every file.
+    NeverGates,
 }
 
 /// Whether a visit reads the memory the process holds.
@@ -177,7 +193,7 @@ pub(crate) struct VisitSetting<'a> {
     /// Whether each rule runs on every file or only after syntax acceptance.
     pub applicability: &'a [RuleApplicability],
     /// Whether any rule can be gated or its applicability metadata is incomplete.
-    pub applicability_can_gate: bool,
+    pub applicability_can_gate: Gating,
     /// Which rule governs which file.
     pub placed: &'a PlacedScopes,
     /// What the store kept of each file, by the file's place among the files.

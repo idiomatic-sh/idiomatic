@@ -185,6 +185,7 @@ impl PublicationScope {
     ) -> Result<(), OperatingError> {
         let expected = self.symbols.get().ok_or(OperatingError::NotRead)?;
         if ryo_language::domain::symbols::service::query_has_transport_generation(symbols, expected)
+            == ryo_language::domain::symbols::types::Generation::Same
         {
             Ok(())
         } else {
@@ -198,7 +199,9 @@ impl PublicationScope {
         use ryo_language::domain::symbols::service::{same_transport_generation, transport_permit};
         let current = transport_permit(symbols);
         if let Some(expected) = self.symbols.get() {
-            if !same_transport_generation(expected, &current) {
+            if same_transport_generation(expected, &current)
+                == ryo_language::domain::symbols::types::Generation::Different
+            {
                 return Err(OperatingError::NotRead);
             }
         } else {

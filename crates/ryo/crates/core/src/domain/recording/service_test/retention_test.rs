@@ -1,9 +1,9 @@
-//! Capacity snapshots neither decode, copy nor mutate the owned handover buffers.
+//! Capacity snapshots neither decode, copy nor mutate the owned handover buffers: what the records and the store retain.
 
 use crate::domain::storing::service::stored_of;
 use crate::domain::storing::types::ToKeep;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
 use ryo_values::domain::records::types::{
     FileOutcome, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
@@ -14,6 +14,16 @@ use ryo_values::domain::stored_facts::types::{
 };
 use ryo_values::domain::stores::types::retention::value::RetainedBytes;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
+use ryo_values::domain::rows::types::{RowCount, Table};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use std::convert::Infallible;
+
+/// A scenario: what a row asks of the part.
+type Input = fn() -> Value;
+/// What a scenario answers: a yes as one.
+type Value = u8;
+/// Nothing of this part is refused.
+type Failure = Infallible;
 
 fn bytes(capacity: usize, count: usize) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(capacity);
@@ -21,8 +31,7 @@ fn bytes(capacity: usize, count: usize) -> Vec<u8> {
     bytes
 }
 
-#[test]
-fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
+fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() -> Value {
     let packed = bytes(37, 5);
     let packed_capacity = packed.capacity();
     let pointer = packed.as_ptr();
@@ -106,12 +115,12 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
         pointer,
         "observing and moving must not clone packed data"
     );
+    1
 }
 
-#[test]
-fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
+fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() -> Value {
     let mut cells = Vec::with_capacity(17);
-    cells.extend([Value::Number(Integer(1)), Value::Number(Integer(2))]);
+    cells.extend([Cell::Number(Integer(1)), Cell::Number(Integer(2))]);
     let cell_capacity = cells.capacity();
     let pointer = cells.as_ptr();
     let mut kinds = Vec::with_capacity(5);
@@ -134,8 +143,8 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
         (
             1,
             1,
-            2 * size_of::<Value>(),
-            cell_capacity * size_of::<Value>()
+            2 * size_of::<Cell>(),
+            cell_capacity * size_of::<Cell>()
         )
     );
     assert_eq!(
@@ -165,10 +174,10 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
             ryo_values::domain::stores::types::CapacityBytes(packed.0.0.capacity())
         )
     );
+    1
 }
 
-#[test]
-fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads() {
+fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads() -> Value {
     use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
     let mut records: Vec<_> = (0..128)
         .map(|number| Record {
@@ -235,6 +244,38 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
         after.metadata.0 < 128 * 1024,
         "metadata stays proportional to bucket count, not payload size"
     );
+    1
 }
 
-use ryo_values::domain::rows::types::{RowCount, Table};
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("record_and_store_snapshots_follow_the_same_moved_payload_capacities"),
+        word: Word::Succeeds,
+        input: || record_and_store_snapshots_follow_the_same_moved_payload_capacities,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("decoded_and_arena_snapshots_count_capacity_without_touching_cells"),
+        word: Word::Succeeds,
+        input: || decoded_and_arena_snapshots_count_capacity_without_touching_cells,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads"),
+        word: Word::Succeeds,
+        input: || staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads,
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(scenario: Input) -> Value {
+    scenario()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |scenario| {
+        Ok::<_, Failure>(subject(scenario))
+    });
+}

@@ -3,9 +3,9 @@
 
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
-use crate::outbound::corpus::types::{Inventory, PathStat};
+use crate::outbound::corpus::types::{CorpusInventory, PathStat};
 use ryo_language::domain::project_context::types::{
-    EntryObservation, EntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+    EntryObservation, ObservedEntryState, GivenProjectInventory, ProjectInventoryCompleteness,
 };
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
@@ -18,7 +18,7 @@ pub(crate) struct CorpusMemoryAdapter {
     /// The files it lists and reads.
     files: Vec<CorpusFile>,
     /// Explicit host inventory of contextual entries outside the source texts.
-    project_entries: BTreeMap<ryo_language::domain::files::types::FilePath, EntryState>,
+    project_entries: BTreeMap<ryo_language::domain::files::types::FilePath, ObservedEntryState>,
     project_completeness: ProjectInventoryCompleteness,
     source_paths: BTreeSet<ryo_language::domain::files::types::FilePath>,
     /// Parent directories proved by supplied source files or known present entries.
@@ -33,7 +33,7 @@ impl CorpusMemoryAdapter {
         for entry in project_inventory.entries {
             if matches!(
                 entry.state,
-                EntryState::File | EntryState::Directory | EntryState::Other
+                ObservedEntryState::File | ObservedEntryState::Directory | ObservedEntryState::Other
             ) {
                 parents_of(&entry.path, &mut parent_directories);
             }
@@ -42,7 +42,7 @@ impl CorpusMemoryAdapter {
                     slot.insert(entry.state);
                 }
                 std::collections::btree_map::Entry::Occupied(mut slot) => {
-                    slot.insert(EntryState::Unknown);
+                    slot.insert(ObservedEntryState::Unknown);
                 }
             }
         }
@@ -83,8 +83,8 @@ fn written(bytes: &FileBytes) -> Nanoseconds {
 }
 
 impl CorpusPort for CorpusMemoryAdapter {
-    fn inventory(&self) -> Result<Inventory, CorpusError> {
-        Ok(Inventory(
+    fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
+        Ok(CorpusInventory(
             self.files
                 .iter()
                 .map(|file| CorpusEntry {
@@ -136,28 +136,28 @@ impl CorpusPort for CorpusMemoryAdapter {
         let supplied = self.project_entries.get(path).copied();
         let source_file = self.source_paths.contains(path);
         let parent_directory = self.parent_directories.contains(path);
-        let state = if supplied == Some(EntryState::Unknown) || (source_file && parent_directory) {
-            EntryState::Unknown
+        let state = if supplied == Some(ObservedEntryState::Unknown) || (source_file && parent_directory) {
+            ObservedEntryState::Unknown
         } else if source_file {
-            if supplied.is_none_or(|state| state == EntryState::File) {
-                EntryState::File
+            if supplied.is_none_or(|state| state == ObservedEntryState::File) {
+                ObservedEntryState::File
             } else {
-                EntryState::Unknown
+                ObservedEntryState::Unknown
             }
         } else if parent_directory {
-            if supplied.is_none_or(|state| state == EntryState::Directory) {
-                EntryState::Directory
+            if supplied.is_none_or(|state| state == ObservedEntryState::Directory) {
+                ObservedEntryState::Directory
             } else {
-                EntryState::Unknown
+                ObservedEntryState::Unknown
             }
         } else if let Some(state) = supplied {
             state
         } else if self.project_completeness
             == ProjectInventoryCompleteness::CompleteWithinDeclaredScope
         {
-            EntryState::Missing
+            ObservedEntryState::Missing
         } else {
-            EntryState::Unknown
+            ObservedEntryState::Unknown
         };
         EntryObservation {
             path: path.clone(),

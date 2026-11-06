@@ -10,7 +10,7 @@ use super::fixtures::contract::check;
 use super::interface::LintUseCase as _;
 use super::types::{LintRequest, Rule};
 use super::use_case::LintUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
@@ -76,7 +76,7 @@ struct Given {
 /// What a lint over a given made: the answer, the rows kept, the files the language read and what the ports were asked.
 struct Lint {
     report: Result<usize, LintError>,
-    rows: Vec<row_sink::types::Row>,
+    rows: Vec<row_sink::types::KeptRow>,
     parses: usize,
     projects: usize,
     compiles: usize,
@@ -941,7 +941,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::UnknownKind { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::UnknownKind { .. })))),
     },
     Case {
         name: CaseName("an_unknown_semantic_kind_is_refused_before_a_file_is_read"),
@@ -960,7 +960,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 }
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::UnknownKind { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::UnknownKind { .. })))),
     },
     Case {
         name: CaseName("a_language_that_writes_a_node_past_its_file_is_refused_naming_it"),
@@ -974,7 +974,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Provider { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Provider { .. })))),
     },
     Case {
         name: CaseName("a_run_that_holds_more_than_its_budget_is_refused_naming_the_rules"),
@@ -991,7 +991,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             })
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LintError::MemoryBudgetExceeded { .. }))
+            selects(Matched(matches!(error, LintError::MemoryBudgetExceeded { .. })))
         }),
     },
     Case {
@@ -1003,7 +1003,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Rule { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Rule { .. })))),
     },
     Case {
         name: CaseName("a_rule_without_an_id_is_refused"),
@@ -1027,7 +1027,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             })
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LintError::DuplicateRuleId { .. }))
+            selects(Matched(matches!(error, LintError::DuplicateRuleId { .. })))
         }),
     },
     Case {
@@ -1047,7 +1047,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             })
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LintError::MissingParameter { .. }))
+            selects(Matched(matches!(error, LintError::MissingParameter { .. })))
         }),
     },
     Case {
@@ -1059,7 +1059,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Query { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Query { .. })))),
     },
     Case {
         name: CaseName("a_repository_larger_than_the_budget_is_refused"),
@@ -1075,7 +1075,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::TooLarge { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::TooLarge { .. })))),
     },
     Case {
         name: CaseName("fails_when_corpus_fails"),
@@ -1086,7 +1086,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Corpus { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Corpus { .. })))),
     },
     Case {
         name: CaseName("fails_when_facts_fail"),
@@ -1097,7 +1097,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Facts { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Facts { .. })))),
     },
     Case {
         name: CaseName("fails_when_an_operator_refuses"),
@@ -1109,7 +1109,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Rule { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Rule { .. })))),
     },
     Case {
         name: CaseName("fails_when_the_findings_cannot_be_written"),
@@ -1120,7 +1120,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Output { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Output { .. })))),
     },
     Case {
         name: CaseName("fails_when_the_reader_stopped"),
@@ -1142,7 +1142,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Scheduler { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Scheduler { .. })))),
     },
     Case {
         name: CaseName("fails_when_language_port_fails"),
@@ -1156,7 +1156,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Language { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Language { .. })))),
     },
     Case {
         name: CaseName("fails_when_memory_port_fails"),
@@ -1170,7 +1170,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Memory { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Memory { .. })))),
     },
     Case {
         name: CaseName("fails_when_store_port_cannot_keep"),
@@ -1181,7 +1181,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..LintStoreFake::default()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Store { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Store { .. })))),
     },
     Case {
         name: CaseName("fails_when_store_port_cannot_read"),
@@ -1192,7 +1192,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..LintStoreFake::default()
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, LintError::Store { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Store { .. })))),
     },
 ];
 
@@ -1901,7 +1901,7 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
 /// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
 /// language parsed.
 struct Answered {
-    rows: Vec<row_sink::types::Row>,
+    rows: Vec<row_sink::types::KeptRow>,
     undecided: String,
     skipped: String,
     parses: usize,

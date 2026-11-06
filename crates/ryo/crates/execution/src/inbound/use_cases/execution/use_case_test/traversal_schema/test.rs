@@ -6,13 +6,8 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::{service::kinds_of, types::Rows},
 };
-use ryo_language::domain::{
-    elements::{
-        service::{enter_node, leave_node, table_builder, token},
-        types::Elements,
-    },
-    symbols::types::{ByteSlice, Symbols},
-};
+use ryo_language::domain::{elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_relations::domain::relations::{
     service::node_id,
     types::{CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell},

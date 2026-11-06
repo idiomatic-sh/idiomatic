@@ -35,7 +35,7 @@ use super::super::types::{
     LintRequest, ParameterCell, ParameterTable, ParameterValue, Rule, RuleParameter,
 };
 use super::super::use_case::LintUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::domain::allocation_verdict::service::{differences, verdict};
 use crate::domain::allocation_verdict::types::{
     AllocatedBlocks, AllocationVerdict, InputBytes, JobBlocks, ParserBlocks,
@@ -146,7 +146,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || asking(&["same", "same"]),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LintError::DuplicateRuleId { .. }))
+            selects(Matched(matches!(error, LintError::DuplicateRuleId { .. })))
         }),
     },
 ];

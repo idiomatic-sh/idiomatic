@@ -117,45 +117,7 @@ fn finds_the_rows_of_one_file() -> Value {
     rows_of_file(&rows, StoredFileNumber(1), |each| *each).len()
 }
 
-/// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("what_a_file_handed_is_given_back_from_the_store"),
-        word: Word::Succeeds,
-        input: || gives_back_what_the_file_handed,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_file_the_store_has_no_row_of_handed_nothing"),
-        word: Word::Succeeds,
-        input: || gives_nothing_for_a_file_the_store_has_no_row_of,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("only_the_buckets_rebuilt_are_kept"),
-        word: Word::Succeeds,
-        input: || keeps_only_the_buckets_rebuilt,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_rows_of_one_file_are_found_together"),
-        word: Word::Succeeds,
-        input: || finds_the_rows_of_one_file,
-        expect: Expect::Value(2),
-    },
-];
-
-fn subject(scenario: Input) -> Value {
-    scenario()
-}
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, |scenario| Ok(subject(scenario)));
-}
-
-#[test]
-fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_order() {
+fn moves_staged_descriptors_and_keeps_fresh_order() -> Value {
     use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
     let span = StagedWords {
         session: StagingSession(7),
@@ -211,4 +173,51 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
     );
     assert_eq!(staged[0].file, StoredFileNumber(2));
     assert_eq!(staged[0].words, span);
+    1
 }
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("what_a_file_handed_is_given_back_from_the_store"),
+        word: Word::Succeeds,
+        input: || gives_back_what_the_file_handed,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_file_the_store_has_no_row_of_handed_nothing"),
+        word: Word::Succeeds,
+        input: || gives_nothing_for_a_file_the_store_has_no_row_of,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("only_the_buckets_rebuilt_are_kept"),
+        word: Word::Succeeds,
+        input: || keeps_only_the_buckets_rebuilt,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the_rows_of_one_file_are_found_together"),
+        word: Word::Succeeds,
+        input: || finds_the_rows_of_one_file,
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName(
+            "staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_order"
+        ),
+        word: Word::Succeeds,
+        input: || moves_staged_descriptors_and_keeps_fresh_order,
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(scenario: Input) -> Value {
+    scenario()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |scenario| Ok(subject(scenario)));
+}
+

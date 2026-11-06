@@ -6,7 +6,7 @@ use std::sync::{Mutex, PoisonError};
 
 use super::super::errors::RowSinkError;
 use super::super::interface::RowSinkPort;
-use super::super::types::{LentCell, Summary};
+use super::super::types::{LentCell, AnswerCounts};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::row_texts::types::Cell;
@@ -39,7 +39,7 @@ impl RowSinkPort for RowSinkFake {
         let _rows_before = self.rows.fetch_add(1, Ordering::Relaxed);
     }
 
-    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowSinkError> {
+    fn end(&self, _summary: AnswerCounts, _unread: &[Unread]) -> Result<(), RowSinkError> {
         match self.ends {
             Ends::Well => Ok(()),
             Ends::Closed => Err(RowSinkError::Closed),
@@ -73,7 +73,7 @@ impl RowSinkPort for TallyRowSinkFake {
         }
     }
 
-    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowSinkError> {
+    fn end(&self, _summary: AnswerCounts, _unread: &[Unread]) -> Result<(), RowSinkError> {
         Ok(())
     }
 }
@@ -101,7 +101,7 @@ impl RowSinkPort for BytesRowSinkFake {
         let _bytes_before = self.bytes.fetch_add(held, Ordering::Relaxed);
     }
 
-    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowSinkError> {
+    fn end(&self, _summary: AnswerCounts, _unread: &[Unread]) -> Result<(), RowSinkError> {
         Ok(())
     }
 }
