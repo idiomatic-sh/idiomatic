@@ -24,7 +24,12 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
         let refusal = program
             .rules()
             .get(rule.0)
-            .and_then(|compiled| compiled.original_steps.iter().find_map(|origin| origin.as_ref().err()))
+            .and_then(|compiled| {
+                compiled
+                    .original_steps
+                    .iter()
+                    .find_map(|origin| origin.as_ref().err())
+            })
             .cloned();
         let reads = crate::domain::trust::service::physical_reads(plan);
         let outputs = plan

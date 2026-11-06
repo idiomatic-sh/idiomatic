@@ -2,6 +2,7 @@
 use super::super::fixtures::catalog::{CompiledCorpus, compiled, prepare};
 use super::super::fixtures::plan;
 use super::{expected, supported_head};
+use crate::domain::coverage::types::RuleIndex;
 use crate::domain::shared_walk::types::{
     prepared_walk::value::PreparedWalk,
     walk_route::value::{WalkBarrier, WalkRoute},
@@ -15,7 +16,6 @@ use ryo_values::domain::{
     plan_parts::types::{Input as Source, RepeatedRows, StepScope},
     plans::types::Operation,
 };
-use crate::domain::coverage::types::RuleIndex;
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq)]
@@ -102,9 +102,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::IneligibleHeadShared),
     },
     Case {
-        name: CaseName(
-            "an errored origin refuses only its own rule; a sibling rule still shares",
-        ),
+        name: CaseName("an errored origin refuses only its own rule; a sibling rule still shares"),
         word: Word::Succeeds,
         input: || Scenario::ErroredOrigin,
         expect: Expect::Value(()),
@@ -138,9 +136,11 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
     if shared(1) {
         return Err(Refusal::ErroredOriginDropped);
     }
-    let sibling_head = program.rules()[0].original_steps[0]
-        .as_ref()
-        .ok()
+    let sibling_head = program.rules()[0]
+        .original_steps
+        .iter()
+        .flatten()
+        .next()
         .and_then(|origin| program.logical_regions().get(origin.logical.0))
         .and_then(|region| program.regions().get(region.0))
         .and_then(|region| region.instructions.first());
