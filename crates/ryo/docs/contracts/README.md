@@ -9,12 +9,12 @@
 | 1 | QUEUED | Deferred output correctness |
 | 2 | ACTIVE | Scheduling integration and remaining enforcement proofs |
 | 3 | ACTIVE | Shared-walk source batch using the compiled common scheduler |
-| 4 | QUEUED | Derived acquisition and lifetime |
+| 4 | ACTIVE | Isolated 13-kind derived acquisition/lifetime source batch |
 | 5 | QUEUED | Fusion and redundant machinery removal |
 | 6 | QUEUED | Cold/warm/edit reuse and invalidation |
 | 7 | QUEUED | Final enforcement, review and acceptance |
 
-The bounded 2/3 overlap keeps Phase 3 source work moving while Phase 2 finishes proof; neither is VERIFIED. Beads `ryo-7tkn.19` holds process handles, source identities and raw evidence.
+The bounded 2/3 overlap keeps shared-walk work moving while scheduling finishes proof. Phase 4 source work now proceeds separately against the existing derived semantic port; the Phase 2/3 compile checkpoint does not wait for it. No phase is VERIFIED. Beads `ryo-7tkn.19` holds process handles, source identities and raw evidence.
 
 - [413-rule CI fixtures](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/job/127558257740): 413 PASS / 0 FAIL on older public `3cd3249a2`, 11,185 cases. This is not proof of the current unmerged engine or Django.
 - Latest full Django256: **failed**, 2,986.06 seconds / 6.009 GB / 2,880 unknowns. Rust guards remain unverified.
@@ -30,12 +30,12 @@ The bounded 2/3 overlap keeps Phase 3 source work moving while Phase 2 finishes 
 
 Inventory audit: `bf525425c7`; current [paired source review](audits/2026-11-06-shared-walk/review.json) binds narrow row proofs to `c5abcc1da4` and validation280. All 83 rows require evidence for their entire scope; the overall verdict remains blocking.
 
-Current implementation checkpoint: `c5abcc1da4`. Phase 2 scheduling corrections and Phase 3 shared-walk source are integrated. No phase is verified.
+Current source checkpoint: `6331a0601`. Shared-walk guards, type ownership, lifecycle proofs and the actual configured413 proof are integrated; the larger preparation/runtime ownership split remains in flight. Last runtime validation is still280 on `c5abcc1da4`. No phase is verified.
 
 - Validation280: eight-crate all-features build **PASS**; execution **431/431**, SDK **43/43**, five other libraries **155/155**, public boundaries **90/90**. Core **175 passed / 6 failed**; output/store-proof failures remain deferred to phases 1/6.
 - Six actual inbound budget scenarios **PASS**, using distinct file frontiers. Eight real-source Rust probes **PASS**, including forbidden ready-list construction and the removed permit walk factory. Inner source probes compile default features; broader claims remain open.
 - Paired review found a real TM caller-scope gap: the shared-walk owner rule excludes nonapplication callers. Whole-source enforcement repair is active. The proposed invalid-empty-Project bypass was rejected because mandatory runtime schema admission and column bounds already reject it.
-- TM281: **282 findings, zero suppressed**, across 28 changed Rust paths; targeted asset validation passes. This is not a full-workspace check. The new budget module has 31 findings and is being repaired as one batch.
+- TM281: **282 findings, zero suppressed**, across 28 changed Rust paths; targeted asset validation passes. This is not a full-workspace check. The budget module subsequently reached zero in282. Cross-crate direction controls were corrected in283; common benchmark sharing roles and inbound fixture checks pass with zero findings in286/287. These are narrow scopes, not a full TM pass.
 - [Diagnostic271](evidence/phase2-scheduling/measurements.json): one file/all413, complete identical outputs, wall **10.024 → 15.708 s**, peak **1.224 → 1.329 GB**. No new measurement; performance remains deferred until consolidation finishes.
 - Retained evidence: `/tmp/ryo-phase3-validation280-20261106` and `/tmp/ryo-phase3-tm281-20261106`. Actual configured413 sharing proof and complete independent acceptance remain open.
 
@@ -183,7 +183,7 @@ Checkmarks below are narrow source-bound proofs from the [paired review](audits/
 | ☑ | P3.9 | Undemanded roots perform no provider/kernel/scratch/result work, and delivery/retry reuses admitted results. | Dormant and dependency-gated root controls plus full-counter retry/replay comparisons pass. |
 | ☐ | P3.10 | Keep result leases free of mutable cache borrows through reentrant delivery. | Shared class results use immutable leases; no `RefCell` guard escapes acquisition; existing real reentrant controls retained; included in passing validation280; complete scope review pending |
 | ☐ | P3.11 | Enforce owner placement/privacy and required file session state with positive and negative structural controls across every execution source layer. | P3-1 correction from `c5abcc1da4`: `shared-walk-owner` now covers `execution/src/**` and rejects resolved inbound/domain/outbound/module/item aliases; exact semantic-owner/test homes only. Eighteen asset scenarios PASS, including fake-test and visibility-path controls. Actual whole execution/src TM check: 2,852 findings / 0 suppressed overall FAIL; owner-rule findings 0, and selected-publication boundary findings 0 in kernel_session/selection after moving policy to the declared selection owner. Raw receipts `/tmp/ryo-phase3-owner-boundary-repair-20261106/{validate,check-final}.json`. New source movement uncompiled/unrun; remaining source cycles and broader TM findings remain open; independent successor review pending. |
-| ☐ | P3.12 | Prove actual full configured rule inventory sharing and every production physical/source route on one frozen combined source. | Actual configured413 inventory proof pending; build/runtime pass, TM and independent acceptance remain open |
+| ☐ | P3.12 | Prove actual full configured rule inventory sharing and every production physical/source route on one frozen combined source. | Real canonical413 proof is integrated through the normal `ruff_sharing` Cargo target and production `RunRyoUseCase`. It checks bound rule/class/barrier census and actual multi-class cohorts; runtime remains unrun. Common benchmark roles and public-boundary scenarios pass TM286/287. Full route and successor review remain open. |
 
 The source-walk classifier retains explicit barriers for producer/observation
 inputs, downstream continuations, row semantics, ordered/derived operations and
