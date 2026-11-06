@@ -61,6 +61,8 @@ pub(crate) struct PreparedProgram {
     pub(super) rule_digests: Box<[ryo_values::domain::stored_facts::types::Digest]>,
     pub(super) bindings: Box<[Box<[ParameterBinding]>]>,
     pub(super) rules: Box<[RuleMetadata]>,
+    /// Computed once when the program is built; never a per-call scan of `rules`.
+    pub(super) semantic_needed: bool,
     pub(super) file_demands:
         Box<[crate::domain::executable_program::file_demand::types::FileRuleDemand]>,
     pub(super) file_frontier_outputs: Box<[Box<[Box<[usize]>]>]>,

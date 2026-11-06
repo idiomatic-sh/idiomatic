@@ -1,6 +1,8 @@
 //! Actual derived activation visits and allocator blocks exclude dormant compiled roots.
 mod fixtures;
-use fixtures::{Access, Sample, measure, measure_project};
+use fixtures::file::measure;
+use fixtures::project::measure_project;
+use fixtures::subscriber::{Access, Sample};
 use ryo_execution::inbound::use_cases::execution::types::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
@@ -34,7 +36,7 @@ fn same_cost(left: Sample, right: Sample) {
 }
 /// Equal counted accesses, work and allocations: nothing but the demanded roots was touched.
 fn project_cost_matches(left: (Sample, Access), right: (Sample, Access)) -> bool {
-    left.0 == right.0 && left.1.reads == right.1.reads && left.1.scanned == right.1.scanned
+    left.0 == right.0 && left.1.reads == right.1.reads
 }
 fn subject(input: Input) -> Result<(), OperatingError> {
     const TOTAL: usize = 131;
@@ -117,8 +119,6 @@ fn subject(input: Input) -> Result<(), OperatingError> {
                 small.1.reads > 0 && tail.1.reads > 0,
                 "the demanded project root reads its own metadata"
             );
-            assert_eq!(small.1.scanned, 0, "no project route scans the rule table");
-            assert_eq!(tail.1.scanned, 0, "no project route scans the rule table");
             assert_eq!(small.1.read_rules, small.1.reads);
             assert_eq!(
                 tail.1.read_rules,
@@ -135,7 +135,6 @@ fn subject(input: Input) -> Result<(), OperatingError> {
             assert!(dense.0.blocks > sparse.0.blocks && dense.0.bytes > sparse.0.bytes);
             let sparse_holds = |sample: (Sample, Access)| {
                 sample.1.reads == sparse.1.reads
-                    && sample.1.scanned == sparse.1.scanned
                     && sample.0.blocks <= sparse.0.blocks
                     && sample.0.bytes <= sparse.0.bytes
             };

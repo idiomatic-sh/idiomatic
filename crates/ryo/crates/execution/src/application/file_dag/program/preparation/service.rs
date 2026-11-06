@@ -275,14 +275,7 @@ impl PreparedProgram {
         self.rules.len()
     }
     pub(crate) fn semantic_needed(&self) -> bool {
-        self.rules.iter().enumerate().any(|(at, rule)| {
-            tracing::trace!(
-                target: crate::application::file_dag::derived::constants::TARGET,
-                event = crate::application::file_dag::derived::constants::RULE_SCAN,
-                rule = at
-            );
-            rule.semantic_needed
-        })
+        self.semantic_needed
     }
     pub(crate) fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
         let order = match &self.schedule {
@@ -566,6 +559,7 @@ pub(crate) fn prepare(
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
+    let semantic_needed = metadata.iter().any(|rule| rule.semantic_needed);
     Ok(Arc::new(PreparedProgram {
         program,
         native_orders,
@@ -574,6 +568,7 @@ pub(crate) fn prepare(
         rule_digests: rule_digests.to_vec().into_boxed_slice(),
         bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),
+        semantic_needed,
         file_demands,
         file_frontier_outputs,
         observations: named,

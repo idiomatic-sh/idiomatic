@@ -13,5 +13,3 @@ pub(super) const FANOUT: &str = "fanout";
 pub(super) const GRAPH_HIT: &str = "graph_hit";
 /// Every read of one rule's private prepared metadata, whatever phase asks.
 pub(in crate::application::file_dag) const RULE_METADATA: &str = "rule_metadata";
-/// Every visit of a rule by a scan over the whole prepared rule table.
-pub(in crate::application::file_dag) const RULE_SCAN: &str = "rule_scan";
