@@ -14,6 +14,19 @@ pub enum DecodeMode {
     Complete,
 }
 
+/// The point of a decode at which its buffers are reported.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DecodePhase {
+    /// Before the cells are reserved.
+    BeforeReserve,
+    /// After the cells are reserved.
+    AfterReserve,
+    /// Before the cells are shrunk to fit.
+    BeforeShrink,
+    /// After the cells are shrunk to fit.
+    AfterShrink,
+}
+
 /// Whether a decode read every word of its input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Completeness {
