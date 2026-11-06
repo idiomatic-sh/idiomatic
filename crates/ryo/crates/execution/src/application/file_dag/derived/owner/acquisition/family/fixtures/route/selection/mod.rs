@@ -1,6 +1,6 @@
 //! The selection entry: predicate, candidate and distinct selectors acquired through the owner.
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
-    Exit, released,
+    Exit, released, released_at_exit,
 };
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::domain::{
@@ -193,7 +193,12 @@ fn run_with(
             scratch: &mut scratch,
         };
         match exit {
-            Exit::Cancelled => Ok(kind),
+            Exit::Cancelled => {
+                // The demand is acquired, then withdrawn without its rows being read.
+                let withdrawn = fixture.select(chosen, source, &mut context)?;
+                assert!(withdrawn.is_some(), "{kind:?}: the selection is published");
+                Ok(kind)
+            }
             Exit::Succeeds => {
                 let mut every = active.to_vec();
                 if !fanned {
@@ -217,6 +222,11 @@ fn run_with(
             Exit::Errors => fixture.select(&error, source, &mut context).map(|_| kind),
         }
     };
+    released_at_exit(
+        kind,
+        exit,
+        fixture.owner().derived.publication_ownership_bytes(),
+    );
     fixture.owner().release_population();
     released(
         kind,

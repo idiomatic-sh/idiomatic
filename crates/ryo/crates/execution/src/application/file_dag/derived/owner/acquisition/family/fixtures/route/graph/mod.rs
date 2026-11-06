@@ -1,18 +1,25 @@
 //! The graph entry: adjacency and membership acquired through an admitted graph input.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released, released_at_exit};
 use crate::application::file_dag::derived::owner::{fixtures::graph::GraphFixture, index::service::LIMIT};
 use crate::domain::{
-    operating::errors::OperatingError, stored_graph::types::GraphWalk, table_model::types::Rows,
+    operating::errors::OperatingError, table_model::types::Rows,
 };
+use crate::domain::derived_views::types::ViewRequest;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
+    CellKind, ColumnsView, FactColumn, Relation,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
 pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
     let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
     let result = through_graph(kind, exit, &fixture);
+    let at_exit = fixture.snapshot();
+    released_at_exit(
+        kind,
+        exit,
+        (at_exit.required_bytes, at_exit.optional_bytes, at_exit.unique_bytes),
+    );
     fixture.clear();
     let state = fixture.snapshot();
     released(
@@ -54,7 +61,12 @@ fn through_graph(
             .ok_or(OperatingError::WrongOperation)
     };
     match exit {
-        Exit::Cancelled => Ok(kind),
+        Exit::Cancelled => {
+            if membership {
+                let _withdrawn = domain()?;
+            }
+            Ok(kind)
+        }
         Exit::Succeeds => {
             if membership {
                 drop(domain()?);
@@ -62,25 +74,18 @@ fn through_graph(
             Ok(kind)
         }
         Exit::Errors => {
-            let held = if membership { Some(domain()?) } else { None };
-            fixture.clear();
-            let mut walk = GraphWalk::default();
-            let refused = match &held {
-                Some(domain) => fixture
-                    .nearest(
-                        &graph,
-                        domain,
-                        0,
-                        crate::domain::stored_graph::types::Orientation::Forward,
-                        &mut vec![],
-                        &mut walk,
-                    )
-                    .map(|_| ()),
-                None => fixture
-                    .reach(&graph, &[], Value::Number(Integer(1)), &mut walk)
-                    .map(|_| ()),
-            };
-            refused.map(|()| kind)
+            // The entry refuses a demand for the other family while the generation is live; the
+            // leases it holds are released by the exit, not by retiring the generation.
+            let _held = if membership { Some(domain()?) } else { None };
+            let wrong = fixture.acquire_wrong(
+                source,
+                &rows,
+                ViewRequest::Membership {
+                    column: ColumnIndex(0),
+                },
+            );
+            assert!(wrong.is_err(), "{kind:?}: a demand for another family is refused");
+            wrong.map(|_| kind)
         }
     }
 }

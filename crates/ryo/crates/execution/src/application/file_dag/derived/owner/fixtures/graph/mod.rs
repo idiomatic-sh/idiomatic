@@ -198,6 +198,20 @@ impl GraphFixture {
         );
         self.acquire_prepared(&plan, input, rows)
     }
+    /// A demand whose plan belongs to another family: the production entry must refuse it.
+    pub(in crate::application::file_dag) fn acquire_wrong(
+        &self,
+        input: Input,
+        rows: &Rows<'_>,
+        request: ViewRequest,
+    ) -> Result<Option<GraphHandle>, OperatingError> {
+        let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
+            self.owner.derived.semantic.clone(),
+            request,
+            rows,
+        );
+        self.acquire_prepared(&plan, input, rows)
+    }
     pub(in crate::application::file_dag) fn acquire_prepared(
         &self,
         plan: &Arc<DerivedContract>,
