@@ -5,7 +5,7 @@ use crate::domain::{
     labels::types::Field,
     model::types::{
         BindingAction, BindingAnnotationTiming, BindingPhase, BindingPhaseKind, BindingSchedule,
-        BindingStep, Declarations,
+        BindingStep, Declarations, PhaseCursor,
     },
     nodes::types::{Category, Node},
     scopes::{
@@ -377,12 +377,12 @@ fn enclosing_phase(tree: &Tree<'_>, at: Position) -> Position {
 }
 
 /// Drain newly discovered deferred phases only after their parent has completed.
-fn deferred(tree: &Tree<'_>, model: &Declarations, plan: &mut BindingSchedule, next: &mut usize) {
-    while *next < plan.phases.len() {
-        let Some(task) = plan.phases.get(*next).copied() else {
+fn deferred(tree: &Tree<'_>, model: &Declarations, plan: &mut BindingSchedule, next: &mut PhaseCursor) {
+    while next.0 < plan.phases.len() {
+        let Some(task) = plan.phases.get(next.0).copied() else {
             break;
         };
-        *next += 1;
+        next.0 += 1;
         push(plan, task.root, task.root, BindingAction::BeginPhase);
         match task.kind {
             BindingPhaseKind::Callable => {
@@ -429,7 +429,7 @@ pub(crate) fn schedule(
     push(plan, Position(0), Position(0), BindingAction::BeginPhase);
     walk(tree, model, Position(0), Position(0), plan);
     push(plan, Position(0), Position(0), BindingAction::EndPhase);
-    let mut next = 0;
+    let mut next = PhaseCursor(0);
     deferred(tree, model, plan, &mut next);
     // Embeddings are appended parent-first by the frontend, after native syntax is complete.
     for embedding in languages::embedded_expressions(tree.elements) {

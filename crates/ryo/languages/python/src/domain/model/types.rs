@@ -380,3 +380,7 @@ pub(crate) struct BindingMutation {
     /// Store, deletion, or exception cleanup.
     pub action: BindingAction,
 }
+
+/// Index of the next deferred binding phase to drain.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PhaseCursor(pub usize);
