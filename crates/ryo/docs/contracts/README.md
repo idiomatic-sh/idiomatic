@@ -26,23 +26,23 @@ The bounded 2/3 overlap keeps shared-walk work moving while scheduling finishes 
 - [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
 - [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
-### Current work by phase — review source `8c9bcc95`, validation294
+### Current work by phase — source `36b0cdbea`, validation297
 
 A checkbox requires the whole named item to pass; source progress is recorded separately.
 
 | Phase | Remaining item | Implementation / evidence |
 |---|---|---|
-| 2 ACTIVE | [ ] Seal every runtime/admission proof issuer against aliases and sibling construction. | Private issuer repair and 46 real-source probes are integrated; probes await a compiling batch. |
-| 2 ACTIVE | [ ] Bind admitted proof to the exact publication. | Exact publication identity checks and mismatch controls are integrated; runtime verification remains open. |
-| 2 ACTIVE | [ ] Complete batch release, cancellation and primary-error behavior. | Primary-error precedence control passes on290. Project `NotRun` was invalid file-cache setup before scheduling; fixture repaired without relaxing lease assertions. Four exit controls await execution. |
+| 2 ACTIVE | [ ] Seal every runtime/admission proof issuer against aliases and sibling construction. | Private issuer repair is integrated. Of 56 source probes, nine passed; probe ten failed its diagnostic contract and 46 did not run. |
+| 2 ACTIVE | [ ] Bind admitted proof to the exact publication. | Publication/proof substitution refusal passes on297. Full identity/route scope remains open. |
+| 2 ACTIVE | [ ] Complete batch release, cancellation and primary-error behavior. | Primary-error control passes; all four project exit controls pass on297 after repairing invalid file-cache setup. Broader cancellation/cleanup scope remains open. |
 | 2 ACTIVE | [ ] Require complete declared root submission; close sparse-work and all-route negative controls. | Queue/batched callers exist; structural and counter proof remains incomplete. |
 | 2 ACTIVE | [ ] Close scheduling-owned cycles/TM findings and review exact combined source. | Preparation/protocol/runtime homes integrated; remaining context/publication/frontier/kernel coupling is open. |
-| 3 ACTIVE | [ ] Count every physical instruction, including synthetic observation unions. | Synthetic-union accounting and independent compiled-total control are integrated; execution remains unverified. |
-| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Actual413 fixture repairs and admitted-class coverage are integrated. Independent eligibility proof is being authored; no new pass claim. |
+| 3 ACTIVE | [ ] Count every physical instruction, including synthetic observation unions. | Independent total and two synthetic unions pass. Consumer barriers are mislabeled after input normalization; a resolved-input classifier repair is authored. |
+| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Independent static catalog eligibility controls pass. Actual413 fixture fails before execution on missing supporting-rule applicability; omitted-submit proof remains open. |
 | 3 ACTIVE | [ ] Close ready-gate, source/barrier and result-lease enforcement. | Shared owner/prefix/traversal code exists; full route, alias and reentrancy acceptance remains open. |
-| 4 ACTIVE | [ ] Require admitted acquisition across all13 derived kinds. | All13 production routes integrated; validation294 exposes incomplete caller migration and graph closure lifetime errors. |
-| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | RawKeyOrder and graph routes use common acquired-view ownership in source; build and lifetime controls remain open. |
-| 4 ACTIVE | [ ] Migrate real fixtures, boundary tests and TM; integrate and execute. | All13/runtime, raw-order failure and forbidden-access controls are being added with compiler repairs. |
+| 4 ACTIVE | [ ] Require admitted acquisition across all13 derived kinds. | All13 ordinary acquisition positives pass, but specialized graph/axis paths fail. Review found raw-storage and graph-handle authority escapes. |
+| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | Raw success/fault controls pass. Held-view retirement semantics and raw payload escape require the current owner-boundary repair. |
+| 4 ACTIVE | [ ] Migrate real fixtures, boundary tests and TM; integrate and execute. | Runtime cases execute; source-probe generator stops on unrelated dead-code diagnostics. Current structural scope remains unaccepted. |
 | 5 QUEUED | [ ] Consolidate legal fusion behind the common program. | Existing strategies are not complete phase acceptance. No active implementation wave. |
 | 5 QUEUED | [ ] Remove redundant intermediates, repeated scans and superseded machinery. | Await consolidated scheduling/walk/derived ownership. |
 | 6 QUEUED | [ ] Unify cold/warm/edit reuse and frontier restoration. | Existing replay code has recorded failures; no active phase wave. |
@@ -51,28 +51,27 @@ A checkbox requires the whole named item to pass; source progress is recorded se
 | 7 QUEUED | [ ] Close full TM, contracts, independent review and normal CI. | Whole required scope remains unaccepted. |
 | 7 QUEUED | [ ] Measure full-Django cold/warm/edit and Rust regressions; meet final objective. | No new performance measurement during phases2–6. |
 
-Latest combined build **fails** on review source `8c9bcc95`: validation294
-reports 19 library errors and two additional test errors. Tests did not run.
-Failures cover stale moved imports, inaccessible fields/methods, the native-order
-contract caller and graph acquisition closure lifetimes. Repair them together
-without widening authority. Lifecycle test placement is corrected in successor
-`1243edf9ad`; scoped TM reports zero placement/privacy findings, with 62 other
-findings still open. These scopes do not establish a whole-workspace TM result.
+Latest combined build **passes** on `36b0cdbea` (validation297). Execution:
+436 pass / 8 fail. SDK:43/43; other five libraries:155/155; Core:175/181
+(the same six deferred output/store failures). Public boundaries:88/90.
 
-Last executed behavior is validation290 on older `36e92e315`: execution433/434,
-SDK43/43, other five libraries155/155, Core175/181 and public boundaries90/90.
-The actual413 sharing fixture failed before engine execution; its repairs remain
-unverified. The project fixture failed while configuring a file-only cache before scheduling.
-The repair removes that invalid setup and checks zero optional project retention;
-all four exit variants preserve backing/lease assertions and remain unverified.
-The [paired review](audits/2026-11-06-ownership/review.json) remains blocking;
-new issuer, identity and census source has not received successor acceptance.
+- [ ] Repair seven `NotRead` failures across graph/axis and held-view lifetime paths.
+- [ ] Classify observation consumers from resolved inputs; preserve the four-barrier assertion.
+- [ ] Finish all56 real-source probes: nine passed, one failed on an unused probe function,46 did not execute.
+- [ ] Run actual413 sharing after completing supporting-rule applicability; independently detect omitted submissions.
+- [ ] Seal raw storage and graph-handle escapes, then reconcile structural checks and obtain successor review.
+
+The [paired Astra/Opus review](audits/2026-11-06-derived/review.json) binds
+these findings to exact source and receipts. All three axes fail. It accepts
+bounded evidence for the ordinary13-kind cohort, four project exits, substituted
+publication/proof refusal and independent static eligibility controls. Those
+passes do not close specialized graph routes or an entire phase.
 
 ### Phase 2 completion checklist
 
 Inventory audit: `bf525425c7`; current [paired source review](audits/2026-11-06-shared-walk/review.json) binds narrow row proofs to `c5abcc1da4` and validation280. All 83 rows require evidence for their entire scope; the overall verdict remains blocking.
 
-Current source checkpoint: review `8c9bcc95`, with lifecycle placement successor `1243edf9ad`. Preparation/protocol/runtime and derived ownership source is integrated; validation294 fails compilation. The current granular table above supersedes earlier activity descriptions; historical checked rows below retain their source-bound evidence. Newly contradicted claims are reopened. No phase is verified.
+Current reviewed checkpoint: `36b0cdbea`, validation297. Preparation/protocol/runtime and derived source compiles; current failures and review blockers are listed above. The current granular table above supersedes earlier activity descriptions; historical checked rows below retain their source-bound evidence. Newly contradicted claims are reopened. No phase is verified.
 
 - Validation280: eight-crate all-features build **PASS**; execution **431/431**, SDK **43/43**, five other libraries **155/155**, public boundaries **90/90**. Core **175 passed / 6 failed**; output/store-proof failures remain deferred to phases 1/6.
 - Six actual inbound budget scenarios **PASS**, using distinct file frontiers. Eight real-source Rust probes **PASS**, including forbidden ready-list construction and the removed permit walk factory. Inner source probes compile default features; broader claims remain open.
