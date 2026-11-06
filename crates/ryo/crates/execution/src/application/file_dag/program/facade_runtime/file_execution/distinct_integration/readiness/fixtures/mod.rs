@@ -70,14 +70,18 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
         let logical = ready.permit().descriptor().logical;
-        assert!(
-            self.events.0.lock().unwrap().iter().any(|event| event
-                .get("event")
-                .map(String::as_str)
-                == Some(crate::application::file_dag::program::constants::WALK_READY)
-                && event.get("logical") == Some(&logical.0.to_string())),
-            "actual runtime obligation must exist before this callback, even when it will be skipped"
-        );
+        {
+            let events = self.events.0.lock().unwrap();
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event.get("event").map(String::as_str)
+                        == Some(crate::application::file_dag::program::constants::WALK_READY)
+                        && event.get("logical") == Some(&logical.0.to_string())),
+                "actual runtime obligation must exist before this callback, even when it will be skipped; head={logical:?}; operation={:?}; captured={events:?}",
+                ready.permit().descriptor().operation
+            );
+        }
         if self.omitted == Some(logical) {
             self.skipped.set(self.skipped.get() + 1);
             return Ok(());
@@ -246,10 +250,30 @@ fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u64>) -> Cov
 
 pub(super) fn observe(omit: bool) -> Coverage {
     let events = Events::default();
-    let observer = events.clone();
+    let observer = tracing::Dispatch::new(events.clone());
+    // tracing-core 0.1.36's sole-dispatch fast path consults the registering
+    // thread's default. Another libtest thread may have no local observer.
+    // Two live registrations force callsite interest to consult the registered
+    // subscribers instead. Only `observer` is selected for event delivery.
+    let registration = tracing::Dispatch::new(events.clone());
     let mut skipped = 0;
     let mut required_heads = BTreeSet::new();
-    tracing::subscriber::with_default(observer, || {
+    tracing::dispatcher::with_default(&observer, || {
+        let before = events.0.lock().unwrap().len();
+        std::thread::spawn(move || registration_probe(omit))
+            .join()
+            .unwrap();
+        assert_eq!(
+            events.0.lock().unwrap().len(),
+            before,
+            "the unrelated thread has no capture dispatcher"
+        );
+        registration_probe(omit);
+        assert_eq!(
+            events.0.lock().unwrap().len(),
+            before + 1,
+            "a callsite first registered without a local subscriber remains visible to this capture"
+        );
         let SmallTree {
             elements,
             mut symbols,
@@ -471,5 +495,15 @@ pub(super) fn observe(omit: bool) -> Coverage {
             "retained publication and equivalent-head replay adds no readiness or dispatch"
         );
     });
+    drop(registration);
     decode(&events, skipped, required_heads)
+}
+
+// Distinct callsites make both CASES exercise first registration independently.
+fn registration_probe(omission: bool) {
+    if omission {
+        tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = "capture_registration_omission");
+    } else {
+        tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = "capture_registration_actual");
+    }
 }
