@@ -16,6 +16,10 @@ The values domain's `files` concept: the files of a run and the globs that name 
 
 The values domain's `hosted` concept: the relations a host declares to a run, and their rows.
 
+### observations
+
+The values domain's `observations` concept: Explicit authored outputs and the typed dependencies between rules, and the readiness a run records for them.
+
 ### `plan_parts`
 
 The values domain's `plan_parts` concept: the numbers, text and comparisons a query plan is made of.
@@ -28,9 +32,25 @@ The values domain's `plans` concept: a compiled query, its steps and what each r
 
 The values domain's `program` concept: the shape of RyoQL text once it is read.
 
+### `query_bindings`
+
+The values domain's `query_bindings` concept: The immutable bindings a host hands a query.
+
 ### records
 
 The values domain's `records` concept: what a run kept of each file, and of the repository, and the typed `Cell` a row of the answer holds: a file, a text, a number or a span, never turned into text before the command line prints it.
+
+### rows
+
+The values domain's `rows` concept: The neutral row carriers the engine and the semantic capabilities share.
+
+### `rule_requests`
+
+The values domain's `rule_requests` concept: The portable declarations of a rule request, and the refusals preparing or running one can end in.
+
+### `run_metadata`
+
+The values domain's `run_metadata` concept: The facts a run keeps of a compiled rule once its executable plan is consumed.
 
 ### runs
 
@@ -43,3 +63,7 @@ The values domain's `stored_facts` concept: what a run keeps of the words and th
 ### stores
 
 The values domain's `stores` concept: what a lint keeps for the next run, as the tables of its store.
+
+### `table_words`
+
+The values domain's `table_words` concept: The words a table is encoded as, and the compact table read back from them.
