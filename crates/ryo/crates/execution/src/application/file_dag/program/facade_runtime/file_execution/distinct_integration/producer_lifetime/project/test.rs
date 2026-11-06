@@ -21,7 +21,7 @@ enum PhaseExit {
     RefuseLaterCohort,
 }
 
-fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
+fn exercise(exit: PhaseExit, replay: bool) -> Result<(), OperatingError> {
     let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
     external.steps.truncate(2);
     external.emit.step = StepId(1);
@@ -277,6 +277,89 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
         );
         assert_eq!(transferred[0].count.0, 2);
     }
+    if replay && !matches!(exit, PhaseExit::RefuseBeforeWork) {
+        // A new public delivery object must bind the same actual population;
+        // it cannot revive terminal roots or consume another alias's obligation.
+        for at in [0, 1, 3] {
+            if at == 3 && matches!(exit, PhaseExit::RefuseLaterCohort) {
+                continue;
+            }
+            let mut replay = crate::application::file_dag::program::facade_runtime::open_project(
+                &prepared,
+                required.clone(),
+                ScopePartials::Project {
+                    evaluation: &partials,
+                    publication: &partials,
+                },
+                ProjectFrontiers {
+                    publication: &phase,
+                    ordinary: PreparedFrontiers {
+                        producer: RuleIndex(at),
+                        sources: vec![FrontierSource {
+                            input: source,
+                            root: source_root.clone(),
+                        }]
+                        .into_boxed_slice(),
+                        rows: vec![FrontierInput::Decoded {
+                            frontier: Frontier {
+                                input: source,
+                                table: Table {
+                                    kinds: kinds(Relation::LanguageTarget).to_vec(),
+                                    cells: vec![
+                                        Cell::File(FileId(0)),
+                                        Cell::Number(Integer(2)),
+                                        Cell::Number(Integer(9)),
+                                        Cell::File(FileId(0)),
+                                        Cell::Number(Integer(3)),
+                                        Cell::Number(Integer(7)),
+                                    ],
+                                    count: RowCount(2),
+                                },
+                            },
+                            coverage: CoverageState::Complete,
+                        }],
+                        program: Arc::clone(prepared.program()),
+                        required: required.clone(),
+                        refused: vec![],
+                    },
+                    bound_inputs: &[],
+                },
+                &mut symbols,
+                &[],
+                Arc::clone(&services),
+            )?;
+            for _ in 0..2 {
+                let outcome = replay.rule(RuleIndex(at), declarations[at].demand, &mut symbols)?;
+                if at == 3 && matches!(exit, PhaseExit::SemanticFailure) {
+                    assert!(
+                        matches!(
+                            outcome.emit,
+                            RootOutcome::Failed(OperatingError::Table(
+                                TableModelError::NoSuchColumn { index: 99 }
+                            ))
+                        ),
+                        "outer project delivery preserves the original terminal error"
+                    );
+                } else {
+                    let RootOutcome::Complete(table) = outcome.emit else {
+                        panic!("terminal project replay")
+                    };
+                    assert!(table.count.0 > 0);
+                }
+                assert_eq!(
+                    phase.readiness_counts(),
+                    counts,
+                    "project replay cannot schedule terminal roots"
+                );
+                assert_eq!(owner.derived.counts(), builds);
+                assert_eq!(owner.derived.working_bytes(), live);
+                assert!(
+                    backing.as_ref().unwrap().upgrade().is_some(),
+                    "duplicate outer deliveries retain the same phase lease"
+                );
+            }
+        }
+    }
     phase.finish().unwrap_or_else(|error| {
         panic!("{exit:?}: phase finish after every terminal result: {error:?}")
     });
@@ -303,20 +386,31 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
 
 #[test]
 fn project_batch_success_releases_actual_phase_leases() {
-    exercise(PhaseExit::Complete).expect("successful project lifecycle");
+    exercise(PhaseExit::Complete, false).expect("successful project lifecycle");
 }
 
 #[test]
 fn project_batch_semantic_failure_releases_actual_phase_leases() {
-    exercise(PhaseExit::SemanticFailure).expect("failed project lifecycle");
+    exercise(PhaseExit::SemanticFailure, false).expect("failed project lifecycle");
 }
 
 #[test]
 fn project_batch_refusal_before_work_releases_actual_phase_leases() {
-    exercise(PhaseExit::RefuseBeforeWork).expect("project refusal before work");
+    exercise(PhaseExit::RefuseBeforeWork, false).expect("project refusal before work");
 }
 
 #[test]
 fn project_batch_refusal_before_later_cohort_releases_actual_phase_leases() {
-    exercise(PhaseExit::RefuseLaterCohort).expect("project refusal before later cohort");
+    exercise(PhaseExit::RefuseLaterCohort, false).expect("project refusal before later cohort");
+}
+
+#[test]
+fn project_duplicate_delivery_preserves_terminal_failure_and_cancelled_cohort_backing() {
+    for exit in [
+        PhaseExit::Complete,
+        PhaseExit::SemanticFailure,
+        PhaseExit::RefuseLaterCohort,
+    ] {
+        exercise(exit, true).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
+    }
 }
