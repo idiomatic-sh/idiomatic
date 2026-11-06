@@ -1,5 +1,5 @@
 //! Python composition provides its linked language only at this outer edge.
-use self::runner_constants::{
+use self::commands::constants::{
     CANONICAL_BENCHMARK_REQUIRES_EXPLI, CASE_INVENTORY, REGISTERED_CASE_RESULTS,
     UNEXPECTED_MEASUREMENT_ARGUMENT, UNSUPPORTED_WORKER_COMMAND,
 };
@@ -10,7 +10,6 @@ mod constants;
 mod diagnostic_protocol;
 mod output;
 mod request_input;
-mod runner_constants;
 mod targets;
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
@@ -44,7 +43,7 @@ pub(crate) fn run(
 ) -> Result<(), Error> {
     let mut args = std::env::args()
         .skip(1)
-        .filter(|argument| argument != self::runner_constants::CARGO_BENCH_ARGUMENT);
+        .filter(|argument| argument != self::commands::constants::CARGO_BENCH_ARGUMENT);
     let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let comparison = CompareUseCaseImpl::new();
@@ -59,13 +58,13 @@ pub(crate) fn run(
             self::diagnostic_protocol::tracing_for_command(command.as_deref().unwrap_or_default())
                 .ok_or_else(|| Error::Invalid(UNSUPPORTED_WORKER_COMMAND.into()))?,
         ),
-        Some(self::runner_constants::VERIFY_CASES) => {
+        Some(self::commands::constants::VERIFY_CASES) => {
             let count =
                 self::commands::verify_cases(args.map(self::request_input::BenchmarkArgument))?;
             writeln!(output, "{count} cases passed against both contestants")?;
             Ok(())
         }
-        Some(self::runner_constants::VERIFY_REFERENCE_CASES) => {
+        Some(self::commands::constants::VERIFY_REFERENCE_CASES) => {
             let count = self::commands::verify_reference_cases(
                 args.map(self::request_input::BenchmarkArgument),
             )?;
@@ -76,27 +75,27 @@ pub(crate) fn run(
             Ok(())
         }
         Some(
-            self::runner_constants::MEASURE
-            | self::runner_constants::MEASURE_ACCOUNTED_VALID
-            | self::runner_constants::MEASURE_SCOPED
-            | self::runner_constants::MEASURE_VALID,
+            self::commands::constants::MEASURE
+            | self::commands::constants::MEASURE_ACCOUNTED_VALID
+            | self::commands::constants::MEASURE_SCOPED
+            | self::commands::constants::MEASURE_VALID,
         ) => {
             if cfg!(debug_assertions) {
                 return Err(Error::Invalid(
-                    self::runner_constants::RELEASE_REQUIRED.into(),
+                    self::commands::constants::RELEASE_REQUIRED.into(),
                 ));
             }
-            let executable = PathBuf::from(
-                args.next()
-                    .ok_or_else(|| Error::Invalid(self::runner_constants::EXPECTED_RUFF.into()))?,
-            )
-            .canonicalize()?;
+            let executable =
+                PathBuf::from(args.next().ok_or_else(|| {
+                    Error::Invalid(self::commands::constants::EXPECTED_RUFF.into())
+                })?)
+                .canonicalize()?;
             let cache =
                 PathBuf::from(args.next().ok_or_else(|| {
-                    Error::Invalid(self::runner_constants::EXPECTED_CACHE.into())
+                    Error::Invalid(self::commands::constants::EXPECTED_CACHE.into())
                 })?);
             let collector_path = PathBuf::from(args.next().ok_or_else(|| {
-                Error::Invalid(self::runner_constants::EXPECTED_COLLECTOR.into())
+                Error::Invalid(self::commands::constants::EXPECTED_COLLECTOR.into())
             })?)
             .canonicalize()?;
             std::fs::create_dir_all(&cache)?;
@@ -114,8 +113,8 @@ pub(crate) fn run(
             let scope = if matches!(
                 command.as_deref(),
                 Some(
-                    self::runner_constants::MEASURE
-                        | self::runner_constants::MEASURE_ACCOUNTED_VALID
+                    self::commands::constants::MEASURE
+                        | self::commands::constants::MEASURE_ACCOUNTED_VALID
                 )
             ) {
                 BenchmarkCoverage::Accounted
@@ -182,10 +181,11 @@ pub(crate) fn run(
             let configured_cohort = Some(tool.defaults.clone());
             let reference = Arc::new(self::commands::reference(executable.clone(), tool)?);
             let selected_scratch = tempfile::Builder::new()
-                .prefix(self::runner_constants::CERTIFICATION_PREFIX)
+                .prefix(self::commands::constants::CERTIFICATION_PREFIX)
                 .tempdir_in(&cache)?
                 .keep();
-            let selected_profile = selected_scratch.join(self::runner_constants::PROFILE_DIRECTORY);
+            let selected_profile =
+                selected_scratch.join(self::commands::constants::PROFILE_DIRECTORY);
             ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
                 suite_source.as_ref(),
             )
@@ -195,10 +195,12 @@ pub(crate) fn run(
                 audit.authored(),
                 ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Execution,
             )?;
-            let frozen_workload = selected_scratch.join(self::runner_constants::WORKLOAD_DIRECTORY);
+            let frozen_workload =
+                selected_scratch.join(self::commands::constants::WORKLOAD_DIRECTORY);
             suite_source.stage_projects(
                 ArtifactPath(
-                    &self::commands::directory().join(self::runner_constants::LANGUAGE_DIRECTORY),
+                    &self::commands::directory()
+                        .join(self::commands::constants::LANGUAGE_DIRECTORY),
                 ),
                 ArtifactPath(&frozen_workload),
             )?;
@@ -210,7 +212,7 @@ pub(crate) fn run(
             let execution = self::commands::timed(collector_settings, observations)?;
             let selected_rules = selected_profile.join(self::constants::RULES_DIRECTORY);
             let candidate_executable =
-                selected_scratch.join(self::runner_constants::CANDIDATE_EXECUTABLE);
+                selected_scratch.join(self::commands::constants::CANDIDATE_EXECUTABLE);
             let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
             let candidate: Arc<dyn ryo_benchmark::outbound::linter::interface::LinterPort> =
                 Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
@@ -247,8 +249,8 @@ pub(crate) fn run(
                 observations,
                 "scope: {}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}",
                 match scope {
-                    BenchmarkCoverage::Accounted => self::runner_constants::ACCOUNTED,
-                    BenchmarkCoverage::Interim => self::runner_constants::INTERIM,
+                    BenchmarkCoverage::Accounted => self::commands::constants::ACCOUNTED,
+                    BenchmarkCoverage::Interim => self::commands::constants::INTERIM,
                 },
                 audit.authored_count(),
                 default_count - authored_total.0 - deferred_count - pending_count,
@@ -259,11 +261,11 @@ pub(crate) fn run(
             )?;
             self::output::environment(observations)?;
             let suite: Suite = suite_source.projects(ArtifactPath(&frozen_workload))?;
-            if suite.language.0 != self::runner_constants::PYTHON
+            if suite.language.0 != self::commands::constants::PYTHON
                 || !(2..=3).contains(&suite.projects.len())
             {
                 return Err(Error::Invalid(
-                    self::runner_constants::PROJECT_COUNT_ERROR.into(),
+                    self::commands::constants::PROJECT_COUNT_ERROR.into(),
                 ));
             }
             let measurements = MeasureUseCaseImpl::new(
@@ -282,15 +284,16 @@ pub(crate) fn run(
                 let observed = (|| -> Result<Vec<BenchmarkSample>, Error> {
                     let mut project_samples = Vec::new();
                     let workspaces = ryo_benchmark::outbound::workspace::factory::git(
-                        cache.join(self::runner_constants::PROJECTS_DIRECTORY),
+                        cache.join(self::commands::constants::PROJECTS_DIRECTORY),
                     );
                     let mut workspace = workspaces.prepare(&project)?;
                     let discovered: Vec<ryo::linter::RelativePath> =
                         reference.files(workspace.root())?.into_iter().collect();
                     let (mut files, excluded): (Vec<_>, Vec<_>) =
                         discovered.into_iter().partition(|file| {
-                            file.0.ends_with(self::runner_constants::PYTHON_EXTENSION)
-                                || file.0.ends_with(self::runner_constants::STUB_EXTENSION)
+                            file.0
+                                .ends_with(self::commands::constants::PYTHON_EXTENSION)
+                                || file.0.ends_with(self::commands::constants::STUB_EXTENSION)
                         });
                     writeln!(
                         observations,
@@ -302,7 +305,7 @@ pub(crate) fn run(
                             .iter()
                             .map(|path| path.0.as_ref())
                             .collect::<Vec<_>>()
-                            .join(self::runner_constants::PATH_SEPARATOR)
+                            .join(self::commands::constants::PATH_SEPARATOR)
                     )?;
                     let tracked = workspaces.tracked_files(&workspace)?.0;
                     let tracked_paths: Vec<_> =
@@ -313,14 +316,14 @@ pub(crate) fn run(
                             .any(|tracked| tracked.as_str() == file.0.as_ref())
                     }) {
                         return Err(Error::Invalid(
-                            self::runner_constants::UNTRACKED_SOURCE.into(),
+                            self::commands::constants::UNTRACKED_SOURCE.into(),
                         ));
                     }
                     if matches!(
                         command.as_deref(),
                         Some(
-                            self::runner_constants::MEASURE_VALID
-                                | self::runner_constants::MEASURE_ACCOUNTED_VALID
+                            self::commands::constants::MEASURE_VALID
+                                | self::commands::constants::MEASURE_ACCOUNTED_VALID
                         )
                     ) {
                         let preflight = RunRequest {
@@ -345,7 +348,7 @@ pub(crate) fn run(
                             root: workspace.root().to_owned(),
                             files: files.clone(),
                             state: cache
-                                .join(self::runner_constants::PREFLIGHT_DIRECTORY)
+                                .join(self::commands::constants::PREFLIGHT_DIRECTORY)
                                 .join(&project.name.0),
                         };
                         let parsed = execute(reference.as_ref(), execution.as_ref(), &preflight)?;
@@ -354,12 +357,12 @@ pub(crate) fn run(
                             .diagnostics
                             .iter()
                             .filter(|finding| {
-                                finding.rule.as_ref() == self::runner_constants::INVALID_SYNTAX
+                                finding.rule.as_ref() == self::commands::constants::INVALID_SYNTAX
                             })
                             .map(|finding| finding.file.clone())
                             .collect();
                         for finding in parsed.report.diagnostics.iter().filter(|finding| {
-                            finding.rule.as_ref() == self::runner_constants::INVALID_SYNTAX
+                            finding.rule.as_ref() == self::commands::constants::INVALID_SYNTAX
                         }) {
                             writeln!(
                                 observations,
@@ -388,13 +391,13 @@ pub(crate) fn run(
                         if matches!(
                             command.as_deref(),
                             Some(
-                                self::runner_constants::MEASURE_VALID
-                                    | self::runner_constants::MEASURE_ACCOUNTED_VALID
+                                self::commands::constants::MEASURE_VALID
+                                    | self::commands::constants::MEASURE_ACCOUNTED_VALID
                             )
                         ) {
-                            self::runner_constants::VALID_SOURCE_PROFILE
+                            self::commands::constants::VALID_SOURCE_PROFILE
                         } else {
-                            self::runner_constants::FULL_SOURCE_PROFILE
+                            self::commands::constants::FULL_SOURCE_PROFILE
                         }
                     )?;
                     for order in [RunOrder::ReferenceFirst, RunOrder::CandidateFirst]
@@ -405,7 +408,7 @@ pub(crate) fn run(
                         // A new owned directory makes both retained and clean baselines fresh,
                         // even if an earlier trial left caches behind in the caller's root.
                         let trial = tempfile::Builder::new()
-                            .prefix(self::runner_constants::TRIAL_PREFIX)
+                            .prefix(self::commands::constants::TRIAL_PREFIX)
                             .tempdir_in(&cache)?
                             .keep();
                         let request = RunRequest {
@@ -429,7 +432,7 @@ pub(crate) fn run(
                             )?,
                             root: workspace.root().to_owned(),
                             files: files.clone(),
-                            state: trial.join(self::runner_constants::RETAINED_DIRECTORY),
+                            state: trial.join(self::commands::constants::RETAINED_DIRECTORY),
                         };
                         let cold = measurements.measure(&certificate, &request, order)?;
                         let counts = self::output::diagnostic_counts(&cold.reference().report);
@@ -466,7 +469,7 @@ pub(crate) fn run(
                             ..request.clone()
                         };
                         let clean_request = RunRequest {
-                            state: trial.join(self::runner_constants::CLEAN_EDITED_DIRECTORY),
+                            state: trial.join(self::commands::constants::CLEAN_EDITED_DIRECTORY),
                             ..edited_request.clone()
                         };
                         let edited = measurements.measure(&certificate, &edited_request, order);
@@ -491,13 +494,16 @@ pub(crate) fn run(
                                 ))
                             })?;
                         for (condition, pair) in [
-                            (self::runner_constants::EMPTY_CACHE_CONDITION, cold),
-                            (self::runner_constants::RETAINED_CACHE_CONDITION, retained),
-                            (self::runner_constants::EDITED_CACHE_CONDITION, edited),
+                            (self::commands::constants::EMPTY_CACHE_CONDITION, cold),
+                            (
+                                self::commands::constants::RETAINED_CACHE_CONDITION,
+                                retained,
+                            ),
+                            (self::commands::constants::EDITED_CACHE_CONDITION, edited),
                         ] {
                             let contestants = [
-                                self::runner_constants::REFERENCE_NAME,
-                                self::runner_constants::CANDIDATE_NAME,
+                                self::commands::constants::REFERENCE_NAME,
+                                self::commands::constants::CANDIDATE_NAME,
                             ];
                             let named = pair.samples(contestants.map(|contestant| {
                                 ryo_benchmark_contracts::domain::measurements::types::SampleName(
@@ -552,16 +558,16 @@ pub(crate) fn run(
                 )))
             }
         }
-        Some(self::runner_constants::AUDIT) => self::commands::audit(&suite_source, output),
-        Some(self::runner_constants::VERIFY_TOOL) => {
+        Some(self::commands::constants::AUDIT) => self::commands::audit(&suite_source, output),
+        Some(self::commands::constants::VERIFY_TOOL) => {
             let executable = PathBuf::from(args.next().ok_or_else(|| {
-                Error::Invalid(self::runner_constants::EXPECTED_EXECUTABLE.into())
+                Error::Invalid(self::commands::constants::EXPECTED_EXECUTABLE.into())
             })?);
             suite_source.verify_tool(
                 ArtifactPath(&executable),
                 &suite_source.profile(ArtifactPath(&self::commands::directory()))?,
             )
         }
-        _ => Err(Error::Invalid(self::runner_constants::USAGE.into())),
+        _ => Err(Error::Invalid(self::commands::constants::USAGE.into())),
     }
 }

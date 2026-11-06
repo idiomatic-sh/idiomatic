@@ -1,5 +1,5 @@
 //! Stable scalar observations written through the executable's supplied writer.
-use super::runner_constants;
+use super::commands::constants as runner_constants;
 use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
 use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;

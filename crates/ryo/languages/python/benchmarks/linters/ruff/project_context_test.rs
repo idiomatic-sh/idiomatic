@@ -250,7 +250,7 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     assert!(
         matches!(
             engine.run_prepared(request(&profile, case, &cache)),
-            Err(Error::Invalid(_))
+            Err(Error::Io(_))
         ),
         "unreadable file content is never a missing dependency"
     );

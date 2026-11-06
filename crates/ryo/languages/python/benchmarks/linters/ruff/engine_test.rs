@@ -1439,7 +1439,7 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     std::fs::remove_file(missing.rules.join("PRODUCER/query.ryoql"))?;
     missing.state = ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh;
     assert!(
-        matches!(engine.run_prepared(missing), Err(Error::Invalid(_))),
+        matches!(engine.run_prepared(missing), Err(Error::Io(_))),
         "missing bound producer cannot become empty"
     );
     Ok(())

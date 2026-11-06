@@ -1,16 +1,15 @@
 //! Independent worker and fixture commands at the Cargo executable boundary.
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
-use super::constants;
-use super::diagnostic_protocol::WorkerTracing;
-use super::request_input::{BenchmarkArgument, worker_input};
-use super::runner_constants;
-use super::runner_constants::{
+pub(super) mod constants;
+use self::constants::{
     CASE_RECEIPT_DESTINATION_MUST_BE_N, CASE_SELECTION, CASE_SELECTION_MUST_BE_NONEMPTY_AN,
     DUPLICATE_CASE_SELECTION_ARGUMENT, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
     INVALID_CASE_SHARD_COUNT, INVALID_CASE_SHARD_INDEX, PINNED_REFERENCE_DOES_NOT_EVALUATE,
     PYTHON_TARGET, SHARD, UNEXPECTED_TRAILING_WORKER_ARGUMEN, UNEXPECTED_VERIFY_CASES_ARGUMENT,
     UNEXPECTED_WORKER_CONFIGURATION,
 };
+use super::diagnostic_protocol::WorkerTracing;
+use super::request_input::{BenchmarkArgument, worker_input};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
@@ -41,7 +40,7 @@ pub(super) fn worker(
                 Some(
                     args.next()
                         .map(|argument| argument.0)
-                        .ok_or_else(|| Error::Invalid(runner_constants::MISSING_TRACE.into()))?,
+                        .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
                 )
             };
             (Some(configuration), trace_path)
@@ -49,7 +48,7 @@ pub(super) fn worker(
         Some(path) if tracing != WorkerTracing::Disabled => (None, Some(path)),
         Some(_) => return Err(Error::Invalid(UNEXPECTED_WORKER_CONFIGURATION.into())),
         None if tracing != WorkerTracing::Disabled => {
-            return Err(Error::Invalid(runner_constants::MISSING_TRACE.into()));
+            return Err(Error::Invalid(constants::MISSING_TRACE.into()));
         }
         None => (None, None),
     };
@@ -63,7 +62,7 @@ pub(super) fn worker(
     )]);
     let frontend_diagnostic =
         ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(runner_constants::INVALID_SYNTAX)
+            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
                 .map_err(|error| Error::Invalid(error.to_string()))?,
             query: ryo::query::RyoQlQuery::try_from(
                 crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
@@ -93,7 +92,7 @@ pub(super) fn worker(
                     frontend_diagnostic,
                 ),
             ),
-            _ => return Err(Error::Invalid(runner_constants::MISSING_TRACE.into())),
+            _ => return Err(Error::Invalid(constants::MISSING_TRACE.into())),
         };
     let transport =
         ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));
@@ -108,7 +107,7 @@ pub(super) fn verify_cases(
     let executable = PathBuf::from(
         args.next()
             .map(|argument| argument.0)
-            .ok_or_else(|| Error::Invalid(runner_constants::EXPECTED_RUFF.into()))?,
+            .ok_or_else(|| Error::Invalid(constants::EXPECTED_RUFF.into()))?,
     )
     .canonicalize()?;
     let source = args
@@ -172,7 +171,7 @@ pub(super) fn verify_cases(
     let reference = Arc::new(reference(executable, tool)?);
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
-    let profile = root.join(runner_constants::PROFILE_DIRECTORY);
+    let profile = root.join(constants::PROFILE_DIRECTORY);
     ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
         suite_source.as_ref(),
     )
@@ -184,7 +183,7 @@ pub(super) fn verify_cases(
     )?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
-        profile.join(constants::RULES_DIRECTORY),
+        profile.join(super::constants::RULES_DIRECTORY),
         query_modules,
         rule_applicability,
         parser_configuration,
@@ -202,8 +201,8 @@ pub(super) fn verify_cases(
             execution.as_ref(),
         )
         .verify_cases(
-            &profile.join(constants::RULES_DIRECTORY),
-            &root.join(runner_constants::CASES_DIRECTORY),
+            &profile.join(super::constants::RULES_DIRECTORY),
+            &root.join(constants::CASES_DIRECTORY),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection {
                 shard,
                 ids: case_selection.as_ref(),
@@ -243,7 +242,7 @@ pub(super) fn verify_reference_cases(
     let executable = PathBuf::from(
         args.next()
             .map(|argument| argument.0)
-            .ok_or_else(|| Error::Invalid(runner_constants::EXPECTED_RUFF.into()))?,
+            .ok_or_else(|| Error::Invalid(constants::EXPECTED_RUFF.into()))?,
     )
     .canonicalize()?;
     let source = args
@@ -255,7 +254,7 @@ pub(super) fn verify_reference_cases(
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
     ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution).verify_reference_cases(
-        &source.join(constants::RULES_DIRECTORY),
+        &source.join(super::constants::RULES_DIRECTORY),
         &root,
     )
 }
@@ -290,8 +289,7 @@ fn parser_target(
 
 /// Locate this language-owned linter profile from the Cargo manifest.
 pub(super) fn directory() -> PathBuf {
-    std::path::Path::new(runner_constants::MANIFEST_DIRECTORY)
-        .join(runner_constants::RUFF_DIRECTORY)
+    std::path::Path::new(constants::MANIFEST_DIRECTORY).join(constants::RUFF_DIRECTORY)
 }
 
 /// Copy exact collector bytes into the frozen workload and record their digest.
@@ -300,13 +298,10 @@ pub(super) fn collector(
     source: &std::path::Path,
     workload: &std::path::Path,
 ) -> Result<CollectorIdentity, Error> {
-    let executable = workload.join(runner_constants::COLLECTOR_EXECUTABLE);
+    let executable = workload.join(constants::COLLECTOR_EXECUTABLE);
     let _bytes = std::fs::copy(source, &executable)?;
     let digest = suite.digest(ArtifactPath(&executable))?;
-    std::fs::write(
-        workload.join(runner_constants::COLLECTOR_IDENTITY),
-        &digest.0,
-    )?;
+    std::fs::write(workload.join(constants::COLLECTOR_IDENTITY), &digest.0)?;
     Ok(CollectorIdentity { executable, digest })
 }
 
