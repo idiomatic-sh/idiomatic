@@ -292,3 +292,9 @@ pub struct Inputs {
 /// How many inputs an operation reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputCount(pub usize);
+
+impl PartialEq for Comparison {
+    fn eq(&self, other: &Self) -> bool {
+        self.test == other.test && self.left == other.left && self.right == other.right
+    }
+}

@@ -2,6 +2,7 @@
 //! fields and derives, with no constructor and no inherent impl.
 
 use ryo_relations::domain::relations::types::Integer;
+use crate::domain::plan_parts::types::QueryText;
 use std::collections::BTreeMap;
 
 /// A place in the query text, counted in bytes from its start.
@@ -560,4 +561,17 @@ pub struct WrittenObservation {
     pub span: QuerySpan,
     /// Attribution preserved through hygienic fragment expansion.
     pub origin: Option<QueryOrigin>,
+}
+
+impl From<QueryText> for QueryBundle {
+    fn from(text: QueryText) -> Self {
+        let root = QueryDocumentSource {
+            id: QuerySourceId(super::constants::STANDALONE_SOURCE_ID.into()),
+            text: text.0.into(),
+        };
+        Self {
+            root,
+            modules: Arc::new(BTreeMap::new()),
+        }
+    }
 }

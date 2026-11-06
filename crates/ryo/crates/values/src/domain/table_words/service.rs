@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::{
     Bits, CROSS_PLACE, Integer, Name, NamePlace, PlaceNumber, Value, Words,
 };
 
-use super::types::{CompactFrame, CompactTable, DecodeMode, WordSlice};
+use super::types::{CompactCursor, CompactFrame, CompactTable, DecodeMode, WordSlice};
 
 use crate::domain::stored_facts::types::PackedWords;
 
@@ -407,29 +407,6 @@ pub fn compact_rows(input: &CompactTable) -> usize {
 }
 pub fn compact_cells(input: &CompactTable) -> usize {
     input.cells
-}
-
-/// One byte cursor supplies exact immutable frame offsets; no second packed copy.
-struct CompactCursor<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-impl Iterator for CompactCursor<'_> {
-    type Item = Bits;
-    fn next(&mut self) -> Option<Bits> {
-        let (mut word, mut shift) = (0_u64, 0_u32);
-        while let Some(byte) = self.bytes.get(self.offset) {
-            self.offset += 1;
-            word |= u64::from(byte & 0x7f)
-                .checked_shl(shift)
-                .unwrap_or_default();
-            if byte & 0x80 == 0 {
-                return Some(Bits(word));
-            }
-            shift += 7;
-        }
-        None
-    }
 }
 
 /// Only an actually empty admitted source may receive its declared schema.

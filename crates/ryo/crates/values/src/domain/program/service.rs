@@ -2,8 +2,6 @@
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::domain::plan_parts::types::QueryText;
-
 use super::errors::QueryBundleError;
 use super::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 
@@ -98,17 +96,4 @@ pub fn standalone(text: &str) -> Result<QueryBundle, QueryBundleError> {
 #[must_use]
 pub fn root_text(bundle: &QueryBundle) -> &str {
     &bundle.root.text
-}
-
-impl From<QueryText> for QueryBundle {
-    fn from(text: QueryText) -> Self {
-        let root = QueryDocumentSource {
-            id: QuerySourceId(super::constants::STANDALONE_SOURCE_ID.into()),
-            text: text.0.into(),
-        };
-        Self {
-            root,
-            modules: Arc::new(BTreeMap::new()),
-        }
-    }
 }

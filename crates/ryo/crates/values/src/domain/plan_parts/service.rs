@@ -1,12 +1,6 @@
 //! The `plan_parts` service: free functions named by verb over the numbers a plan is made of, with no IO and no ports.
 
-use super::types::{Applied, ColumnIndex, Comparison, Operand, ParameterId, StepId};
-
-impl PartialEq for Comparison {
-    fn eq(&self, other: &Self) -> bool {
-        self.test == other.test && self.left == other.left && self.right == other.right
-    }
-}
+use super::types::{Applied, ColumnIndex, Operand, ParameterId, StepId};
 
 /// The one of `items` that the step `id` names, when there is one.
 #[must_use]
