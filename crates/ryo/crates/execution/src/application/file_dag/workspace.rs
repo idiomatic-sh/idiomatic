@@ -144,9 +144,9 @@ impl<'a> GraphInput<'a> {
         &self,
         plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
     ) -> Result<
-        crate::application::file_dag::derived::owner::acquisition::service::AdmittedViewInputs<'a>,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs<'a>,
         OperatingError,
-    > {
+    >{
         self.owner
             .derived
             .admit_view(plan, self.owner, &[&self.proof])
@@ -240,8 +240,10 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
-    ) -> Result<Option<super::derived::owner::acquisition::service::AcquiredView>, OperatingError>
-    {
+    ) -> Result<
+        Option<super::derived::owner::acquisition::admission::service::AcquiredView>,
+        OperatingError,
+    > {
         if use_.plan.kind != ryo_derived::domain::contract::types::DerivedKind::NativeLookup
             || use_.len != 2
         {
@@ -264,7 +266,8 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         &self,
         use_: &PreparedViewUse,
         context: &mut OperatorContext<'_>,
-    ) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
+    ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
+    {
         self.acquire_derived(
             use_,
             super::derived::owner::ViewContext::default(),
@@ -276,7 +279,8 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         use_: &PreparedViewUse,
         identity: super::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-    ) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
+    ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
+    {
         self.workspace
             .acquire_admitted(use_, self, identity, supplied)
     }
@@ -316,7 +320,8 @@ impl InvocationWorkspace {
         inputs: &InputAdmissions<'_, '_>,
         identity: super::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-    ) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
+    ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
+    {
         use crate::domain::{
             derived_views::types::{DerivedInputs, MembershipSpace},
             operating::errors::OperatingError,

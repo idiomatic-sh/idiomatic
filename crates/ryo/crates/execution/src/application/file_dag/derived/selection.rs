@@ -1,12 +1,8 @@
 //! Application policy for prepared compact selections and their shared file backend.
 use crate::application::file_dag::derived::backend::CacheBackend;
-use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
-    operating::{
-        errors::OperatingError,
-        types::{NameCount, OperatorContext},
-    },
+    operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
     stored_selection::types::{
         PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
@@ -21,7 +17,7 @@ use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_language::domain::symbols::{
-    service::{find_hashed, hash_of, name_count},
+    service::{find_hashed, hash_of},
     types::ByteSlice,
 };
 use ryo_relations::domain::relations::{
@@ -75,7 +71,7 @@ pub(super) enum CandidateRows {
     Owned(Vec<u32>),
     Shared {
         rows: Arc<Vec<u32>>,
-        _resource: crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        _resource: crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     },
 }
 
@@ -122,7 +118,7 @@ fn same(left: &Selector, right: &Selector) -> bool {
 pub(in crate::application::file_dag) struct SelectionOutput<'a> {
     pub rows: SelectedRows<'a>,
     pub resources: [Option<
-        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     >; 2],
 }
 /// Produce a compact handle only after the provider has been read successfully by the caller.
@@ -226,7 +222,7 @@ mod retention_test;
 /// the ordered admitted-position invariant; first/last checks here are constant-time
 /// cardinality/edge guards, not validation of arbitrary untrusted position vectors.
 pub(super) fn shared_positions(
-    acquired: &crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+    acquired: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     population: usize,
     maximum: usize,
 ) -> Result<Arc<Vec<u32>>, OperatingError> {

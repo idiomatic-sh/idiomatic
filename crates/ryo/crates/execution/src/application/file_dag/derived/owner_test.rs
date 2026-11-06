@@ -89,7 +89,7 @@ fn acquire_pair(
     plan: &Arc<DerivedContract>,
     publications: &[PublishedInput; 2],
     scratch: &mut DerivedScratch,
-) -> acquisition::service::AcquiredView {
+) -> acquisition::admission::service::AcquiredView {
     let left = owner
         .resolve(publications[0].as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
@@ -106,13 +106,23 @@ fn acquire_pair(
         .derived
         .admit_view(plan, owner, &[&left, &right])
         .unwrap();
+    let symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let texts = crate::domain::table_texts::types::Texts {
+        symbols: &symbols,
+        source: ryo_values::domain::files::types::SourceView(&[]),
+        paths: &[],
+        arenas: &[],
+    };
     owner
         .derived
         .acquire_stored(
             plan,
             &admitted,
             ViewContext::default(),
-            DerivedInputs::Rows(&[left.rows(), right.rows()]),
+            DerivedInputs::Text {
+                rows: &[left.rows(), right.rows()],
+                texts: &texts,
+            },
             scratch,
             None,
         )
@@ -124,7 +134,7 @@ fn acquire(
     publication: &PublishedInput,
     context: ViewContext,
     scratch: &mut DerivedScratch,
-) -> acquisition::service::AcquiredView {
+) -> acquisition::admission::service::AcquiredView {
     let held = owner
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
@@ -290,9 +300,14 @@ fn release_drops_only_the_dependent_required_view() {
 fn two_population_view_survives_either_release_and_repin_without_duplicate_dependencies() {
     let relation_owner = owner(0);
     let owner = &relation_owner.derived;
+    let mut ordered_source = source();
+    ordered_source.cells = [3, 1, 2]
+        .into_iter()
+        .map(|value| Value::Number(Integer(value)))
+        .collect();
     let publications = [
-        relation_owner.computed(source()).unwrap(),
-        relation_owner.computed(source()).unwrap(),
+        relation_owner.computed(ordered_source.clone()).unwrap(),
+        relation_owner.computed(ordered_source).unwrap(),
     ];
     let populations = [
         population(&relation_owner, &publications[0]),

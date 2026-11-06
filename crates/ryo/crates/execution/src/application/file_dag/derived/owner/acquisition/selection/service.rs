@@ -40,9 +40,9 @@ impl SelectionSource<'_> {
         texts: &crate::domain::table_texts::types::Texts<'_>,
         active: Arc<[ryo_values::domain::plan_parts::types::LiteralText]>,
     ) -> Result<
-        Option<crate::application::file_dag::derived::owner::acquisition::service::AcquiredView>,
+        Option<crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView>,
         OperatingError,
-    > {
+    >{
         let context = ViewContext {
             literals: Some(Arc::clone(&active)),
             ..ViewContext::default()
@@ -161,7 +161,7 @@ impl SelectionSource<'_> {
         group: usize,
         build: impl FnOnce(&mut CacheBackend) -> Result<DerivedStorage, OperatingError>,
     ) -> Result<
-        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
         if cache
@@ -199,7 +199,7 @@ impl SelectionSource<'_> {
             ColumnsView<'_>,
         )>,
     ) -> Result<
-        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
         let admitted = self.owner.admit_view(plan, self.source, &[self.proof])?;
@@ -328,7 +328,7 @@ pub(in crate::application::file_dag::derived) fn matches(
     source: ColumnsView<'_>,
     context: &mut OperatorContext<'_>,
 ) -> Result<
-    crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+    crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     OperatingError,
 > {
     let acquired = resources.acquire_predicate(cache, &views.predicate, views.group, |cache| {

@@ -45,7 +45,7 @@ fn fixture(columns: &[FactColumn]) -> ResourceFixture {
 fn hold(
     fixture: &ResourceFixture,
     columns: &[FactColumn],
-) -> crate::application::file_dag::derived::owner::acquisition::service::AcquiredView {
+) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let owner = fixture.owner();
     let rows = BorrowedRows::Stored(ColumnsView {
         kinds: KINDS,

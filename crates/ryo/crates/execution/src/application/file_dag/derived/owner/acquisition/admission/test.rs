@@ -1,0 +1,231 @@
+//! Real publication admissions bind owner, generation, descriptor and semantic source.
+use super::service::AcquiredView;
+use crate::application::file_dag::{relations::RelationOwner, testing::program_derived_port};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::{
+    derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
+    operating::errors::OperatingError,
+    operation_schema::types::InputShape,
+    operator::contract::views::BorrowedRows,
+};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_values::domain::{
+    plan_parts::types::ColumnIndex,
+    rows::types::{RowCount, Table},
+};
+use std::sync::Arc;
+
+#[derive(Clone, Copy, Debug)]
+enum Input {
+    Reuse,
+    ForeignOwner,
+    ExpiredAdmission,
+    ForeignDescriptor,
+    SubstitutedRows,
+    UnprovedDense,
+    UnpermittedRaw,
+    ExpiredView,
+}
+type Failure = OperatingError;
+const CASES: &[Case<Input, (), Failure>] = &[
+    Case {
+        name: CaseName("actual_publication_reuses_same_physical_view"),
+        word: Word::Succeeds,
+        input: || Input::Reuse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("another_owner_cannot_adopt_source_admission"),
+        word: Word::Refuses,
+        input: || Input::ForeignOwner,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("source_admission_expires_with_its_generation"),
+        word: Word::Refuses,
+        input: || Input::ExpiredAdmission,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("equivalent_descriptor_does_not_retarget_capability"),
+        word: Word::Refuses,
+        input: || Input::ForeignDescriptor,
+        expect: Expect::Error(OperatingError::WrongOperation),
+    },
+    Case {
+        name: CaseName("equal_values_do_not_substitute_physical_source"),
+        word: Word::Refuses,
+        input: || Input::SubstitutedRows,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("dense_domain_requires_actual_parent_graph"),
+        word: Word::Refuses,
+        input: || Input::UnprovedDense,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("ordinary_source_is_not_raw_invocation_authority"),
+        word: Word::Refuses,
+        input: || Input::UnpermittedRaw,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("held_payload_cannot_revive_revoked_generation"),
+        word: Word::Refuses,
+        input: || Input::ExpiredView,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+];
+fn table() -> Table {
+    Table {
+        kinds: vec![CellKind::Number],
+        cells: vec![
+            Value::Number(Integer(2)),
+            Value::Number(Integer(1)),
+            Value::Number(Integer(2)),
+        ],
+        count: RowCount(3),
+    }
+}
+fn subject(input: Input) -> Result<(), Failure> {
+    let owner = RelationOwner::new(true, program_derived_port());
+    let publication = owner.computed(table())?;
+    let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+    let request = match input {
+        Input::UnpermittedRaw => ViewRequest::RawKeyOrder { stride: 1 },
+        Input::UnprovedDense => ViewRequest::Membership {
+            column: ColumnIndex(0),
+        },
+        _ => ViewRequest::PartitionOrder {
+            keys: vec![ColumnIndex(0)],
+        },
+    };
+    let plan = Arc::new(owner.derived.prepare_view(
+        &request,
+        &[InputShape {
+            kinds: proof.rows().kinds(),
+            tree: None,
+        }],
+    )?);
+    let admitted = owner.derived.admit_view(&plan, &owner, &[&proof])?;
+    let mut scratch = DerivedScratch::default();
+    let original = [proof.rows()];
+    match input {
+        Input::ForeignOwner => {
+            let foreign = RelationOwner::new(true, program_derived_port());
+            foreign
+                .derived
+                .acquire_stored(
+                    &plan,
+                    &admitted,
+                    Default::default(),
+                    DerivedInputs::Rows(&original),
+                    &mut scratch,
+                    None,
+                )
+                .map(|_| ())
+        }
+        Input::ExpiredAdmission => {
+            owner.release_population();
+            owner
+                .derived
+                .acquire_stored(
+                    &plan,
+                    &admitted,
+                    Default::default(),
+                    DerivedInputs::Rows(&original),
+                    &mut scratch,
+                    None,
+                )
+                .map(|_| ())
+        }
+        Input::ForeignDescriptor => owner
+            .derived
+            .acquire_stored(
+                &Arc::new((*plan).clone()),
+                &admitted,
+                Default::default(),
+                DerivedInputs::Rows(&original),
+                &mut scratch,
+                None,
+            )
+            .map(|_| ()),
+        Input::SubstitutedRows => owner
+            .derived
+            .acquire_stored(
+                &plan,
+                &admitted,
+                Default::default(),
+                DerivedInputs::Rows(&[BorrowedRows::Computed(&table())]),
+                &mut scratch,
+                None,
+            )
+            .map(|_| ()),
+        Input::UnprovedDense => owner
+            .derived
+            .acquire_stored(
+                &plan,
+                &admitted,
+                Default::default(),
+                DerivedInputs::Membership {
+                    rows: proof.rows(),
+                    space: MembershipSpace::Dense(&[]),
+                },
+                &mut scratch,
+                None,
+            )
+            .map(|_| ()),
+        Input::UnpermittedRaw => owner
+            .derived
+            .acquire_stored(
+                &plan,
+                &admitted,
+                Default::default(),
+                DerivedInputs::RawWords(&[2, 1, 2]),
+                &mut scratch,
+                None,
+            )
+            .map(|_| ()),
+        Input::ExpiredView | Input::Reuse => {
+            let first: AcquiredView = owner.derived.acquire_stored(
+                &plan,
+                &admitted,
+                Default::default(),
+                DerivedInputs::Rows(&original),
+                &mut scratch,
+                None,
+            )?;
+            if matches!(input, Input::ExpiredView) {
+                owner.release_population();
+                return first.view().map(|_| ());
+            }
+            let second = owner.derived.acquire_stored(
+                &plan,
+                &admitted,
+                Default::default(),
+                DerivedInputs::Rows(&original),
+                &mut scratch,
+                None,
+            )?;
+            assert!(first.same_storage(&second));
+            assert!(!second.was_built());
+            let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
+                first.view()?
+            else {
+                return Err(OperatingError::WrongOperation);
+            };
+            assert_eq!(order.iter().map(|row| row.0).collect::<Vec<_>>(), [1, 0, 2]);
+            Ok(())
+        }
+    }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}

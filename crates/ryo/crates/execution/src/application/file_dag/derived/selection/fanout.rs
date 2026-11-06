@@ -75,7 +75,7 @@ pub(super) fn fanout_candidates(
 ) -> Result<
     Option<(
         Arc<Vec<u32>>,
-        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         SelectionPath,
     )>,
     OperatingError,

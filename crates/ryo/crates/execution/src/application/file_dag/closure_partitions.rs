@@ -1,5 +1,7 @@
 //! One prepared shared ordering and one reusable partition-local adjacency.
-use super::{derived::owner::acquisition::service::AcquiredView, relations::RelationOwner};
+use super::{
+    derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
+};
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,

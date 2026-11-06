@@ -11,7 +11,7 @@ fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
+) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
     let owner = super::relations::RelationOwner::new(
         true,
         (std::sync::Arc::new(
@@ -50,7 +50,8 @@ fn prepare_closure(
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<Vec<super::derived::owner::acquisition::service::AcquiredView>, OperatingError> {
+) -> Result<Vec<super::derived::owner::acquisition::admission::service::AcquiredView>, OperatingError>
+{
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
         true,
         (std::sync::Arc::new(
@@ -143,5 +144,3 @@ mod tests {
 }
 
 use ryo_values::domain::rows::types::Table;
-
-use ryo_derived::domain::contract::types::DerivedKind;

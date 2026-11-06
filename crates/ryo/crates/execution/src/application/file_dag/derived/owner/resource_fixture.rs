@@ -126,7 +126,7 @@ impl ResourceFixture {
         rows: &Rows<'_>,
         columns: &[ColumnIndex],
     ) -> Result<
-        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
         let plan = super::graph_fixture::GraphFixture::prepare(
@@ -166,7 +166,7 @@ impl ResourceFixture {
 }
 /// Observe backing lifetime without retaining a lease or exposing mutable storage.
 pub(crate) fn weak_storage(
-    view: &crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+    view: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
 ) -> Weak<
     crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage,
 > {

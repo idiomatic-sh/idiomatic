@@ -45,7 +45,7 @@ fn acquired(
     kind: ryo_derived::domain::contract::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
     rows: BorrowedRows<'_>,
-) -> crate::application::file_dag::derived::owner::acquisition::service::AcquiredView {
+) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(

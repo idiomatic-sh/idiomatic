@@ -1,6 +1,6 @@
 //! Invocation-owned acquisition at the contract's demand boundary; no primitive cache policy.
 use super::{
-    axis_resources::prepare_axis, derived::owner::acquisition::service::AcquiredView,
+    axis_resources::prepare_axis, derived::owner::acquisition::admission::service::AcquiredView,
     resources::appended_values,
 };
 mod binding;
@@ -88,7 +88,7 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) native_join: Option<NativeJoin<'f>>,
     pub(crate) native_storage: Option<AcquiredView>,
     pub(crate) cycles: Option<AcquiredView>,
-    pub(crate) closure: Vec<super::derived::owner::acquisition::service::AcquiredView>,
+    pub(crate) closure: Vec<super::derived::owner::acquisition::admission::service::AcquiredView>,
     pub(crate) partitioned_closure: Option<super::closure_partitions::PartitionedClosure<'f>>,
     pub(crate) ordered: Option<AcquiredView>,
     pub(crate) dfs: Option<AcquiredView>,
@@ -484,7 +484,7 @@ fn partitioned<'f>(
 use ryo_values::domain::rows::types::Table;
 
 impl crate::domain::operator::contract::views::ClosureParts
-    for Vec<super::derived::owner::acquisition::service::AcquiredView>
+    for Vec<super::derived::owner::acquisition::admission::service::AcquiredView>
 {
     fn len(&self) -> usize {
         Vec::len(self)

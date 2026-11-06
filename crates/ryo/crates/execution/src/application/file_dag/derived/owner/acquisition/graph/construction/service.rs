@@ -1,7 +1,21 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
-use super::super::service::*;
+use super::super::service::append_backing;
 use super::types::{BuiltDomain, BuiltGraph};
-use crate::application::file_dag::derived::owner::acquisition::service::AdmittedViewInputs;
+use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
+use crate::application::file_dag::derived::{
+    backend::CacheBackend,
+    graph_cache::types::handles::GraphHandle,
+    owner::{DerivedOwner, PopulationId},
+};
+use crate::domain::{
+    operating::errors::OperatingError,
+    stored_graph::types::GraphDomain,
+    table_model::{
+        service::{check_columns, count_of, kinds_of},
+        types::Rows,
+    },
+};
+use std::sync::Arc;
 
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adjacency(
     owner: &DerivedOwner,

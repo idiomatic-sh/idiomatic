@@ -313,7 +313,7 @@ impl GraphFixture {
         rows: &Rows<'_>,
         columns: &[ColumnIndex],
     ) -> Result<
-        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
         let plan = Self::prepare(

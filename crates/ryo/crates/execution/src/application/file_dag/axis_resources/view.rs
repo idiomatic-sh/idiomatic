@@ -1,5 +1,5 @@
 //! Owned derived handles stay in application state; the primitive sees borrowed views only.
-use super::super::derived::owner::acquisition::service::AcquiredView;
+use super::super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{

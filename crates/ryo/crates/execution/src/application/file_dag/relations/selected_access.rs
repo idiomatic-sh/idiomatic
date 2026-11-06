@@ -25,8 +25,10 @@ impl RelationOwner {
         plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
         relation: Relation,
         source: ryo_relations::domain::relations::types::ColumnsView<'_>,
-    ) -> Result<super::super::derived::owner::acquisition::service::AcquiredView, OperatingError>
-    {
+    ) -> Result<
+        super::super::derived::owner::acquisition::admission::service::AcquiredView,
+        OperatingError,
+    > {
         use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch};
         let proof = self.admit_relation(relation, BorrowedRows::Stored(source))?;
         let admitted = self.derived.admit_view(plan, self, &[&proof])?;

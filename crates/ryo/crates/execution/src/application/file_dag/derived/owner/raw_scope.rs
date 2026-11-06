@@ -10,10 +10,11 @@ use std::{rc::Rc, sync::Arc};
 pub(in crate::application::file_dag) struct RawScope {
     owner: Rc<RelationOwner>,
     prepared: Option<Arc<DerivedContract>>,
-    admitted: Option<super::acquisition::service::AdmittedViewInputs<'static>>,
+    admitted: Option<super::acquisition::admission::service::AdmittedViewInputs<'static>>,
     room: DerivedScratch,
-    working:
-        Option<crate::application::file_dag::derived::owner::acquisition::service::AcquiredView>,
+    working: Option<
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
+    >,
 }
 impl std::fmt::Debug for RawScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -24,7 +25,7 @@ impl RawScope {
     pub(super) fn for_program(
         owner: Rc<RelationOwner>,
         prepared: Option<Arc<DerivedContract>>,
-        admitted: Option<super::acquisition::service::AdmittedViewInputs<'static>>,
+        admitted: Option<super::acquisition::admission::service::AdmittedViewInputs<'static>>,
     ) -> Self {
         Self {
             owner,

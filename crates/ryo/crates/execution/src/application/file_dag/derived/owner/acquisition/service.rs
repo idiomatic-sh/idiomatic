@@ -1,53 +1,9 @@
 //! Shared lookup, lazy physical construction, ownership and admission.
 use super::super::*;
+use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
 use crate::application::file_dag::derived::ledger::{Backing, ResourceLease};
 use crate::application::file_dag::derived::{indexes, selection};
 use crate::application::file_dag::route_counts::{self, BuildRoute};
-use ryo_derived::domain::contract::types::DerivedView;
-#[derive(Clone, Debug)]
-pub(crate) struct AcquiredView {
-    plan: Arc<DerivedContract>,
-    storage: Arc<DerivedStorage>,
-    lease: Arc<ResourceLease>,
-    backings: Arc<[Backing]>,
-    built: bool,
-    origin: AcquisitionOrigin,
-}
-
-/// Immutable payload dependency, independently leased by each publication role.
-#[derive(Clone, Debug)]
-pub(in crate::application::file_dag) struct ResourceDependency {
-    _storage: Arc<DerivedStorage>,
-    backings: Arc<[Backing]>,
-}
-
-/// Explicit lifetime of semantic work; finite invocation work has no reusable key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum AcquisitionLifetime {
-    Population,
-    Invocation,
-}
-#[derive(Clone)]
-struct AcquisitionOrigin {
-    owner: Arc<()>,
-    live: Arc<crate::application::file_dag::relations::GenerationLease>,
-    plan: Arc<DerivedContract>,
-    populations: Vec<crate::application::file_dag::derived::owner::PopulationId>,
-    lifetime: AcquisitionLifetime,
-}
-/// Only acquisition admission binds actual immutable sources to their owner and descriptor.
-pub(in crate::application::file_dag) struct AdmittedViewInputs<'a> {
-    origin: AcquisitionOrigin,
-    sources: AcquisitionSources<'a>,
-}
-enum AcquisitionSources<'a> {
-    Rows(Vec<crate::domain::operator::contract::views::BorrowedRows<'a>>),
-    Dense {
-        rows: Vec<crate::domain::operator::contract::views::BorrowedRows<'a>>,
-        graph: Arc<ryo_derived::domain::contract::types::CompactGraph>,
-    },
-    Raw,
-}
 
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn acquire_stored(
@@ -150,7 +106,7 @@ impl DerivedOwner {
         cache: Option<&mut CacheBackend>,
     ) -> Result<Option<AcquiredView>, OperatingError> {
         admitted.validate(self, plan, &inputs)?;
-        if admitted.origin.lifetime != AcquisitionLifetime::Population {
+        if admitted.lifetime() != AcquisitionLifetime::Population {
             return Err(OperatingError::WrongOperation);
         }
         self.try_acquire_shared_with_requirement(
@@ -260,11 +216,11 @@ impl DerivedOwner {
         )
             -> Result<Option<(Arc<DerivedStorage>, bool, bool, bool)>, OperatingError>,
     ) -> Result<Option<AcquiredView>, OperatingError> {
-        admitted.origin.validate(self, plan)?;
-        if admitted.origin.lifetime != AcquisitionLifetime::Population {
+        admitted.validate_origin(self, plan)?;
+        if admitted.lifetime() != AcquisitionLifetime::Population {
             return Err(OperatingError::WrongOperation);
         }
-        let populations = admitted.origin.populations.as_slice();
+        let populations = admitted.populations();
         if populations.is_empty() || populations.len() > 2 {
             return Err(OperatingError::ShapeMismatch);
         }
@@ -298,14 +254,7 @@ impl DerivedOwner {
                     Some(lease) => lease,
                     None => self.required_lease(&backings)?,
                 };
-                let handle = AcquiredView::new(
-                    plan,
-                    storage,
-                    lease,
-                    backings,
-                    admitted.origin.clone(),
-                    false,
-                );
+                let handle = self.complete_view(plan, storage, lease, backings, admitted, false)?;
                 let promote = required && entry.required.is_none();
                 if promote {
                     let entry = state.entries.get_mut(&key).expect("existing view");
@@ -323,7 +272,7 @@ impl DerivedOwner {
                     state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
                 }
                 state.entries.get_mut(&key).expect("existing view").lease =
-                    Arc::downgrade(&handle.lease);
+                    Arc::downgrade(handle.lease());
                 state.hits += 1;
                 route_counts::event("owner_hit", route_counts::derived(plan.kind));
                 if let Some(cache) = cache.as_deref_mut() {
@@ -350,14 +299,14 @@ impl DerivedOwner {
         let backend_bytes = 0;
         let working = bytes.saturating_add(backend_bytes);
         let backings = backings::view(&storage)?;
-        let handle = AcquiredView::new(
+        let handle = self.complete_view(
             plan,
             Arc::clone(&storage),
             self.required_lease(&backings)?,
             Arc::clone(&backings),
-            admitted.origin.clone(),
+            admitted,
             built,
-        );
+        )?;
         let optional = self.ledger.borrow();
         let additional_bytes = optional.incremental_optional_bytes(&backings)?;
         let optional_bytes = optional.snapshot().view_optional_bytes;
@@ -448,7 +397,7 @@ impl DerivedOwner {
                 required: required.then(|| handle.clone()),
                 retained,
                 backings,
-                lease: Arc::downgrade(&handle.lease),
+                lease: Arc::downgrade(handle.lease()),
                 bytes,
                 working,
                 backend: backend_bytes,
@@ -469,7 +418,7 @@ impl DerivedOwner {
         scratch: &mut DerivedScratch,
     ) -> Result<AcquiredView, OperatingError> {
         admitted.validate(self, plan, &inputs)?;
-        if admitted.origin.lifetime != AcquisitionLifetime::Invocation {
+        if admitted.lifetime() != AcquisitionLifetime::Invocation {
             return Err(OperatingError::WrongOperation);
         }
         let recycled = recycled.and_then(AcquiredView::into_storage);
@@ -503,207 +452,14 @@ impl DerivedOwner {
             retention_units: 0,
         });
         let backings: Arc<[Backing]> = backings.into();
-        Ok(AcquiredView::new(
+        self.complete_view(
             plan,
             storage,
             self.required_lease(&backings)?,
             backings,
-            admitted.origin.clone(),
+            admitted,
             true,
-        ))
-    }
-}
-
-impl AcquiredView {
-    fn new(
-        plan: &Arc<DerivedContract>,
-        storage: Arc<DerivedStorage>,
-        lease: Arc<ResourceLease>,
-        backings: Arc<[Backing]>,
-        origin: AcquisitionOrigin,
-        built: bool,
-    ) -> Self {
-        Self {
-            plan: Arc::clone(plan),
-            storage,
-            lease,
-            backings,
-            origin,
-            built,
-        }
-    }
-    fn into_storage(self) -> Option<DerivedStorage> {
-        let Self { storage, lease, .. } = self;
-        drop(lease);
-        Arc::try_unwrap(storage).ok()
-    }
-    pub(in crate::application::file_dag) fn dependency(&self) -> ResourceDependency {
-        ResourceDependency {
-            _storage: Arc::clone(&self.storage),
-            backings: Arc::clone(&self.backings),
-        }
-    }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn partition_order_capacity(
-        &self,
-    ) -> Result<usize, OperatingError> {
-        if !matches!(self.view()?, DerivedView::PartitionOrder(_)) {
-            return Err(OperatingError::WrongOperation);
-        }
-        self.storage
-            .payload()
-            .partition_order_capacity()
-            .ok_or(OperatingError::WrongOperation)
-    }
-    pub(in crate::application::file_dag) fn was_built(&self) -> bool {
-        self.built
-    }
-    pub(in crate::application::file_dag) fn contract(&self) -> &DerivedContract {
-        &self.plan
-    }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn same_storage(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.storage, &other.storage)
-    }
-    pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
-        if !self.origin.live.is_live() {
-            return Err(OperatingError::NotRead);
-        }
-        self.storage.view()
-    }
-    pub(in crate::application::file_dag::derived) fn storage(&self) -> &Arc<DerivedStorage> {
-        &self.storage
-    }
-    pub(in crate::application::file_dag::derived) fn backings(&self) -> &Arc<[Backing]> {
-        &self.backings
-    }
-}
-
-impl std::fmt::Debug for AcquisitionOrigin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AcquisitionOrigin")
-            .field("lifetime", &self.lifetime)
-            .field("kind", &self.plan.kind)
-            .finish_non_exhaustive()
-    }
-}
-impl AcquisitionOrigin {
-    fn validate(
-        &self,
-        owner: &DerivedOwner,
-        plan: &Arc<DerivedContract>,
-    ) -> Result<(), OperatingError> {
-        if !Arc::ptr_eq(&self.owner, &owner.identity) || !self.live.is_live() {
-            return Err(OperatingError::NotRead);
-        }
-        if !Arc::ptr_eq(&self.plan, plan) {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(())
-    }
-}
-impl AdmittedViewInputs<'_> {
-    fn validate(
-        &self,
-        owner: &DerivedOwner,
-        plan: &Arc<DerivedContract>,
-        inputs: &DerivedInputs<'_, '_>,
-    ) -> Result<(), OperatingError> {
-        self.origin.validate(owner, plan)?;
-        use crate::domain::operator::contract::views::BorrowedRows;
-        let admitted_rows = match (&self.sources, inputs) {
-            (AcquisitionSources::Raw, DerivedInputs::RawWords(_)) => return Ok(()),
-            (
-                AcquisitionSources::Rows(_),
-                DerivedInputs::Membership {
-                    space: MembershipSpace::Dense(_),
-                    ..
-                },
-            ) => {
-                return Err(OperatingError::NotRead);
-            }
-            (AcquisitionSources::Rows(rows), _) => rows,
-            (
-                AcquisitionSources::Dense { rows, graph },
-                DerivedInputs::Membership {
-                    space: MembershipSpace::Dense(values),
-                    ..
-                },
-            ) if std::ptr::eq(graph.vertices(), *values) => rows,
-            _ => return Err(OperatingError::NotRead),
-        };
-        let rows = match inputs {
-            DerivedInputs::Rows(rows) | DerivedInputs::Text { rows, .. } => rows.to_vec(),
-            DerivedInputs::Predicate { rows, .. }
-            | DerivedInputs::Distinct { rows, .. }
-            | DerivedInputs::Postings { rows, .. }
-            | DerivedInputs::Partition { rows, .. }
-            | DerivedInputs::Adjacency { rows, .. } => vec![*rows],
-            DerivedInputs::Membership {
-                rows,
-                space: MembershipSpace::Native(tree),
-            } => vec![*rows, BorrowedRows::Tree(*tree)],
-            DerivedInputs::Membership { rows, .. } => vec![*rows],
-            DerivedInputs::Dfs { roots, edges, .. } => vec![*roots, *edges],
-            DerivedInputs::RawWords(_) => return Err(OperatingError::NotRead),
-        };
-        if rows.len() != admitted_rows.len()
-            || !rows
-                .into_iter()
-                .zip(admitted_rows)
-                .all(|(actual, admitted)| {
-                    crate::application::file_dag::relations::same_admitted_rows(actual, *admitted)
-                })
-        {
-            return Err(OperatingError::NotRead);
-        }
-        Ok(())
-    }
-}
-impl DerivedOwner {
-    pub(in crate::application::file_dag) fn admit_view<'a>(
-        &self,
-        plan: &Arc<DerivedContract>,
-        owner: &crate::application::file_dag::relations::RelationOwner,
-        proofs: &[&crate::application::file_dag::relations::AdmittedInput<'a>],
-    ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
-        if !std::ptr::eq(self, &owner.derived) || proofs.is_empty() || proofs.len() > 2 {
-            return Err(OperatingError::NotRead);
-        }
-        let populations = proofs
-            .iter()
-            .map(|proof| proof.identity(owner).map(|identity| identity.0))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(AdmittedViewInputs {
-            origin: AcquisitionOrigin {
-                owner: Arc::clone(&self.identity),
-                live: owner.generation_liveness(),
-                plan: Arc::clone(plan),
-                populations,
-                lifetime: AcquisitionLifetime::Population,
-            },
-            sources: AcquisitionSources::Rows(proofs.iter().map(|proof| proof.rows()).collect()),
-        })
-    }
-    pub(in crate::application::file_dag) fn admit_partition<'a>(
-        &self,
-        plan: &Arc<DerivedContract>,
-        owner: &crate::application::file_dag::relations::RelationOwner,
-        proof: &crate::application::file_dag::relations::AdmittedInput<'a>,
-        parent: &AcquiredView,
-    ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
-        parent.origin.validate(self, &parent.plan)?;
-        if parent.plan.kind != DerivedKind::PartitionOrder
-            || plan.kind != DerivedKind::ClosureAdjacency
-        {
-            return Err(OperatingError::WrongOperation);
-        }
-        let mut admitted = self.admit_view(plan, owner, &[proof])?;
-        if admitted.origin.populations != parent.origin.populations {
-            return Err(OperatingError::NotRead);
-        }
-        admitted.origin.lifetime = AcquisitionLifetime::Invocation;
-        Ok(admitted)
+        )
     }
 }
 
@@ -728,43 +484,6 @@ impl DerivedOwner {
 }
 
 impl DerivedOwner {
-    pub(super) fn admit_graph<'a>(
-        &self,
-        plan: &Arc<DerivedContract>,
-        input: &crate::application::file_dag::workspace::GraphInput<'a>,
-        parent: Option<&AcquiredView>,
-    ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
-        let mut admitted = input.admission(plan)?;
-        let population = input.population()?;
-        admitted.origin.populations.clear();
-        if let Some(parent) = parent {
-            parent.origin.validate(self, &parent.plan)?;
-            let graph = parent
-                .storage
-                .payload()
-                .share_adjacency()
-                .ok_or(OperatingError::WrongOperation)?;
-            let AcquisitionSources::Rows(rows) = admitted.sources else {
-                return Err(OperatingError::WrongOperation);
-            };
-            admitted.sources = AcquisitionSources::Dense { rows, graph };
-            if !Arc::ptr_eq(&parent.origin.live, &admitted.origin.live) {
-                return Err(OperatingError::NotRead);
-            }
-            for population in &parent.origin.populations {
-                if !admitted.origin.populations.contains(population) {
-                    admitted.origin.populations.push(*population);
-                }
-            }
-        }
-        if !admitted.origin.populations.contains(&population) {
-            admitted.origin.populations.push(population);
-        }
-        if !input.canonical_backing() {
-            admitted.origin.lifetime = AcquisitionLifetime::Invocation;
-        }
-        Ok(admitted)
-    }
     pub(super) fn acquire_invocation_with(
         &self,
         plan: &Arc<DerivedContract>,
@@ -772,8 +491,8 @@ impl DerivedOwner {
         backings: &[Backing],
         build: impl FnOnce() -> Result<(Arc<DerivedStorage>, bool), OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
-        admitted.origin.validate(self, plan)?;
-        if admitted.origin.lifetime != AcquisitionLifetime::Invocation {
+        admitted.validate_origin(self, plan)?;
+        if admitted.lifetime() != AcquisitionLifetime::Invocation {
             return Err(OperatingError::WrongOperation);
         }
         let (storage, built) = build()?;
@@ -782,48 +501,13 @@ impl DerivedOwner {
             super::graph::service::append_backing(&mut required, *backing)?;
         }
         let required: Arc<[Backing]> = required.into();
-        Ok(AcquiredView::new(
+        self.complete_view(
             plan,
             storage,
             self.required_lease(&required)?,
             required,
-            admitted.origin.clone(),
+            admitted,
             built,
-        ))
-    }
-}
-
-impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner) fn admit_raw(
-        &self,
-        plan: &Arc<DerivedContract>,
-        owner: &crate::application::file_dag::relations::RelationOwner,
-        permit: &crate::application::file_dag::program::admission::KernelPermit<'_>,
-    ) -> Result<AdmittedViewInputs<'static>, OperatingError> {
-        permit.validate_derived_owner(owner)?;
-        if !std::ptr::eq(self, &owner.derived) || plan.kind != DerivedKind::RawKeyOrder {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(AdmittedViewInputs {
-            origin: AcquisitionOrigin {
-                owner: Arc::clone(&self.identity),
-                live: owner.generation_liveness(),
-                plan: Arc::clone(plan),
-                populations: Vec::new(),
-                lifetime: AcquisitionLifetime::Invocation,
-            },
-            sources: AcquisitionSources::Raw,
-        })
-    }
-}
-
-impl AdmittedViewInputs<'_> {
-    pub(super) fn populations(&self) -> &[PopulationId] {
-        &self.origin.populations
-    }
-}
-impl ResourceDependency {
-    pub(in crate::application::file_dag) fn backings(&self) -> &[Backing] {
-        &self.backings
+        )
     }
 }

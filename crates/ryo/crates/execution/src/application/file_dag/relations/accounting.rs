@@ -102,7 +102,7 @@ impl RelationOwner {
     }
     fn resource_backings(
         resources: &Option<
-            Arc<[super::super::derived::owner::acquisition::service::ResourceDependency]>,
+            Arc<[super::super::derived::owner::acquisition::admission::service::ResourceDependency]>,
         >,
         output: &mut Vec<Backing>,
     ) {
@@ -127,7 +127,8 @@ impl RelationOwner {
     pub(super) fn publication_with_resources(
         &self,
         record: Arc<RelationResult>,
-        resources: [Option<super::super::derived::owner::acquisition::service::AcquiredView>; 2],
+        resources: [Option<super::super::derived::owner::acquisition::admission::service::AcquiredView>;
+            2],
     ) -> Result<PublishedInput, OperatingError> {
         let dependencies = resources
             .iter()
@@ -141,7 +142,7 @@ impl RelationOwner {
         &self,
         record: Arc<RelationResult>,
         resources: Option<
-            Arc<[super::super::derived::owner::acquisition::service::ResourceDependency]>,
+            Arc<[super::super::derived::owner::acquisition::admission::service::ResourceDependency]>,
         >,
     ) -> Result<PublishedInput, OperatingError> {
         let mut backings = self.backings(&record);

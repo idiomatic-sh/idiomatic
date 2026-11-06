@@ -8,8 +8,7 @@ use crate::application::file_dag::derived::graph_cache::types::handles::{
     DomainHandle, GraphAccess, GraphHandle,
 };
 use crate::application::file_dag::derived::owner::{
-    DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, PopulationId,
-    RequirementIdentity, ViewContext,
+    DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, PopulationId, ViewContext,
 };
 use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::{
@@ -35,7 +34,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     let owner = input.owner();
     let population = input.population()?;
     let rows = input.rows();
-    let admitted = owner.admit_graph(plan, input, None)?;
+    let admitted = owner.admit_graph(plan, input)?;
 
     let crate::domain::derived_views::types::ViewRequest::Adjacency { endpoints, keys } =
         &plan.request
@@ -56,13 +55,6 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     let invoked = std::cell::Cell::new(false);
     let canonical =
         owner.canonical_graph_requirement(GraphViewIdentity::Adjacency(requirement), &[population]);
-    let RequirementIdentity::Graph(view) = &canonical else {
-        return Err(OperatingError::WrongOperation);
-    };
-    let GraphViewIdentity::Adjacency(requirement) = view.as_ref() else {
-        return Err(OperatingError::WrongOperation);
-    };
-    let requirement = requirement.clone();
     let acquired = owner.try_acquire_shared_with_requirement(
         canonical,
         plan,
@@ -108,8 +100,6 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
         }
     }
     Ok(Some(GraphHandle {
-        requirement,
-        population,
         generation: input.generation(),
         built: acquired.was_built(),
         access: GraphAccess {
@@ -159,7 +149,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     if !Arc::ptr_eq(&graph, &access.graph) {
         return Err(OperatingError::NotRead);
     }
-    let admitted = owner.admit_graph(plan, input, Some(&access.acquired))?;
+    let admitted = owner.admit_domain(plan, input, &access.acquired)?;
     if !Arc::ptr_eq(&access.generation, &input.generation()) {
         return Err(OperatingError::NotRead);
     }

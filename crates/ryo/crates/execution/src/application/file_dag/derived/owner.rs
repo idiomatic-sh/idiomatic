@@ -72,7 +72,7 @@ struct Entry {
     admission: usize,
     _plan: Arc<DerivedContract>,
     weak: Weak<DerivedStorage>,
-    required: Option<acquisition::service::AcquiredView>,
+    required: Option<acquisition::admission::service::AcquiredView>,
     retained: Option<RetainedView>,
     backings: Arc<[super::ledger::Backing]>,
     lease: Weak<super::ledger::ResourceLease>,
