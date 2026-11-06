@@ -167,7 +167,7 @@ impl SuitePort for SuiteLocalAdapter {
                     .file_name()
                     .into_string()
                     .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
-                super::schemas::rule(&name)
+                super::cases::schemas::rule(&name)
             })
             .collect()
     }
@@ -187,7 +187,7 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(profile): ArtifactPath<'_>,
         rule: &ryo::linter::RuleId,
     ) -> Result<Cases, Error> {
-        super::schemas::cases(&std::fs::read_to_string(
+        super::cases::schemas::cases(&std::fs::read_to_string(
             rule_directory(profile, rule)?.join(constants::CASES),
         )?)
     }
@@ -231,7 +231,7 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), Error> {
         let source = source.canonicalize()?;
         let bytes = std::fs::read(source.join(constants::MANIFEST))?;
-        let manifest = super::schemas::suite(
+        let manifest = super::corpus::schemas::suite(
             std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?,
         )?;
         std::fs::create_dir(destination)?;
@@ -262,7 +262,7 @@ impl SuitePort for SuiteLocalAdapter {
         definitions: &BTreeSet<ryo::linter::RuleId>,
         purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
-        let tool = super::schemas::tool(&std::fs::read_to_string(
+        let tool = super::tool::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)?;
         validate_query_modules(directory, &tool.query_modules)?;
@@ -371,7 +371,7 @@ impl SuitePort for SuiteLocalAdapter {
         Ok(ArtifactDigest(format!("{:x}", hasher.finalize())))
     }
     fn profile(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<Tool, Error> {
-        super::schemas::tool(&std::fs::read_to_string(
+        super::tool::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)
     }
@@ -379,7 +379,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Suite, Error> {
-        super::schemas::suite(&std::fs::read_to_string(
+        super::corpus::schemas::suite(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)
     }

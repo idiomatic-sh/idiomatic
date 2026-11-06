@@ -1,5 +1,5 @@
 //! Receipt-file scoped process artifacts; resumes never overwrite historical attempts.
-use super::schemas::observation::ObservationSchema;
+use super::observation::schemas::ObservationSchema;
 use crate::outbound::suite::adapters::local::constants;
 use crate::outbound::suite::types::{
     discrepancy::ArtifactError,
@@ -144,7 +144,12 @@ mod tests {
     };
     fn row() -> ObservationDocument {
         use crate::outbound::suite::types::{
-            observation_document::{ExitStatus, ProcessObservation},
+            observation_document::{
+                ContextRun, ExitStatus, FileMetadataDigest, IntentMatch, ProcessObservation,
+                ProjectContextRecord, ProjectInputsDigest, ReferenceExpectation,
+                RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
+                ToolContractRecord,
+            },
             reference_discrepancy::ExpectationKind,
             text::{CaseName, ReasonText, RuleName, SchemaName, Side, YesNo},
         };
@@ -157,28 +162,28 @@ mod tests {
             error: None::<ReasonText>,
             case_passed: YesNo::Yes,
             files: Vec::new(),
-            source_sha256: None,
-            file_metadata_sha256: None,
-            project_inputs_sha256: None,
+            source_sha256: SourceIdentity::Unavailable,
+            file_metadata_sha256: FileMetadataDigest::Undeclared,
+            project_inputs_sha256: ProjectInputsDigest::Undeclared,
             expected: Vec::new(),
-            reference_expected: None,
+            reference_expected: ReferenceExpectation::Underivable,
             diagnostics: None,
             skipped: None,
             observation_schema: SchemaName("benchmark-case/v2".into()),
             expectation_contract: ComparisonContract::Diagnostics,
             execution_metadata: None,
             coverage: None,
-            context_manifest: None,
-            project_context: None,
-            rule_context: None,
-            rule_observations: None,
-            selected_rules: None,
+            context_manifest: ContextRun::Isolated,
+            project_context: ProjectContextRecord::NotCarried,
+            rule_context: RuleContextRecord::Undeclared,
+            rule_observations: RuleObservationsRecord::Undeclared,
+            selected_rules: RuleCohort::Undeclared,
             actual_request_root: None,
             documented_reference_discrepancy: YesNo::No,
-            documented_tool_contract_difference: None,
+            documented_tool_contract_difference: ToolContractRecord::Unrecorded,
             discrepancy_validation: None,
             raw_parity_matches_intended: None,
-            diagnostics_match_intended: None,
+            diagnostics_match_intended: IntentMatch::Unreported,
             process_observation: Some(ProcessObservation {
                 kind: ExpectationKind::ProcessFailure,
                 exit: ExitStatus(2),

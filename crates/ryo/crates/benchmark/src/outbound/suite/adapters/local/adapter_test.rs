@@ -37,7 +37,10 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
             format!("{base}source-language = '{bad}'\n"),
         )
         .expect("profile bytes");
-        assert!(local().profile(ArtifactPath(directory.path())).is_err());
+        assert!(matches!(
+            local().profile(ArtifactPath(directory.path())),
+            Err(_refused_profile)
+        ));
     }
 }
 

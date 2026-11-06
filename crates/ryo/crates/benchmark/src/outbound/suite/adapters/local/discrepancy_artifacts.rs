@@ -39,13 +39,13 @@ pub(super) fn case_reference_wires(
             .file_name()
             .into_string()
             .map_err(|_bytes| ArtifactError::Invalid(constants::NON_UTF8_RULE_DIRECTORY.into()))?;
-        let rule = super::schemas::rule(&rule)
+        let rule = super::cases::schemas::rule(&rule)
             .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if !owners.contains(&rule) {
             continue;
         }
         let text = std::fs::read_to_string(entry.path().join(constants::CASES))?;
-        for (name, discrepancy, basis) in super::schemas::case_reference_wires(&text)? {
+        for (name, discrepancy, basis) in super::cases::schemas::case_reference_wires(&text)? {
             result.push(CaseReferenceWire {
                 rule: rule.to_string(),
                 name,
@@ -261,7 +261,7 @@ pub(super) fn copy_evidence(
     destination: &Path,
     cases: &Path,
 ) -> std::io::Result<()> {
-    let wires = super::schemas::case_reference_wires(&std::fs::read_to_string(cases)?)
+    let wires = super::cases::schemas::case_reference_wires(&std::fs::read_to_string(cases)?)
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
     let boundary = profile.canonicalize()?;
     for (_, wire, _) in wires {
