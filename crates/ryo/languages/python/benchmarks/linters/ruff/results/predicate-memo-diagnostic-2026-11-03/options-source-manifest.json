@@ -1,7 +1,0 @@
-{
-  "base": "d05318311ff01a02c56409ac735ffa7db938a550",
-  "head": "c93f3d5116cce2a8ddceac3a3f1a78c0f5039626",
-  "patch_sha256": "3daee507bd9b345ca3a6d2941e9eb9b97b54138e876c092930e22ef1e67eb872",
-  "feature": "predicate-memo-diagnostic",
-  "measurement": "reset-only monotonic elapsed diagnostic upper bound, includes clock-call overhead; no benchmark claim"
-}

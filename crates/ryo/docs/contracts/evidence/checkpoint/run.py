@@ -1,0 +1,18 @@
+import json,subprocess,time,fcntl
+from pathlib import Path
+p=Path('/tmp/ryo-contract-validation310-20261106')
+locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
+for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
+assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
+head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+commands=json.loads((p/'commands.json').read_text())
+(p/'identity.json').write_text(json.dumps({'source':head,'commands':commands},indent=2))
+for name,cmd in commands:
+ print('START '+name,flush=True)
+ started=time.time()
+ with (p/(name+'.log')).open('w') as out: r=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
+ result={'source':head,'command':cmd,'exit':r.returncode,'elapsed_seconds':time.time()-started}
+ (p/(name+'.json')).write_text(json.dumps(result,indent=2))
+ print('END '+name+' exit='+str(r.returncode),flush=True)
+ if name=='build' and r.returncode: break
+print('BATCH COMPLETE',flush=True)

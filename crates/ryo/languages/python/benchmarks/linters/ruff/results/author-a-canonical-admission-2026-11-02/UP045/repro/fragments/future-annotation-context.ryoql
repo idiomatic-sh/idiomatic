@@ -1,5 +1,0 @@
-input expressions: relation<id: node, file: file>;
-output relation<id: node, file: file>;
-let enabled_files = select file from "compiler-feature" where feature = "python.future-annotations" and enabled = "true";
-let enabled = select l.id as id, l.file as file from expressions as l join enabled_files as r on l.file = r.file;
-return enabled;

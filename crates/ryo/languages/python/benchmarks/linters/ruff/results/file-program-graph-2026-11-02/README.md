@@ -1,7 +1,0 @@
-# Scoped file-program graph evidence
-
-The opt-in graph remains disabled by default. On one `django/contrib/admin/options.py` file with all 310 frozen rules, the sealed 84cf worker published typed Join node 1504 once, reused it 11 times, and released it after the last consumer. The complete graph-off and graph-on outputs were byte equal. The later sealed 9348 demand-mask build also kept byte-equal one-file output and recorded 44 skipped ancestor steps across those 11 reuse rules.
-
-The full frozen Django 3.10 workload has 310 rules and 2,875 files. Its retained graph-off cold observation was **248.624 s wall / 246.533 s CPU / 2.241 GB peak RSS**. The original graph-on observation was **405.182 s / 404.927 s / 2.236 GB**. The demand-mask follow-up graph-on observation was **435.767 s / 435.439 s / 2.238 GB**. Both graph-on reports exactly match graph-off: 2,327 diagnostics, 891,250 selected, 890,943 evaluated, 307 explicit syntax skips and no unknown or unread pairs. The two graph-on binaries differ. The retained graph-off phase preceded a workspace restart and cleanup; these are single scoped observations and do not isolate component costs. Neither establishes a performance improvement.
-
-[Initial summary](summary.json) · [Initial raw inputs and receipts](raw.tar.gz) · [Demand-mask summary](demand-followup-summary.json) · [Demand-mask raw inputs and receipts](demand-followup-raw.tar.gz).

@@ -1,1 +1,0 @@
-{"diagnostics":[{"rule":"B020","file":"django/contrib/admin/options.py","start":19852,"end":19864}],"skipped":[],"coverage":{"selected":211,"evaluated":211,"skipped":0,"unknown_or_unread":0},"files":["django/contrib/admin/options.py"]}

@@ -1,7 +1,0 @@
-# Declaration validity fixture recovery
-
-The immutable exact80be full413 run remains383 PASS /30 FAIL. A later isolated sealed0c85 native replay verifies all7 PLE0115 cases (2 raw exact,5 exact reference omissions) and all26 PLE0117 cases (22 raw exact,4 omissions), both sides complete. No combined413 rerun or re-verification of other rules is claimed.
-
-Original source files and lint findings/multiplicities are unchanged. Intended expectations additionally retain compiler-invalid same-scope global/nonlocal conflicts, including lint noqa cases. Actual CPython3.10.19 accepts their AST parsing and rejects compilation;10 conflict-removed controls compile. The reporting policy independently derives one name-token span per conflicting nonlocal declaration. These diagnostics are Validation/Preserved, so complete AST facts remain available. CPython is not claimed to establish all-errors multiplicity or name-token spans. Exact pinned Ruff omission outputs remain preserved by narrow source/tool/profile/settings/output-bound certificates.
-
-Canonical profiles now use the exact already-executed staged bytes: explicit Python3.10 and accepted-syntax, unchanged effective settings/helper closure. The existing generic supplement validator checks current source/cases/settings/helpers and native attestations. Raw remote failures, successful replays, source inputs and independent controls are archived unchanged. No engine/query/provider source changes or new validator is introduced.
