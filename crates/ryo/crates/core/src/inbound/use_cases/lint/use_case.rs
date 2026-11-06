@@ -513,6 +513,20 @@ impl LintUseCaseImpl {
             })
             .map(|file| input_path(file).clone())
             .collect();
+        // A file the store kept and the run no longer lists is gone: what the store kept of it is not an answer about this run.
+        let listed: std::collections::BTreeSet<&FilePath> =
+            listing.files.iter().map(input_path).collect();
+        let gone: Vec<FilePath> = listing
+            .stored
+            .files
+            .iter()
+            .filter(|kept| !listed.contains(&kept.path))
+            .map(|kept| kept.path.clone())
+            .collect();
+        let mut read_again = read_again;
+        read_again.extend(gone);
+        read_again.sort();
+        read_again.dedup();
         Ok(Reused {
             again,
             records,
