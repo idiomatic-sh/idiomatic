@@ -77,8 +77,8 @@ impl KernelPermit<'_> {
         self.validate_live()?;
         let region = &self.program.regions()[self.region.0];
         let declared = region
-            .selection
-            .as_ref()
+            .route
+            .selection()
             .ok_or(OperatingError::WrongOperation)?;
         if shape.target() != self.region
             || shape.logical() != region.instructions[self.instruction.0].logical

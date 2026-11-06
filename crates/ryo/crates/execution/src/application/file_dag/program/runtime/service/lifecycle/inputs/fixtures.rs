@@ -263,17 +263,13 @@ impl Inputs for TestInputs {
         root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        rows: Table,
+        representation: crate::application::file_dag::program::admission::Representation,
     ) -> Result<AdmittedInput, OperatingError> {
-        self.computed(root, partition, inputs, rows)
-    }
-    fn publish_positions(
-        &mut self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        publication: crate::application::file_dag::relations::handle::service::PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError> {
+        use crate::application::file_dag::program::admission::Representation;
+        let publication = match representation {
+            Representation::Computed(rows) => return self.computed(root, partition, inputs, rows),
+            Representation::Minted(publication) => publication,
+        };
         let readiness = crate::application::file_dag::program::admission::contributor_readiness(
             partition,
             inputs,
@@ -292,33 +288,6 @@ impl Inputs for TestInputs {
             root,
             partition.clone(),
             readiness,
-        )
-    }
-    fn publish_selected(
-        &mut self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        publication: crate::application::file_dag::relations::handle::service::PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError> {
-        self.publish_positions(root, partition, inputs, publication)
-    }
-    fn publish_empty(
-        &mut self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        schema: Result<Vec<CellKind>, OperatingError>,
-    ) -> Result<AdmittedInput, OperatingError> {
-        self.computed(
-            root,
-            partition,
-            inputs,
-            Table {
-                kinds: schema?,
-                cells: vec![],
-                count: RowCount(0),
-            },
         )
     }
     fn replay(

@@ -1,11 +1,12 @@
 //! Kernel, semantic and physical permits issued from an admitted invocation.
 use super::super::{
-    BoundInputs, KernelAdmission, KernelPermit, KernelStrategy, ProgramExecution, SemanticPermit,
+    BoundInputs, KernelAdmission, KernelPermit, ProgramExecution, SemanticPermit,
 };
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
 use crate::application::file_dag::relations::RelationOwner;
+use crate::domain::executable_program::route::RouteKind;
 use crate::domain::executable_program::types::InputId;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
@@ -61,7 +62,7 @@ impl<'scope> KernelPermit<'scope> {
             partition: execution.partition(),
             live: &execution.generation_live,
             bindings: BoundInputs::Ordinary(inputs),
-            strategy: KernelStrategy::Registered,
+            strategy: RouteKind::Generic,
         })
     }
     pub(in crate::application::file_dag::program) fn ordered(
@@ -72,8 +73,8 @@ impl<'scope> KernelPermit<'scope> {
         let region = authority.region();
         let code = Self::code(execution, region)?;
         let shape = code
-            .ordered_existence
-            .as_ref()
+            .route
+            .ordered_existence()
             .ok_or(OperatingError::WrongOperation)?;
         input.validate_for(
             &execution.owner,
@@ -90,7 +91,7 @@ impl<'scope> KernelPermit<'scope> {
             partition: execution.partition(),
             live: &execution.generation_live,
             bindings: BoundInputs::Ordered(input),
-            strategy: KernelStrategy::Ordered,
+            strategy: RouteKind::OrderedExistence,
         })
     }
     pub(in crate::application::file_dag::program) fn column(
@@ -101,7 +102,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = code.column.as_ref().ok_or(OperatingError::WrongOperation)?;
+        let shape = code.route.column().ok_or(OperatingError::WrongOperation)?;
         left.validate_for(
             &execution.owner,
             &execution.generation,
@@ -123,7 +124,7 @@ impl<'scope> KernelPermit<'scope> {
             partition: execution.partition(),
             live: &execution.generation_live,
             bindings: BoundInputs::Column { left, right },
-            strategy: KernelStrategy::Column,
+            strategy: RouteKind::Column,
         })
     }
     /// A continuation borrows the already admitted invocation; no refcount,
@@ -152,8 +153,8 @@ impl<'scope> KernelPermit<'scope> {
         &self,
     ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
         self.program.regions()[self.region.0]
-            .native_positions
-            .as_ref()
+            .route
+            .native_positions()
             .ok_or(OperatingError::WrongOperation)
     }
     pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
@@ -185,14 +186,14 @@ impl<'scope> KernelPermit<'scope> {
     ) -> Result<SemanticPermit<'_>, OperatingError> {
         self.validate_registered(self.operation())?;
         let actual = self.program.regions()[self.region.0]
-            .native_positions
-            .as_ref()
+            .route
+            .native_positions()
             .ok_or(OperatingError::WrongOperation)?;
         if !Arc::ptr_eq(actual, shape) {
             return Err(OperatingError::WrongOperation);
         }
         let mut permit = self.semantics();
-        permit.strategy = KernelStrategy::Positions;
+        permit.strategy = RouteKind::NativePositions;
         Ok(permit)
     }
     /// Derived acquisition must borrow the owner of this actual live invocation.
@@ -253,7 +254,7 @@ impl<'scope> KernelPermit<'scope> {
         operation: &ryo_values::domain::plans::types::Operation,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
-        if !matches!(self.strategy, KernelStrategy::Registered) || self.operation() != operation {
+        if !matches!(self.strategy, RouteKind::Generic) || self.operation() != operation {
             return Err(OperatingError::WrongOperation);
         }
         Ok(())

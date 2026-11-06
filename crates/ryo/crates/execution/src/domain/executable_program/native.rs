@@ -1,33 +1,29 @@
 //! Request preparation preserves native tuple geometry, never the old evaluator.
 use crate::domain::{
-    executable_program::types::{ExecutableProgram, LogicalInstruction},
+    executable_program::{
+        route::Candidates,
+        types::{LogicalInstruction, Region},
+    },
     file_program::types::RequestGraph,
-    lowering::types::{Counting, LoweredShape},
+    lowering::types::LoweredShape,
 };
 use std::sync::Arc;
 
-/// The physical analysis is transient. Retain only immutable output coordinates.
+/// The native shape of each canonical node, taken from the one analysis of its rules.
 pub(super) fn capture(graph: &RequestGraph) -> Vec<Option<Arc<LoweredShape>>> {
     graph
         .nodes
         .iter()
-        .map(|node| {
-            if node.phase != ryo_values::domain::plans::types::StepScope::PerFile {
-                return None;
-            }
-            node.regions.iter().find_map(|region| {
-                let index = region.step.0 as usize;
-                if region.layout.lowering.counting.get(index) != Some(&Counting::DoesNotCount) {
-                    return None;
-                }
-                let shape = region.layout.lowering.shapes.get(index)?.as_ref()?;
-                Some(Arc::new(shape.clone()))
-            })
-        })
+        .map(|node| node.analysis.iter().find_map(|step| step.native.clone()))
         .collect()
 }
-pub(super) fn install(program: &mut ExecutableProgram, shapes: Vec<Option<Arc<LoweredShape>>>) {
-    for region in &mut program.regions {
+/// Offer the native positions of each region whose single instruction can run over them.
+pub(super) fn offer(
+    regions: &[Region],
+    shapes: &[Option<Arc<LoweredShape>>],
+    candidates: &mut [Candidates],
+) {
+    for (region, candidate) in regions.iter().zip(candidates) {
         let [instruction] = region.instructions.as_ref() else {
             continue;
         };
@@ -49,6 +45,6 @@ pub(super) fn install(program: &mut ExecutableProgram, shapes: Vec<Option<Arc<Lo
             continue;
         }
         let LogicalInstruction(logical) = instruction.logical;
-        region.native_positions = shapes.get(logical).and_then(Clone::clone);
+        candidate.native = shapes.get(logical).and_then(Clone::clone);
     }
 }

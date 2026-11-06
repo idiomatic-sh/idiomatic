@@ -16,7 +16,7 @@ pub(in crate::application::file_dag::program::preparation) fn prepare(
         .regions()
         .iter()
         .map(|region| {
-            if region.native_positions.is_none() {
+            if region.route.native_positions().is_none() {
                 return Ok(None);
             }
             let stride = match &region.instructions[0].operation {
@@ -26,8 +26,8 @@ pub(in crate::application::file_dag::program::preparation) fn prepare(
                     ..
                 } => Some(columns.len().max(1)),
                 Operation::Union { .. } => region
-                    .native_positions
-                    .as_ref()
+                    .route
+                    .native_positions()
                     .map(|shape| shape.columns.len().max(1)),
                 Operation::Antijoin { right_on, .. } | Operation::Join { right_on, .. } => {
                     Some(right_on.len())

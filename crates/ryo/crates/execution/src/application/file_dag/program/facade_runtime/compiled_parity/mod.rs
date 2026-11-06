@@ -344,7 +344,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     if expects_native {
         assert!(
             prepared.program().regions()[target_region.0]
-                .native_positions
+                .route
+                .native_positions()
                 .is_some(),
             "this case requires the compiled native-position strategy to be installed"
         );
@@ -352,7 +353,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
         assert!(
             prepared.program().regions()[target_region.0]
-                .native_positions
+                .route
+                .native_positions()
                 .is_none(),
             "the non-tree RHS must decline native-position installation"
         );

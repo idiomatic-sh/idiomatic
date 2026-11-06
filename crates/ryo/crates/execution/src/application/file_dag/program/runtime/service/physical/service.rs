@@ -1,5 +1,6 @@
 //! Semantic permits and the physical request that carries its validated authority.
-use super::super::{KernelStrategy, PermittedPhysical, SemanticPermit};
+use super::super::{PermittedPhysical, SemanticPermit};
+use crate::domain::executable_program::route::RouteKind;
 use crate::domain::operating::errors::OperatingError;
 
 impl<'scope> SemanticPermit<'scope> {
@@ -25,23 +26,23 @@ impl<'scope> SemanticPermit<'scope> {
         self.validate_live()?;
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
         let route = match self.strategy {
-            KernelStrategy::Registered => PhysicalRoute::Registered,
-            KernelStrategy::Positions => PhysicalRoute::Positions(
+            RouteKind::Generic | RouteKind::Selection => PhysicalRoute::Registered,
+            RouteKind::NativePositions => PhysicalRoute::Positions(
                 self.program.regions()[self.region.0]
-                    .native_positions
-                    .as_ref()
+                    .route
+                    .native_positions()
                     .ok_or(OperatingError::WrongOperation)?,
             ),
-            KernelStrategy::Ordered => PhysicalRoute::Ordered(
+            RouteKind::OrderedExistence => PhysicalRoute::Ordered(
                 self.program.regions()[self.region.0]
-                    .ordered_existence
-                    .as_ref()
+                    .route
+                    .ordered_existence()
                     .ok_or(OperatingError::WrongOperation)?,
             ),
-            KernelStrategy::Column => PhysicalRoute::Column(
+            RouteKind::Column => PhysicalRoute::Column(
                 self.program.regions()[self.region.0]
-                    .column
-                    .as_ref()
+                    .route
+                    .column()
                     .ok_or(OperatingError::WrongOperation)?,
             ),
         };

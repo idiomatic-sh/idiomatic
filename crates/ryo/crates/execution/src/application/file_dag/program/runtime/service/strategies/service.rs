@@ -32,11 +32,12 @@ impl ProgramExecution {
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             let input = inputs
-                .publish_empty(
+                .publish(
                     crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                     &self.partition,
                     &[],
-                    last.contract.output_kinds.clone(),
+                    crate::application::file_dag::program::admission::Representation::empty(last.contract.output_kinds.clone())
+                        .map_err(InvocationFailure::Semantic)?,
                 )
                 .map_err(InvocationFailure::Semantic)?;
             return Ok(Some(InvocationOutcome::Published(
@@ -61,8 +62,8 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if let Some(shape) = region
-            .ordered_existence
-            .as_ref()
+            .route
+            .ordered_existence()
             .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
@@ -133,7 +134,7 @@ impl ProgramExecution {
                         crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                         &self.partition,
                         &[source],
-                        rows,
+                        crate::application::file_dag::program::admission::Representation::Computed(rows),
                     )
                     .map_err(InvocationFailure::Semantic)?
                     .with_coverage(coverage)
@@ -162,8 +163,8 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if let Some(shape) = region
-            .column
-            .as_ref()
+            .route
+            .column()
             .filter(|_| progress.column_done == StageProgress::Pending)
         {
             use crate::domain::executable_program::types::InputSource;
@@ -238,7 +239,7 @@ impl ProgramExecution {
                         crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                         &self.partition,
                         &[left, right],
-                        rows,
+                        crate::application::file_dag::program::admission::Representation::Computed(rows),
                     )
                     .map_err(InvocationFailure::Semantic)?
                     .with_coverage(completion.coverage(needs));

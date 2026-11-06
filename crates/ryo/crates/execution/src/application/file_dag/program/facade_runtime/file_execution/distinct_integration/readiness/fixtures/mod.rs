@@ -106,7 +106,7 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
         InvocationFailure,
     > {
         self.actual.positions(permit, context, scratch)
@@ -118,7 +118,7 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
         InvocationFailure,
     > {
         self.actual.selected(shape, permit, context, scratch)

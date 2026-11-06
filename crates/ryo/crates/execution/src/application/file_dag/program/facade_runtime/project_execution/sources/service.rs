@@ -84,6 +84,8 @@ impl PublicationScope {
                         coverage,
                         ProjectFrontierPayload::Compact(Arc::new(table)),
                     ),
+                    // Admission precedes every source: a packed frontier here was never admitted.
+                    FrontierInput::Packed(_) => return Err(OperatingError::NotRead),
                 };
                 let source = sources
                     .iter()

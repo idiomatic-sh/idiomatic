@@ -156,6 +156,8 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
         };
         chains[target] = Some(Chain {
             left_step: left_id,
+            filter_step: filter_id,
+            join_step: join_id,
             right: *right,
             left_on: left_on.clone(),
             right_on: right_on.clone(),

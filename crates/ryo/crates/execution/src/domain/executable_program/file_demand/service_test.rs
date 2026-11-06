@@ -23,10 +23,7 @@ fn program() -> ExecutableProgram {
             source_partitions: Box::new([]),
             consumers: 1,
             dependencies: Box::new([]),
-            ordered_existence: None,
-            column: None,
-            selection: None,
-            native_positions: None,
+            route: super::super::route::Route::Generic,
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();

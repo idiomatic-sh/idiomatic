@@ -110,7 +110,9 @@ impl super::super::KernelSession<'_, '_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     > {
         self.walk
@@ -156,6 +158,12 @@ impl super::super::KernelSession<'_, '_> {
             &self.walk,
             self.kernels,
         )
+        .map(|published| {
+            published.map_or(
+                crate::application::file_dag::program::runtime::types::Attempt::Declined,
+                crate::application::file_dag::program::runtime::types::Attempt::Produced,
+            )
+        })
         .map_err(InvocationFailure::Semantic)
     }
     pub(in crate::application::file_dag::program::kernel_session) fn column_session(

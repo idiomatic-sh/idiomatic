@@ -4,11 +4,9 @@ use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::application::file_dag::program::admission::Representation;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use ryo_values::domain::rows::service::reset;
-use ryo_values::domain::rows::types::Table;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -17,7 +15,7 @@ impl SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        mut rows: Table,
+        mut representation: Representation,
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
@@ -27,7 +25,8 @@ impl SourceInputs<'_, '_> {
                 inputs,
                 &self.owner,
             )?;
-        if let ProducerRoot::Region(region) = root
+        if let (ProducerRoot::Region(region), Representation::Computed(rows)) =
+            (root, &mut representation)
             && matches!(
                 readiness,
                 crate::application::file_dag::program::admission::Readiness::Partial { .. }
@@ -42,8 +41,8 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or(OperatingError::NotRun)?;
-            let column = code.column.as_ref().filter(|_| inputs.len() == 2);
-            let ordered = code.ordered_existence.as_ref().filter(|shape| {
+            let column = code.route.column().filter(|_| inputs.len() == 2);
+            let ordered = code.route.ordered_existence().filter(|shape| {
                 inputs.len() == 1
                     && inputs[0].has_root(ProducerRoot::Region(shape.source))
                         == crate::application::file_dag::program::admission::Agreement::Same
@@ -96,7 +95,7 @@ impl SourceInputs<'_, '_> {
                 &instruction.operation,
                 instruction.contract.absence_inputs,
                 &contributions,
-                &mut rows,
+                rows,
             );
             let coverage = match &instruction.contract.output_kinds {
                 Ok(kinds) => {
@@ -129,7 +128,10 @@ impl SourceInputs<'_, '_> {
                 }
             };
         }
-        let publication = self.owner.computed(rows)?;
+        let publication = match representation {
+            Representation::Computed(rows) => self.owner.computed(rows)?,
+            Representation::Minted(publication) => publication,
+        };
         self.state.bind(&self.owner, root, &publication)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
@@ -144,75 +146,6 @@ impl SourceInputs<'_, '_> {
             actual_partition,
             readiness,
         )
-    }
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn publish_positions_source(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        publication: PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError> {
-        let actual_partition = self.execution.source_partition(root)?;
-        actual_partition.require_supply(partition)?;
-        let readiness = crate::application::file_dag::program::admission::contributor_readiness(
-            &actual_partition,
-            inputs,
-            &self.owner,
-        )?;
-        self.state.bind(&self.owner, root, &publication)?;
-        let rows = self.owner.resolve(publication.as_ref(), self.read)?;
-        let checked = self.owner.admit(
-            publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-        )?;
-        AdmittedInput::from_publication(
-            Rc::clone(&self.owner),
-            publication.clone(),
-            &checked,
-            root,
-            actual_partition,
-            readiness,
-        )
-    }
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn publish_selected_source(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        publication: PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError> {
-        let actual_partition = self.execution.source_partition(root)?;
-        actual_partition.require_supply(partition)?;
-        let readiness = crate::application::file_dag::program::admission::contributor_readiness(
-            &actual_partition,
-            inputs,
-            &self.owner,
-        )?;
-        self.state.bind(&self.owner, root, &publication)?;
-        let rows = self.owner.resolve(publication.as_ref(), self.read)?;
-        let checked = self.owner.admit(
-            publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-        )?;
-        AdmittedInput::from_publication(
-            Rc::clone(&self.owner),
-            publication.clone(),
-            &checked,
-            root,
-            actual_partition,
-            readiness,
-        )
-    }
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn publish_empty_source(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        schema: Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError>,
-    ) -> Result<AdmittedInput, OperatingError> {
-        let mut rows = Table::default();
-        reset(&mut rows, &schema?);
-        self.publish(root, partition, inputs, rows)
     }
     pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn replay_source(
         &self,

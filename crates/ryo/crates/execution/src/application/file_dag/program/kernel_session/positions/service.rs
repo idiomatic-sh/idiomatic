@@ -1,5 +1,6 @@
 //! Native position evaluation of a kernel session.
 use crate::application::file_dag::program::runtime::service::KernelPermit;
+use crate::application::file_dag::program::runtime::types::Attempt;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::domain::executable_program::types::InputId;
@@ -20,7 +21,9 @@ impl super::super::KernelSession<'_, '_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     > {
         self.walk
@@ -142,7 +145,7 @@ impl super::super::KernelSession<'_, '_> {
             // its actual tree coordinates instead of materializing rows and
             // making every downstream native operator decline.
             let [Rows::Tree(tree)] = rows.as_slice() else {
-                return Ok(None);
+                return Ok(Attempt::Declined);
             };
             if shape.width.0 != 1 || shape.columns.iter().any(|column| column.slot.0 != 0) {
                 return Err(InvocationFailure::Semantic(OperatingError::ShapeMismatch));
@@ -197,7 +200,7 @@ impl super::super::KernelSession<'_, '_> {
             .map_or(result, Err)
             .map_err(InvocationFailure::Semantic)?
         else {
-            return Ok(None);
+            return Ok(Attempt::Declined);
         };
         let source = sources
             .first()
@@ -231,6 +234,6 @@ impl super::super::KernelSession<'_, '_> {
         {
             workspace.observation.native_positions += 1;
         }
-        Ok(Some(publication))
+        Ok(Attempt::Produced(publication))
     }
 }

@@ -91,10 +91,7 @@ pub(crate) struct Region {
     pub source_partitions: Box<[SourcePartition]>,
     pub consumers: usize,
     pub dependencies: Box<[RegionId]>,
-    pub ordered_existence: Option<OrderedExistence>,
-    pub column: Option<super::column::ColumnAlternative>,
-    pub selection: Option<super::selection::SelectionAlternative>,
-    pub native_positions: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
+    pub route: super::route::Route,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Origin {

@@ -281,8 +281,8 @@ fn execute(
         .logical;
     let region = program.logical_regions()[logical.0];
     let instructions = program.regions()[region.0].instructions.len();
-    let native_prepared = program.regions()[region.0].native_positions.is_some();
-    let column_prepared = program.regions()[region.0].column.is_some();
+    let native_prepared = program.regions()[region.0].route.native_positions().is_some();
+    let column_prepared = program.regions()[region.0].route.column().is_some();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),
         derived,

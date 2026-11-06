@@ -3,6 +3,7 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::{
         column::ColumnCandidates,
+        route::RouteKind,
         service::compile,
         types::{ExecutableProgram, PartitionRequirement, ProducerPartitions},
     },
@@ -164,11 +165,30 @@ fn program(plans: &[Plan], operators: &RequestOperators, graph: RequestGraph) ->
     compile(plans, graph, &FileProducers, operators).unwrap()
 }
 
+/// An instruction has exactly one route: the accessors agree with the kind, and at most one is set.
+fn assert_one_route(program: &ExecutableProgram) {
+    for region in program.regions() {
+        let route = &region.route;
+        let named = [
+            route.ordered_existence().is_some(),
+            route.column().is_some(),
+            route.selection().is_some(),
+            route.native_positions().is_some(),
+        ];
+        assert!(named.iter().filter(|each| **each).count() <= 1);
+        assert_eq!(
+            named.iter().any(|each| *each),
+            route.kind() != RouteKind::Generic
+        );
+    }
+}
+
 fn column_count(program: &ExecutableProgram) -> usize {
+    assert_one_route(program);
     program
         .regions()
         .iter()
-        .filter(|region| region.column.is_some())
+        .filter(|region| region.route.kind() == RouteKind::Column)
         .count()
 }
 
@@ -180,7 +200,8 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     assert_eq!(column_count(&compiled), 1);
     assert!(
         compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0]
-            .column
+            .route
+            .column()
             .is_some()
     );
 

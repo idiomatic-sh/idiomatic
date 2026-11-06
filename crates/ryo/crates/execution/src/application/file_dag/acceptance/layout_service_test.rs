@@ -131,12 +131,15 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
         crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
-    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
-    let first = graph.program_nodes[0][0].as_ref().unwrap();
-    let layout = &graph.nodes[first.0].regions[0].layout;
-    assert_eq!(layout.kept.0, [false, true]);
     assert_eq!(
-        layout.kinds,
+        crate::domain::file_program::service::materialized_steps(&plans[0]),
+        [false, true]
+    );
+    assert_eq!(
+        operators.rules[0]
+            .iter()
+            .map(|contract| contract.output_kinds.clone().unwrap())
+            .collect::<Vec<_>>(),
         [
             vec![
                 CellKind::Node,
@@ -160,10 +163,10 @@ fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
         crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
-    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
-    let first = graph.program_nodes[0][0].as_ref().unwrap();
-    let layout = &graph.nodes[first.0].regions[0].layout;
-    assert_eq!(layout.kept.0, [true, true]);
+    assert_eq!(
+        crate::domain::file_program::service::materialized_steps(&plans[0]),
+        [true, true]
+    );
     assert_eq!(
         operators.rules[0][1].schema,
         Ok(vec![CellKind::Symbol, CellKind::Number])

@@ -140,7 +140,7 @@ pub(crate) fn compile(
     let mut mapping = vec![usize::MAX; count];
     for (logical, mut node) in graph.nodes.into_iter().enumerate() {
         // PhysicalRegion's plans/layouts have no place in executable state.
-        node.regions.clear();
+        node.analysis.clear();
         let fuse = if continuation(&node) && node.inputs.len() == 1 {
             match node.inputs[0] {
                 NodeInput::Node(child) if !boundary[child.0] && consumers[child.0] == 1 => {
@@ -262,20 +262,18 @@ pub(crate) fn compile(
             inputs: inputs.into_boxed_slice(),
             consumers: consumers[logical],
             dependencies: Box::new([]),
-            ordered_existence: None,
-            column: None,
-            selection: None,
-            native_positions: None,
+            route: super::route::Route::Generic,
         });
     }
+    // Every family leaves what it found eligible here; one rule keeps one route per region below.
+    let mut candidates: Vec<super::route::Candidates> =
+        vec![super::route::Candidates::default(); regions.len()];
     for column in column_candidates.lower(&logical_regions) {
         let target = column.target();
-        if regions[target.0].column.is_some() {
+        if candidates[target.0].column.is_some() {
             continue;
         }
-        let left = column.left();
-        regions[left.0].consumers += 1;
-        regions[target.0].column = Some(column);
+        candidates[target.0].column = Some(column);
     }
     for alternative in ordered_alternatives.into_iter().flatten() {
         let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(resolved) =
@@ -289,7 +287,7 @@ pub(crate) fn compile(
         if select == join || select == source || regions[select.0].instructions.len() != 1 {
             return Err(OperatingError::WrongOperation);
         }
-        regions[select.0].ordered_existence = Some(OrderedExistence {
+        candidates[select.0].ordered = Some(OrderedExistence {
             source,
             number: resolved.shape.number,
             partition: resolved.shape.partition.into_boxed_slice(),
@@ -297,7 +295,6 @@ pub(crate) fn compile(
             extremum: resolved.shape.extremum,
             output: resolved.output.into_boxed_slice(),
         });
-        regions[source.0].consumers += 1;
     }
     let mut rules = Vec::with_capacity(plans.len());
     for (rule, (plan, nodes)) in plans.iter().zip(graph.program_nodes).enumerate() {
@@ -382,6 +379,31 @@ pub(crate) fn compile(
         partitions,
         count,
     )?;
+    // The stored-selection and native-position families are offered over the same regions, then
+    // one rule keeps one route per region. Only the kept route takes a reader of its source.
+    candidates.resize_with(regions.len(), Default::default);
+    for selection in super::selection::compile(&rules, &logical_regions, &regions, prepared) {
+        let target = selection.target();
+        if !matches!(
+            regions[target.0].instructions[0].operation,
+            Operation::Select { .. } | Operation::Project { .. }
+        ) {
+            continue;
+        }
+        if candidates[target.0].selection.is_none() {
+            candidates[target.0].selection = Some(selection);
+        }
+    }
+    super::native::offer(&regions, &native_shapes, &mut candidates);
+    for (at, candidate) in candidates.into_iter().enumerate() {
+        let route = candidate.route();
+        match &route {
+            super::route::Route::OrderedExistence(shape) => regions[shape.source.0].consumers += 1,
+            super::route::Route::Column(shape) => regions[shape.left().0].consumers += 1,
+            _ => {}
+        }
+        regions[at].route = route;
+    }
     // Resolve aliases into the same prepared dependency graph once. Runtime
     // completion consumes these edges without rescanning source kinds.
     let mut named_readers = vec![0usize; observation_regions.len()];
@@ -402,11 +424,12 @@ pub(crate) fn compile(
                 | InputSource::EmptyObservation(_) => {}
             }
         }
-        if let Some(ordered) = &region.ordered_existence {
-            dependencies.push(ordered.source);
-        }
-        if let Some(column) = &region.column {
-            dependencies.push(column.left());
+        match &region.route {
+            super::route::Route::OrderedExistence(ordered) => dependencies.push(ordered.source),
+            super::route::Route::Column(column) => dependencies.push(column.left()),
+            super::route::Route::Generic
+            | super::route::Route::Selection(_)
+            | super::route::Route::NativePositions(_) => {}
         }
         region.dependencies = dependencies.into_boxed_slice();
     }
@@ -447,25 +470,11 @@ pub(crate) fn compile(
             .collect();
     }
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;
-    let mut executable = ExecutableProgram {
+    Ok(ExecutableProgram {
         file_readers,
         regions: regions.into_boxed_slice(),
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
-    };
-    for selection in super::selection::compile(&executable, prepared) {
-        let target = selection.target();
-        if !matches!(
-            executable.regions[target.0].instructions[0].operation,
-            Operation::Select { .. } | Operation::Project { .. }
-        ) {
-            continue;
-        }
-        if executable.regions[target.0].selection.is_none() {
-            executable.regions[target.0].selection = Some(selection);
-        }
-    }
-    super::native::install(&mut executable, native_shapes);
-    Ok(executable)
+    })
 }
