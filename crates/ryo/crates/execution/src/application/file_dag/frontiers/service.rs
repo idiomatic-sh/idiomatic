@@ -124,7 +124,7 @@ pub(crate) fn prepare(
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
             PreparationPolicy::Observations { .. } => DecodeMode::Complete,
         };
-        // Decoding waits for the first demand (`PreparedFrontiers::admit`): the store read, the
+        // Decoding waits for the first demand (`admit_all`): the store read, the
         // proof and the refusals above keep their order; only the decode is deferred.
         admitted.push(FrontierInput::Packed(PackedFrontier {
             input,
@@ -162,6 +162,27 @@ pub(crate) fn prepare(
         required: required.clone(),
         refused: refused.into(),
     })
+}
+
+/// The first demand of the frontiers: decode what preparation left packed, in place. A failed
+/// decode becomes the typed refusal the first demand of that source returns.
+pub(in crate::application::file_dag) fn admit_all(
+    frontiers: &mut PreparedFrontiers,
+    symbols: &mut Symbols,
+) {
+    let mut rows = Vec::with_capacity(frontiers.rows.len());
+    let mut refused = frontiers.refused.to_vec();
+    for row in frontiers.rows.iter().cloned() {
+        match row {
+            FrontierInput::Packed(packed) => match admit(packed, symbols) {
+                Ok(admitted) => rows.push(admitted),
+                Err(error) => refused.push(error),
+            },
+            admitted => rows.push(admitted),
+        }
+    }
+    frontiers.rows = rows.into();
+    frontiers.refused = refused.into();
 }
 
 /// Decode one packed frontier on its first demand. A decode failure is the same typed

@@ -58,7 +58,7 @@ pub(crate) fn open_project<'a>(
         .validate_scope(program.program(), &required)?;
     // The first demand of the frontiers: what preparation left packed is decoded here, before
     // the spellings are checked, so a decode refusal is recorded exactly where it used to be.
-    frontiers.ordinary.admit(symbols);
+    crate::application::file_dag::frontiers::service::admit_all(&mut frontiers.ordinary, symbols);
     crate::domain::spelling::service::check_name_spellings(
         frontiers.ordinary.rows.iter().flat_map(|input| -> Box<dyn Iterator<Item = ryo_relations::domain::relations::types::Name> + '_> {
             match input {

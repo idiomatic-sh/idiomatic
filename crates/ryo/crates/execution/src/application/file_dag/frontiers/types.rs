@@ -136,7 +136,7 @@ pub(crate) enum FrontierInput {
     Packed(PackedFrontier),
 }
 
-/// The proven words of one stored frontier, decoded by `PreparedFrontiers::admit`.
+/// The proven words of one stored frontier, decoded by `admit_all`.
 #[derive(Clone)]
 pub(crate) struct PackedFrontier {
     pub input: ryo_values::domain::plan_parts::types::Input,
@@ -146,26 +146,6 @@ pub(crate) struct PackedFrontier {
 }
 
 impl PreparedFrontiers {
-    /// The first demand of the frontiers: decode what preparation left packed, in place. A
-    /// failed decode becomes the typed refusal the first demand of that source returns.
-    pub(in crate::application::file_dag) fn admit(
-        &mut self,
-        symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    ) {
-        let mut rows = Vec::with_capacity(self.rows.len());
-        let mut refused = self.refused.to_vec();
-        for row in self.rows.iter().cloned() {
-            match row {
-                FrontierInput::Packed(packed) => match super::service::admit(packed, symbols) {
-                    Ok(admitted) => rows.push(admitted),
-                    Err(error) => refused.push(error),
-                },
-                admitted => rows.push(admitted),
-            }
-        }
-        self.rows = rows.into();
-        self.refused = refused.into();
-    }
     pub(in crate::application::file_dag) fn validate_scope(
         &self,
         program: &std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
