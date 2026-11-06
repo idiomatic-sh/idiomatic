@@ -10,6 +10,8 @@ use ryo_values::domain::{
 enum Case {
     RejectedSyntax,
     Missing,
+    /// A required source absent from the frontier, while the edge names only another file inapplicable.
+    MissingWhileAnotherFileIsInapplicable,
     WrongRule,
     WrongPath,
     AlwaysApplicable,
@@ -24,6 +26,7 @@ fn project_frontiers_distinguish_explicit_rejection_from_missing_or_conflicting_
     for case in [
         Case::RejectedSyntax,
         Case::Missing,
+        Case::MissingWhileAnotherFileIsInapplicable,
         Case::WrongRule,
         Case::WrongPath,
         Case::AlwaysApplicable,
@@ -182,7 +185,10 @@ fn exercise(case: Case) {
         ),
         reason: SkipReason::SyntaxRejected,
     }];
-    if matches!(case, Case::Missing) {
+    if matches!(
+        case,
+        Case::Missing | Case::MissingWhileAnotherFileIsInapplicable
+    ) {
         skipped.clear();
     }
     if matches!(case, Case::DuplicateSkip) {
@@ -195,7 +201,13 @@ fn exercise(case: Case) {
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles(
+                if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
+                    vec![FileId(0)]
+                } else {
+                    Vec::new()
+                },
+            ),
         )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);

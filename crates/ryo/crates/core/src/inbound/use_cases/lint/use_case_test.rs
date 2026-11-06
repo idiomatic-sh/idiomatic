@@ -2075,4 +2075,40 @@ fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() {
     }
 }
 
+/// A file whose syntax a rule skips is Skipped with the reason the language gave, for the file-phase rule as for the cross-file one:
+/// the rows of the files around it are those of the same run without it, and nothing is undecided; it is never answered complete.
+#[test]
+fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete() {
+    use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
+    let lint = |files: &[(&'static str, &'static str)], rejected: &[&str], applicability| {
+        let mut given = Given {
+            files: files.to_vec(),
+            ..violations()
+        };
+        given.language.rejected_syntax = rejected.iter().map(|path| FilePath((*path).into())).collect();
+        let mut asked = request(&given);
+        asked.rules[0].applicability = applicability;
+        let world = world(given);
+        let report = world.use_case.lint(asked).expect("the lint answers");
+        let rows = std::mem::take(
+            &mut *world
+                .collected
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+        .rows;
+        (rows, format!("{:?}", report.unknowns), format!("{:?}", report.skipped))
+    };
+    let oracle = lint(&[THREE[0], THREE[2]], &[], Always);
+    let (rows, undecided, skipped) = lint(&THREE, &["b.rs"], AcceptedSyntax);
+    assert_eq!(rows, oracle.0, "the rows of the files around it");
+    assert_eq!(undecided, "[]", "a rejected file is not undecided");
+    assert!(
+        skipped.contains("b.rs") && skipped.contains("SyntaxRejected"),
+        "named with its reason: {skipped}"
+    );
+    assert!(oracle.2 == "[]", "a file that is read is not skipped: {}", oracle.2);
+}
+
 mod project_budget;

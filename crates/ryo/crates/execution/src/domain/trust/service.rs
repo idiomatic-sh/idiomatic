@@ -352,19 +352,38 @@ pub(crate) fn blocked(needs: &[RelationRead], partial: &[Partial]) -> Blocking {
 }
 
 /// The files in which any of the reads `needs` is of a relation read in part, once each, in order; none for the repository as a whole.
+/// A file skipped for the rule is not among them: see [`skipped_files`].
 #[must_use]
-pub(crate) fn files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Option<FileId>> {
+pub(crate) fn partial_files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Option<FileId>> {
     let mut files: Vec<Option<FileId>> = partials
         .entries
         .iter()
         .filter(|each| {
             needs
                 .iter()
-                .any(|read| matters(read, &each.partial) == Bearing::Matters)
+                .any(|read| matches!(matters(read, &each.partial), Bearing::Matters))
         })
         .map(|each| each.file)
-        .chain(partials.unavailable_files.iter().copied().map(Some))
         .collect();
+    files.sort();
+    files.dedup();
+    files
+}
+
+/// The files skipped for the rule before its cross-file steps, sorted, once each; they lack input without a relation read in part.
+#[must_use]
+pub(crate) fn skipped_files(partials: &Partials) -> Vec<FileId> {
+    let mut files = partials.unavailable_files.clone();
+    files.sort();
+    files.dedup();
+    files
+}
+
+/// The files in which any of the reads `needs` is of a relation read in part, or which were skipped for the rule, once each.
+#[must_use]
+pub(crate) fn files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Option<FileId>> {
+    let mut files = partial_files_for(partials, needs);
+    files.extend(skipped_files(partials).into_iter().map(Some));
     files.sort();
     files.dedup();
     files
