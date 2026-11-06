@@ -252,7 +252,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         | AdapterScenario::DuplicateInput
         | AdapterScenario::UnexpectedRule
         | AdapterScenario::ReversedSpan
-        | AdapterScenario::CanonicalRoot => (1_i32, finding),
+        | AdapterScenario::CanonicalRoot
+        | AdapterScenario::ReferenceRootsMustMatchTheDeclaredProjectScope => (1_i32, finding),
     };
     let report = ruff.decode(
         &request,

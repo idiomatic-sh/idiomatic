@@ -40,7 +40,11 @@ pub(super) fn resolve(configuration: Option<&str>) -> Result<Target, Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve;
+    use super::{
+        EXPLICIT_LEGACY_TARGET, EXPLICIT_NATIVE_ANNOTATION_TARGET, PYTHON_TARGET_3_6,
+        PYTHON_TARGET_3_7, PYTHON_TARGET_3_09, PYTHON_TARGET_3_10_2, PYTHON_TARGET_3_14,
+        PYTHON_TARGET_3_16, PYTHON_TARGET_LATEST, resolve,
+    };
     use ryo_python::settings::PythonTargetVersion;
 
     #[test]

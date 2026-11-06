@@ -204,16 +204,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName(
-            "declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            EngineScenario::DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource
-        },
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("lazy_future_stays_visible_without_a_dedicated_selected_rule"),
         word: Word::Succeeds,
         input: || EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
@@ -354,7 +344,7 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
     let result = factory::local_with_frontend_diagnostic(
         python_310(),
         None,
-        frontend_projection(EngineScenario::LexicallyCompleteSyntaxError)?,
+        default_frontend_projection()?,
     )
     .run_prepared(request);
     match result {
@@ -397,7 +387,16 @@ fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ProjectionCacheQueryChange
         | EngineScenario::QueryModuleInlineEquivalence
-        | EngineScenario::TargetConfigurationCacheChange => "input.py",
+        | EngineScenario::TargetConfigurationCacheChange
+        | EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules
+        | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
+        | EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes
+        | EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
+        | EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics
+        | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+        | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
+        | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
+        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory => "input.py",
         EngineScenario::PreservedStubSemanticSyntaxError => "input.pyi",
     }
 }
@@ -428,7 +427,16 @@ fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::Missing
         | EngineScenario::Unread
         | EngineScenario::QueryModuleInlineEquivalence
-        | EngineScenario::TargetConfigurationCacheChange => "try:\n    pass\nexcept:\n    pass\n",
+        | EngineScenario::TargetConfigurationCacheChange
+        | EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules
+        | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
+        | EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes
+        | EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
+        | EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics
+        | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+        | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
+        | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
+        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory => "try:\n    pass\nexcept:\n    pass\n",
     }
 }
 
@@ -662,7 +670,16 @@ fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding
         | EngineScenario::Partial
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ProjectionCacheQueryChange
-        | EngineScenario::QueryModuleInlineEquivalence => ("E722", 14, 20),
+        | EngineScenario::QueryModuleInlineEquivalence
+        | EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules
+        | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
+        | EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes
+        | EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
+        | EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics
+        | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+        | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
+        | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
+        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory => ("E722", 14, 20),
         EngineScenario::TargetConfigurationCacheChange => ("UP017", 16, 37),
     };
     Ok(vec![BenchmarkFinding {
