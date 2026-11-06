@@ -500,3 +500,6 @@ impl NativeBatch {
 
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+
+#[cfg(test)]
+mod coverage;
