@@ -35,3 +35,6 @@ pub(super) const RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE: &str =
 /// The text "rule skipped: syntax acceptance undetermined".
 pub(super) const RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED: &str =
     "rule skipped: syntax acceptance undetermined";
+
+/// The tracing target of the execution diagnostics.
+pub(super) const EXECUTION_DIAGNOSTIC: &str = "ryo::diagnostic::execution";

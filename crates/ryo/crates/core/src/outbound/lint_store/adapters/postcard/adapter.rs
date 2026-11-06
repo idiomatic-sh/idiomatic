@@ -216,14 +216,17 @@ impl LintStorePostcardAdapter {
             for row in super::types::frames::value::old_word_rows(file, each.span)
                 .map_err(|error| self.unreadable(&error))?
             {
-                let proof = handed
+                let Ok(at) = handed
                     .proofs
                     .binary_search_by_key(&(row.file.0, each.bucket.0), |entry| {
                         (entry.file.0, entry.bucket.0)
                     })
-                    // ignore: idiomatic.arch/no-ok-on-result - a miss of the binary search is the answer: no proof was stored for this row
-                    .ok()
-                    .and_then(|at| handed.proofs.get(at))
+                else {
+                    return Err(self.unreadable(&UNDECODED));
+                };
+                let proof = handed
+                    .proofs
+                    .get(at)
                     .ok_or_else(|| self.unreadable(&UNDECODED))?
                     .proof
                     .clone();
@@ -695,12 +698,12 @@ impl ReadStore for PostcardRead {
         }
         let proof_for = |file: ryo_values::domain::stored_findings::types::StoredFileNumber,
                          bucket: Bucket| {
-            proofs
-                .binary_search_by_key(&(file.0, bucket.0), |row| (row.file.0, row.bucket.0))
-                // ignore: idiomatic.arch/no-ok-on-result - a miss of the binary search is the answer: no proof was stored for this row
-                .ok()
-                .and_then(|at| proofs.get(at))
-                .map(|row| &row.proof)
+            let Ok(at) =
+                proofs.binary_search_by_key(&(file.0, bucket.0), |row| (row.file.0, row.bucket.0))
+            else {
+                return None;
+            };
+            proofs.get(at).map(|row| &row.proof)
         };
         if stored
             .handed

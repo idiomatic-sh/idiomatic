@@ -4,8 +4,8 @@ use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
 use crate::domain::reading::service::buckets_of;
 use crate::inbound::use_cases::lint::constants::{
-    CROSS_RULE_MEMORY, CROSS_SYMBOLS, FRESH_RECORDS, STORE_HANDED, STORE_STAGED_DESCRIPTORS,
-    WORKER_ARENAS, WORKER_NOTES,
+    CROSS_RULE_MEMORY, CROSS_SYMBOLS, FRESH_RECORDS, LIFECYCLE_MEMORY_DIAGNOSTIC, STORE_HANDED,
+    STORE_STAGED_DESCRIPTORS, WORKER_ARENAS, WORKER_NOTES,
 };
 use crate::outbound::lint_store::interface::ReadStore;
 use ryo_values::domain::files::types::CorpusInput;
@@ -82,8 +82,7 @@ pub(super) fn handed_of(
 
 /// One explicit opt-in gate; no capacity traversal or diagnostic span construction when disabled.
 pub(super) fn memory_enabled() -> bool {
-    // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - tracing takes its target as a literal
-    tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE)
+    tracing::enabled!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, tracing::Level::TRACE)
 }
 
 /// Component capacities are distinct from RSS, allocator retention and unmeasured provider storage.
@@ -92,7 +91,7 @@ pub(super) fn observed_memory(
     owner: &'static str,
     bytes: ryo_values::domain::stores::types::retention::value::RetainedBytes,
 ) {
-    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner,
+    tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase, owner,
         objects = bytes.objects.0, metadata_capacity_bytes = bytes.metadata.0,
         packed_live_bytes = bytes.packed_live.0, packed_capacity_bytes = bytes.packed_capacity.0,
         staged_objects = bytes.staged_objects.0, staged_payload_bytes = bytes.staged_payload_bytes.0,
@@ -170,7 +169,7 @@ pub(super) fn memory_rule(
     id: &ryo_values::domain::runs::types::RuleId,
     index: usize,
 ) -> Option<tracing::span::EnteredSpan> {
-    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", CROSS_RULE_MEMORY, rule = %id.0, rule_index = index).entered())
+    memory_enabled().then(|| tracing::trace_span!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, CROSS_RULE_MEMORY, rule = %id.0, rule_index = index).entered())
 }
 
 /// Do not walk stored payload metadata on ordinary lints.

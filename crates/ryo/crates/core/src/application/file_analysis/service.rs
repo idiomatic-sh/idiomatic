@@ -1,6 +1,7 @@
 //! Bounded read, parse and per-file evaluation using injected ports.
 use crate::application::file_analysis::constants::{
-    INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE, PHYSICAL_SOURCE_FACTS_ARE_INCOMPLETE, PROVIDER_PARSE,
+    EXECUTION_DIAGNOSTIC, INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE,
+    PHYSICAL_SOURCE_FACTS_ARE_INCOMPLETE, PROVIDER_PARSE,
     RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE, RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED,
     STORED_FRONTIER_PROOF_DOES_NOT_MATCH,
 };
@@ -1091,15 +1092,14 @@ impl FileAnalysis {
         use ryo_values::domain::records::types::FrontierCoverage;
         let rule = RuleIndex(usize::try_from(proof.rule.0).unwrap_or(usize::MAX));
         let input = usize::try_from(proof.input.0).unwrap_or(usize::MAX);
-        // ignore: idiomatic.arch/no-ok-on-result - a program that cannot name its digest cannot prove the stored frontier, so the proof does not hold
-        let valid = setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
+        let valid = setting
+            .program
+            .rule_digest(rule)
+            .is_ok_and(|digest| digest == proof.rule_digest)
             && setting
                 .program
                 .frontiers(rule)
-                // ignore: idiomatic.arch/no-ok-on-result - a program with no frontiers for the rule cannot hold the stored proof, so it does not hold
-                .ok()
-                .and_then(|frontiers| frontiers.get(input))
-                .is_some()
+                .is_ok_and(|frontiers| frontiers.get(input).is_some())
             && setting
                 .metadata
                 .get(rule.0)
@@ -1164,10 +1164,8 @@ impl FileAnalysis {
             roles: setting.roled.into(),
         };
         let mut writer = worker.facts.columns_mut()?;
-        let parse_started =
-            // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - tracing takes its target as a literal
-            tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
-                .then(Instant::now);
+        let parse_started = tracing::enabled!(target: EXECUTION_DIAGNOSTIC, tracing::Level::TRACE)
+            .then(Instant::now);
         let reading = self.language.parse(
             source,
             &mut worker.tables.elements,
@@ -1175,7 +1173,7 @@ impl FileAnalysis {
             &mut writer,
         );
         if let Some(started) = parse_started {
-            tracing::trace!(target: "ryo::diagnostic::execution", phase = PROVIDER_PARSE, file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+            tracing::trace!(target: EXECUTION_DIAGNOSTIC, phase = PROVIDER_PARSE, file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
         }
         let mut said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let acceptance = syntax_acceptance(&worker.tables.elements);
@@ -1358,15 +1356,16 @@ impl FileAnalysis {
         let layout = setting.program.observation_layout();
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (Some(map), Some((layout, slots))) => {
-                let count = ryo_values::domain::records::types::ObservationReadinessCount(
-                    // ignore: idiomatic.arch/no-ok-on-result - a readiness count that does not fit is no checked readiness: the rule has none to restore
-                    u32::try_from(slots.len()).ok()?,
-                );
-                let checked = ryo_values::domain::observations::service::validate_frontiers(
+                let Ok(slot_count) = u32::try_from(slots.len()) else {
+                    return None;
+                };
+                let count =
+                    ryo_values::domain::records::types::ObservationReadinessCount(slot_count);
+                let Ok(checked) = ryo_values::domain::observations::service::validate_frontiers(
                     map, layout, count,
-                )
-                // ignore: idiomatic.arch/no-ok-on-result - frontiers that fail validation are no checked readiness: the rule has none to restore
-                .ok()?;
+                ) else {
+                    return None;
+                };
                 (Some(checked), slots)
             }
             (None, Some((_, slots))) if !slots.is_empty() => return None,

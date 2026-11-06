@@ -140,14 +140,12 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn fresh<'a>(
         .ok_or_else(|| invalid(FRESH_ROW_COUNT_OVERFLOWS))?;
     let mut spans: Vec<_> = staged.iter().collect();
     spans.sort_by_key(|row| row.ordinal);
-    if spans.iter().any(|row| {
-        usize::try_from(row.ordinal.0)
-            // ignore: idiomatic.arch/no-ok-on-result - an ordinal that does not fit the address width is out of range, which is the answer
-            .ok()
-            .is_none_or(|ordinal| ordinal >= count)
-    }) || spans
-        .windows(2)
-        .any(|pair| pair[0].ordinal == pair[1].ordinal)
+    if spans
+        .iter()
+        .any(|row| !usize::try_from(row.ordinal.0).is_ok_and(|ordinal| ordinal < count))
+        || spans
+            .windows(2)
+            .any(|pair| pair[0].ordinal == pair[1].ordinal)
     {
         return Err(invalid(INVALID_FRESH_STAGED_ROW_ORDER));
     }

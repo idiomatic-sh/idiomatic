@@ -17,8 +17,8 @@ use super::types::{
 use crate::application::file_analysis::types::{FileVisit, Worker};
 use crate::inbound::use_cases::lint::constants::{
     AFTER_FILES, AFTER_STORE_BUILD, AFTER_STORE_WRITE, BEFORE_CROSS_CLEANUP, BEFORE_STORE_BUILD,
-    BEFORE_STORE_WRITE, MISSING_FRONTIER_BUCKET, NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY, REQUEST,
-    STORE_HANDED,
+    BEFORE_STORE_WRITE, LIFECYCLE_MEMORY_DIAGNOSTIC, MISSING_FRONTIER_BUCKET,
+    NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY, REQUEST, STORE_HANDED,
 };
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
@@ -1097,7 +1097,7 @@ impl LintUseCaseImpl {
             let written = read.keep(to_store.stored, &to_store.kept);
             if memory_enabled() {
                 // Ownership moved into the outbound call; this does not claim it freed allocator pages.
-                tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = AFTER_STORE_WRITE, owner = STORE_HANDED, caller_payload_owned = false, success = written.is_ok());
+                tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = AFTER_STORE_WRITE, owner = STORE_HANDED, caller_payload_owned = false, success = written.is_ok());
             }
             written?;
         }
