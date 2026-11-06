@@ -58,6 +58,27 @@
   ]
  ],
  [
+  "project_boundary",
+  [
+   "cargo",
+   "test",
+   "--manifest-path",
+   "crates/ryo/Cargo.toml",
+   "--target-dir",
+   "/workspaces/idiomatic-benchmark-guards/target",
+   "--locked",
+   "--offline",
+   "-j6",
+   "--all-features",
+   "-p",
+   "idiomatic-sh-ryo-core",
+   "--test",
+   "project_batch_boundary",
+   "--",
+   "--test-threads=6"
+  ]
+ ],
+ [
   "activation",
   [
    "cargo",
