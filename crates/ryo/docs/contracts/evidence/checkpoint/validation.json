@@ -1,5 +1,5 @@
 {
-  "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+  "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
   "scope": "Ownership consolidation checkpoint; not full product acceptance",
   "checks": {
     "project_boundary": {
@@ -26,7 +26,7 @@
       "elapsed_seconds": 19.47
     },
     "libraries": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -62,10 +62,10 @@
         "--test-threads=6"
       ],
       "exit": 101,
-      "elapsed_seconds": 59.19288086891174
+      "elapsed_seconds": 59.61769366264343
     },
     "boundary": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -85,10 +85,10 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 272.6897130012512
+      "elapsed_seconds": 309.5533981323242
     },
     "bdd": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -106,10 +106,10 @@
         "bdd"
       ],
       "exit": 0,
-      "elapsed_seconds": 2.629453659057617
+      "elapsed_seconds": 2.607440710067749
     },
     "doctest": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -126,10 +126,10 @@
         "--doc"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.7619874477386475
+      "elapsed_seconds": 0.9287469387054443
     },
     "tm_import_cli": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -152,10 +152,10 @@
         "--exact"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.5348615646362305
+      "elapsed_seconds": 0.7942812442779541
     },
     "tm_cli_source": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "tm",
         "--root",
@@ -167,10 +167,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.6277296543121338
+      "elapsed_seconds": 0.44715166091918945
     },
     "tm_source": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "tm",
         "--root",
@@ -185,10 +185,10 @@
         "json"
       ],
       "exit": 1,
-      "elapsed_seconds": 15.12423825263977
+      "elapsed_seconds": 14.851887941360474
     },
     "tm_guards": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "tm",
         "--root",
@@ -205,10 +205,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.038326263427734375
+      "elapsed_seconds": 0.03829813003540039
     },
     "ownership_edges": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "ryo",
         "query",
@@ -223,10 +223,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.9190659523010254
+      "elapsed_seconds": 0.9783034324645996
     },
     "activation": {
-      "source": "5d2e33bd922136581d6661df2cccdfbbff465a3b",
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -244,10 +244,10 @@
         "activation"
       ],
       "exit": 0,
-      "elapsed_seconds": 14.462666034698486
+      "elapsed_seconds": 1.8487064838409424
     },
-    "sharing": {
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+    "ruff_sharing": {
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
       "command": [
         "cargo",
         "test",
@@ -267,12 +267,12 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 59.25026035308838
+      "elapsed_seconds": 61.012142181396484
     }
   },
   "results": {
     "execution_library": {
-      "passed": 484,
+      "passed": 492,
       "failed": 0
     },
     "core_library": {
@@ -307,16 +307,28 @@
     "actual_CLI_cases_passed": 1,
     "source_TM": {
       "scope": "program, invocation, derived, domain/shared_walk, tests/shared_walk (by directory, no --fix)",
-      "findings": 393,
+      "findings": 60,
       "suppressed": 0,
+      "production": 28,
+      "test": 32,
       "program_and_invocation": {
-        "findings": 17,
+        "findings": 21,
         "production": 0,
-        "test": 17
+        "test": 21
       },
-      "derived": 339,
-      "shared_walk": 37,
-      "source": "cc325716180424adf7f5f29bce22594de9df7c8a"
+      "derived": {
+        "findings": 21,
+        "production": 21,
+        "test": 0,
+        "deferred_to": "Phase 7 (ryo-fcrp/ryo-36z0/ryo-p87j notes): 20 no-bare-integers, 1 no-bare-bool on domain-typed u32/bool fields"
+      },
+      "shared_walk": {
+        "findings": 18,
+        "production": 7,
+        "test": 11,
+        "production_detail": "domain/shared_walk/types/prepared_walk/value.rs: file-length 1, no-ok-on-result 2, no-bare-integers 2, no-bare-tuples 2; deferred to Phase 7 by PM decision on ryo-vuzf"
+      },
+      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56"
     },
     "CLI_source_TM": {
       "findings": 0,
@@ -341,87 +353,32 @@
     }
   },
   "ownership_graph": {
-    "source": "cc325716180424adf7f5f29bce22594de9df7c8a",
+    "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
     "raw": "ownership_edges.log",
-    "occurrences": 5400,
-    "unique_edges": 3074,
+    "occurrences": 6201,
+    "unique_edges": 3522,
     "target_filter": [
       "/file_dag/derived/owner",
       "/program/runtime/",
-      "/program/native_walk"
+      "/program/native_walk",
+      "/file_dag/derived/"
     ],
     "targeted_cycles": [],
-    "other_cycles": [
-      [
-        "crates/execution/src/domain/matching/service.rs",
-        "crates/execution/src/domain/matching/types/prepared/value.rs"
-      ],
-      [
-        "crates/execution/src/domain/column_kernel/types.rs",
-        "crates/execution/src/domain/derived_views/types.rs",
-        "crates/execution/src/domain/file_program/types.rs",
-        "crates/execution/src/domain/operator/contract/types.rs",
-        "crates/execution/src/domain/ordered_existence/types.rs",
-        "crates/execution/src/domain/stored_selection/types.rs",
-        "crates/execution/src/domain/table_model/collections/representations/publication.rs"
-      ],
-      [
-        "crates/execution/src/domain/executable_program/column.rs",
-        "crates/execution/src/domain/executable_program/selection.rs",
-        "crates/execution/src/domain/executable_program/types.rs"
-      ],
-      [
-        "crates/execution/src/domain/tree_join/service.rs",
-        "crates/execution/src/domain/tree_join/service/driver.rs"
-      ],
-      [
-        "crates/execution/src/domain/operation_schema/service.rs",
-        "crates/execution/src/domain/operation_schema/types/traversal/value.rs"
-      ],
-      [
-        "crates/execution/src/domain/column_kernel/service.rs",
-        "crates/execution/src/domain/column_kernel/service/driver.rs"
-      ],
-      [
-        "crates/execution/src/application/file_dag/derived/prepare.rs",
-        "crates/execution/src/application/file_dag/derived/request.rs",
-        "crates/execution/src/application/file_dag/derived/request/identity.rs"
-      ],
-      [
-        "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures.rs",
-        "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures/expectations.rs"
-      ]
-    ],
-    "unread_count": 5404,
-    "unread_rust": [],
-    "note": "8 cycles, none under program/** or invocation/**"
+    "other_cycles": 7,
+    "note": "7 cycles (SCC over unique source-target file edges), none under program/**, invocation/** or derived/**; the derived SCC of 313 is gone"
   },
   "evidence_reuse": [
     {
       "checks": [
-        "libraries",
-        "boundary",
-        "tm_guards",
-        "tm_source",
-        "tm_import_cli",
-        "tm_cli_source"
-      ],
-      "executed_source": "7bc0a25cc16a0bece5bb69238e4415bcfa922434",
-      "labelled_source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
-      "diff_proof": "git diff --stat 7bc0a25cc1 29b1f027c4: one file, crates/ryo/languages/python/benchmarks/linters/ruff/sharing/test.rs; 29b1f027c4..51aeb2cf4b touches only docs (3 files)",
-      "raw_identity": "/tmp/ryo-contract-validation312-20261106/identity.json"
-    },
-    {
-      "checks": [
-        "build",
         "project_boundary"
       ],
-      "executed_source": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
-      "labelled_source": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
-      "diff_proof": "git diff --stat 4067e8e93a 29b1f027c4 spans 2323 files; not re-executed at 312, so this reuse has no small-diff proof and is not claimed for 312"
+      "executed_source": "5d2e33bd922136581d6661df2cccdfbbff465a3b",
+      "labelled_source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "diff_proof": "not in commands.json and not re-executed at 314; crates/ryo/crates/core is byte-identical to 5d2e33bd92 (git diff --stat 5d2e33bd92 HEAD -- crates/ryo/crates/core is empty) but the execution crate it depends on changed, so this is reuse without full proof"
     }
   ],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": "313"
+  "validation": "314",
+  "raw_identity": "/tmp/ryo-contract-validation314-20261106/identity.json"
 }
