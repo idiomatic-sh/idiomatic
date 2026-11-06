@@ -41,7 +41,7 @@ pub struct RegisteredRule {
     pub instance: Option<serde_json::Value>,
 }
 /// Shared verifier argv contract: every registered verifier accepts this explicit receipt destination.
-pub const CASE_RECEIPTS_ARGUMENT: &str = "--case-receipts=";
+pub const CASE_RECEIPTS_ARGUMENT: &str = crate::outbound::inventory::constants::CASE_RECEIPTS;
 
 /// The shared worker's native case-verification operation. Executable and reference
 /// come exclusively from registration authority; argv/cwd/environment are not authorable.

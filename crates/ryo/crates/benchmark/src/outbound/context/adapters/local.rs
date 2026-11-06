@@ -5,3 +5,4 @@ mod adapter_test;
 pub(crate) mod schemas;
 #[cfg(test)]
 mod schemas_test;
+mod constants;

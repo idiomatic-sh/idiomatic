@@ -8,3 +8,4 @@ pub mod factory;
 pub mod fixtures;
 
 pub mod types;
+mod constants;

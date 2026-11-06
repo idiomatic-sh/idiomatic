@@ -16,7 +16,7 @@ pub fn require_inventory(
     let declared: std::collections::BTreeSet<_> = inventory.iter().collect();
     let authored_set: std::collections::BTreeSet<_> = authored.iter().collect();
     let selected = selected.ok_or_else(|| {
-        Error::Invalid("benchmark requires explicitly resolved complete inventory".into())
+        Error::Invalid(crate::domain::measurements::constants::BENCHMARK_REQUIRES_EXPLICITLY_RESOLVED_COMPL.into())
     })?;
     let actual: std::collections::BTreeSet<_> = selected.iter().collect();
     if declared.is_empty()
@@ -27,7 +27,7 @@ pub fn require_inventory(
         || declared != actual
     {
         return Err(Error::Invalid(
-            "benchmark rule identities differ from declared complete inventory".into(),
+            crate::domain::measurements::constants::BENCHMARK_RULE_IDENTITIES_DIFFER_FROM_DECLAR.into(),
         ));
     }
     Ok(())

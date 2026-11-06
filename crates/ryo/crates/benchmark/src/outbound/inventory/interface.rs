@@ -24,7 +24,7 @@ pub trait InventoryPort {
     /// # Errors
     /// Refuses unsafe paths, missing bytes or malformed observations.
     fn observations(&self, _receipt: &Path) -> Result<CapturedObservation, String> {
-        Err("explicit receipt loading is unavailable".into())
+        Err(crate::outbound::inventory::constants::EXPLICIT_RECEIPT_LOADING_IS_UNAVAILABLE.into())
     }
 
     /// Decode the adapter's generated invocation registration.

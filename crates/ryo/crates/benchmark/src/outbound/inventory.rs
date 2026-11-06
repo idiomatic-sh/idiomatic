@@ -3,3 +3,4 @@ mod adapters;
 pub mod factory;
 pub mod interface;
 pub mod types;
+mod constants;

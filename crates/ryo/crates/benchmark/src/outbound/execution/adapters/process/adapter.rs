@@ -47,7 +47,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
             let mut child = command.spawn()?;
             let deadline = Instant::now()
                 .checked_add(timeout)
-                .ok_or_else(|| Error::Invalid("process deadline is out of range".into()))?;
+                .ok_or_else(|| Error::Invalid(crate::outbound::execution::adapters::process::constants::PROCESS_DEADLINE_IS_OUT_OF_RANGE.into()))?;
             let mut timed_out = false;
             let status = loop {
                 if let Some(status) = child.try_wait()? {
@@ -57,14 +57,14 @@ impl ExecutionPort for ExecutionProcessAdapter {
                     timed_out = true;
                     #[cfg(unix)]
                     {
-                        let _result = Command::new("kill")
-                            .args(["-KILL", "--", &format!("-{}", child.id())])
+                        let _result = Command::new(crate::outbound::execution::adapters::process::constants::KILL)
+                            .args([crate::outbound::execution::adapters::process::constants::KILL_2, crate::outbound::execution::adapters::process::constants::TEXT, &format!("-{}", child.id())])
                             .status();
                     }
                     #[cfg(windows)]
                     {
-                        let _result = Command::new("taskkill")
-                            .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                        let _result = Command::new(crate::outbound::execution::adapters::process::constants::TASKKILL)
+                            .args([crate::outbound::execution::adapters::process::constants::PID, &child.id().to_string(), crate::outbound::execution::adapters::process::constants::T, crate::outbound::execution::adapters::process::constants::F])
                             .status();
                     }
                     let _result = child.kill();

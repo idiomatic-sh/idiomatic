@@ -9,7 +9,7 @@ use std::path::{Component, Path};
 fn relative(path: &Path) -> Result<(), ArtifactError> {
     let text = path
         .to_str()
-        .ok_or_else(|| ArtifactError::Invalid("non-UTF8 artifact path".into()))?;
+        .ok_or_else(|| ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::NON_UTF8_ARTIFACT_PATH.into()))?;
     if text.is_empty()
         || text.contains(['\\', ':'])
         || !path
@@ -17,7 +17,7 @@ fn relative(path: &Path) -> Result<(), ArtifactError> {
             .all(|item| matches!(item, Component::Normal(_)))
     {
         return Err(ArtifactError::Invalid(
-            "unsafe artifact-relative path".into(),
+            crate::outbound::suite::adapters::local::constants::UNSAFE_ARTIFACT_RELATIVE_PATH.into(),
         ));
     }
     Ok(())
@@ -29,21 +29,21 @@ pub(super) fn case_reference_wires(
     owners: &[ryo::linter::RuleId],
 ) -> Result<Vec<CaseReferenceWire>, ArtifactError> {
     let mut result = Vec::new();
-    for entry in std::fs::read_dir(profile.join("rules"))? {
+    for entry in std::fs::read_dir(profile.join(crate::outbound::suite::adapters::local::constants::RULES))? {
         let entry = entry?;
-        if !entry.path().join("query.ryoql").is_file() {
+        if !entry.path().join(crate::outbound::suite::adapters::local::constants::QUERY).is_file() {
             continue;
         }
         let rule = entry
             .file_name()
             .into_string()
-            .map_err(|_bytes| ArtifactError::Invalid("non-UTF8 rule directory".into()))?;
+            .map_err(|_bytes| ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::NON_UTF8_RULE_DIRECTORY.into()))?;
         let rule = super::schemas::rule(&rule)
             .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if !owners.contains(&rule) {
             continue;
         }
-        let text = std::fs::read_to_string(entry.path().join("cases.toml"))?;
+        let text = std::fs::read_to_string(entry.path().join(crate::outbound::suite::adapters::local::constants::CASES))?;
         for (name, discrepancy, basis) in super::schemas::case_reference_wires(&text)? {
             result.push(CaseReferenceWire {
                 rule: rule.to_string(),
@@ -60,7 +60,7 @@ pub(super) fn case_reference_wires(
 pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> {
     if source_digest(artifacts.root, artifacts.files)? != artifacts.source_sha256 {
         return Err(ArtifactError::Invalid(
-            "stale reference discrepancy source identity".into(),
+            crate::outbound::suite::adapters::local::constants::STALE_REFERENCE_DISCREPANCY_SOURCE_IDENTITY.into(),
         ));
     }
     if artifacts
@@ -70,7 +70,7 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
         || (artifacts.file_metadata_sha256.is_none() && !artifacts.file_metadata_files.is_empty())
     {
         return Err(ArtifactError::Invalid(
-            "undeclared reference discrepancy observation scope".into(),
+            crate::outbound::suite::adapters::local::constants::UNDECLARED_REFERENCE_DISCREPANCY_OBSERVATION.into(),
         ));
     }
     if let Some(expected) = artifacts.file_metadata_sha256 {
@@ -79,7 +79,7 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
                 .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if actual != expected {
             return Err(ArtifactError::Invalid(
-                "stale reference discrepancy file metadata identity".into(),
+                crate::outbound::suite::adapters::local::constants::STALE_REFERENCE_DISCREPANCY_FILE_METADATA_ID.into(),
             ));
         }
     }
@@ -89,13 +89,13 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
         let path = boundary.join(&evidence.path).canonicalize()?;
         if !path.starts_with(&boundary) {
             return Err(ArtifactError::Invalid(
-                "stale or external discrepancy evidence".into(),
+                crate::outbound::suite::adapters::local::constants::STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE.into(),
             ));
         }
         let bytes = std::fs::read(path)?;
         if format!("{:x}", Sha256::digest(&bytes)) != evidence.sha256 {
             return Err(ArtifactError::Invalid(
-                "stale discrepancy evidence bytes".into(),
+                crate::outbound::suite::adapters::local::constants::STALE_DISCREPANCY_EVIDENCE_BYTES.into(),
             ));
         }
         verify_requirement(&bytes, &evidence.requirement)?;
@@ -111,7 +111,7 @@ pub(super) fn verify_requirement(
     use serde_json::Value;
     let fail = || {
         ArtifactError::Invalid(
-            "tool-contract evidence does not establish its declared authority".into(),
+            crate::outbound::suite::adapters::local::constants::TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH.into(),
         )
     };
     let value = match requirement {
@@ -125,17 +125,17 @@ pub(super) fn verify_requirement(
             source_revision,
             source_path,
         } => {
-            if field("schema")? != "public-tool-contract/v1"
-                || field("source_revision")? != source_revision
-                || field("source_path")? != source_path
+            if field(crate::outbound::suite::adapters::local::constants::SCHEMA)? != crate::outbound::suite::adapters::local::constants::PUBLIC_TOOL_CONTRACT_V1
+                || field(crate::outbound::suite::adapters::local::constants::SOURCE_REVISION)? != source_revision
+                || field(crate::outbound::suite::adapters::local::constants::SOURCE_PATH)? != source_path
             {
                 return Err(fail());
             }
-            let source = field("source_text")?;
-            let assertion = field("contract_assertion")?;
+            let source = field(crate::outbound::suite::adapters::local::constants::SOURCE_TEXT)?;
+            let assertion = field(crate::outbound::suite::adapters::local::constants::CONTRACT_ASSERTION)?;
             if assertion.is_empty()
                 || !source.contains(assertion)
-                || field("source_sha256")? != format!("{:x}", Sha256::digest(source.as_bytes()))
+                || field(crate::outbound::suite::adapters::local::constants::SOURCE_SHA256)? != format!("{:x}", Sha256::digest(source.as_bytes()))
             {
                 return Err(fail());
             }
@@ -148,24 +148,24 @@ pub(super) fn verify_requirement(
             control_profile_sha256,
             witness_case,
         } => {
-            if field("schema")? != "prior-worker-control/v1"
-                || field("worker_sha256")? != worker_sha256
-                || field("control_source_sha256")? != control_source_sha256
-                || field("control_query_sha256")? != control_query_sha256
-                || field("control_profile_sha256")? != control_profile_sha256
-                || field("witness_case")? != witness_case
+            if field(crate::outbound::suite::adapters::local::constants::SCHEMA)? != crate::outbound::suite::adapters::local::constants::PRIOR_WORKER_CONTROL_V1
+                || field(crate::outbound::suite::adapters::local::constants::WORKER_SHA256)? != worker_sha256
+                || field(crate::outbound::suite::adapters::local::constants::CONTROL_SOURCE_SHA256)? != control_source_sha256
+                || field(crate::outbound::suite::adapters::local::constants::CONTROL_QUERY_SHA256)? != control_query_sha256
+                || field(crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE_SHA256)? != control_profile_sha256
+                || field(crate::outbound::suite::adapters::local::constants::WITNESS_CASE)? != witness_case
             {
                 return Err(fail());
             }
-            let query = field("control_query")?;
-            let profile = field("control_profile")?;
+            let query = field(crate::outbound::suite::adapters::local::constants::CONTROL_QUERY)?;
+            let profile = field(crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE)?;
             if format!("{:x}", Sha256::digest(query.as_bytes())) != *control_query_sha256
                 || format!("{:x}", Sha256::digest(profile.as_bytes())) != *control_profile_sha256
             {
                 return Err(fail());
             }
             let sources = value
-                .get("control_sources")
+                .get(crate::outbound::suite::adapters::local::constants::CONTROL_SOURCES)
                 .and_then(Value::as_object)
                 .ok_or_else(fail)?;
             let mut digest = Sha256::new();
@@ -180,33 +180,33 @@ pub(super) fn verify_requirement(
             if format!("{:x}", digest.finalize()) != *control_source_sha256 {
                 return Err(fail());
             }
-            let receipt = field("raw_receipt")?;
-            if field("raw_receipt_sha256")? != format!("{:x}", Sha256::digest(receipt.as_bytes())) {
+            let receipt = field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT)?;
+            if field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256)? != format!("{:x}", Sha256::digest(receipt.as_bytes())) {
                 return Err(fail());
             }
             // The control receipt alone does not name the executable or staged query.
             // Require the captured execution manifest from that run to bind all inputs.
-            let execution = field("execution_manifest")?;
-            if field("execution_manifest_sha256")?
+            let execution = field(crate::outbound::suite::adapters::local::constants::EXECUTION_MANIFEST)?;
+            if field(crate::outbound::suite::adapters::local::constants::EXECUTION_MANIFEST_SHA256)?
                 != format!("{:x}", Sha256::digest(execution.as_bytes()))
             {
                 return Err(fail());
             }
             let run: Value = serde_json::from_str(execution).map_err(|_| fail())?;
-            if run["schema"] != "prior-worker-execution/v1"
-                || run["worker_sha256"] != *worker_sha256
-                || run["control_source_sha256"] != *control_source_sha256
-                || run["control_query_sha256"] != *control_query_sha256
-                || run["control_profile_sha256"] != *control_profile_sha256
-                || run["raw_receipt_sha256"] != field("raw_receipt_sha256")?
-                || run["witness_case"] != *witness_case
-                || !matches!(run["status"].as_i64(), Some(0 | 1))
-                || run["command"][1] != "verify-cases"
-                || run["command"]
+            if run[crate::outbound::suite::adapters::local::constants::SCHEMA] != crate::outbound::suite::adapters::local::constants::PRIOR_WORKER_EXECUTION_V1
+                || run[crate::outbound::suite::adapters::local::constants::WORKER_SHA256] != *worker_sha256
+                || run[crate::outbound::suite::adapters::local::constants::CONTROL_SOURCE_SHA256] != *control_source_sha256
+                || run[crate::outbound::suite::adapters::local::constants::CONTROL_QUERY_SHA256] != *control_query_sha256
+                || run[crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE_SHA256] != *control_profile_sha256
+                || run[crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256] != field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256)?
+                || run[crate::outbound::suite::adapters::local::constants::WITNESS_CASE] != *witness_case
+                || !matches!(run[crate::outbound::suite::adapters::local::constants::STATUS].as_i64(), Some(0 | 1))
+                || run[crate::outbound::suite::adapters::local::constants::COMMAND][1] != crate::outbound::suite::adapters::local::constants::VERIFY_CASES
+                || run[crate::outbound::suite::adapters::local::constants::COMMAND]
                     .as_array()
                     .is_none_or(|parts| parts.len() != 4)
-                || run["command"][3] != run["stage_root"]
-                || run["command"][0]
+                || run[crate::outbound::suite::adapters::local::constants::COMMAND][3] != run[crate::outbound::suite::adapters::local::constants::STAGE_ROOT]
+                || run[crate::outbound::suite::adapters::local::constants::COMMAND][0]
                     .as_str()
                     .is_none_or(|path| !path.ends_with(worker_sha256))
             {
@@ -215,24 +215,24 @@ pub(super) fn verify_requirement(
             let mut witnessed = false;
             for line in receipt.lines() {
                 let row: Value = serde_json::from_str(line).map_err(|_| fail())?;
-                if row["side"] == "candidate" && row["name"] == *witness_case {
+                if row[crate::outbound::suite::adapters::local::constants::SIDE] == crate::outbound::suite::adapters::local::constants::CANDIDATE && row[crate::outbound::suite::adapters::local::constants::NAME] == *witness_case {
                     if witnessed
-                        || row["complete"] != true
-                        || row["error"] != Value::Null
-                        || row["case_passed"] != true
-                        || row["source_sha256"] != *control_source_sha256
-                        || row["skipped"] != serde_json::json!([])
-                        || row["diagnostics"] != row["expected"]
-                        || row["diagnostics"].as_array().is_none_or(Vec::is_empty)
-                        || row["coverage"]["selected_rule_file_pairs"]
+                        || row[crate::outbound::suite::adapters::local::constants::COMPLETE] != true
+                        || row[crate::outbound::suite::adapters::local::constants::ERROR_2] != Value::Null
+                        || row[crate::outbound::suite::adapters::local::constants::CASE_PASSED] != true
+                        || row[crate::outbound::suite::adapters::local::constants::SOURCE_SHA256] != *control_source_sha256
+                        || row[crate::outbound::suite::adapters::local::constants::SKIPPED] != serde_json::json!([])
+                        || row[crate::outbound::suite::adapters::local::constants::DIAGNOSTICS] != row[crate::outbound::suite::adapters::local::constants::EXPECTED]
+                        || row[crate::outbound::suite::adapters::local::constants::DIAGNOSTICS].as_array().is_none_or(Vec::is_empty)
+                        || row[crate::outbound::suite::adapters::local::constants::COVERAGE][crate::outbound::suite::adapters::local::constants::SELECTED_RULE_FILE_PAIRS]
                             .as_u64()
                             .is_none_or(|number| {
                                 number == 0
-                                    || row["coverage"]["evaluated_rule_file_pairs"].as_u64()
+                                    || row[crate::outbound::suite::adapters::local::constants::COVERAGE][crate::outbound::suite::adapters::local::constants::EVALUATED_RULE_FILE_PAIRS].as_u64()
                                         != Some(number)
                             })
-                        || row["coverage"]["unknown_or_unread_rule_file_pairs"] != 0
-                        || row["coverage"]["skipped_rule_file_pairs"] != 0
+                        || row[crate::outbound::suite::adapters::local::constants::COVERAGE][crate::outbound::suite::adapters::local::constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS] != 0
+                        || row[crate::outbound::suite::adapters::local::constants::COVERAGE][crate::outbound::suite::adapters::local::constants::SKIPPED_RULE_FILE_PAIRS] != 0
                     {
                         return Err(fail());
                     }
@@ -306,7 +306,7 @@ pub(super) fn copy_evidence(
             {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    "stale or external discrepancy evidence",
+                    crate::outbound::suite::adapters::local::constants::STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE,
                 ));
             }
             let target = destination.join(&evidence.path);
@@ -335,17 +335,17 @@ pub(super) fn read(
         let path = boundary.join(&artifact.path).canonicalize()?;
         if !path.starts_with(&boundary) || !path.is_file() {
             return Err(ArtifactError::Invalid(
-                "raw artifact escapes its profile".into(),
+                crate::outbound::suite::adapters::local::constants::RAW_ARTIFACT_ESCAPES_ITS_PROFILE.into(),
             ));
         }
         let bytes = std::fs::read(path)?;
         if format!("{:x}", Sha256::digest(&bytes)) != artifact.sha256 {
             return Err(ArtifactError::Invalid(
-                "raw artifact byte identity differs".into(),
+                crate::outbound::suite::adapters::local::constants::RAW_ARTIFACT_BYTE_IDENTITY_DIFFERS.into(),
             ));
         }
         if result.insert(artifact.path.clone(), bytes).is_some() {
-            return Err(ArtifactError::Invalid("duplicate raw artifact path".into()));
+            return Err(ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::DUPLICATE_RAW_ARTIFACT_PATH.into()));
         }
     }
     Ok(result)
@@ -365,12 +365,12 @@ pub(super) fn source_digest(
         let path = root.join(&file).canonicalize()?;
         if !path.starts_with(&root) {
             return Err(ArtifactError::Invalid(
-                "source artifact escapes its boundary".into(),
+                crate::outbound::suite::adapters::local::constants::SOURCE_ARTIFACT_ESCAPES_ITS_BOUNDARY.into(),
             ));
         }
         source.update(
             file.to_str()
-                .ok_or_else(|| ArtifactError::Invalid("nonUTF8 source path".into()))?
+                .ok_or_else(|| ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::NONUTF8_SOURCE_PATH.into()))?
                 .as_bytes(),
         );
         source.update([0]);

@@ -41,7 +41,7 @@ impl Inventory {
             || rules.iter().any(|r| r.trim().is_empty())
         {
             return Err(Error::Invalid(
-                "inventory must contain unique nonempty rule IDs".into(),
+                crate::domain::suite::constants::INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE.into(),
             ));
         }
         for rule in rules {
@@ -53,7 +53,7 @@ impl Inventory {
                 .map(|rule| RuleResult {
                     rule: rule.clone(),
                     passed: false,
-                    reason: Some("not run".into()),
+                    reason: Some(crate::domain::suite::constants::NOT_RUN.into()),
                     cases: 0,
                     raw_exact: 0,
                     documented: 0,

@@ -42,7 +42,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
         {
             let profile = rules
                 .parent()
-                .ok_or_else(|| ReportsError::Invalid("missing case profile boundary".into()))?;
+                .ok_or_else(|| ReportsError::Invalid(crate::inbound::use_cases::verify_cases::constants::MISSING_CASE_PROFILE_BOUNDARY.into()))?;
             let tool = self
                 .suite
                 .profile(crate::outbound::suite::types::ArtifactPath(profile))?;

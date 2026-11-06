@@ -82,8 +82,8 @@ impl EngineLocalAdapter {
                 .map_err(|_name| Error::Invalid(constants::NON_UTF8_RULE.into()))?;
             let query = std::fs::read_to_string(entry.path().join(constants::QUERY_FILE))?;
             let applicability = match applicability_by_rule.get(&id).map(String::as_str) {
-                Some("always") => RuleApplicability::Always,
-                Some("accepted-syntax") => RuleApplicability::AcceptedSyntax,
+                Some(crate::outbound::engine::adapters::local::constants::ALWAYS) => RuleApplicability::Always,
+                Some(crate::outbound::engine::adapters::local::constants::ACCEPTED_SYNTAX) => RuleApplicability::AcceptedSyntax,
                 Some(value) => {
                     return Err(Error::Invalid(format!(
                         "unsupported applicability for {id}: {value}"
@@ -134,7 +134,7 @@ impl EngineLocalAdapter {
             && mapped_rules != applicability_by_rule.keys().cloned().collect()
         {
             return Err(Error::Invalid(
-                "applicability map does not exactly match selected candidate rules".into(),
+                crate::outbound::engine::adapters::local::constants::APPLICABILITY_MAP_DOES_NOT_EXACTLY_MATCH.into(),
             ));
         }
         if let Some(projection) = frontend_diagnostic
@@ -182,7 +182,7 @@ impl EngineLocalAdapter {
                 || applicability_by_rule
                     .get(skip.rule.as_ref())
                     .map(String::as_str)
-                    != Some("accepted-syntax")
+                    != Some(crate::outbound::engine::adapters::local::constants::ACCEPTED_SYNTAX)
                 || !seen.insert((skip.rule.clone(), skip.path.clone()))
             {
                 return Err(Error::Invalid(format!(
@@ -192,7 +192,7 @@ impl EngineLocalAdapter {
         }
         if !skipped.is_empty() && !frontend_diagnostic_enabled {
             return Err(Error::Invalid(
-                "applicability skips require frontend diagnostic projection".into(),
+                crate::outbound::engine::adapters::local::constants::APPLICABILITY_SKIPS_REQUIRE_FRONTEND_DIAGNOS.into(),
             ));
         }
         Ok(())
@@ -357,7 +357,7 @@ impl EngineExecution for LocalEngineSession<'_> {
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
                     selected: selected_pairs,
                     evaluated: selected_pairs.checked_sub(skips_count).ok_or_else(|| {
-                        Error::Invalid("skipped rule pairs exceed the configured selection".into())
+                        Error::Invalid(crate::outbound::engine::adapters::local::constants::SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED.into())
                     })?,
                     skipped: skips_count,
                     unknown_or_unread: 0,
@@ -375,11 +375,11 @@ fn query_modules(
 ) -> Result<ryo::query::QueryModuleCatalog, Error> {
     let profile = directory
         .parent()
-        .ok_or_else(|| Error::Invalid("rules directory has no profile root".into()))?;
+        .ok_or_else(|| Error::Invalid(crate::outbound::engine::adapters::local::constants::RULES_DIRECTORY_HAS_NO_PROFILE_ROOT.into()))?;
     let root = profile.canonicalize()?;
     let mut modules = Vec::with_capacity(registry.len());
     for (id, relative) in registry {
-        let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
+        let _module = ryo::query::QueryModuleSource::try_new(id, crate::outbound::engine::adapters::local::constants::MODULE_SOURCE)
             .map_err(|error| Error::Invalid(error.to_string()))?;
         RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
@@ -422,7 +422,7 @@ fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
         }
         _ => {
             return Err(Error::Invalid(
-                "worker context mode requires a matching explicit manifest".into(),
+                crate::outbound::engine::adapters::local::constants::WORKER_CONTEXT_MODE_REQUIRES_A_MATCHING.into(),
             ));
         }
     }
@@ -542,7 +542,7 @@ fn configuration_files(
     };
     let [language] = matching.as_slice() else {
         return Err(Error::Invalid(
-            "explicit primary-role provider is missing or ambiguous".into(),
+            crate::outbound::engine::adapters::local::constants::EXPLICIT_PRIMARY_ROLE_PROVIDER_IS_MISSING.into(),
         ));
     };
     Ok(request

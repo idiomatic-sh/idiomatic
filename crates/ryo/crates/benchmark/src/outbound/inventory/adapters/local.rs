@@ -2,3 +2,4 @@
 pub(crate) mod adapter;
 
 mod case_artifacts;
+mod constants;

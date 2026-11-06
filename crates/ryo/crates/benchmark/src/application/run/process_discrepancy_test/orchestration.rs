@@ -18,7 +18,7 @@ impl ExecutionPort for PairExecution {
         &self,
         invocation: Invocation,
     ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-        let status = if invocation.arguments.iter().any(|arg| arg == "candidate") {
+        let status = if invocation.arguments.iter().any(|arg| arg == crate::application::run::constants::CANDIDATE) {
             0
         } else {
             2
@@ -34,7 +34,7 @@ impl ExecutionPort for PairExecution {
 #[test]
 fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declared_reference_failure()
  {
-    let fixture = fixtures::Fixture::new("orchestration");
+    let fixture = fixtures::Fixture::new(crate::application::run::constants::ORCHESTRATION);
     let mut suite = fixture.suite.clone();
     let mut prepared = fixture.prepared.clone();
     prepared
@@ -43,17 +43,17 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
         .unwrap()
         .evidence
         .push(DiscrepancyEvidence::Language {
-            path: "semantic-authority.txt".into(),
-            sha256: ArtifactDigest("f".repeat(64)),
+            path: crate::application::run::constants::SEMANTIC_AUTHORITY_TXT.into(),
+            sha256: ArtifactDigest(crate::application::run::constants::F.repeat(64)),
             kind: DiscrepancyEvidenceKind::LanguageSpec,
-            language_version: "toy-v1".into(),
-            target_configuration: "python3.10".into(),
-            version_rationale: "toy fixture contract independent of process output".into(),
+            language_version: crate::application::run::constants::TOY_V1.into(),
+            target_configuration: crate::application::run::constants::PYTHON3_10.into(),
+            version_rationale: crate::application::run::constants::TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS.into(),
         });
     suite.prepared = vec![prepared];
     let reference = crate::outbound::linter::fixtures::fake::LinterFake::default();
     let candidate = crate::outbound::linter::fixtures::fake::LinterFake {
-        arguments: vec!["candidate".into()],
+        arguments: vec![crate::application::run::constants::CANDIDATE.into()],
         ..Default::default()
     };
     let bounded = crate::outbound::execution::fixtures::fake::ExecutionFake::default();
@@ -69,7 +69,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
         )
         .unwrap_err()
         .to_string()
-        .contains("no-deadline")
+        .contains(crate::application::run::constants::NO_DEADLINE)
     );
     assert!(
         bounded.history.lock().unwrap().is_empty(),

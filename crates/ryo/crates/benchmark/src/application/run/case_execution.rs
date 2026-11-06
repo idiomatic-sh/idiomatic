@@ -86,32 +86,32 @@ pub(super) fn run(
                     .request
                     .root
                     .to_str()
-                    .ok_or_else(|| Error::Invalid("process root is not UTF8".into()))?;
+                    .ok_or_else(|| Error::Invalid(crate::application::run::constants::PROCESS_ROOT_IS_NOT_UTF8.into()))?;
                 let state = case
                     .request
                     .state
                     .to_str()
-                    .ok_or_else(|| Error::Invalid("process state is not UTF8".into()))?;
+                    .ok_or_else(|| Error::Invalid(crate::application::run::constants::PROCESS_STATE_IS_NOT_UTF8.into()))?;
                 let profile_root = rules
                     .parent()
-                    .ok_or_else(|| Error::Invalid("missing profile boundary".into()))?;
+                    .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_PROFILE_BOUNDARY.into()))?;
                 let profile = suite.profile(ArtifactPath(profile_root))?;
                 let executable = suite.digest(ArtifactPath(&invocation.executable))?;
                 let settings =
                     super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
                 let mut captured = serde_json::json!({
-                    "actual_request_root":request_root, "files":case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
-                    "executable_sha256":executable.0, "settings_sha256":settings.0,
-                    "normalized_settings":super::invocation_identity::normalized_invocation(&invocation,case,&profile)?,
-                    "profile_sha256":suite.digest(ArtifactPath(&profile_root.join("benchmark.toml")))?.0,
-                    "tool":profile.tool.0, "version":profile.version.0, "state":state,
-                    "arguments":invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
-                    "environment":invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
-                    "directory":invocation.directory.to_string_lossy(), "exit":raw.status.0, "signal":raw.signal,
-                    "observer_no_deadline":execution.observes_completed_processes_without_deadline(),
+                    crate::application::run::constants::ACTUAL_REQUEST_ROOT:request_root, crate::application::run::constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
+                    crate::application::run::constants::EXECUTABLE_SHA256:executable.0, crate::application::run::constants::SETTINGS_SHA256:settings.0,
+                    crate::application::run::constants::NORMALIZED_SETTINGS:super::invocation_identity::normalized_invocation(&invocation,case,&profile)?,
+                    crate::application::run::constants::PROFILE_SHA256:suite.digest(ArtifactPath(&profile_root.join(crate::application::run::constants::BENCHMARK_TOML)))?.0,
+                    crate::application::run::constants::TOOL:profile.tool.0, crate::application::run::constants::VERSION:profile.version.0, crate::application::run::constants::STATE:state,
+                    crate::application::run::constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
+                    crate::application::run::constants::ENVIRONMENT:invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
+                    crate::application::run::constants::DIRECTORY:invocation.directory.to_string_lossy(), crate::application::run::constants::EXIT:raw.status.0, crate::application::run::constants::SIGNAL:raw.signal,
+                    crate::application::run::constants::OBSERVER_NO_DEADLINE:execution.observes_completed_processes_without_deadline(),
                 });
                 if let Some(digest) = ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((case.request.file_metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))? {
-                    captured["file_metadata_sha256"] = serde_json::json!(digest.0);
+                    captured[crate::application::run::constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
                 }
                 Ok::<_, Error>(captured)
             };
@@ -125,13 +125,13 @@ pub(super) fn run(
                 },
                 Err(capture_error) => {
                     let invocation = serde_json::json!({
-                        "actual_request_root":case.request.root.to_string_lossy(),
-                        "files":case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
-                        "arguments":invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
-                        "environment":invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
-                        "directory":invocation.directory.to_string_lossy(), "exit":raw.status.0, "signal":raw.signal,
-                        "observer_no_deadline":execution.observes_completed_processes_without_deadline(),
-                        "metadata_error":capture_error.to_string(),
+                        crate::application::run::constants::ACTUAL_REQUEST_ROOT:case.request.root.to_string_lossy(),
+                        crate::application::run::constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
+                        crate::application::run::constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
+                        crate::application::run::constants::ENVIRONMENT:invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
+                        crate::application::run::constants::DIRECTORY:invocation.directory.to_string_lossy(), crate::application::run::constants::EXIT:raw.status.0, crate::application::run::constants::SIGNAL:raw.signal,
+                        crate::application::run::constants::OBSERVER_NO_DEADLINE:execution.observes_completed_processes_without_deadline(),
+                        crate::application::run::constants::METADATA_ERROR:capture_error.to_string(),
                     });
                     Outcome {
                         result: Err(Error::Invalid(format!(
@@ -166,7 +166,7 @@ pub(super) fn configuration(
             != ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
         {
             return Err(Error::Invalid(
-                "contestant does not implement the declared rule configuration contract".into(),
+                crate::application::run::constants::CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED.into(),
             ));
         }
     }

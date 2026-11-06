@@ -18,7 +18,7 @@ pub fn run(
 ) -> Result<Measurement, Error> {
     if request.file_metadata.is_some() {
         return Err(Error::Invalid(
-            "declared file observations require verification preparation".into(),
+            crate::application::run::constants::DECLARED_FILE_OBSERVATIONS_REQUIRE_VERIFICAT.into(),
         ));
     }
     if let Some(context) = &request.context_manifest {
@@ -109,7 +109,7 @@ fn select_cases(
     let selected_cases = match selection.ids {
         Some(selected) if selected.is_empty() || !selected.is_subset(&assigned_ids) => {
             return Err(Error::Invalid(
-                "case selection is empty or outside this shard".into(),
+                crate::application::run::constants::CASE_SELECTION_IS_EMPTY_OR_OUTSIDE.into(),
             ));
         }
         Some(selected) => assigned
@@ -157,7 +157,7 @@ pub(crate) fn verify_prepared_shard(
         && !execution.observes_completed_processes_without_deadline()
     {
         return Err(Error::Invalid(
-            "process-failure verification requires a direct no-deadline observer".into(),
+            crate::application::run::constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
         ));
     }
     let mut initial = Some(super::case_execution::candidate(
@@ -194,7 +194,7 @@ pub(crate) fn verify_prepared_shard(
                     if name == super::constants::REFERENCE
                         && super::process_discrepancy::expected(&case).is_some()
                     {
-                        let message = "reference returned a decoded report instead of the declared process failure";
+                        let message = crate::application::run::constants::REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD;
                         super::case_observations::write(
                             suite,
                             &case,
@@ -320,7 +320,7 @@ pub(crate) fn verify_prepared_reference_cases(
         && !execution.observes_completed_processes_without_deadline()
     {
         return Err(Error::Invalid(
-            "process-failure verification requires a direct no-deadline observer".into(),
+            crate::application::run::constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
         ));
     }
     for (case, validation) in cases.into_iter().zip(validations) {
@@ -330,7 +330,7 @@ pub(crate) fn verify_prepared_reference_cases(
             Ok(mut result) => {
                 let full_report = result.report.clone();
                 if super::process_discrepancy::expected(&case).is_some() {
-                    let message = "reference returned a decoded report instead of the declared process failure";
+                    let message = crate::application::run::constants::REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD;
                     super::case_observations::write(
                         suite,
                         &case,
@@ -422,8 +422,8 @@ pub(super) fn finding_values(
         .iter()
         .map(|finding| {
             serde_json::json!({
-                "rule": finding.rule.as_ref(), "file": finding.file.0.as_ref(),
-                "start": finding.start.0, "end": finding.end.0,
+                crate::application::run::constants::RULE: finding.rule.as_ref(), crate::application::run::constants::FILE: finding.file.0.as_ref(),
+                crate::application::run::constants::START: finding.start.0, crate::application::run::constants::END: finding.end.0,
             })
         })
         .collect()

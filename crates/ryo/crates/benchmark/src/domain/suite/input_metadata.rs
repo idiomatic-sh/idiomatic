@@ -13,7 +13,7 @@ pub fn require(
         for path in values.keys() {
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(path.0.as_ref()))?;
             if !files.contains(path) {
-                return Err(Error::Invalid("metadata names an undeclared source".into()));
+                return Err(Error::Invalid(crate::domain::suite::constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into()));
             }
         }
     }
@@ -23,7 +23,7 @@ pub fn require(
         })
     {
         return Err(Error::Invalid(
-            "required file observations are missing".into(),
+            crate::domain::suite::constants::REQUIRED_FILE_OBSERVATIONS_ARE_MISSING.into(),
         ));
     }
     Ok(())

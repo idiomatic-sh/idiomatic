@@ -16,6 +16,6 @@ pub(super) fn decode(
         }
     }
     Err(Error::Invalid(
-        "child status has neither an exit code nor a supported signal".into(),
+        crate::outbound::execution::constants::CHILD_STATUS_HAS_NEITHER_AN_EXIT.into(),
     ))
 }

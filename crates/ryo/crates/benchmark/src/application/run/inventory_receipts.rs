@@ -5,17 +5,17 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 fn normalized(value: &Value) -> Result<Vec<String>, String> {
-    let source = value.as_array().ok_or("diagnostics must be an array")?;
+    let source = value.as_array().ok_or(crate::application::run::constants::DIAGNOSTICS_MUST_BE_AN_ARRAY)?;
     let mut rows = Vec::with_capacity(source.len());
     for value in source {
-        let rule = value["rule"].as_str().ok_or("diagnostic rule is missing")?;
-        let file = value["file"].as_str().ok_or("diagnostic file is missing")?;
-        let start = value["start"]
+        let rule = value[crate::application::run::constants::RULE].as_str().ok_or(crate::application::run::constants::DIAGNOSTIC_RULE_IS_MISSING)?;
+        let file = value[crate::application::run::constants::FILE].as_str().ok_or(crate::application::run::constants::DIAGNOSTIC_FILE_IS_MISSING)?;
+        let start = value[crate::application::run::constants::START]
             .as_u64()
-            .ok_or("diagnostic start is invalid")?;
-        let end = value["end"].as_u64().ok_or("diagnostic end is invalid")?;
+            .ok_or(crate::application::run::constants::DIAGNOSTIC_START_IS_INVALID)?;
+        let end = value[crate::application::run::constants::END].as_u64().ok_or(crate::application::run::constants::DIAGNOSTIC_END_IS_INVALID)?;
         if rule.is_empty() || file.is_empty() || start > end {
-            return Err("diagnostic span or identity is invalid".into());
+            return Err(crate::application::run::constants::DIAGNOSTIC_SPAN_OR_IDENTITY_IS_INVALID.into());
         }
         rows.push(value.to_string());
     }
@@ -24,31 +24,31 @@ fn normalized(value: &Value) -> Result<Vec<String>, String> {
 }
 /// Decode only declared metadata and recompute its pure framed identity.
 pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
-    let files = case["files"]
+    let files = case[crate::application::run::constants::FILES]
         .as_array()
-        .ok_or("registered files are missing")?;
-    let required = !case["file_observation"].is_null();
-    if required && case["file_observation"] != "posix-executable" {
-        return Err("unsupported registered file observation".into());
+        .ok_or(crate::application::run::constants::REGISTERED_FILES_ARE_MISSING)?;
+    let required = !case[crate::application::run::constants::FILE_OBSERVATION].is_null();
+    if required && case[crate::application::run::constants::FILE_OBSERVATION] != crate::application::run::constants::POSIX_EXECUTABLE {
+        return Err(crate::application::run::constants::UNSUPPORTED_REGISTERED_FILE_OBSERVATION.into());
     }
-    let metadata = if case["file_metadata"].is_null() {
+    let metadata = if case[crate::application::run::constants::FILE_METADATA].is_null() {
         None
     } else {
-        let values = case["file_metadata"]
+        let values = case[crate::application::run::constants::FILE_METADATA]
             .as_object()
-            .ok_or("file metadata must be an object")?;
+            .ok_or(crate::application::run::constants::FILE_METADATA_MUST_BE_AN_OBJECT)?;
         let mut parsed = std::collections::BTreeMap::new();
         for (path, value) in values {
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(path)))
                 .map_err(|error| error.to_string())?;
             if !files.iter().any(|file| file.as_str() == Some(path)) {
-                return Err("metadata names an undeclared source".into());
+                return Err(crate::application::run::constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into());
             }
             parsed.insert(
                 ryo::linter::RelativePath(path.clone().into_boxed_str()),
                 value
                     .as_bool()
-                    .ok_or("executable observation must be boolean")?,
+                    .ok_or(crate::application::run::constants::EXECUTABLE_OBSERVATION_MUST_BE_BOOLEAN)?,
             );
         }
         Some(parsed)
@@ -58,7 +58,7 @@ pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
             .as_ref()
             .is_none_or(|values| values.len() != files.len())
     {
-        return Err("required input observations are missing".into());
+        return Err(crate::application::run::constants::REQUIRED_INPUT_OBSERVATIONS_ARE_MISSING.into());
     }
     Ok(serde_json::json!(
         ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))
@@ -69,16 +69,16 @@ pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
 
 /// Recompute the project input identity from the registered explicit roots and entry inventory.
 fn project_inputs_digest(case: &Value) -> Result<Value, String> {
-    let roots = if case["project_search_roots"].is_null() {
+    let roots = if case[crate::application::run::constants::PROJECT_SEARCH_ROOTS].is_null() {
         None
     } else {
         Some(
-            case["project_search_roots"]
+            case[crate::application::run::constants::PROJECT_SEARCH_ROOTS]
                 .as_array()
-                .ok_or("project search roots must be an ordered array")?
+                .ok_or(crate::application::run::constants::PROJECT_SEARCH_ROOTS_MUST_BE_AN)?
                 .iter()
                 .map(|value| {
-                    let root = value.as_str().ok_or("project search root is not text")?;
+                    let root = value.as_str().ok_or(crate::application::run::constants::PROJECT_SEARCH_ROOT_IS_NOT_TEXT)?;
                     if !root.is_empty() {
                         ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(root))
                             .map_err(|error| error.to_string())?;
@@ -88,11 +88,11 @@ fn project_inputs_digest(case: &Value) -> Result<Value, String> {
                 .collect::<Result<Vec<_>, String>>()?,
         )
     };
-    let inventory = if case["given_project_inventory"].is_null() {
+    let inventory = if case[crate::application::run::constants::GIVEN_PROJECT_INVENTORY].is_null() {
         ryo::linter::GivenProjectInventory::default()
     } else {
         let wire: crate::outbound::context::adapters::local::schemas::ProjectInventorySchema =
-            serde_json::from_value(case["given_project_inventory"].clone())
+            serde_json::from_value(case[crate::application::run::constants::GIVEN_PROJECT_INVENTORY].clone())
                 .map_err(|error| error.to_string())?;
         wire.into()
     };
@@ -121,38 +121,38 @@ pub(super) fn validate_with_artifacts(
     artifacts: &std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
 ) -> Result<(usize, usize, usize), String> {
     if cases.is_empty() || observations.len() != cases.len() * 2 {
-        return Err("missing or extra native case receipts".into());
+        return Err(crate::application::run::constants::MISSING_OR_EXTRA_NATIVE_CASE_RECEIPTS.into());
     }
     let mut registered = HashSet::with_capacity(cases.len());
     for case in cases {
-        let rule = case["rule"]
+        let rule = case[crate::application::run::constants::RULE]
             .as_str()
             .filter(|value| !value.is_empty())
-            .ok_or("registered rule identity is missing")?;
-        let name = case["name"]
+            .ok_or(crate::application::run::constants::REGISTERED_RULE_IDENTITY_IS_MISSING)?;
+        let name = case[crate::application::run::constants::NAME]
             .as_str()
             .filter(|value| !value.is_empty())
-            .ok_or("registered case identity is missing")?;
+            .ok_or(crate::application::run::constants::REGISTERED_CASE_IDENTITY_IS_MISSING)?;
         if !registered.insert((rule, name)) {
-            return Err("duplicate registered case identity".into());
+            return Err(crate::application::run::constants::DUPLICATE_REGISTERED_CASE_IDENTITY.into());
         }
     }
     let mut observed = HashSet::with_capacity(observations.len());
     for row in observations {
-        let rule = row["rule"]
+        let rule = row[crate::application::run::constants::RULE]
             .as_str()
-            .ok_or("native rule identity is missing")?;
-        let name = row["name"]
+            .ok_or(crate::application::run::constants::NATIVE_RULE_IDENTITY_IS_MISSING)?;
+        let name = row[crate::application::run::constants::NAME]
             .as_str()
-            .ok_or("native case identity is missing")?;
-        let side = row["side"]
+            .ok_or(crate::application::run::constants::NATIVE_CASE_IDENTITY_IS_MISSING)?;
+        let side = row[crate::application::run::constants::SIDE]
             .as_str()
-            .ok_or("native side identity is missing")?;
-        if !registered.contains(&(rule, name)) || !matches!(side, "reference" | "candidate") {
-            return Err("unregistered native case observation".into());
+            .ok_or(crate::application::run::constants::NATIVE_SIDE_IDENTITY_IS_MISSING)?;
+        if !registered.contains(&(rule, name)) || !matches!(side, crate::application::run::constants::REFERENCE | crate::application::run::constants::CANDIDATE) {
+            return Err(crate::application::run::constants::UNREGISTERED_NATIVE_CASE_OBSERVATION.into());
         }
         if !observed.insert((rule, name, side)) {
-            return Err("duplicate native case observation".into());
+            return Err(crate::application::run::constants::DUPLICATE_NATIVE_CASE_OBSERVATION.into());
         }
     }
     let mut raw_exact = 0;
@@ -161,204 +161,204 @@ pub(super) fn validate_with_artifacts(
     for case in cases {
         let metadata = metadata_digest(case)?;
         let project_inputs = project_inputs_digest(case)?;
-        if case["file_metadata_sha256"] != metadata {
-            return Err("registered file metadata digest differs".into());
+        if case[crate::application::run::constants::FILE_METADATA_SHA256] != metadata {
+            return Err(crate::application::run::constants::REGISTERED_FILE_METADATA_DIGEST_DIFFERS.into());
         }
-        if case["project_inputs_sha256"] != project_inputs {
-            return Err("registered project inputs digest differs".into());
+        if case[crate::application::run::constants::PROJECT_INPUTS_SHA256] != project_inputs {
+            return Err(crate::application::run::constants::REGISTERED_PROJECT_INPUTS_DIGEST_DIFFERS.into());
         }
-        let declared = if case["expectation_contract"].is_null() {
+        let declared = if case[crate::application::run::constants::EXPECTATION_CONTRACT].is_null() {
             ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics
         } else {
-            super::inventory_execution::contract(&case["expectation_contract"])?
+            super::inventory_execution::contract(&case[crate::application::run::constants::EXPECTATION_CONTRACT])?
         };
-        let expected = normalized(&case["expected"])?;
-        let certificate = &case["reference_discrepancy"];
+        let expected = normalized(&case[crate::application::run::constants::EXPECTED])?;
+        let certificate = &case[crate::application::run::constants::REFERENCE_DISCREPANCY];
         let basis = if certificate.is_null() {
-            "none"
+            crate::application::run::constants::NONE
         } else {
-            certificate["basis"].as_str().unwrap_or("language-defect")
+            certificate[crate::application::run::constants::BASIS].as_str().unwrap_or(crate::application::run::constants::LANGUAGE_DEFECT)
         };
         if !matches!(
             basis,
-            "none" | "language-defect" | "tool-contract-difference"
+            crate::application::run::constants::NONE | crate::application::run::constants::LANGUAGE_DEFECT | crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE
         ) {
-            return Err("unknown discrepancy authority".into());
+            return Err(crate::application::run::constants::UNKNOWN_DISCREPANCY_AUTHORITY.into());
         }
-        let process = !certificate["process"].is_null();
+        let process = !certificate[crate::application::run::constants::PROCESS].is_null();
         if process
             && declared
                 != ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics
         {
-            return Err("process expectation cannot satisfy complete-report accounting".into());
+            return Err(crate::application::run::constants::PROCESS_EXPECTATION_CANNOT_SATISFY_COMPLETE.into());
         }
         let reference_expected = if certificate.is_null() {
             expected.clone()
         } else {
-            if normalized(&certificate["intended_expected"])? != expected {
-                return Err("discrepancy intention differs from registered case".into());
+            if normalized(&certificate[crate::application::run::constants::INTENDED_EXPECTED])? != expected {
+                return Err(crate::application::run::constants::DISCREPANCY_INTENTION_DIFFERS_FROM_REGISTERE.into());
             }
             if process {
                 Vec::new()
             } else {
-                normalized(&certificate["reference_expected"])?
+                normalized(&certificate[crate::application::run::constants::REFERENCE_EXPECTED])?
             }
         };
         let mut sides = Vec::new();
-        for side in ["reference", "candidate"] {
+        for side in [crate::application::run::constants::REFERENCE, crate::application::run::constants::CANDIDATE] {
             let found = observations
                 .iter()
                 .filter(|row| {
-                    row["rule"] == case["rule"]
-                        && row["name"] == case["name"]
-                        && row["side"] == side
+                    row[crate::application::run::constants::RULE] == case[crate::application::run::constants::RULE]
+                        && row[crate::application::run::constants::NAME] == case[crate::application::run::constants::NAME]
+                        && row[crate::application::run::constants::SIDE] == side
                 })
                 .collect::<Vec<_>>();
             if found.len() != 1 {
-                return Err("missing or duplicate native side receipt".into());
+                return Err(crate::application::run::constants::MISSING_OR_DUPLICATE_NATIVE_SIDE_RECEIPT.into());
             }
             let row = found[0];
-            if row["rule_context"] != case["rule_context"] {
-                return Err("native configured rule context differs from registration".into());
+            if row[crate::application::run::constants::RULE_CONTEXT] != case[crate::application::run::constants::RULE_CONTEXT] {
+                return Err(crate::application::run::constants::NATIVE_CONFIGURED_RULE_CONTEXT_DIFFERS_FROM.into());
             }
-            if row["rule_observations"] != case["rule_observations"] {
-                return Err("native observation declarations differ from registration".into());
+            if row[crate::application::run::constants::RULE_OBSERVATIONS] != case[crate::application::run::constants::RULE_OBSERVATIONS] {
+                return Err(crate::application::run::constants::NATIVE_OBSERVATION_DECLARATIONS_DIFFER_FROM.into());
             }
-            if row["selected_rules"] != case["selected_rules"] {
-                return Err("native selected-rule cohort differs from registration".into());
+            if row[crate::application::run::constants::SELECTED_RULES] != case[crate::application::run::constants::SELECTED_RULES] {
+                return Err(crate::application::run::constants::NATIVE_SELECTED_RULE_COHORT_DIFFERS_FROM.into());
             }
-            if row["observation_schema"] != "benchmark-case/v2"
-                || super::inventory_execution::contract(&row["expectation_contract"])? != declared
+            if row[crate::application::run::constants::OBSERVATION_SCHEMA] != crate::application::run::constants::BENCHMARK_CASE_V2
+                || super::inventory_execution::contract(&row[crate::application::run::constants::EXPECTATION_CONTRACT])? != declared
             {
-                return Err("native expectation contract differs from registration".into());
+                return Err(crate::application::run::constants::NATIVE_EXPECTATION_CONTRACT_DIFFERS_FROM_REG.into());
             }
-            if row["complete"] != true
-                || !row["error"].is_null()
-                || row["case_passed"] != true
-                || row["source_sha256"] != case["source_sha256"]
-                || row["file_metadata_sha256"] != metadata
-                || row["project_inputs_sha256"] != project_inputs
-                || row["files"] != case["files"]
-                || normalized(&row["expected"])? != expected
+            if row[crate::application::run::constants::COMPLETE] != true
+                || !row[crate::application::run::constants::ERROR].is_null()
+                || row[crate::application::run::constants::CASE_PASSED] != true
+                || row[crate::application::run::constants::SOURCE_SHA256] != case[crate::application::run::constants::SOURCE_SHA256]
+                || row[crate::application::run::constants::FILE_METADATA_SHA256] != metadata
+                || row[crate::application::run::constants::PROJECT_INPUTS_SHA256] != project_inputs
+                || row[crate::application::run::constants::FILES] != case[crate::application::run::constants::FILES]
+                || normalized(&row[crate::application::run::constants::EXPECTED])? != expected
                 || if process {
-                    !row["reference_expected"].is_null()
+                    !row[crate::application::run::constants::REFERENCE_EXPECTED].is_null()
                 } else {
-                    normalized(&row["reference_expected"])? != reference_expected
+                    normalized(&row[crate::application::run::constants::REFERENCE_EXPECTED])? != reference_expected
                 }
             {
-                return Err("failed, incomplete, or stale native observation".into());
+                return Err(crate::application::run::constants::FAILED_INCOMPLETE_OR_STALE_NATIVE_OBSERVATIO.into());
             }
-            if row["documented_reference_discrepancy"]
+            if row[crate::application::run::constants::DOCUMENTED_REFERENCE_DISCREPANCY]
                 .as_bool()
                 .unwrap_or(false)
-                != (basis == "language-defect")
-                || row["documented_tool_contract_difference"]
+                != (basis == crate::application::run::constants::LANGUAGE_DEFECT)
+                || row[crate::application::run::constants::DOCUMENTED_TOOL_CONTRACT_DIFFERENCE]
                     .as_bool()
                     .unwrap_or(false)
-                    != (basis == "tool-contract-difference")
+                    != (basis == crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE)
             {
-                return Err("native discrepancy authority differs from registration".into());
+                return Err(crate::application::run::constants::NATIVE_DISCREPANCY_AUTHORITY_DIFFERS_FROM_RE.into());
             }
-            if process && side == "reference" {
+            if process && side == crate::application::run::constants::REFERENCE {
                 super::process_receipts::validate(case, row, artifacts)?;
             } else {
-                if !row["process_observation"].is_null() {
-                    return Err("diagnostic report unexpectedly contains a process failure".into());
+                if !row[crate::application::run::constants::PROCESS_OBSERVATION].is_null() {
+                    return Err(crate::application::run::constants::DIAGNOSTIC_REPORT_UNEXPECTEDLY_CONTAINS_A_PR.into());
                 }
-                let actual = normalized(&row["diagnostics"])?;
-                let required = if side == "reference" {
+                let actual = normalized(&row[crate::application::run::constants::DIAGNOSTICS])?;
+                let required = if side == crate::application::run::constants::REFERENCE {
                     &reference_expected
                 } else {
                     &expected
                 };
-                if actual.as_slice() != required.as_slice() || !row["skipped"].is_array() {
-                    return Err("native diagnostics differ from registered expectations".into());
+                if actual.as_slice() != required.as_slice() || !row[crate::application::run::constants::SKIPPED].is_array() {
+                    return Err(crate::application::run::constants::NATIVE_DIAGNOSTICS_DIFFER_FROM_REGISTERED_EX.into());
                 }
             }
-            if side == "candidate" {
-                let coverage = &row["coverage"];
-                let selected = coverage["selected_rule_file_pairs"].as_u64().unwrap_or(0);
-                let evaluated = coverage["evaluated_rule_file_pairs"]
+            if side == crate::application::run::constants::CANDIDATE {
+                let coverage = &row[crate::application::run::constants::COVERAGE];
+                let selected = coverage[crate::application::run::constants::SELECTED_RULE_FILE_PAIRS].as_u64().unwrap_or(0);
+                let evaluated = coverage[crate::application::run::constants::EVALUATED_RULE_FILE_PAIRS]
                     .as_u64()
                     .unwrap_or(u64::MAX);
-                let skipped = coverage["skipped_rule_file_pairs"]
+                let skipped = coverage[crate::application::run::constants::SKIPPED_RULE_FILE_PAIRS]
                     .as_u64()
                     .unwrap_or(u64::MAX);
-                if row["observation_schema"] != "benchmark-case/v2"
-                    || row["expectation_contract"] != "diagnostics"
-                    || row["execution_metadata"]["availability"] != "complete"
+                if row[crate::application::run::constants::OBSERVATION_SCHEMA] != crate::application::run::constants::BENCHMARK_CASE_V2
+                    || row[crate::application::run::constants::EXPECTATION_CONTRACT] != crate::application::run::constants::DIAGNOSTICS
+                    || row[crate::application::run::constants::EXECUTION_METADATA][crate::application::run::constants::AVAILABILITY] != crate::application::run::constants::COMPLETE
                     || selected == 0
                     || evaluated.checked_add(skipped) != Some(selected)
-                    || coverage["unknown_or_unread_rule_file_pairs"] != 0
+                    || coverage[crate::application::run::constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS] != 0
                 {
-                    return Err("candidate execution is not completely accounted".into());
+                    return Err(crate::application::run::constants::CANDIDATE_EXECUTION_IS_NOT_COMPLETELY_ACCOUN.into());
                 }
             }
-            if case["project_context_mode"] == "isolated" {
-                if !row["context_manifest"].is_null() || !row["project_context"].is_null() {
-                    return Err("unexpected project-context receipt".into());
+            if case[crate::application::run::constants::PROJECT_CONTEXT_MODE] == crate::application::run::constants::ISOLATED {
+                if !row[crate::application::run::constants::CONTEXT_MANIFEST].is_null() || !row[crate::application::run::constants::PROJECT_CONTEXT].is_null() {
+                    return Err(crate::application::run::constants::UNEXPECTED_PROJECT_CONTEXT_RECEIPT.into());
                 }
             } else {
-                for key in ["mode", "logical_root", "manifest_hash"] {
-                    if row["context_manifest"][key] != case["context_identity"][key] {
-                        return Err("stale project-context receipt".into());
+                for key in [crate::application::run::constants::MODE, crate::application::run::constants::LOGICAL_ROOT, crate::application::run::constants::MANIFEST_HASH] {
+                    if row[crate::application::run::constants::CONTEXT_MANIFEST][key] != case[crate::application::run::constants::CONTEXT_IDENTITY][key] {
+                        return Err(crate::application::run::constants::STALE_PROJECT_CONTEXT_RECEIPT.into());
                     }
                 }
             }
             sides.push(row);
         }
         if !certificate.is_null() {
-            let proof = &sides[0]["discrepancy_validation"];
-            if proof["file_metadata_sha256"] != metadata
-                || certificate["identity"]["file-metadata-sha256"] != metadata
+            let proof = &sides[0][crate::application::run::constants::DISCREPANCY_VALIDATION];
+            if proof[crate::application::run::constants::FILE_METADATA_SHA256] != metadata
+                || certificate[crate::application::run::constants::IDENTITY][crate::application::run::constants::FILE_METADATA_SHA256_2] != metadata
             {
-                return Err("discrepancy file metadata identity differs".into());
+                return Err(crate::application::run::constants::DISCREPANCY_FILE_METADATA_IDENTITY_DIFFERS.into());
             }
-            if proof.is_null() || proof != &sides[1]["discrepancy_validation"] {
-                return Err("missing independent discrepancy validation".into());
+            if proof.is_null() || proof != &sides[1][crate::application::run::constants::DISCREPANCY_VALIDATION] {
+                return Err(crate::application::run::constants::MISSING_INDEPENDENT_DISCREPANCY_VALIDATION.into());
             }
-            if proof["discrepancy_basis"]
+            if proof[crate::application::run::constants::DISCREPANCY_BASIS]
                 .as_str()
-                .unwrap_or("language-defect")
+                .unwrap_or(crate::application::run::constants::LANGUAGE_DEFECT)
                 != basis
             {
-                return Err("discrepancy authority was not verified".into());
+                return Err(crate::application::run::constants::DISCREPANCY_AUTHORITY_WAS_NOT_VERIFIED.into());
             }
             for (actual, expected) in [
-                ("settings_sha256", "settings-sha256"),
-                ("profile_sha256", "profile-sha256"),
-                ("source_sha256", "source-sha256"),
-                ("reference_output_sha256", "reference-output-sha256"),
-                ("intended_output_sha256", "intended-output-sha256"),
+                (crate::application::run::constants::SETTINGS_SHA256, crate::application::run::constants::SETTINGS_SHA256_2),
+                (crate::application::run::constants::PROFILE_SHA256, crate::application::run::constants::PROFILE_SHA256_2),
+                (crate::application::run::constants::SOURCE_SHA256, crate::application::run::constants::SOURCE_SHA256_2),
+                (crate::application::run::constants::REFERENCE_OUTPUT_SHA256, crate::application::run::constants::REFERENCE_OUTPUT_SHA256_2),
+                (crate::application::run::constants::INTENDED_OUTPUT_SHA256, crate::application::run::constants::INTENDED_OUTPUT_SHA256_2),
             ] {
                 if !proof[actual]
                     .as_str()
                     .is_some_and(|value| !value.is_empty())
-                    || !certificate["identity"][expected]
+                    || !certificate[crate::application::run::constants::IDENTITY][expected]
                         .as_str()
                         .is_some_and(|value| !value.is_empty())
-                    || proof[actual] != certificate["identity"][expected]
+                    || proof[actual] != certificate[crate::application::run::constants::IDENTITY][expected]
                 {
-                    return Err("stale discrepancy evidence identity".into());
+                    return Err(crate::application::run::constants::STALE_DISCREPANCY_EVIDENCE_IDENTITY.into());
                 }
             }
-            if !proof["actual_executable_sha256"]
+            if !proof[crate::application::run::constants::ACTUAL_EXECUTABLE_SHA256]
                 .as_str()
                 .is_some_and(|value| !value.is_empty())
             {
-                return Err("discrepancy tool identity is missing".into());
+                return Err(crate::application::run::constants::DISCREPANCY_TOOL_IDENTITY_IS_MISSING.into());
             }
-            if !certificate["approved_executable_sha256"]
+            if !certificate[crate::application::run::constants::APPROVED_EXECUTABLE_SHA256]
                 .as_array()
-                .is_some_and(|pins| pins.contains(&proof["actual_executable_sha256"]))
+                .is_some_and(|pins| pins.contains(&proof[crate::application::run::constants::ACTUAL_EXECUTABLE_SHA256]))
             {
-                return Err("discrepancy tool is not independently pinned".into());
+                return Err(crate::application::run::constants::DISCREPANCY_TOOL_IS_NOT_INDEPENDENTLY_PINNED.into());
             }
         }
         super::inventory_execution::compare(sides[0], sides[1], declared)?;
         let exact = !process
-            && normalized(&sides[0]["diagnostics"])? == normalized(&sides[1]["diagnostics"])?
-            && sides[0]["skipped"] == sides[1]["skipped"];
+            && normalized(&sides[0][crate::application::run::constants::DIAGNOSTICS])? == normalized(&sides[1][crate::application::run::constants::DIAGNOSTICS])?
+            && sides[0][crate::application::run::constants::SKIPPED] == sides[1][crate::application::run::constants::SKIPPED];
         raw_exact += usize::from(exact);
         documented += usize::from(!exact && !certificate.is_null());
         contract_only += usize::from(!exact && certificate.is_null());
@@ -374,70 +374,70 @@ mod tests {
     #[test]
     fn forged_pass_flags_cannot_hide_wrong_or_malformed_diagnostics() {
         let case = json!({
-            "rule": "A001", "name": "case", "source_sha256": "source-pin",
-            "files": ["input.txt"], "expected": [],
-            "project_context_mode": "isolated", "reference_discrepancy": null
+            crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::CASE, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN,
+            crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT], crate::application::run::constants::EXPECTED: [],
+            crate::application::run::constants::PROJECT_CONTEXT_MODE: crate::application::run::constants::ISOLATED, crate::application::run::constants::REFERENCE_DISCREPANCY: null
         });
         let base = json!({
-            "rule": "A001", "name": "case", "complete": true, "error": null,
-            "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"],
-            "expected": [], "reference_expected": [], "diagnostics": [], "skipped": [],
-            "context_manifest": null, "project_context": null,
-            "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
-            "execution_metadata": {"availability": "complete"},
-            "coverage": {"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1,
-                         "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0}
+            crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::CASE, crate::application::run::constants::COMPLETE: true, crate::application::run::constants::ERROR: null,
+            crate::application::run::constants::CASE_PASSED: true, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN, crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT],
+            crate::application::run::constants::EXPECTED: [], crate::application::run::constants::REFERENCE_EXPECTED: [], crate::application::run::constants::DIAGNOSTICS: [], crate::application::run::constants::SKIPPED: [],
+            crate::application::run::constants::CONTEXT_MANIFEST: null, crate::application::run::constants::PROJECT_CONTEXT: null,
+            crate::application::run::constants::OBSERVATION_SCHEMA: crate::application::run::constants::BENCHMARK_CASE_V2, crate::application::run::constants::EXPECTATION_CONTRACT: crate::application::run::constants::DIAGNOSTICS,
+            crate::application::run::constants::EXECUTION_METADATA: {crate::application::run::constants::AVAILABILITY: crate::application::run::constants::COMPLETE},
+            crate::application::run::constants::COVERAGE: {crate::application::run::constants::SELECTED_RULE_FILE_PAIRS: 1, crate::application::run::constants::EVALUATED_RULE_FILE_PAIRS: 1,
+                         crate::application::run::constants::SKIPPED_RULE_FILE_PAIRS: 0, crate::application::run::constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS: 0}
         });
         let mut reference = base.clone();
-        reference["side"] = json!("reference");
+        reference[crate::application::run::constants::SIDE] = json!(crate::application::run::constants::REFERENCE);
         let mut candidate = base;
-        candidate["side"] = json!("candidate");
+        candidate[crate::application::run::constants::SIDE] = json!(crate::application::run::constants::CANDIDATE);
         assert_eq!(
             validate(&[case.clone()], &[reference.clone(), candidate.clone()]),
             Ok((1, 0, 0))
         );
 
-        candidate["diagnostics"] =
-            json!([{"rule": "A001", "file": "input.txt", "start": 0, "end": 1}]);
+        candidate[crate::application::run::constants::DIAGNOSTICS] =
+            json!([{crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::FILE: crate::application::run::constants::INPUT_TXT, crate::application::run::constants::START: 0, crate::application::run::constants::END: 1}]);
         assert!(
             validate(&[case.clone()], &[reference.clone(), candidate.clone()])
                 .unwrap_err()
-                .contains("native diagnostics differ")
+                .contains(crate::application::run::constants::NATIVE_DIAGNOSTICS_DIFFER)
         );
 
-        candidate["diagnostics"] = json!({"not": "an array"});
+        candidate[crate::application::run::constants::DIAGNOSTICS] = json!({crate::application::run::constants::NOT: crate::application::run::constants::AN_ARRAY});
         assert!(
             validate(&[case], &[reference, candidate])
                 .unwrap_err()
-                .contains("diagnostics must be an array")
+                .contains(crate::application::run::constants::DIAGNOSTICS_MUST_BE_AN_ARRAY)
         );
     }
 
     #[test]
     fn registered_and_observed_case_identities_must_be_bijective() {
         let case = json!({
-            "rule": "A001", "name": "first", "source_sha256": "source-pin",
-            "files": ["input.txt"], "expected": [],
-            "project_context_mode": "isolated", "reference_discrepancy": null
+            crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::FIRST, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN,
+            crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT], crate::application::run::constants::EXPECTED: [],
+            crate::application::run::constants::PROJECT_CONTEXT_MODE: crate::application::run::constants::ISOLATED, crate::application::run::constants::REFERENCE_DISCREPANCY: null
         });
         let base = json!({
-            "rule": "A001", "name": "first", "complete": true, "error": null,
-            "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"],
-            "expected": [], "reference_expected": [], "diagnostics": [], "skipped": [],
-            "context_manifest": null, "project_context": null,
-            "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
-            "execution_metadata": {"availability": "complete"},
-            "coverage": {"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1,
-                         "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0}
+            crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::FIRST, crate::application::run::constants::COMPLETE: true, crate::application::run::constants::ERROR: null,
+            crate::application::run::constants::CASE_PASSED: true, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN, crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT],
+            crate::application::run::constants::EXPECTED: [], crate::application::run::constants::REFERENCE_EXPECTED: [], crate::application::run::constants::DIAGNOSTICS: [], crate::application::run::constants::SKIPPED: [],
+            crate::application::run::constants::CONTEXT_MANIFEST: null, crate::application::run::constants::PROJECT_CONTEXT: null,
+            crate::application::run::constants::OBSERVATION_SCHEMA: crate::application::run::constants::BENCHMARK_CASE_V2, crate::application::run::constants::EXPECTATION_CONTRACT: crate::application::run::constants::DIAGNOSTICS,
+            crate::application::run::constants::EXECUTION_METADATA: {crate::application::run::constants::AVAILABILITY: crate::application::run::constants::COMPLETE},
+            crate::application::run::constants::COVERAGE: {crate::application::run::constants::SELECTED_RULE_FILE_PAIRS: 1, crate::application::run::constants::EVALUATED_RULE_FILE_PAIRS: 1,
+                         crate::application::run::constants::SKIPPED_RULE_FILE_PAIRS: 0, crate::application::run::constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS: 0}
         });
         let mut reference = base.clone();
-        reference["side"] = json!("reference");
+        reference[crate::application::run::constants::SIDE] = json!(crate::application::run::constants::REFERENCE);
         let mut candidate = base;
-        candidate["side"] = json!("candidate");
+        candidate[crate::application::run::constants::SIDE] = json!(crate::application::run::constants::CANDIDATE);
         let mut unrelated_reference = reference.clone();
-        unrelated_reference["name"] = json!("unrelated");
+        unrelated_reference[crate::application::run::constants::NAME] = json!(crate::application::run::constants::UNRELATED);
         let mut unrelated_candidate = candidate.clone();
-        unrelated_candidate["name"] = json!("unrelated");
+        unrelated_candidate[crate::application::run::constants::NAME] = json!(crate::application::run::constants::UNRELATED);
         let rows = [
             reference.clone(),
             candidate.clone(),
@@ -448,24 +448,24 @@ mod tests {
         assert!(
             validate(&[case.clone(), case.clone()], &rows)
                 .unwrap_err()
-                .contains("duplicate registered case identity")
+                .contains(crate::application::run::constants::DUPLICATE_REGISTERED_CASE_IDENTITY)
         );
         let mut second = case;
-        second["name"] = json!("second");
+        second[crate::application::run::constants::NAME] = json!(crate::application::run::constants::SECOND);
         assert!(
             validate(
                 &[
                     second.clone(),
                     json!({
-                        "rule": "A001", "name": "first", "source_sha256": "source-pin",
-                        "files": ["input.txt"], "expected": [],
-                        "project_context_mode": "isolated", "reference_discrepancy": null
+                        crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::FIRST, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN,
+                        crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT], crate::application::run::constants::EXPECTED: [],
+                        crate::application::run::constants::PROJECT_CONTEXT_MODE: crate::application::run::constants::ISOLATED, crate::application::run::constants::REFERENCE_DISCREPANCY: null
                     })
                 ],
                 &rows
             )
             .unwrap_err()
-            .contains("unregistered native case observation")
+            .contains(crate::application::run::constants::UNREGISTERED_NATIVE_CASE_OBSERVATION)
         );
 
         let duplicate_rows = [reference.clone(), candidate.clone(), reference, candidate];
@@ -474,69 +474,69 @@ mod tests {
                 &[
                     second,
                     json!({
-                        "rule": "A001", "name": "first", "source_sha256": "source-pin",
-                        "files": ["input.txt"], "expected": [],
-                        "project_context_mode": "isolated", "reference_discrepancy": null
+                        crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::FIRST, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN,
+                        crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT], crate::application::run::constants::EXPECTED: [],
+                        crate::application::run::constants::PROJECT_CONTEXT_MODE: crate::application::run::constants::ISOLATED, crate::application::run::constants::REFERENCE_DISCREPANCY: null
                     })
                 ],
                 &duplicate_rows
             )
             .unwrap_err()
-            .contains("duplicate native case observation")
+            .contains(crate::application::run::constants::DUPLICATE_NATIVE_CASE_OBSERVATION)
         );
     }
 
     #[test]
     fn independently_bound_reference_difference_can_pass() {
-        let finding = json!({"rule": "A001", "file": "input.txt", "start": 0, "end": 1});
+        let finding = json!({crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::FILE: crate::application::run::constants::INPUT_TXT, crate::application::run::constants::START: 0, crate::application::run::constants::END: 1});
         let case = json!({
-            "rule": "A001", "name": "case", "source_sha256": "source-pin",
-            "files": ["input.txt"], "expected": [], "project_context_mode": "isolated",
-            "reference_discrepancy": {
-                "intended_expected": [], "reference_expected": [finding],
-                "approved_executable_sha256": ["tool-pin"],
-                "identity": {
-                    "settings-sha256": "settings-pin", "profile-sha256": "profile-pin",
-                    "source-sha256": "source-pin", "reference-output-sha256": "reference-pin",
-                    "intended-output-sha256": "intended-pin"
+            crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::CASE, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN,
+            crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT], crate::application::run::constants::EXPECTED: [], crate::application::run::constants::PROJECT_CONTEXT_MODE: crate::application::run::constants::ISOLATED,
+            crate::application::run::constants::REFERENCE_DISCREPANCY: {
+                crate::application::run::constants::INTENDED_EXPECTED: [], crate::application::run::constants::REFERENCE_EXPECTED: [finding],
+                crate::application::run::constants::APPROVED_EXECUTABLE_SHA256: [crate::application::run::constants::TOOL_PIN],
+                crate::application::run::constants::IDENTITY: {
+                    crate::application::run::constants::SETTINGS_SHA256_2: crate::application::run::constants::SETTINGS_PIN, crate::application::run::constants::PROFILE_SHA256_2: crate::application::run::constants::PROFILE_PIN,
+                    crate::application::run::constants::SOURCE_SHA256_2: crate::application::run::constants::SOURCE_PIN, crate::application::run::constants::REFERENCE_OUTPUT_SHA256_2: crate::application::run::constants::REFERENCE_PIN,
+                    crate::application::run::constants::INTENDED_OUTPUT_SHA256_2: crate::application::run::constants::INTENDED_PIN
                 }
             }
         });
         let proof = json!({
-            "actual_executable_sha256": "tool-pin", "settings_sha256": "settings-pin",
-            "profile_sha256": "profile-pin", "source_sha256": "source-pin",
-            "reference_output_sha256": "reference-pin", "intended_output_sha256": "intended-pin"
+            crate::application::run::constants::ACTUAL_EXECUTABLE_SHA256: crate::application::run::constants::TOOL_PIN, crate::application::run::constants::SETTINGS_SHA256: crate::application::run::constants::SETTINGS_PIN,
+            crate::application::run::constants::PROFILE_SHA256: crate::application::run::constants::PROFILE_PIN, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN,
+            crate::application::run::constants::REFERENCE_OUTPUT_SHA256: crate::application::run::constants::REFERENCE_PIN, crate::application::run::constants::INTENDED_OUTPUT_SHA256: crate::application::run::constants::INTENDED_PIN
         });
         let base = json!({
-            "rule": "A001", "name": "case", "complete": true, "error": null,
-            "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"],
-            "expected": [], "reference_expected": [finding], "diagnostics": [], "skipped": [],
-            "discrepancy_validation": proof,
-            "documented_reference_discrepancy": true, "documented_tool_contract_difference": false,
-            "context_manifest": null, "project_context": null,
-            "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
-            "execution_metadata": {"availability": "complete"},
-            "coverage": {"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1,
-                         "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0}
+            crate::application::run::constants::RULE: crate::application::run::constants::A001, crate::application::run::constants::NAME: crate::application::run::constants::CASE, crate::application::run::constants::COMPLETE: true, crate::application::run::constants::ERROR: null,
+            crate::application::run::constants::CASE_PASSED: true, crate::application::run::constants::SOURCE_SHA256: crate::application::run::constants::SOURCE_PIN, crate::application::run::constants::FILES: [crate::application::run::constants::INPUT_TXT],
+            crate::application::run::constants::EXPECTED: [], crate::application::run::constants::REFERENCE_EXPECTED: [finding], crate::application::run::constants::DIAGNOSTICS: [], crate::application::run::constants::SKIPPED: [],
+            crate::application::run::constants::DISCREPANCY_VALIDATION: proof,
+            crate::application::run::constants::DOCUMENTED_REFERENCE_DISCREPANCY: true, crate::application::run::constants::DOCUMENTED_TOOL_CONTRACT_DIFFERENCE: false,
+            crate::application::run::constants::CONTEXT_MANIFEST: null, crate::application::run::constants::PROJECT_CONTEXT: null,
+            crate::application::run::constants::OBSERVATION_SCHEMA: crate::application::run::constants::BENCHMARK_CASE_V2, crate::application::run::constants::EXPECTATION_CONTRACT: crate::application::run::constants::DIAGNOSTICS,
+            crate::application::run::constants::EXECUTION_METADATA: {crate::application::run::constants::AVAILABILITY: crate::application::run::constants::COMPLETE},
+            crate::application::run::constants::COVERAGE: {crate::application::run::constants::SELECTED_RULE_FILE_PAIRS: 1, crate::application::run::constants::EVALUATED_RULE_FILE_PAIRS: 1,
+                         crate::application::run::constants::SKIPPED_RULE_FILE_PAIRS: 0, crate::application::run::constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS: 0}
         });
         let mut reference = base.clone();
-        reference["side"] = json!("reference");
-        reference["diagnostics"] = json!([finding]);
+        reference[crate::application::run::constants::SIDE] = json!(crate::application::run::constants::REFERENCE);
+        reference[crate::application::run::constants::DIAGNOSTICS] = json!([finding]);
         let mut candidate = base;
-        candidate["side"] = json!("candidate");
+        candidate[crate::application::run::constants::SIDE] = json!(crate::application::run::constants::CANDIDATE);
         assert_eq!(
             validate(&[case.clone()], &[reference.clone(), candidate.clone()]),
             Ok((0, 1, 0))
         );
 
         let mut unbound = case;
-        unbound["reference_discrepancy"]["identity"]["settings-sha256"] = Value::Null;
-        reference["discrepancy_validation"]["settings_sha256"] = Value::Null;
-        candidate["discrepancy_validation"]["settings_sha256"] = Value::Null;
+        unbound[crate::application::run::constants::REFERENCE_DISCREPANCY][crate::application::run::constants::IDENTITY][crate::application::run::constants::SETTINGS_SHA256_2] = Value::Null;
+        reference[crate::application::run::constants::DISCREPANCY_VALIDATION][crate::application::run::constants::SETTINGS_SHA256] = Value::Null;
+        candidate[crate::application::run::constants::DISCREPANCY_VALIDATION][crate::application::run::constants::SETTINGS_SHA256] = Value::Null;
         assert!(
             validate(&[unbound], &[reference, candidate])
                 .unwrap_err()
-                .contains("stale discrepancy evidence identity")
+                .contains(crate::application::run::constants::STALE_DISCREPANCY_EVIDENCE_IDENTITY)
         );
     }
 }

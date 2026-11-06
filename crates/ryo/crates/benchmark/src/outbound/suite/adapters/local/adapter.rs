@@ -24,7 +24,7 @@ fn validate_query_modules(
 ) -> Result<(), Error> {
     let root = directory.canonicalize()?;
     for (id, relative) in modules {
-        let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
+        let _module = ryo::query::QueryModuleSource::try_new(id, crate::outbound::suite::adapters::local::constants::MODULE_SOURCE)
             .map_err(|error| Error::Invalid(error.to_string()))?;
         let relative = RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
@@ -267,9 +267,9 @@ impl SuitePort for SuiteLocalAdapter {
             let mut value: toml::Value = toml::from_str(&original)?;
             let table = value
                 .as_table_mut()
-                .ok_or_else(|| Error::Invalid("profile must be a table".into()))?;
+                .ok_or_else(|| Error::Invalid(crate::outbound::suite::adapters::local::constants::PROFILE_MUST_BE_A_TABLE.into()))?;
             table.insert(
-                "defaults".into(),
+                crate::outbound::suite::adapters::local::constants::DEFAULTS.into(),
                 toml::Value::Array(
                     authored
                         .iter()
@@ -278,7 +278,7 @@ impl SuitePort for SuiteLocalAdapter {
                 ),
             );
             table.insert(
-                "supporting-rules".into(),
+                crate::outbound::suite::adapters::local::constants::SUPPORTING_RULES.into(),
                 toml::Value::Array(
                     definitions
                         .iter()
@@ -287,9 +287,9 @@ impl SuitePort for SuiteLocalAdapter {
                         .collect(),
                 ),
             );
-            table.remove("pending");
-            table.remove("deferred");
-            for key in ["rule-observations", "rule-applicability"] {
+            table.remove(crate::outbound::suite::adapters::local::constants::PENDING);
+            table.remove(crate::outbound::suite::adapters::local::constants::DEFERRED);
+            for key in [crate::outbound::suite::adapters::local::constants::RULE_OBSERVATIONS, crate::outbound::suite::adapters::local::constants::RULE_APPLICABILITY] {
                 if let Some(entries) = table.get_mut(key).and_then(toml::Value::as_table_mut) {
                     entries.retain(|id, _| definitions.iter().any(|rule| rule.as_ref() == id));
                 }

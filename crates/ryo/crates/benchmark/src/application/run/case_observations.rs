@@ -43,10 +43,10 @@ pub(super) fn write(
             .iter()
             .map(|skip| {
                 serde_json::json!({
-                    "rule": skip.rule.as_ref(),
-                    "path": skip.path.0.as_ref(),
-                    "reason": match skip.reason {
-                        ryo::linter::SkipReason::SyntaxRejected => "syntax-rejected",
+                    crate::application::run::constants::RULE: skip.rule.as_ref(),
+                    crate::application::run::constants::PATH: skip.path.0.as_ref(),
+                    crate::application::run::constants::REASON: match skip.reason {
+                        ryo::linter::SkipReason::SyntaxRejected => crate::application::run::constants::SYNTAX_REJECTED,
                     },
                 })
             })
@@ -90,73 +90,73 @@ pub(super) fn write(
     };
     let context_identity = case.request.context_manifest.as_ref().map(|manifest| {
         let hash = crate::outbound::context::adapters::local::adapter::fingerprint(manifest);
-        serde_json::json!({ "mode": "listed-disk", "logical_root": manifest.logical_root,
-            "actual_root": case.request.root.to_string_lossy(), "manifest_hash": hash.0 })
+        serde_json::json!({ crate::application::run::constants::MODE: crate::application::run::constants::LISTED_DISK, crate::application::run::constants::LOGICAL_ROOT: manifest.logical_root,
+            crate::application::run::constants::ACTUAL_ROOT: case.request.root.to_string_lossy(), crate::application::run::constants::MANIFEST_HASH: hash.0 })
     });
     let mut record = serde_json::json!({
-        "observation_schema": "benchmark-case/v2",
-        "expectation_contract": "diagnostics",
-        "execution_metadata": report.map(|report| crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&report.execution_metadata)),
-        "rule": case.rule.as_ref(),
-        "name": case.name.to_string(),
-        "side": side,
-        "files": files,
-        "actual_request_root": case.request.root.to_string_lossy(),
-        "diagnostics": findings,
-        "skipped": skipped,
-        "coverage": report.and_then(|report| {
+        crate::application::run::constants::OBSERVATION_SCHEMA: crate::application::run::constants::BENCHMARK_CASE_V2,
+        crate::application::run::constants::EXPECTATION_CONTRACT: crate::application::run::constants::DIAGNOSTICS,
+        crate::application::run::constants::EXECUTION_METADATA: report.map(|report| crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&report.execution_metadata)),
+        crate::application::run::constants::RULE: case.rule.as_ref(),
+        crate::application::run::constants::NAME: case.name.to_string(),
+        crate::application::run::constants::SIDE: side,
+        crate::application::run::constants::FILES: files,
+        crate::application::run::constants::ACTUAL_REQUEST_ROOT: case.request.root.to_string_lossy(),
+        crate::application::run::constants::DIAGNOSTICS: findings,
+        crate::application::run::constants::SKIPPED: skipped,
+        crate::application::run::constants::COVERAGE: report.and_then(|report| {
             report.coverage.map(|coverage| {
                 serde_json::json!({
-                    "selected_rule_file_pairs": coverage.selected,
-                    "evaluated_rule_file_pairs": coverage.evaluated,
-                    "skipped_rule_file_pairs": coverage.skipped,
-                    "unknown_or_unread_rule_file_pairs": coverage.unknown_or_unread,
+                    crate::application::run::constants::SELECTED_RULE_FILE_PAIRS: coverage.selected,
+                    crate::application::run::constants::EVALUATED_RULE_FILE_PAIRS: coverage.evaluated,
+                    crate::application::run::constants::SKIPPED_RULE_FILE_PAIRS: coverage.skipped,
+                    crate::application::run::constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS: coverage.unknown_or_unread,
                 })
             })
         }),
-        "context_manifest": context_identity,
-        "project_context": report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
-        "expected": expected,
-        "reference_expected": super::discrepancy::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
-        "documented_reference_discrepancy": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect),
-        "documented_tool_contract_difference": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract),
-        "discrepancy_validation": validation,
-        "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        "diagnostics_match_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        "source_sha256": source_sha256,
-        "project_inputs_sha256": project_inputs_sha256,
-        "error": recorded_error,
-        "case_passed": passed && source_error.is_none(),
-        "complete": true,
+        crate::application::run::constants::CONTEXT_MANIFEST: context_identity,
+        crate::application::run::constants::PROJECT_CONTEXT: report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
+        crate::application::run::constants::EXPECTED: expected,
+        crate::application::run::constants::REFERENCE_EXPECTED: super::discrepancy::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
+        crate::application::run::constants::DOCUMENTED_REFERENCE_DISCREPANCY: case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect),
+        crate::application::run::constants::DOCUMENTED_TOOL_CONTRACT_DIFFERENCE: case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract),
+        crate::application::run::constants::DISCREPANCY_VALIDATION: validation,
+        crate::application::run::constants::RAW_PARITY_MATCHES_INTENDED: report.map(|actual| super::discrepancy::matches_intended(case, actual)),
+        crate::application::run::constants::DIAGNOSTICS_MATCH_INTENDED: report.map(|actual| super::discrepancy::matches_intended(case, actual)),
+        crate::application::run::constants::SOURCE_SHA256: source_sha256,
+        crate::application::run::constants::PROJECT_INPUTS_SHA256: project_inputs_sha256,
+        crate::application::run::constants::ERROR: recorded_error,
+        crate::application::run::constants::CASE_PASSED: passed && source_error.is_none(),
+        crate::application::run::constants::COMPLETE: true,
     });
     if let Some(context) = &case.request.rule_context {
-        record["rule_context"] = crate::outbound::worker::schemas::prepared_value(context);
+        record[crate::application::run::constants::RULE_CONTEXT] = crate::outbound::worker::schemas::prepared_value(context);
     }
     if let Some(declarations) = &case.request.rule_observations {
-        record["rule_observations"] =
+        record[crate::application::run::constants::RULE_OBSERVATIONS] =
             crate::outbound::worker::schemas::observation_declarations_value(declarations);
     }
     if let Some(selected) = &case.request.selected_rules {
-        record["selected_rules"] =
+        record[crate::application::run::constants::SELECTED_RULES] =
             serde_json::json!(selected.iter().map(ToString::to_string).collect::<Vec<_>>());
     }
     if let Some(digest) = &metadata_sha256 {
-        record["file_metadata_sha256"] = serde_json::json!(digest);
+        record[crate::application::run::constants::FILE_METADATA_SHA256] = serde_json::json!(digest);
     }
     let mut raw_invocation = capture.map(|capture| capture.invocation.clone());
     if let Some(invocation) = &mut raw_invocation {
-        invocation["source_sha256"] = serde_json::json!(source_sha256);
+        invocation[crate::application::run::constants::SOURCE_SHA256] = serde_json::json!(source_sha256);
         if let Some(digest) = &metadata_sha256 {
-            invocation["file_metadata_sha256"] = serde_json::json!(digest);
+            invocation[crate::application::run::constants::FILE_METADATA_SHA256] = serde_json::json!(digest);
         }
-        record["process_observation"] = serde_json::json!({
-            "kind":"process-failure", "exit":invocation["exit"], "signal":invocation["signal"],
-            "actual_request_root":invocation["actual_request_root"], "observer_no_deadline":invocation["observer_no_deadline"],
-            "executable_sha256":invocation["executable_sha256"], "settings_sha256":invocation["settings_sha256"],
-            "metadata_error":invocation.get("metadata_error"),
-            "template_sha256":super::process_discrepancy::expected(case).map(|process| super::process_discrepancy::output_digest(process).0),
+        record[crate::application::run::constants::PROCESS_OBSERVATION] = serde_json::json!({
+            crate::application::run::constants::KIND:crate::application::run::constants::PROCESS_FAILURE, crate::application::run::constants::EXIT:invocation[crate::application::run::constants::EXIT], crate::application::run::constants::SIGNAL:invocation[crate::application::run::constants::SIGNAL],
+            crate::application::run::constants::ACTUAL_REQUEST_ROOT:invocation[crate::application::run::constants::ACTUAL_REQUEST_ROOT], crate::application::run::constants::OBSERVER_NO_DEADLINE:invocation[crate::application::run::constants::OBSERVER_NO_DEADLINE],
+            crate::application::run::constants::EXECUTABLE_SHA256:invocation[crate::application::run::constants::EXECUTABLE_SHA256], crate::application::run::constants::SETTINGS_SHA256:invocation[crate::application::run::constants::SETTINGS_SHA256],
+            crate::application::run::constants::METADATA_ERROR:invocation.get(crate::application::run::constants::METADATA_ERROR),
+            crate::application::run::constants::TEMPLATE_SHA256:super::process_discrepancy::expected(case).map(|process| super::process_discrepancy::output_digest(process).0),
         });
-        record["raw_parity_matches_intended"] = serde_json::json!(false);
+        record[crate::application::run::constants::RAW_PARITY_MATCHES_INTENDED] = serde_json::json!(false);
     }
     let key = crate::domain::suite::process::service::observation_key(
         case.rule.as_ref(),

@@ -20,46 +20,46 @@ pub fn validate(
         if !registration.defaults.contains(&rule.rule_id) || !registered_rules.insert(&rule.rule_id)
         {
             return Err(Error::Invalid(
-                "unknown or duplicate receipt registration rule".into(),
+                crate::application::run::constants::UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU.into(),
             ));
         }
         for case in &rule.cases {
-            let name = case["name"]
+            let name = case[crate::application::run::constants::NAME]
                 .as_str()
                 .filter(|name| !name.is_empty())
-                .ok_or_else(|| Error::Invalid("registered case name is missing".into()))?;
-            if case["rule"] != rule.rule_id
+                .ok_or_else(|| Error::Invalid(crate::application::run::constants::REGISTERED_CASE_NAME_IS_MISSING.into()))?;
+            if case[crate::application::run::constants::RULE] != rule.rule_id
                 || cases
                     .insert((rule.rule_id.clone(), name.to_owned()), case)
                     .is_some()
             {
                 return Err(Error::Invalid(
-                    "unknown or duplicate registered case".into(),
+                    crate::application::run::constants::UNKNOWN_OR_DUPLICATE_REGISTERED_CASE.into(),
                 ));
             }
         }
     }
     if cases.is_empty() {
         return Err(Error::Invalid(
-            "receipt validation requires registered cases".into(),
+            crate::application::run::constants::RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES.into(),
         ));
     }
     let mut grouped = BTreeMap::<(String, String), Vec<serde_json::Value>>::new();
     for row in &captured.records {
         let key = (
-            row["rule"]
+            row[crate::application::run::constants::RULE]
                 .as_str()
-                .ok_or_else(|| Error::Invalid("missing observed rule".into()))?
+                .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_RULE.into()))?
                 .to_owned(),
-            row["name"]
+            row[crate::application::run::constants::NAME]
                 .as_str()
-                .ok_or_else(|| Error::Invalid("missing observed case".into()))?
+                .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_CASE.into()))?
                 .to_owned(),
         );
         if !cases.contains_key(&key)
-            || !matches!(row["side"].as_str(), Some("reference" | "candidate"))
+            || !matches!(row[crate::application::run::constants::SIDE].as_str(), Some(crate::application::run::constants::REFERENCE | crate::application::run::constants::CANDIDATE))
         {
-            return Err(Error::Invalid("unregistered receipt identity".into()));
+            return Err(Error::Invalid(crate::application::run::constants::UNREGISTERED_RECEIPT_IDENTITY.into()));
         }
         grouped.entry(key).or_default().push(row.clone());
     }
@@ -87,7 +87,7 @@ pub fn validate(
                     ));
                 }
                 if documented > 0
-                    && case["reference_discrepancy"]["basis"] == "tool-contract-difference"
+                    && case[crate::application::run::constants::REFERENCE_DISCREPANCY][crate::application::run::constants::BASIS] == crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE
                 {
                     audit.tool_contract_differences.push(key.clone());
                 }

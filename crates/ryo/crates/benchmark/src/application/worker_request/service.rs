@@ -21,7 +21,7 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
     let selected_rules = request
         .selected_rules
         .clone()
-        .ok_or_else(|| Error::Invalid("worker requires a resolved diagnostic selection".into()))?;
+        .ok_or_else(|| Error::Invalid(crate::application::worker_request::constants::WORKER_REQUIRES_A_RESOLVED_DIAGNOSTIC_SELECT.into()))?;
     if let Some(context) = &request.rule_context {
         crate::domain::suite::rule_context::check(context, &request.files)?;
         crate::domain::suite::rule_context::check_selection(
@@ -45,7 +45,7 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
         && request.project_search_roots.is_none()
     {
         return Err(Error::Invalid(
-            "complete Given project inventory requires declared search roots".into(),
+            crate::application::worker_request::constants::COMPLETE_GIVEN_PROJECT_INVENTORY_REQUIRES_DE.into(),
         ));
     }
     if request.project_context_mode == ProjectContextMode::ListedDisk
@@ -54,7 +54,7 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
                 != ryo::linter::ProjectInventoryCompleteness::Partial)
     {
         return Err(Error::Invalid(
-            "Given project inventory cannot override a sealed disk context".into(),
+            crate::application::worker_request::constants::GIVEN_PROJECT_INVENTORY_CANNOT_OVERRIDE_A.into(),
         ));
     }
     let selected_missing = match (request.project_context_mode, &request.context_manifest) {
@@ -110,7 +110,7 @@ pub fn configure<'a>(
     let request = session.request();
     if !std::ptr::eq(expected, request) {
         return Err(Error::Invalid(
-            "loaded engine session belongs to another received request".into(),
+            crate::application::worker_request::constants::LOADED_ENGINE_SESSION_BELONGS_TO_ANOTHER.into(),
         ));
     }
     let missing = classify(request)?;

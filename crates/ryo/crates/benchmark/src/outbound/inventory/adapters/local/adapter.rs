@@ -15,18 +15,18 @@ fn publish(output: &Path, summary: &Summary) -> Result<(), String> {
     std::fs::create_dir_all(output).map_err(|e| e.to_string())?;
     let mut temporary = tempfile::NamedTempFile::new_in(output).map_err(|e| e.to_string())?;
     serde_json::to_writer_pretty(&mut temporary, summary).map_err(|e| e.to_string())?;
-    temporary.write_all(b"\n").map_err(|e| e.to_string())?;
+    temporary.write_all(crate::outbound::inventory::adapters::local::constants::NEWLINE).map_err(|e| e.to_string())?;
     temporary.as_file().sync_all().map_err(|e| e.to_string())?;
     let _persisted = temporary
-        .persist(output.join("summary.json"))
+        .persist(output.join(crate::outbound::inventory::adapters::local::constants::SUMMARY_JSON))
         .map_err(|e| e.to_string())?;
     Ok(())
 }
 /// Keep the exact child streams before interpreting its result.
 fn streams(directory: &Path, stdout: &[u8], stderr: &[u8]) -> Result<(), String> {
     std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
-    std::fs::write(directory.join("stdout.bin"), stdout).map_err(|e| e.to_string())?;
-    std::fs::write(directory.join("stderr.bin"), stderr).map_err(|e| e.to_string())
+    std::fs::write(directory.join(crate::outbound::inventory::adapters::local::constants::STDOUT_BIN), stdout).map_err(|e| e.to_string())?;
+    std::fs::write(directory.join(crate::outbound::inventory::adapters::local::constants::STDERR_BIN), stderr).map_err(|e| e.to_string())
 }
 /// Read actual per-side observations; absence and malformed records remain errors.
 fn observations(path: &Path) -> Result<Vec<serde_json::Value>, String> {
@@ -40,23 +40,23 @@ fn observations(path: &Path) -> Result<Vec<serde_json::Value>, String> {
 fn result(directory: &Path, row: &Row) -> Result<(), String> {
     std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
     let bytes = serde_json::to_vec_pretty(row).map_err(|e| e.to_string())?;
-    std::fs::write(directory.join("result.json"), bytes).map_err(|e| e.to_string())
+    std::fs::write(directory.join(crate::outbound::inventory::adapters::local::constants::RESULT_JSON), bytes).map_err(|e| e.to_string())
 }
 
 /// Refuse stale result reuse while allowing the provider's already staged reproductions.
 fn begin(output: &Path) -> Result<(), String> {
-    if output.join("summary.json").exists() {
-        return Err("inventory output already contains a summary".into());
+    if output.join(crate::outbound::inventory::adapters::local::constants::SUMMARY_JSON).exists() {
+        return Err(crate::outbound::inventory::adapters::local::constants::INVENTORY_OUTPUT_ALREADY_CONTAINS_A_SUMMARY.into());
     }
     std::fs::create_dir_all(output).map_err(|e| e.to_string())
 }
 /// Each invocation owns fresh native case receipts.
 fn prepare(directory: &Path) -> Result<(), String> {
-    if ["cases.jsonl", "stdout.bin", "stderr.bin", "result.json"]
+    if [crate::outbound::inventory::adapters::local::constants::CASES_JSONL, crate::outbound::inventory::adapters::local::constants::STDOUT_BIN, crate::outbound::inventory::adapters::local::constants::STDERR_BIN, crate::outbound::inventory::adapters::local::constants::RESULT_JSON]
         .iter()
         .any(|name| directory.join(name).exists())
     {
-        return Err("inventory rule output already contains receipts".into());
+        return Err(crate::outbound::inventory::adapters::local::constants::INVENTORY_RULE_OUTPUT_ALREADY_CONTAINS_RECEI.into());
     }
     std::fs::create_dir_all(directory).map_err(|e| e.to_string())
 }
@@ -96,7 +96,7 @@ impl InventoryPort for InventoryLocalAdapter {
             ..
         } = authority
         else {
-            return Err("receipt-only registration cannot execute".into());
+            return Err(crate::outbound::inventory::adapters::local::constants::RECEIPT_ONLY_REGISTRATION_CANNOT_EXECUTE.into());
         };
         let tool = self
             .suite
@@ -109,7 +109,7 @@ impl InventoryPort for InventoryLocalAdapter {
                 .map_err(|e| format!("inventory artifact {}: {e}", path.display()))
         };
         Ok(CanonicalFacts {
-            profile_sha256: read(&profile.join("benchmark.toml"))?,
+            profile_sha256: read(&profile.join(crate::outbound::inventory::adapters::local::constants::BENCHMARK_TOML))?,
             reference_sha256: read(&reference.path)?,
             worker_sha256: read(&worker.path)?,
             defaults: tool.defaults.iter().map(ToString::to_string).collect(),
@@ -124,13 +124,13 @@ impl InventoryPort for InventoryLocalAdapter {
         artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
     ) -> Result<crate::outbound::inventory::types::ContextFacts, String> {
         if artifacts.is_empty() {
-            return Err("registered case context is empty".into());
+            return Err(crate::outbound::inventory::adapters::local::constants::REGISTERED_CASE_CONTEXT_IS_EMPTY.into());
         }
         let root = context
             .canonicalize()
             .map_err(|e| format!("registered context {}: {e}", context.display()))?;
         if root != context {
-            return Err("registered context must be canonical and absolute".into());
+            return Err(crate::outbound::inventory::adapters::local::constants::REGISTERED_CONTEXT_MUST_BE_CANONICAL_AND.into());
         }
         let mut pending = vec![root.clone()];
         let mut files = std::collections::BTreeSet::new();
@@ -143,12 +143,12 @@ impl InventoryPort for InventoryLocalAdapter {
                 } else if kind.is_file() {
                     files.insert(entry.path());
                 } else {
-                    return Err("registered context contains non-regular entry".into());
+                    return Err(crate::outbound::inventory::adapters::local::constants::REGISTERED_CONTEXT_CONTAINS_NON_REGULAR_ENTR.into());
                 }
             }
         }
         if files != artifacts.keys().cloned().collect() {
-            return Err("registered context namespace differs from pinned artifacts".into());
+            return Err(crate::outbound::inventory::adapters::local::constants::REGISTERED_CONTEXT_NAMESPACE_DIFFERS_FROM_PI.into());
         }
         for (path, expected) in artifacts {
             let actual = self
@@ -201,7 +201,7 @@ impl InventoryPort for InventoryLocalAdapter {
         stderr: &[u8],
     ) -> Result<CapturedObservation, String> {
         streams(directory, stdout, stderr)?;
-        let path = directory.join("cases.jsonl");
+        let path = directory.join(crate::outbound::inventory::adapters::local::constants::CASES_JSONL);
         if !path.is_file() {
             return Ok(CapturedObservation {
                 artifacts: std::collections::BTreeMap::new(),
@@ -218,7 +218,7 @@ impl InventoryPort for InventoryLocalAdapter {
 
 impl std::fmt::Debug for InventoryLocalAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InventoryLocalAdapter")
+        f.debug_struct(crate::outbound::inventory::adapters::local::constants::INVENTORYLOCALADAPTER)
             .finish_non_exhaustive()
     }
 }

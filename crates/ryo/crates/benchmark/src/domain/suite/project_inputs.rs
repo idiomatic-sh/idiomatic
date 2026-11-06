@@ -22,23 +22,23 @@ pub fn value(
         .iter()
         .map(|entry| {
             let state = match entry.state {
-                ProjectEntryState::File => "file",
-                ProjectEntryState::Directory => "directory",
-                ProjectEntryState::Other => "other",
-                ProjectEntryState::Missing => "missing",
-                ProjectEntryState::Unknown => "unknown",
+                ProjectEntryState::File => crate::domain::suite::constants::FILE,
+                ProjectEntryState::Directory => crate::domain::suite::constants::DIRECTORY,
+                ProjectEntryState::Other => crate::domain::suite::constants::OTHER,
+                ProjectEntryState::Missing => crate::domain::suite::constants::MISSING,
+                ProjectEntryState::Unknown => crate::domain::suite::constants::UNKNOWN,
             };
-            serde_json::json!({"path": entry.path.0.as_ref(), "state": state})
+            serde_json::json!({crate::domain::suite::constants::PATH: entry.path.0.as_ref(), crate::domain::suite::constants::STATE: state})
         })
         .collect::<Vec<_>>();
     Some(serde_json::json!({
-        "project_search_roots": roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
-        "given_project_inventory": {
-            "completeness": match inventory.completeness {
-                ProjectInventoryCompleteness::Partial => "partial",
-                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => "complete-within-declared-scope",
+        crate::domain::suite::constants::PROJECT_SEARCH_ROOTS: roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
+        crate::domain::suite::constants::GIVEN_PROJECT_INVENTORY: {
+            crate::domain::suite::constants::COMPLETENESS: match inventory.completeness {
+                ProjectInventoryCompleteness::Partial => crate::domain::suite::constants::PARTIAL,
+                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => crate::domain::suite::constants::COMPLETE_WITHIN_DECLARED_SCOPE,
             },
-            "entries": entries,
+            crate::domain::suite::constants::ENTRIES: entries,
         }
     }))
 }
@@ -59,15 +59,15 @@ pub fn digest(
 #[cfg(test)]
 #[test]
 fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
-    let roots = [RelativePath("src".into()), RelativePath("vendor".into())];
+    let roots = [RelativePath(crate::domain::suite::constants::SRC.into()), RelativePath(crate::domain::suite::constants::VENDOR.into())];
     let inventory = GivenProjectInventory {
         entries: vec![
             ryo::linter::ProjectEntryObservation {
-                path: RelativePath("src/pkg".into()),
+                path: RelativePath(crate::domain::suite::constants::SRC_PKG.into()),
                 state: ProjectEntryState::Directory,
             },
             ryo::linter::ProjectEntryObservation {
-                path: RelativePath("vendor/pkg.py".into()),
+                path: RelativePath(crate::domain::suite::constants::VENDOR_PKG_PY.into()),
                 state: ProjectEntryState::Missing,
             },
         ],
@@ -75,16 +75,16 @@ fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
     };
     assert_eq!(
         digest(Some(&roots), &inventory)
-            .expect("digest")
+            .expect(crate::domain::suite::constants::DIGEST)
             .map(|value| value.0),
-        Some("ff9b78535b775babaadae518c198876aa1c27ef21d0abb75e04588c25638df7d".into())
+        Some(crate::domain::suite::constants::FF9B78535B775BABAADAE518C198876AA1C27EF21D0A.into())
     );
     assert_eq!(
-        digest(None, &GivenProjectInventory::default()).expect("legacy"),
+        digest(None, &GivenProjectInventory::default()).expect(crate::domain::suite::constants::LEGACY),
         None
     );
     assert_ne!(
-        digest(Some(&roots), &inventory).expect("original"),
-        digest(Some(&roots[..1]), &inventory).expect("changed root authority")
+        digest(Some(&roots), &inventory).expect(crate::domain::suite::constants::ORIGINAL),
+        digest(Some(&roots[..1]), &inventory).expect(crate::domain::suite::constants::CHANGED_ROOT_AUTHORITY)
     );
 }

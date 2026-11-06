@@ -8,14 +8,14 @@ pub(crate) fn publish(
     samples: &[BenchmarkSample],
 ) -> Result<(), Error> {
     if samples.is_empty() {
-        return Err(Error::Invalid("no measured evidence".into()));
+        return Err(Error::Invalid(crate::application::run::constants::NO_MEASURED_EVIDENCE.into()));
     }
     if samples
         .iter()
         .any(|sample| sample.eligibility != MeasurementEligibility::CompleteInventory)
     {
         return Err(Error::Invalid(
-            "diagnostic observations cannot publish benchmark metrics".into(),
+            crate::application::run::constants::DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH_BENCH.into(),
         ));
     }
     let observations = samples

@@ -104,10 +104,10 @@ impl LinterPort for LinterRyoAdapter {
                 .rule_applicability
                 .get(skip.rule.as_ref())
                 .map(String::as_str)
-                != Some("accepted-syntax")
+                != Some(crate::outbound::linter::adapters::ryo::constants::ACCEPTED_SYNTAX)
             {
                 return Err(Error::Invalid(
-                    "candidate skipped an undeclared or always-applicable rule".into(),
+                    crate::outbound::linter::adapters::ryo::constants::CANDIDATE_SKIPPED_AN_UNDECLARED_OR_ALWAYS.into(),
                 ));
             }
         }
@@ -132,7 +132,7 @@ impl LinterPort for LinterRyoAdapter {
             )?,
             _ => {
                 return Err(Error::Invalid(
-                    "candidate context mode, manifest and receipt disagree".into(),
+                    crate::outbound::linter::adapters::ryo::constants::CANDIDATE_CONTEXT_MODE_MANIFEST_AND_RECEIPT.into(),
                 ));
             }
         }
