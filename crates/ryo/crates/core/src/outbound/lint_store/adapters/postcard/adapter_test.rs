@@ -9,7 +9,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::fixtures::contract::{check, materialized_handed};
 use crate::outbound::lint_store::fixtures::fake::{
-    again, over_a_b_d_and_e, over_b_and_d, stored, words_of,
+    again, over_a_b_d_and_e, over_b_and_d, register_proofs, stored, words_of,
 };
 use crate::outbound::lint_store::interface::LintStorePort as _;
 use crate::outbound::lint_store::types::{BuildIdentity, CacheDirectory, Store};
@@ -300,6 +300,7 @@ fn another_process_kept_between_the_read_and_the_keep(
         mine.files.push(copy);
     }
     mine.handed.frontier = vec![words_of(2, 13)];
+    register_proofs(&mut mine.handed);
     read_by_first.keep(
         mine,
         &KeptRows {
@@ -324,6 +325,7 @@ fn only_the_buckets_asked_are_decoded(
         each.bucket = Bucket(5);
     }
     two.handed.frontier.extend(other);
+    register_proofs(&mut two.handed);
     store.stored()?.keep(two.clone(), &KeptRows::default())?;
     damage_bucket(directory, "build-1", Bucket(5));
     let reader = store_in(directory, "build-1");
@@ -870,6 +872,7 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
         let mut other = source.handed.frontier[0].clone();
         other.bucket = Bucket(17);
         source.handed.frontier.push(other);
+        register_proofs(&mut source.handed);
         store
             .stored()
             .unwrap()

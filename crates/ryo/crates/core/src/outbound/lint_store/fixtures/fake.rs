@@ -176,6 +176,29 @@ impl ReadStore for FakeRead {
     }
 }
 
+/// Registers, in `handed.proofs`, the proof of every frontier row that has none: a store keeps a frontier payload only under
+/// the exact proof of its (file, bucket), as a run issues it. The fixtures replace frontier rows, so they register their proofs here.
+pub fn register_proofs(handed: &mut StoredHanded) {
+    for row in &handed.frontier {
+        if !handed
+            .proofs
+            .iter()
+            .any(|each| each.file == row.file && each.bucket == row.bucket)
+        {
+            handed
+                .proofs
+                .push(ryo_values::domain::stores::types::StoredFrontierProof {
+                    file: row.file,
+                    bucket: row.bucket,
+                    proof: row.proof.clone(),
+                });
+        }
+    }
+    handed
+        .proofs
+        .sort_by_key(|each| (each.file.0, each.bucket.0));
+}
+
 /// The words one file handed, in bucket 3.
 #[must_use]
 pub fn words_of(file: u32, word: u8) -> StoredWords {
@@ -202,6 +225,7 @@ pub fn over_b_and_d() -> Stored {
     let mut first = stored(1);
     first.files.truncate(2);
     first.handed.frontier = vec![words_of(0, 10), words_of(1, 11)];
+    register_proofs(&mut first.handed);
     first
 }
 
@@ -213,6 +237,7 @@ pub fn over_a_b_d_and_e() -> (Stored, KeptRows) {
         second.files = vec![file; 4];
     }
     second.handed.frontier = vec![words_of(0, 1), words_of(3, 13)];
+    register_proofs(&mut second.handed);
     (
         second,
         KeptRows {

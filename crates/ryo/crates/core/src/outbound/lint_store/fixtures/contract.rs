@@ -3,7 +3,9 @@
 use super::super::errors::LintStoreError;
 use super::super::interface::{LintStorePort, ReadStore};
 use super::super::types::StoreKeeping;
-use super::fake::{again, failed, over_a_b_d_and_e, over_b_and_d, stored, words_of};
+use super::fake::{
+    again, failed, over_a_b_d_and_e, over_b_and_d, register_proofs, stored, words_of,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
@@ -198,6 +200,7 @@ fn answer(
             kept(stored(1), &KeptRows::default())?;
             let mut again = stored(2);
             again.handed.frontier = vec![read_now.clone()];
+            register_proofs(&mut again.handed);
             kept(
                 again.clone(),
                 &KeptRows {
@@ -248,6 +251,7 @@ fn keeps_against_the_store_it_read(store: &dyn LintStorePort) -> Result<Value, F
         mine.files.push(copy);
     }
     mine.handed.frontier = vec![words_of(2, 13)];
+    register_proofs(&mut mine.handed);
     first.keep(
         mine,
         &KeptRows {
