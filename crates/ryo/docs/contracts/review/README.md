@@ -1,70 +1,75 @@
 # Engine consolidation review
 
-This branch is a **combined work-in-progress snapshot, not a passing candidate**.
-It includes all active scheduling/walk, issuer/proof, test-placement and 13-kind
-derived-view changes. Phase4 source was frozen at `22f955ed4f`; its overlap with
-the newer runtime/preparation ownership split was resolved here without a build.
+Reviewer brief for the integration branch `claude/ryo-consolidation`, which
+carries the engine consolidation (epic ryo-9ukc) toward the phases in
+[the matrix](../README.md). One phase is active at a time; integration is never
+red except for the known-red list below.
 
-## Context
+## Branch
 
-Ryo must reach full413-rule Ruff parity and eventually subsecond full-Django
-execution with low memory, preserving Rust correctness/performance. The current
-lift replaces dispersed per-rule scheduling and resource policy with one
-request-wide program and a demand-driven shared file walk.
+Checkpoints 310-317 are evidence commits on the branch; each names the batches
+it merged and the validation it ran.
 
-Keep the agreed architecture: semantic crates expose inbound APIs; execution owns
-scheduling, admission, sharing, invalidation and lifetime. Required capabilities
-must prevent bypasses. No optional owners, alternate executors or compatibility
-reexports. Use cases/services should make control flow obvious; concept names
-belong in directories and roles in filenames.
+| Checkpoint | Sha | Landed |
+|---|---|---|
+| 310 | `18fe9b6916` | sparse-activation, route-coverage and tm-fixture batches |
+| 311 | `d92fce4796` | Phase 2 scheduling (structure, submission, lifecycle) |
+| 312 | `51aeb2cf4b` | Phase 3 shared-walk batches |
+| 313 | `4966f7e3f9` | Phase 2 review repairs, runtime structure |
+| 314 | `cd2b23f100` | Phase 4 derived ownership, Phase 3 repairs |
+| 315 | `7e93be040a` | Phase 2/3 repairs, rule re-version, Phase 5 fusion and route |
+| 316 | `1e3eba5c90` | Phase 6 reuse and invalidation, Phase 4 census and bypasses |
+| 317 | `d3f16fcd11` | Phase 7 TM batches (whole-tree TM 8,060 to 4,251) |
 
-Work order: phases **2–6 consolidation**, then phase1 output repairs and phase7
-acceptance. Output regressions may wait; architectural violations may not.
-No new performance runs during consolidation.
+## How work lands
 
-## Review
+Builders write uncompiled batches on side branches. The integrator merges them,
+compiles once, runs the committed validation set, and lands only green. The
+checkpoint commit message carries the numbers. Review the exact merged source,
+never a branch tip.
 
-- [ ] Trace every constructor, acquisition, dispatch, replay and release route;
-      prove callers cannot forge or retarget authority, including aliases/Self.
-- [ ] Verify exact publication/proof, owner/generation and descriptor/source
-      identity. Check same-owner mismatches, stale inputs and failure paths.
-- [ ] Check all13 derived kinds use the common acquisition/lease owner, including
-      raw ordering, graph views and selection. A moved crate is not proof.
-- [ ] Check shared-walk coverage includes synthetic observation unions and every
-      admitted class. Distinguish configured413 coverage from representative tests.
-- [ ] Inspect real positive/negative tests and TM enforcement; flag missing routes,
-      dependency cycles, mixed responsibilities and stale matrix claims.
+## Evidence
 
-Return PASS/FAIL for **enforced boundaries**, **ownership/readability**, and
-**proof coverage**. For each blocker give file:line, a concrete failing example,
-its rightful owner, and the enforcement that would prevent recurrence.
+[`evidence/checkpoint/validation.json`](../evidence/checkpoint/validation.json)
+and `identity.json` (source revision plus the command list) are committed; the
+set is described in the [checkpoint README](../evidence/checkpoint/README.md).
+Raw logs live under `/tmp` per run and are never committed.
 
-## Evidence and limits
+## How reviews run
 
-- Last successful combined build: `36e92e315`; execution433 passed/1 project
-  lifecycle failure, public boundaries90/90, Core175 passed/6 deferred failures.
-  Actual413 sharing failed before execution on a missing tracked fixture path;
-  the fixture correction is now present but unverified.
-- Newer issuer build on `ce26dd006a` failed with import/column-inference and test
-  ownership errors. Import and Rc teardown repairs are included here, unverified.
-- **This combined Phase4 snapshot has not been compiled or tested.** Its author
-  reported75 TM findings; exhaustive13 owner tests, raw-order lifetime controls
-  and Phase4 Rust/TM bypass enforcement are unfinished.
-- Runtime lifecycle tests still use a nonstandard `#[path]` registration;
-  conventional placement is required. Broader cycles/TM findings remain open.
-- No phase is complete; no performance gain is claimed.
+The [contract-review agent](../../../../../.agents/agents/contract-review.md)
+runs each review. Astra is unavailable, so Opus is the single independent
+reviewer. Each phase writes a verdict JSON (`contract-review-verdict/v1`) under
+`audits/2026-11-06-phase<N>/`. A BLOCKING verdict gates the matrix tick for its
+rows, not the merge. Source changes invalidate a verdict; pin fresh
+base/head/tree each round.
 
-Start with [the matrix](../README.md), [execution plan](../execution-plan.md),
-[paired review](../audits/2026-11-06-ownership/review.json), and
+## Review priorities
+
+The five adversarial bullets in the agent file apply unchanged: callers and
+bypasses, authority and identity, derived-kind ownership, shared-walk coverage
+of the configured 413 rules, and real positive and negative tests with TM
+enforcement. See "Adversarial pass" and "Architectural enforcement" there.
+
+## Known red
+
+- `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
+  file): a Phase 7 measurement, bead ryo-l3mj.
+- Python `ruff` target, Phase 1: 11 passed / 1 failed,
+  `i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory`
+  (the syntax-poisoning case), bead ryo-xqxb.
+
+## Verification limits
+
+Not covered by the latest validation (`validation.json`, source `18f96bccd7`,
+checkpoint 317; "not full product acceptance"):
+
+- Whole-tree TM is measured, not clean: 4,251 findings, 0 suppressed.
+- Derived-scope TM findings are deferred (`tm_source`: 53 findings, 21 of them
+  derived-scope bare integers/bool).
+- No new performance measurement; the benchmark harness is not part of the set.
+- Cli replay/blocks/lint tests and the core performance bench do not compile
+  (bead ryo-4i09).
+
+Links: [matrix](../README.md), [execution plan](../execution-plan.md),
 [reviewer instructions](../../../../../.agents/agents/contract-review.md).
-Source hotspots: `execution/src/application/file_dag/program/`,
-`execution/src/application/file_dag/derived/owner/acquisition/`,
-`execution/src/domain/shared_walk/`, and `derived/src/inbound/use_cases/derived/`
-(relative to `crates/ryo/crates`). The production sharing proof is
-`languages/python/benchmarks/linters/ruff/sharing/` under `crates/ryo`.
-
-First checkpoint: build execution, derived, operators, matching, values,
-query_language, core, SDK and Python together (`--all-features --tests
---keep-going -j4`), then repair diagnostics in batches. Preserve the existing
-build cache and serialize heavy commands. Run production boundary/lifecycle
-and `ruff_sharing` tests after compilation; no performance run or suppression.
