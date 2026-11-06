@@ -10,5 +10,5 @@ mod fixtures;
 #[cfg(test)]
 mod project;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 mod restoration;
