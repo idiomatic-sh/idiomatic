@@ -2,8 +2,8 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
-    service::{classify, float_text},
-    types::{NumericClassification, NumericValue},
+    service::{classify, write_float},
+    types::{FloatBits, FloatBuffer, NumericClassification, NumericValue},
 };
 use crate::domain::semantic_syntax::service::positions;
 use crate::fixtures::reading::parsed;
@@ -12,6 +12,11 @@ use ryo::languages::{self, ByteSlice, Tree};
 struct NumericLiteral {
     kind: &'static str,
     value: String,
+}
+
+fn float_text(bits: u64) -> String {
+    let mut buffer = FloatBuffer([0; crate::domain::numeric_literals::constants::FLOAT_TEXT_BYTES]);
+    write_float(FloatBits(bits), &mut buffer).0.to_owned()
 }
 
 fn literals(source: &'static str) -> Vec<NumericLiteral> {
@@ -24,10 +29,10 @@ fn literals(source: &'static str) -> Vec<NumericLiteral> {
     positions(&tree)
         .filter_map(|at| match classify(&tree, at) {
             NumericClassification::Known(value) => Some(NumericLiteral {
-                kind: value.kind,
+                kind: value.kind.0,
                 value: match value.value {
-                    NumericValue::Integer(text) => text.to_owned(),
-                    NumericValue::Float(bits) => float_text(bits),
+                    NumericValue::Integer(text) => text.0.to_owned(),
+                    NumericValue::Float(bits) => float_text(bits.0),
                 },
             }),
             NumericClassification::NotNumeric => None,

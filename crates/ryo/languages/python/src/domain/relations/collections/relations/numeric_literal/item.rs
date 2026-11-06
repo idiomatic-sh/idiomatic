@@ -28,7 +28,7 @@ ryo::reads! {
                     partial INCOMPLETE => languages::Missing::Any;
                 }
                 NumericClassification::Known(numeric) => {
-                    given kind = languages::intern_derived(symbols, tree.source, languages::NameText(numeric.kind));
+                    given kind = languages::intern_derived(symbols, tree.source, numeric.kind);
                     given value = intern_value(symbols, tree.source, &numeric);
                     row { id: node(expression), kind: value(kind), value: value(value), file: file, span: span(expression), }
                 }
