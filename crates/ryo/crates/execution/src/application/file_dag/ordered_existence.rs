@@ -78,7 +78,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
 pub(super) fn evaluate(
     semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
     shape: &crate::domain::executable_program::types::OrderedExistence,
-    admitted: &super::relations::AdmittedNumber<'_>,
+    admitted: &super::relations::number::service::AdmittedNumber<'_>,
     rows: BorrowedRows<'_>,
     context: &mut crate::domain::operating::types::OperatorContext<'_>,
     row: &mut Vec<Value>,

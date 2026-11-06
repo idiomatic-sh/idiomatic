@@ -8,7 +8,7 @@ pub(super) const ISSUER: &str =
     "src/application/file_dag/derived/owner/acquisition/admission/service.rs";
 const AUTHORIZED: &str = r#"
 mod derived_authorized {
-    use crate::application::file_dag::relations::{RelationOwner, AdmittedInput};
+    use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
     use crate::application::file_dag::program::runtime::service::KernelPermit;
     use crate::domain::derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch};
     use crate::domain::operating::errors::OperatingError;

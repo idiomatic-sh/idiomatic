@@ -1,7 +1,7 @@
 //! A compact selected publication can be minted only by its admitted producer.
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
-use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
+use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use crate::domain::{
     executable_program::selection::SelectionAlternative,
     operating::{errors::OperatingError, types::OperatorContext},
@@ -114,9 +114,14 @@ pub(super) fn acquire(
         scratch: &mut *context.scratch,
     };
     let before = owner.derived.selector_work()?;
-    let result = owner
-        .derived
-        .select(shape.selector(), *columns, owner, publication, &proof, &mut rebound);
+    let result = owner.derived.select(
+        shape.selector(),
+        *columns,
+        owner,
+        publication,
+        &proof,
+        &mut rebound,
+    );
     let after = owner.derived.selector_work()?;
     work.found(0, after.0[0].saturating_sub(before.0[0]));
     result

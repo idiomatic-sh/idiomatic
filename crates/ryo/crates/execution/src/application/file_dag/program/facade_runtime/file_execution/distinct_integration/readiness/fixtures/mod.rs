@@ -105,8 +105,10 @@ impl KernelInvocation for ReadyAdapter<'_> {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    > {
         self.actual.positions(permit, context, scratch)
     }
     fn selected(
@@ -115,8 +117,10 @@ impl KernelInvocation for ReadyAdapter<'_> {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    > {
         self.actual.selected(shape, permit, context, scratch)
     }
     fn column(

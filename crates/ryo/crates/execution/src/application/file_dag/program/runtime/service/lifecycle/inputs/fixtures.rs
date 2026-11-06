@@ -201,8 +201,10 @@ impl TestInputs {
     }
 }
 impl Inputs for TestInputs {
-    fn population_scope(&self) -> crate::application::file_dag::relations::ProducerScope {
-        crate::application::file_dag::relations::ProducerScope::File
+    fn population_scope(
+        &self,
+    ) -> crate::application::file_dag::relations::publication::types::ProducerScope {
+        crate::application::file_dag::relations::publication::types::ProducerScope::File
     }
     fn supply(
         &mut self,
@@ -262,7 +264,7 @@ impl Inputs for TestInputs {
         root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        publication: crate::application::file_dag::relations::PublishedInput,
+        publication: crate::application::file_dag::relations::handle::service::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
         let readiness = crate::application::file_dag::program::admission::contributor_readiness(
             partition,
@@ -289,7 +291,7 @@ impl Inputs for TestInputs {
         root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        publication: crate::application::file_dag::relations::PublishedInput,
+        publication: crate::application::file_dag::relations::handle::service::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
         self.publish_positions(root, partition, inputs, publication)
     }

@@ -1,5 +1,5 @@
 //! The application owns each invocation's mutable allocations and release boundary.
-use super::relations::AdmittedInput;
+use super::relations::admission::service::AdmittedInput;
 use crate::domain::{
     derived_views::types::PreparedViewUse,
     operating::{errors::OperatingError, types::OperatorContext},
@@ -22,7 +22,8 @@ pub(crate) struct InvocationWorkspace {
     pub progress_origin: super::route_counts::CapturedOrigin,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
-    pub publications: Vec<Option<crate::application::file_dag::relations::PublishedInput>>,
+    pub publications:
+        Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
     #[cfg(test)]
     pub observation: crate::domain::operating::types::ExecutionObservation,
     pub downstream_scratch: crate::domain::table_scratch::types::OperatorScratch,
@@ -118,7 +119,7 @@ impl InvocationWorkspace {
     }
     pub(in crate::application::file_dag) fn capture_admitted(
         &mut self,
-        publications: Vec<super::relations::PublishedInput>,
+        publications: Vec<super::relations::handle::service::PublishedInput>,
     ) {
         self.publications = publications.into_iter().map(Some).collect();
     }
@@ -160,7 +161,9 @@ impl<'a> GraphInput<'a> {
     pub(super) fn canonical_backing(&self) -> bool {
         self.proof.canonical_backing()
     }
-    pub(super) fn population(&self) -> Result<super::derived::population::types::PopulationId, OperatingError> {
+    pub(super) fn population(
+        &self,
+    ) -> Result<super::derived::population::types::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
     pub(super) fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {

@@ -85,8 +85,10 @@ impl KernelInvocation for RuntimeProbe {
         _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    > {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }
     fn selected(
@@ -95,8 +97,10 @@ impl KernelInvocation for RuntimeProbe {
         _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    > {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }
     fn column(

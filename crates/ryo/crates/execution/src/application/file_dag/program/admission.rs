@@ -1,7 +1,7 @@
 //! Population proofs, partition identity and readiness are minted by admission only.
 use super::super::{
     derived::population::types::PopulationId,
-    relations::{PublishedInput, RelationOwner},
+    relations::{RelationOwner, handle::service::PublishedInput},
 };
 use crate::domain::{
     coverage::types::RuleIndex,
@@ -188,7 +188,7 @@ impl AvailableInput {
 
 /// Private to the common invocation. A semantic kernel cannot import this trait.
 pub(super) trait Inputs {
-    fn population_scope(&self) -> super::super::relations::ProducerScope;
+    fn population_scope(&self) -> super::super::relations::publication::types::ProducerScope;
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
     fn dependency(
@@ -228,14 +228,14 @@ pub(super) trait Inputs {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        produced: super::super::relations::PublishedInput,
+        produced: super::super::relations::handle::service::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError>;
     fn publish_selected(
         &mut self,
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        produced: super::super::relations::PublishedInput,
+        produced: super::super::relations::handle::service::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError>;
     fn publish_empty(
         &mut self,
@@ -255,7 +255,10 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn population(
         &self,
         owner: &Rc<RelationOwner>,
-    ) -> Result<crate::application::file_dag::derived::population::types::PopulationId, OperatingError> {
+    ) -> Result<
+        crate::application::file_dag::derived::population::types::PopulationId,
+        OperatingError,
+    > {
         self.publication(owner)?;
         Ok(self.proof.population)
     }
@@ -382,7 +385,7 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn from_publication(
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
-        admitted: &super::super::relations::AdmittedInput<'_>,
+        admitted: &super::super::relations::admission::service::AdmittedInput<'_>,
         root: ProducerRoot,
         partition: Partition,
         readiness: Readiness,

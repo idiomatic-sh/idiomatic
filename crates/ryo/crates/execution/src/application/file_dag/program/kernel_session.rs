@@ -171,8 +171,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    > {
         self.walk
             .validate(permit)
             .map_err(InvocationFailure::Semantic)?;
@@ -390,8 +392,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    > {
         self.walk
             .validate(permit)
             .map_err(InvocationFailure::Semantic)?;

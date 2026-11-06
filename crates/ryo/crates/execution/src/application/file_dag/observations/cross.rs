@@ -19,12 +19,12 @@ use {
 enum CrossRoot {
     Pending,
     FileFrontier {
-        publication: crate::application::file_dag::relations::PackedPublication,
+        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
         token: crate::application::file_dag::program::restored::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
-        publication: crate::application::file_dag::relations::PackedPublication,
+        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
         admitted: crate::application::file_dag::program::protocol::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
@@ -39,7 +39,7 @@ pub(crate) struct FrontierPopulation<'a> {
 }
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
-    publication: crate::application::file_dag::relations::PackedPublication,
+    publication: crate::application::file_dag::relations::packed::service::PackedPublication,
     token: crate::application::file_dag::program::restored::ValidatedFrontier,
     arenas: Vec<WorkerNumber>,
 }

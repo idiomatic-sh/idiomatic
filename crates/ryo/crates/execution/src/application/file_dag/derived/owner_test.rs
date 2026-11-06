@@ -1,7 +1,7 @@
 //! Required sharing and optional retention are independent ownership decisions.
 use super::*;
 use crate::application::file_dag::derived::owner::index::service as indexes;
-use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
+use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

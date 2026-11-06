@@ -8,7 +8,7 @@ use crate::application::file_dag::derived::owner::graphs::{
     },
 };
 use crate::application::file_dag::{
-    relations::{PublishedInput, RelationOwner},
+    relations::{RelationOwner, handle::service::PublishedInput},
     workspace::InvocationWorkspace,
 };
 use crate::domain::{

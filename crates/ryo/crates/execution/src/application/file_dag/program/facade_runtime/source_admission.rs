@@ -186,7 +186,9 @@ impl SourceInputs<'_, '_> {
     }
 }
 impl Inputs for SourceInputs<'_, '_> {
-    fn population_scope(&self) -> super::super::super::relations::ProducerScope {
+    fn population_scope(
+        &self,
+    ) -> super::super::super::relations::publication::types::ProducerScope {
         self.state.population_scope()
     }
     fn bind_rule(&mut self, rule: RuleIndex) {

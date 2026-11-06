@@ -1,6 +1,6 @@
 //! Test access to the real selection owner; no mutable backend escapes this module.
 use super::*;
-use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
+use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use crate::domain::{
     coverage::types::Partial,
     operating::types::OperatorContext,

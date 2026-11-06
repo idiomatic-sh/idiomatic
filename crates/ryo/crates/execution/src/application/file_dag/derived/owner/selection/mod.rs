@@ -37,7 +37,7 @@ use crate::application::file_dag::derived::owner::acquisition::selection::servic
     SelectionSource, histogram, matches, shared_positions,
 };
 use crate::application::file_dag::derived::owner::{DerivedOwner, ViewContext};
-use crate::application::file_dag::relations::{AdmittedInput, RelationOwner};
+use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
 use types::*;
 pub(in crate::application::file_dag::derived::owner) mod types;
 #[cfg(test)]
@@ -190,11 +190,13 @@ impl DerivedOwner {
         program: &Arc<Selector>,
         source: ColumnsView<'f>,
         relation_owner: &RelationOwner,
-        publication: &crate::application::file_dag::relations::PublishedInput,
+        publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
         proof: &AdmittedInput<'_>,
         context: &mut OperatorContext<'_>,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        OperatingError,
+    > {
         let resources = SelectionSource::admit(self, relation_owner, publication, proof, source)?;
         let produced = {
             let mut backend = self.backend.borrow_mut();
