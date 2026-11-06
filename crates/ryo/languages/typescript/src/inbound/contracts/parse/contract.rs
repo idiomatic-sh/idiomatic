@@ -26,6 +26,7 @@ use crate::domain::language::service::{dialect, reads};
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::embedded::interface::EmbeddedPort;
 use crate::outbound::embedded::types::{BlockLanguage, Blocks, Markup};
@@ -78,7 +79,7 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}

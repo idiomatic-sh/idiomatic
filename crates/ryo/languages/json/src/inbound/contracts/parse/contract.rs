@@ -17,6 +17,7 @@ use crate::domain::relations::collections::relations::string_literal::item::Stri
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{
     field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
 };
@@ -48,7 +49,7 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Model) {
