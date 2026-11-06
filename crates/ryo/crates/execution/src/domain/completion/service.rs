@@ -2,7 +2,7 @@
 use super::types::{FileLacks, MissingRows};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, PlanComparison};
 pub(crate) fn file_frontier_coverage(
     coverage: crate::domain::completion::types::CoverageState,
     file: FileId,

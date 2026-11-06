@@ -582,9 +582,8 @@ fn a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else
     use ryo_relations::domain::relations::types::{CellKind, Relation};
     use ryo_values::domain::{
         plan_parts::types::{
-            ColumnIndex, ComparisonOrigin, Input, PlanComparison, JoinColumn, LiteralText, Operand, QueryLiteral,
-            RepeatedRows, Side,
-            StepId, Test,
+            ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison,
+            QueryLiteral, RepeatedRows, Side, StepId, Test,
         },
         plans::types::Operation,
     };
