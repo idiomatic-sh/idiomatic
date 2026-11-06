@@ -191,8 +191,24 @@ pub(crate) fn output_coverage(
                         })
                     })
             }
-            Operation::OrderedMatch { .. }
-            | Operation::OrderedDfs { .. }
+            // The rows an ordered match pairs agree on every key, so a file or node key keeps them in the missing file.
+            Operation::OrderedMatch {
+                left_on, right_on, ..
+            } => {
+                let own = if input.ordinal == 0 {
+                    left_on
+                } else {
+                    right_on
+                };
+                own.iter().any(|column| {
+                    input
+                        .kinds
+                        .get(column.0 as usize)
+                        .copied()
+                        .is_some_and(file_kind)
+                }) || !output_kinds.iter().copied().any(file_kind)
+            }
+            Operation::OrderedDfs { .. }
             | Operation::Axis { .. }
             | Operation::Closure { .. }
             | Operation::Cycles { .. } => !output_kinds.iter().copied().any(file_kind),

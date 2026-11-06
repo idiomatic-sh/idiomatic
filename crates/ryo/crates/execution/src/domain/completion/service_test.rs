@@ -493,3 +493,66 @@ fn a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file
         "a key that is no file cannot place the missing rows"
     );
 }
+
+/// An ordered match pairs rows that agree on every key: keyed by file it withholds only the rejected file's partition, and keyed by
+/// a symbol it cannot place the missing rows.
+#[test]
+fn a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_by_file() {
+    use super::service::output_coverage;
+    use super::types::InputCoverage;
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::{
+        plan_parts::types::{ColumnIndex, Input, JoinColumn, Side, StepId},
+        plans::types::Operation,
+    };
+    let matched = |key: u32| Operation::OrderedMatch {
+        left: Input::Step(StepId(0)),
+        right: Input::Step(StepId(0)),
+        left_on: vec![ColumnIndex(key)],
+        right_on: vec![ColumnIndex(key)],
+        left_order: ColumnIndex(2),
+        right_order: ColumnIndex(2),
+        output: vec![
+            JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(0),
+            },
+            JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(1),
+            },
+        ],
+    };
+    let kinds = [
+        CellKind::Node,
+        CellKind::File,
+        CellKind::Number,
+        CellKind::Symbol,
+    ];
+    let coverage = |operation: &Operation| {
+        output_coverage(
+            operation,
+            &[CellKind::Node, CellKind::File],
+            &[InputCoverage {
+                ordinal: 0,
+                kinds: &kinds,
+                coverage: CoverageState::Partial {
+                    files: vec![Some(FileId(1))],
+                },
+            }],
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        coverage(&matched(1)),
+        CoverageState::Partial {
+            files: vec![Some(FileId(1))]
+        },
+        "the rejected file's partition alone is withheld"
+    );
+    assert_eq!(
+        coverage(&matched(3)),
+        CoverageState::Partial { files: vec![None] },
+        "a symbol key cannot place the missing rows"
+    );
+}
