@@ -221,7 +221,7 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
         &plans, &bindings,
     );
     walk.retain_program_consumers(&program, &bindings).unwrap();
-    for head in observation_consumers {
+    for head in &observation_consumers {
         assert!(
             walk.class_for(head).is_none(),
             "observation input is never a relation source walk"
