@@ -1,9 +1,9 @@
 {
-  "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+  "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
   "scope": "Ownership consolidation checkpoint; not full product acceptance",
   "checks": {
     "libraries": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "cargo",
         "test",
@@ -39,10 +39,10 @@
         "--test-threads=6"
       ],
       "exit": 101,
-      "elapsed_seconds": 1.0700592994689941
+      "elapsed_seconds": 58.39308214187622
     },
     "boundary": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "cargo",
         "test",
@@ -62,10 +62,10 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 251.58741188049316
+      "elapsed_seconds": 270.377019405365
     },
     "tm_guards": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "tm",
         "--root",
@@ -82,10 +82,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.0409550666809082
+      "elapsed_seconds": 0.03444242477416992
     },
     "tm_source": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "tm",
         "--root",
@@ -220,10 +220,10 @@
         "json"
       ],
       "exit": 1,
-      "elapsed_seconds": 25.015808582305908
+      "elapsed_seconds": 15.21121096611023
     },
     "ownership_edges": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "ryo",
         "query",
@@ -238,10 +238,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 1.5622787475585938
+      "elapsed_seconds": 0.8800106048583984
     },
     "tm_import_cli": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "cargo",
         "test",
@@ -264,10 +264,10 @@
         "--exact"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.5283260345458984
+      "elapsed_seconds": 0.5342135429382324
     },
     "tm_cli_source": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "tm",
         "--root",
@@ -279,7 +279,7 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.3716893196105957
+      "elapsed_seconds": 0.3707897663116455
     },
     "observer_source": {
       "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
@@ -359,7 +359,7 @@
       "elapsed_seconds": 35.275874376297
     },
     "sharing": {
-      "source": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "cargo",
         "test",
@@ -374,15 +374,13 @@
         "-p",
         "idiomatic-sh-ryo-python",
         "--test",
-        "ruff_sharing",
-        "--",
-        "--test-threads=1"
+        "ruff_sharing"
       ],
       "exit": 0,
-      "elapsed_seconds": 49.18089318275452
+      "elapsed_seconds": null
     },
     "activation_targeted": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "cargo",
         "test",
@@ -400,10 +398,10 @@
         "activation"
       ],
       "exit": 0,
-      "elapsed_seconds": 1.1751680374145508
+      "elapsed_seconds": null
     },
     "doctest": {
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
       "command": [
         "cargo",
         "test",
@@ -420,18 +418,47 @@
         "--doc"
       ],
       "exit": 0,
-      "elapsed_seconds": 1.0350227355957031
+      "elapsed_seconds": null
+    },
+    "bdd": {
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/ryo/Cargo.toml",
+        "--target-dir",
+        "/workspaces/idiomatic-benchmark-guards/target",
+        "--locked",
+        "--offline",
+        "-j6",
+        "--all-features",
+        "-p",
+        "idiomatic-sh-ryo-execution",
+        "--test",
+        "bdd"
+      ],
+      "exit": 0,
+      "elapsed_seconds": null
     }
   },
   "results": {
     "execution_library": {
-      "passed": 471,
+      "passed": 484,
       "failed": 0
     },
     "core_library": {
       "passed": 177,
       "failed": 6,
-      "deferred": true
+      "deferred": true,
+      "names": [
+        "file_analysis::service_test::staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops",
+        "lint::use_case_test::succeeds",
+        "list_relations::use_case_test::succeeds",
+        "postcard::adapter_test::bucket_reader_acquires_other_bucket_after_mutation_or_truncation",
+        "postcard::adapter_test::staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder",
+        "postcard::adapter_test::succeeds"
+      ]
     },
     "benchmark_passed": 191,
     "sdk_passed": 43,
@@ -454,7 +481,7 @@
       "paths": 125,
       "findings": 370,
       "suppressed": 0,
-      "source": "31e4692274c93b84b665740b89a86d2599dc5d05"
+      "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd"
     },
     "observer_TM": {
       "findings": 55,
@@ -467,15 +494,23 @@
     },
     "activation_cases_passed": 10,
     "doctests": {
-      "passed": 10,
+      "passed": 11,
       "failed": 0
+    },
+    "ruff_sharing_two_files": {
+      "passed": 1,
+      "failed": 0
+    },
+    "bdd": {
+      "scenarios_passed": 7,
+      "steps_passed": 21
     }
   },
   "ownership_graph": {
-    "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+    "source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
     "raw": "ownership_edges.log",
-    "occurrences": 5325,
-    "unique_edges": 3038,
+    "occurrences": 5400,
+    "unique_edges": 3074,
     "target_filter": [
       "/file_dag/derived/owner",
       "/program/runtime/",
@@ -497,8 +532,9 @@
         "crates/execution/src/domain/table_model/collections/representations/publication.rs"
       ],
       [
-        "crates/execution/src/domain/column_kernel/service.rs",
-        "crates/execution/src/domain/column_kernel/service/driver.rs"
+        "crates/execution/src/domain/executable_program/column.rs",
+        "crates/execution/src/domain/executable_program/selection.rs",
+        "crates/execution/src/domain/executable_program/types.rs"
       ],
       [
         "crates/execution/src/domain/tree_join/service.rs",
@@ -509,9 +545,8 @@
         "crates/execution/src/domain/operation_schema/types/traversal/value.rs"
       ],
       [
-        "crates/execution/src/domain/executable_program/column.rs",
-        "crates/execution/src/domain/executable_program/selection.rs",
-        "crates/execution/src/domain/executable_program/types.rs"
+        "crates/execution/src/domain/column_kernel/service.rs",
+        "crates/execution/src/domain/column_kernel/service/driver.rs"
       ],
       [
         "crates/execution/src/application/file_dag/derived/prepare.rs",
@@ -529,5 +564,5 @@
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": "311"
+  "validation": "312"
 }
