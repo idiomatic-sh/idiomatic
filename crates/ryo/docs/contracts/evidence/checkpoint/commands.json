@@ -214,6 +214,7 @@
    "owner_resource_capabilities",
    "--test",
    "representation_capabilities",
+   "--no-fail-fast",
    "--",
    "--test-threads=6"
   ]

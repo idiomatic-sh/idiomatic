@@ -539,7 +539,7 @@ pub(crate) fn restore_frontiers(
     corpus: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[crate::domain::coverage::types::Covered],
     skipped: &[ryo_values::domain::runs::types::Skipped],
-    inapplicable: &[crate::inbound::use_cases::execution::types::InapplicableFiles],
+    inapplicable: &[crate::domain::coverage::types::InapplicableFiles],
     frames: &[crate::domain::coverage::types::FileObservationReadiness],
     first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
     selected: &[bool],

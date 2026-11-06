@@ -71,6 +71,11 @@ pub mod domain {
 pub mod application {pub mod file_dag {
  pub mod derived {
   pub mod owner {
+   pub mod types {
+    #[derive(Debug)]pub struct BuildCount(pub u64);
+    #[derive(Debug)]pub struct ReuseCount(pub u64);
+    #[derive(Debug)]pub struct RefusalCount(pub u64);
+   }
    pub mod graphs {pub mod types {pub mod retained {pub mod types {
     #[derive(Debug)]pub struct GraphEntry;
     #[derive(Debug)]pub struct DomainEntry;

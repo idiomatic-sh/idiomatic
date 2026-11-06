@@ -192,7 +192,9 @@ pub mod application { pub mod file_dag {
       #[derive(Clone, Copy)]
       pub struct BoundInputs<'a>(pub std::marker::PhantomData<&'a ()>);
       #[derive(Clone, Copy)]
-      pub struct KernelStrategy;
+      pub struct RouteKind;
+      #[derive(Clone, Copy)]
+      pub struct InstructionIndex(pub usize);
       __PERMIT__
       __SEMANTIC__
       __PHYSICAL__
@@ -201,14 +203,14 @@ pub mod application { pub mod file_dag {
         live: &'a Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
         owner: &'a RelationOwner,
       ) -> KernelPermit<'a> {
-        KernelPermit { program, region: RegionId(0), instruction: 0, generation, partition, live,
-                       bindings: BoundInputs(std::marker::PhantomData), strategy: KernelStrategy, owner }
+        KernelPermit { program, region: RegionId(0), instruction: InstructionIndex(0), generation, partition, live,
+                       bindings: BoundInputs(std::marker::PhantomData), strategy: RouteKind, owner }
       }
       pub fn semantic<'a>(
         program: &'a ExecutableProgram,
         live: &'a Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
       ) -> SemanticPermit<'a> {
-        SemanticPermit { program, region: RegionId(0), instruction: 0, live, strategy: KernelStrategy }
+        SemanticPermit { program, region: RegionId(0), instruction: InstructionIndex(0), live, strategy: RouteKind }
       }
       pub fn physical<'p, 'm, 's>(
         permit: &'p SemanticPermit<'s>,
@@ -225,7 +227,7 @@ pub mod application { pub mod file_dag {
       use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
       use crate::application::file_dag::relations::RelationOwner;
       use crate::application::file_dag::relations::generation::service::GenerationLease;
-      use super::admission::{BoundInputs, KernelPermit, KernelStrategy, Partition, PermittedPhysical, SemanticPermit};
+      use super::admission::{BoundInputs, InstructionIndex, KernelPermit, RouteKind, Partition, PermittedPhysical, SemanticPermit};
       __CLIENT__
     }
   }
@@ -255,8 +257,8 @@ fn physical_permits_are_minted_only_by_admission() {
               program: &'a ExecutableProgram, generation: &'a Arc<()>, partition: &'a Partition,
               live: &'a Arc<GenerationLease>, owner: &'a RelationOwner,
             ) -> KernelPermit<'a> {
-              KernelPermit { program, region: RegionId(0), instruction: 0, generation, partition, live,
-                             bindings: BoundInputs(std::marker::PhantomData), strategy: KernelStrategy, owner }
+              KernelPermit { program, region: RegionId(0), instruction: InstructionIndex(0), generation, partition, live,
+                             bindings: BoundInputs(std::marker::PhantomData), strategy: RouteKind, owner }
             }",
         ),
         "E0451",
