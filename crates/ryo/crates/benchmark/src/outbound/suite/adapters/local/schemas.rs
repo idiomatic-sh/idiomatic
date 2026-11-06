@@ -240,6 +240,15 @@ impl TryFrom<ToolSchema> for types::Tool {
                 )));
             }
         }
+        if !wire.rule_applicability.is_empty() {
+            for id in defaults.iter().chain(&supporting_rules) {
+                if !wire.rule_applicability.contains_key(id.as_ref()) {
+                    return Err(Error::Invalid(format!(
+                        "invalid rule applicability policy: missing declared rule {id}"
+                    )));
+                }
+            }
+        }
         if wire
             .parser_configuration
             .as_ref()

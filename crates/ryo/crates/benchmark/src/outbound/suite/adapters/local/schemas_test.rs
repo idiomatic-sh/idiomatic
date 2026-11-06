@@ -35,7 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("rule applicability maps are typed and restricted to selected defaults"),
+        name: CaseName("rule applicability maps are typed and restricted to declared rules"),
         word: Word::Succeeds,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\n[rule-applicability]\nF401='accepted-syntax'",
         expect: Expect::Value(true),
@@ -44,6 +44,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("rule applicability rejects unknown policies and rules"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\n[rule-applicability]\nF402='maybe'",
+        expect: Expect::Error("invalid applicability"),
+    },
+    Case {
+        name: CaseName("explicit policies cover selected rules and supporting producers"),
+        word: Word::Succeeds,
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'\nE501='accepted-syntax'",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an explicit policy map cannot omit a supporting producer"),
+        word: Word::Refuses,
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'",
+        expect: Expect::Error("invalid applicability"),
+    },
+    Case {
+        name: CaseName("an explicit policy map cannot omit a selected rule"),
+        word: Word::Refuses,
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nE501='accepted-syntax'",
         expect: Expect::Error("invalid applicability"),
     },
     Case {
