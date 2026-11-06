@@ -9,10 +9,15 @@ use ryo_execution::inbound::use_cases::execution::{
     use_case::ExecutionUseCaseImpl,
 };
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
-    observations::types::ObservationReadinessLayout,
+    observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationReadinessLayout,
+    },
+    plan_parts::types::Input,
+    plans::types::{Operation, PlanStep, StepScope},
     stored_facts::types::{Bucket, Digest},
 };
 
@@ -109,6 +114,32 @@ pub(crate) fn submit(
 ) -> Submitted {
     let mut authored = crate::boundary_fixture::authored_request(rule_count);
     if matches!(entry, Entry::Stage) {
+        // A named request needs a dependency schedule: rule 0 declares one closed empty binding.
+        let columns = vec![ObservationColumn {
+            name: ObservationColumnName("code".into()),
+            kind: CellKind::Symbol,
+        }];
+        authored.rules[0].observations.push(ObservationBinding {
+            name: ObservationBindingName("codes".into()),
+            columns: columns.clone(),
+            producers: vec![],
+        });
+        authored.plans[0]
+            .observation_inputs
+            .push(BoundObservationInput {
+                name: ObservationBindingName("codes".into()),
+                columns,
+                scope: StepScope::CrossFile,
+            });
+        authored.plans[0].steps = vec![PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Select {
+                from: Input::BoundObservation(ObservationBindingId(0)),
+                comparisons: vec![],
+                kept: vec![],
+            },
+        }];
+        authored.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
         authored.observations = ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }
     let prepared = engine.prepare(authored).expect("valid public request");
