@@ -200,3 +200,17 @@ pub(crate) const PYTHON_TARGET_3_12: &str = "python-target=3.12";
 pub(crate) const PYTHON_TARGET_3_13: &str = "python-target=3.13";
 /// Text `python-target=3.14`.
 pub(crate) const PYTHON_TARGET_3_14: &str = "python-target=3.14";
+/// Text `explicit legacy target`.
+pub(crate) const EXPLICIT_LEGACY_TARGET: &str = "explicit legacy target";
+/// Text `explicit native annotation target`.
+pub(crate) const EXPLICIT_NATIVE_ANNOTATION_TARGET: &str = "explicit native annotation target";
+/// Text `python-target=latest`.
+pub(crate) const PYTHON_TARGET_LATEST: &str = "python-target=latest";
+/// Text `python-target=3.6`.
+pub(crate) const PYTHON_TARGET_3_6: &str = "python-target=3.6";
+/// Text `python-target=3.16`.
+pub(crate) const PYTHON_TARGET_3_16: &str = "python-target=3.16";
+/// Text `python-target=3.09`.
+pub(crate) const PYTHON_TARGET_3_09: &str = "python-target=3.09";
+/// Text `python-target=3.10 `.
+pub(crate) const PYTHON_TARGET_3_10_2: &str = "python-target=3.10 ";

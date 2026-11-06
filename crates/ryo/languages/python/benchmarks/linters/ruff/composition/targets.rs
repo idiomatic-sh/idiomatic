@@ -1,10 +1,8 @@
 //! One explicit shared parser target at the benchmark composition boundary.
 use crate::constants::{
-    EXPLICIT_LEGACY_TARGET, EXPLICIT_NATIVE_ANNOTATION_TARGET, PY37, PY38, PY39, PY310, PY311,
-    PY312, PY313, PY314, PY315, PYTHON_TARGET_3_6, PYTHON_TARGET_3_7, PYTHON_TARGET_3_8,
-    PYTHON_TARGET_3_09, PYTHON_TARGET_3_9, PYTHON_TARGET_3_10, PYTHON_TARGET_3_10_2,
-    PYTHON_TARGET_3_11, PYTHON_TARGET_3_12, PYTHON_TARGET_3_13, PYTHON_TARGET_3_14,
-    PYTHON_TARGET_3_15, PYTHON_TARGET_3_16, PYTHON_TARGET_LATEST,
+    PY37, PY38, PY39, PY310, PY311, PY312, PY313, PY314, PY315, PYTHON_TARGET_3_7,
+    PYTHON_TARGET_3_8, PYTHON_TARGET_3_9, PYTHON_TARGET_3_10, PYTHON_TARGET_3_11,
+    PYTHON_TARGET_3_12, PYTHON_TARGET_3_13, PYTHON_TARGET_3_14, PYTHON_TARGET_3_15,
     UNSUPPORTED_OR_MISSING_RUFF_PARSER,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -47,43 +45,4 @@ pub(super) fn resolve(configuration: Option<TargetConfiguration<'_>>) -> Result<
         parser,
         reference: ReferenceSpelling(reference),
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        EXPLICIT_LEGACY_TARGET, EXPLICIT_NATIVE_ANNOTATION_TARGET, PYTHON_TARGET_3_6,
-        PYTHON_TARGET_3_7, PYTHON_TARGET_3_09, PYTHON_TARGET_3_10_2, PYTHON_TARGET_3_14,
-        PYTHON_TARGET_3_16, PYTHON_TARGET_LATEST, TargetConfiguration, resolve,
-    };
-    use ryo_python::settings::PythonTargetVersion;
-
-    #[test]
-    fn legacy_and_native_annotation_boundaries_select_the_requested_parser() {
-        let legacy =
-            resolve(Some(TargetConfiguration(PYTHON_TARGET_3_7))).expect(EXPLICIT_LEGACY_TARGET);
-        assert_eq!(legacy.parser, PythonTargetVersion::Py37);
-        assert_eq!(legacy.reference.0, "py37");
-        let native = resolve(Some(TargetConfiguration(PYTHON_TARGET_3_14)))
-            .expect(EXPLICIT_NATIVE_ANNOTATION_TARGET);
-        assert_eq!(native.parser, PythonTargetVersion::Py314);
-        assert_eq!(native.reference.0, "py314");
-    }
-
-    #[test]
-    fn missing_moving_unknown_and_noncanonical_targets_are_refused() {
-        for value in [
-            None,
-            Some(PYTHON_TARGET_LATEST),
-            Some(PYTHON_TARGET_3_6),
-            Some(PYTHON_TARGET_3_16),
-            Some(PYTHON_TARGET_3_09),
-            Some(PYTHON_TARGET_3_10_2),
-        ] {
-            assert!(
-                resolve(value.map(TargetConfiguration)).is_err(),
-                "{value:?}"
-            );
-        }
-    }
 }

@@ -1,8 +1,10 @@
 use super::constants::{
-    ACCEPTED_SYNTAX, ALWAYS, DIAGNOSTIC_RYO, DIAGNOSTIC_UNKNOWN, EXE004, PARSER_CONFIGURATION,
-    PROFILE_RYO, PYTHON_TARGET_3_7, PYTHON_TARGET_3_8, PYTHON_TARGET_3_9, PYTHON_TARGET_3_10,
-    PYTHON_TARGET_3_11, PYTHON_TARGET_3_12, PYTHON_TARGET_3_13, PYTHON_TARGET_3_14,
-    PYTHON_TARGET_3_15, REQUEST_FILE, REQUEST_JSON, REQUEST_MUST_BE_AN_OBJECT,
+    ACCEPTED_SYNTAX, ALWAYS, DIAGNOSTIC_RYO, DIAGNOSTIC_UNKNOWN, EXE004, EXPLICIT_LEGACY_TARGET,
+    EXPLICIT_NATIVE_ANNOTATION_TARGET, PARSER_CONFIGURATION, PROFILE_RYO, PYTHON_TARGET_3_6,
+    PYTHON_TARGET_3_7, PYTHON_TARGET_3_8, PYTHON_TARGET_3_09, PYTHON_TARGET_3_9,
+    PYTHON_TARGET_3_10, PYTHON_TARGET_3_10_2, PYTHON_TARGET_3_11, PYTHON_TARGET_3_12,
+    PYTHON_TARGET_3_13, PYTHON_TARGET_3_14, PYTHON_TARGET_3_15, PYTHON_TARGET_3_16,
+    PYTHON_TARGET_LATEST, REQUEST_FILE, REQUEST_JSON, REQUEST_MUST_BE_AN_OBJECT,
     ROOT_TMP_PROJECT_FILES_A_PY, RULE_APPLICABILITY, RUN_RYO, UNREVIEWED, UP045,
 };
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
@@ -174,6 +176,41 @@ fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
     );
 }
 
+fn legacy_and_native_annotation_boundaries_select_the_requested_parser() {
+    use ryo_python::settings::PythonTargetVersion;
+    use targets::{TargetConfiguration, resolve};
+
+    let legacy =
+        resolve(Some(TargetConfiguration(PYTHON_TARGET_3_7))).expect(EXPLICIT_LEGACY_TARGET);
+    assert_eq!(legacy.parser, PythonTargetVersion::Py37);
+    assert_eq!(legacy.reference.0, "py37");
+    let native = resolve(Some(TargetConfiguration(PYTHON_TARGET_3_14)))
+        .expect(EXPLICIT_NATIVE_ANNOTATION_TARGET);
+    assert_eq!(native.parser, PythonTargetVersion::Py314);
+    assert_eq!(native.reference.0, "py314");
+}
+
+fn missing_moving_unknown_and_noncanonical_targets_are_refused() {
+    use targets::{TargetConfiguration, resolve};
+
+    for value in [
+        None,
+        Some(PYTHON_TARGET_LATEST),
+        Some(PYTHON_TARGET_3_6),
+        Some(PYTHON_TARGET_3_16),
+        Some(PYTHON_TARGET_3_09),
+        Some(PYTHON_TARGET_3_10_2),
+    ] {
+        assert!(
+            matches!(
+                resolve(value.map(TargetConfiguration)),
+                Err(Error::Invalid(_))
+            ),
+            "{value:?}"
+        );
+    }
+}
+
 #[derive(Clone, Copy)]
 enum WorkerRequestScenario {
     WorkerModesAreExplicitAndKeepDiagnosticsOutOfTimedRun,
@@ -181,6 +218,8 @@ enum WorkerRequestScenario {
     RetainsTheExplicitInlineJsonDebugProtocol,
     WorkerExecutionRequiresTheActualTargetAndCanonicalPhase,
     EveryExplicitSupportedTargetPreservesRequestAndPhaseIdentity,
+    LegacyAndNativeAnnotationBoundariesSelectTheRequestedParser,
+    MissingMovingUnknownAndNoncanonicalTargetsAreRefused,
 }
 type Input = WorkerRequestScenario;
 type Value = bool;
@@ -219,6 +258,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("legacy_and_native_annotation_boundaries_select_the_requested_parser"),
+        word: Word::Succeeds,
+        input: || {
+            WorkerRequestScenario::LegacyAndNativeAnnotationBoundariesSelectTheRequestedParser
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("missing_moving_unknown_and_noncanonical_targets_are_refused"),
+        word: Word::Succeeds,
+        input: || WorkerRequestScenario::MissingMovingUnknownAndNoncanonicalTargetsAreRefused,
+        expect: Expect::Value(true),
+    },
 ];
 
 fn subject(input: Input) -> Result<bool, Failure> {
@@ -246,6 +299,14 @@ fn subject(input: Input) -> Result<bool, Failure> {
             every_explicit_supported_target_preserves_request_and_phase_identity()
                 .map(|()| true)
                 .map_err(|error| error.to_string())
+        }
+        WorkerRequestScenario::LegacyAndNativeAnnotationBoundariesSelectTheRequestedParser => {
+            legacy_and_native_annotation_boundaries_select_the_requested_parser();
+            Ok(true)
+        }
+        WorkerRequestScenario::MissingMovingUnknownAndNoncanonicalTargetsAreRefused => {
+            missing_moving_unknown_and_noncanonical_targets_are_refused();
+            Ok(true)
         }
     }
 }
