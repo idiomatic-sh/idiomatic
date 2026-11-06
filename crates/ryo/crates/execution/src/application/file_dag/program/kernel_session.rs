@@ -4,6 +4,7 @@ use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
+use crate::domain::executable_program::types::InputId;
 use crate::{
     application::file_dag::{
         executor::PrimitiveExecutor, invocation::InvocationResources, relations::RelationOwner,
@@ -233,7 +234,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let mut rows = Vec::new();
         for at in 0..instruction.inputs.len() {
             let admitted = permit
-                .bound_input(at)
+                .bound_input(InputId(at))
                 .map_err(InvocationFailure::Semantic)?;
             let publication = admitted
                 .publication(&self.owner)

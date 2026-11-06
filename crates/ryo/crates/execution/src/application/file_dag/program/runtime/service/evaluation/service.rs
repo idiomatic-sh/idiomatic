@@ -1,13 +1,20 @@
 //! Ordinary region evaluation: demand admission, preflight gates, readiness and the kernel continuation.
+use super::super::admission::service::{empty_output_kinds, first_preflight};
+use super::super::invocation::service::continuation;
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit, ReadySelection};
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
+use crate::application::file_dag::program::runtime::types::{
+    Emptiness, InstructionIndex, PollMode, StageProgress,
+};
 use crate::domain::executable_program::types::DemandAction;
 use crate::domain::executable_program::types::InputId;
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::operator::contract::types::PreflightOrder;
+use std::sync::Arc;
 
 impl ProgramExecution {
     pub(in crate::application::file_dag::program::runtime::service) fn admit_demand(
@@ -30,8 +37,12 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         let program = &first.demand;
-        if schema_first(region) {
-            for action in program.actions().iter().skip(progress.availability_action) {
+        if first_preflight(region) == Some(PreflightOrder::SchemaFirst) {
+            for action in program
+                .actions()
+                .iter()
+                .skip(progress.availability_action.0)
+            {
                 match *action {
                     DemandAction::Admit(InputId(at)) => {
                         let source = *region.inputs.get(at).ok_or(InvocationFailure::Semantic(
@@ -42,13 +53,13 @@ impl ProgramExecution {
                             .map_err(InvocationFailure::Semantic)?;
                     }
                 }
-                progress.availability_action += 1;
+                progress.availability_action.0 += 1;
             }
             progress
                 .check_schema(region)
                 .map_err(InvocationFailure::Semantic)?;
         }
-        for action in program.actions().iter().skip(progress.action) {
+        for action in program.actions().iter().skip(progress.action.0) {
             match *action {
                 DemandAction::Admit(InputId(at)) => {
                     let source = *region.inputs.get(at).ok_or_else(|| {
@@ -63,9 +74,9 @@ impl ProgramExecution {
                     );
                 }
             }
-            progress.action += 1;
+            progress.action.0 += 1;
         }
-        if !progress.preflight_done {
+        if progress.preflight_done == StageProgress::Pending {
             for gate in &first.contract.empty_results {
                 let input = admitted.get(gate.input).ok_or(InvocationFailure::Semantic(
                     OperatingError::MissingInput {
@@ -85,6 +96,7 @@ impl ProgramExecution {
                         gate.representation,
                     )
                     .map_err(InvocationFailure::Semantic)?
+                    == Emptiness::Empty
                 {
                     let publication = inputs
                         .publish_empty(
@@ -105,7 +117,7 @@ impl ProgramExecution {
         progress
             .check_schema(region)
             .map_err(InvocationFailure::Semantic)?;
-        progress.preflight_done = true;
+        progress.preflight_done = StageProgress::Done;
         Ok(None)
     }
     pub(in crate::application::file_dag::program::runtime::service) fn evaluate(
@@ -137,7 +149,7 @@ impl ProgramExecution {
             &admitted,
         )
         .map_err(InvocationFailure::Semantic)?;
-        if !progress.ready {
+        if progress.ready == StageProgress::Pending {
             // Observe the runtime obligation before the callback can omit it.
             // Schema and scope admission above established valid source geometry;
             // no PreparedWalk class or submission result selects this inventory.
@@ -177,13 +189,13 @@ impl ProgramExecution {
             kernels
                 .ready(&ReadySelection { permit: &permit }, &admitted, context)
                 .map_err(InvocationFailure::Semantic)?;
-            progress.ready = true;
+            progress.ready = StageProgress::Done;
         }
-        if prepare_only {
+        if prepare_only == PollMode::PrepareOnly {
             return Ok(InvocationOutcome::Ready);
         }
-        let frames = cleanup
-            .scratch
+        let frames = call
+            .frames
             .as_mut()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
         let last = region
@@ -238,7 +250,7 @@ impl ProgramExecution {
         continuation(
             &permit,
             region,
-            0,
+            InstructionIndex(0),
             KernelInput::Admitted(&admitted),
             kernels,
             context,

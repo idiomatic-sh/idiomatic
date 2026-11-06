@@ -2,7 +2,9 @@
 use super::super::{
     AdmissionProgress, ProgramExecution, RetirementWork, RuntimeState, Slot, State,
 };
+#[cfg(test)]
 use crate::application::file_dag::program::runtime::types::ConsumerReleasePoint;
+use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 
@@ -41,8 +43,8 @@ impl ProgramExecution {
         let mut work = state.retirement.borrow_mut();
         work.reset();
         let mut slots = state.slots.borrow_mut();
-        let slot = slots.get(&consumer.0).ok_or(OperatingError::NotRun)?;
-        if slot.dependencies_consumed {
+        let slot = slots.get(&consumer).ok_or(OperatingError::NotRun)?;
+        if slot.dependencies_consumed == Dependencies::Consumed {
             return Err(OperatingError::NotRun);
         }
         work.pending.extend(
@@ -57,7 +59,7 @@ impl ProgramExecution {
                     .regions()
                     .get(id.0)
                     .ok_or(OperatingError::NotRun)?;
-                let slot = slots.get(&id.0);
+                let slot = slots.get(&id);
                 let current = if let Some(current) = work.simulated.get(&id) {
                     *current
                 } else {
@@ -70,15 +72,18 @@ impl ProgramExecution {
                         },
                     }
                 };
-                if current == 0 {
+                if current.0 == 0 {
                     return Err(OperatingError::NotRun);
                 }
-                if current == 1 && slot.is_some_and(|slot| matches!(slot.state, State::Running)) {
+                if current.0 == 1 && slot.is_some_and(|slot| matches!(slot.state, State::Running)) {
                     return Ok(Some(id));
                 }
-                let remaining = current - 1;
+                let remaining = ReaderCount(current.0 - 1);
                 work.simulated.insert(id, remaining);
-                if remaining == 0 && !slot.is_some_and(|slot| slot.dependencies_consumed) {
+                if remaining.0 == 0
+                    && !slot
+                        .is_some_and(|slot| slot.dependencies_consumed == Dependencies::Consumed)
+                {
                     work.pending
                         .extend(self.program.regions()[id.0].dependencies.iter().copied());
                 }
@@ -104,33 +109,39 @@ impl ProgramExecution {
             }
             Ok(None) => {}
         }
-        Slot::touched(state, &mut slots, &self.program, consumer)?.dependencies_consumed = true;
+        Slot::touched(state, &mut slots, &self.program, consumer)?.dependencies_consumed =
+            Dependencies::Consumed;
         Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on = None;
         for at in 0..work.touched.len() {
             let id = work.touched[at];
-            let Some(slot) = slots.get_mut(&id.0) else {
+            let Some(slot) = slots.get_mut(&id) else {
                 state.dormant.borrow_mut().insert(id, work.simulated[&id]);
                 continue;
             };
             slot.remaining = work.simulated[&id];
-            if slot.remaining == 0 {
-                slot.dependencies_consumed = true;
+            if slot.remaining.0 == 0 {
+                slot.dependencies_consumed = Dependencies::Consumed;
                 slot.waiting_on = None;
                 slot.admission = AdmissionProgress::default();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
                     self.owner.release_derived_producer(state.scope, id);
                 }
-                work.retired.push((old, std::mem::take(&mut slot.scratch)));
+                work.retired_states.push(old);
+                work.retired_scratch.push(std::mem::take(&mut slot.scratch));
             }
         }
         work.reset();
-        let mut retired = std::mem::take(&mut work.retired);
+        let mut retired_states = std::mem::take(&mut work.retired_states);
+        let mut retired_scratch = std::mem::take(&mut work.retired_scratch);
         drop(slots);
         drop(work);
         // Lease destructors run outside all scheduler-state borrows.
-        retired.clear();
-        state.retirement.borrow_mut().retired = retired;
+        retired_states.clear();
+        retired_scratch.clear();
+        let mut work = state.retirement.borrow_mut();
+        work.retired_states = retired_states;
+        work.retired_scratch = retired_scratch;
         Ok(())
     }
     pub(in crate::application::file_dag::program::runtime::service) fn wake_retirements(
@@ -147,7 +158,7 @@ impl ProgramExecution {
         for consumer in waiters {
             {
                 let mut slots = state.slots.borrow_mut();
-                let Some(slot) = slots.get_mut(&consumer.0) else {
+                let Some(slot) = slots.get_mut(&consumer) else {
                     continue;
                 };
                 if slot.waiting_on != Some(producer) {

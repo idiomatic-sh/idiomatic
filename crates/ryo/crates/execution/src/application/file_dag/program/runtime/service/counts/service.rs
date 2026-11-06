@@ -35,8 +35,8 @@ impl ProgramExecution {
             populations: InvocationStateCount(states.len()),
             ..Default::default()
         };
-        for state in
-            std::iter::once(&self.file_state).chain(states.iter().map(|(_, state)| state.as_ref()))
+        for state in std::iter::once(&self.file_state)
+            .chain(states.iter().map(|project| project.state.as_ref()))
         {
             let slots = state.slots.borrow();
             found.slots.0 += slots.len();
@@ -77,7 +77,7 @@ impl ProgramExecution {
                 .iter()
                 .position(|instruction| instruction.logical == origin.logical)
                 .ok_or(OperatingError::NotRun)?;
-            let Some(slot) = slots.get(&region_id.0) else {
+            let Some(slot) = slots.get(&region_id) else {
                 fed.push(crate::domain::operator::types::RowsFed::default());
                 continue;
             };

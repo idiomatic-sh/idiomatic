@@ -1,9 +1,10 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
-#[cfg(test)]
-use super::types::ProducerLeaseEvent;
 use super::types::{
-    ColumnCounters, InvocationFailure, KernelInput, KernelScratch, StrategyOutcome,
+    ActionCursor, ColumnCounters, Dependencies, Emptiness, InstructionIndex, InvocationFailure,
+    KernelInput, KernelScratch, PollMode, ReaderCount, StageProgress, StrategyOutcome,
 };
+#[cfg(test)]
+use super::types::{CallCount, ProducerLeaseEvent, ReaderInitializations};
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Inputs;
@@ -19,8 +20,6 @@ use crate::domain::operating::types::OperatorContext;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-/// Only this runtime can construct authority to issue a kernel permit.
-/// A sibling owning a ProgramExecution reference still cannot skip admission.
 pub(in crate::application::file_dag::program) struct KernelAdmission<'a> {
     execution: &'a ProgramExecution,
     region: RegionId,
@@ -91,24 +90,26 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
 }
 #[derive(Default)]
 struct AdmissionProgress {
-    action: usize,
-    availability_action: usize,
-    schema_done: bool,
-    ordered_done: bool,
-    column_done: bool,
-    ready: bool,
-    preflight_done: bool,
+    action: ActionCursor,
+    availability_action: ActionCursor,
+    schema_done: StageProgress,
+    ordered_done: StageProgress,
+    column_done: StageProgress,
+    ready: StageProgress,
+    preflight_done: StageProgress,
     inputs: Vec<AdmittedInput>,
-    acquired: Vec<(
-        crate::domain::executable_program::types::InputSource,
-        InputStage,
-    )>,
+    acquired: Vec<AcquiredInput>,
     waiting: Option<RegionId>,
-    emptiness: Vec<(
-        crate::domain::executable_program::types::InputSource,
-        crate::domain::operator::contract::types::EmptyRepresentation,
-        bool,
-    )>,
+    emptiness: Vec<EmptinessAnswer>,
+}
+struct AcquiredInput {
+    source: crate::domain::executable_program::types::InputSource,
+    stage: InputStage,
+}
+struct EmptinessAnswer {
+    source: crate::domain::executable_program::types::InputSource,
+    representation: crate::domain::operator::contract::types::EmptyRepresentation,
+    emptiness: Emptiness,
 }
 enum InputStage {
     Available(AvailableInput),
@@ -134,15 +135,15 @@ struct Slot {
     #[cfg(test)]
     observed: crate::domain::operating::types::ExecutionObservation,
     #[cfg(test)]
-    native_positions: usize,
+    native_positions: CallCount,
     #[cfg(test)]
-    registered_calls: usize,
+    registered_calls: CallCount,
     state: State,
     scratch: Vec<KernelScratch>,
     admission: AdmissionProgress,
     fed: Box<[crate::domain::operator::types::RowsFed]>,
-    remaining: usize,
-    dependencies_consumed: bool,
+    remaining: ReaderCount,
+    dependencies_consumed: Dependencies,
     waiting_on: Option<RegionId>,
     completion:
         Option<crate::domain::completion::types::completion_policy::value::CompletionPolicy>,
@@ -150,11 +151,16 @@ struct Slot {
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
 struct RetirementWork {
-    simulated: std::collections::HashMap<RegionId, usize>,
+    simulated: std::collections::HashMap<RegionId, ReaderCount>,
     touched: Vec<RegionId>,
     pending: Vec<RegionId>,
     waiters: std::collections::HashMap<RegionId, Vec<RegionId>>,
-    retired: Vec<(State, Vec<KernelScratch>)>,
+    retired_states: Vec<State>,
+    retired_scratch: Vec<Vec<KernelScratch>>,
+}
+struct ProjectState {
+    population: crate::application::file_dag::derived::population::types::PopulationId,
+    state: std::rc::Rc<RuntimeState>,
 }
 pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
@@ -164,12 +170,7 @@ pub(crate) struct ProgramExecution {
         Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     partition: Partition,
     file_state: RuntimeState,
-    project_states: RefCell<
-        Vec<(
-            crate::application::file_dag::derived::population::types::PopulationId,
-            std::rc::Rc<RuntimeState>,
-        )>,
-    >,
+    project_states: RefCell<Vec<ProjectState>>,
     cleanup_failure: RefCell<Option<OperatingError>>,
     readiness_counts: RefCell<crate::domain::readiness::types::ReadinessCounts>,
     #[cfg(test)]
@@ -189,16 +190,16 @@ pub(in crate::application::file_dag::program) struct RuntimeState {
     generation: Arc<()>,
     scope: crate::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
-    slots: RefCell<std::collections::HashMap<usize, Slot>>,
-    dormant: RefCell<std::collections::HashMap<RegionId, usize>>,
+    slots: RefCell<std::collections::HashMap<RegionId, Slot>>,
+    dormant: RefCell<std::collections::HashMap<RegionId, ReaderCount>>,
     retirement: RefCell<RetirementWork>,
     #[cfg(test)]
-    reader_initializations: std::cell::Cell<usize>,
+    reader_initializations: std::cell::Cell<ReaderInitializations>,
 }
 struct Continue<'a> {
     invocation: &'a KernelPermit<'a>,
     region: &'a Region,
-    at: usize,
+    at: InstructionIndex,
     kernels: &'a dyn KernelInvocation,
     scratch: &'a mut [KernelScratch],
     output: &'a mut dyn Emit,
@@ -223,7 +224,7 @@ struct Invocation<'a> {
     terminal: Terminal,
     admission: Option<AdmissionProgress>,
     started: Option<std::time::Instant>,
-    prepare_only: bool,
+    prepare_only: PollMode,
 }
 #[derive(Clone, Copy)]
 enum KernelStrategy {
@@ -244,7 +245,7 @@ enum BoundInputs<'a> {
 pub(crate) struct KernelPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::ExecutableProgram,
     region: RegionId,
-    instruction: usize,
+    instruction: InstructionIndex,
     generation: &'scope Arc<()>,
     partition: &'scope Partition,
     live:
@@ -259,7 +260,7 @@ pub(crate) struct KernelPermit<'scope> {
 pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::ExecutableProgram,
     region: RegionId,
-    instruction: usize,
+    instruction: InstructionIndex,
     live:
         &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     strategy: KernelStrategy,
@@ -279,7 +280,7 @@ pub(in crate::application::file_dag::program::runtime::service) struct Poll<'cal
     completion: &'call crate::domain::completion::types::completion_policy::value::CompletionPolicy,
     state: &'call RuntimeState,
     kernels: &'call dyn KernelInvocation,
-    prepare_only: bool,
+    prepare_only: PollMode,
     inputs: &'call mut dyn Inputs,
     context: &'call mut OperatorContext<'ctx>,
     progress: &'call mut AdmissionProgress,

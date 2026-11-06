@@ -6,7 +6,7 @@ impl<'scope> SemanticPermit<'scope> {
     pub(in crate::application::file_dag::program::runtime::service) fn operation(
         &self,
     ) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions()[self.region.0].instructions[self.instruction].operation
+        &self.program.regions()[self.region.0].instructions[self.instruction.0].operation
     }
     pub(in crate::application::file_dag::program::runtime::service) fn validate_live(
         &self,

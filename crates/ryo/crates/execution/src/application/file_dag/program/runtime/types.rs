@@ -44,7 +44,7 @@ pub(in crate::application::file_dag::program) enum DependencyCheckpoint {
     Pending,
     Consumed,
 }
-#[cfg(test)]
+/// Prepared consumer obligations a region still owes before it may retire.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::application::file_dag::program) struct ReaderCount(
     pub(in crate::application::file_dag::program) usize,
@@ -67,8 +67,8 @@ pub(in crate::application::file_dag::program) struct ProducerLeaseEvent {
     pub consumer: RegionId,
     pub point: ConsumerReleasePoint,
     pub checkpoint: RetryCheckpoint,
-    pub working_bytes: usize,
-    pub index_live: bool,
+    pub working_bytes: WorkingBytes,
+    pub index_liveness: IndexLiveness,
     pub index:
         Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
 }
@@ -76,4 +76,64 @@ pub(in crate::application::file_dag::program) struct ProducerLeaseEvent {
 pub(in crate::application::file_dag::program) enum NativeJoinEligibility {
     Native,
     Ordinary,
+}
+
+/// Bytes of derived working storage held when a producer lease was observed.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) struct WorkingBytes(pub usize);
+
+/// Whether the derived index backing a producer was still alive when observed.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum IndexLiveness {
+    Alive,
+    Released,
+}
+
+/// How many demand actions of a region have been supplied or admitted.
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) struct ActionCursor(pub usize);
+
+/// Position of an instruction within its region's instruction list.
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) struct InstructionIndex(pub usize);
+
+/// One step of region admission: not yet performed, or performed once.
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum StageProgress {
+    #[default]
+    Pending,
+    Done,
+}
+
+/// Whether a poll only prepares the region for evaluation or evaluates it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum PollMode {
+    PrepareOnly,
+    Evaluate,
+}
+
+/// Whether an admitted input has no rows in a given representation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum Emptiness {
+    Empty,
+    Populated,
+}
+
+/// Calls a region's kernels made, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) struct CallCount(pub usize);
+
+/// Times a scope derived its reader obligations, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) struct ReaderInitializations(pub usize);
+
+/// Whether a region's dependencies were already released by its consumers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum Dependencies {
+    Pending,
+    Consumed,
 }

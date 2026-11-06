@@ -13,6 +13,7 @@ use crate::application::file_dag::program::facade_runtime::types::FileRoot;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
+use crate::application::file_dag::program::runtime::types::Emptiness;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
@@ -110,7 +111,8 @@ impl ProjectSources<'_> {
                 let Some(binding) = bound.as_mut() else {
                     continue;
                 };
-                if observation_slot(program, rule, binding.input).ok() != Some(slot) {
+                if !matches!(observation_slot(program, rule, binding.input), Ok(found) if found == slot)
+                {
                     continue;
                 }
                 let result = (|| {
@@ -556,12 +558,19 @@ impl Inputs for SourceInputs<'_, '_> {
         &self,
         input: &AdmittedInput,
         representation: crate::domain::operator::contract::types::EmptyRepresentation,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<Emptiness, OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
-        Ok(count_of(&rows).0 == 0
-            && (representation
-                == crate::domain::operator::contract::types::EmptyRepresentation::Any
-                || matches!(rows, Rows::Computed(_))))
+        Ok(
+            if count_of(&rows).0 == 0
+                && (representation
+                    == crate::domain::operator::contract::types::EmptyRepresentation::Any
+                    || matches!(rows, Rows::Computed(_)))
+            {
+                Emptiness::Empty
+            } else {
+                Emptiness::Populated
+            },
+        )
     }
     fn publish(
         &mut self,
@@ -618,8 +627,11 @@ impl Inputs for SourceInputs<'_, '_> {
                             .regions()
                             .get(shape.source.0)
                             .and_then(|source| source.instructions.last())
-                            .and_then(|instruction| instruction.contract.output_kinds.as_ref().ok())
                             .ok_or(OperatingError::NotRun)?
+                            .contract
+                            .output_kinds
+                            .as_ref()
+                            .map_err(Clone::clone)?
                     } else {
                         instruction
                             .contract

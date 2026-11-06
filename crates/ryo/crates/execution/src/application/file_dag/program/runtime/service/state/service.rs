@@ -1,8 +1,12 @@
 //! Slot and generation state of one runtime scope, and the execution that owns the scopes.
-use super::super::{ProgramExecution, RetirementWork, RootReaders, RuntimeState, Slot, State};
+use super::super::{
+    ProgramExecution, ProjectState, RetirementWork, RootReaders, RuntimeState, Slot, State,
+};
 use crate::application::file_dag::program::admission::Partition;
+#[cfg(test)]
+use crate::application::file_dag::program::runtime::types::{CallCount, ReaderInitializations};
+use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
 use crate::domain::executable_program::types::ExecutableProgram;
-use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use std::cell::RefCell;
@@ -11,12 +15,12 @@ use std::sync::Arc;
 impl Slot {
     pub(in crate::application::file_dag::program::runtime) fn touched<'a>(
         state: &RuntimeState,
-        slots: &'a mut std::collections::HashMap<usize, Slot>,
+        slots: &'a mut std::collections::HashMap<RegionId, Slot>,
         program: &ExecutableProgram,
         id: RegionId,
     ) -> Result<&'a mut Slot, OperatingError> {
         let region = program.regions().get(id.0).ok_or(OperatingError::NotRun)?;
-        let vacant = match slots.entry(id.0) {
+        let vacant = match slots.entry(id) {
             std::collections::hash_map::Entry::Occupied(entry) => return Ok(entry.into_mut()),
             std::collections::hash_map::Entry::Vacant(entry) => entry,
         };
@@ -25,7 +29,7 @@ impl Slot {
             Some(remaining) => remaining,
             None => state.initial_remaining(program, id)?,
         };
-        let cancelled = remaining == 0;
+        let cancelled = remaining.0 == 0;
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
@@ -33,9 +37,9 @@ impl Slot {
             #[cfg(test)]
             observed: Default::default(),
             #[cfg(test)]
-            native_positions: 0,
+            native_positions: CallCount(0),
             #[cfg(test)]
-            registered_calls: 0,
+            registered_calls: CallCount(0),
             state: if cancelled {
                 State::Retired
             } else {
@@ -49,7 +53,11 @@ impl Slot {
             ]
             .into_boxed_slice(),
             remaining,
-            dependencies_consumed: cancelled,
+            dependencies_consumed: if cancelled {
+                Dependencies::Consumed
+            } else {
+                Dependencies::Pending
+            },
             waiting_on: None,
             completion: None,
         }))
@@ -65,7 +73,7 @@ impl RuntimeState {
             scope,
             roots: RefCell::new(RootReaders::Declared),
             #[cfg(test)]
-            reader_initializations: std::cell::Cell::new(0),
+            reader_initializations: std::cell::Cell::new(ReaderInitializations(0)),
             slots: RefCell::new(std::collections::HashMap::new()),
             dormant: RefCell::new(std::collections::HashMap::new()),
             retirement: RefCell::new(RetirementWork {
@@ -73,7 +81,8 @@ impl RuntimeState {
                 touched: Vec::new(),
                 pending: Vec::new(),
                 waiters: std::collections::HashMap::new(),
-                retired: Vec::new(),
+                retired_states: Vec::new(),
+                retired_scratch: Vec::new(),
             }),
         }
     }
@@ -81,15 +90,16 @@ impl RuntimeState {
         &self,
         program: &ExecutableProgram,
         id: RegionId,
-    ) -> Result<usize, OperatingError> {
+    ) -> Result<ReaderCount, OperatingError> {
         #[cfg(test)]
-        self.reader_initializations
-            .set(self.reader_initializations.get() + 1);
+        self.reader_initializations.set(ReaderInitializations(
+            self.reader_initializations.get().0 + 1,
+        ));
         match &*self.roots.borrow() {
             RootReaders::Declared => program
                 .regions()
                 .get(id.0)
-                .map(|region| region.consumers)
+                .map(|region| ReaderCount(region.consumers))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
                 crate::domain::executable_program::file_demand::service::remaining(
@@ -97,7 +107,7 @@ impl RuntimeState {
                     selected,
                     id,
                 )
-                .map(|readers| readers.0)
+                .map(|readers| ReaderCount(readers.0))
             }
         }
     }
@@ -189,14 +199,17 @@ impl ProgramExecution {
         id: crate::application::file_dag::derived::population::types::PopulationId,
     ) -> std::rc::Rc<RuntimeState> {
         let mut states = self.project_states.borrow_mut();
-        if let Some((_, state)) = states.iter().find(|(key, _)| *key == id) {
-            return std::rc::Rc::clone(state);
+        if let Some(project) = states.iter().find(|project| project.population == id) {
+            return std::rc::Rc::clone(&project.state);
         }
         let state = std::rc::Rc::new(RuntimeState::new(
             crate::application::file_dag::relations::publication::types::ProducerScope::Project(id),
             Arc::clone(&self.generation),
         ));
-        states.push((id, std::rc::Rc::clone(&state)));
+        states.push(ProjectState {
+            population: id,
+            state: std::rc::Rc::clone(&state),
+        });
         state
     }
     pub(in crate::application::file_dag::program) fn partition(&self) -> &Partition {
@@ -251,8 +264,9 @@ impl ProgramExecution {
             .borrow()
             .values()
             .any(|slot| matches!(slot.state, State::Running))
-            || self.project_states.borrow().iter().any(|(_, state)| {
-                state
+            || self.project_states.borrow().iter().any(|project| {
+                project
+                    .state
                     .slots
                     .borrow()
                     .values()

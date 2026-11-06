@@ -1,6 +1,7 @@
 //! Admission progress: which inputs a region has supplied and admitted before its kernel may run.
 use super::super::{
-    AdmissionProgress, InputStage, KernelAdmission, KernelPermit, ProgramExecution, ReadySelection,
+    AcquiredInput, AdmissionProgress, EmptinessAnswer, InputStage, KernelAdmission, KernelPermit,
+    ProgramExecution, ReadySelection,
 };
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Inputs;
@@ -10,6 +11,7 @@ use crate::application::file_dag::program::constants::INPUT_ADMISSION_REFUSED;
 use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
 use crate::application::file_dag::program::constants::PHASE_DEPENDENCY;
 use crate::application::file_dag::program::constants::PHASE_PHYSICAL;
+use crate::application::file_dag::program::runtime::types::{Emptiness, StageProgress};
 use crate::domain::executable_program::types::Region;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
@@ -28,13 +30,13 @@ impl ReadySelection<'_, '_> {
         self.permit
     }
 }
-pub(in crate::application::file_dag::program::runtime::service) fn schema_first(
+pub(in crate::application::file_dag::program::runtime::service) fn first_preflight(
     region: &Region,
-) -> bool {
-    region.instructions.first().is_some_and(|instruction| {
-        instruction.contract.semantics.preflight
-            == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
-    })
+) -> Option<crate::domain::operator::contract::types::PreflightOrder> {
+    region
+        .instructions
+        .first()
+        .map(|instruction| instruction.contract.semantics.preflight)
 }
 impl AdmissionProgress {
     pub(in crate::application::file_dag::program::runtime::service) fn is_empty(
@@ -43,24 +45,28 @@ impl AdmissionProgress {
         source: crate::domain::executable_program::types::InputSource,
         input: &AdmittedInput,
         representation: crate::domain::operator::contract::types::EmptyRepresentation,
-    ) -> Result<bool, OperatingError> {
-        if let Some((_, _, empty)) = self
+    ) -> Result<Emptiness, OperatingError> {
+        if let Some(answer) = self
             .emptiness
             .iter()
-            .find(|(key, kind, _)| *key == source && *kind == representation)
+            .find(|answer| answer.source == source && answer.representation == representation)
         {
-            return Ok(*empty);
+            return Ok(answer.emptiness);
         }
-        let empty = inputs.is_empty(input, representation)?;
-        self.emptiness.push((source, representation, empty));
-        Ok(empty)
+        let emptiness = inputs.is_empty(input, representation)?;
+        self.emptiness.push(EmptinessAnswer {
+            source,
+            representation,
+            emptiness,
+        });
+        Ok(emptiness)
     }
 
     pub(in crate::application::file_dag::program::runtime::service) fn check_schema(
         &mut self,
         region: &Region,
     ) -> Result<(), OperatingError> {
-        if !self.schema_done {
+        if self.schema_done == StageProgress::Pending {
             for instruction in region.instructions.iter().rev() {
                 if instruction.contract.semantics.preflight
                     == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
@@ -72,7 +78,7 @@ impl AdmissionProgress {
                         .map_err(Clone::clone)?;
                 }
             }
-            self.schema_done = true;
+            self.schema_done = StageProgress::Done;
         }
         Ok(())
     }
@@ -83,20 +89,26 @@ impl AdmissionProgress {
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
-        if self.acquired.iter().any(|(key, _)| *key == source) {
+        if self
+            .acquired
+            .iter()
+            .any(|acquired| acquired.source == source)
+        {
             return Ok(());
         }
         if let Some(dependency) = inputs.dependency(source).inspect_err(|error| {
-            tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_DEPENDENCY, action = self.action, ?source, ?error);
+            tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_DEPENDENCY, action = self.action.0, ?source, ?error);
         })? {
             self.waiting = Some(dependency);
             return Err(OperatingError::NotRun);
         }
         let available = inputs.supply(source, partition, context).inspect_err(|error| {
-            tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_AVAILABILITY, action = self.action, ?source, ?error);
+            tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_AVAILABILITY, action = self.action.0, ?source, ?error);
         })?;
-        self.acquired
-            .push((source, InputStage::Available(available)));
+        self.acquired.push(AcquiredInput {
+            source,
+            stage: InputStage::Available(available),
+        });
         Ok(())
     }
     pub(in crate::application::file_dag::program::runtime::service) fn admit(
@@ -107,16 +119,17 @@ impl AdmissionProgress {
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
         self.supply(inputs, source, partition, context)?;
-        let (_, stage) = self
+        let acquired = self
             .acquired
             .iter_mut()
-            .find(|(key, _)| *key == source)
+            .find(|acquired| acquired.source == source)
             .ok_or(OperatingError::NotRun)?;
+        let stage = &mut acquired.stage;
         match stage {
             InputStage::Admitted(input) => Ok(input.clone()),
             InputStage::Available(available) => {
                 let admitted = inputs.admit(available, partition, context).inspect_err(|error| {
-                    tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_PHYSICAL, action = self.action, ?source, ?error);
+                    tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_PHYSICAL, action = self.action.0, ?source, ?error);
                 })?;
                 *stage = InputStage::Admitted(admitted.clone());
                 Ok(admitted)

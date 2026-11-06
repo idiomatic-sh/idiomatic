@@ -4,6 +4,7 @@ use super::{
     resources::appended_values,
 };
 mod binding;
+mod constants;
 pub(in crate::application::file_dag) mod native;
 use native::service::NativeJoinLease;
 mod groups;
@@ -11,7 +12,7 @@ pub(in crate::application::file_dag) mod index;
 mod prepared_use;
 mod views;
 use groups::groups;
-use index::IndexResource;
+use index::{EmptyInput, IndexResource};
 use prepared_use::service::prepared;
 #[cfg(test)]
 mod observation;
@@ -227,13 +228,17 @@ impl<'f> InvocationResources<'f> {
                 columns,
             } => {
                 let source = input(inputs, *place)?;
-                let skip_empty = matches!(columns, IndexColumns::ColumnsUnlessEmpty(_));
+                let empty = if matches!(columns, IndexColumns::ColumnsUnlessEmpty(_)) {
+                    EmptyInput::Skip
+                } else {
+                    EmptyInput::Keep
+                };
                 resources.inputs.index = Some(IndexResource::acquired(
                     contract,
                     originals.get(*place),
                     &admitted,
                     context,
-                    skip_empty,
+                    empty,
                 )?);
             }
             ResourceProgram::Join(JoinResources {
@@ -283,7 +288,7 @@ impl<'f> InvocationResources<'f> {
                             originals.get(1),
                             &admitted,
                             context,
-                            false,
+                            EmptyInput::Keep,
                         )?);
                     }
                 }

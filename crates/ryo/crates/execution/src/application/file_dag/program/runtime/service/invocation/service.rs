@@ -1,10 +1,9 @@
 //! One region invocation: the poll, its continuation chain and the committed outcome.
 use super::super::{
-    AdmissionProgress, Continue, Invocation, InvocationOutcome, KernelAdmission, KernelInvocation,
-    KernelPermit, ProgramExecution, ReadySelection, RuntimeState, Slot, State, Terminal,
+    AdmissionProgress, Continue, Invocation, InvocationOutcome, KernelInvocation, KernelPermit,
+    Poll, ProgramExecution, RuntimeState, Slot, State, Terminal,
 };
 use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::OUTCOME_FAILED;
 use crate::application::file_dag::program::constants::OUTCOME_MISSING;
@@ -17,18 +16,14 @@ use crate::application::file_dag::program::constants::OUTCOME_SUSPENDED;
 use crate::application::file_dag::program::constants::REGION_FAILURE;
 use crate::application::file_dag::program::constants::REGION_POLL;
 use crate::application::file_dag::program::runtime::types::{
-    ColumnCounters, InvocationFailure, KernelInput, KernelScratch, StrategyOutcome,
+    InstructionIndex, InvocationFailure, KernelInput, KernelScratch, PollMode,
 };
-use crate::domain::executable_program::types::DemandAction;
-use crate::domain::executable_program::types::InputId;
-use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::Region;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Emit;
 use crate::domain::operating::types::OperatorContext;
 use ryo_relations::domain::relations::types::Value;
-use std::sync::Arc;
 
 impl ProgramExecution {
     pub(in crate::application::file_dag::program) fn poll(
@@ -39,7 +34,7 @@ impl ProgramExecution {
         kernels: &dyn KernelInvocation,
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
-        prepare_only: bool,
+        prepare_only: PollMode,
     ) -> Result<InvocationOutcome, OperatingError> {
         self.validate_state(state)?;
         if inputs.population_scope() != state.scope {
@@ -57,7 +52,7 @@ impl ProgramExecution {
         let completion = &producer_policy;
         // A scope borrow never crosses admission, kernels or downstream callbacks.
         let started;
-        let mut scratch = {
+        let scratch = {
             let mut slots = state.slots.borrow_mut();
             let slot = Slot::touched(state, &mut slots, &self.program, id)?;
             match &slot.completion {
@@ -156,7 +151,7 @@ impl ProgramExecution {
             }
             Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
                 if let Some(admission) = cleanup.admission.as_ref() {
-                    tracing::trace!(target: EXECUTION_TARGET, event = REGION_FAILURE, region = id.0, producer = region.producer.0, phase = ?region.phase, logical = ?first.map(|first| first.logical.0), action = admission.action, ?error);
+                    tracing::trace!(target: EXECUTION_TARGET, event = REGION_FAILURE, region = id.0, producer = region.producer.0, phase = ?region.phase, logical = ?first.map(|first| first.logical.0), action = admission.action.0, ?error);
                 }
                 cleanup.terminal = Terminal::Failed(error.clone());
                 let _cleanup = self.release_inputs(state, id);
@@ -176,7 +171,7 @@ impl ProgramExecution {
 pub(in crate::application::file_dag::program::runtime::service) fn continuation(
     invocation: &KernelPermit<'_>,
     region: &Region,
-    at: usize,
+    at: InstructionIndex,
     input: KernelInput<'_>,
     kernels: &dyn KernelInvocation,
     context: &mut OperatorContext<'_>,
@@ -185,7 +180,7 @@ pub(in crate::application::file_dag::program::runtime::service) fn continuation(
 ) -> Result<(), InvocationFailure> {
     let instruction = region
         .instructions
-        .get(at)
+        .get(at.0)
         .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
     let permit = invocation
         .instruction(at)
@@ -193,13 +188,13 @@ pub(in crate::application::file_dag::program::runtime::service) fn continuation(
     let (frame, rest) = scratch
         .split_first_mut()
         .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
-    if at + 1 == region.instructions.len() {
+    if at.0 + 1 == region.instructions.len() {
         return kernels.evaluate(instruction, &permit, input, context, frame, output);
     }
     let mut next = Continue {
         invocation,
         region,
-        at: at + 1,
+        at: InstructionIndex(at.0 + 1),
         kernels,
         scratch: rest,
         output,
@@ -207,7 +202,7 @@ pub(in crate::application::file_dag::program::runtime::service) fn continuation(
     kernels.evaluate(instruction, &permit, input, context, frame, &mut next)
 }
 impl Emit for Continue<'_> {
-    pub(in crate::application::file_dag::program::runtime::service) fn row(
+    fn row(
         &mut self,
         context: &mut OperatorContext<'_>,
         row: &[Value],
@@ -228,10 +223,10 @@ impl Emit for Continue<'_> {
     }
 }
 impl Drop for Invocation<'_> {
-    pub(in crate::application::file_dag::program::runtime::service) fn drop(&mut self) {
+    fn drop(&mut self) {
         let mut slots = self.state.slots.borrow_mut();
         let mut committed_outcome = OUTCOME_MISSING;
-        if let Some(slot) = slots.get_mut(&self.id.0) {
+        if let Some(slot) = slots.get_mut(&self.id) {
             slot.scratch = self.scratch.take().unwrap_or_default();
             slot.admission = match self.terminal {
                 Terminal::Suspended | Terminal::Ready => self.admission.take().unwrap_or_default(),
@@ -242,9 +237,9 @@ impl Drop for Invocation<'_> {
                     #[cfg(test)]
                     {
                         slot.observed = workspace.measured();
-                        slot.native_positions +=
+                        slot.native_positions.0 +=
                             std::mem::take(&mut workspace.observation.native_positions);
-                        slot.registered_calls +=
+                        slot.registered_calls.0 +=
                             std::mem::take(&mut workspace.observation.registered_calls);
                     }
                     for (total, delta) in fed.0.iter_mut().zip(workspace.work.take()) {
@@ -293,7 +288,7 @@ impl Drop for Invocation<'_> {
                 producer = region.producer.0, phase = ?region.phase,
                 logical = ?region.instructions.first().map(|instruction| instruction.logical.0),
                 operation = ?region.instructions.first().map(|instruction| ryo_values::domain::plans::service::kind_of(&instruction.operation)),
-                instructions = region.instructions.len(), prepare_only = self.prepare_only,
+                instructions = region.instructions.len(), prepare_only = ?self.prepare_only,
                 committed_outcome, elapsed_ns = started.elapsed().as_nanos() as u64);
         }
     }

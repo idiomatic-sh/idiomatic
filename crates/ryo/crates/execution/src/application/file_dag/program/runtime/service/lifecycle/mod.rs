@@ -4,4 +4,6 @@ mod fixtures;
 #[cfg(any(test, feature = "fixtures"))]
 mod inputs;
 #[cfg(test)]
+mod publication;
+#[cfg(test)]
 mod test;

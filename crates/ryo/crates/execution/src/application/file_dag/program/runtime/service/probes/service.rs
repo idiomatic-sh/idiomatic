@@ -7,8 +7,8 @@ use crate::application::file_dag::program::constants::LIFECYCLE_OBSERVER;
 #[cfg(test)]
 use crate::application::file_dag::program::constants::OBSERVED_PRODUCER;
 use crate::application::file_dag::program::runtime::types::{
-    AttemptCheckpoint, ConsumerReleasePoint, DependencyCheckpoint, ProducerLeaseEvent, ReaderCount,
-    RetryCheckpoint,
+    AttemptCheckpoint, ConsumerReleasePoint, Dependencies, DependencyCheckpoint, IndexLiveness,
+    ProducerLeaseEvent, ReaderCount, RetryCheckpoint, WorkingBytes,
 };
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
@@ -64,16 +64,21 @@ impl ProgramExecution {
                 ryo_derived::domain::contract::types::DerivedKind::Equality,
             )
             .unwrap();
-        let index_live = index
-            .as_ref()
-            .is_some_and(|index| index.liveness() == crate::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive);
+        let index_liveness = if index.as_ref().is_some_and(|index| {
+            index.liveness()
+                == crate::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive
+        }) {
+            IndexLiveness::Alive
+        } else {
+            IndexLiveness::Released
+        };
         probe.events.push(ProducerLeaseEvent {
             consumer,
             point,
             checkpoint,
-            working_bytes: self.owner.derived.working_bytes(),
+            working_bytes: WorkingBytes(self.owner.derived.working_bytes()),
             index,
-            index_live,
+            index_liveness,
         });
     }
     #[cfg(test)]
@@ -121,7 +126,7 @@ impl ProgramExecution {
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
-        let Some(slot) = slots.get(&region.0) else {
+        let Some(slot) = slots.get(&region) else {
             self.program
                 .regions()
                 .get(region.0)
@@ -129,8 +134,8 @@ impl ProgramExecution {
             return Ok(Default::default());
         };
         Ok(crate::domain::operating::types::ExecutionObservation {
-            native_positions: slot.native_positions,
-            registered_calls: slot.registered_calls,
+            native_positions: slot.native_positions.0,
+            registered_calls: slot.registered_calls.0,
             ..slot.observed
         })
     }
@@ -142,7 +147,7 @@ impl ProgramExecution {
     ) -> Result<RetryCheckpoint, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
-        let Some(slot) = slots.get(&id.0) else {
+        let Some(slot) = slots.get(&id) else {
             self.program
                 .regions()
                 .get(id.0)
@@ -152,13 +157,13 @@ impl ProgramExecution {
                 None => state.initial_remaining(&self.program, id)?,
             };
             return Ok(RetryCheckpoint {
-                attempt: if state.dormant.borrow().get(&id) == Some(&0) {
+                attempt: if state.dormant.borrow().get(&id) == Some(&ReaderCount(0)) {
                     AttemptCheckpoint::Terminal
                 } else {
                     AttemptCheckpoint::Dormant
                 },
-                remaining: ReaderCount(remaining),
-                dependencies: if state.dormant.borrow().get(&id) == Some(&0) {
+                remaining,
+                dependencies: if state.dormant.borrow().get(&id) == Some(&ReaderCount(0)) {
                     DependencyCheckpoint::Consumed
                 } else {
                     DependencyCheckpoint::Pending
@@ -172,8 +177,8 @@ impl ProgramExecution {
                 State::Published(_) => AttemptCheckpoint::Published,
                 State::Retired | State::Failed(_) => AttemptCheckpoint::Terminal,
             },
-            remaining: ReaderCount(slot.remaining),
-            dependencies: if slot.dependencies_consumed {
+            remaining: slot.remaining,
+            dependencies: if slot.dependencies_consumed == Dependencies::Consumed {
                 DependencyCheckpoint::Consumed
             } else {
                 DependencyCheckpoint::Pending

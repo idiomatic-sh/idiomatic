@@ -2,7 +2,9 @@
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit};
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
-use crate::application::file_dag::program::runtime::types::{ColumnCounters, StrategyOutcome};
+use crate::application::file_dag::program::runtime::types::{
+    ColumnCounters, StageProgress, StrategyOutcome,
+};
 use crate::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
@@ -61,7 +63,7 @@ impl ProgramExecution {
         if let Some(shape) = region
             .ordered_existence
             .as_ref()
-            .filter(|_| !progress.ordered_done)
+            .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
                 .supply(
@@ -102,8 +104,8 @@ impl ProgramExecution {
                     .as_ref()
                     .map_err(|error| InvocationFailure::Semantic(error.clone()))?,
             );
-            let frames = cleanup
-                .scratch
+            let frames = call
+                .frames
                 .as_mut()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             let frame = frames
@@ -140,7 +142,7 @@ impl ProgramExecution {
                 return Ok(Some(InvocationOutcome::Published(publication)));
             }
         }
-        progress.ordered_done = true;
+        progress.ordered_done = StageProgress::Done;
         Ok(None)
     }
     pub(in crate::application::file_dag::program::runtime::service) fn column(
@@ -159,9 +161,12 @@ impl ProgramExecution {
             .needs
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        if let Some(shape) = region.column.as_ref().filter(|_| !progress.column_done) {
+        if let Some(shape) = region
+            .column
+            .as_ref()
+            .filter(|_| progress.column_done == StageProgress::Pending)
+        {
             use crate::domain::executable_program::types::InputSource;
-            use crate::domain::executable_program::types::Instruction;
             progress
                 .supply(
                     inputs,
@@ -206,8 +211,8 @@ impl ProgramExecution {
                 &right,
             )
             .map_err(InvocationFailure::Semantic)?;
-            let frames = cleanup
-                .scratch
+            let frames = call
+                .frames
                 .as_mut()
                 .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
             let scratch = frames
@@ -240,7 +245,7 @@ impl ProgramExecution {
                 return Ok(Some(InvocationOutcome::Published(publication)));
             }
         }
-        progress.column_done = true;
+        progress.column_done = StageProgress::Done;
         Ok(None)
     }
 }

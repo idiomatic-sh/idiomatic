@@ -215,7 +215,7 @@ pub(super) trait Inputs {
         &self,
         input: &AdmittedInput,
         representation: crate::domain::operator::contract::types::EmptyRepresentation,
-    ) -> Result<bool, OperatingError>;
+    ) -> Result<crate::application::file_dag::program::runtime::types::Emptiness, OperatingError>;
     fn publish(
         &mut self,
         root: ProducerRoot,
@@ -618,7 +618,7 @@ pub(super) fn alias_member(
         producer
     else {
         return Err(OperatingError::ObservationIncomplete {
-            reason: "named producer has no executable query".into(),
+            reason: crate::application::file_dag::program::constants::NO_EXECUTABLE_QUERY.into(),
         });
     };
     let root = prepared

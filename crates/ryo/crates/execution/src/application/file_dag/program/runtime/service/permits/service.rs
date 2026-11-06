@@ -4,7 +4,9 @@ use super::super::{
 };
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::runtime::types::InstructionIndex;
 use crate::application::file_dag::relations::RelationOwner;
+use crate::domain::executable_program::types::InputId;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
@@ -53,7 +55,7 @@ impl<'scope> KernelPermit<'scope> {
         Ok(Self {
             program: &execution.program,
             region,
-            instruction: 0,
+            instruction: InstructionIndex(0),
             generation: &execution.generation,
             owner: execution.owner.as_ref(),
             partition: execution.partition(),
@@ -82,7 +84,7 @@ impl<'scope> KernelPermit<'scope> {
         Ok(Self {
             program: &execution.program,
             region,
-            instruction: 0,
+            instruction: InstructionIndex(0),
             generation: &execution.generation,
             owner: execution.owner.as_ref(),
             partition: execution.partition(),
@@ -115,7 +117,7 @@ impl<'scope> KernelPermit<'scope> {
         Ok(Self {
             program: &execution.program,
             region,
-            instruction: 0,
+            instruction: InstructionIndex(0),
             generation: &execution.generation,
             owner: execution.owner.as_ref(),
             partition: execution.partition(),
@@ -128,11 +130,11 @@ impl<'scope> KernelPermit<'scope> {
     /// population walk, room or ledger operation occurs here.
     pub(in crate::application::file_dag::program) fn instruction(
         &self,
-        at: usize,
+        at: InstructionIndex,
     ) -> Result<Self, OperatingError> {
         self.program.regions()[self.region.0]
             .instructions
-            .get(at)
+            .get(at.0)
             .ok_or(OperatingError::NotRun)?;
         Ok(Self {
             program: self.program,
@@ -175,7 +177,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn descriptor(
         &self,
     ) -> &crate::domain::executable_program::types::Instruction {
-        &self.program.regions()[self.region.0].instructions[self.instruction]
+        &self.program.regions()[self.region.0].instructions[self.instruction.0]
     }
     pub(in crate::application::file_dag::program) fn position_semantics(
         &self,
@@ -215,18 +217,18 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn bound_input(
         &self,
-        at: usize,
+        at: InputId,
     ) -> Result<&AdmittedInput, OperatingError> {
         match self.bindings {
-            BoundInputs::Ordinary(inputs) => inputs.get(at),
-            BoundInputs::Ordered(input) => (at == 0).then_some(input),
-            BoundInputs::Column { left, right } => match at {
+            BoundInputs::Ordinary(inputs) => inputs.get(at.0),
+            BoundInputs::Ordered(input) => (at.0 == 0).then_some(input),
+            BoundInputs::Column { left, right } => match at.0 {
                 0 => Some(left),
                 1 => Some(right),
                 _ => None,
             },
         }
-        .ok_or(OperatingError::MissingInput { position: at + 1 })
+        .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
     }
     pub(in crate::application::file_dag::program) fn validate_live(
         &self,
@@ -240,7 +242,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn output_kinds(
         &self,
     ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
-        self.program.regions()[self.region.0].instructions[self.instruction]
+        self.program.regions()[self.region.0].instructions[self.instruction.0]
             .contract
             .output_kinds
             .as_deref()
@@ -257,11 +259,11 @@ impl<'scope> KernelPermit<'scope> {
         Ok(())
     }
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
-        self.program.regions()[self.region.0].instructions[self.instruction]
+        self.program.regions()[self.region.0].instructions[self.instruction.0]
             .contract
             .kind
     }
     pub(crate) fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions()[self.region.0].instructions[self.instruction].operation
+        &self.program.regions()[self.region.0].instructions[self.instruction.0].operation
     }
 }

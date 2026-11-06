@@ -4,6 +4,7 @@ use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::READINESS_QUEUE;
+use crate::application::file_dag::program::runtime::types::{PollMode, ReaderCount};
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -32,34 +33,36 @@ impl ProgramExecution {
                 .regions()
                 .get(root.0)
                 .ok_or(OperatingError::NotRun)?;
-            let terminal = state.slots.borrow().get(&root.0).is_some_and(|slot| {
+            let terminal = state.slots.borrow().get(&root).is_some_and(|slot| {
                 matches!(
                     slot.state,
                     State::Published(_) | State::Failed(_) | State::Retired
                 )
             });
-            if !terminal && state.dormant.borrow().get(&root) != Some(&0) {
+            if !terminal && state.dormant.borrow().get(&root) != Some(&ReaderCount(0)) {
                 pending.push(root);
             }
         }
         let mut queue = ReadyQueue::new(RegionCount(self.program.regions().len()), &pending)?;
         let result = (|| {
             while let Some(action) = queue.next()? {
-                let (id, prepare) = match action {
-                    ReadinessAction::Prepare(id) => (id, true),
-                    ReadinessAction::Evaluate(id) => (id, false),
+                let (id, mode) = match action {
+                    ReadinessAction::Prepare(id) => (id, PollMode::PrepareOnly),
+                    ReadinessAction::Evaluate(id) => (id, PollMode::Evaluate),
                 };
-                let outcome =
-                    match self.poll(state, id, inputs, kernels, completion, context, prepare) {
-                        Ok(InvocationOutcome::Suspended(dependency)) => {
-                            ReadinessOutcome::Waiting(dependency)
-                        }
-                        Ok(InvocationOutcome::Ready) if prepare => ReadinessOutcome::Ready,
-                        Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
-                        // A failed producer wakes its dependants so each resumes its
-                        // actual admission action, records the same failure and retires.
-                        Ok(_) | Err(_) => ReadinessOutcome::Terminal,
-                    };
+                let outcome = match self.poll(state, id, inputs, kernels, completion, context, mode)
+                {
+                    Ok(InvocationOutcome::Suspended(dependency)) => {
+                        ReadinessOutcome::Waiting(dependency)
+                    }
+                    Ok(InvocationOutcome::Ready) if mode == PollMode::PrepareOnly => {
+                        ReadinessOutcome::Ready
+                    }
+                    Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
+                    // A failed producer wakes its dependants so each resumes its
+                    // actual admission action, records the same failure and retires.
+                    Ok(_) | Err(_) => ReadinessOutcome::Terminal,
+                };
                 queue.observe(id, outcome)?;
             }
             Ok(())
@@ -78,12 +81,12 @@ impl ProgramExecution {
     ) -> Result<Option<AdmittedInput>, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
-        let Some(slot) = slots.get(&id.0) else {
+        let Some(slot) = slots.get(&id) else {
             self.program
                 .regions()
                 .get(id.0)
                 .ok_or(OperatingError::NotRun)?;
-            return if state.dormant.borrow().get(&id) == Some(&0) {
+            return if state.dormant.borrow().get(&id) == Some(&ReaderCount(0)) {
                 Err(OperatingError::NotRun)
             } else {
                 Ok(None)
@@ -139,7 +142,7 @@ impl ProgramExecution {
         if state
             .slots
             .borrow()
-            .get(&id.0)
+            .get(&id)
             .and_then(|slot| slot.completion.as_ref())
             .is_some_and(|bound| bound != &completion.for_rule(producer))
         {
@@ -148,7 +151,7 @@ impl ProgramExecution {
         if state
             .slots
             .borrow()
-            .get(&id.0)
+            .get(&id)
             .is_some_and(|slot| matches!(slot.state, State::Running))
         {
             return Err(OperatingError::NotRun);
