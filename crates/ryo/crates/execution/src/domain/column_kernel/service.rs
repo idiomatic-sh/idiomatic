@@ -156,8 +156,8 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
         };
         chains[target] = Some(Chain {
             left_step: left_id,
-            filter_step: filter_id,
-            join_step: join_id,
+            filter_step: ryo_values::domain::plan_parts::types::StepId(filter_id as u32),
+            join_step: ryo_values::domain::plan_parts::types::StepId(join_id as u32),
             right: *right,
             left_on: left_on.clone(),
             right_on: right_on.clone(),

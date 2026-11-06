@@ -12,8 +12,8 @@ pub(crate) struct Chain {
     /// Existing kept compact cut; this chain never re-evaluates its producer.
     pub left_step: usize,
     /// The equality filter and the join the chain replaces, by their step numbers in the plan.
-    pub filter_step: usize,
-    pub join_step: usize,
+    pub filter_step: ryo_values::domain::plan_parts::types::StepId,
+    pub join_step: ryo_values::domain::plan_parts::types::StepId,
     /// Complete rectangular relation looked up by typed equality.
     pub right: Relation,
     pub left_on: Vec<ColumnIndex>,

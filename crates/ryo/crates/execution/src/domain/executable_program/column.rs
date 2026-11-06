@@ -90,8 +90,8 @@ impl ColumnCandidates {
                     continue;
                 }
                 let (Some(filter), Some(join), Some(left)) = (
-                    original(graph, rule, StepId(chain.filter_step as u32)),
-                    original(graph, rule, StepId(chain.join_step as u32)),
+                    original(graph, rule, chain.filter_step),
+                    original(graph, rule, chain.join_step),
                     original(graph, rule, StepId(chain.left_step as u32)),
                 ) else {
                     continue;
