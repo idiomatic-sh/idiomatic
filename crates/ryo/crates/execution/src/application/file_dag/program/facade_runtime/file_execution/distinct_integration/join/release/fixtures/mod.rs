@@ -1,5 +1,5 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
-use super::super::capability::test::REFUSAL;
+use super::super::capability::fixtures::REFUSAL;
 use super::super::*;
 use ryo_operators::inbound::use_cases::operators::{
     interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
@@ -60,7 +60,7 @@ pub(super) fn ordered_sources() -> [Provider<'static>; 2] {
         count: RowCount(0),
     };
     [
-        super::super::column_chain::test::stored(Relation::SourceLocation, source),
-        super::super::column_chain::test::stored(Relation::Function, unused),
+        super::super::column_chain::fixtures::stored(Relation::SourceLocation, source),
+        super::super::column_chain::fixtures::stored(Relation::Function, unused),
     ]
 }

@@ -1,3 +1,7 @@
 //! compact proof roles.
 #[cfg(test)]
-pub(super) mod test;
+mod dependency_positions;
+#[cfg(test)]
+mod index_visits;
+#[cfg(test)]
+mod selected_frontiers;

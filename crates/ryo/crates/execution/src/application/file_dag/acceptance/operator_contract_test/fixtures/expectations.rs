@@ -62,4 +62,4 @@ pub(crate) fn assert_expected(
 
 use ryo_values::domain::rows::types::Table;
 
-pub(super) const SOURCE: &[u8] = b"a a";
+pub(crate) const SOURCE: &[u8] = b"a a";

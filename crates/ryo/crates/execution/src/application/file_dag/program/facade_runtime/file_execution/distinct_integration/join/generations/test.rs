@@ -1,6 +1,7 @@
 //! File-generation freshness under one immutable prepared request and service set.
 use super::super::direct::test::{request, schema_column, simple};
 use super::super::*;
+use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 #[test]
 fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {
     let left = schema_column(Relation::Entry, CellKind::Number, 0);
@@ -181,7 +182,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let mut rows = vec![];
     assert!(matches!(

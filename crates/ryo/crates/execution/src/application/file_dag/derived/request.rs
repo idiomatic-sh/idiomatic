@@ -1,9 +1,6 @@
 //! Request-only interning. Runtime acquisition compares prepared IDs, never request metadata.
 use crate::domain::{
-    derived_views::{
-        service::{kind, slot},
-        types::*,
-    },
+    derived_views::{service::slot, types::*},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     operator::contract::{
@@ -257,7 +254,7 @@ impl RequestViews {
                 break;
             }
         }
-        let at = slot(kind(&request));
+        let at = slot(request.kind());
         if slots[at]
             .as_ref()
             .is_some_and(|group| group.secondary.is_some())

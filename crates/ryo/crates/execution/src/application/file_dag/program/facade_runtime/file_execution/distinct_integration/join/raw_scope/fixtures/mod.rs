@@ -1,9 +1,10 @@
 //! Inputs are actual completed tree publications; faults are real injected dependencies.
-use super::super::capability::test::Witness;
+use super::super::capability::fixtures::Witness;
 use super::super::{
     cases::test::{tree_rows, wide_tree},
     *,
 };
+use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 use ryo_derived::domain::contract::types::{DerivedFault, ViewRequest};
 
 #[derive(Clone, Copy, Debug)]
