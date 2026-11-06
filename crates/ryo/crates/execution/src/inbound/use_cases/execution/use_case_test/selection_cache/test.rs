@@ -102,13 +102,19 @@ fn baseline_with_symbols(
         ]);
         (plan, vec![], vec![(relation, canonical)])
     };
-    if program.distinct {
+    // Select keeps every input column when kept is empty; a zero-column
+    // authored result requires the actual Project operation.
+    if program.distinct || program.columns.is_empty() {
         plan.steps.push(ryo_values::domain::plans::types::PlanStep {
             scope: ryo_values::domain::plans::types::StepScope::PerFile,
             operation: Operation::Project {
                 from: Source::Step(plan.emit.step),
                 columns: program.columns.clone(),
-                distinct: RepeatedRows::Dropped,
+                distinct: if program.distinct {
+                    RepeatedRows::Dropped
+                } else {
+                    RepeatedRows::Kept
+                },
             },
         });
         plan.emit.step = StepId((plan.steps.len() - 1) as u32);

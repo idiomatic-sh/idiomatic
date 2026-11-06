@@ -35,6 +35,10 @@ impl GraphHandle {
         })
     }
     pub(in crate::application::file_dag) fn graph(&self) -> &CompactGraph {
+        #[cfg(test)]
+        self.acquired
+            .view()
+            .expect("held graph has its required backing lease");
         &self.graph
     }
     pub(in crate::application::file_dag) fn orientation(&self) -> Orientation {
@@ -95,6 +99,10 @@ impl DomainHandle {
         })
     }
     pub(in crate::application::file_dag) fn members(&self) -> &[bool] {
+        #[cfg(test)]
+        self.acquired
+            .view()
+            .expect("held membership has its required backing lease");
         &self.domain.members
     }
     pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {

@@ -449,15 +449,30 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
         )
         .unwrap()
         .unwrap();
-    let charged = fixture.snapshot().required_bytes;
+    let before = fixture.snapshot();
+    assert_eq!(before.graphs, 1);
+    assert_eq!(before.domains, 1);
     assert!(
-        charged > 0,
+        before.required_bytes > 0,
         "actual graph and domain retain required leases"
     );
     let vertices = graph.graph().vertices().to_vec();
     let members = domain.members().to_vec();
     fixture.clear();
-    assert_eq!(fixture.snapshot().required_bytes, charged);
+    let retired = fixture.snapshot();
+    assert_eq!(retired.graphs, 0);
+    assert_eq!(retired.domains, 0);
+    assert_eq!(retired.retained_view_bytes, 0);
+    assert_eq!(retired.optional_bytes, 0);
+    assert!(retired.required_bytes > 0, "held payloads remain charged");
+    assert!(
+        retired.required_bytes < before.required_bytes,
+        "retiring cached publications releases their required metadata"
+    );
+    assert_eq!(
+        retired.unique_bytes, retired.required_bytes,
+        "only held required backings remain after cache retirement"
+    );
     assert_eq!(
         graph.graph().vertices(),
         vertices,
@@ -490,5 +505,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
     ));
     drop(domain);
     drop(graph);
-    assert_eq!(fixture.snapshot().required_bytes, 0);
+    let released = fixture.snapshot();
+    assert_eq!(released.required_bytes, 0);
+    assert_eq!(released.unique_bytes, 0);
 }
