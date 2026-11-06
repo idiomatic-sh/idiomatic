@@ -2,8 +2,8 @@
 
 use super::types::{Operation, OperationKind, Plan};
 use crate::domain::plan_parts::service::step_in;
-use crate::domain::plan_parts::types::Comparison;
 use crate::domain::plan_parts::types::Input;
+use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::{InputCount, Inputs};
@@ -145,7 +145,7 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
 }
 
 /// The comparisons an operation makes.
-pub fn comparisons_of(operation: &Operation) -> &[Comparison] {
+pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
     match operation {
         Operation::Select { comparisons, .. } => comparisons,
         Operation::Join { filter, .. } => filter,

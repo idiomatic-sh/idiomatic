@@ -38,7 +38,7 @@ pub enum Completeness {
 
 /// Whether the words are spelled as `pack()` writes them: minimal varints.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Spelling {
+pub enum WordSpelling {
     /// Each word is minimal and the last is whole.
     Canonical,
     /// A word is cut, overflows or is spelled another way.
@@ -56,7 +56,7 @@ pub enum Framing {
 
 /// Whether the shape metadata of a compact table is consistent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Shape {
+pub enum TableShape {
     /// Cells, frames and row offsets agree.
     Rectangular,
     /// Some of them disagree.
@@ -110,7 +110,7 @@ pub struct EncodedSize(pub usize);
 
 /// The tables read from packed words, and whether every table was read to its end.
 #[derive(Clone, Debug)]
-pub struct Decoded {
+pub struct DecodedTables {
     /// The rows of every table read.
     pub table: crate::domain::rows::types::Table,
     /// Whether the input was read to its end.

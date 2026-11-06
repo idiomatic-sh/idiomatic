@@ -10,8 +10,8 @@ use ryo_relations::domain::relations::types::{
 
 use super::types::{
     Admitted, CellCount, ColumnCount, CompactCursor, CompactFrame, CompactStorage, CompactTable,
-    Completeness, DecodeMode, DecodePhase, Decoded, EncodedSize, Framing, PackedOffset, PackedSlice, Shape,
-    Spelling, StorageAddress, StorageLength, StoragePart, WordSlice,
+    Completeness, DecodeMode, DecodePhase, DecodedTables, EncodedSize, Framing, PackedOffset,
+    PackedSlice, StorageAddress, StorageLength, StoragePart, TableShape, WordSlice, WordSpelling,
 };
 use crate::domain::plan_parts::types::ColumnIndex;
 use crate::domain::records::types::OwnedBytes;
@@ -61,9 +61,9 @@ fn decode_combined_status(
     packed: &PackedWords,
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
-) -> Decoded {
+) -> DecodedTables {
     let mut complete =
-        mode == DecodeMode::Permissive || canonical_words(packed) == Spelling::Canonical;
+        mode == DecodeMode::Permissive || canonical_words(packed) == WordSpelling::Canonical;
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
     observed_decode(DecodePhase::BeforeReserve, packed, &combined, places);
@@ -128,7 +128,7 @@ fn decode_combined_status(
     observed_decode(DecodePhase::BeforeShrink, packed, &combined, places);
     combined.cells.shrink_to_fit();
     observed_decode(DecodePhase::AfterShrink, packed, &combined, places);
-    Decoded {
+    DecodedTables {
         table: combined,
         completeness: if complete {
             Completeness::Complete
@@ -139,12 +139,7 @@ fn decode_combined_status(
 }
 
 /// Report only this decoder's caller-owned buffers, never process/allocator residency.
-fn observed_decode(
-    at: DecodePhase,
-    packed: &PackedWords,
-    table: &Table,
-    places: &Vec<NamePlace>,
-) {
+fn observed_decode(at: DecodePhase, packed: &PackedWords, table: &Table, places: &Vec<NamePlace>) {
     if tracing::enabled!(target: super::constants::LIFECYCLE_TARGET, tracing::Level::TRACE) {
         let phase = match at {
             DecodePhase::BeforeReserve => super::constants::BEFORE_RESERVE,
@@ -233,33 +228,33 @@ pub fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ {
 use crate::domain::rows::types::{RowCount, Table};
 /// Existing pack() emits minimal u64 varints. A required frame refuses a cut word,
 /// overflow or alternate spelling rather than letting unpacked() silently shorten it.
-fn canonical_words(packed: &PackedWords) -> Spelling {
+fn canonical_words(packed: &PackedWords) -> WordSpelling {
     canonical_bytes(PackedSlice(&packed.0))
 }
 
-fn canonical_bytes(bytes: PackedSlice<'_>) -> Spelling {
+fn canonical_bytes(bytes: PackedSlice<'_>) -> WordSpelling {
     let mut shift = 0_u32;
     for &byte in bytes.0 {
         let payload = byte & 0x7f;
         if shift > 63 || (shift == 63 && payload > 1) {
-            return Spelling::Altered;
+            return WordSpelling::Altered;
         }
         if byte & 0x80 == 0 {
             if shift != 0 && payload == 0 {
-                return Spelling::Altered;
+                return WordSpelling::Altered;
             }
             shift = 0;
         } else {
             if shift >= 63 {
-                return Spelling::Altered;
+                return WordSpelling::Altered;
             }
             shift += 7;
         }
     }
     if shift == 0 {
-        Spelling::Canonical
+        WordSpelling::Canonical
     } else {
-        Spelling::Altered
+        WordSpelling::Altered
     }
 }
 
@@ -267,7 +262,7 @@ fn canonical_bytes(bytes: PackedSlice<'_>) -> Spelling {
 /// same value codec without retaining decoded cells or row offsets, so moving
 /// a byte across adjacent source ranges cannot reassign another file's rows.
 pub fn single_table_frame(bytes: PackedSlice<'_>) -> Framing {
-    if canonical_bytes(bytes) != Spelling::Canonical {
+    if canonical_bytes(bytes) != WordSpelling::Canonical {
         return Framing::Broken;
     }
     let mut cursor = CompactCursor {
@@ -303,7 +298,7 @@ pub fn single_table_frame(bytes: PackedSlice<'_>) -> Framing {
 
 /// Admit frame boundaries, kinds and names without retaining decoded row cells.
 /// The same byte/value walk as the existing decoder preserves permissive frame
-/// rollback and Complete's all-or-error name rollback. Spelling is checked by
+/// rollback and Complete's all-or-error name rollback. WordSpelling is checked by
 /// the caller in its existing preparation order, before query execution.
 pub fn admit_compact(
     backing: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
@@ -312,7 +307,7 @@ pub fn admit_compact(
 ) -> Result<Admitted, super::errors::TableWordsError> {
     let before = places.len();
     let mut complete =
-        mode == DecodeMode::Permissive || canonical_words(&backing.0) == Spelling::Canonical;
+        mode == DecodeMode::Permissive || canonical_words(&backing.0) == WordSpelling::Canonical;
     let mut cursor = CompactCursor {
         bytes: PackedSlice(&backing.0.0),
         offset: PackedOffset(0),
@@ -527,7 +522,7 @@ pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) ->
     found
 }
 /// Admission validated every encoded cell once; this is a metadata-only shape check.
-pub fn compact_rectangular(input: &CompactTable) -> Shape {
+pub fn compact_rectangular(input: &CompactTable) -> TableShape {
     if input.rows.0.checked_mul(input.kinds.len()) == Some(input.cells.0)
         && input
             .frames
@@ -540,9 +535,9 @@ pub fn compact_rectangular(input: &CompactTable) -> Shape {
             == Some(input.cells.0)
         && (input.kinds.is_empty() || input.row_offsets.len() == input.rows.0)
     {
-        Shape::Rectangular
+        TableShape::Rectangular
     } else {
-        Shape::Ragged
+        TableShape::Ragged
     }
 }
 pub fn compact_backing(

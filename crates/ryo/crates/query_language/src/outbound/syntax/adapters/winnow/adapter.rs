@@ -12,11 +12,19 @@ use super::constants::{GRAMMAR, Keyword, Mark, expectation, keyword_text, mark_t
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput, FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep, OperationName, ParameterDeclaration, WrittenProgram, QuerySource, QuerySpan, QueryView, RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference, StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
-use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::{
+    Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call,
+    ColumnReference, Columns, Condition, Expression, Filter, FragmentInput, FragmentProgram,
+    FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep, OperationName,
+    ParameterDeclaration, QuerySource, QuerySpan, QueryView, RelationSignature, Renaming, Select,
+    SelectColumn, SignatureColumn, SourceReference, StepIdentity, StepName, TypeName, WordText,
+    WrittenApplied, WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenObservation,
+    WrittenOperand, WrittenParameter, WrittenProgram, WrittenRelation, WrittenTest,
+};
 
 /// The winnow syntax adapter.
 #[derive(Debug)]
@@ -89,7 +97,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
         let mut fragments = std::collections::BTreeMap::new();
         for (source_id, source) in bundle.modules.iter() {
             let fragment = fragment_program
-                .parse(LocatingSlice::new(&source.text))
+                .parse(LocatingSlice::new(&*source.text))
                 .map_err(|error| {
                     let said = error.inner().to_string();
                     SyntaxError::Located {
@@ -332,9 +340,7 @@ pub(super) fn fragment_input_line(input: &mut Input<'_>) -> ModalResult<Fragment
 }
 
 /// `output relation<id: node, file: file, span: span>;`.
-pub(super) fn fragment_output_line(
-    input: &mut Input<'_>,
-) -> ModalResult<FragmentLine> {
+pub(super) fn fragment_output_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
     delimited(
         (keyword(Keyword::Output), multispace1),
         relation_signature,

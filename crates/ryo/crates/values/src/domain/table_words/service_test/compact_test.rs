@@ -96,7 +96,7 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
             .is_some_and(|cells| cells == old.cells.len());
         assert_eq!(
             service::compact_rectangular(&meta)
-                == crate::domain::table_words::types::Shape::Rectangular,
+                == crate::domain::table_words::types::TableShape::Rectangular,
             expected_rectangular
         );
         if expected_rectangular {
@@ -140,7 +140,7 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
     assert_eq!(service::compact_cells(&meta), CellCount(12));
     assert_eq!(
         service::compact_rectangular(&meta),
-        crate::domain::table_words::types::Shape::Rectangular
+        crate::domain::table_words::types::TableShape::Rectangular
     );
     assert_eq!(names.len(), 4);
     assert_eq!(places.len(), 4);

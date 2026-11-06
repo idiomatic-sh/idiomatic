@@ -2,7 +2,6 @@
 
 use crate::domain::plan_parts::types::CapturePattern;
 use crate::domain::plan_parts::types::ColumnIndex;
-use crate::domain::plan_parts::types::Comparison;
 use crate::domain::plan_parts::types::Direction;
 use crate::domain::plan_parts::types::Heading;
 use crate::domain::plan_parts::types::HostedNumber;
@@ -11,6 +10,7 @@ use crate::domain::plan_parts::types::JoinColumn;
 use crate::domain::plan_parts::types::Operand;
 use crate::domain::plan_parts::types::ParameterId;
 use crate::domain::plan_parts::types::ParameterName;
+use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::StepScope;
@@ -101,7 +101,7 @@ pub enum Operation {
         /// What it filters.
         from: Input,
         /// The comparisons, all of which must hold.
-        comparisons: Vec<Comparison>,
+        comparisons: Vec<PlanComparison>,
         /// The columns kept, in order; none named means every column.
         kept: Vec<ColumnIndex>,
     },
@@ -134,7 +134,7 @@ pub enum Operation {
         /// The columns of the answer.
         output: Vec<JoinColumn>,
         /// What the rows of the right input must satisfy to be joined, as the comparisons of a filter of it.
-        filter: Vec<Comparison>,
+        filter: Vec<PlanComparison>,
         /// The columns of the right input the keys and the answer name, in order; none named means all of them.
         view: Vec<ColumnIndex>,
         /// Source-keyed closure demand; the right input is physical edges when present.
@@ -263,7 +263,7 @@ pub enum Operation {
         /// The entity column in `domain`.
         domain_id: ColumnIndex,
         /// What the rows of the domain must satisfy to prove an answer valid, as the comparisons of a filter of it.
-        domain_filter: Vec<Comparison>,
+        domain_filter: Vec<PlanComparison>,
         /// The columns of the domain the entity column names, in order; none named means all of them.
         domain_view: Vec<ColumnIndex>,
         /// The columns of the answer, each of the starting row (left) or of the element reached (right); none named means the

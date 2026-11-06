@@ -279,7 +279,10 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     let plans = CompiledPlans::default();
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
-    let module = source_id(ryo_values::domain::program::types::QuerySpelling("shared/module")).expect("nonblank module id");
+    let module = source_id(ryo_values::domain::program::types::QuerySpelling(
+        "shared/module",
+    ))
+    .expect("nonblank module id");
     let mut asked = rule("catalog", "select");
     asked.query = query_bundle(
         asked.query.root,
@@ -288,7 +291,7 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     .expect("unique module identity");
     let snapshot = asked.query.clone();
     assert!(Arc::ptr_eq(&snapshot.modules, &asked.query.modules));
-    assert!(Arc::ptr_eq(&snapshot.root.text, &asked.query.root.text));
+    assert!(Arc::ptr_eq(&snapshot.root.text.0, &asked.query.root.text.0));
     let _first = service.compile(&[asked.clone()], &[])?;
     let mut equal_contents = asked.clone();
     equal_contents.query.modules = Arc::new((*asked.query.modules).clone());
@@ -301,11 +304,14 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     Arc::make_mut(&mut asked.query.modules)
         .get_mut(&module)
         .unwrap()
-        .text = Arc::from("changed bytes");
-    assert_eq!(snapshot.modules[&module].text.as_ref(), "original bytes\nλ");
+        .text = "changed bytes".into();
+    assert_eq!(&*snapshot.modules[&module].text, "original bytes\nλ");
     let _changed_bytes_miss = service.compile(&[asked.clone()], &[])?;
     assert_eq!(compiler.calls.load(Ordering::SeqCst), 2);
-    let renamed_id = source_id(ryo_values::domain::program::types::QuerySpelling("shared/renamed")).expect("nonblank renamed id");
+    let renamed_id = source_id(ryo_values::domain::program::types::QuerySpelling(
+        "shared/renamed",
+    ))
+    .expect("nonblank renamed id");
     Arc::make_mut(&mut asked.query.modules)
         .get_mut(&module)
         .unwrap()
@@ -321,7 +327,7 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     let kept = plans.0.lock().unwrap_or_else(PoisonError::into_inner);
     let cached = &kept.plans[&asked.id].query;
     assert!(Arc::ptr_eq(&cached.modules, &asked.query.modules));
-    assert!(Arc::ptr_eq(&cached.root.text, &asked.query.root.text));
+    assert!(Arc::ptr_eq(&cached.root.text.0, &asked.query.root.text.0));
     Ok([kept.plans.len(), compiler.calls.load(Ordering::SeqCst), 1])
 }
 

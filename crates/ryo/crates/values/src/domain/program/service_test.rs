@@ -2,6 +2,7 @@
 use super::errors::ProgramError;
 use super::service::{document_source, query_bundle, source_id, standalone};
 use super::types::QuerySourceId;
+use super::types::QuerySpelling;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;
 
@@ -52,10 +53,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::NamedSource => source_id("module").map(|id| Cow::Owned(id.0.into_string())),
-        Scenario::StandaloneQuery => standalone("rows").map(|bundle| Cow::Owned(bundle.root.id.0.into_string())),
-        Scenario::BlankSource => source_id("  ").map(|id| Cow::Owned(id.0.into_string())),
-        Scenario::BlankQuery => standalone("  ").map(|bundle| Cow::Owned(bundle.root.id.0.into_string())),
+        Scenario::NamedSource => {
+            source_id(QuerySpelling("module")).map(|id| Cow::Owned(id.0.into_string()))
+        }
+        Scenario::StandaloneQuery => standalone(QuerySpelling("rows"))
+            .map(|bundle| Cow::Owned(bundle.root.id.0.into_string())),
+        Scenario::BlankSource => {
+            source_id(QuerySpelling("  ")).map(|id| Cow::Owned(id.0.into_string()))
+        }
+        Scenario::BlankQuery => {
+            standalone(QuerySpelling("  ")).map(|bundle| Cow::Owned(bundle.root.id.0.into_string()))
+        }
         Scenario::RepeatedModule => {
             let root = document_source(QuerySourceId("root".into()), "rows");
             let module = document_source(QuerySourceId("root".into()), "more");

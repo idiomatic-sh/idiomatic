@@ -33,7 +33,43 @@ pub struct QueryDocumentSource {
     /// The stable logical identity used by imports and diagnostics.
     pub id: QuerySourceId,
     /// Exact immutable UTF-8 bytes, shared by snapshots without copying source text.
-    pub text: std::sync::Arc<str>,
+    pub text: SourceText,
+}
+
+/// The exact text of one query source, shared by snapshots without copying.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SourceText(pub std::sync::Arc<str>);
+
+impl std::ops::Deref for SourceText {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&str> for SourceText {
+    fn from(text: &str) -> Self {
+        Self(text.into())
+    }
+}
+
+impl From<String> for SourceText {
+    fn from(text: String) -> Self {
+        Self(text.into())
+    }
+}
+
+impl From<Box<str>> for SourceText {
+    fn from(text: Box<str>) -> Self {
+        Self(text.into())
+    }
+}
+
+impl From<std::sync::Arc<str>> for SourceText {
+    fn from(text: std::sync::Arc<str>) -> Self {
+        Self(text)
+    }
 }
 
 /// The in-memory root and immutable named module sources for one query.
@@ -118,7 +154,7 @@ pub enum Linking {
 
 /// A whole query: its parameters, its steps and the one `emit`.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Program {
+pub struct WrittenProgram {
     /// Whether source-local identities and imports have been linked for a complete query bundle.
     pub linked: Linking,
     /// The imported modules available to root-level calls.
@@ -258,7 +294,7 @@ pub struct FragmentProgram {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParsedQueryBundle {
     /// Parsed root query.
-    pub root: Program,
+    pub root: WrittenProgram,
     /// Parsed module documents keyed by their bundle ids.
     pub fragments: BTreeMap<QuerySourceId, FragmentProgram>,
 }

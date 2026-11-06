@@ -169,7 +169,7 @@ pub enum Test {
 
 /// One condition of a `select` step.
 #[derive(Clone, Debug)]
-pub struct Comparison {
+pub struct PlanComparison {
     /// How the sides compare.
     pub test: Test,
     /// The left side.
@@ -258,7 +258,7 @@ pub struct Inputs {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputCount(pub usize);
 
-impl PartialEq for Comparison {
+impl PartialEq for PlanComparison {
     fn eq(&self, other: &Self) -> bool {
         self.test == other.test && self.left == other.left && self.right == other.right
     }

@@ -74,7 +74,7 @@ impl QueryLanguagePort for ProjectQueries {
         _hosted: &[HostedRelation],
         observations: &[BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
-        let first = bundle.root.text.as_ref() == "first";
+        let first = &*bundle.root.text == "first";
         let mut plan = QueryLanguageFake::selecting().plan;
         plan.observation_inputs = observations.to_vec();
         let from = if self.route == BudgetRoute::Named && !first {

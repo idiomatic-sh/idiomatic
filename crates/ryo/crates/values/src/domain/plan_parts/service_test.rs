@@ -135,8 +135,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }))
         .is_empty(),
         Scenario::OriginIgnored => {
-            use super::types::{Comparison, ComparisonOrigin, ComparisonOriginId, Test};
-            let comparison = |origin| Comparison {
+            use super::types::{ComparisonOrigin, ComparisonOriginId, PlanComparison, Test};
+            let comparison = |origin| PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Column(ColumnIndex(2)),
