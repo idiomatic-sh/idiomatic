@@ -5,7 +5,7 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
-mod constants;
+pub(crate) mod constants;
 mod corpus;
 mod diagnostic_protocol;
 mod measure;
@@ -25,9 +25,9 @@ pub(crate) fn run(
     let command = args.next();
     match command.as_deref() {
         Some(
-            self::constants::RUN_RYO
-            | self::constants::PROFILE_RYO
-            | self::constants::DIAGNOSTIC_RYO,
+            crate::constants::RUN_RYO
+            | crate::constants::PROFILE_RYO
+            | crate::constants::DIAGNOSTIC_RYO,
         ) => self::commands::worker(
             args.map(self::request_input::BenchmarkArgument),
             self::diagnostic_protocol::tracing_for_command(

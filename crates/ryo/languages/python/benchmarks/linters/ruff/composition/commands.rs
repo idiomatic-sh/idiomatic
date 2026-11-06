@@ -190,7 +190,7 @@ pub(super) fn verify_cases(
     )?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
-        profile.join(constants::RULES_DIRECTORY),
+        profile.join(crate::constants::RULES_DIRECTORY),
         query_modules,
         rule_applicability,
         parser_configuration,
@@ -208,7 +208,7 @@ pub(super) fn verify_cases(
             execution.as_ref(),
         )
         .verify_cases(
-            &profile.join(constants::RULES_DIRECTORY),
+            &profile.join(crate::constants::RULES_DIRECTORY),
             &root.join(constants::CASES_DIRECTORY),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection {
                 shard,
@@ -265,7 +265,7 @@ pub(super) fn verify_reference_cases(
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
     ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution).verify_reference_cases(
-        &source.join(constants::RULES_DIRECTORY),
+        &source.join(crate::constants::RULES_DIRECTORY),
         &root,
     )
 }

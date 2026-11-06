@@ -1,12 +1,12 @@
 //! Parse the child's request transport without putting large JSON in argv.
-use super::constants;
-use super::constants::{
+use super::targets::TargetConfiguration;
+use crate::constants;
+use crate::constants::{
     ACCEPTED_SYNTAX, ALWAYS, APPLICABILITY, PARSER_CONFIGURATION, PINNED_RULE_PHASES,
     RULE_APPLICABILITY, RULES_DIRECTORY, WORKER_PARSER_CONFIGURATION_DIFFER,
     WORKER_REQUIRES_AN_EXPLICIT_SUPPOR, WORKER_REQUIRES_EXPLICIT_SELECTED,
     WORKER_RULE_APPLICABILITY_DIFFERS,
 };
-use super::targets::TargetConfiguration;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::PathBuf;
 

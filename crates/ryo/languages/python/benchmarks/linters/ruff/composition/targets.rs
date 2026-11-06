@@ -1,5 +1,5 @@
 //! One explicit shared parser target at the benchmark composition boundary.
-use super::constants::{
+use crate::constants::{
     EXPLICIT_LEGACY_TARGET, EXPLICIT_NATIVE_ANNOTATION_TARGET, PY37, PY38, PY39, PY310, PY311,
     PY312, PY313, PY314, PY315, PYTHON_TARGET_3_6, PYTHON_TARGET_3_7, PYTHON_TARGET_3_8,
     PYTHON_TARGET_3_09, PYTHON_TARGET_3_9, PYTHON_TARGET_3_10, PYTHON_TARGET_3_10_2,

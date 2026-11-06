@@ -1,5 +1,5 @@
 //! Explicit worker modes for profiling and durable rule/file diagnostics.
-use super::constants::{DIAGNOSTIC_RYO, PROFILE_RYO, RUN_RYO};
+use crate::constants::{DIAGNOSTIC_RYO, PROFILE_RYO, RUN_RYO};
 
 /// How a standalone worker handles rule/file tracing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

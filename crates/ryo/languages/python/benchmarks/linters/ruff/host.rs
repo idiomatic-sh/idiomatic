@@ -2,7 +2,7 @@
 use super::host_policy::Permissions;
 #[cfg(unix)]
 use super::host_policy::{Isolation, Kernel, supported};
-use crate::constants::{
+use crate::composition::constants::{
     CONTAINER, DOCKER, DOCKERENV, KUBEPODS, LINUX, LXC, MICROSOFT, PROC_SELF_CGROUP,
     PROC_SYS_KERNEL_OSRELEASE, PROC_VERSION, RUN_CONTAINERENV,
 };
