@@ -1,15 +1,14 @@
 //! Opaque backing observations never grant construction or ownership of storage.
 use super::super::fixtures::{Expectation, Probe};
-use super::ROOT;
 
 const IMPORT: &str = r#"
 use crate::application::file_dag::derived::owner::witness::service::BackingWitness as Witness;
 "#;
 
-pub(super) fn controls() -> Vec<Probe> {
+pub(super) fn controls(owner: &'static str) -> Vec<Probe> {
     vec![
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_observation {{
@@ -24,7 +23,7 @@ mod witness_observation {{
             expected: Expectation::Accept,
         },
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_private_constructor {{
@@ -41,7 +40,7 @@ mod witness_private_constructor {{
             },
         },
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_alias_constructor {{
@@ -58,7 +57,7 @@ mod witness_alias_constructor {{
             },
         },
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_self_retarget {{
@@ -77,7 +76,7 @@ mod witness_self_retarget {{
             },
         },
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_detach_backing {{
@@ -94,7 +93,7 @@ mod witness_detach_backing {{
             },
         },
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_upgrade_storage {{
@@ -111,7 +110,7 @@ mod witness_upgrade_storage {{
             },
         },
         Probe {
-            owner: ROOT,
+            owner,
             source: format!(
                 r#"
 mod witness_clone_storage {{
