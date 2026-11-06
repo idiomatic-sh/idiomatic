@@ -24,8 +24,8 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::program::types::RefusedKind;
 use ryo_values::domain::program::types::RefusedQuery;
-use ryo_values::domain::records::types::Cell as RowCell;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
+use ryo_values::domain::row_texts::types::Cell as RowCell;
 use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session, WorkersAsked};
 
 use super::errors::{LintError, ProviderCode};

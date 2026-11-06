@@ -87,7 +87,7 @@ impl PreparedProgram {
             .filter(|(_, needed)| *needed == Visit::Reached)
             .map(|(rule, _)| {
                 u32::try_from(rule)
-                    .map(ryo_values::domain::records::types::PlacedRule)
+                    .map(ryo_values::domain::row_texts::types::PlacedRule)
                     .map_err(|_| OperatingError::NotRun)
             })
             .collect::<Result<Vec<_>, _>>()?;

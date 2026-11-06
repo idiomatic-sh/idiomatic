@@ -7,7 +7,7 @@ use crate::domain::{
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::HostedNumber,
-    records::types::Cell as HostedCell,
+    row_texts::types::Cell as HostedCell,
     rows::errors::RowsError,
 };
 const SOURCE: &[u8] = b"replayed";

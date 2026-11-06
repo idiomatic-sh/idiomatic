@@ -13,7 +13,7 @@ use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::domain::records::types::Cell as HostedCell;
+use ryo_values::domain::row_texts::types::Cell as HostedCell;
 
 /// A request-owned or per-row operation read beside a shared head.
 #[derive(Clone, Copy, Debug)]

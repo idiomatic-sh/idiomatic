@@ -7,7 +7,7 @@ use crate::domain::operator::types::RowsFed;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::run_metadata::types::{FeatureSource, RuleRunMetadata, StepMetadata};
 

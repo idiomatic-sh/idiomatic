@@ -1,9 +1,10 @@
 //! A store keeps the proofs of the buckets it copied from the store before, under the number each file has now.
 use super::service::carry_proofs;
-use super::types::{FileAgain, KeptRows, StoredFileNumber, StoredFrontierProof, StoredHanded};
+use super::types::{FileAgain, KeptRows, StoredFrontierProof, StoredHanded};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::records::types::{FrontierCoverage, FrontierProof};
 use crate::domain::stored_facts::types::{Bucket, Digest};
+use crate::domain::stored_findings::types::StoredFileNumber;
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]

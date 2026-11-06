@@ -27,9 +27,9 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::records::service::keep;
-use ryo_values::domain::records::types::Cell as Typed;
-use ryo_values::domain::records::types::RowTotal;
-use ryo_values::domain::records::types::{CellText, RowsTextView};
+use ryo_values::domain::row_texts::types::Cell as Typed;
+use ryo_values::domain::row_texts::types::RowTotal;
+use ryo_values::domain::row_texts::types::{CellText, RowsTextView};
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

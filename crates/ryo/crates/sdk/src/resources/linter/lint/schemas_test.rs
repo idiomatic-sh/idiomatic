@@ -13,7 +13,7 @@ use ryo_core::outbound::row_sink::factory::collect;
 use ryo_core::outbound::row_sink::interface::RowSinkPort as _;
 use ryo_core::outbound::row_sink::types::LentCell;
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::records::types::{Cell, CellText};
+use ryo_values::domain::row_texts::types::{Cell, CellText};
 
 /// A text and what it is offered as.
 #[derive(Clone, Copy, Debug)]

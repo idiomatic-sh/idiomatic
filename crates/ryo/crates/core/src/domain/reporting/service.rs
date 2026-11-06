@@ -2,7 +2,7 @@
 //! files and count them, and report the files left unread, with no IO and no ports.
 
 use ryo_language::domain::symbols::service::file_in;
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 
 use super::types::RowCounts;
 use crate::domain::finish::types::FoundRow;

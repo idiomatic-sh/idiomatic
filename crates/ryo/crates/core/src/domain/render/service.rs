@@ -28,7 +28,7 @@ use crate::domain::value_cells::types::Scene;
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::plans::types::{Emit, Plan};
 use ryo_values::domain::records::service::{keep, lent};
-use ryo_values::domain::records::types::{
+use ryo_values::domain::row_texts::types::{
     Cell, CellText, RowEnds, RowTotal, RowsTextView, TextRange,
 };
 use {

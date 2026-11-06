@@ -56,6 +56,10 @@ The values domain's `query_tokens` concept: the spans, names and sources RyoQL t
 
 The values domain's `records` concept: what a run kept of each file, and of the repository, and the typed `Cell` a row of the answer holds: a file, a text, a number or a span, never turned into text before the command line prints it.
 
+### `row_texts`
+
+The values domain's `row_texts` concept: the text of rows, where each rule, line, row and column of a finding is placed in it, and the totals of rows.
+
 ### rows
 
 The values domain's `rows` concept: The neutral row carriers the engine and the semantic capabilities share.
@@ -75,6 +79,10 @@ The values domain's `runs` concept: what a run is asked, and what it keeps of a 
 ### `stored_facts`
 
 The values domain's `stored_facts` concept: what a run keeps of the words and the text of a file.
+
+### `stored_findings`
+
+The values domain's `stored_findings` concept: what a store keeps of a finding: where it was made, its values and the text it names.
 
 ### stores
 

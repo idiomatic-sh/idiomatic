@@ -3,7 +3,7 @@ use super::super::*;
 use ryo_values::domain::{
     hosted::types::HostKind,
     plan_parts::types::{HostedNumber, LiteralText, Operand, PlanComparison, QueryLiteral, Test},
-    records::types::Cell as HostCell,
+    row_texts::types::Cell as HostCell,
 };
 
 #[derive(Clone, Copy)]

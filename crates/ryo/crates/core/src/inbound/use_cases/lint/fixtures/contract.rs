@@ -26,7 +26,7 @@ use ryo_relations::domain::relations::service::{column_name, columns, name, prov
 use ryo_relations::domain::relations::types::{Integer, Provenance};
 use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::plan_parts::types::{LiteralText, ParameterName, QueryText};
-use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
+use ryo_values::domain::row_texts::types::{Cell as Typed, RowTotal};
 use ryo_values::domain::runs::types::{AnswerShape, Session};
 
 use super::super::errors::LintError;

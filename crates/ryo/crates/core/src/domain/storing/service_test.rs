@@ -3,20 +3,23 @@
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
-use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{
-    FileOutcome, FindingRows, Handing, PlacedColumn, PlacedLine, PlacedRule, Ran, Record,
-    RuleFrontier, Unreadable,
+    FileOutcome, Handing, Ran, Record, RuleFrontier, Unreadable,
 };
+use ryo_values::domain::row_texts::types::Cell;
+use ryo_values::domain::row_texts::types::{FindingRows, PlacedColumn, PlacedLine, PlacedRule};
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, FindingPlace, StoredFileNumber, StoredFinding, StoredPlace, StoredUnknown,
+    StoredUnread, StoredValue, UnknownText,
+};
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredPlace, StoredRule,
-    StoredUnknown, StoredUnread, StoredValue, UnknownText,
+    BucketsWanted, Crossing, FileAgain, Stored, StoredFile, StoredFrontier, StoredHanded,
+    StoredRule,
 };
 
 use super::service::{
@@ -265,8 +268,10 @@ fn held_changed() -> Value {
 /// Round-trip all stored metadata and retain each file's original word number.
 fn stored_round_trip() -> Value {
     let mut kept = stored();
-    kept.files[0].executable = ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable;
-    kept.files[1].executable = ryo_values::domain::files::types::ExecutablePermission::PosixExecutable;
+    kept.files[0].executable =
+        ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable;
+    kept.files[1].executable =
+        ryo_values::domain::files::types::ExecutablePermission::PosixExecutable;
     let records = records_from(&kept, &ids()).unwrap_or_default();
     let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
     let unknowns = unknowns_from(&kept, &[]);

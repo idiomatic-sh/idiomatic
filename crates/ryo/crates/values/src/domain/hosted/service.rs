@@ -99,4 +99,4 @@ pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
     out
 }
 
-use crate::domain::records::types::Cell;
+use crate::domain::row_texts::types::Cell;

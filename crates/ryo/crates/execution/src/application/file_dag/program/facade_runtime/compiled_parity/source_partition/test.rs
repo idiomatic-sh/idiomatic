@@ -76,7 +76,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
                 kind: HostKind::Number,
             }],
             rows: vec![HostRow(vec![
-                ryo_values::domain::records::types::Cell::Number(Integer(42)),
+                ryo_values::domain::row_texts::types::Cell::Number(Integer(42)),
             ])],
         });
     }

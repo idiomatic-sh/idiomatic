@@ -6,9 +6,9 @@ use ryo_core::inbound::use_cases::lint::types::{
 };
 
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_values::domain::records::types::Cell as RowCell;
-use ryo_values::domain::records::types::RowTotal;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
+use ryo_values::domain::row_texts::types::Cell as RowCell;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::{AnswerShape, Budget, MemoryBytes, Session};
 
 use super::errors::RunError;

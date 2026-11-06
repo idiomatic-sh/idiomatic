@@ -7,7 +7,7 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::{
-    hosted::types::HostKind, plan_parts::types::HostedNumber, records::types::Cell as HostedCell,
+    hosted::types::HostKind, plan_parts::types::HostedNumber, row_texts::types::Cell as HostedCell,
 };
 fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
     let mut plan = plan(Scenario::ProjectRetry);

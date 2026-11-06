@@ -11,7 +11,7 @@ use ryo_values::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
         plan_parts::types::{ColumnIndex, HostedNumber, Input as Source, RepeatedRows, StepId},
         plans::types::Operation,
-        records::types::Cell as HostCell,
+        row_texts::types::Cell as HostCell,
     },
 };
 type Input = ();

@@ -104,12 +104,13 @@ use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{Freshness, PlacedRule, Unreadable};
+use ryo_values::domain::records::types::{Freshness, Unreadable};
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded};
 use ryo_values::domain::stores::types::{Crossing, StoredFile, StoredRule};
 
-use ryo_values::domain::records::types::{RowTotal, RowsTextView};
+use ryo_values::domain::row_texts::types::{RowTotal, RowsTextView};
 use ryo_values::domain::runs::types::{AnswerShape, MemoryBytes};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;

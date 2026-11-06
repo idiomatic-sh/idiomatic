@@ -16,9 +16,11 @@ use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-use ryo_values::domain::records::types::Cell;
-use ryo_values::domain::records::types::{GoverningRules, PlacedRule};
-use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, Unreadable};
+use ryo_values::domain::records::types::GoverningRules;
+use ryo_values::domain::records::types::Unreadable;
+use ryo_values::domain::row_texts::types::Cell;
+use ryo_values::domain::row_texts::types::PlacedRule;
+use ryo_values::domain::row_texts::types::{PlacedColumn, PlacedLine};
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 #[cfg(test)]
 use ryo_values::domain::stored_facts::types::PackedWords;
@@ -26,10 +28,13 @@ use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause,
     PartialKind, PartialScope, ReadFailure, StoredPartial,
 };
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, FindingPlace, StoredCell, StoredFileNumber, StoredFinding, StoredPlace,
+    StoredUnknown, StoredUnread, StoredValue, UnknownText,
+};
 use ryo_values::domain::stores::types::{
-    Crossing, FindingMade, FindingPlace, Stored, StoredCell, StoredCovered, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredNotes, StoredPlace,
-    StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue, UnknownText,
+    Crossing, Stored, StoredCovered, StoredFile, StoredFrontier, StoredHanded, StoredNotes,
+    StoredRule, StoredText,
 };
 
 #[cfg(test)]

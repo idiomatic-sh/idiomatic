@@ -1,12 +1,12 @@
 //! The `records` service's cases, on values alone.
 
 use super::service::{is_as_it_was, keep, lent, owned};
-use super::types::{
-    Cell, CellText, FileOutcome, Freshness, Record, RenderedText, RowsTextAt, RowsTextView,
-    TextRange, Unreadable,
-};
+use super::types::{FileOutcome, Freshness, Record, Unreadable};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
+use crate::domain::row_texts::types::{
+    Cell, CellText, RenderedText, RowsTextAt, RowsTextView, TextRange,
+};
 use crate::domain::stored_facts::types::Digest;
 use ryo_language::domain::files::types::FilePath;
 

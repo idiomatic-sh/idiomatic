@@ -864,7 +864,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 kind: HostKind::Text,
             }],
             rows: vec![HostRow(vec![
-                ryo_values::domain::records::types::Cell::Text(selected.into()),
+                ryo_values::domain::row_texts::types::Cell::Text(selected.into()),
             ])],
         });
         authored.plans[1].steps.extend([
@@ -1157,7 +1157,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
         HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
     };
     use ryo_values::domain::plan_parts::types::{HostedNumber, LiteralText, Operand, QueryLiteral};
-    use ryo_values::domain::records::types::Cell;
+    use ryo_values::domain::row_texts::types::Cell;
     use ryo_values::domain::stored_facts::types::ArenaBytes;
 
     for use_parameter_rows in [false, true] {

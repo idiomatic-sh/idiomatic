@@ -9,9 +9,8 @@ use crate::outbound::lint_store::adapters::postcard::types::{
 };
 use ryo_values::domain::records::types::StagedWords;
 use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
-use ryo_values::domain::stores::types::{
-    OldWords, StagedRow, StoreSnapshot, StoredFileNumber, StoredWords,
-};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::{OldWords, StagedRow, StoreSnapshot, StoredWords};
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 

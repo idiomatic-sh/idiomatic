@@ -2,7 +2,7 @@
 
 use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
 
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 
 use super::service::{order_found, report_refused, room_left, totals};
 use super::types::RowCounts;

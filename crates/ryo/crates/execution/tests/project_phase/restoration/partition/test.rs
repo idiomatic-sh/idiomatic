@@ -15,9 +15,10 @@ use ryo_values::domain::{
     },
     plan_parts::types::{HostedNumber, ObservationBindingId, RepeatedRows},
     records::types::{
-        Cell as HostCell, CrossPublicationTransfer, ObservationIndex, ObservationReadinessLayout,
-        PackedObservedRoot, ProducerReadiness,
+        CrossPublicationTransfer, ObservationIndex, ObservationReadinessLayout, PackedObservedRoot,
+        ProducerReadiness,
     },
+    row_texts::types::Cell as HostCell,
     runs::types::{RuleApplicability, SkipReason, Skipped},
     stored_facts::types::{ArenaBytes, Digest, KeptWords},
     table_words::{

@@ -6,7 +6,7 @@ use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
 use ryo_values::domain::plan_parts::types::HostedNumber;
-use ryo_values::domain::records::types::Cell as HostCell;
+use ryo_values::domain::row_texts::types::Cell as HostCell;
 use ryo_values::domain::rows::service::push_row;
 type Input = fn() -> Result<usize, OperatingError>;
 type Value = usize;

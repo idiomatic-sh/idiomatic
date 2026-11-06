@@ -15,7 +15,7 @@ use ryo_language::domain::elements::service::clear_elements;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::PlacedRule;
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, ReadInPart};
 
 /// Readies the worker for a file it reads: counts it, notes where its text will begin in the worker's arena and empties what the

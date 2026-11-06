@@ -5,9 +5,10 @@ use crate::domain::stores::types::retention::value_test::{bytes, notes, observed
 use crate::domain::{
     files::types::{FileNumber, FileSize, Nanoseconds},
     records::types::{
-        FileOutcome, FindingRows, GoverningRules, Handed, HandedNotes, HandedWords, Handing, Ran,
-        Record, RecordWords, RuleFrontier, StagedWords, StagingSession,
+        FileOutcome, GoverningRules, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
+        RecordWords, RuleFrontier, StagedWords, StagingSession,
     },
+    row_texts::types::FindingRows,
     stored_facts::types::{ArenaBytes, Bucket, Digest, PackedWords, StoredPartial},
     stores::types::{
         HandedRows, KeptRows, StagedRow, StoredCovered, StoredFileNumber, StoredHanded,

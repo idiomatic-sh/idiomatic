@@ -6,8 +6,9 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
 use ryo_values::domain::records::types::{
-    FileOutcome, FindingRows, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
+    FileOutcome, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
 };
+use ryo_values::domain::row_texts::types::FindingRows;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, KeptWords, LanguageNumber, NoteBytes, PackedWords,
 };
@@ -212,7 +213,7 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
         };
         crate::domain::handing::service::hand_into(
             &mut store,
-            ryo_values::domain::stores::types::StoredFileNumber(record.number.0),
+            ryo_values::domain::stored_findings::types::StoredFileNumber(record.number.0),
             handed,
             &BucketsWanted::All,
             &mut staged,

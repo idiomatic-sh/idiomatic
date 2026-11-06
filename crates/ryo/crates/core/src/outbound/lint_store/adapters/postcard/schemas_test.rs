@@ -8,10 +8,11 @@ use super::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::lint_store::fixtures::fake::stored;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::records::types::Cell;
+use ryo_values::domain::row_texts::types::Cell;
 use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
-use ryo_values::domain::stores::types::{Stored, StoredFinding, StoredHanded, StoredWords};
+use ryo_values::domain::stored_findings::types::StoredFinding;
+use ryo_values::domain::stores::types::{Stored, StoredHanded, StoredWords};
 
 /// What a row offers the schemas.
 #[derive(Clone, Copy, Debug)]
@@ -163,7 +164,8 @@ fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
     use ryo_values::domain::{
         observations::service::{new_frontiers, set_frontier},
         stored_facts::types::Digest,
-        stores::types::{StoredFileNumber, StoredFrontierReadiness},
+        stored_findings::types::StoredFileNumber,
+        stores::types::StoredFrontierReadiness,
     };
     let mut handed = StoredHanded::default();
     let mut root = new_frontiers(
@@ -203,7 +205,8 @@ fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
     use ryo_values::domain::{
         records::types::{FrontierAffected, FrontierCoverage},
         stored_facts::types::{Bucket, Digest},
-        stores::types::{StoredFileNumber, StoredFrontierProof},
+        stored_findings::types::StoredFileNumber,
+        stores::types::StoredFrontierProof,
     };
     let mut handed = StoredHanded::default();
     let mut partial = crate::outbound::lint_store::fixtures::proof();

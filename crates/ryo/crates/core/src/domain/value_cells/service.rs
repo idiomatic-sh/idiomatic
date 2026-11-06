@@ -10,12 +10,12 @@ use ryo_relations::domain::relations::types::{Name, Origin, Value};
 use ryo_relations::domain::terms::service::unknown_reason;
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::records::service::keep;
-use ryo_values::domain::records::types::{Cell, CellText, RowsTextAt, TextRange};
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowsTextAt, TextRange};
 
 use crate::domain::value_cells::constants::{UNKNOWN_NAMED, UNKNOWN_SHOWN};
 use crate::domain::value_cells::types::Scene;
 use ryo_relations::domain::terms::types::UnknownName;
-use ryo_values::domain::records::types::RenderedText;
+use ryo_values::domain::row_texts::types::RenderedText;
 
 /// The bytes of a name read from the file the scene is of; none for a name of another file.
 fn name_bytes(name: Name, scene: Scene<'_>) -> Option<ByteSlice<'_>> {

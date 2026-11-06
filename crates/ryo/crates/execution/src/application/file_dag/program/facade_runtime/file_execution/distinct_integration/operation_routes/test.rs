@@ -13,7 +13,7 @@ use ryo_values::domain::{
     plans::service::{each_input, inputs_of, named},
     query_bindings::types::{ParameterType, PlanParameter},
     query_operators::types::OperationKind,
-    records::types::Cell as HostedCell,
+    row_texts::types::Cell as HostedCell,
 };
 
 /// Data-only fixture assembly: scalar snapshots and canonical provider rows.

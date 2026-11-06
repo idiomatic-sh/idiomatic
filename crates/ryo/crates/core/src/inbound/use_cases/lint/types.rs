@@ -16,7 +16,8 @@ use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 use ryo_values::domain::query_tokens::types::QueryBundle;
-use ryo_values::domain::records::types::{RowTotal, Unread};
+use ryo_values::domain::records::types::Unread;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::runs::types::{
     AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,

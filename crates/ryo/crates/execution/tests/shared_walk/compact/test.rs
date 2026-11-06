@@ -402,7 +402,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
 fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-        records::types::Cell as HostCell,
+        row_texts::types::Cell as HostCell,
     };
     for (left, expected, visits) in [
         (

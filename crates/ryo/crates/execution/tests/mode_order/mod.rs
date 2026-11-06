@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{Direction, HostedNumber},
-    records::types::Cell as HostCell,
+    row_texts::types::Cell as HostCell,
     rows::errors::RowsError,
 };
 

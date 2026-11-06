@@ -135,8 +135,9 @@ fn replay_under_capture(
     use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
     use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
     use ryo_values::domain::records::types::{
-        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record,
+        FileOutcome, Handed, HandedWords, Handing, Ran, Record,
     };
+    use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
     use ryo_values::domain::table_words::service::{encode_table, pack};
     use ryo_values::domain::table_words::types::WordSlice;
@@ -655,7 +656,7 @@ fn visited(
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     let answering =
         crate::domain::render::types::Answering::Rows(crate::domain::render::types::RowsAnswer {
-            limit: ryo_values::domain::records::types::RowTotal(0),
+            limit: ryo_values::domain::row_texts::types::RowTotal(0),
             headings: Vec::new(),
             columns: crate::domain::render::types::AnswerColumns::One,
         });
@@ -1397,9 +1398,9 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
     use crate::outbound::lint_store::interface::ReadStore;
     use ryo_values::domain::files::types::FileNumber;
     use ryo_values::domain::records::types::{
-        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords,
-        StagingSession,
+        FileOutcome, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords, StagingSession,
     };
+    use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
     use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
     use std::sync::atomic::AtomicUsize;
@@ -1506,9 +1507,10 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
     use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
     use ryo_values::domain::records::types::{
-        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record, RecordWords,
-        StagedWords, StagingSession,
+        FileOutcome, Handed, HandedWords, Handing, Ran, Record, RecordWords, StagedWords,
+        StagingSession,
     };
+    use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
     use ryo_values::domain::stores::types::BucketsWanted;
     use ryo_values::domain::table_words::service::{encode_table, pack};
@@ -1647,8 +1649,9 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     );
 
     // The persistent old-row path uses the same filter-before-resolution contract.
+    use ryo_values::domain::stored_findings::types::StoredFileNumber;
     use ryo_values::domain::stores::types::{
-        KeptRows, OldWords, ReadWordPayload, ReadWords, StoreSnapshot, StoredFileNumber,
+        KeptRows, OldWords, ReadWordPayload, ReadWords, StoreSnapshot,
     };
     let mut valid = ryo_values::domain::stored_facts::types::PackedWords::default();
     let FileOutcome::Read(ran) = &record.outcome else {

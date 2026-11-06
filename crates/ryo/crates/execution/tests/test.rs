@@ -436,7 +436,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
     };
     use ryo_values::domain::plan_parts::types::HostedNumber;
-    use ryo_values::domain::records::types::Cell as HostCell;
+    use ryo_values::domain::row_texts::types::Cell as HostCell;
     for populated in [false, true] {
         let engine = engine();
         let mut input = authored_request(1);

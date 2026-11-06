@@ -689,7 +689,7 @@ impl ReadStore for PostcardRead {
                 &"frontier proofs have duplicate or unordered source keys",
             ));
         }
-        let proof_for = |file: ryo_values::domain::stores::types::StoredFileNumber,
+        let proof_for = |file: ryo_values::domain::stored_findings::types::StoredFileNumber,
                          bucket: Bucket| {
             proofs
                 .binary_search_by_key(&(file.0, bucket.0), |row| (row.file.0, row.bucket.0))

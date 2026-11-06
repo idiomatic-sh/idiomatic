@@ -42,9 +42,10 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
-use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
+use ryo_values::domain::row_texts::types::{Cell as Typed, RowTotal};
 use ryo_values::domain::runs::types::{Budget, Session};
-use ryo_values::domain::stores::types::{FindingMade, Stored};
+use ryo_values::domain::stored_findings::types::FindingMade;
+use ryo_values::domain::stores::types::Stored;
 
 /// What a row gives the use case: the ports it calls, the rules and the files linted.
 struct Given {
@@ -1641,7 +1642,7 @@ fn collected_file_paths(world: &World) -> std::collections::BTreeSet<String> {
     rows.iter()
         .flat_map(|row| row.0.iter())
         .filter_map(|cell| match cell {
-            Some(ryo_values::domain::records::types::Cell::File(path)) => Some(path.to_string()),
+            Some(ryo_values::domain::row_texts::types::Cell::File(path)) => Some(path.to_string()),
             _ => None,
         })
         .collect()

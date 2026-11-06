@@ -629,7 +629,7 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
         arenas: crate::domain::finish::types::Arenas(&[]),
         cross: &symbols,
     };
-    let mut text = ryo_values::domain::records::types::RenderedText::default();
+    let mut text = ryo_values::domain::row_texts::types::RenderedText::default();
     let shown = service.show_value(
         &mut text,
         name(1, 0),
@@ -639,15 +639,15 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
     );
     match shown.map(|kept| {
         ryo_values::domain::records::service::lent(
-            ryo_values::domain::records::types::RowsTextView(&text),
+            ryo_values::domain::row_texts::types::RowsTextView(&text),
             kept,
         )
     }) {
-        Some(ryo_values::domain::records::types::Cell::Text(piece)) => piece.0.to_owned(),
+        Some(ryo_values::domain::row_texts::types::Cell::Text(piece)) => piece.0.to_owned(),
         Some(
-            ryo_values::domain::records::types::Cell::File(_)
-            | ryo_values::domain::records::types::Cell::Number(_)
-            | ryo_values::domain::records::types::Cell::Span(_),
+            ryo_values::domain::row_texts::types::Cell::File(_)
+            | ryo_values::domain::row_texts::types::Cell::Number(_)
+            | ryo_values::domain::row_texts::types::Cell::Span(_),
         )
         | None => String::new(),
     }

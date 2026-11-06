@@ -212,7 +212,7 @@ pub(super) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation
     use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
-        records::types::Cell,
+        row_texts::types::Cell,
     };
     HostRelation {
         name: HostName(name.into()),
@@ -266,7 +266,7 @@ pub(super) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>)
 pub(super) fn texts(name: &str, rows: &[&str]) -> HostRelation {
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
-        records::types::Cell,
+        row_texts::types::Cell,
     };
     HostRelation {
         name: HostName(name.into()),
@@ -383,7 +383,7 @@ pub(super) fn table_inputs(
         plan_parts::types::{ColumnIndex, HostedNumber, Input, ParameterName, StepId},
         plans::types::Operation,
         query_bindings::types::{ParameterType, PlanParameter},
-        records::types::Cell as HostCell,
+        row_texts::types::Cell as HostCell,
     };
     let mut operations = vec![];
     let mut sources = vec![];

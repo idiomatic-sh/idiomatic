@@ -7,7 +7,7 @@ use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{ColumnIndex, HostedNumber, Input, JoinColumn, Side, StepId, StepScope},
     plans::types::{Operation, PlanStep},
-    records::types::Cell,
+    row_texts::types::Cell,
     rows::types::{RowCount, Table},
 };
 

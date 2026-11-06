@@ -2,7 +2,8 @@
 
 use ryo_values::domain::plan_parts::types::Heading;
 
-use ryo_values::domain::records::types::{Cell, CellText, RowTotal, Unread};
+use ryo_values::domain::records::types::Unread;
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 
 /// How many rows the answer has and how many of them were written: they differ when a limit cut the answer short.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

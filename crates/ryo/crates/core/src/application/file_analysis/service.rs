@@ -39,12 +39,13 @@ use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::records::types::{
-    GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
+    GoverningRules, HandedNotes, Handing, Record, RuleFrontier,
 };
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::BucketsWanted;
-use ryo_values::domain::stores::types::StoredFileNumber;
 use ryo_values::domain::table_words::service::pack_onto;
 use ryo_values::domain::table_words::types::WordSlice;
 

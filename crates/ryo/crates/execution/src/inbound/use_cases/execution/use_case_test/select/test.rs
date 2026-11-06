@@ -11,7 +11,7 @@ use ryo_values::domain::{
     },
     plans::types::Operation,
     query_bindings::types::{ParameterType, PlanParameter},
-    records::types::Cell,
+    row_texts::types::Cell,
 };
 #[derive(Clone, Copy)]
 enum Scenario {

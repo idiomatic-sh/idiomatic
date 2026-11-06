@@ -6,7 +6,7 @@ use super::super::types::{LentCell, Summary};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::plan_parts::types::Heading;
-use ryo_values::domain::records::types::{Cell, CellText, RowTotal};
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 
 /// What a row of the contract is given: nothing.
 type Input = ();

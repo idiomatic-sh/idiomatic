@@ -7,7 +7,7 @@ use crate::outbound::row_sink::fixtures::contract::check;
 use crate::outbound::row_sink::interface::RowSinkPort as _;
 use crate::outbound::row_sink::types::{Collector, LentCell, Row, Summary};
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::records::types::{Cell, CellText};
+use ryo_values::domain::row_texts::types::{Cell, CellText};
 
 /// A row's cells, lent.
 type Input = &'static [Option<Cell<CellText<'static>>>];

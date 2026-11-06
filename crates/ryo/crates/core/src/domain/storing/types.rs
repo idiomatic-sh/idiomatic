@@ -3,7 +3,8 @@
 use crate::domain::workers::types::FileOrder;
 use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::records::types::{FindingRows, PlacedRule, Record};
+use ryo_values::domain::records::types::Record;
+use ryo_values::domain::row_texts::types::{FindingRows, PlacedRule};
 use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredFile, StoredRule};

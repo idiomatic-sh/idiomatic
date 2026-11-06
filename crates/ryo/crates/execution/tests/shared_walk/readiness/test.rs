@@ -10,7 +10,7 @@ use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{HostedNumber, Input, StepId, StepScope},
     plans::types::{Operation, PlanStep},
-    records::types::Cell,
+    row_texts::types::Cell,
     rows::types::{RowCount, Table},
 };
 fn readiness_intent() -> FileRuleIntent {

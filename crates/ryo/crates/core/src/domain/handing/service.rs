@@ -4,9 +4,9 @@
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::{Handed, HandedNotes, RecordWords};
 use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Stored, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes, StoredText,
-    StoredWords,
+    BucketsWanted, Stored, StoredCovered, StoredHanded, StoredNotes, StoredText, StoredWords,
 };
 
 /// The rows of `rows` of the stored file `file`: the tables keep each file's rows together, in the order of the files.

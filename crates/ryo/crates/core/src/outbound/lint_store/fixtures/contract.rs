@@ -9,8 +9,9 @@ use super::fake::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, FileAgain, KeptRows, Stored, StoredFileNumber, StoredHanded, StoredWords,
+    BucketsWanted, FileAgain, KeptRows, Stored, StoredHanded, StoredWords,
 };
 
 /// Explicitly resolve the read representation only in contract result oracles.

@@ -9,9 +9,8 @@ use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes,
 };
-use ryo_values::domain::stores::types::{
-    BucketsWanted, Stored, StoredFile, StoredFileNumber, StoredHanded,
-};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredFile, StoredHanded};
 
 use super::service::{hand_into, handed_in, rows_of_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};

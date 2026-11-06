@@ -5,7 +5,8 @@ use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{Freshness, PlacedRule};
+use ryo_values::domain::records::types::Freshness;
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::run_metadata::types::{ProjectRead, RuleRunMetadata};
 use ryo_values::domain::stores::types::MadeAgain;
 
@@ -26,7 +27,10 @@ pub(crate) fn reads_project(plan: &Plan) -> PlanReads {
 /// Whether the cross-file steps of any of the plans read what the project writes.
 #[must_use]
 pub(crate) fn reads_any(metadata: &[RuleRunMetadata]) -> PlanReads {
-    if metadata.iter().any(|rule| rule.reads_project == ProjectRead::Reads) {
+    if metadata
+        .iter()
+        .any(|rule| rule.reads_project == ProjectRead::Reads)
+    {
         PlanReads::Reads
     } else {
         PlanReads::DoesNotRead
