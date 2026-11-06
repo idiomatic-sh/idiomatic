@@ -60,16 +60,22 @@ fn prefixes(path: &ImportPath) -> Vec<Prefix> {
 
 fn entry_paths(search: &FilePath, filesystem: &FilesystemPath) -> [Probe; 5] {
     let filesystem = &filesystem.0;
-    let probe = |name: String, shape: EntryShape| Probe {
-        path: beneath(search, &EntryName(name)),
+    let probe = |name: EntryName, shape: EntryShape| Probe {
+        path: beneath(search, &name),
         shape,
     };
     [
-        probe(format!("{filesystem}.py"), EntryShape::File),
-        probe(format!("{filesystem}.pyi"), EntryShape::File),
-        probe(filesystem.clone(), EntryShape::Directory),
-        probe(format!("{filesystem}/__init__.py"), EntryShape::File),
-        probe(format!("{filesystem}/__init__.pyi"), EntryShape::File),
+        probe(EntryName(format!("{filesystem}.py")), EntryShape::File),
+        probe(EntryName(format!("{filesystem}.pyi")), EntryShape::File),
+        probe(EntryName(filesystem.clone()), EntryShape::Directory),
+        probe(
+            EntryName(format!("{filesystem}/__init__.py")),
+            EntryShape::File,
+        ),
+        probe(
+            EntryName(format!("{filesystem}/__init__.pyi")),
+            EntryShape::File,
+        ),
     ]
 }
 
