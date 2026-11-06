@@ -1,4 +1,5 @@
 //! Required invocation leases travel with the immutable graph/domain handles.
+use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::Backing;
 use crate::application::file_dag::derived::ledger::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
@@ -36,9 +37,7 @@ impl GraphHandle {
     }
     pub(in crate::application::file_dag) fn graph(&self) -> &CompactGraph {
         #[cfg(test)]
-        self.acquired
-            .view()
-            .expect("held graph has its required backing lease");
+        self.acquired.view().expect(constants::EXPECT_GRAPH_LEASE);
         &self.graph
     }
     pub(in crate::application::file_dag) fn orientation(&self) -> Orientation {
@@ -102,7 +101,7 @@ impl DomainHandle {
         #[cfg(test)]
         self.acquired
             .view()
-            .expect("held membership has its required backing lease");
+            .expect(constants::EXPECT_MEMBERSHIP_LEASE);
         &self.domain.members
     }
     pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {

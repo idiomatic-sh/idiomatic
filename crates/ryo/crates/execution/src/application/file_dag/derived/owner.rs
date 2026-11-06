@@ -1,4 +1,5 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
+use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::route_counts::BuildRoute;
@@ -203,7 +204,7 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
         state
             .dependents
             .get_mut(&population)
-            .expect("installed reverse list")
+            .expect(constants::EXPECT_REVERSE_LIST)
             .push(key.clone());
     }
 }

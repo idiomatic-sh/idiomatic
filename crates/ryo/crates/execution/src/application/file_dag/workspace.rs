@@ -450,7 +450,6 @@ static EMPTY_DERIVED_INPUT: Table = Table {
 };
 
 #[cfg(test)]
-#[path = "workspace_test.rs"]
-mod tests;
+mod test;
 
 use ryo_values::domain::rows::types::{RowIndex, Table};

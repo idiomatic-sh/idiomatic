@@ -335,8 +335,7 @@ pub(crate) fn representation(
     }
 }
 #[cfg(test)]
-#[path = "route_counts_test.rs"]
-mod tests;
+mod test;
 
 #[cfg(feature = "diagnostic-row-progress")]
 struct ProgressState {

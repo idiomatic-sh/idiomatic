@@ -12,7 +12,7 @@ use ryo_values::domain::{
     },
     plans::types::{Operation, QueryOperator},
 };
-fn span(start: u32, end: u32) -> Span {
+pub(super) fn span(start: u32, end: u32) -> Span {
     Span {
         start: Offset(start),
         end: Offset(end),
@@ -274,6 +274,3 @@ fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
         ])
     );
 }
-
-#[path = "operator_collections_operators_source_matches_gate_test.rs"]
-mod gates;

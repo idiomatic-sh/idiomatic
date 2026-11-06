@@ -59,7 +59,7 @@ pub(in crate::application::file_dag::derived::owner) fn new(
         discriminator_columns: Vec::new(),
         selection_counts: Default::default(),
         selection_histogram:
-            tracing::enabled!(target: "ryo::diagnostic::selection_detail", tracing::Level::TRACE)
+            tracing::enabled!(target: activation::TARGET_SELECTION_DETAIL, tracing::Level::TRACE)
                 .then(Vec::new),
         eligible,
         bytes,

@@ -1,4 +1,5 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
+use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
@@ -231,7 +232,7 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
     } else {
         cache.selector_repetition_failed = true;
     }
-    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(usize, u8)>()));
+    tracing::trace!(target:constants::TARGET_LIFECYCLE_MEMORY,phase=constants::PHASE_SELECTOR_ACTIVATION,request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(usize, u8)>()));
     cache.selection_views = Some(views);
     super::super::fanout::service::prepare_active(cache);
 }

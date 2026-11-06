@@ -1,5 +1,6 @@
 //! Read-only diagnostic reporting stays inside the private resource owner.
 use super::*;
+use crate::application::file_dag::derived::constants;
 use ryo_relations::domain::relations::types::FileId;
 impl DerivedOwner {
     pub(super) fn report_selector_occupancy(&self, requesting: PopulationId) {
@@ -20,13 +21,16 @@ impl DerivedOwner {
                     .then_some(&value._lease)
             })
             .collect::<Vec<_>>();
-        tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_occupancy_summary",
+        tracing::trace!(target: constants::TARGET_SELECTION_DETAIL, event = constants::EVENT_SELECTOR_OCCUPANCY_SUMMARY,
             requesting = ?requesting, retained_entries = retained.len(), reclaimable_entries = releasable.len(),
             reclaimable_physical_credit = ?ledger.optional_release_credit(&releasable));
         retained
             .sort_unstable_by_key(|(_, entry)| (std::cmp::Reverse(entry.bytes), entry.admission));
         for (key, entry) in retained.into_iter().take(16) {
-            let value = entry.retained.as_ref().expect("filtered retained entry");
+            let value = entry
+                .retained
+                .as_ref()
+                .expect(constants::EXPECT_FILTERED_RETAINED);
             let populations = &key.populations[..usize::from(key.len)];
             let pins = populations
                 .iter()
@@ -39,7 +43,7 @@ impl DerivedOwner {
                     .nth(1024)
                     .map_or(request.len(), |(at, _)| at),
             );
-            tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_occupancy_entry",
+            tracing::trace!(target: constants::TARGET_SELECTION_DETAIL, event = constants::EVENT_SELECTOR_OCCUPANCY_ENTRY,
                 requesting = ?requesting, kind = ?entry._plan.kind, admission = entry.admission,
                 populations = ?populations, population_pins = ?pins, logical_payload_bytes = entry.bytes,
                 required_entry = entry.required.is_some(), storage_strong = Arc::strong_count(&value.storage),
@@ -49,7 +53,7 @@ impl DerivedOwner {
     }
 
     pub(in crate::application::file_dag) fn report(&self, file: FileId) {
-        tracing::trace!(target: "ryo::diagnostic::resource_routes", event = "owner_footprint", file = file.0,
+        tracing::trace!(target: constants::TARGET_RESOURCE_ROUTES, event = constants::EVENT_OWNER_FOOTPRINT, file = file.0,
             required_bytes = self.working_bytes(), peak_required_bytes = self.peak_working_bytes(),
             retained_bytes = self.retained_bytes(), required_backend_bytes = self.required_backend_overlap(),
             peak_required_views = self.peak_required_views(), owned_bytes = self.owned_bytes(),
@@ -57,7 +61,7 @@ impl DerivedOwner {
 
         if let Some(indexes) = self.backend.borrow().as_ref() {
             let state = self.state.borrow();
-            tracing::trace!(target: "ryo::diagnostic::graph", event = "file_graphs", file = file.0,
+            tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_FILE_GRAPHS, file = file.0,
                 builds = indexes.graph_counts.builds, reuses = indexes.graph_counts.reuses, refusals = indexes.graph_counts.refusals,
                 roots = indexes.graph_counts.roots, traversals = indexes.graph_counts.traversals, memo_hits = indexes.graph_counts.memo_hits,
                 vertices_expanded = indexes.graph_counts.expanded, edges_examined = indexes.graph_counts.examined,
@@ -67,14 +71,14 @@ impl DerivedOwner {
                 reclaimed_indexes = indexes.graph_counts.reclaimed_indexes, reclaimed_selections = indexes.graph_counts.reclaimed_selections,
                 reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = indexes.refusals,
                 selector_refusals = indexes.selection_counts.refusals);
-            tracing::trace!(target: "ryo::diagnostic::selection", event = "file_selections", file = file.0,
+            tracing::trace!(target: constants::TARGET_SELECTION, event = constants::EVENT_FILE_SELECTIONS, file = file.0,
                 source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
                 predicate_cells_decoded = indexes.selection_counts.predicate_cells, output_cells_decoded = indexes.selection_counts.output_cells,
                 selections_built = indexes.selection_counts.builds, selections_reused = indexes.selection_counts.reuses,
                 selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes,
                 collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>() as u64),
                 compact_id_bytes = self.ledger.borrow().snapshot().optional_units.saturating_mul(size_of::<u32>()));
-            tracing::trace!(target: "ryo::diagnostic::stored_join", event = "file_indexes", file = file.0,
+            tracing::trace!(target: constants::TARGET_STORED_JOIN, event = constants::EVENT_FILE_INDEXES, file = file.0,
                 entries = state.entries.values().filter(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some()).count(), eligible_relations = indexes.eligible.len(),
                 retained_bytes = indexes.bytes, physical_builds = indexes.builds,
                 reuses = indexes.reuses, refusals = indexes.refusals);
@@ -98,7 +102,7 @@ impl DerivedOwner {
                             .payload()
                             .share_positions()
                     });
-                    tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_histogram", file = file.0,
+                    tracing::trace!(target: constants::TARGET_SELECTION_DETAIL, event = constants::EVENT_SELECTOR_HISTOGRAM, file = file.0,
                         selector_id = std::ptr::from_ref(entry.selector.as_ref()).addr(),
                         relation = ?entry.selector.relation, comparisons = ?entry.selector.identity.comparisons,
                         bindings = ?entry.selector.identity.bindings, columns = ?entry.selector.columns,
