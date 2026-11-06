@@ -126,7 +126,7 @@ files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
 closed = false
 specs = [
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 files.'demo/src/lib.rs' = '''
@@ -261,7 +261,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -334,7 +334,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -405,7 +405,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -475,7 +475,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -550,7 +550,7 @@ given.files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
 closed = false
 specs = [
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/test.rs", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/test.rs", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 given.files.'demo/src/lib.rs' = '''
