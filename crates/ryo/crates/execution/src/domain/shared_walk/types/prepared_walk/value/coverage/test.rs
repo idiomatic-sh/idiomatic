@@ -193,6 +193,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 }
             ))
     );
+    assert!(
+        walk.census().dependent.0 > 0,
+        "ordinary normalized Step inputs retain their dependent barrier"
+    );
     verify(&program, &walk).unwrap();
     let logical = *eligible.iter().next().unwrap();
     match scenario {

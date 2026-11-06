@@ -276,7 +276,7 @@ impl PreparedWalk {
                 let barrier = if instruction.logical.0 >= program.logical_regions().len() {
                     WalkBarrier::Observation
                 } else if at == 0 {
-                    source_barrier(&instruction.operation)
+                    source_barrier(&instruction.operation, &region.inputs)
                 } else {
                     WalkBarrier::Continuation
                 };
@@ -323,11 +323,24 @@ enum WalkBarrier {
     RequestOwnedSource,
     Continuation,
 }
-fn source_barrier(operation: &ryo_values::domain::plans::types::Operation) -> WalkBarrier {
+fn source_barrier(
+    operation: &ryo_values::domain::plans::types::Operation,
+    inputs: &[crate::domain::executable_program::types::InputSource],
+) -> WalkBarrier {
     use ryo_values::domain::{plan_parts::types::Input, plans::types::Operation};
     match operation {
         Operation::Select { from, .. } | Operation::Project { from, .. } => match from {
             Input::Relation(_) => WalkBarrier::Representation,
+            // Canonical unary inputs use Step(0) for both ordinary producers
+            // and named observations. The resolved boundary retains that distinction.
+            Input::Step(_)
+                if matches!(
+                    inputs.first(),
+                    Some(crate::domain::executable_program::types::InputSource::Observation(_))
+                ) =>
+            {
+                WalkBarrier::Observation
+            }
             Input::Step(_) => WalkBarrier::DependentInput,
             Input::BoundObservation(_) => WalkBarrier::Observation,
         },

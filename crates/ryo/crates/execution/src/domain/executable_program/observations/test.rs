@@ -158,7 +158,54 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
         graph,
         operators,
     } = fixture(FrontierSlots::Declared);
+    let slots = graph.observations.as_ref().unwrap().slots.clone();
     let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
+    use ryo_values::domain::{
+        plan_parts::types::{Input as PlanInput, StepId},
+        plans::types::Operation,
+    };
+    let mut observation_consumers = Vec::new();
+    for (slot, declaration) in slots.iter().enumerate() {
+        let plan = &plans[declaration.rule];
+        assert!(
+            matches!(plan.steps[0].operation, Operation::Select { from: PlanInput::BoundObservation(input), .. } if input == declaration.input)
+        );
+        let origin = program.rules()[declaration.rule].original_steps[0]
+            .as_ref()
+            .unwrap();
+        let region = &program.regions()[program.logical_regions()[origin.logical.0].0];
+        // These consumers remain individual heads, not fused continuations.
+        assert_eq!(region.instructions.len(), 1);
+        let head = &region.instructions[0];
+        assert_eq!(head.logical, origin.logical);
+        assert!(matches!(
+            head.operation,
+            Operation::Select {
+                from: PlanInput::Step(StepId(0)),
+                ..
+            }
+        ));
+        assert_eq!(&*region.inputs, &[InputSource::Observation(slot)]);
+        observation_consumers.push(head);
+    }
+    assert_eq!(observation_consumers.len(), 2);
+    for region in program
+        .regions()
+        .iter()
+        .filter(|region| region.instructions[0].logical.0 >= program.logical_regions().len())
+    {
+        assert_eq!(region.instructions.len(), 1);
+        assert!(matches!(
+            region.instructions[0].operation,
+            Operation::Union { .. }
+        ));
+        assert!(
+            region
+                .inputs
+                .iter()
+                .all(|source| matches!(source, InputSource::ObservationMember { .. }))
+        );
+    }
     let instructions = program
         .regions()
         .iter()
@@ -174,12 +221,18 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
         &plans, &bindings,
     );
     walk.retain_program_consumers(&program, &bindings).unwrap();
+    for head in observation_consumers {
+        assert!(
+            walk.class_for(head).is_none(),
+            "observation input is never a relation source walk"
+        );
+    }
     let census = walk.census();
     assert_eq!(census.instructions.0, total);
     assert_eq!(
         census.observation.0,
-        unions + 2,
-        "union heads and observation consumers"
+        unions + observation_consumers.len(),
+        "synthetic union heads and normalized consumers keep their resolved observation barrier"
     );
     assert_eq!(
         census.shared.0
