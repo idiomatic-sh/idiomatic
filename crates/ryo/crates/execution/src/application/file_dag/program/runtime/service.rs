@@ -43,9 +43,7 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         _ready: &ReadySelection<'_, '_>,
         _inputs: &[AdmittedInput],
         _context: &mut OperatorContext<'_>,
-    ) -> Result<bool, OperatingError> {
-        Ok(false)
-    }
+    ) -> Result<bool, OperatingError>;
 
     fn ordered(
         &self,

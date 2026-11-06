@@ -1,10 +1,10 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::inputs::fixtures::{TestInputs, value};
 use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::ColumnCounters;
+use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::application::file_dag::program::runtime::types::StrategyOutcome;
@@ -60,6 +60,15 @@ impl RuntimeProbe {
     }
 }
 impl KernelInvocation for RuntimeProbe {
+    fn ready(
+        &self,
+        _: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
+        _: &[AdmittedInput],
+        _: &mut OperatorContext<'_>,
+    ) -> Result<bool, OperatingError> {
+        // These lifecycle controls exercise ordinary invocation, not selection sharing.
+        Ok(false)
+    }
     fn ordered(
         &self,
         _: &crate::domain::executable_program::types::OrderedExistence,
