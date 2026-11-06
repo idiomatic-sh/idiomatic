@@ -5,10 +5,13 @@ use crate::application::file_dag::derived::owner::selection::types::{
 };
 use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
 use crate::domain::{
-    operating::types::NameCount, stored_selection::types::PreparedSelectorViews,
-    table_model::service::check_columns, table_texts::types::Texts,
+    operating::types::NameCount,
+    stored_selection::types::{PreparedSelectorViews, SelectorHistogram},
+    table_model::service::check_columns,
+    table_texts::types::Texts,
 };
 use crate::domain::{operating::types::OperatorContext, stored_selection::types::Selector};
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_relations::domain::relations::types::{CellKind, Value};

@@ -1,5 +1,6 @@
 //! Graph priority is an admission policy of the one resource owner.
 use super::*;
+use crate::application::file_dag::derived::ledger::Backing;
 use crate::application::file_dag::derived::owner::graphs::service::room;
 impl DerivedOwner {
     pub(in crate::application::file_dag::derived::owner) fn prepare_graph_room(
@@ -82,7 +83,7 @@ impl DerivedOwner {
         &self,
         cache: &mut CacheBackend,
         cost: usize,
-        protected: &[super::ledger::Backing],
+        protected: &[Backing],
         extra_units: usize,
     ) {
         let mut state = self.state.borrow_mut();

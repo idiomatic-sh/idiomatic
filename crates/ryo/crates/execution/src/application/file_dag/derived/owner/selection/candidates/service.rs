@@ -5,12 +5,14 @@ use crate::application::file_dag::derived::owner::selection::fanout::service::fa
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
-    derived_views::types::{DerivedContract, ViewRequest},
+    derived_views::types::{DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
+    operator::contract::views::BorrowedRows,
     stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
     table_model::service::matching_stored,
     table_texts::types::Texts,
 };
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::{
     service::{find_hashed, hash_of},
     types::ByteSlice,

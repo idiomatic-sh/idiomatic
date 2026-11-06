@@ -318,7 +318,7 @@ impl DerivedOwner {
         let positions = self.ledger.borrow().snapshot().optional_units;
         let positions_within_bound = positions
             .checked_add(additional_positions)
-            .is_some_and(|n| n <= selection::MAX_RETAINED_POSITION_CAPACITY);
+            .is_some_and(|n| n <= selection::types::MAX_RETAINED_POSITION_CAPACITY);
         let mut state = self.state.borrow_mut();
         state.builds += u64::from(built);
         state.hits += u64::from(!built);
@@ -332,7 +332,7 @@ impl DerivedOwner {
             return Ok(Some(handle));
         }
         let predicate_room = plan.kind != DerivedKind::PredicateMatches
-            || state.retained_predicates < selection::MAX_RETAINED_SELECTIONS;
+            || state.retained_predicates < selection::types::MAX_RETAINED_SELECTIONS;
         let retained = if let Some(cache) = cache.as_deref_mut().filter(|cache| {
             optional_room
                 && predicate_room
