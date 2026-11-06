@@ -20,15 +20,17 @@ pub(super) enum Authority {
     DomainHandle,
     RootAnswer,
     CachedGraph,
+    DerivedAccess,
 }
 impl Authority {
-    pub(super) const ALL: [Authority; 6] = [
+    pub(super) const ALL: [Authority; 7] = [
         Authority::AcquiredView,
         Authority::ResourceDependency,
         Authority::GraphHandle,
         Authority::DomainHandle,
         Authority::RootAnswer,
         Authority::CachedGraph,
+        Authority::DerivedAccess,
     ];
     /// The identifier a holder's source names, and the forgery control of the authority.
     pub(super) fn control(&self) -> (&'static str, &'static Negative) {
@@ -39,6 +41,7 @@ impl Authority {
             Authority::DomainHandle => ("DomainHandle", &c::AUTHORITY_DOMAIN),
             Authority::RootAnswer => ("RootAnswer", &c::AUTHORITY_ANSWER),
             Authority::CachedGraph => ("CachedGraph", &c::AUTHORITY_CACHED),
+            Authority::DerivedAccess => ("DerivedAccess", &c::AUTHORITY_ACCESS),
         }
     }
 }
@@ -150,6 +153,7 @@ pub(super) enum Entry {
     ForPredicate,
     MetadataBytes,
     OwnerNew,
+    AccessPrepare,
     OwnedBytes,
     PeakRequiredViews,
     PeakWorkingBytes,
@@ -169,7 +173,7 @@ pub(super) enum Entry {
     Wanted,
 }
 impl Entry {
-    pub(super) const ALL: [Entry; 52] = [
+    pub(super) const ALL: [Entry; 53] = [
         Entry::AdmitView,
         Entry::AdmitPartition,
         Entry::AcquireStored,
@@ -205,6 +209,7 @@ impl Entry {
         Entry::ForPredicate,
         Entry::MetadataBytes,
         Entry::OwnerNew,
+        Entry::AccessPrepare,
         Entry::OwnedBytes,
         Entry::PeakRequiredViews,
         Entry::PeakWorkingBytes,
@@ -272,6 +277,7 @@ impl Entry {
             Entry::ForPredicate => exempt(owner, "for_predicate", "a context key built from a prepared plan; no view crosses"),
             Entry::MetadataBytes => exempt(owner, "metadata_bytes", accounting),
             Entry::OwnerNew => exempt(owner, "new", "constructs the owner; the relation owner holds it"),
+            Entry::AccessPrepare => exempt(owner!("types.rs"), "prepare", "request-time metadata through the owner-issued capability; the builder behind it is owner-private (AUTHORITY_ACCESS, SEALED_PORT)"),
             Entry::OwnedBytes => exempt(owner, "owned_bytes", accounting),
             Entry::PeakRequiredViews => exempt(owner, "peak_required_views", accounting),
             Entry::PeakWorkingBytes => exempt(owner, "peak_working_bytes", accounting),

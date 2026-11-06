@@ -1,7 +1,6 @@
 //! The native key order each region with native positions reads.
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
-use crate::outbound::derived::interface::DerivedPort;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
@@ -9,7 +8,7 @@ use std::sync::Arc;
 /// One entry per region, in region order: its raw key order, or none without native positions.
 pub(in crate::application::file_dag::program::preparation) fn prepare(
     program: &ExecutableProgram,
-    derived: &Arc<dyn DerivedPort>,
+    derived: &crate::application::file_dag::derived::owner::types::DerivedAccess,
 ) -> Result<Box<[Option<Arc<crate::domain::derived_views::types::DerivedContract>>]>, OperatingError>
 {
     Ok(program
@@ -37,7 +36,7 @@ pub(in crate::application::file_dag::program::preparation) fn prepare(
             stride
                 .map(|stride| {
                     crate::application::file_dag::derived::prepare::view(
-                        Arc::clone(derived),
+                        derived.clone(),
                         &crate::domain::derived_views::types::ViewRequest::RawKeyOrder { stride },
                         &[],
                     )

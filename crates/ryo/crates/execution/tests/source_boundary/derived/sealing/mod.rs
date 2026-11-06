@@ -1,6 +1,7 @@
 //! Sealed authority controls: contract forgery, dependency forgery, backend mutation, build escape.
 use super::super::fixtures::{Compilation, Expectation, Probe};
 
+pub(super) const TYPES: &str = "src/application/file_dag/derived/owner/types.rs";
 pub(super) const CACHE: &str = "src/application/file_dag/derived/owner/cache/types.rs";
 /// Every non-test field of the backend, read from its declaration, so a new field is probed
 /// individually and a public field is refused by its own probe.
@@ -82,6 +83,28 @@ mod selection_build {
 }
 "#;
 
+const PORT_BUILD: &str = r#"
+mod port_build { use crate::application::file_dag::derived::owner::types::DerivedAccess; fn escape(access: &DerivedAccess) { let _ = access.build(); } const _: fn(&DerivedAccess) = escape; }
+"#;
+const PORT_FIELD: &str = r#"
+mod port_field { use crate::application::file_dag::derived::owner::types::DerivedAccess; fn escape(access: &DerivedAccess) { let _ = &access.port; } const _: fn(&DerivedAccess) = escape; }
+"#;
+const PORT_ACCESSOR: &str = r#"
+mod port_accessor { use crate::application::file_dag::derived::owner::types::DerivedAccess; fn escape(access: &DerivedAccess) { let _ = access.port(); } const _: fn(&DerivedAccess) = escape; }
+"#;
+const ACCESS_PREPARE: &str = r#"
+mod access_prepare {
+    use crate::application::file_dag::derived::owner::types::DerivedAccess;
+    use ryo_derived::domain::contract::types::{PreparedDerived, ViewRequest};
+    use std::sync::Arc;
+    fn prepare(access: &DerivedAccess, request: ViewRequest) -> Arc<PreparedDerived> { access.prepare(request, Vec::new()) }
+    const _: fn(&DerivedAccess, ViewRequest) -> Arc<PreparedDerived> = prepare;
+}
+"#;
+const PORT_OWNER: &str = r#"
+mod port_owner { use super::DerivedAccess; fn own(access: &DerivedAccess) { let _ = access.port(); } const _: fn(&DerivedAccess) = own; }
+"#;
+
 fn refuse(
     owner: &'static str,
     source: String,
@@ -127,6 +150,13 @@ pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
             expected: Expectation::Accept,
         },
         refuse(module, SELECTION_BUILD.into(), "E0624", "build", "private"),
+        // The builder port: a file_dag sibling can prepare through the capability, and can
+        // neither call build, name the accessor nor read the port; the owner reads it.
+        refuse(root, PORT_BUILD.into(), "E0599", "build", "DerivedAccess"),
+        refuse(root, PORT_ACCESSOR.into(), "E0624", "port", "private"),
+        refuse(root, PORT_FIELD.into(), "E0616", "port", "private"),
+        Probe { compilation: Compilation::Library, owner: root, source: ACCESS_PREPARE.into(), expected: Expectation::Accept },
+        Probe { compilation: Compilation::Library, owner: TYPES, source: PORT_OWNER.into(), expected: Expectation::Accept },
     ];
     for field in &fields {
         probes.push(refuse(

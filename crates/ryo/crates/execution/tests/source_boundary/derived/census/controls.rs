@@ -565,6 +565,18 @@ mod census_authority_answer {
     "new",
     "private",
 );
+pub(super) static AUTHORITY_ACCESS: Negative = refuses(
+    r#"
+mod census_authority_access {
+    use crate::application::file_dag::derived::owner::types::DerivedAccess;
+    fn peek(access: &DerivedAccess) { let _ = access.port(); }
+    const _: () = { let _ = peek; };
+}
+"#,
+    "E0624",
+    "port",
+    "private",
+);
 pub(super) static AUTHORITY_CACHED: Negative = refuses(
     r#"
 mod census_authority_cached {

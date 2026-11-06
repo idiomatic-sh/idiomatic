@@ -93,7 +93,7 @@ struct State {
 }
 pub(crate) struct DerivedOwner {
     identity: Arc<()>,
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    semantic: types::DerivedAccess,
     next_scope: std::cell::Cell<ScopeId>,
     #[cfg(test)]
     last_scoped_storage: RefCell<Weak<DerivedStorage>>,
@@ -110,16 +110,16 @@ impl DerivedOwner {
         request: &ViewRequest,
         schemas: &[crate::domain::operation_schema::types::InputShape<'_>],
     ) -> Result<DerivedContract, OperatingError> {
-        super::prepare::view(Arc::clone(&self.semantic), request, schemas)
+        super::prepare::view(self.semantic.clone(), request, schemas)
     }
 
     pub(in crate::application::file_dag) fn new(
         max_entries: EntryLimit,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<types::DerivedAccess>,
     ) -> Self {
         Self {
             identity: Arc::new(()),
-            semantic,
+            semantic: semantic.into(),
             next_scope: std::cell::Cell::new(ScopeId(0)),
             #[cfg(test)]
             last_scoped_storage: RefCell::new(Weak::new()),

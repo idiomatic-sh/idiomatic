@@ -132,6 +132,19 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
         assert_eq!(named, expected, "{file}: authorities it names");
     }
 
+    // The builder port is owner-private: no production file in file_dag outside the owner names
+    // the port or its use case; holders receive the owner-issued `DerivedAccess` (SEALED_PORT).
+    for file in production
+        .iter()
+        .filter(|file| file.starts_with("application/file_dag/") && !owned(file))
+    {
+        let text = std::fs::read_to_string(src.join(file)).unwrap();
+        assert!(
+            !text.contains("DerivedPort") && !text.contains("DerivedUseCase"),
+            "{file}: names the derived port; only the owner tree holds the builder"
+        );
+    }
+
     // Every kind names a route through acquiring entries and existing controls, and every
     // acquiring entry belongs to some kind's route.
     let family = |name: &str| kind::family_file(name);

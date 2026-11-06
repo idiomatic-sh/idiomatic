@@ -129,7 +129,7 @@ impl SelectionFixture {
         ));
         let descriptors = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
             plans,
-            Arc::clone(&owner.derived.semantic),
+            owner.derived.semantic.clone(),
         );
         owner.derived.prepare_program_file(
             &descriptors,

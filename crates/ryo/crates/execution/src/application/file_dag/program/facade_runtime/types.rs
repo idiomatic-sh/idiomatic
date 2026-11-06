@@ -8,7 +8,6 @@ use crate::application::file_dag::program::request_identity::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::operating::errors::OperatingError;
-use crate::outbound::derived::interface::DerivedPort;
 use std::{rc::Rc, sync::Arc};
 
 /// Whether the frontier a file root publishes has been committed by its owner.
@@ -77,17 +76,17 @@ pub(super) struct FileRoot {
 pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     pub(super) kernels: Arc<dyn PrimitiveExecutor + Send>,
-    pub(super) derived: Arc<dyn DerivedPort>,
+    pub(super) derived: crate::application::file_dag::derived::owner::types::DerivedAccess,
 }
 impl ProgramServices {
     pub(crate) fn new(
         kernels: Arc<dyn PrimitiveExecutor + Send>,
-        derived: Arc<dyn DerivedPort>,
+        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
         Self {
             kernels,
-            derived,
+            derived: derived.into(),
             request: Arc::new(RequestIdentity::new(corpus)),
         }
     }
@@ -97,7 +96,7 @@ impl ProgramServices {
     pub(in crate::application::file_dag::program) fn kernels(&self) -> &dyn PrimitiveExecutor {
         self.kernels.as_ref()
     }
-    pub(in crate::application::file_dag::program) fn derived(&self) -> &Arc<dyn DerivedPort> {
+    pub(in crate::application::file_dag::program) fn derived(&self) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
         &self.derived
     }
 }

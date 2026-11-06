@@ -10,7 +10,7 @@ use std::sync::Arc;
 /// Compile actual plans/declarations before installing the production file descriptors.
 pub(crate) fn prepared_sources(
     plans: &[Plan],
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> super::super::prepared::RequestDerived {
     use crate::domain::{
         operator::contract::types::RequestOperators,
@@ -91,7 +91,7 @@ pub(crate) fn source_plan(relation: Relation) -> Plan {
 }
 
 pub(in crate::application::file_dag) fn prepare_view(
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: ViewRequest,
     rows: &Rows<'_>,
 ) -> Arc<DerivedContract> {

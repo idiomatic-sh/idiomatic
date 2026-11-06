@@ -34,7 +34,7 @@ impl ResourceFixture {
             .prepare_program_file(
                 &crate::application::file_dag::derived::owner::fixtures::prepared_sources(
                     &plans,
-                    Arc::clone(&owner.derived.semantic),
+                    owner.derived.semantic.clone(),
                 ),
                 &(0..plans.len())
                     .map(crate::domain::coverage::types::RuleIndex)
@@ -66,7 +66,7 @@ impl ResourceFixture {
         OperatingError,
     > {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Equality {
                 columns: columns.to_vec(),
             },

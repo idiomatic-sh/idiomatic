@@ -92,7 +92,7 @@ impl RelationOwner {
         _permit: super::scope::types::ScopePermit,
         stable: bool,
         views: usize,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self::with_limits(
             stable,
@@ -104,7 +104,7 @@ impl RelationOwner {
     #[cfg(test)]
     pub(in crate::application) fn new(
         stable: bool,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self::for_scope(
             super::scope::types::ScopePermit::fixture(),
@@ -117,7 +117,7 @@ impl RelationOwner {
     pub(in crate::application) fn for_request(
         stable: bool,
         views: usize,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self::for_scope(
             super::scope::types::ScopePermit::fixture(),
@@ -130,7 +130,7 @@ impl RelationOwner {
         stable: bool,
         max_views: usize,
         max_derived: usize,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self {
             #[cfg(test)]

@@ -106,7 +106,7 @@ impl GraphFixture {
         }
         let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
             &plans,
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
         );
         self.owner
             .derived
@@ -189,7 +189,7 @@ impl GraphFixture {
         keys: &[ColumnIndex],
     ) -> Result<Option<GraphHandle>, OperatingError> {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Adjacency {
                 endpoints,
                 keys: keys.to_vec(),
@@ -228,7 +228,7 @@ impl GraphFixture {
         column: ColumnIndex,
     ) -> Result<Option<DomainHandle>, OperatingError> {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Membership { column },
             rows,
         );
@@ -290,7 +290,7 @@ impl GraphFixture {
         OperatingError,
     > {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Equality {
                 columns: columns.to_vec(),
             },

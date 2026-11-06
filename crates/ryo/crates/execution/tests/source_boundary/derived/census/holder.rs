@@ -11,7 +11,6 @@ macro_rules! file {
 pub(super) enum Holder {
     AxisResources,
     AxisView,
-    CachedGraph,
     ClosurePartitions,
     ExecutionLease,
     Invocation,
@@ -25,12 +24,19 @@ pub(super) enum Holder {
     Selected,
     Workspace,
     GraphView,
+    DerivedAccessPrepare,
+    DerivedAccessRequest,
+    DerivedAccessViews,
+    DerivedAccessRelations,
+    DerivedAccessScope,
+    DerivedAccessServices,
+    DerivedAccessPreparation,
+    DerivedAccessOrders,
 }
 impl Holder {
-    pub(super) const ALL: [Holder; 16] = [
+    pub(super) const ALL: [Holder; 23] = [
         Holder::AxisResources,
         Holder::AxisView,
-        Holder::CachedGraph,
         Holder::ClosurePartitions,
         Holder::ExecutionLease,
         Holder::Invocation,
@@ -44,12 +50,19 @@ impl Holder {
         Holder::Selected,
         Holder::Workspace,
         Holder::GraphView,
+        Holder::DerivedAccessPrepare,
+        Holder::DerivedAccessRequest,
+        Holder::DerivedAccessViews,
+        Holder::DerivedAccessRelations,
+        Holder::DerivedAccessScope,
+        Holder::DerivedAccessServices,
+        Holder::DerivedAccessPreparation,
+        Holder::DerivedAccessOrders,
     ];
     pub(super) fn path(self) -> &'static str {
         match self {
             Holder::AxisResources => file!("axis_resources.rs"),
             Holder::AxisView => file!("axis_resources/view.rs"),
-            Holder::CachedGraph => file!("cached_graph.rs"),
             Holder::ClosurePartitions => file!("closure_partitions.rs"),
             Holder::ExecutionLease => file!("execution/lease.rs"),
             Holder::Invocation => file!("invocation.rs"),
@@ -63,6 +76,14 @@ impl Holder {
             Holder::Selected => file!("selected.rs"),
             Holder::Workspace => file!("workspace.rs"),
             Holder::GraphView => "domain/operator/contract/graph_view.rs",
+            Holder::DerivedAccessPrepare => file!("derived/prepare.rs"),
+            Holder::DerivedAccessRequest => file!("request.rs"),
+            Holder::DerivedAccessViews => file!("derived/request.rs"),
+            Holder::DerivedAccessRelations => file!("relations.rs"),
+            Holder::DerivedAccessScope => file!("scope.rs"),
+            Holder::DerivedAccessServices => file!("program/facade_runtime/types.rs"),
+            Holder::DerivedAccessPreparation => file!("program/preparation/service.rs"),
+            Holder::DerivedAccessOrders => file!("program/preparation/service/orders/service.rs"),
         }
     }
     /// The authorities its source names, exhaustively.
@@ -78,15 +99,11 @@ impl Holder {
             | Holder::RelationSelection
             | Holder::Selected
             | Holder::Workspace => &[Authority::AcquiredView],
-            Holder::CachedGraph => &[
-                Authority::GraphHandle,
-                Authority::DomainHandle,
-                Authority::CachedGraph,
-            ],
             Holder::ExecutionLease | Holder::GraphView => &[Authority::CachedGraph],
             Holder::Invocation => &[Authority::AcquiredView, Authority::CachedGraph],
             Holder::RelationAccounting => &[Authority::AcquiredView, Authority::ResourceDependency],
             Holder::RelationHandle => &[Authority::ResourceDependency],
+            Holder::DerivedAccessPrepare | Holder::DerivedAccessRequest | Holder::DerivedAccessViews | Holder::DerivedAccessRelations | Holder::DerivedAccessScope | Holder::DerivedAccessServices | Holder::DerivedAccessPreparation | Holder::DerivedAccessOrders => &[Authority::DerivedAccess],
         }
     }
 }
