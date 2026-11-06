@@ -47,7 +47,8 @@ fn evaluation_refusal_cannot_become_complete_when_publication_inputs_are_complet
     assert_eq!(
         policy.blocked_coverage(),
         CoverageState::Partial {
-            files: vec![Some(FileId(0))]
+            files: vec![Some(FileId(0))],
+            lacks: vec![],
         }
     );
 }
@@ -72,7 +73,8 @@ fn project_filter_preserves_other_files_and_exact_physical_coverage() {
     assert_eq!(
         policy.coverage(&needs()),
         CoverageState::Partial {
-            files: vec![Some(FileId(0))]
+            files: vec![Some(FileId(0))],
+            lacks: vec![],
         }
     );
 }
@@ -81,7 +83,56 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
+/// A relation read as it is carries what its partial says is missing, by file: rows of one kind in its kind column, or any row.
+fn relation_coverage_keeps_the_kind_a_partial_lacks_and_any_row_otherwise() {
+    use crate::domain::completion::types::{FileLacks, MissingRows};
+    use crate::domain::coverage::types::LackingKind;
+    let of = |lacking: Lacking| {
+        let partials = Partials {
+            entries: vec![FilePartial {
+                file: Some(FileId(0)),
+                partial: Partial {
+                    relation: Relation::Defines,
+                    lacking,
+                    ..partial()
+                },
+            }],
+            unavailable_files: vec![],
+        };
+        CompletionPolicy::project_inputs(RuleIndex(4), &partials, &partials)
+            .relation_coverage(Relation::Defines)
+    };
+    let column = crate::domain::trust::service::kind_place(Relation::Defines).unwrap();
+    assert_eq!(
+        of(Lacking::Kind(LackingKind("variable".into()))),
+        CoverageState::Partial {
+            files: vec![Some(FileId(0))],
+            lacks: vec![FileLacks {
+                file: Some(FileId(0)),
+                missing: MissingRows::Kinds {
+                    column,
+                    kinds: vec![LackingKind("variable".into())],
+                },
+            }],
+        }
+    );
+    assert_eq!(
+        of(Lacking::Any),
+        CoverageState::Partial {
+            files: vec![Some(FileId(0))],
+            lacks: vec![],
+        },
+        "a partial that names no kind lacks any row"
+    );
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("relation_coverage_names_the_kind_a_partial_lacks"),
+        word: Word::Succeeds,
+        input: relation_coverage_keeps_the_kind_a_partial_lacks_and_any_row_otherwise,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("evaluation_refusal_preserves_partial_coverage"),
         word: Word::Succeeds,
