@@ -1,4 +1,5 @@
 //! Immutable canonical map keys; live position compatibility is a separate lookup guard.
+use crate::application::file_dag::derived::constants;
 use crate::domain::derived_views::types::DerivedContract;
 use std::sync::{Arc, Weak};
 /// Selected positions are immutable. A Weak guard prevents address reuse while
@@ -42,7 +43,7 @@ impl GraphSelection {
         let (Some(left), Some(right)) = (self.rows.upgrade(), other.rows.upgrade()) else {
             return false;
         };
-        crate::application::file_dag::route_counts::event("graph_positions_compare", "graph");
+        crate::application::file_dag::route_counts::event(constants::GRAPH_POSITIONS_COMPARE, constants::ROUTE_GRAPH);
         left == right
     }
 }

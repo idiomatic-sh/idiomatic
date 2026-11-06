@@ -1,4 +1,5 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
+use crate::application::file_dag::derived::constants;
 use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::ledger::append_backing;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
@@ -72,7 +73,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     let backings = owner.graph_backings(&storage)?;
     cache.graph_counts.builds += 1;
     let shared = owner.retain_graph(cache, population, &storage, &backings, &graph)?;
-    tracing::trace!(target: "ryo::diagnostic::graph", event = "adjacency", reused = false, shared,
+    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_ADJACENCY, reused = false, shared,
         relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors()[0].len(),
         graph_bytes = cache.graph_bytes, cache_bytes = cache.bytes, graph_enabled = cache.graph_enabled);
     Ok(Some(BuiltGraph {
@@ -171,7 +172,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     if let Some(cache) = cache.as_mut() {
         owner.retain_domain(cache, population, access, &domain, &storage, &backings)?;
     }
-    tracing::trace!(target: "ryo::diagnostic::graph", event = "domain", vertices = domain.members.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
+    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
     Ok(BuiltDomain {
         storage,
         built: true,
