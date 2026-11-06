@@ -1,9 +1,7 @@
 //! Test support split from adapter_test: Shape, leaf, bare and more.
 
-use crate::domain::extras::types::Extra;
 use crate::domain::syntax::service::{kind_name, kind_of, kinds};
 use crate::domain::syntax::types::Kind;
-use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo::languages::{self, Elements, Position};
 
 /// One piece of a tree held to the standard's: its rule's name, the bytes it spans and the pieces under it.

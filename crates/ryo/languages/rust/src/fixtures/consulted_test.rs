@@ -1,6 +1,6 @@
 //! The files the `project` contract reads beyond the manifests it is handed, by where they lie around a repository.
 
-use super::project::{manifest, workspace};
+use super::project::manifest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::SHOWN;
 use crate::inbound::contracts::project::contract::ProjectContract;

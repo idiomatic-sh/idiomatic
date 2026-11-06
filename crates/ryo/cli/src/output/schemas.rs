@@ -158,7 +158,7 @@ fn refused(error: &std::io::Error) -> StreamHealth {
 
 /// Writes the key of a member of the document and what ends it, the key written as `serde_json` writes a string.
 fn key(out: &mut dyn std::io::Write, name: Key) -> std::io::Result<()> {
-    serde_json::to_writer(&mut *out, name)?;
+    serde_json::to_writer(&mut *out, &name)?;
     out.write_all(KEY_END)
 }
 

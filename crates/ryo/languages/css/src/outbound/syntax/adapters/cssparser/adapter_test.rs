@@ -5,8 +5,6 @@ use super::fixtures::projection::{differences, dumped, projected};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_name;
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo::languages::Elements;
 
 /// What a row reads: CSS text whose elements are listed, a file and the tree the standard's tool printed for it, or every file
 /// whose tree is pinned.

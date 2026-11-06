@@ -1,7 +1,7 @@
 //! Test support split from adapter_test: nesting, mdast_name, is_phrasing and more.
 
-use super::adapter::SyntaxPulldownCmarkAdapter;
-use super::fixtures::walk::{Shape, shape};
+use super::super::adapter::SyntaxPulldownCmarkAdapter;
+use super::walk::{Shape, shape};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_name, kind_of};

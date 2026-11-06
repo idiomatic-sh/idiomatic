@@ -1,6 +1,6 @@
 //! Test support split from adapter_test: read, functions, own_tree and more.
 
-use super::adapter::SyntaxRaApSyntaxAdapter;
+use super::super::adapter::SyntaxRaApSyntaxAdapter;
 use super::unproduced::kind_of_bits;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::EXPANDED_MACROS;

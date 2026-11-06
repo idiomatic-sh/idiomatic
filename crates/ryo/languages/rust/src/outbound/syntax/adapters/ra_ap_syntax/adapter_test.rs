@@ -2,7 +2,7 @@
 //! The `ra_ap_syntax` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxRaApSyntaxAdapter;
-use super::fixtures::comparison::{broken, difference, functions, printed, read};
+use super::fixtures::comparison::{broken, difference, functions, read};
 use super::fixtures::roles::roles;
 use super::fixtures::unproduced::{kinds, trees_agree, unproduced_kinds_a_source_gives};
 use crate::cases::{Case, CaseName, Expect, Word, run};

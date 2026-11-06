@@ -13,7 +13,7 @@ use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use cssparser::{
     AtRuleParser, BasicParseErrorKind, CowRcStr, DeclarationParser, ParseError, Parser,
-    ParserState, QualifiedRuleParser, RuleBodyItemParser, RuleBodyParser, StyleSheetParser, Token,
+    ParserState, QualifiedRuleParser, RuleBodyItemParser, RuleBodyParser, StyleSheetParser,
 };
 use ryo::languages::contract::{Leafness, Walked};
 use ryo::languages::{NameText, Offset};

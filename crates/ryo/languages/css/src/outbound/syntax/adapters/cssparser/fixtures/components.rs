@@ -3,7 +3,6 @@
 use super::super::types::{ByteIndex, Contents};
 use super::tokens::{is_matcher, is_trivia, opens, place, token_kind};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::service::mirror;
 use cssparser::{ParseError, Parser, Token};
