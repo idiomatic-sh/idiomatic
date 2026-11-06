@@ -1,4 +1,5 @@
 //! Delivery of the canonical publication of one file.
+use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::constants::FILE_STREAM_CONSUMER;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;

@@ -33,6 +33,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 #[cfg(test)]
+use crate::application::file_dag::program::admission::Inputs;
+#[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 #[cfg(test)]
 use crate::application::file_dag::program::protocol::types::CaptureIntent;

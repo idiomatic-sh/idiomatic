@@ -21,7 +21,9 @@ pub(super) const OUTCOME_RUNNING: &str = "running";
 pub(super) const OUTCOME_PUBLISHED: &str = "published";
 pub(super) const OUTCOME_RETIRED: &str = "retired";
 pub(super) const OUTCOME_FAILED: &str = "failed";
+#[cfg(test)]
 pub(super) const OBSERVED_PRODUCER: &str = "observed actual producer";
+#[cfg(test)]
 pub(super) const LIFECYCLE_OBSERVER: &str = "installed read-only lifecycle observer";
 pub(super) const BOUND_PRODUCER_UNAVAILABLE: &str = "declared bound producer is unavailable";
 pub(super) const OBSERVATION_UNAVAILABLE: &str = "declared observation publication is unavailable";

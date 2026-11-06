@@ -222,18 +222,19 @@ fn subject(case: Input) -> Result<Value, Failure> {
         _ => KernelSession::project(engine.as_ref(), &prepared, Rc::clone(&owner), &read),
     };
     let mut observed = std::collections::HashMap::new();
-    let mut sources = super::super::super::SourceInputs {
-        execution: &execution,
-        state: execution.file_state(),
-        completion: completion.clone(),
-        owner: Rc::clone(&owner),
-        read: &read,
-        observations: &mut observed,
-        file_outputs: None,
-        program: &prepared,
-        rule: RuleIndex(0),
-        project: None,
-    };
+    let mut sources =
+        crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs {
+            execution: &execution,
+            state: execution.file_state(),
+            completion: completion.clone(),
+            owner: Rc::clone(&owner),
+            read: &read,
+            observations: &mut observed,
+            file_outputs: None,
+            program: &prepared,
+            rule: RuleIndex(0),
+            project: None,
+        };
     let mut run_context = RunContext::file(&services, SMALL_SOURCE, &mut symbols, None, None);
     let mut context = run_context.borrow(&mut symbols, &prepared, RuleIndex(0))?;
     if matches!(
