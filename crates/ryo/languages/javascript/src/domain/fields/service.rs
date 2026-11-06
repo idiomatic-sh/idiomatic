@@ -11,7 +11,9 @@ use super::types::{
     Field, KindRole, Lastness, Marker, MarkerRole, Operands, Ordinal, Precedence, Standing,
 };
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{is_token, kind, parent, spelling};
+use crate::domain::syntax::service::{
+    is_token, kind, kind_bits, kind_name, kinds, parent, spelling,
+};
 use crate::domain::syntax::types::{Kind, Leaf};
 use crate::domain::tokens::types::Token;
 
@@ -359,4 +361,20 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
 #[must_use]
 pub(crate) fn role_of(tree: &Tree<'_>, at: Position) -> languages::FieldId {
     field_bits(field_of(tree, at))
+}
+
+/// Gives the completion the names of the language's kinds, and, when the run wants them, of its roles and the role of every element.
+pub(crate) fn name_vocabulary(
+    completion: &mut languages::Completion<'_>,
+    wanted: languages::FieldRequest,
+) {
+    for kind in kinds() {
+        languages::name_kind(completion, kind_bits(kind), kind_name(kind));
+    }
+    if wanted == languages::FieldRequest::Wanted {
+        for field in fields() {
+            languages::name_field(completion, field_bits(field), field_name(field));
+        }
+        languages::write_fields(completion, role_of);
+    }
 }

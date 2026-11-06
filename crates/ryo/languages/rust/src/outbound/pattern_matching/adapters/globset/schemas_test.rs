@@ -1,7 +1,7 @@
 //! The accepted and the refused inputs of the `globset` adapter's schemas.
 
 use super::super::types::Matcher;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::pattern_matching::errors::PatternMatchingError;
 
 /// The pattern, and the path it is tried on.
@@ -28,10 +28,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ("crates/[", "crates/core"),
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 matches!(error, PatternMatchingError::Invalid { pattern, reason }
                 if &*pattern.0 == "crates/[" && &*reason.0 == "unclosed character class; missing ']'"),
-            )
+            ))
         }),
     },
 ];

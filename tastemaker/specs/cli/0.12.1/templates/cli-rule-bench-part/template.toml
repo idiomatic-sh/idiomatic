@@ -1,0 +1,38 @@
+description = "One part of the per-rule bench: a module of `benches/lint.rs` that takes one kind of measurement (a cold run, the cache rows, the store it leaves, the Bencher Metric Format document), with any content."
+why = "The per-rule bench is one `harness = false` target of several modules, each a kind of measurement over the pinned project. Placing each module lets a closed `cli` spec account for every file instead of leaving the bench out of the workspace; the content is its author's, so the template is open and asks only that the module exist and says what it is."
+content = '''
+//! The `{{ part }}` part of the per-rule bench.
+'''
+
+[params]
+part = { type = "identifier", description = "The part, its file's name without `.rs`, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'benches/lint/{part}.rs'
+given.count = { min = 1 }
+given.files.'benches/lint/cold.rs' = '''
+//! The `cold` part of the per-rule bench.
+'''
+
+[[scenarios]]
+id = 'any-content'
+scenario = 'A part holds any content.'
+given.file = 'benches/lint/{part}.rs'
+given.count = { min = 1 }
+given.files.'benches/lint/cold.rs' = '''
+//! Anything.
+
+/// A thing.
+pub fn thing() {}
+'''
+
+[[scenarios]]
+id = 'part-missing'
+scenario = 'The part is missing.'
+given.file = 'benches/lint/{part}.rs'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'cli-rule-bench-part#count', path = '.' },
+]

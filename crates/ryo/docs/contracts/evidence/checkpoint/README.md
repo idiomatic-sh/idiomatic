@@ -12,4 +12,4 @@ output directory: `run.py` writes beside itself.
 
 The matrix's numbers come from `validation.json` in this directory, which
 records the exact sources and approved reuse of those runs; the raw logs stay
-outside the repository. The set is committed under bead ryo-607o.
+outside the repository. The set is committed with the matrix.

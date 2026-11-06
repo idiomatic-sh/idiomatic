@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use super::errors::PackagesError;
 use super::service::{numbered, read, refused_membership, root_for};
 use super::types::Packages;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::workspaces::errors::WorkspacesError;
 use crate::domain::workspaces::fixtures::{Files, answering};
@@ -338,10 +338,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Scenario::ListIndex(UNREADABLE, "a/Cargo.toml"),
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 matches!(error, PackagesError::Workspaces(WorkspacesError::Member { manifest, reason })
                 if &*manifest.0 == "gone/Cargo.toml" && &*reason.0 == "gone/Cargo.toml"),
-            )
+            ))
         }),
     },
 ];

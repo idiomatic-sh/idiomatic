@@ -26,7 +26,8 @@ fn written_text<'a>(tree: &Tree<'a>, at: Position) -> TokenText<'a> {
                 usize::try_from(from).unwrap_or(usize::MAX)
                     ..usize::try_from(to).unwrap_or(usize::MAX),
             )
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            .map(|bytes| std::str::from_utf8(bytes).unwrap_or_default())
             .unwrap_or_default(),
     )
 }

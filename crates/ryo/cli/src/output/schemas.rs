@@ -26,20 +26,34 @@ const TAB: &[u8] = b"\t";
 const NEWLINE: &[u8] = b"\n";
 /// Before the name of a file nothing read, in text.
 const UNREAD_LINE: &[u8] = b"\nunread ";
-/// Opens the document, up to the headings.
-const COLUMNS_OPEN: &[u8] = b"{\"columns\":";
-/// Ends the headings and opens the rows.
-const ROWS_OPEN: &[u8] = b",\"rows\":[";
+/// Opens the document.
+const OBJECT_OPEN: &[u8] = b"{";
+/// Ends the key of a member of the document, before its value.
+const KEY_END: &[u8] = b":";
 /// Between two rows, and between two cells of a row.
 const COMMA: &[u8] = b",";
-/// Opens a row of the document.
+/// Opens a row of the document, and the list of rows.
 const ROW_OPEN: &[u8] = b"[";
 /// Ends a row of the document, and the rows.
 const CLOSE: &[u8] = b"]";
-/// Opens the files nothing read.
-const UNREAD_OPEN: &[u8] = b",\"unread\":";
 /// Ends the document.
 const DOCUMENT_CLOSE: &[u8] = b"}\n";
+
+/// A key of the JSON document, written as `serde_json` writes its name.
+#[derive(Clone, Copy, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+enum Key {
+    /// The headings.
+    Columns,
+    /// The rows.
+    Rows,
+    /// The files nothing read.
+    Unread,
+    /// How many rows the answer has.
+    Count,
+    /// How many rows were shown.
+    Shown,
+}
 /// Between a path and why it was not read.
 const COLON: &str = ": ";
 /// Why a file was not read when no linked language reads files like it.
@@ -48,10 +62,6 @@ const NO_LANGUAGE: &str = "no linked language reads this file";
 const ROWS_WORD: &[u8] = b" rows; showing ";
 /// Ends the line that says how many rows were shown.
 const MORE: &[u8] = b". Use --limit <n> for more.";
-/// Opens the count in a document.
-const COUNT_OPEN: &[u8] = b",\"count\":";
-/// Opens how many rows were shown in a document.
-const SHOWN_OPEN: &[u8] = b",\"shown\":";
 
 /// A typed value of a row as the command line prints it, the one place a cell becomes text. As text: a file and a text as they are,
 /// a number in decimal, a span as its two ends (`unlocated` when the parser gave none), and a cell with no value as nothing. As
@@ -146,6 +156,12 @@ fn refused(error: &std::io::Error) -> StreamHealth {
     }
 }
 
+/// Writes the key of a member of the document and what ends it, the key written as `serde_json` writes a string.
+fn key(out: &mut dyn std::io::Write, name: Key) -> std::io::Result<()> {
+    serde_json::to_writer(&mut *out, &name)?;
+    out.write_all(KEY_END)
+}
+
 /// A number with its thousands told apart by commas.
 fn grouped(number: RowTotal) -> String {
     let digits = number.0.to_string();
@@ -187,9 +203,12 @@ impl RowsPort for RowsSchema {
         self.put(|out| {
             if self.json {
                 let names: Vec<&str> = columns.iter().map(|heading| &*heading.0).collect();
-                out.write_all(COLUMNS_OPEN)?;
+                out.write_all(OBJECT_OPEN)?;
+                key(&mut *out, Key::Columns)?;
                 serde_json::to_writer(&mut *out, &names)?;
-                out.write_all(ROWS_OPEN)
+                out.write_all(COMMA)?;
+                key(&mut *out, Key::Rows)?;
+                out.write_all(ROW_OPEN)
             } else {
                 for (place, heading) in columns.iter().enumerate() {
                     out.write_all(if place == 0 { &[] } else { TAB })?;
@@ -226,11 +245,14 @@ impl RowsPort for RowsSchema {
         self.put(|out| {
             if self.json {
                 out.write_all(CLOSE)?;
-                out.write_all(COUNT_OPEN)?;
+                out.write_all(COMMA)?;
+                key(&mut *out, Key::Count)?;
                 out.write_all(summary.total.0.to_string().as_bytes())?;
-                out.write_all(SHOWN_OPEN)?;
+                out.write_all(COMMA)?;
+                key(&mut *out, Key::Shown)?;
                 out.write_all(summary.shown.0.to_string().as_bytes())?;
-                out.write_all(UNREAD_OPEN)?;
+                out.write_all(COMMA)?;
+                key(&mut *out, Key::Unread)?;
                 serde_json::to_writer(&mut *out, &lines)?;
                 out.write_all(DOCUMENT_CLOSE)
             } else {

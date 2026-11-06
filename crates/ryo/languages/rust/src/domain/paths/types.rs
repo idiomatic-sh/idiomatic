@@ -172,3 +172,21 @@ pub(crate) enum Settlement {
     /// It did: what it answered stands on stand-ins, and what it wants is to be read.
     Wanting,
 }
+
+/// Whether the manifests a run supplies include a manifest of the language.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Supply {
+    /// One is supplied.
+    Manifest,
+    /// None is.
+    NoManifest,
+}
+
+/// Whether a run asks for relations that link the source files to one another.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Linking {
+    /// It does.
+    Asked,
+    /// It does not.
+    NotAsked,
+}

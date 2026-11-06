@@ -1,4 +1,3 @@
-// `selects` is given the result of a `matches!` over the error, the one boolean the selector of a row is made of
 //! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
 
 use std::fmt::Debug;
@@ -25,10 +24,14 @@ pub enum Selection {
     Differs,
 }
 
+/// The result of a `matches!` over an error: whether it is the variant a row picks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Matched(pub bool);
+
 /// Whether an error is the one a row picks, as a selector answers it.
 #[must_use]
-pub const fn selects(matched: bool) -> Selection {
-    if matched {
+pub const fn selects(matched: Matched) -> Selection {
+    if matched.0 {
         Selection::Matches
     } else {
         Selection::Differs

@@ -56,34 +56,6 @@ timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "test-language"
-group = "check"
-# Each language's tests, one tool per directory of `languages`, so an edit in one language reruns its tool alone. A
-# language reaches crates/language and every other crate through crates/sdk, so all of them are its inputs.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-{lang})"]
-timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "crates/benchmark", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "correctness-python-ruff"
-group = "check"
-# All 104 native query assets retain their 2,211 authored cases under explicitly declared
-# singleton selections. The full combined candidate cohort stays a separate tool; no
-# reference arrays are rewritten and every staged execution identity is recorded.
-run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nguards = subprocess.run([sys.executable, str(helper), '--self-test-native-standalone'])\nif guards.returncode:\n    sys.exit(guards.returncode)\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nsys.exit(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)"]
-timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "correctness-python-ruff-candidates"
-group = "ruff-candidates"
-# This job checks authoring guards and optimized Python release behavior. The dedicated
-# ruff-all-defaults CI job owns strict 413-rule verification and its receipts.
-run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--test', 'ruff', 'literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
-timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
 id = "test-cli"
 group = "check"
 # The command line's tests: it links every crate of the product, so the product is its input.
@@ -190,15 +162,6 @@ timeout-seconds = 7200
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "peak"
-group = "perf"
-# The warm run's memory peak over ruff, held to its bound (`cli/tests/replay/peak.rs`): measured here, apart from the release's
-# tests, until it holds its bound on every runner.
-run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
-timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
 id = "performance"
 group = "perf"
 # The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.
@@ -214,6 +177,43 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "test-language"
+group = "check"
+# Each language's tests, one tool per directory of `languages`, so an edit in one language reruns its tool alone. A
+# language reaches crates/language and every other crate through crates/sdk, so all of them are its inputs.
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-{lang})"]
+timeout-seconds = 3600
+inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "crates/benchmark", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "correctness-python-ruff"
+group = "check"
+# All 104 native query assets retain their 2,211 authored cases under explicitly declared
+# singleton selections. The full combined candidate cohort stays a separate tool; no
+# reference arrays are rewritten and every staged execution identity is recorded.
+run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nguards = subprocess.run([sys.executable, str(helper), '--self-test-native-standalone'])\nif guards.returncode:\n    sys.exit(guards.returncode)\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nsys.exit(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)"]
+timeout-seconds = 3600
+inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "correctness-python-ruff-candidates"
+group = "ruff-candidates"
+# This job checks authoring guards and optimized Python release behavior. The dedicated
+# ruff-all-defaults CI job owns strict 413-rule verification and its receipts.
+run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--test', 'ruff', 'literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
+timeout-seconds = 3600
+inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "peak"
+group = "perf"
+# The warm run's memory peak over ruff, held to its bound (`cli/tests/replay/peak.rs`): measured here, apart from the release's
+# tests, until it holds its bound on every runner.
+run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
+timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]

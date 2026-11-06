@@ -18,6 +18,7 @@ use crate::domain::relations::collections::relations::string_literal::item::Stri
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{
     field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
 };
@@ -46,7 +47,7 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
@@ -141,7 +142,7 @@ impl Parse for ParseContract {
     }
 
     fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        // CSS @import names a stylesheet URL, not a language standard-library module.
+        // standard: CSS Cascading and Style Sheets Level 3 (css-cascade-3), §6 Importing style sheets: an `@import` names a style sheet by URL, and the standard defines no standard library of modules.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

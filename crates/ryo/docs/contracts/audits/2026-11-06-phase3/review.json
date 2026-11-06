@@ -13,7 +13,7 @@
   "transport": "Claude Code subagent (contract-review)",
   "note": "Astra unavailable; single independent reviewer (Opus through Claude Code). Read-only: git read commands only, no build/test/source mutation; scratch worktree /workspaces/ryo-review-p3 clean before and after, then removed."
  },
- "scope": "Phase 3 claim (a) actual-413 sharing with independent expected coverage; (b) ready-gate, source/barrier and result-lease enforcement (FileWalk last-consumer retirement, derived_barrier and distinct_gate controls). Accepted deferrals: RowSemantics ops 2-9 and Rows/Hosted route controls (ryo-c01b, Phase 5); cross-rule Extend dedup Calls(2) (Phase 5); test-only lease_any (ryo-74uu).",
+ "scope": "Phase 3 claim (a) actual-413 sharing with independent expected coverage; (b) ready-gate, source/barrier and result-lease enforcement (FileWalk last-consumer retirement, derived_barrier and distinct_gate controls). Accepted deferrals: RowSemantics ops 2-9 and Rows/Hosted route controls (Phase 5); cross-rule Extend dedup Calls(2) (Phase 5); test-only lease_any.",
  "grades": {
   "enforced_boundaries": "FAIL",
   "ownership_and_flow": "PASS",
@@ -74,7 +74,7 @@
  ],
  "manual_judgment_remaining": [
   "Delivery debt is computed from intent under an assumed caller protocol; current core matches it (2 calls), but the engine trusts call counts rather than issuing obligations.",
-  "Held-lease/reentrant control uses test-only lease_any; the permit path of a real nested demand is unproven (ryo-74uu, accepted).",
+  "Held-lease/reentrant control uses test-only lease_any; the permit path of a real nested demand is unproven (accepted).",
   "Phase 2 finding 6 part 1 (runtime fault crossing a fused row continuation) is answered only at classification level by the corpus' fused continuation; cross-rule Extend dedup deferred to Phase 5.",
   "verify_program's needed-route list omits Observation; it is covered by verify_classifier and the observation-union census test, not by the compiled corpus.",
   "ruff test.rs:134-143 message 'no key is shared across generations' is tautological (generation is in both keys); the real cross-generation guard is the generation-keyed coverage equality."

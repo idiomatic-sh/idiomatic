@@ -47,9 +47,9 @@
    "id": 3,
    "axis": "proof",
    "location": "crates/ryo/docs/contracts/audits/2026-11-03-operator-execution-routes.md:42,47; crates/ryo/docs/contracts/README.md:21,71,73,141",
-   "failure": "Matrix/audit not current (earlier blocker 6/7 only partly repaired). Route audit header still 'source 31e4692274, validation311 ... repairs in claude/p2-review-repairs'; Native walk row 47 still cites walk_routes/continuation 'Passed at pass307' as the continuation control with no Phase 5 / ryo-c01b note, and the README never records the weakened fused-continuation/Calls(2) deferral (only phase3 review.json scope does). README:21 header 'Current ownership checkpoint \u2014 source 31e4692274, validation311'. A9 and row 73 cite program/** test findings 17 at validation313; validation314 shows 21 (4 new application-service#closed in distinct_integration/join/raw_scope/family/{identity,lifecycle}).",
+   "failure": "Matrix/audit not current (earlier blocker 6/7 only partly repaired). Route audit header still 'source 31e4692274, validation311 ... repairs in claude/p2-review-repairs'; Native walk row 47 still cites walk_routes/continuation 'Passed at pass307' as the continuation control with no Phase 5 note, and the README never records the weakened fused-continuation/Calls(2) deferral (only phase3 review.json scope does). README:21 header 'Current ownership checkpoint \u2014 source 31e4692274, validation311'. A9 and row 73 cite program/** test findings 17 at validation313; validation314 shows 21 (4 new application-service#closed in distinct_integration/join/raw_scope/family/{identity,lifecycle}).",
    "owner": "integrator (matrix author)",
-   "required_enforcement": "Rebind headers and rows to 314; add the ryo-c01b deferral for the continuation weakening to the Phase 2 row and audit row 47; independent re-verify."
+   "required_enforcement": "Rebind headers and rows to 314; add the Phase 5 deferral for the continuation weakening to the Phase 2 row and audit row 47; independent re-verify."
   },
   {
    "id": 4,
