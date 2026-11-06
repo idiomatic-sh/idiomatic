@@ -439,7 +439,7 @@ fn succeeds() {
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-fn relation_plan(relation: Relation, comparisons: Vec<Comparison>) -> Plan {
+pub(crate) fn relation_plan(relation: Relation, comparisons: Vec<Comparison>) -> Plan {
     let mut selected = plan("word");
     selected.steps[0].operation = Operation::Select {
         from: PlanInput::Relation(relation),
@@ -458,7 +458,7 @@ fn numbered(column: u32, value: i64) -> Comparison {
     }
 }
 
-fn with_context<T>(symbols: &mut Symbols, run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
+pub(crate) fn with_context<T>(symbols: &mut Symbols, run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     run(&mut OperatorContext {
@@ -543,122 +543,6 @@ fn generic_rows_share_one_walk_under_exact_typed_bindings_and_relation() {
     });
     assert!(empty.class(ClassPlace(0)).is_none());
     assert!(empty.class(ClassPlace(3)).unwrap().positions.0.is_empty());
-}
-
-#[derive(Default)]
-struct Collected(Vec<Vec<CellValue>>);
-impl crate::domain::operating::types::Emit for Collected {
-    fn row(
-        &mut self,
-        _: &mut OperatorContext<'_>,
-        row: &[CellValue],
-    ) -> Result<(), OperatingError> {
-        self.0.push(row.to_vec());
-        Ok(())
-    }
-}
-
-#[test]
-fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
-    let comparison = Comparison {
-        test: Test::Matches,
-        left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
-        right: Operand::Column(ColumnIndex(2)),
-        origin: None,
-    };
-    let plans = [relation_plan(Relation::SemanticSyntax, vec![comparison])];
-    let prepared = PreparedWalk::compile(&plans, &[vec![]]);
-    let mut symbols = Symbols::default();
-    let valid = ryo_language::domain::symbols::service::intern_derived(
-        &mut symbols,
-        ByteSlice(b""),
-        NameText("x"),
-    );
-    let invalid = ryo_language::domain::symbols::service::intern_derived(
-        &mut symbols,
-        ByteSlice(b""),
-        NameText("["),
-    );
-    let table = ryo_values::domain::rows::types::Table {
-        kinds: ryo_relations::domain::relations::service::kinds(Relation::SemanticSyntax).to_vec(),
-        cells: [valid, invalid, valid]
-            .iter()
-            .enumerate()
-            .flat_map(|(at, text)| {
-                [
-                    CellValue::Node(NodeId(at as u64)),
-                    CellValue::Symbol(valid),
-                    CellValue::Symbol(*text),
-                    CellValue::File(FileId(0)),
-                    CellValue::Span(Span {
-                        start: Offset(0),
-                        end: Offset(1),
-                    }),
-                ]
-            })
-            .collect(),
-        count: RowCount(3),
-    };
-    let source = Rows::Computed(&table);
-    with_context(&mut symbols, |context| {
-        let batch = evaluate(
-            &prepared,
-            Relation::SemanticSyntax,
-            &source,
-            &[Vec::new().into_boxed_slice()],
-            context,
-            &[ClassPlace(0)],
-            &mut WalkWork::default(),
-        );
-        let result = batch.class(ClassPlace(0)).unwrap();
-        assert_eq!(result.positions.0, [0]);
-        assert_eq!(batch.visits(ClassPlace(0)).0, 2);
-        assert!(matches!(
-            &result.completion,
-            Err(OperatingError::InvalidRegex { .. })
-        ));
-        let mut collected = Collected::default();
-        let replayed = crate::domain::replay::service::selected(
-            result,
-            &source,
-            crate::domain::replay::types::SelectionColumns::Columns(&[
-                ColumnIndex(2),
-                ColumnIndex(0),
-                ColumnIndex(2),
-            ]),
-            context,
-            &mut collected,
-        );
-        assert!(matches!(replayed, Err(OperatingError::InvalidRegex { .. })));
-        assert_eq!(
-            collected.0,
-            vec![vec![
-                CellValue::Symbol(valid),
-                CellValue::Node(NodeId(0)),
-                CellValue::Symbol(valid)
-            ]]
-        );
-        struct Refuse;
-        impl crate::domain::operating::types::Emit for Refuse {
-            fn row(
-                &mut self,
-                _: &mut OperatorContext<'_>,
-                _: &[CellValue],
-            ) -> Result<(), OperatingError> {
-                Err(OperatingError::NotRead)
-            }
-        }
-        assert!(matches!(
-            crate::domain::replay::service::selected(
-                result,
-                &source,
-                crate::domain::replay::types::SelectionColumns::All,
-                context,
-                &mut Refuse
-            ),
-            Err(OperatingError::NotRead)
-        ));
-    });
 }
 
 #[test]
