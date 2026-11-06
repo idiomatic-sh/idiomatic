@@ -13,7 +13,6 @@ use crate::domain::{
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use std::sync::Arc;
-#[path = "request/identity.rs"]
 pub(super) mod identity;
 use identity::same_request;
 pub(in crate::application::file_dag) struct RequestViews {
@@ -371,7 +370,6 @@ impl RequestViews {
 }
 
 #[cfg(test)]
-#[path = "request/tests.rs"]
 mod tests;
 
 use ryo_derived::domain::contract::types::DerivedKind;
