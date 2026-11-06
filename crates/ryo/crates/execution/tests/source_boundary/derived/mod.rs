@@ -348,6 +348,6 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
     ];
-    probes.extend(witness::controls());
+    probes.extend(witness::controls(ROOT));
     probes
 }
