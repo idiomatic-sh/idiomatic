@@ -119,6 +119,15 @@ fn replay_under(
     proof: ryo_values::domain::records::types::FrontierProof,
     wanted: &BucketsWanted,
 ) -> Result<(), FileAnalysisError> {
+    replay_under_capture(proof, wanted, true)
+}
+
+/// As `replay_under`, with the prepared root's capture flag of the bucket's frontier set to `captured`.
+fn replay_under_capture(
+    proof: ryo_values::domain::records::types::FrontierProof,
+    wanted: &BucketsWanted,
+    captured: bool,
+) -> Result<(), FileAnalysisError> {
     use super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::domain::workers::types::FileOrder;
@@ -166,7 +175,10 @@ fn replay_under(
     };
     let plans = [one_capture_plan()];
     let ids = [RuleId("capture".into())];
-    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let mut metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    for rule in &mut metadata {
+        rule.frontier_capture.fill(captured);
+    }
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
@@ -190,7 +202,7 @@ fn replay_under(
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                replaying: crate::domain::workers::types::Replaying::FindingsAndHanded,
+                reuse: &ryo_values::domain::stores::types::Reuse::Cross(ryo_values::domain::stores::types::MadeAgain::All),
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: wanted,
@@ -226,6 +238,20 @@ fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not
     wrong_ordinal.input = 1;
     let mut wrong_coverage = good.clone();
     wrong_coverage.coverage = FrontierCoverage::Partial(Vec::new());
+    let refused = |result: Result<(), FileAnalysisError>| {
+        matches!(
+            result,
+            Err(FileAnalysisError::Execution(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+            ))
+        )
+    };
+    assert!(
+        refused(replay_under_capture(good.clone(), &selected, false)),
+        "a bucket whose frontier the prepared root does not capture is refused when selected"
+    );
+    replay_under_capture(good.clone(), &BucketsWanted::These(Vec::new()), false)
+        .expect("the capture flag of a bucket the run does not select is never checked");
     for stale in [wrong_digest, wrong_ordinal, wrong_coverage] {
         assert!(
             matches!(
@@ -290,7 +316,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             applicability_can_gate: true,
             placed: &placed,
             records: &[],
-            replaying: crate::domain::workers::types::Replaying::Findings,
+            reuse: &ryo_values::domain::stores::types::Reuse::Whole,
             stored: &NOTHING_STORED,
             handed: &NOTHING_HANDED,
             wanted_buckets: &NOTHING_WANTED,
@@ -800,7 +826,7 @@ fn visited_inputs_with_rule_demands(
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &records,
-                replaying: crate::domain::workers::types::Replaying::Findings,
+                reuse: &ryo_values::domain::stores::types::Reuse::Whole,
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &NOTHING_WANTED,
@@ -1240,7 +1266,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                replaying: crate::domain::workers::types::Replaying::Findings,
+                reuse: &ryo_values::domain::stores::types::Reuse::Whole,
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &NOTHING_WANTED,
@@ -1573,7 +1599,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                replaying: crate::domain::workers::types::Replaying::FindingsAndHanded,
+                reuse: &ryo_values::domain::stores::types::Reuse::Cross(ryo_values::domain::stores::types::MadeAgain::All),
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &wanted,

@@ -72,7 +72,7 @@ use {
 use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::workers::service::{absorb, gathering, note_slots, order, size_at, tables_for};
 use crate::domain::workers::types::{
-    CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Replaying, Visited, WorkersMet,
+    CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Visited, WorkersMet,
 };
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::language::interface::LanguagePort;
@@ -1408,8 +1408,11 @@ impl LintUseCase for LintUseCaseImpl {
             self.compilation
                 .identify(&compiled, self.digest.as_ref(), stored_rules)?;
         let stored_rules = identities.rules;
-        let (nothing_handed, nothing_wanted) =
-            (ReadHanded::default(), BucketsWanted::These(Vec::new()));
+        let (nothing_handed, nothing_wanted, nothing_reused) = (
+            ReadHanded::default(),
+            BucketsWanted::These(Vec::new()),
+            Reuse::Whole,
+        );
         let unknown = self.language.unknown_reasons();
         let execution =
             ExecutionUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
@@ -1443,7 +1446,7 @@ impl LintUseCase for LintUseCaseImpl {
                 applicability_can_gate,
                 placed: &placed,
                 records: &[],
-                replaying: Replaying::Findings,
+                reuse: &nothing_reused,
                 stored: &listing.stored,
                 handed: &nothing_handed,
                 wanted_buckets: &nothing_wanted,
@@ -1472,10 +1475,8 @@ impl LintUseCase for LintUseCaseImpl {
                 .map_err(|error| {
                     crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
                 })?;
-        setting.replaying = match again {
-            Reuse::Cross(_) => Replaying::FindingsAndHanded,
-            Reuse::Whole | Reuse::Again => Replaying::Findings,
-        };
+        let reuse_now = again.clone();
+        setting.reuse = &reuse_now;
         // A run that makes cross-file steps again reads what the files handed them: the buckets of those rules alone.
         let HandedAgain { wanted, handed } = handed_of(
             listing.read.as_ref(),

@@ -34,7 +34,7 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::workers::types::{Replaying, Tables};
+use crate::domain::workers::types::{Held, Ready, Tables};
 use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -955,7 +955,9 @@ impl FileAnalysis {
         Ok(outcome)
     }
 
-    /// Hands what the store kept of a file the run uses again to the steps that read across files, when they are made again.
+    /// Hands what a file the run uses again hands the steps that read across files, when they are made again: one path whether the
+    /// record holds it (the file was read alone before the run) or the store kept it (read as it is handed, its words moved as they
+    /// are unpacked, none copied first). The run is ready to be handed only when it makes those steps again.
     pub(super) fn hand_again(
         worker: &mut Worker,
         visit: &FileVisit<'_>,
@@ -964,7 +966,7 @@ impl FileAnalysis {
         record: &Record,
     ) -> Result<(), FileAnalysisError> {
         let setting = &visit.setting;
-        if setting.replaying != Replaying::FindingsAndHanded {
+        if !matches!(setting.reuse, ryo_values::domain::stores::types::Reuse::Cross(_)) {
             return Ok(());
         }
         let ran = match &record.outcome {
@@ -973,53 +975,33 @@ impl FileAnalysis {
         };
         let map = remap_to(&worker.tables, number);
         let mut out = Words::default();
-        match &ran.handed {
-            Handing::Made(handed) => {
-                let notes = match &handed.notes {
+        let (no_text, no_governing) = (ArenaBytes::default(), GoverningRules::default());
+        let ready = match &ran.handed {
+            Handing::Made(handed) => Ready {
+                text: &handed.text,
+                notes: match &handed.notes {
                     HandedNotes::Noted(notes) => Some(notes),
                     HandedNotes::Nothing => None,
-                };
-                hand_rest_again(
-                    &mut worker.tables,
-                    at,
-                    number,
-                    &handed.text,
-                    notes,
-                    &handed.governing,
-                    &handed.partials,
-                    handed.observations.as_ref(),
-                );
-                let mut loaded = PackedWords::default();
-                for each in &handed.buckets {
-                    // Filtering must precede any staged read, including an invalid unrequested descriptor.
-                    if let BucketsWanted::These(buckets) = setting.wanted_buckets
-                        && buckets.binary_search(&each.bucket).is_err()
-                    {
-                        continue;
-                    }
-                    let words = match &each.words {
-                        ryo_values::domain::records::types::RecordWords::Inline(words) => words,
-                        ryo_values::domain::records::types::RecordWords::Staged(span) => {
-                            let read = visit.store.ok_or(
-                                crate::outbound::lint_store::errors::LintStoreError::NothingRead,
-                            )?;
-                            read.read_staged(span, &mut loaded)?;
-                            &loaded
-                        }
-                    };
-                    Self::hand_words_again(
-                        worker,
-                        setting,
-                        number,
-                        each.bucket,
-                        &each.proof,
-                        words,
-                        &map,
-                        &mut out,
-                    )?;
-                }
-            }
-            // What the store kept of the file is handed as it is read, its words moved as they are unpacked: none is copied first.
+                },
+                governing: &handed.governing,
+                partials: &handed.partials,
+                observations: handed.observations.as_ref(),
+                buckets: handed
+                    .buckets
+                    .iter()
+                    .map(|each| {
+                        let held = match &each.words {
+                            ryo_values::domain::records::types::RecordWords::Inline(words) => {
+                                Held::Words(words)
+                            }
+                            ryo_values::domain::records::types::RecordWords::Staged(span) => {
+                                Held::Staged(span)
+                            }
+                        };
+                        (each.bucket, &each.proof, held)
+                    })
+                    .collect(),
+            },
             Handing::Kept => {
                 let Ok(place) = setting
                     .stored
@@ -1031,59 +1013,79 @@ impl FileAnalysis {
                 let file = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
                 let kept = setting.handed;
                 let covered = rows_of_file(&kept.covered, file, |each| each.file).first();
-                hand_rest_again(
-                    &mut worker.tables,
-                    at,
-                    number,
-                    rows_of_file(&kept.texts, file, |each| each.file)
+                Ready {
+                    text: rows_of_file(&kept.texts, file, |each| each.file)
                         .first()
-                        .map_or(&ArenaBytes::default(), |each| &each.text),
-                    rows_of_file(&kept.notes, file, |each| each.file)
+                        .map_or(&no_text, |each| &each.text),
+                    notes: rows_of_file(&kept.notes, file, |each| each.file)
                         .first()
                         .map(|each| &each.notes),
-                    covered.map_or(&GoverningRules::default(), |each| &each.governing),
-                    covered.map_or(&[][..], |each| &each.partials),
-                    match rows_of_file(&kept.observations, file, |each| each.file) {
+                    governing: covered.map_or(&no_governing, |each| &each.governing),
+                    partials: covered.map_or(&[][..], |each| &each.partials),
+                    observations: match rows_of_file(&kept.observations, file, |each| each.file) {
                         [one] => Some(&one.root),
                         _ => None,
                     },
-                );
-                let mut loaded = PackedWords::default();
-                for each in rows_of_file(&kept.frontier, file, |each| each.file) {
-                    if let BucketsWanted::These(buckets) = setting.wanted_buckets
-                        && buckets.binary_search(&each.bucket).is_err()
-                    {
-                        continue;
-                    }
-                    let words = match &each.words {
-                        ryo_values::domain::stores::types::ReadWordPayload::Inline(words) => words,
-                        ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
-                            let read = visit.store.ok_or(
-                                crate::outbound::lint_store::errors::LintStoreError::NothingRead,
-                            )?;
-                            if worker.old_rows.is_none() {
-                                worker.old_rows = read.begin_old_rows(setting.wanted_buckets)?;
-                            }
-                            if let Some(batch) = worker.old_rows.as_mut() {
-                                batch.read(span, &mut loaded)?;
-                            } else {
-                                read.read_old(span, &mut loaded)?;
-                            }
-                            &loaded
-                        }
-                    };
-                    Self::hand_words_again(
-                        worker,
-                        setting,
-                        number,
-                        each.bucket,
-                        &each.proof,
-                        words,
-                        &map,
-                        &mut out,
-                    )?;
+                    buckets: rows_of_file(&kept.frontier, file, |each| each.file)
+                        .iter()
+                        .map(|each| {
+                            let held = match &each.words {
+                                ryo_values::domain::stores::types::ReadWordPayload::Inline(
+                                    words,
+                                ) => Held::Words(words),
+                                ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
+                                    Held::Old(span)
+                                }
+                            };
+                            (each.bucket, &each.proof, held)
+                        })
+                        .collect(),
                 }
             }
+        };
+        hand_rest_again(
+            &mut worker.tables,
+            at,
+            number,
+            ready.text,
+            ready.notes,
+            ready.governing,
+            ready.partials,
+            ready.observations,
+        );
+        let mut loaded = PackedWords::default();
+        for (bucket, proof, held) in ready.buckets {
+            // Filtering must precede any staged or old read, including an invalid unrequested descriptor.
+            if let BucketsWanted::These(buckets) = setting.wanted_buckets
+                && buckets.binary_search(&bucket).is_err()
+            {
+                continue;
+            }
+            let words = match held {
+                Held::Words(words) => words,
+                Held::Staged(span) => {
+                    let read = visit
+                        .store
+                        .ok_or(crate::outbound::lint_store::errors::LintStoreError::NothingRead)?;
+                    read.read_staged(span, &mut loaded)?;
+                    &loaded
+                }
+                Held::Old(span) => {
+                    let read = visit
+                        .store
+                        .ok_or(crate::outbound::lint_store::errors::LintStoreError::NothingRead)?;
+                    if worker.old_rows.is_none() {
+                        worker.old_rows = read.begin_old_rows(setting.wanted_buckets)?;
+                    }
+                    if let Some(batch) = worker.old_rows.as_mut() {
+                        batch.read(span, &mut loaded)?;
+                    } else {
+                        read.read_old(span, &mut loaded)?;
+                    }
+                    &loaded
+                }
+            };
+            Self::hand_words_again(worker, setting, number, bucket, proof, words, &map, &mut out)?;
         }
         Ok(())
     }

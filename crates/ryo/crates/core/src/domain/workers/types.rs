@@ -56,13 +56,33 @@ pub(crate) struct PlacedNotes {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FreshNotes(pub Vec<PlacedNotes>);
 
-/// What a run uses again of a file the store kept, when it does not read it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Replaying {
-    /// Its findings: the steps that read across files are not made again.
-    Findings,
-    /// Its findings, and what it hands the steps that read across files and the project, which are made again.
-    FindingsAndHanded,
+/// Where the words of one handed bucket are: in the record, or held by the store under a descriptor only the store resolves.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Held<'a> {
+    /// The words are here.
+    Words(&'a PackedWords),
+    /// A fresh staged descriptor of the same run.
+    Staged(&'a ryo_values::domain::records::types::StagedWords),
+    /// A descriptor into the words the last run kept.
+    Old(&'a ryo_values::domain::stores::types::OldWords),
+}
+
+/// What a file used again hands the steps that read across files, however the record or the store holds it: the one shape both a
+/// file read this run and a file the store kept are handed from.
+#[derive(Debug)]
+pub(crate) struct Ready<'a> {
+    /// The text its names made.
+    pub text: &'a ArenaBytes,
+    /// What its language noted of it for the project, when it noted something.
+    pub notes: Option<&'a FileNotes>,
+    /// The rules that govern it.
+    pub governing: &'a ryo_values::domain::records::types::GoverningRules,
+    /// The relations of it read in part.
+    pub partials: &'a [ryo_values::domain::stored_facts::types::StoredPartial],
+    /// The readiness of its named frontiers.
+    pub observations: Option<&'a std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+    /// Each bucket it hands, with the proof of its words and where they are.
+    pub buckets: Vec<(Bucket, &'a ryo_values::domain::records::types::FrontierProof, Held<'a>)>,
 }
 
 /// Whether a visit reads the memory the process holds.
@@ -157,7 +177,7 @@ pub(crate) struct VisitSetting<'a> {
     /// What the store kept of each file, by the file's place among the files.
     pub records: &'a [Option<&'a Record>],
     /// What the run uses again of a file the store kept and the run does not read.
-    pub replaying: Replaying,
+    pub reuse: &'a ryo_values::domain::stores::types::Reuse,
     /// What the last run kept, which what a file it does not read handed is taken from.
     pub stored: &'a Stored,
     /// What the files of the last run handed, read when the run makes the cross-file steps again.
