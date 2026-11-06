@@ -379,3 +379,6 @@ mod preparation;
 
 #[cfg(test)]
 mod readiness;
+
+#[cfg(any(test, feature = "fixtures"))]
+mod walk_routes;
