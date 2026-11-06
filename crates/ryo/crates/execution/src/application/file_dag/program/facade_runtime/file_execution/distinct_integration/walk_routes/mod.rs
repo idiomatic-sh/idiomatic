@@ -8,10 +8,14 @@ mod distinct_gate;
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
 #[cfg(test)]
+mod fusion;
+#[cfg(test)]
 mod lifetime;
 #[cfg(test)]
 mod observation;
 #[cfg(test)]
 mod retention;
+#[cfg(test)]
+mod row_semantics;
 #[cfg(test)]
 mod selection;

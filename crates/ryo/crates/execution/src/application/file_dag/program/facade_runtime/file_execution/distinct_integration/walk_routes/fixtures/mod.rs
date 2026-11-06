@@ -10,6 +10,7 @@ use ryo_relations::domain::relations::{
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 pub(super) mod plans;
+pub(super) mod routes;
 pub(super) mod semantics;
 
 #[derive(Clone, Copy, Debug)]
@@ -31,6 +32,8 @@ pub(super) struct Program {
     residency: Residency,
     columns: Vec<FactColumn>,
     lines: Vec<FactColumn>,
+    /// The function relation: node, name text, file and span columns beside the numeric target.
+    functions: Vec<FactColumn>,
     reads: AtomicUsize,
 }
 impl Program {
@@ -41,16 +44,21 @@ impl Program {
         meanings: Arc<Meanings>,
         derived: Arc<Derived>,
     ) -> Result<Self, OperatingError> {
+        let bindings = if authored.bindings.is_empty() {
+            vec![vec![]; authored.rules.len()]
+        } else {
+            authored.bindings
+        };
         let compiled = crate::domain::prepared_request::service::assemble(
             authored.plans,
-            vec![vec![]; authored.rules.len()],
+            bindings,
             &authored.rules,
         )?;
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &authored.rules,
             &vec![Digest([0; 16]); authored.rules.len()],
-            &[],
+            &authored.hosts,
             derived.clone(),
             authored.observations,
         )?;
@@ -90,6 +98,37 @@ impl Program {
                     .collect(),
             ),
         ];
+        let functions = vec![
+            FactColumn(
+                (0..rows.len())
+                    .map(|at| {
+                        to_bits(Cell::Node(ryo_relations::domain::relations::types::NodeId(
+                            at as u64,
+                        )))
+                        .0
+                    })
+                    .collect(),
+            ),
+            FactColumn(
+                (0..rows.len())
+                    .map(|_| {
+                        to_bits(Cell::Symbol(ryo_relations::domain::terms::types::Symbol(0))).0
+                    })
+                    .collect(),
+            ),
+            FactColumn(vec![to_bits(Cell::File(FileId(0))).0; rows.len()]),
+            FactColumn(
+                (0..rows.len())
+                    .map(|at| {
+                        to_bits(Cell::Span(Span {
+                            start: ryo_relations::domain::relations::types::Offset(at as u32),
+                            end: ryo_relations::domain::relations::types::Offset(at as u32 + 1),
+                        }))
+                        .0
+                    })
+                    .collect(),
+            ),
+        ];
         Ok(Self {
             prepared,
             services,
@@ -97,6 +136,7 @@ impl Program {
             residency,
             columns,
             lines,
+            functions,
             reads: AtomicUsize::new(0),
         })
     }
@@ -111,16 +151,22 @@ impl Program {
             &self.intents,
             self.services.clone(),
             ryo_values::domain::files::types::SourceView(b""),
-            if matches!(self.residency, Residency::Stable) { crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible } else { crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible },
+            if matches!(self.residency, Residency::Stable) {
+                crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible
+            } else {
+                crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible
+            },
             symbols,
             None,
-            None)
+            None,
+        )
     }
     pub(super) fn read(&self, relation: Relation) -> Result<Rows<'_>, OperatingError> {
         self.reads.fetch_add(1, Ordering::Relaxed);
         let columns = match relation {
             Relation::LanguageTarget => &self.columns,
             Relation::FilesystemLineCount => &self.lines,
+            Relation::Function => &self.functions,
             _ => return Err(OperatingError::NotRead),
         };
         Ok(Rows::Stored(ColumnsView {

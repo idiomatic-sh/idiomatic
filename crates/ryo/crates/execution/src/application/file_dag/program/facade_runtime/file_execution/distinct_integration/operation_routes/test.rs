@@ -1,6 +1,7 @@
 //! All inventory operations publish independent expected rows through the common compiled owner.
 use super::super::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures;
+use crate::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_language::domain::symbols::{
     service::{query_intern_derived, text_of},
     types::ByteSlice,
@@ -225,12 +226,64 @@ impl Sources {
         self.projection(from, projected)
     }
 }
+/// The shape a fixture's operation is compiled in.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Chain {
+    /// The operation alone, emitted.
+    Alone,
+    /// An authored row consumer after the operation.
+    Downstream,
+    /// A pure identity projection on every input (or after a source), fused into its producer.
+    Fused,
+    /// The same program, with a second reader on every producer so no projection may fuse.
+    Held,
+}
+/// What one compiled run decided and published.
+struct Probe {
+    /// The fusion classification of each inserted projection, in program order.
+    continuations: Vec<Option<Fusibility>>,
+    outcome: Result<(Table, Symbols), OperatingError>,
+}
+fn execute_chain(
+    kind: OperationKind,
+    chain: Chain,
+    operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
+) -> Probe {
+    let mut continuations = Vec::new();
+    let outcome = run_chain(kind, chain, operators, &mut continuations);
+    Probe {
+        continuations,
+        outcome,
+    }
+}
 fn execute_fixture(
     kind: OperationKind,
     downstream: bool,
     operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
 ) -> Result<(Table, Symbols), OperatingError> {
+    execute_chain(
+        kind,
+        if downstream {
+            Chain::Downstream
+        } else {
+            Chain::Alone
+        },
+        operators,
+    )
+    .outcome
+}
+fn identity(width: usize) -> Vec<ColumnIndex> {
+    (0..width as u32).map(ColumnIndex).collect()
+}
+fn run_chain(
+    kind: OperationKind,
+    chain: Chain,
+    operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
+    continuations: &mut Vec<Option<Fusibility>>,
+) -> Result<(Table, Symbols), OperatingError> {
     let mut case = fixtures::fixture(kind);
+    let fusing = matches!(chain, Chain::Fused | Chain::Held);
+    let mut inserted: Vec<usize> = Vec::new();
     if ryo_language::domain::symbols::service::name_count(&case.symbols).0 == 0 {
         query_intern_derived(
             &mut (&mut case.symbols).into(),
@@ -251,6 +304,32 @@ fn execute_fixture(
             .iter()
             .map(|table| sources.input(table, &case.symbols))
             .collect::<Vec<_>>();
+        let installed = if fusing {
+            let continued = installed
+                .iter()
+                .zip(&case.inputs)
+                .map(|(input, table)| {
+                    inserted.push(sources.steps.len());
+                    sources.push(Operation::Project {
+                        from: *input,
+                        columns: identity(table.kinds.len()),
+                        distinct: RepeatedRows::Kept,
+                    })
+                })
+                .collect::<Vec<_>>();
+            if chain == Chain::Held {
+                for input in &installed {
+                    sources.push(Operation::Select {
+                        from: *input,
+                        comparisons: vec![],
+                        kept: vec![],
+                    });
+                }
+            }
+            continued
+        } else {
+            installed
+        };
         each_input(&mut operation, &mut |input| {
             let at = declarations
                 .iter()
@@ -260,12 +339,31 @@ fn execute_fixture(
         });
     }
     let target = sources.steps.len();
-    sources.push(operation);
-    if downstream {
+    let produced = sources.push(operation);
+    let mut emit = target;
+    if chain == Chain::Downstream {
         sources.push(Operation::Extend {
             from: PlanInput::Step(StepId(target as u32)),
             values: vec![],
         });
+        emit = target + 1;
+    }
+    if fusing && inserted.is_empty() {
+        // A request-owned source has no input to continue: continue its own rows.
+        inserted.push(sources.steps.len());
+        emit = sources.steps.len();
+        sources.push(Operation::Project {
+            from: produced,
+            columns: identity(case.expected[0].len()),
+            distinct: RepeatedRows::Kept,
+        });
+        if chain == Chain::Held {
+            sources.push(Operation::Select {
+                from: produced,
+                comparisons: vec![],
+                kept: vec![],
+            });
+        }
     }
     let parameters = if case.bindings.is_empty() {
         vec![]
@@ -286,7 +384,7 @@ fn execute_fixture(
         comparison_origins: vec![],
         frontier: vec![],
         emit: Emit {
-            step: StepId((sources.steps.len() - 1) as u32),
+            step: StepId(emit as u32),
             subject: ColumnIndex(0),
             key: vec![],
             headings: vec![],
@@ -307,6 +405,13 @@ fn execute_fixture(
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
+    let program = prepared.program();
+    for step in &inserted {
+        continuations.push(match program.rules()[0].original_steps.get(*step) {
+            Some(Ok(origin)) => program.fusibility(origin.logical),
+            _ => None,
+        });
+    }
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(operators)),
         derived,
@@ -332,10 +437,11 @@ fn execute_fixture(
         }],
         services,
         ryo_values::domain::files::types::SourceView(fixtures::SOURCE),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::program::facade_runtime::types::ReuseFusibility::Eligible,
         &mut case.symbols,
         Some(&semantic),
-        None)?;
+        None,
+    )?;
     let read = |relation| {
         sources
             .providers
@@ -401,4 +507,49 @@ fn production_route_cannot_bypass_an_injected_semantic_refusal() {
         execute_fixture(OperationKind::Project, false, Arc::new(RefusingSemantics)),
         Err(OperatingError::WrongOperation)
     ));
+}
+
+fn describe(probe: &Probe) -> String {
+    match &probe.outcome {
+        Ok((table, _)) => format!("ok {:?} {:?} {}", table.kinds, table.cells, table.count.0),
+        Err(error) => format!("err {error:?}"),
+    }
+}
+fn engine() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
+    Arc::new(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new())
+}
+#[test]
+fn all26_fused_and_single_instruction_programs_publish_identical_rows_in_identical_order() {
+    for &kind in OperationKind::ALL {
+        let fused = execute_chain(kind, Chain::Fused, engine());
+        let single = execute_chain(kind, Chain::Held, engine());
+        assert!(
+            !fused.continuations.is_empty(),
+            "{kind:?} continues something"
+        );
+        assert!(
+            fused
+                .continuations
+                .iter()
+                .all(|class| *class == Some(Fusibility::Fusable)),
+            "{kind:?}: the pure projection fuses into its sole-reader producer"
+        );
+        assert!(
+            single
+                .continuations
+                .iter()
+                .all(|class| *class == Some(Fusibility::Barrier(Barrier::SharedConsumer))),
+            "{kind:?}: a second reader keeps the producer's publication"
+        );
+        assert!(fused.outcome.is_ok(), "{kind:?}: {}", describe(&fused));
+        assert_eq!(describe(&fused), describe(&single), "{kind:?}");
+    }
+}
+#[test]
+fn all26_fused_and_single_instruction_programs_refuse_with_the_same_error() {
+    for &kind in OperationKind::ALL {
+        let fused = execute_chain(kind, Chain::Fused, Arc::new(RefusingSemantics));
+        let single = execute_chain(kind, Chain::Held, Arc::new(RefusingSemantics));
+        assert_eq!(describe(&fused), describe(&single), "{kind:?}");
+    }
 }
