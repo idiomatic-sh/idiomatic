@@ -229,6 +229,35 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
         };
         assert_eq!(kind(borrowed(&input)), *variant);
         let item = registered(*variant);
+        let classified = item.prepare(borrowed(&input)).unwrap();
+        for other in RepresentationKind::ALL {
+            if other != variant {
+                assert_eq!(
+                    registered(*other).inspect(&classified),
+                    Err(OperatingError::WrongOperation),
+                    "a {variant:?} contract cannot be submitted to {other:?}"
+                );
+                let raw = borrowed(&input);
+                let wrong = registered(*other);
+                assert!(matches!(
+                    wrong.prepare(raw),
+                    Err(OperatingError::WrongOperation)
+                ));
+                assert!(matches!(
+                    wrong.bulk(raw),
+                    Err(OperatingError::WrongOperation)
+                ));
+                assert_eq!(
+                    wrong.cell(raw, RowIndex(0), ColumnIndex(0)),
+                    Err(OperatingError::WrongOperation)
+                );
+                let mut decode = vec![number(99); classified.kinds.len()];
+                assert!(matches!(
+                    wrong.row(raw, RowIndex(0), &mut decode),
+                    Err(OperatingError::WrongOperation)
+                ));
+            }
+        }
         let mut mismatched = item.prepare(borrowed(&input)).unwrap();
         mismatched.kinds = &[];
         assert_eq!(

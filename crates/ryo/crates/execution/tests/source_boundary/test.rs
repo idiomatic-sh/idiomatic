@@ -290,6 +290,40 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     probes.push(Probe { owner: RUNTIME_TYPES, source: "mod alias_sibling { use super::super::service::KernelAdmission as Authority; fn forge<'a>(execution: &'a super::super::service::ProgramExecution, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { execution, region } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "execution", second: "region" } });
     probes.push(Probe { owner: ADMISSION, source: "mod private_program_proof { use super::AdmittedInput as Authority; use super::ProducerRoot; fn alias(value: Authority, root: ProducerRoot) -> Authority { Authority { root, ..value } } impl Authority { fn private_self(value: Self, root: ProducerRoot) -> Self { Self { root, ..value } } } fn retarget(value: &mut Authority, root: ProducerRoot) { value.root = root; }  const _: () = { let _ = alias; let _ = Authority::private_self; let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
     probes.push(Probe { owner: RELATION_ISSUER, source: "mod private_relation_proof { use super::AdmittedInput as Authority; use crate::domain::operator::contract::views::BorrowedRows; fn alias<'a>(value: Authority<'a>, rows: BorrowedRows<'a>) -> Authority<'a> { Authority { rows, ..value } } impl<'a> Authority<'a> { fn private_self(value: Self, rows: BorrowedRows<'a>) -> Self { Self { rows, ..value } } } fn retarget<'a>(value: &mut Authority<'a>, rows: BorrowedRows<'a>) { value.rows = rows; }  const _: () = { let _ = alias; let _ = Authority::private_self; let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    // These clients are appended to the actual program sibling. They cannot
+    // name raw catalog implementations or retarget a registered classification.
+    probes.extend([
+        Probe {
+            owner: PROGRAM,
+            source: "mod unregistered_operator { use crate::domain::operator::collections::operators::interface::OperatorsItem as Route; fn bypass(_: &dyn Route) {} const _: fn(&dyn Route) = bypass; }".into(),
+            expected: Expectation::Refuse { code: "E0603", first: "OperatorsItem", second: "private" },
+        },
+        Probe {
+            owner: PROGRAM,
+            source: "mod unregistered_representation { fn bypass(_: &dyn crate::domain::table_model::collections::representations::interface::RepresentationsItem) {} const _: fn(&dyn crate::domain::table_model::collections::representations::interface::RepresentationsItem) = bypass; }".into(),
+            expected: Expectation::Refuse { code: "E0603", first: "RepresentationsItem", second: "private" },
+        },
+        Probe {
+            owner: PROGRAM,
+            source: "mod retarget_registered_operator { use crate::domain::operator::contract::registration::RegisteredOperator; use ryo_values::domain::plans::types::OperationKind; fn bypass(route: &mut RegisteredOperator) { route.kind = OperationKind::Project; } const _: fn(&mut RegisteredOperator) = bypass; }".into(),
+            expected: Expectation::Refuse { code: "E0616", first: "kind", second: "private" },
+        },
+        Probe {
+            owner: PROGRAM,
+            source: "mod retarget_registered_representation { use crate::domain::table_model::collections::representations::types::{RegisteredRepresentation, RepresentationKind}; fn bypass(route: &mut RegisteredRepresentation) { route.0 = RepresentationKind::Computed; } const _: fn(&mut RegisteredRepresentation) = bypass; }".into(),
+            expected: Expectation::Refuse { code: "E0616", first: "0", second: "private" },
+        },
+        Probe {
+            owner: PROGRAM,
+            source: "mod registered_operator_preparation { use crate::domain::{operator::contract::types::OperatorContract, operating::errors::OperatingError}; use ryo_values::domain::plans::types::Operation; fn prepare(operation: &Operation) -> Result<OperatorContract, OperatingError> { crate::domain::operator::service::registered(ryo_values::domain::plans::service::kind_of(operation)).prepare(operation, &[], &[]) } const _: fn(&Operation) -> Result<OperatorContract, OperatingError> = prepare; }".into(),
+            expected: Expectation::Accept,
+        },
+        Probe {
+            owner: PROGRAM,
+            source: "mod registered_representation_read { use crate::domain::table_model::collections::representations::types::{RepresentationInput, RelationContract}; use crate::domain::operating::errors::OperatingError; fn prepare<'a>(input: RepresentationInput<'a>) -> Result<RelationContract<'a>, OperatingError> { input.contract() } const _: for<'a> fn(RepresentationInput<'a>) -> Result<RelationContract<'a>, OperatingError> = prepare; }".into(),
+            expected: Expectation::Accept,
+        },
+    ]);
     probes.extend(controls());
     for Probe {
         owner,

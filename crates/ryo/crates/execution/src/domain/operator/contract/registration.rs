@@ -27,8 +27,40 @@ use crate::domain::operator::collections::operators::span_bounds::item::SpanBoun
 use crate::domain::operator::collections::operators::union::item::UnionItem;
 use crate::domain::operator::collections::operators::words::item::WordsItem;
 use ryo_values::domain::plans::types::OperationKind;
-pub(crate) fn registered(kind: OperationKind) -> &'static dyn OperatorsItem {
-    match kind {
+/// Only this registry constructs a callable operator selected by the exhaustive kind.
+/// The implementation trait stays inside the operator concept.
+pub(crate) struct RegisteredOperator {
+    kind: OperationKind,
+    item: &'static dyn OperatorsItem,
+}
+impl RegisteredOperator {
+    pub(in crate::domain::operator) fn prepare(
+        &self,
+        operation: &ryo_values::domain::plans::types::Operation,
+        inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
+        bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+    ) -> Result<super::types::OperatorContract, crate::domain::operating::errors::OperatingError>
+    {
+        if ryo_values::domain::plans::service::kind_of(operation) != self.kind {
+            return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        }
+        self.item.prepare(operation, inputs, bindings)
+    }
+    pub(crate) fn evaluate(
+        &self,
+        operation: &ryo_values::domain::plans::types::Operation,
+        inputs: super::types::PreparedInputs<'_>,
+        lease: &mut super::types::PrimitiveLease<'_>,
+        output: &mut dyn super::types::RowSink,
+    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+        if ryo_values::domain::plans::service::kind_of(operation) != self.kind {
+            return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        }
+        self.item.evaluate(operation, inputs, lease, output)
+    }
+}
+pub(crate) fn registered(kind: OperationKind) -> RegisteredOperator {
+    let item: &'static dyn OperatorsItem = match kind {
         OperationKind::Replace => &ReplaceItem,
         OperationKind::OrderedMatch => &OrderedMatchItem,
         OperationKind::Select => &SelectItem,
@@ -55,5 +87,6 @@ pub(crate) fn registered(kind: OperationKind) -> &'static dyn OperatorsItem {
         OperationKind::FitsRendered => &FitsRenderedItem,
         OperationKind::SpanBounds => &SpanBoundsItem,
         OperationKind::OrderedDfs => &OrderedDfsItem,
-    }
+    };
+    RegisteredOperator { kind, item }
 }
