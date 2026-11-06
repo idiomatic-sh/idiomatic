@@ -1,5 +1,6 @@
 //! Same-crate controls target the actual derived owner and its actual private issuers.
 use super::fixtures::{Expectation, Probe};
+mod witness;
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
 pub(super) const GRAPH_ISSUER: &str =
     "src/application/file_dag/derived/owner/graphs/types/handles/service.rs";
@@ -145,7 +146,7 @@ const DOMAIN_RAW_GETTER: &str = r#"
 mod domain_raw_getter { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle; fn escape(value: &DomainHandle) { let _ = std::sync::Arc::clone(value.raw_domain()); } const _: fn(&DomainHandle) = escape; }
 "#;
 pub(super) fn controls() -> Vec<Probe> {
-    vec![
+    let mut probes = vec![
         Probe {
             owner: ROOT,
             source: GRAPH_SELF_FORGERY.into(),
@@ -346,5 +347,7 @@ pub(super) fn controls() -> Vec<Probe> {
                 second: "DerivedOwner",
             },
         },
-    ]
+    ];
+    probes.extend(witness::controls());
+    probes
 }

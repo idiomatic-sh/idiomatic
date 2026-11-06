@@ -295,6 +295,7 @@ templates = [
   { alias = "ownership-scc-role-4", template = "idiomatic.ryo/application-part", file = "crates/execution/src/application/file_dag/derived/owner/selection/literals/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "ownership-scc-role-5", template = "idiomatic.ryo/application-part", file = "crates/execution/src/application/file_dag/derived/owner/witness/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "ownership-scc-role-6", template = "idiomatic.ryo/application-part", file = "crates/execution/src/application/file_dag/derived/owner/witness/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
+  { alias = "backing-witness-proof", template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/source_boundary/derived/witness/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
 ]
 specs = [
   { spec = "idiomatic.arch/crate", include = ["crates/matching"], params = { package = "idiomatic-sh-ryo-matching", library = "ryo_matching", binary = "absent", distribution = "absent" } },
