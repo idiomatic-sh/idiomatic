@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::super::fixtures::chain::{Chain, execute_chain, execute_fixture};
 use super::super::fixtures::describe;
-use ryo_values::domain::plans::types::OperationKind;
+use ryo_values::domain::query_operators::types::OperationKind;
 #[derive(Debug)]
 struct RefusingSemantics;
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase

@@ -21,13 +21,13 @@ use ryo_relations::domain::relations::{
     types::{FileId, Integer, Relation},
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::{
-    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{Input as PlanInput, LiteralText},
-    plans::types::{Operation, StepScope},
-    rows::types::Table,
-    stored_facts::types::Digest,
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
+use ryo_values::domain::plan_parts::types::{Input as PlanInput, LiteralText, StepScope};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::stored_facts::types::Digest;
 use std::sync::Arc;
 type Input = Scenario;
 type Value = (usize, &'static str);

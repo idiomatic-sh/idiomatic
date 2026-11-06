@@ -11,8 +11,9 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Offset, Position, Relation, Span, Value,
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::rows::types::{RowCount, Table};
 #[test]
 fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order() {

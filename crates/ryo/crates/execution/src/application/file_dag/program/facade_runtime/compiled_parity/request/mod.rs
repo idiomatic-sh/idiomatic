@@ -2,12 +2,13 @@
 use super::scenario::Scenario;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows, Side,
-    StepId, Test,
+    ColumnIndex, JoinColumn, LiteralText, Operand, PlanComparison, QueryLiteral, RepeatedRows,
+    Side, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
-use ryo_values::domain::program::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 pub(crate) fn plan(scenario: Scenario) -> Plan {
@@ -20,18 +21,18 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
                 scenario,
                 Scenario::RowsOfWords | Scenario::DistinctKinds | Scenario::KeptKinds
             ) {
-                vec![Comparison {
+                vec![PlanComparison {
                     test: Test::NotEqual,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             } else {
-                vec![Comparison {
+                vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             },
             kept: if matches!(scenario, Scenario::DistinctKinds | Scenario::KeptKinds) {
@@ -46,11 +47,11 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
         steps.push(PlanStep {
             operation: Operation::Select {
                 from: PlanInput::Step(StepId(0)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![ColumnIndex(0)],
             },
@@ -136,11 +137,11 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
             },
             scope: StepScope::PerFile,
         };
-        let text_is = |column, test, text: &str| Comparison {
+        let text_is = |column, test, text: &str| PlanComparison {
             test,
             left: Operand::Column(ColumnIndex(column)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         steps = match scenario {
             Scenario::NativeAntijoin | Scenario::NativeUnion => vec![

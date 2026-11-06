@@ -8,7 +8,8 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ParameterName;
 use ryo_values::domain::plans::service::{each_input, inputs_of, named};
-use ryo_values::domain::plans::types::{OperationKind, ParameterType, PlanParameter};
+use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
+use ryo_values::domain::query_operators::types::OperationKind;
 /// The shape a fixture's operation is compiled in.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Chain {

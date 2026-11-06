@@ -16,10 +16,11 @@ use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, FileId, I
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test, WholeNumber,
+    ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test, WholeNumber,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::RowCount;
 
@@ -154,12 +155,12 @@ fn an_empty_next_file_has_no_stale_native_publication() {
     }));
     assert_eq!(first.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
 }
-fn numbered(column: u32, value: i64) -> Comparison {
-    Comparison {
+fn numbered(column: u32, value: i64) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Number(Integer(value))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 #[test]
@@ -294,11 +295,11 @@ fn an_unready_class_of_a_demanded_rule_performs_no_semantic_work() {
     selected.steps.push(PlanStep {
         operation: Operation::Select {
             from: PlanInput::Relation(Relation::SyntaxTree),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Matches,
                 left: Operand::Column(ColumnIndex(2)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: Vec::new(),
         },

@@ -4,7 +4,7 @@ use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
-    Comparison, Input, LiteralText, Operand, QueryLiteral, Test,
+    Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
 pub(crate) fn column(number: u32) -> ColumnIndex {
     ColumnIndex(number)
@@ -54,11 +54,11 @@ pub(in super::super) fn plan() -> Plan {
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(1)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(column(3)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("body".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: Vec::new(),
             },

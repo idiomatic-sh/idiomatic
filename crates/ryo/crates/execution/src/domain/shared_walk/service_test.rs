@@ -19,10 +19,11 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, StepId, Test,
+    ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 pub(crate) fn plan(name: &str) -> Plan {
@@ -341,7 +342,7 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
-pub(crate) fn relation_plan(relation: Relation, comparisons: Vec<Comparison>) -> Plan {
+pub(crate) fn relation_plan(relation: Relation, comparisons: Vec<PlanComparison>) -> Plan {
     let mut selected = plan("word");
     selected.steps[0].operation = Operation::Select {
         from: PlanInput::Relation(relation),

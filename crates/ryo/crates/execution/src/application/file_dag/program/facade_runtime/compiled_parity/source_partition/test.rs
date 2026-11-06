@@ -5,7 +5,9 @@ use crate::application::file_dag::program::admission::{
 };
 use crate::application::file_dag::program::context::RunContext;
 use crate::application::file_dag::program::kernel_session::KernelSession;
-use crate::application::file_dag::program::runtime::service::{InvocationOutcome, ProgramExecution};
+use crate::application::file_dag::program::runtime::service::{
+    InvocationOutcome, ProgramExecution,
+};
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::files::types::SourceView;

@@ -4,8 +4,8 @@ use super::provider::{Provider, provider};
 use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 use crate::domain::operating::types::ExecutionObservation;
 use crate::domain::table_model::service::materialize;
+use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
-use ryo_values::domain::table_words::service::admit_compact;
 use ryo_values::domain::table_words::types::DecodeMode;
 use std::cell::Cell as Counter;
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -248,12 +248,15 @@ pub(crate) fn execute(
                     return None;
                 }
             };
-            let (compact, _) = admit_compact(
-                Arc::new(KeptWords(capture.words)),
-                &mut vec![],
-                DecodeMode::Complete,
-            )
-            .expect("actual captured words decode");
+            let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
+                admit_compact(
+                    ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
+                        capture.words,
+                    ))),
+                    &mut vec![],
+                    DecodeMode::Complete,
+                )
+                .expect("actual captured words decode");
             let mut table = Table::default();
             materialize(&Rows::Compact(&compact), &mut table, &mut vec![]);
             Some(table)

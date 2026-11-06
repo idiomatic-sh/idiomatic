@@ -8,8 +8,9 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 use ryo_execution::inbound::use_cases::execution::types::*;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation, Value};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
     use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;

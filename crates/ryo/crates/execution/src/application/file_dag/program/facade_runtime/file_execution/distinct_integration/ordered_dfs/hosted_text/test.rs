@@ -7,7 +7,7 @@ use crate::domain::operating::types::ExecutionObservation;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
-use ryo_values::domain::records::types::Cell as HostCell;
+use ryo_values::domain::row_texts::types::Cell as HostCell;
 #[test]
 fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
     let text = |s: &str| HostCell::Text(s.into());

@@ -88,7 +88,7 @@ fn selected_cut_join_filter_project_keeps_exact_rows_frontier_and_required_capab
     assert!(matches!(
         result.result,
         Err(OperatingError::Table(
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 60001 }
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 60001 }
         ))
     ));
 }

@@ -5,7 +5,7 @@ use self::adapter::ReadyAdapter;
 use self::events::Events;
 use super::super::*;
 use crate::application::file_dag::program::kernel_session::KernelSession;
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use std::cell::Cell as Counter;
 use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

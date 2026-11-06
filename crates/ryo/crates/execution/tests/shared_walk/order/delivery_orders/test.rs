@@ -7,8 +7,9 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 };
 use ryo_execution::inbound::use_cases::execution::types::*;
 use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId};
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
     use ryo_relations::domain::relations::types::{Words, WorkerNumber};

@@ -8,8 +8,9 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 use ryo_execution::inbound::use_cases::execution::types::*;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{Input, StepId, Test};
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::rows::types::{RowCount, Table};
 #[test]
 fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {

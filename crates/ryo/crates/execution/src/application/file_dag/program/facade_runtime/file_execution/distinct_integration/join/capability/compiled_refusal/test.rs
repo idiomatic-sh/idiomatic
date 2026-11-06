@@ -93,7 +93,7 @@ fn compiled_tree_and_step_joins_cannot_bypass_the_same_semantic_refusal() {
 #[test]
 fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_is_empty() {
     use ryo_values::domain::plan_parts::types::{
-        Comparison, LiteralText, Operand, QueryLiteral, Test,
+        LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
     for (left_fails, right_fails, error) in [
         (false, true, Some(OperatingError::NotRead)),
@@ -108,11 +108,11 @@ fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::SyntaxTree),
                 kept: vec![ColumnIndex(0)],
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("absent-kind".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
             },
         }];

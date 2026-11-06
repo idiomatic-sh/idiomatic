@@ -4,7 +4,7 @@ use super::super::super::*;
 use crate::domain::operating::types::Memo;
 use ryo_values::domain::hosted::types::HostKind;
 use ryo_values::domain::plan_parts::types::HostedNumber;
-use ryo_values::domain::records::types::Cell as HostedCell;
+use ryo_values::domain::row_texts::types::Cell as HostedCell;
 struct MemoSink {
     starts: Vec<usize>,
     rows: Vec<Cell>,

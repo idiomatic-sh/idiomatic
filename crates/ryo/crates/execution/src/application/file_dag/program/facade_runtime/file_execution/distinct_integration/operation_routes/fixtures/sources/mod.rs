@@ -7,7 +7,7 @@ use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
 use ryo_values::domain::plan_parts::types::HostedNumber;
-use ryo_values::domain::records::types::Cell as HostedCell;
+use ryo_values::domain::row_texts::types::Cell as HostedCell;
 /// Data-only fixture assembly: scalar snapshots and canonical provider rows.
 /// Every operation, schema, publication and dispatch below belongs to production.
 #[derive(Default)]

@@ -13,10 +13,10 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 use std::cell::Cell;
 #[test]
 fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
-    use ryo_values::domain::{
-        hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-        records::types::Cell as HostCell,
+    use ryo_values::domain::hosted::types::{
+        HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
     };
+    use ryo_values::domain::row_texts::types::Cell as HostCell;
     for (left, expected, visits) in [
         (
             vec![7, 7, 9],

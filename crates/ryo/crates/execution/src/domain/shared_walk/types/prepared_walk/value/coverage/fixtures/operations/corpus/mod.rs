@@ -7,14 +7,15 @@ use crate::domain::operator::contract::types::RequestOperators;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, LiteralText, ParameterName, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::{
-    Operation, OperationKind, ParameterType, Plan, PlanParameter, StepScope,
-};
+use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
+use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
+use ryo_values::domain::query_operators::types::OperationKind;
 pub(crate) const SETS_PARAMETER: &str = "sets";
 pub(crate) const ROWS_PARAMETER: &str = "rows";
 pub(crate) const ROW_VALUE: &str = "value";

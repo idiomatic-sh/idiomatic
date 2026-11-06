@@ -6,8 +6,9 @@ use crate::domain::table_model::service::materialize;
 use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId};
 use ryo_relations::domain::terms::types::Symbol;
+use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
-use ryo_values::domain::table_words::service::{admit_compact, encode_table, pack};
+use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::{CompactTable, DecodeMode, WordSlice};
 /// Canonical provider data and its physical encoding; no evaluator or admission factory.
 pub(crate) struct Provider<'a> {
@@ -132,8 +133,10 @@ pub(crate) fn provider<'a>(
     let compact = if representation == RepresentationKind::Compact {
         let mut words = ryo_relations::domain::relations::types::Words::default();
         encode_table(&table, &[], &mut words);
-        let (table, names) = admit_compact(
-            Arc::new(KeptWords(pack(WordSlice(&words.0)))),
+        let ryo_values::domain::table_words::types::Admitted { table, names } = admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
+                WordSlice(&words.0),
+            )))),
             &mut Vec::new(),
             DecodeMode::Complete,
         )
@@ -168,7 +171,7 @@ pub(crate) fn operation(
     left: &[u32],
     right: &[u32],
     output: &[(Side, u32)],
-    filter: Vec<ryo_values::domain::plan_parts::types::Comparison>,
+    filter: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
     view: &[u32],
 ) -> Operation {
     Operation::Join {

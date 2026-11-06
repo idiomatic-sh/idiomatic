@@ -11,13 +11,10 @@ use ryo_relations::{
     },
     domain::terms::types::Symbol,
 };
-use ryo_values::domain::{
-    stored_facts::types::KeptWords,
-    table_words::{
-        service::{admit_compact, encode_table, pack},
-        types::{DecodeMode, WordSlice},
-    },
-};
+use ryo_values::domain::compact_table::service::admit_compact;
+use ryo_values::domain::stored_facts::types::KeptWords;
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::{DecodeMode, WordSlice};
 use std::cell::Cell as Counter;
 #[cfg(test)]
 mod fixtures;

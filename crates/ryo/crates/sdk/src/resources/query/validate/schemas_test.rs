@@ -170,7 +170,8 @@ const LOCATED: &[Case<Input, bool, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let mut core_error = refused(RefusedKind::Invalid, 7, 12);
-            core_error.origin = Some(core_module_origin());
+            core_error.origin =
+                ryo_values::domain::query_tokens::types::Attribution::Located(core_module_origin());
             CoreError::Uncompilable { error: core_error }
         },
         expect: Expect::Value(true),
@@ -358,7 +359,7 @@ fn requested((declared, expected): Declared) -> bool {
         hosted: declared,
     }) == CoreRequest {
         observations: Vec::new(),
-        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(TEXT.into())),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(TEXT.into())),
         hosted: expected,
     }
 }

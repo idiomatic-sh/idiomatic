@@ -26,7 +26,7 @@ impl ProducerPartitions for Sources {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }

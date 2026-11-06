@@ -73,7 +73,7 @@ pub(crate) fn joined(
                 ),
             };
             column_in(kinds, source).copied().ok_or_else(|| {
-                TableModelError::NoSuchColumn {
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
                     index: column.column.0,
                 }
                 .into()

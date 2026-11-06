@@ -16,7 +16,7 @@ use ryo_language::domain::elements::service::{field_name_at, kind_at, parent_at,
 use ryo_operators::inbound::use_cases::operators::interface::{JoinDriver, JoinInterrupted};
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::rows::types::RowIndex;
 pub(super) struct Driver<'a, 'f, 'c> {
     #[cfg(feature = "diagnostic-row-progress")]
