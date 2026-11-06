@@ -1,4 +1,4 @@
-// every public function here is a path the SDK hands languages (named in the product's tastemaker.toml), over the one private `SymbolsEngine` they reach through `AsRef`/`AsMut`; the engine-level helpers beside them (interning, hashing, deriving) are what those functions share, and moving either half would move SDK paths or split a function from the private table it reads.
+// ignore: idiomatic.arch/file-length - every public function here is a path the SDK hands languages (named in the product's tastemaker.toml), over the one private `SymbolsEngine` they reach through `AsRef`/`AsMut`; the engine-level helpers beside them (interning, hashing, deriving) are what those functions share, and moving either half would move SDK paths or split a function from the private table it reads.
 //! The `symbols` service: free functions named by verb over a file's names, with no IO and no
 //! ports. A name is a number: its text is in the file or, when it is made, beside it.
 

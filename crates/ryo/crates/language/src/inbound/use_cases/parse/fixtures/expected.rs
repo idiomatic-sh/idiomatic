@@ -1,4 +1,4 @@
-// the typed cells, the rows and the text they are written as are one vocabulary a fixture is stated in
+// ignore: idiomatic.arch/file-length - the typed cells, the rows and the text they are written as are one vocabulary a fixture is stated in
 //! What a language's conformance expects, as typed rows: a relation's rows are cells, a name is its text, a span is a line and a
 //! column on each end, and nothing is a line of a table file.
 

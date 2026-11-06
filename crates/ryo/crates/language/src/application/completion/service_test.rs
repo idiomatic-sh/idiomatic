@@ -1,9 +1,15 @@
 //! Real preparation/append algorithms: identity, interning, ordinary-provider and failure controls.
 use super::service::*;
-use crate::domain::{completion::service::completion, elements::{service::*, types::*}, expansions::service::{append_embedded, write_embedded}, symbols::{
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::{
+    completion::service::completion,
+    elements::{service::*, types::*},
+    expansions::service::{append_embedded, write_embedded},
+    symbols::{
         service::text_of,
         types::{ByteSlice, Symbols},
-    }};
+    },
+};
 use ryo_relations::domain::relations::{constants::NO_SYMBOL, types::*};
 use ryo_relations::domain::terms::types::NameText;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -35,8 +41,8 @@ fn append_name(c: &mut Completion<'_>) {
         )
     });
 }
-#[test]
-fn initialized_model_survives_append_and_decoded_tail_without_native_identity_changes() {
+/// How many incremental extensions the model saw, after an append that kept every native identity.
+fn initialized_model_survives_append_and_decoded_tail_without_native_identity_changes() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     native(&mut elements, &mut symbols);
     let native_end = real_count(&elements);
@@ -97,6 +103,7 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
         |_, _| panic!("append must not rerun native resolution"),
     );
     assert_eq!((model.preparations, model.extensions), (1, 1));
+    let extensions = model.extensions;
     keep_model(&mut elements, model);
     assert_eq!(engine(&elements).decoded.len(), 1);
     assert_eq!(
@@ -105,9 +112,10 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
         "new decoded tail is visited once; empty append cannot revisit it"
     );
     assert_eq!(text_at(&elements, Position(2)), interned);
+    extensions
 }
-#[test]
-fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() {
+/// How many times the model was prepared across changed configurations and a new population.
+fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     native(&mut elements, &mut symbols);
     let mut model = Model::default();
@@ -123,7 +131,10 @@ fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() {
         assert_eq!(model.preparations, expected);
     }
     clear_elements(&mut elements);
-    assert_eq!(engine(&elements).model_preparation.ready, ModelReadiness::Stale);
+    assert_eq!(
+        engine(&elements).model_preparation.ready,
+        ModelReadiness::Stale
+    );
     native(&mut elements, &mut symbols);
     prepare(
         &mut elements,
@@ -133,10 +144,11 @@ fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() {
         &mut model,
         |_, m| m.preparations += 1,
     );
-    assert_eq!(model.preparations, 3);
+    model.preparations
 }
-#[test]
-fn initialization_completion_and_incremental_failure_never_leave_a_prepared_marker() {
+/// How many failing phases left no prepared marker.
+fn initialization_completion_and_incremental_failure_never_leave_a_prepared_marker() -> usize {
+    let mut failed = 0;
     for failing_phase in 0..3 {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         native(&mut elements, &mut symbols);
@@ -158,8 +170,11 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
                 },
             )
         }));
-        assert!(result.is_err());
-        assert_eq!(engine(&elements).model_preparation.ready, ModelReadiness::Stale);
+        result.expect_err("the failing phase panics");
+        assert_eq!(
+            engine(&elements).model_preparation.ready,
+            ModelReadiness::Stale
+        );
         assert!(
             with_file_model::<Model, _>(
                 &mut completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(0)),
@@ -167,5 +182,50 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
             )
             .is_none()
         );
+        failed += 1;
     }
+    failed
+}
+
+/// A scenario: what a row asks of the preparation.
+type Input = fn() -> usize;
+/// What a scenario answers: a count.
+type Value = usize;
+type Failure = ();
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "initialized_model_survives_append_and_decoded_tail_without_native_identity_changes",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            initialized_model_survives_append_and_decoded_tail_without_native_identity_changes
+        },
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("configuration_and_equal_sized_new_population_cannot_reuse_old_readiness"),
+        word: Word::Succeeds,
+        input: || configuration_and_equal_sized_new_population_cannot_reuse_old_readiness,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName(
+            "initialization_completion_and_incremental_failure_never_leave_a_prepared_marker",
+        ),
+        word: Word::Succeeds,
+        input: || initialization_completion_and_incremental_failure_never_leave_a_prepared_marker,
+        expect: Expect::Value(3),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    Ok(scenario())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -1,4 +1,4 @@
-// the table builder and the readers of one element table are one vocabulary over the private `ElementsEngine` and `WrittenColumn` they reach through `AsRef`/`AsMut`, and nearly every function is a path the SDK hands languages (named in the product's tastemaker.toml); splitting would split the builder from what it builds and move SDK paths.
+// ignore: idiomatic.arch/file-length - the table builder and the readers of one element table are one vocabulary over the private `ElementsEngine` and `WrittenColumn` they reach through `AsRef`/`AsMut`, and nearly every function is a path the SDK hands languages (named in the product's tastemaker.toml); splitting would split the builder from what it builds and move SDK paths.
 //! The `elements` service: free functions named by verb over a file's element table, with no IO
 //! and no ports. An element is a node or a token, a row of the table.
 

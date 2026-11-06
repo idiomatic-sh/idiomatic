@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the conformance is one run over the whole catalog, the same for every language, and its relation-by-relation steps share the fixtures and the findings they report into
 //! The conformance of a language to the whole catalog, the same for every language. It reads the
 //! language's fixtures and holds each answer the language gave to them, relation by relation:
 //!

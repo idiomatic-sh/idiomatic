@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one row for each rail a language must hold, over the one fixture language written for them, read top to bottom
 //! The rails' cases: a file whose tokens do not spell it, a tree that is not the library's, and one that is.
 
 use super::super::expected::{Leafness, ReferenceRefusal, Shape, Walked};

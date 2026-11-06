@@ -1,4 +1,4 @@
-// the contract is one check run in order over the samples, and its steps (rows, flow, determinism) share the reads and the sink they run against.
+// ignore: idiomatic.arch/file-length - the contract is one check run in order over the samples, and its steps (rows, flow, determinism) share the reads and the sink they run against.
 //! What every implementation of the `parse` use case's trait must pass.
 
 #![expect(

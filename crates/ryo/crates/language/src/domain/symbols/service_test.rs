@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one row for each promise of the symbols service, read top to bottom
 //! The `symbols` service's cases, on values alone.
 
 use super::service::{
@@ -399,7 +400,46 @@ fn cross_file_names_require_derived_storage() -> usize {
     1
 }
 
+fn transported_places_require_the_same_live_symbol_generation() -> usize {
+    use super::service::{
+        clear_symbols, query_has_transport_generation, query_places_mut, transport_permit,
+    };
+    use ryo_relations::domain::relations::types::NamePlace;
+
+    let mut first = Symbols::default();
+    let mut second = Symbols::default();
+    let key = transport_permit(&mut first);
+    {
+        let mut query = QuerySymbols::from(&mut second);
+        assert!(!query_has_transport_generation(&query, &key));
+        query_places_mut(&mut query, &key).expect_err("a pool of another generation");
+    }
+    {
+        let mut query = QuerySymbols::from(&mut first);
+        assert!(query_has_transport_generation(&query, &key));
+        let places = query_places_mut(&mut query, &key).expect("exact live pool");
+        places.push(NamePlace {
+            origin: Origin::Derived(WorkerNumber(0)),
+            file: FileId(0),
+            start: Offset(0),
+            end: Offset(1),
+        });
+        assert_eq!(places.len(), 1);
+    }
+    clear_symbols(&mut first);
+    let mut query = QuerySymbols::from(&mut first);
+    assert!(!query_has_transport_generation(&query, &key));
+    query_places_mut(&mut query, &key).expect_err("a cleared pool");
+    1
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("transported_places_require_the_same_live_symbol_generation"),
+        word: Word::Succeeds,
+        input: || transported_places_require_the_same_live_symbol_generation,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("cross_file_names_require_derived_storage"),
         word: Word::Succeeds,
@@ -481,37 +521,4 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn transported_places_require_the_same_live_symbol_generation() {
-    use super::service::{
-        clear_symbols, query_has_transport_generation, query_places_mut, transport_permit,
-    };
-    use ryo_relations::domain::relations::types::NamePlace;
-
-    let mut first = Symbols::default();
-    let mut second = Symbols::default();
-    let key = transport_permit(&mut first);
-    {
-        let mut query = QuerySymbols::from(&mut second);
-        assert!(!query_has_transport_generation(&query, &key));
-        assert!(query_places_mut(&mut query, &key).is_err());
-    }
-    {
-        let mut query = QuerySymbols::from(&mut first);
-        assert!(query_has_transport_generation(&query, &key));
-        let places = query_places_mut(&mut query, &key).expect("exact live pool");
-        places.push(NamePlace {
-            origin: Origin::Derived(WorkerNumber(0)),
-            file: FileId(0),
-            start: Offset(0),
-            end: Offset(1),
-        });
-        assert_eq!(places.len(), 1);
-    }
-    clear_symbols(&mut first);
-    let mut query = QuerySymbols::from(&mut first);
-    assert!(!query_has_transport_generation(&query, &key));
-    assert!(query_places_mut(&mut query, &key).is_err());
 }
