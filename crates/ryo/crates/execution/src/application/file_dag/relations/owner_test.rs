@@ -40,8 +40,10 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     service::encode_table(&table, &[], &mut encoded);
     let words = Arc::new(KeptWords(service::pack(WordSlice(&encoded.0))));
     let words_weak = Arc::downgrade(&words);
-    let (compact, names) =
-        service::admit_compact(Arc::clone(&words), &mut Vec::new(), DecodeMode::Complete).unwrap();
+    let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = service::admit_compact(Arc::clone(&words), &mut Vec::new(), DecodeMode::Complete).unwrap();
     assert!(names.is_empty());
     assert_eq!(
         service::compact_rectangular(&compact),
@@ -80,7 +82,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     );
     assert_eq!(
         first_unique,
-        service::compact_metadata_bytes(&compact)
+        service::compact_metadata_bytes(&compact).0
             + size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
             + 2 * size_of::<usize>()
             + words.0.0.capacity()
