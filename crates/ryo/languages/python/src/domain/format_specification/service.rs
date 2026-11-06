@@ -1,6 +1,9 @@
 //! Read decoded brace fields and syntax-owned f-string specs, without call/type policy.
 use super::constants;
-use super::types::{Observation, Observations};
+use super::types::{
+    ConversionText, Observation, ObservationCompleteness, Observations, SelectorPath, SpecOrdinal,
+    SpecSource, SpecValue,
+};
 use crate::domain::brace_format::types::CachedBraceFormat;
 use crate::domain::format_syntax::types::RetainedFormatIndex;
 use crate::domain::{
@@ -42,7 +45,11 @@ pub(crate) fn observe(
     target: crate::domain::standard_library::types::TargetVersion,
 ) -> Observations {
     let mut result = Observations {
-        partial: braces.state != BraceFormatState::Complete,
+        completeness: if braces.state == BraceFormatState::Complete {
+            ObservationCompleteness::Whole
+        } else {
+            ObservationCompleteness::Partial
+        },
         ..Default::default()
     };
     for occurrence in &braces.occurrences {
@@ -64,19 +71,23 @@ pub(crate) fn observe(
             let nested = parsed.fields.iter().any(|nested| matches!(nested.context, BraceFieldContext::FormatSpec { parent_ordinal } if parent_ordinal == field.ordinal));
             result.rows.push(Observation {
                 id: occurrence.node,
-                ordinal: field.ordinal.0,
+                ordinal: SpecOrdinal(field.ordinal.0),
                 parent: match field.context {
                     BraceFieldContext::Literal => None,
-                    BraceFieldContext::FormatSpec { parent_ordinal } => Some(parent_ordinal.0),
+                    BraceFieldContext::FormatSpec { parent_ordinal } => {
+                        Some(SpecOrdinal(parent_ordinal.0))
+                    }
                 },
                 origin: occurrence.node,
-                source_kind: constants::BRACE_STRING,
-                value: Some(spec.0.clone()),
+                source_kind: SpecSource(constants::BRACE_STRING),
+                value: Some(SpecValue(spec.0.clone())),
                 outcome: recognize(FormatSpecText(&spec.0), nested.into(), target.into()),
-                selector: field.selector_text.0.clone(),
-                conversion: field
-                    .conversion
-                    .map_or_else(String::new, |value| value.to_string()),
+                selector: SelectorPath(field.selector_text.0.clone()),
+                conversion: ConversionText(
+                    field
+                        .conversion
+                        .map_or_else(String::new, |value| value.to_string()),
+                ),
             });
         }
     }
@@ -114,29 +125,31 @@ pub(crate) fn observe(
             let (value, outcome) = match decoded_into(tree, spec, FormatScratch(&mut decoded)) {
                 Ok(DecodedInput::Static) => {
                     let outcome = recognize(FormatSpecText(&decoded), false.into(), target.into());
-                    (Some(decoded), outcome)
+                    (Some(SpecValue(decoded)), outcome)
                 }
                 Ok(DecodedInput::Dynamic) => (None, StandardSpecOutcome::Dynamic),
                 Err(()) => {
-                    result.partial = true;
+                    result.completeness = ObservationCompleteness::Partial;
                     continue;
                 }
             };
             result.rows.push(Observation {
                 id: owner,
-                ordinal,
-                parent: parent_ordinal,
+                ordinal: SpecOrdinal(ordinal),
+                parent: parent_ordinal.map(SpecOrdinal),
                 origin: spec,
-                source_kind: constants::FSTRING,
+                source_kind: SpecSource(constants::FSTRING),
                 value,
                 outcome,
-                selector: String::new(),
-                conversion: languages::property_at(
-                    tree.elements,
-                    *field,
-                    crate::domain::syntax::constants::INTERPOLATION_CONVERSION,
-                )
-                .map_or_else(String::new, |value| value.0.to_owned()),
+                selector: SelectorPath::default(),
+                conversion: ConversionText(
+                    languages::property_at(
+                        tree.elements,
+                        *field,
+                        crate::domain::syntax::constants::INTERPOLATION_CONVERSION,
+                    )
+                    .map_or_else(String::new, |value| value.0.to_owned()),
+                ),
             });
         }
     }
