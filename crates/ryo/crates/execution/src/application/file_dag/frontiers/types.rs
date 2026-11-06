@@ -46,19 +46,30 @@ pub struct PreparedFrontiers {
         std::sync::Arc<[crate::domain::crossing::types::RefusedFrontier]>,
 }
 
-/// What makes two prepare calls one population: the same rule, first bucket, demand and request scope.
+/// What makes two prepare calls one population: the same rule, first bucket, demand and request
+/// scope, read from the same facts and project providers.
 struct FrontierKey {
     rule: crate::domain::coverage::types::RuleIndex,
     first: ryo_values::domain::stored_facts::types::Bucket,
     ready: Option<Vec<bool>>,
     required: crate::application::file_dag::program::admission::RequiredPartitions,
+    providers: (usize, usize),
+}
+
+/// One acquisition, kept only while some root still holds its rows: the rows are held weakly, so a
+/// population whose roots have all finished is read again by the next caller and a provider freed
+/// and reallocated at the same address can never be mistaken for the one that was read.
+struct FrontierEntry {
+    key: FrontierKey,
+    rows: std::sync::Weak<[FrontierInput]>,
+    shared: PreparedFrontiers,
 }
 
 /// Engine-owned dedup of prepared frontiers for one request: the first call for a population reads
-/// the provider; every later call for it receives the same shared acquisition. Failures are not kept.
-/// Callers of one population share one symbol table and one facts provider, as the request does.
+/// the provider; every later call for it, while a root of that population is live, receives the same
+/// shared acquisition. Failures are not kept.
 #[derive(Default)]
-pub(crate) struct FrontierCache(std::sync::Mutex<Vec<(FrontierKey, PreparedFrontiers)>>);
+pub(crate) struct FrontierCache(std::sync::Mutex<Vec<FrontierEntry>>);
 
 impl FrontierCache {
     pub(crate) fn shared<E>(
@@ -67,28 +78,42 @@ impl FrontierCache {
         first: ryo_values::domain::stored_facts::types::Bucket,
         ready: Option<&[bool]>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        providers: (usize, usize),
         acquire: impl FnOnce() -> Result<PreparedFrontiers, E>,
     ) -> Result<PreparedFrontiers, E> {
         let mut held = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some((_, found)) = held.iter().find(|(key, _)| {
-            key.rule == rule
+        held.retain(|entry| entry.rows.strong_count() > 0);
+        if let Some((rows, entry)) = held.iter().find_map(|entry| {
+            let key = &entry.key;
+            (key.rule == rule
                 && key.first == first
                 && key.ready.as_deref() == ready
+                && key.providers == providers
                 && key.required.same_request(required)
-                    == crate::application::file_dag::program::admission::Agreement::Same
+                    == crate::application::file_dag::program::admission::Agreement::Same)
+                .then(|| entry.rows.upgrade().map(|rows| (rows, entry)))
+                .flatten()
         }) {
-            return Ok(found.clone());
+            return Ok(PreparedFrontiers {
+                rows,
+                ..entry.shared.clone()
+            });
         }
         let prepared = acquire()?;
-        held.push((
-            FrontierKey {
+        held.push(FrontierEntry {
+            key: FrontierKey {
                 rule,
                 first,
                 ready: ready.map(<[bool]>::to_vec),
                 required: required.clone(),
+                providers,
             },
-            prepared.clone(),
-        ));
+            rows: std::sync::Arc::downgrade(&prepared.rows),
+            shared: PreparedFrontiers {
+                rows: std::sync::Arc::from([]),
+                ..prepared.clone()
+            },
+        });
         Ok(prepared)
     }
 }

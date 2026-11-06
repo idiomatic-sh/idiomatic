@@ -92,7 +92,11 @@ impl ExecutionRequest for RequestExecution {
             FrontierDemand::Diagnostic => None,
             FrontierDemand::Observations { ready } => Some(ready),
         };
-        self.frontiers.shared(input.rule, input.first, ready, &input.scope.required, || {
+        let providers = (
+            std::ptr::from_ref(input.facts).cast::<()>().addr(),
+            std::ptr::from_ref(input.project).cast::<()>().addr(),
+        );
+        self.frontiers.shared(input.rule, input.first, ready, &input.scope.required, providers, || {
             crate::application::file_dag::frontiers::service::prepare(
                 &self.program,
                 input.rule,
