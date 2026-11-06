@@ -1,8 +1,8 @@
 description = "Production code does not build allocation-size estimators or heap-retention accounting from container capacity and allocator footprint queries."
-why = "If reaching for custom memory management seems necessary, the ownership or lifetime design needs correction. Computing retained heap bytes by multiplying capacity by a type's layout, summing allocator footprints, or saving those estimates in a reclamation ledger adds another memory-management system beside Rust. The observed regression spent its CPU walking reusable scratch and estimating its bytes. This rule connects sizing calls through the syntax of one arithmetic expression or aggregate; it does not depend on a helper, field, or module being named bytes, budget, retire, or ledger. It catches direct and checked/saturating capacity-times-layout expressions and arithmetic or sum/fold aggregation of memory_usage calls, including nested closures. Standard size_of aliases imported from core::mem or std::mem are followed by their import binding. Ordinary allocation/reserve, capacity bounds, scoped RAII/drop, and length-based wire-format planning are allowed. Tests, fixtures, and benches can measure memory and are outside this production policy. The derived ledger (`file_dag/derived/ledger.rs` and `ledger/`) is the one production owner of retained-byte accounting and is outside this rule; accounting written anywhere else still fails. This is not typed interprocedural taint analysis: estimates hidden across arbitrary helpers, custom allocator APIs, unresolved aliases and macro expansions are not proven. No exception or baseline is supplied."
+why = "If reaching for custom memory management seems necessary, the ownership or lifetime design needs correction. Computing retained heap bytes by multiplying capacity by a type's layout, summing allocator footprints, or saving those estimates in a reclamation ledger adds another memory-management system beside Rust. The observed regression spent its CPU walking reusable scratch and estimating its bytes. This rule connects sizing calls through the syntax of one arithmetic expression or aggregate; it does not depend on a helper, field, or module being named bytes, budget, retire, or ledger. It catches direct and checked/saturating capacity-times-layout expressions and arithmetic or sum/fold aggregation of memory_usage calls, including nested closures. Standard size_of aliases imported from core::mem or std::mem are followed by their import binding. Ordinary allocation/reserve, capacity bounds, scoped RAII/drop, and length-based wire-format planning are allowed. Tests, fixtures, and benches can measure memory and are outside this production policy. This is not typed interprocedural taint analysis: estimates hidden across arbitrary helpers, custom allocator APIs, unresolved aliases and macro expansions are not proven. No exception or baseline is supplied."
 
 query = '''
-let tree = select id, kind, text, file, span from "syntax-tree" where not glob_any(file, "{benches/**,**/benches/**,tests/**,**/tests/**,**/*_test.rs,**/fixtures/**,**/fixtures.rs,**/file_dag/derived/ledger.rs,**/file_dag/derived/ledger/**}");
+let tree = select id, kind, text, file, span from "syntax-tree" where not glob_any(file, "{benches/**,**/benches/**,tests/**,**/tests/**,**/*_test.rs,**/fixtures/**,**/fixtures.rs}");
 let methods = select * from tree where kind = "method-call-expr";
 let name-edges = select * from "syntax-child" where field = "name-ref";
 let ref-tokens = select l.parent as owner, r.child as token from name-edges as l join "syntax-child" as r on l.child = r.parent;
@@ -202,33 +202,5 @@ scenario = "Comparing byte capacity to a wire header length is an ordinary buffe
 given.files.'src/lib.rs' = '''
 fn fits(bytes: &Vec<u8>) -> bool {
     bytes.capacity() >= size_of::<u64>()
-}
-'''
-
-[[scenarios]]
-id = "accounting-outside-the-ledger"
-scenario = "A derived module other than the ledger multiplies capacity by layout and is refused."
-given.files.'src/application/file_dag/derived/owner.rs' = '''
-fn vector_bytes<T>(values: &Vec<T>) -> usize {
-    values.capacity().saturating_mul(size_of::<T>())
-}
-'''
-then.findings = [{ path = "src/application/file_dag/derived/owner.rs", line = 2 }]
-
-[[scenarios]]
-id = "accounting-in-the-ledger"
-scenario = "The derived ledger is the one owner of retained-byte accounting, so its estimate is allowed."
-given.files.'src/application/file_dag/derived/ledger.rs' = '''
-fn vector_bytes<T>(values: &Vec<T>) -> usize {
-    values.capacity().saturating_mul(size_of::<T>())
-}
-'''
-
-[[scenarios]]
-id = "accounting-in-a-ledger-part"
-scenario = "A part under the ledger directory is the same owner."
-given.files.'src/application/file_dag/derived/ledger/credit.rs' = '''
-fn vector_bytes<T>(values: &Vec<T>) -> usize {
-    values.capacity().saturating_mul(size_of::<T>())
 }
 '''
