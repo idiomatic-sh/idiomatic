@@ -4,7 +4,7 @@ use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand, observed_demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
-use crate::application::file_dag::program::protocol::types::{CaptureContext, RowEmission};
+use crate::application::file_dag::program::protocol::types::{CaptureScope, RowEmission};
 
 fn captured_program() -> Program {
     Program::new(
@@ -40,7 +40,7 @@ fn capture(
         ryo_values::domain::stored_facts::types::Bucket(0),
         &|relation| program.read(relation),
         symbols,
-        CaptureContext {
+        CaptureScope {
             file: FileId(0),
             rule_digest: Digest([0; 16]),
             worker: ryo_relations::domain::relations::types::WorkerNumber(0),
