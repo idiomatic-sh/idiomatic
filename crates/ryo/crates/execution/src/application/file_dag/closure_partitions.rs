@@ -1,5 +1,5 @@
 //! One prepared shared ordering and one reusable partition-local adjacency.
-use super::{derived::view::AcquiredView, relations::RelationOwner};
+use super::{derived::owner::acquisition::service::AcquiredView, relations::RelationOwner};
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
@@ -15,6 +15,7 @@ use std::{rc::Rc, sync::Arc};
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
 pub(crate) struct PartitionedClosure<'f> {
     input: BorrowedRows<'f>,
+    proof: super::relations::AdmittedInput<'f>,
     owner: Rc<RelationOwner>,
     partition_plan: Arc<DerivedContract>,
     closure_plan: Arc<DerivedContract>,
@@ -28,7 +29,7 @@ pub(crate) struct PartitionedClosure<'f> {
 }
 impl<'f> PartitionedClosure<'f> {
     pub(crate) fn from_prepared(
-        input: BorrowedRows<'f>,
+        proof: super::relations::AdmittedInput<'f>,
         partition_plan: Arc<DerivedContract>,
         closure_plan: Arc<DerivedContract>,
         ordered: AcquiredView,
@@ -50,10 +51,15 @@ impl<'f> PartitionedClosure<'f> {
         {
             return Err(OperatingError::WrongOperation);
         }
+        let input = proof.rows();
+        owner
+            .derived
+            .admit_partition(&closure_plan, &owner, &proof, &ordered)?;
         #[cfg(test)]
         let ordering_capacity = ordered.partition_order_capacity()?;
         Ok(Self {
             input,
+            proof,
             owner,
             partition_plan,
             closure_plan,
@@ -80,15 +86,13 @@ impl<'f> PartitionedClosure<'f> {
             kinds: input.kinds(),
             tree: None,
         }];
-        let partition_plan = Arc::new(super::derived::prepare::view(
-            owner.derived.semantic_port(),
+        let partition_plan = Arc::new(owner.derived.prepare_view(
             &ViewRequest::PartitionOrder {
                 keys: keys.to_vec(),
             },
             &schema,
         )?);
-        let closure_plan = Arc::new(super::derived::prepare::view(
-            owner.derived.semantic_port(),
+        let closure_plan = Arc::new(owner.derived.prepare_view(
             &ViewRequest::ClosureAdjacency {
                 source,
                 destination,
@@ -96,16 +100,18 @@ impl<'f> PartitionedClosure<'f> {
             &schema,
         )?);
         let proof = owner.admit(publication.as_ref(), input)?;
-        let (population, _) = proof.identity(owner.as_ref())?;
+        let admitted = owner
+            .derived
+            .admit_view(&partition_plan, &owner, &[&proof])?;
         let ordered = owner.derived.acquire_stored(
             &partition_plan,
-            &[population],
+            &admitted,
             super::derived::owner::ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
             None,
         )?;
-        Self::from_prepared(input, partition_plan, closure_plan, ordered, owner)
+        Self::from_prepared(proof, partition_plan, closure_plan, ordered, owner)
     }
     pub(crate) fn advance(&mut self) -> Result<bool, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
@@ -147,9 +153,16 @@ impl<'f> PartitionedClosure<'f> {
         }
         // The old partition's mandatory charge ends before its reusable buffer
         // is rebuilt for the next key. A taken partition transfers its lease.
+        let admitted = self.owner.derived.admit_partition(
+            &self.closure_plan,
+            &self.owner,
+            &self.proof,
+            &self.ordered,
+        )?;
         self.current = Some(self.owner.derived.scoped_build(
             crate::application::file_dag::route_counts::BuildRoute::ClosurePartition,
             &self.closure_plan,
+            &admitted,
             DerivedInputs::Partition {
                 rows: self.input,
                 positions: &order[begin..self.cursor],

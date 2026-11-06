@@ -5,7 +5,7 @@ pub(in crate::application::file_dag) fn publish(
     source: &PublishedInput,
     admitted: &AdmittedInput<'_>,
     selection: Arc<StoredSelection>,
-    resources: [Option<super::super::derived::view::AcquiredView>; 2],
+    resources: [Option<super::super::derived::owner::acquisition::service::AcquiredView>; 2],
 ) -> Result<PublishedInput, OperatingError> {
     owner.generation(source)?;
     if !matches!(&source.record().body, RelationBody::Source(identity) if identity.relation == selection.relation)

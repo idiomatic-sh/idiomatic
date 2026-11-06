@@ -5,7 +5,7 @@ use crate::domain::table_model::{service::count_of, types::Rows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 /// Prove an eligible physical population and compose selected columns before sharing graph data.
-pub(super) fn source(
+pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn source(
     input: &GraphInput<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
@@ -43,7 +43,7 @@ pub(super) fn source(
 }
 
 /// Exact domain provenance when stable; computed domains remain invocation-local.
-pub(super) fn domain_identity(
+pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain_identity(
     input: &GraphInput<'_>,
     column: ColumnIndex,
     eligible: &[ryo_relations::domain::relations::types::Relation],

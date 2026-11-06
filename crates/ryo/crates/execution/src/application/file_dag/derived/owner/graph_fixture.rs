@@ -312,7 +312,10 @@ impl GraphFixture {
         relation: Relation,
         rows: &Rows<'_>,
         columns: &[ColumnIndex],
-    ) -> Result<super::super::view::AcquiredView, OperatingError> {
+    ) -> Result<
+        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        OperatingError,
+    > {
         let plan = Self::prepare(
             ViewRequest::Equality {
                 columns: columns.to_vec(),
@@ -322,13 +325,16 @@ impl GraphFixture {
         let proof = self
             .owner
             .admit_relation(relation, BorrowedRows::from(rows))?;
-        let (population, _) = proof.identity(&self.owner)?;
         let Rows::Stored(source) = rows else {
             return Err(OperatingError::WrongOperation);
         };
         self.owner.derived.acquire_stored(
             &plan,
-            &[population],
+            &self
+                .owner
+                .derived
+                .admit_view(&plan, &self.owner, &[&proof])
+                .unwrap(),
             ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),

@@ -47,7 +47,7 @@ impl PreparedProgram {
     pub(in crate::application::file_dag::program) fn native_order(
         &self,
         region: crate::domain::executable_program::types::RegionId,
-    ) -> Result<Option<Arc<ryo_derived::domain::contract::types::PreparedDerived>>, OperatingError>
+    ) -> Result<Option<Arc<crate::domain::derived_views::types::DerivedContract>>, OperatingError>
     {
         self.native_orders
             .get(region.0)
@@ -410,7 +410,7 @@ pub(crate) fn prepare(
         .iter()
         .map(|region| {
             if region.native_positions.is_none() {
-                return None;
+                return Ok(None);
             }
             use ryo_values::domain::plan_parts::types::RepeatedRows;
             use ryo_values::domain::plans::types::Operation;
@@ -428,13 +428,19 @@ pub(crate) fn prepare(
                     Some(right_on.len())
                 }
                 _ => None,
-            }?;
-            Some(derived.prepare(
-                ryo_derived::domain::contract::types::ViewRequest::RawKeyOrder { stride },
-                Vec::new(),
-            ))
+            };
+            stride
+                .map(|stride| {
+                    crate::application::file_dag::derived::prepare::view(
+                        Arc::clone(&derived),
+                        &crate::domain::derived_views::types::ViewRequest::RawKeyOrder { stride },
+                        &[],
+                    )
+                    .map(Arc::new)
+                })
+                .transpose()
         })
-        .collect::<Vec<_>>()
+        .collect::<Result<Vec<_>, OperatingError>>()?
         .into_boxed_slice();
     let derived = crate::application::file_dag::derived::prepared::PreparedDerived::compile(
         &program, &operators,

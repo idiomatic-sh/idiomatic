@@ -125,7 +125,10 @@ impl ResourceFixture {
         relation: Relation,
         rows: &Rows<'_>,
         columns: &[ColumnIndex],
-    ) -> Result<super::super::view::AcquiredView, OperatingError> {
+    ) -> Result<
+        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+        OperatingError,
+    > {
         let plan = super::graph_fixture::GraphFixture::prepare(
             ViewRequest::Equality {
                 columns: columns.to_vec(),
@@ -135,13 +138,16 @@ impl ResourceFixture {
         let proof = self
             .owner
             .admit_relation(relation, BorrowedRows::from(rows))?;
-        let (population, _) = proof.identity(&self.owner)?;
         let Rows::Stored(source) = rows else {
             return Err(OperatingError::WrongOperation);
         };
         self.owner.derived.acquire_stored(
             &plan,
-            &[population],
+            &self
+                .owner
+                .derived
+                .admit_view(&plan, &self.owner, &[&proof])
+                .unwrap(),
             ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
@@ -160,9 +166,11 @@ impl ResourceFixture {
 }
 /// Observe backing lifetime without retaining a lease or exposing mutable storage.
 pub(crate) fn weak_storage(
-    view: &super::super::view::AcquiredView,
-) -> Weak<super::super::storage::DerivedStorage> {
-    Arc::downgrade(&view.storage)
+    view: &crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+) -> Weak<
+    crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage,
+> {
+    Arc::downgrade(view.storage())
 }
 
 /// Passive observation of actual portable builds; every call delegates to the

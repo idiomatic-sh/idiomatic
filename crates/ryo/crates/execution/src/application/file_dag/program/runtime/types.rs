@@ -70,5 +70,5 @@ pub(in crate::application::file_dag::program) struct ProducerLeaseEvent {
     pub working_bytes: usize,
     pub index_live: bool,
     pub index:
-        Option<std::sync::Weak<crate::application::file_dag::derived::storage::DerivedStorage>>,
+        Option<std::sync::Weak<crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage>>,
 }

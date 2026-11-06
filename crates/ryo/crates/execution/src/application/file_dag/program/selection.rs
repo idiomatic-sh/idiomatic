@@ -100,7 +100,6 @@ pub(super) fn acquire(
     {
         return Ok(None);
     }
-    let (population, _) = proof.identity(owner)?;
     let mut rebound = OperatorContext {
         phase: context.phase,
         semantic: context.semantic,
@@ -117,7 +116,7 @@ pub(super) fn acquire(
     let before = owner.derived.selector_work()?;
     let result = owner
         .derived
-        .select(shape.selector(), *columns, population, &mut rebound);
+        .select(shape.selector(), *columns, owner, &proof, &mut rebound);
     let after = owner.derived.selector_work()?;
     work.found(0, after.0[0].saturating_sub(before.0[0]));
     let Some(selected) = result? else {

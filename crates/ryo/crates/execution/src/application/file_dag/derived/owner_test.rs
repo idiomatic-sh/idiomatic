@@ -1,11 +1,11 @@
 //! Required sharing and optional retention are independent ownership decisions.
 use super::*;
 use crate::application::file_dag::derived::indexes;
+use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    crate::domain::derived_views::types::MembershipSpace,
     crate::domain::derived_views::types::ViewRequest,
     crate::domain::operation_schema::types::InputShape,
     crate::domain::operator::contract::views::BorrowedRows,
@@ -41,61 +41,104 @@ fn plan() -> Arc<DerivedContract> {
     )
 }
 
-fn membership_plan() -> Arc<DerivedContract> {
+fn owner(entries: usize) -> RelationOwner {
+    let mut owner = RelationOwner::new(
+        true,
+        crate::application::file_dag::testing::program_derived_port(),
+    );
+    owner.derived.max_entries = entries;
+    owner
+}
+fn population(owner: &RelationOwner, publication: &PublishedInput) -> PopulationId {
+    let held = owner
+        .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
+    owner
+        .admit(publication.as_ref(), BorrowedRows::from(&held))
+        .unwrap()
+        .identity(owner)
+        .unwrap()
+        .0
+}
+fn pair_plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            (std::sync::Arc::new(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-            &ViewRequest::Membership {
-                column: ColumnIndex(0),
+            crate::application::file_dag::testing::program_derived_port(),
+            &ViewRequest::OrderedKeys {
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                left_order: ColumnIndex(0),
+                right_order: ColumnIndex(0),
             },
-            &[InputShape {
-                kinds: &[CellKind::Number],
-                tree: None,
-            }],
+            &[
+                InputShape {
+                    kinds: &[CellKind::Number],
+                    tree: None,
+                },
+                InputShape {
+                    kinds: &[CellKind::Number],
+                    tree: None,
+                },
+            ],
         )
         .unwrap(),
     )
 }
-
-fn acquire_pair_membership(
-    owner: &DerivedOwner,
+fn acquire_pair(
+    owner: &RelationOwner,
     plan: &Arc<DerivedContract>,
-    source: &Table,
-    populations: [PopulationId; 2],
+    publications: &[PublishedInput; 2],
     scratch: &mut DerivedScratch,
-) -> super::super::view::AcquiredView {
+) -> acquisition::service::AcquiredView {
+    let left = owner
+        .resolve(publications[0].as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
+    let right = owner
+        .resolve(publications[1].as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
+    let left = owner
+        .admit(publications[0].as_ref(), BorrowedRows::from(&left))
+        .unwrap();
+    let right = owner
+        .admit(publications[1].as_ref(), BorrowedRows::from(&right))
+        .unwrap();
+    let admitted = owner
+        .derived
+        .admit_view(plan, owner, &[&left, &right])
+        .unwrap();
     owner
+        .derived
         .acquire_stored(
             plan,
-            &populations,
+            &admitted,
             ViewContext::default(),
-            DerivedInputs::Membership {
-                rows: BorrowedRows::Computed(source),
-                space: MembershipSpace::Values,
-            },
+            DerivedInputs::Rows(&[left.rows(), right.rows()]),
             scratch,
             None,
         )
         .unwrap()
 }
-
 fn acquire(
-    owner: &DerivedOwner,
+    owner: &RelationOwner,
     plan: &Arc<DerivedContract>,
-    source: &Table,
-    population: PopulationId,
+    publication: &PublishedInput,
     context: ViewContext,
     scratch: &mut DerivedScratch,
-) -> super::super::view::AcquiredView {
-    let rows = [BorrowedRows::Computed(source)];
+) -> acquisition::service::AcquiredView {
+    let held = owner
+        .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
+    let proof = owner
+        .admit(publication.as_ref(), BorrowedRows::from(&held))
+        .unwrap();
+    let admitted = owner.derived.admit_view(plan, owner, &[&proof]).unwrap();
     owner
+        .derived
         .acquire_stored(
             plan,
-            &[population],
+            &admitted,
             context,
-            DerivedInputs::Rows(&rows),
+            DerivedInputs::Rows(&[proof.rows()]),
             scratch,
             None,
         )
@@ -104,15 +147,11 @@ fn acquire(
 
 #[test]
 fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
-    let owner = DerivedOwner::new(
-        0,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let population = PopulationId(7);
+    let relation_owner = owner(0);
+    let owner = &relation_owner.derived;
+    let publication = relation_owner.computed(source()).unwrap();
+    let population = population(&relation_owner, &publication);
     owner.pin(population);
-    let source = source();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let mut cache = indexes::new(&[], &[], 4096).unwrap();
@@ -120,18 +159,16 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     owner.backend.borrow_mut().replace(cache);
 
     let first = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        population,
+        &publication,
         ViewContext::default(),
         &mut scratch,
     );
     let second = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        population,
+        &publication,
         ViewContext::default(),
         &mut scratch,
     );
@@ -152,31 +189,25 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
 
 #[test]
 fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
-    let owner = DerivedOwner::new(
-        1,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let source = source();
+    let relation_owner = owner(1);
+    let owner = &relation_owner.derived;
+    let publication = relation_owner.computed(source()).unwrap();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let first = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        PopulationId(1),
+        &publication,
         ViewContext::default(),
         &mut scratch,
     );
-    let weak = Arc::downgrade(&first.storage);
+    let weak = Arc::downgrade(first.storage());
     drop(first);
     assert!(weak.upgrade().is_none());
     let second = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        PopulationId(1),
+        &publication,
         ViewContext::default(),
         &mut scratch,
     );
@@ -189,22 +220,17 @@ fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
 
 #[test]
 fn optional_misses_do_not_accumulate_identity_metadata() {
-    let owner = DerivedOwner::new(
-        0,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let source = source();
+    let relation_owner = owner(0);
+    let owner = &relation_owner.derived;
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let initial_metadata = owner.metadata_bytes();
-    for identity in 0..256 {
+    for _ in 0..256 {
+        let publication = relation_owner.computed(source()).unwrap();
         drop(acquire(
-            &owner,
+            &relation_owner,
             &plan,
-            &source,
-            PopulationId(identity),
+            &publication,
             ViewContext::default(),
             &mut scratch,
         ));
@@ -217,32 +243,27 @@ fn optional_misses_do_not_accumulate_identity_metadata() {
 
 #[test]
 fn release_drops_only_the_dependent_required_view() {
-    let owner = DerivedOwner::new(
-        0,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let first_population = PopulationId(1);
-    let second_population = PopulationId(2);
+    let relation_owner = owner(0);
+    let owner = &relation_owner.derived;
+    let first_publication = relation_owner.computed(source()).unwrap();
+    let second_publication = relation_owner.computed(source()).unwrap();
+    let first_population = population(&relation_owner, &first_publication);
+    let second_population = population(&relation_owner, &second_publication);
     owner.pin(first_population);
     owner.pin(second_population);
-    let source = source();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let first = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        first_population,
+        &first_publication,
         ViewContext::default(),
         &mut scratch,
     );
     let second = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        second_population,
+        &second_publication,
         ViewContext::default(),
         &mut scratch,
     );
@@ -252,10 +273,9 @@ fn release_drops_only_the_dependent_required_view() {
     assert_eq!(owner.released_entries(), 1);
     assert_eq!(owner.working_bytes(), one_view_bytes);
     let again = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        second_population,
+        &second_publication,
         ViewContext::default(),
         &mut scratch,
     );
@@ -268,15 +288,17 @@ fn release_drops_only_the_dependent_required_view() {
 
 #[test]
 fn two_population_view_survives_either_release_and_repin_without_duplicate_dependencies() {
-    let owner = DerivedOwner::new(
-        0,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let populations = [PopulationId(1), PopulationId(2)];
-    let source = source();
-    let plan = membership_plan();
+    let relation_owner = owner(0);
+    let owner = &relation_owner.derived;
+    let publications = [
+        relation_owner.computed(source()).unwrap(),
+        relation_owner.computed(source()).unwrap(),
+    ];
+    let populations = [
+        population(&relation_owner, &publications[0]),
+        population(&relation_owner, &publications[1]),
+    ];
+    let plan = pair_plan();
     let mut scratch = DerivedScratch::default();
     let mut cache = indexes::new(&[], &[], 4096).unwrap();
     let metadata_charge = cache.bytes;
@@ -287,24 +309,25 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
     for _ in 0..64 {
         owner.pin(populations[0]);
         owner.pin(populations[1]);
-        let first = acquire_pair_membership(&owner, &plan, &source, populations, &mut scratch);
-        let weak = Arc::downgrade(&first.storage);
+        let first = acquire_pair(&relation_owner, &plan, &publications, &mut scratch);
+        let weak = Arc::downgrade(first.storage());
         drop(first);
 
         owner.release(populations[0]);
         assert!(weak.upgrade().is_some());
         assert!(owner.working_bytes() > 0);
         owner.pin(populations[0]);
-        let after_first =
-            acquire_pair_membership(&owner, &plan, &source, populations, &mut scratch);
-        assert!(Arc::ptr_eq(&after_first.storage, &weak.upgrade().unwrap()));
+        let after_first = acquire_pair(&relation_owner, &plan, &publications, &mut scratch);
+        assert!(Arc::ptr_eq(after_first.storage(), &weak.upgrade().unwrap()));
         drop(after_first);
 
         owner.release(populations[1]);
         assert!(weak.upgrade().is_some());
-        let after_second =
-            acquire_pair_membership(&owner, &plan, &source, populations, &mut scratch);
-        assert!(Arc::ptr_eq(&after_second.storage, &weak.upgrade().unwrap()));
+        let after_second = acquire_pair(&relation_owner, &plan, &publications, &mut scratch);
+        assert!(Arc::ptr_eq(
+            after_second.storage(),
+            &weak.upgrade().unwrap()
+        ));
         drop(after_second);
 
         owner.release(populations[0]);
@@ -330,40 +353,34 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
 
 #[test]
 fn population_and_semantic_context_are_part_of_the_view_identity() {
-    let owner = DerivedOwner::new(
-        0,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let first_population = PopulationId(1);
-    let second_population = PopulationId(2);
+    let relation_owner = owner(0);
+    let owner = &relation_owner.derived;
+    let first_publication = relation_owner.computed(source()).unwrap();
+    let second_publication = relation_owner.computed(source()).unwrap();
+    let first_population = population(&relation_owner, &first_publication);
+    let second_population = population(&relation_owner, &second_publication);
     owner.pin(first_population);
     owner.pin(second_population);
-    let source = source();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let first = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        first_population,
+        &first_publication,
         ViewContext::default(),
         &mut scratch,
     );
     let other_population = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        second_population,
+        &second_publication,
         ViewContext::default(),
         &mut scratch,
     );
     let other_context = acquire(
-        &owner,
+        &relation_owner,
         &plan,
-        &source,
-        first_population,
+        &first_publication,
         ViewContext {
             membership_order: Some(2),
             ..ViewContext::for_predicate(&plan)

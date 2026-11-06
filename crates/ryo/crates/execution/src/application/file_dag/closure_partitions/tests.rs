@@ -232,7 +232,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     let wrong_plan = std::sync::Arc::new((*empty.partition_plan).clone());
     assert!(matches!(
         PartitionedClosure::from_prepared(
-            BorrowedRows::Computed(&input),
+            empty.proof.clone(),
             wrong_plan,
             std::sync::Arc::clone(&empty.closure_plan),
             empty.ordered.clone(),

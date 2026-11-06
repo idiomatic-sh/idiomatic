@@ -67,7 +67,7 @@ pub(super) fn prepare_active(cache: &mut CacheBackend) {
 }
 pub(super) fn fanout_candidates(
     cache: &mut CacheBackend,
-    resources: super::super::owner::selection::SelectionSource<'_>,
+    resources: super::super::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Selector,
     plan: &Arc<DerivedContract>,
     source: ColumnsView<'_>,
@@ -75,7 +75,7 @@ pub(super) fn fanout_candidates(
 ) -> Result<
     Option<(
         Arc<Vec<u32>>,
-        super::super::view::AcquiredView,
+        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
         SelectionPath,
     )>,
     OperatingError,

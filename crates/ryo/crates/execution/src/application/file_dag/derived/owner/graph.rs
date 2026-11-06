@@ -45,7 +45,7 @@ impl DerivedOwner {
         if !std::ptr::eq(self, input.owner()) {
             return Err(OperatingError::NotRead);
         }
-        super::super::graph::acquire(plan, input, cache)
+        super::acquisition::graph::service::acquire(plan, input, cache)
     }
     pub(in crate::application::file_dag) fn acquire_graph_domain(
         &self,
@@ -57,7 +57,7 @@ impl DerivedOwner {
         if !std::ptr::eq(self, input.owner()) {
             return Err(OperatingError::NotRead);
         }
-        super::super::graph::domain(plan, graph, input, cache)
+        super::acquisition::graph::service::domain(plan, graph, input, cache)
     }
     pub(in crate::application::file_dag) fn graph_row<'a>(
         &self,

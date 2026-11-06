@@ -5,6 +5,9 @@ pub(in crate::application::file_dag::derived) fn same_request(
     right: &ViewRequest,
 ) -> bool {
     match (left, right) {
+        (ViewRequest::RawKeyOrder { stride: left }, ViewRequest::RawKeyOrder { stride: right }) => {
+            left == right
+        }
         (ViewRequest::Equality { columns: a }, ViewRequest::Equality { columns: b })
         | (
             ViewRequest::DistinctRepresentatives { columns: a },
@@ -147,6 +150,7 @@ pub(in crate::application::file_dag::derived) fn hash_request<H: std::hash::Hash
     }
     std::mem::discriminant(request).hash(state);
     match request {
+        ViewRequest::RawKeyOrder { stride } => stride.hash(state),
         ViewRequest::Equality { columns } | ViewRequest::DistinctRepresentatives { columns } => {
             columns.hash(state)
         }

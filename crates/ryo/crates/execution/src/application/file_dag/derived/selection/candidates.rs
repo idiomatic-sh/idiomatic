@@ -3,7 +3,7 @@ use super::*;
 /// Use a column index only when multiple active descriptors can amortize its build.
 pub(super) fn candidates(
     cache: &mut CacheBackend,
-    resources: super::super::owner::selection::SelectionSource<'_>,
+    resources: super::super::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Selector,
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,

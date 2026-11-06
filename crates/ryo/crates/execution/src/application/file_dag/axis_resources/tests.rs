@@ -45,7 +45,7 @@ fn acquired(
     kind: ryo_derived::domain::contract::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
     rows: BorrowedRows<'_>,
-) -> crate::application::file_dag::derived::view::AcquiredView {
+) -> crate::application::file_dag::derived::owner::acquisition::service::AcquiredView {
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
@@ -74,7 +74,6 @@ fn acquired(
         .unwrap();
     let rows = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), rows).unwrap();
-    let (population, _) = proof.identity(&owner).unwrap();
     let inputs = [rows];
     let data = if kind == ryo_derived::domain::contract::types::DerivedKind::Membership {
         DerivedInputs::Membership {
@@ -88,7 +87,7 @@ fn acquired(
         .derived
         .acquire_stored(
             &plan,
-            &[population],
+            &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
             crate::application::file_dag::derived::owner::ViewContext::default(),
             data,
             &mut DerivedScratch::default(),

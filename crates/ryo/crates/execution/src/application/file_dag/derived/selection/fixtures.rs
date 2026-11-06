@@ -162,11 +162,10 @@ impl SelectionFixture {
         {
             return Ok(None);
         }
-        let (identity, _) = proof.identity(&self.owner)?;
-        let Some(produced) = self
-            .owner
-            .derived
-            .select(program, source, identity, context)?
+        let Some(produced) =
+            self.owner
+                .derived
+                .select(program, source, &self.owner, &proof, context)?
         else {
             return Ok(None);
         };

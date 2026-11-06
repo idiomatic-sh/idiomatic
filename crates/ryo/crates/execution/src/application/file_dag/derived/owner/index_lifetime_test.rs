@@ -42,14 +42,16 @@ fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     assert_eq!(fixture.shared_index_backings(), 1);
     fixture
 }
-fn hold(fixture: &ResourceFixture, columns: &[FactColumn]) -> super::super::view::AcquiredView {
+fn hold(
+    fixture: &ResourceFixture,
+    columns: &[FactColumn],
+) -> crate::application::file_dag::derived::owner::acquisition::service::AcquiredView {
     let owner = fixture.owner();
     let rows = BorrowedRows::Stored(ColumnsView {
         kinds: KINDS,
         columns,
     });
     let proof = owner.admit_relation(Relation::Function, rows).unwrap();
-    let (population, _) = proof.identity(owner).unwrap();
     let plan = owner
         .derived
         .state
@@ -64,7 +66,7 @@ fn hold(fixture: &ResourceFixture, columns: &[FactColumn]) -> super::super::view
         .derived
         .acquire_stored(
             &plan,
-            &[population],
+            &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
             ViewContext::default(),
             DerivedInputs::Rows(&[rows]),
             &mut DerivedScratch::default(),

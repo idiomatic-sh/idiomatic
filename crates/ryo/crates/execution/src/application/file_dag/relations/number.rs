@@ -246,7 +246,7 @@ mod tests {
                 .derived
                 .acquire_stored(
                     &plan,
-                    &[population],
+                    &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
                     ViewContext::default(),
                     DerivedInputs::Rows(&[proof.rows()]),
                     &mut DerivedScratch::default(),

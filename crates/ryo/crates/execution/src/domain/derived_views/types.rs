@@ -20,6 +20,9 @@ use {
 
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {
+    RawKeyOrder {
+        stride: usize,
+    },
     Equality {
         columns: Vec<ColumnIndex>,
     },
@@ -81,6 +84,7 @@ pub(crate) enum MembershipSpace<'a> {
 }
 /// Inputs are semantic capabilities only; none can schedule upstream work or select a cache policy.
 pub(crate) enum DerivedInputs<'a, 's> {
+    RawWords(&'a [u64]),
     Postings {
         rows: BorrowedRows<'a>,
         texts: &'a Texts<'a>,

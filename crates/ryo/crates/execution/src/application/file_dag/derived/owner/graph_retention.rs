@@ -76,7 +76,7 @@ impl DerivedOwner {
             {
                 replace(&mut cache.graph_domains, replacement);
                 cache.graph_domains.push(DomainEntry {
-                    graph_storage: Arc::clone(&graph._storage),
+                    graph_storage: Arc::clone(graph.acquired.storage()),
                     graph: Arc::clone(&graph.graph),
                     domain: Arc::clone(domain),
                     population,

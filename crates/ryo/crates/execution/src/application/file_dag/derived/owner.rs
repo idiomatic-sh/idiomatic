@@ -1,9 +1,9 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use super::footprint::storage_bytes;
-use super::storage::DerivedStorage;
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
+use acquisition::semantics::service::DerivedStorage;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -14,10 +14,9 @@ mod diagnostics;
 #[path = "owner/lifetime.rs"]
 mod lifetime;
 mod observations;
-pub(super) mod selection;
 #[cfg(test)]
 pub(in crate::application::file_dag) use observations::IndexObservation;
-mod acquisition;
+pub(in crate::application::file_dag) mod acquisition;
 mod backings;
 mod graph;
 #[cfg(test)]
@@ -32,7 +31,6 @@ mod index_lifetime_test;
 mod leases;
 #[cfg(test)]
 pub(crate) mod resource_fixture;
-mod scoped;
 mod setup;
 
 /// Assigned only after application admission; canonical DAG producers keep one ID across rules.
@@ -74,7 +72,7 @@ struct Entry {
     admission: usize,
     _plan: Arc<DerivedContract>,
     weak: Weak<DerivedStorage>,
-    required: Option<super::view::AcquiredView>,
+    required: Option<acquisition::service::AcquiredView>,
     retained: Option<RetainedView>,
     backings: Arc<[super::ledger::Backing]>,
     lease: Weak<super::ledger::ResourceLease>,
@@ -103,6 +101,7 @@ struct State {
     required_backend_bytes: usize,
 }
 pub(crate) struct DerivedOwner {
+    identity: Arc<()>,
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     next_scope: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -119,26 +118,31 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn finite_raw(
         &self,
         owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-        prepared: Option<Arc<ryo_derived::domain::contract::types::PreparedDerived>>,
+        prepared: Option<Arc<DerivedContract>>,
+        permit: &crate::application::file_dag::program::admission::KernelPermit<'_>,
     ) -> Result<impl crate::domain::operator::contract::derived::ScopedDerived, OperatingError>
     {
         if !std::ptr::eq(self, &owner.derived)
-            || prepared.as_ref().is_some_and(|plan| {
-                !matches!(
-                    plan.request(),
-                    ryo_derived::domain::contract::types::ViewRequest::RawKeyOrder { .. }
-                )
-            })
+            || prepared
+                .as_ref()
+                .is_some_and(|plan| !matches!(&plan.request, ViewRequest::RawKeyOrder { .. }))
         {
             return Err(OperatingError::WrongOperation);
         }
-        Ok(raw_scope::RawScope::for_program(owner, prepared))
+        permit.validate_derived_owner(&owner)?;
+        let admitted = prepared
+            .as_ref()
+            .map(|plan| self.admit_raw(plan, &owner, permit))
+            .transpose()?;
+        Ok(raw_scope::RawScope::for_program(owner, prepared, admitted))
     }
 
-    pub(in crate::application::file_dag) fn semantic_port(
+    pub(in crate::application::file_dag) fn prepare_view(
         &self,
-    ) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        Arc::clone(&self.semantic)
+        request: &ViewRequest,
+        schemas: &[crate::domain::operation_schema::types::InputShape<'_>],
+    ) -> Result<DerivedContract, OperatingError> {
+        super::prepare::view(Arc::clone(&self.semantic), request, schemas)
     }
 
     pub(in crate::application::file_dag) fn new(
@@ -146,6 +150,7 @@ impl DerivedOwner {
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
         Self {
+            identity: Arc::new(()),
             semantic,
             next_scope: std::cell::Cell::new(0),
             #[cfg(test)]

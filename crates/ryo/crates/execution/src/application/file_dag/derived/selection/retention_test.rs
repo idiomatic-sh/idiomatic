@@ -173,7 +173,6 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let rows = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), rows)?;
-    let (population, _) = proof.identity(owner)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
@@ -186,7 +185,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     )?);
     let handle = owner.derived.acquire_stored(
         &plan,
-        &[population],
+        &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
         ViewContext::default(),
         DerivedInputs::Predicate {
             rows: proof.rows(),
@@ -359,10 +358,12 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let rows = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), rows)?;
-    let (population, _) = proof.identity(&owner)?;
     let acquired = owner.derived.acquire_stored(
         &distinct,
-        &[population],
+        &owner
+            .derived
+            .admit_view(&distinct, &owner, &[&proof])
+            .unwrap(),
         ViewContext::default(),
         DerivedInputs::Distinct {
             rows: proof.rows(),
@@ -388,7 +389,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     ));
     let wrong = owner.derived.acquire_stored(
         &order,
-        &[population],
+        &owner.derived.admit_view(&order, &owner, &[&proof]).unwrap(),
         ViewContext::default(),
         DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),

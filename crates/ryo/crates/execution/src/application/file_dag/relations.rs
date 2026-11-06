@@ -579,3 +579,10 @@ impl RelationOwner {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+pub(in crate::application::file_dag) fn same_admitted_rows(
+    left: BorrowedRows<'_>,
+    right: BorrowedRows<'_>,
+) -> bool {
+    identity::same(left, right)
+}

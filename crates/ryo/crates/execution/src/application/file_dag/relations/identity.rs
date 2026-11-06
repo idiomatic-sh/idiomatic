@@ -136,3 +136,51 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> boo
         }
     }
 }
+
+/// Compare an admitted borrow without replacing its identity with caller-provided keys.
+pub(super) fn same(left: BorrowedRows<'_>, right: BorrowedRows<'_>) -> bool {
+    fn columns(
+        left: ryo_relations::domain::relations::types::ColumnsView<'_>,
+        right: ryo_relations::domain::relations::types::ColumnsView<'_>,
+    ) -> bool {
+        left.kinds == right.kinds
+            && left.columns.len() == right.columns.len()
+            && left.columns.iter().zip(right.columns).all(|(left, right)| {
+                left.0.as_ptr() == right.0.as_ptr() && left.0.len() == right.0.len()
+            })
+    }
+    match (left, right) {
+        (BorrowedRows::Stored(left), BorrowedRows::Stored(right)) => columns(left, right),
+        (BorrowedRows::Computed(left), BorrowedRows::Computed(right)) => std::ptr::eq(left, right),
+        (BorrowedRows::Compact(left), BorrowedRows::Compact(right)) => std::ptr::eq(left, right),
+        (BorrowedRows::Tree(left), BorrowedRows::Tree(right)) => {
+            left.file == right.file
+                && left.form == right.form
+                && std::ptr::eq(left.elements, right.elements)
+        }
+        (
+            BorrowedRows::Selected {
+                source: left,
+                positions: lp,
+                columns: lc,
+                kinds: lk,
+            },
+            BorrowedRows::Selected {
+                source: right,
+                positions: rp,
+                columns: rc,
+                kinds: rk,
+            },
+        ) => columns(left, right) && std::ptr::eq(lp, rp) && lc == rc && lk == rk,
+        (BorrowedRows::Positioned(left), BorrowedRows::Positioned(right)) => {
+            std::ptr::eq(left.positions, right.positions)
+                && std::ptr::eq(left.shape, right.shape)
+                && left.kinds == right.kinds
+                && same(
+                    BorrowedRows::Tree(left.tree),
+                    BorrowedRows::Tree(right.tree),
+                )
+        }
+        _ => false,
+    }
+}

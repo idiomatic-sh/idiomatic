@@ -5,7 +5,7 @@ pub(crate) use view::AxisResource;
 #[cfg(test)]
 mod tests;
 
-use super::derived::view::AcquiredView;
+use super::derived::owner::acquisition::service::AcquiredView;
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{resources::AxisResources, views::BorrowedRows},

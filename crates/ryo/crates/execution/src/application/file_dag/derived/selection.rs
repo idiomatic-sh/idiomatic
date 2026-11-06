@@ -1,6 +1,6 @@
 //! Application policy for prepared compact selections and their shared file backend.
-use super::storage::DerivedStorage;
 use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::{
@@ -33,15 +33,14 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, LiteralText, Operand, QueryLiteral, Test,
 };
 use std::sync::Arc;
-mod candidates;
+pub(super) mod candidates;
 mod fanout;
-mod predicate;
 mod preparation;
+use super::owner::acquisition::selection::service::matches;
 #[cfg(test)]
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use candidates::{candidates, first_literal};
 use fanout::fanout_candidates;
-use predicate::matches;
 pub(in crate::application::file_dag::derived) use preparation::activate_program;
 pub(in crate::application::file_dag::derived) use preparation::install_views;
 pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
@@ -72,16 +71,16 @@ enum SelectionPath {
     FanoutReused = 8,
 }
 
-enum CandidateRows {
+pub(super) enum CandidateRows {
     Owned(Vec<u32>),
     Shared {
         rows: Arc<Vec<u32>>,
-        _resource: super::view::AcquiredView,
+        _resource: crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
     },
 }
 
 impl CandidateRows {
-    fn as_slice(&self) -> &[u32] {
+    pub(super) fn as_slice(&self) -> &[u32] {
         match self {
             Self::Owned(rows) => rows,
             Self::Shared { rows, .. } => rows.as_ref().as_slice(),
@@ -97,7 +96,7 @@ enum Discriminator {
     Indexable(ColumnIndex, Value),
 }
 
-fn histogram<'a>(
+pub(super) fn histogram<'a>(
     cache: &'a mut CacheBackend,
     program: &Arc<Selector>,
 ) -> Option<&'a mut SelectorHistogram> {
@@ -122,12 +121,14 @@ fn same(left: &Selector, right: &Selector) -> bool {
 
 pub(in crate::application::file_dag) struct SelectionOutput<'a> {
     pub rows: SelectedRows<'a>,
-    pub resources: [Option<super::view::AcquiredView>; 2],
+    pub resources: [Option<
+        crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
+    >; 2],
 }
 /// Produce a compact handle only after the provider has been read successfully by the caller.
 pub(in crate::application::file_dag::derived) fn select<'a>(
     cache: &mut CacheBackend,
-    resources: super::owner::selection::SelectionSource<'_>,
+    resources: super::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
@@ -142,7 +143,7 @@ pub(in crate::application::file_dag::derived) fn select<'a>(
 /// Validate projected columns before cache acquisition and leave matching ownership independent of projection.
 fn make<'a>(
     cache: &mut CacheBackend,
-    resources: super::owner::selection::SelectionSource<'_>,
+    resources: super::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
@@ -224,8 +225,8 @@ mod retention_test;
 /// to the legacy compact handle. Registered predicate/distinct kernels establish
 /// the ordered admitted-position invariant; first/last checks here are constant-time
 /// cardinality/edge guards, not validation of arbitrary untrusted position vectors.
-fn shared_positions(
-    acquired: &super::view::AcquiredView,
+pub(super) fn shared_positions(
+    acquired: &crate::application::file_dag::derived::owner::acquisition::service::AcquiredView,
     population: usize,
     maximum: usize,
 ) -> Result<Arc<Vec<u32>>, OperatingError> {

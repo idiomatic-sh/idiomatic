@@ -11,7 +11,7 @@ fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<super::derived::view::AcquiredView, OperatingError> {
+) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
     let owner = super::relations::RelationOwner::new(
         true,
         (std::sync::Arc::new(
@@ -25,9 +25,7 @@ fn prepare_cycles(
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let input = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), input)?;
-    let (population, _) = proof.identity(&owner)?;
-    let plan = std::sync::Arc::new(super::derived::prepare::view(
-        owner.derived.semantic_port(),
+    let plan = std::sync::Arc::new(owner.derived.prepare_view(
         &ViewRequest::CycleAdjacency {
             source,
             destination,
@@ -37,9 +35,10 @@ fn prepare_cycles(
             tree: None,
         }],
     )?);
+    let admitted = owner.derived.admit_view(&plan, &owner, &[&proof])?;
     owner.derived.acquire_stored(
         &plan,
-        &[population],
+        &admitted,
         super::derived::owner::ViewContext::default(),
         DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),
@@ -51,7 +50,7 @@ fn prepare_closure(
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<Vec<super::derived::view::AcquiredView>, OperatingError> {
+) -> Result<Vec<super::derived::owner::acquisition::service::AcquiredView>, OperatingError> {
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
         true,
         (std::sync::Arc::new(

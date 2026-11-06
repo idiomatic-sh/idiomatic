@@ -224,7 +224,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let mut derived = self
             .owner
             .derived
-            .finite_raw(Rc::clone(&self.owner), order.clone())
+            .finite_raw(Rc::clone(&self.owner), order.clone(), &permit)
             .map_err(InvocationFailure::Semantic)?;
         let mut sources = Vec::new();
         let mut rows = Vec::new();

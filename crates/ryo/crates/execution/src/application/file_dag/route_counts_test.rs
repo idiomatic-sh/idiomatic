@@ -123,7 +123,8 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 
 #[test]
 fn owner_routes_count_each_physical_equality_build_once() {
-    use crate::application::file_dag::derived::owner::{DerivedOwner, PopulationId, ViewContext};
+    use crate::application::file_dag::derived::owner::ViewContext;
+    use crate::application::file_dag::relations::RelationOwner;
     use crate::domain::{
         derived_views::types::*, operation_schema::types::InputShape,
         operator::contract::views::BorrowedRows,
@@ -153,14 +154,22 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let state = capture(|| {
         let _rule = rule(2, "query-two");
         let _node = node(41);
-        let owner = DerivedOwner::new(
-            1,
+        let owner = RelationOwner::new(
+            true,
             crate::application::file_dag::testing::program_derived_port(),
         );
+        let proof = owner
+            .admit_relation(
+                ryo_relations::domain::relations::types::Relation::Function,
+                BorrowedRows::Stored(rows),
+            )
+            .unwrap();
+        let admitted = owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap();
         let held = owner
+            .derived
             .acquire_stored(
                 &plan,
-                &[PopulationId(9)],
+                &admitted,
                 ViewContext::default(),
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),
@@ -168,15 +177,26 @@ fn owner_routes_count_each_physical_equality_build_once() {
             )
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
-        let selector_owner = DerivedOwner::new(
-            1,
+        let selector_owner = RelationOwner::new(
+            true,
             crate::application::file_dag::testing::program_derived_port(),
         );
+        let proof = selector_owner
+            .admit_relation(
+                ryo_relations::domain::relations::types::Relation::Function,
+                BorrowedRows::Stored(rows),
+            )
+            .unwrap();
+        let admitted = selector_owner
+            .derived
+            .admit_view(&plan, &selector_owner, &[&proof])
+            .unwrap();
         let first = selector_owner
+            .derived
             .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
                 &plan,
-                &[PopulationId(10)],
+                &admitted,
                 ViewContext::default(),
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),
@@ -185,10 +205,11 @@ fn owner_routes_count_each_physical_equality_build_once() {
             .unwrap();
         assert!(first.was_built());
         let second = selector_owner
+            .derived
             .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
                 &plan,
-                &[PopulationId(10)],
+                &admitted,
                 ViewContext::default(),
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),

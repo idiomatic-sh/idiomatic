@@ -140,6 +140,17 @@ pub(super) struct GraphInput<'a> {
     owner: &'a super::relations::RelationOwner,
 }
 impl<'a> GraphInput<'a> {
+    pub(super) fn admission(
+        &self,
+        plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+    ) -> Result<
+        crate::application::file_dag::derived::owner::acquisition::service::AdmittedViewInputs<'a>,
+        OperatingError,
+    > {
+        self.owner
+            .derived
+            .admit_view(plan, self.owner, &[&self.proof])
+    }
     pub(super) fn rows(&self) -> &crate::domain::table_model::types::Rows<'a> {
         self.rows
     }
@@ -229,7 +240,8 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
-    ) -> Result<Option<super::derived::view::AcquiredView>, OperatingError> {
+    ) -> Result<Option<super::derived::owner::acquisition::service::AcquiredView>, OperatingError>
+    {
         if use_.plan.kind != ryo_derived::domain::contract::types::DerivedKind::NativeLookup
             || use_.len != 2
         {
@@ -238,10 +250,12 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         let left = self.proof(use_.inputs[0])?;
         let right = self.proof(use_.inputs[1])?;
         let owner = self.workspace.owner();
-        let populations = [left.identity(owner)?.0, right.identity(owner)?.0];
+        let admitted = owner
+            .derived
+            .admit_view(&use_.plan, owner, &[left, right])?;
         owner.derived.try_acquire_rows(
             &use_.plan,
-            &populations,
+            &admitted,
             crate::domain::derived_views::types::DerivedInputs::Rows(&[left.rows(), right.rows()]),
             &mut self.workspace.derived_scratch.borrow_mut(),
         )
@@ -250,7 +264,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         &self,
         use_: &PreparedViewUse,
         context: &mut OperatorContext<'_>,
-    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
+    ) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
         self.acquire_derived(
             use_,
             super::derived::owner::ViewContext::default(),
@@ -262,7 +276,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         use_: &PreparedViewUse,
         identity: super::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
+    ) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
         self.workspace
             .acquire_admitted(use_, self, identity, supplied)
     }
@@ -302,8 +316,7 @@ impl InvocationWorkspace {
         inputs: &InputAdmissions<'_, '_>,
         identity: super::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
-        use super::derived::owner::PopulationId;
+    ) -> Result<super::derived::owner::acquisition::service::AcquiredView, OperatingError> {
         use crate::domain::{
             derived_views::types::{DerivedInputs, MembershipSpace},
             operating::errors::OperatingError,
@@ -323,12 +336,10 @@ impl InvocationWorkspace {
             return Err(OperatingError::MissingInput { position: 2 });
         }
         let mut proofs: [Option<&AdmittedInput<'_>>; 2] = [None, None];
-        let mut populations = [PopulationId(0); 2];
         let mut relations = [None; 2];
         for at in 0..count {
             let proof = inputs.proof(use_.inputs[at])?;
-            let (population, relation) = proof.identity(self.owner())?;
-            populations[at] = population;
+            let (_, relation) = proof.identity(self.owner())?;
             relations[at] = relation;
             proofs[at] = Some(proof);
         }
@@ -384,9 +395,14 @@ impl InvocationWorkspace {
             None
         };
         let owner = &self.owner().derived;
+        let sources = proofs[..count]
+            .iter()
+            .map(|proof| proof.expect("admitted input"))
+            .collect::<Vec<_>>();
+        let admitted = owner.admit_view(&use_.plan, self.owner(), &sources)?;
         owner.acquire_stored(
             &use_.plan,
-            &populations[..count],
+            &admitted,
             identity,
             supplied,
             &mut self.derived_scratch.borrow_mut(),

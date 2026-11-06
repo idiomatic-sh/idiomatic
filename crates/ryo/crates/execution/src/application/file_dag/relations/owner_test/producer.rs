@@ -81,10 +81,9 @@ fn exercise_real_selector(limit: usize) {
     let proof = owner
         .admit(population.as_ref(), BorrowedRows::Stored(source))
         .unwrap();
-    let (identity, _) = proof.identity(owner).unwrap();
     let produced = owner
         .derived
-        .select(&program, source, identity, &mut context)
+        .select(&program, source, &owner, &proof, &mut context)
         .unwrap()
         .expect("real producer");
     let publication = super::super::selection::publish(
@@ -117,7 +116,7 @@ fn exercise_real_selector(limit: usize) {
     );
     let old_token = owner
         .derived
-        .select(&program, source, identity, &mut context)
+        .select(&program, source, &owner, &proof, &mut context)
         .unwrap()
         .expect("real repeated producer");
     let Rows::Selected(selected) = &resolved else {

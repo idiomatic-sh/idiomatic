@@ -1,7 +1,7 @@
 //! Exact sharing keys, physical partiality, bounded retention and generation-local lifetimes.
 use super::super::owner::graph_fixture::GraphFixture;
-use super::super::view::AcquiredView;
 use super::LIMIT;
+use crate::application::file_dag::derived::owner::acquisition::service::AcquiredView;
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::DerivedView;
 fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> GraphFixture {
@@ -154,7 +154,7 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
     assert_eq!(during.indexes, 0);
     assert!(during.bytes <= during.limit);
     assert!(during.required_bytes > 0);
-    let backing = Arc::downgrade(&result.storage);
+    let backing = Arc::downgrade(result.storage());
     drop(result);
     assert!(
         backing.upgrade().is_none(),
@@ -175,7 +175,7 @@ fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
     let weak = {
         let cache = new(&[Relation::Function], &[], LIMIT);
         let acquired = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index");
-        Arc::downgrade(&acquired.storage)
+        Arc::downgrade(acquired.storage())
     };
     assert!(
         weak.upgrade().is_none(),
@@ -246,7 +246,7 @@ fn repeated_admissions_never_evict_live_entries_or_exceed_actual_retention() {
         assert!(state.bytes <= state.limit);
         assert!(state.required_bytes > 0);
     }
-    let weak = Arc::downgrade(&handles[0].storage);
+    let weak = Arc::downgrade(handles[0].storage());
     drop(cache);
     assert!(weak.upgrade().is_some(), "active consumers own the backing");
     drop(handles);

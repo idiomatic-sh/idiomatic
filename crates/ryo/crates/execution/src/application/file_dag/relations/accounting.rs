@@ -101,7 +101,9 @@ impl RelationOwner {
         }
     }
     fn resource_backings(
-        resources: &Option<Arc<[super::super::derived::view::ResourceDependency]>>,
+        resources: &Option<
+            Arc<[super::super::derived::owner::acquisition::service::ResourceDependency]>,
+        >,
         output: &mut Vec<Backing>,
     ) {
         let Some(resources) = resources else {
@@ -113,7 +115,7 @@ impl RelationOwner {
             bytes: 2 * size_of::<usize>() + std::mem::size_of_val(resources.as_ref()),
         });
         for resource in resources.iter() {
-            output.extend(resource.backings.iter().copied());
+            output.extend(resource.backings().iter().copied());
         }
     }
     pub(super) fn publication(
@@ -125,7 +127,7 @@ impl RelationOwner {
     pub(super) fn publication_with_resources(
         &self,
         record: Arc<RelationResult>,
-        resources: [Option<super::super::derived::view::AcquiredView>; 2],
+        resources: [Option<super::super::derived::owner::acquisition::service::AcquiredView>; 2],
     ) -> Result<PublishedInput, OperatingError> {
         let dependencies = resources
             .iter()
@@ -138,7 +140,9 @@ impl RelationOwner {
     fn leased_publication(
         &self,
         record: Arc<RelationResult>,
-        resources: Option<Arc<[super::super::derived::view::ResourceDependency]>>,
+        resources: Option<
+            Arc<[super::super::derived::owner::acquisition::service::ResourceDependency]>,
+        >,
     ) -> Result<PublishedInput, OperatingError> {
         let mut backings = self.backings(&record);
         Self::resource_backings(&resources, &mut backings);

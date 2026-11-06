@@ -1,7 +1,7 @@
 //! Generation-local selected-row index and direct projected-cell emission.
 //! Only the application retains selection metadata; primitives receive borrowed typed rows.
 
-use super::derived::view::AcquiredView;
+use super::derived::owner::acquisition::service::AcquiredView;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_model::types::SelectedRows;

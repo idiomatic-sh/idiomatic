@@ -1,19 +1,20 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
-use super::*;
+use super::super::service::*;
+use super::types::{BuiltDomain, BuiltGraph};
+use crate::application::file_dag::derived::owner::acquisition::service::AdmittedViewInputs;
 
-pub(super) fn adjacency(
+pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adjacency(
     owner: &DerivedOwner,
     population: PopulationId,
-    generation: Arc<()>,
+    admitted: &AdmittedViewInputs<'_>,
     plan: &std::sync::Arc<crate::domain::derived_views::types::DerivedContract>,
     source: crate::domain::stored_graph::types::GraphSource,
     rows: &Rows<'_>,
     cache: Option<&mut CacheBackend>,
-) -> Result<Option<GraphHandle>, OperatingError> {
+) -> Result<Option<BuiltGraph>, OperatingError> {
     let Some(cache) = cache else {
         return Err(OperatingError::NotRun);
     };
-    let requirement = graph_requirement(&source.identity);
     if let Some(entry) = cache.graphs.iter().find(|entry| {
         entry.population == population
             && entry
@@ -22,30 +23,19 @@ pub(super) fn adjacency(
                 .is_some_and(|identity| identity.as_ref() == &source.identity)
     }) {
         cache.graph_counts.reuses += 1;
-        return Ok(Some(GraphHandle {
-            requirement,
-            population,
-            generation,
+        return Ok(Some(BuiltGraph {
+            storage: Arc::clone(&entry.storage),
             built: false,
-            access: GraphAccess {
-                graph: Arc::clone(&entry.graph),
-                orientation: source.orientation,
-                shared: true,
-            },
-            _storage: Arc::clone(&entry.storage),
-            backings: Arc::clone(&entry.backings),
-            _lease: owner.required_lease(&entry.backings)?,
         }));
     }
-    let orientation = source.orientation;
     let expected_identity = source.identity.clone();
     let storage = crate::application::file_dag::route_counts::observe(
         crate::application::file_dag::route_counts::BuildRoute::GraphAdjacency.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
-            super::super::semantics::build(
-                owner.semantic_port(),
+            owner.build_admitted(
                 plan,
+                admitted,
                 crate::domain::derived_views::types::DerivedInputs::Adjacency {
                     rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
                     source,
@@ -67,37 +57,27 @@ pub(super) fn adjacency(
         .ok_or(OperatingError::WrongOperation)?;
     let storage = Arc::new(storage);
     let backings = owner.graph_backings(&storage)?;
-    let lease = owner.required_lease(&backings)?;
     cache.graph_counts.builds += 1;
     let shared = owner.retain_graph(cache, population, &storage, &backings, &graph)?;
     tracing::trace!(target: "ryo::diagnostic::graph", event = "adjacency", reused = false, shared,
         relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors()[0].len(),
         graph_bytes = cache.graph_bytes, cache_bytes = cache.bytes, graph_enabled = cache.graph_enabled);
-    Ok(Some(GraphHandle {
-        requirement,
-        population,
-        generation,
+    Ok(Some(BuiltGraph {
+        storage,
         built: true,
-        access: GraphAccess {
-            graph,
-            orientation,
-            shared,
-        },
-        _storage: storage,
-        backings,
-        _lease: lease,
     }))
 }
 
-pub(super) fn domain(
+pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain(
     owner: &DerivedOwner,
     population: PopulationId,
     plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+    admitted: &AdmittedViewInputs<'_>,
     access: &GraphHandle,
     identity: Option<crate::domain::stored_graph::types::DomainIdentity>,
     rows: &Rows<'_>,
     mut cache: Option<&mut CacheBackend>,
-) -> Result<DomainHandle, OperatingError> {
+) -> Result<BuiltDomain, OperatingError> {
     let crate::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
     else {
         return Err(OperatingError::WrongOperation);
@@ -112,21 +92,18 @@ pub(super) fn domain(
                 && entry.domain.identity.as_ref() == Some(identity)
         })
     {
-        return Ok(DomainHandle {
-            _graph: Arc::clone(&entry.graph_storage),
+        return Ok(BuiltDomain {
+            storage: Arc::clone(&entry.storage),
             built: false,
-            domain: Arc::clone(&entry.domain),
-            _storage: Arc::clone(&entry.storage),
-            _lease: owner.required_lease(&entry.backings)?,
         });
     }
     let storage = crate::application::file_dag::route_counts::observe(
         crate::application::file_dag::route_counts::BuildRoute::GraphDomain.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
-            super::super::semantics::build(
-                owner.semantic_port(),
+            owner.build_admitted(
                 plan,
+                admitted,
                 crate::domain::derived_views::types::DerivedInputs::Membership {
                     rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
                     space: crate::domain::derived_views::types::MembershipSpace::Dense(
@@ -178,16 +155,12 @@ pub(super) fn domain(
         retention_units: 0,
     });
     backings = dependencies.into();
-    let lease = owner.required_lease(&backings)?;
     if let Some(cache) = cache.as_mut() {
         owner.retain_domain(cache, population, access, &domain, &storage, &backings)?;
     }
     tracing::trace!(target: "ryo::diagnostic::graph", event = "domain", vertices = domain.members.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
-    Ok(DomainHandle {
-        _graph: Arc::clone(&access._storage),
+    Ok(BuiltDomain {
+        storage,
         built: true,
-        domain,
-        _storage: storage,
-        _lease: lease,
     })
 }
