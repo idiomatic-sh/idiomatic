@@ -15,7 +15,7 @@ fn every_family_refuses_every_mismatched_capability() {
         (Scenario::OtherPopulation, OperatingError::NotRead),
         (Scenario::RetargetedDescriptor, OperatingError::WrongOperation),
     ];
-    for kind in DerivedKind::ALL {
+    for kind in DerivedKind::ALL.iter().copied() {
         for (scenario, expected) in &refusals {
             assert_eq!(
                 exercise(kind, *scenario).err().as_ref(),

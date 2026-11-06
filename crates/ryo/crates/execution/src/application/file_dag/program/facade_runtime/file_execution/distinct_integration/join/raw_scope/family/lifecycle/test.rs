@@ -36,7 +36,7 @@ fn route(kind: DerivedKind) -> Route {
 
 #[test]
 fn every_family_releases_its_last_consumer_on_success_cancellation_and_error() {
-    for kind in DerivedKind::ALL {
+    for kind in DerivedKind::ALL.iter().copied() {
         match route(kind) {
             Route::Stored => {
                 for scenario in [Scenario::Succeeds, Scenario::Cancelled] {
@@ -79,7 +79,7 @@ fn every_family_releases_its_last_consumer_on_success_cancellation_and_error() {
 
 #[test]
 fn every_stored_lease_survives_retirement_while_a_new_demand_refuses() {
-    for kind in DerivedKind::ALL {
+    for kind in DerivedKind::ALL.iter().copied() {
         if matches!(route(kind), Route::Stored) {
             let actual = exercise(kind, Scenario::Held);
             assert!(
