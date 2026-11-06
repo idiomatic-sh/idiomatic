@@ -41,6 +41,12 @@ pub enum ApplicabilityReason {
     SyntaxRejected,
     DiagnosticNotApplicable,
 }
+/// Whether an admitted input has no rows in a given representation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::program) enum Emptiness {
+    Empty,
+    Populated,
+}
 #[derive(Clone)]
 pub(super) enum Readiness {
     Complete,
@@ -215,7 +221,7 @@ pub(super) trait Inputs {
         &self,
         input: &AdmittedInput,
         representation: crate::domain::operator::contract::types::EmptyRepresentation,
-    ) -> Result<crate::application::file_dag::program::runtime::types::Emptiness, OperatingError>;
+    ) -> Result<crate::application::file_dag::program::admission::Emptiness, OperatingError>;
     fn publish(
         &mut self,
         root: ProducerRoot,

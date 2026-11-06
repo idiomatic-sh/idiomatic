@@ -1,4 +1,5 @@
 //! Admission progress: which inputs a region has supplied and admitted before its kernel may run.
+use crate::application::file_dag::program::admission::Emptiness;
 use super::super::{
     AcquiredInput, AdmissionProgress, EmptinessAnswer, InputStage, KernelAdmission, KernelPermit,
     ProgramExecution, ReadySelection,
@@ -11,7 +12,7 @@ use crate::application::file_dag::program::constants::INPUT_ADMISSION_REFUSED;
 use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
 use crate::application::file_dag::program::constants::PHASE_DEPENDENCY;
 use crate::application::file_dag::program::constants::PHASE_PHYSICAL;
-use crate::application::file_dag::program::runtime::types::{Emptiness, StageProgress};
+use crate::application::file_dag::program::runtime::types::{StageProgress};
 use crate::domain::executable_program::types::Region;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;

@@ -1,6 +1,7 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
+use crate::application::file_dag::program::admission::Emptiness;
 use super::types::{
-    ActionCursor, ColumnCounters, Dependencies, Emptiness, InstructionIndex, InvocationFailure,
+    ActionCursor, ColumnCounters, Dependencies, InstructionIndex, InvocationFailure,
     KernelInput, KernelScratch, PollMode, ReaderCount, StageProgress, StrategyOutcome,
 };
 #[cfg(test)]

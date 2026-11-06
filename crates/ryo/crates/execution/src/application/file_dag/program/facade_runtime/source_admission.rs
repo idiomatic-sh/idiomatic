@@ -13,7 +13,7 @@ use crate::application::file_dag::program::facade_runtime::types::FileRoot;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::program::runtime::types::Emptiness;
+use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;

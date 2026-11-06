@@ -1,4 +1,5 @@
 //! Ordinary region evaluation: demand admission, preflight gates, readiness and the kernel continuation.
+use crate::application::file_dag::program::admission::Emptiness;
 use super::super::admission::service::{empty_output_kinds, first_preflight};
 use super::super::invocation::service::continuation;
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
@@ -8,7 +9,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::{
-    Emptiness, InstructionIndex, PollMode, StageProgress,
+    InstructionIndex, PollMode, StageProgress,
 };
 use crate::domain::executable_program::types::DemandAction;
 use crate::domain::executable_program::types::InputId;

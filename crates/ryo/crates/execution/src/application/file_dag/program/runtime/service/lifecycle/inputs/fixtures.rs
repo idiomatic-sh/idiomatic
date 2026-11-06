@@ -3,7 +3,7 @@ use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::program::runtime::types::Emptiness;
+use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
