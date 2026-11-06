@@ -123,10 +123,19 @@ impl SuitePort for SuiteLocalAdapter {
     fn record_case(
         &self,
         receipt: ArtifactPath<'_>,
-        record: serde_json::Value,
+        record: crate::outbound::suite::types::observation_document::ObservationDocument,
         process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::case_observations::record(receipt.0, record, process)
+    }
+    fn case_observations(
+        &self,
+        receipt: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<crate::outbound::suite::types::observation_document::ObservationDocument>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        super::case_observations::read(receipt.0)
     }
 
     fn case_reference_wires(

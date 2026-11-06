@@ -1,12 +1,9 @@
 //! Tool-neutral wire data; adapters own format and filesystem details.
 pub mod case_document;
-pub mod discrepancy;
-pub mod finding;
-pub mod observation_document;
-pub mod text;
 
-use self::{case_document::CaseDocument, observation_document::ObservationDocument};
+use self::case_document::CaseDocument;
 use crate::outbound::inventory::constants;
+use crate::outbound::suite::types::observation_document::ObservationDocument;
 use serde::Serialize;
 use std::{collections::BTreeMap, path::PathBuf};
 

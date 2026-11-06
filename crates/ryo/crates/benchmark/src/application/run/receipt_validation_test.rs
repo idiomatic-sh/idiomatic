@@ -3,8 +3,9 @@ use super::validate;
 use crate::application::inventory_receipts::fixtures::with_file_metadata;
 use crate::outbound::inventory::types::{
     CapturedObservation, RegisteredRule, Registration, RegistrationAuthority,
-    case_document::CaseDocument, text::PathText,
+    case_document::CaseDocument,
 };
+use crate::outbound::suite::types::text::{PathText, Sha256Text};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 
 fn registration(case: CaseDocument) -> Registration {

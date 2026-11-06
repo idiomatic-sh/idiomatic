@@ -1,10 +1,10 @@
 //! Reconstruct expected bytes from registration and actual request roots, never case_passed alone.
 use crate::application::run::constants;
-use crate::outbound::inventory::types::{
-    case_document::{CaseDocument, Comparison},
-    discrepancy::{ArtifactPointer, ExpectationKind},
+use crate::outbound::inventory::types::case_document::{CaseDocument, Comparison};
+use crate::outbound::suite::types::{
     observation_document::{ExitStatus, ObservationDocument},
-    text::{ReasonText, Sha256Text, YesNo},
+    reference_discrepancy::{ArtifactPointer, ExpectationKind},
+    text::{Sha256Text, YesNo},
 };
 use serde_json::Value;
 use sha2::Digest as _;
@@ -27,10 +27,6 @@ fn raw<'a>(
 }
 
 fn text(value: Option<&Sha256Text>) -> Value {
-    value.map_or(Value::Null, |text| Value::String(text.0.clone()))
-}
-
-fn reason(value: Option<&ReasonText>) -> Value {
     value.map_or(Value::Null, |text| Value::String(text.0.clone()))
 }
 
@@ -57,24 +53,20 @@ pub(crate) fn validate(
         return Err(constants::REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI.into());
     };
     let identity = &certificate.identity;
-    let executable = proof
-        .actual_executable_sha256
-        .as_ref()
-        .map(|digest| digest.0.as_str())
-        .ok_or(constants::MISSING_ACTUAL_PROCESS_EXECUTABLE)?;
+    let executable = proof.actual_executable_sha256.0.as_str();
     if case.comparison != Comparison::Full
-        || proof.reference_expectation_kind != Some(ExpectationKind::ProcessFailure)
-        || captured.kind != Some(ExpectationKind::ProcessFailure)
+        || proof.reference_expectation_kind != ExpectationKind::ProcessFailure
+        || captured.kind != ExpectationKind::ProcessFailure
         || captured.metadata_error.is_some()
-        || captured.observer_no_deadline != Some(YesNo::Yes)
-        || captured.exit != Some(ExitStatus(i64::from(process.exit)))
+        || captured.observer_no_deadline != YesNo::Yes
+        || captured.exit != ExitStatus(i64::from(process.exit))
         || captured.signal.is_some()
         || captured
             .executable_sha256
             .as_ref()
             .map(|digest| digest.0.as_str())
             != Some(executable)
-        || captured.settings_sha256 != identity.settings
+        || captured.settings_sha256.as_ref() != Some(&identity.settings)
         || captured
             .template_sha256
             .as_ref()
@@ -113,12 +105,7 @@ pub(crate) fn validate(
         .ok_or(constants::PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING)?
         .0
         .as_str();
-    if captured
-        .actual_request_root
-        .as_ref()
-        .map(|value| value.0.as_str())
-        != Some(root)
-    {
+    if captured.actual_request_root.0 != root {
         return Err(constants::PROCESS_OBSERVATION_ROOT_DIFFERS_FROM_RECEIP.into());
     }
     let files = case
@@ -131,16 +118,8 @@ pub(crate) fn validate(
     let stderr =
         crate::domain::suite::process::service::expand(&process.stderr, Path::new(root), &files)?;
     let expected_key = crate::domain::suite::process::service::observation_key(
-        case.rule
-            .as_ref()
-            .ok_or(constants::MISSING_REGISTERED_RULE)?
-            .0
-            .as_str(),
-        case.name
-            .as_ref()
-            .ok_or(constants::MISSING_REGISTERED_CASE)?
-            .0
-            .as_str(),
+        case.rule.0.as_str(),
+        case.name.0.as_str(),
         constants::REFERENCE,
     )?;
     let pointers = captured
@@ -174,24 +153,34 @@ pub(crate) fn validate(
             .map(|file| Value::String(file.0.clone()))
             .collect(),
     );
-    let exit = captured
-        .exit
-        .map_or(Value::Null, |status| Value::from(status.0));
+    let exit = Value::from(captured.exit.0);
     for (key, required) in [
-        (constants::TOOL, reason(identity.tool.as_ref())),
-        (constants::VERSION, reason(identity.version.as_ref())),
+        (constants::TOOL, Value::String(identity.tool.0.clone())),
+        (
+            constants::VERSION,
+            Value::String(identity.version.0.clone()),
+        ),
         (
             constants::ACTUAL_REQUEST_ROOT,
             Value::String(root.to_owned()),
         ),
         (constants::FILES, case_files),
-        (constants::SOURCE_SHA256, text(case.source_sha256.as_ref())),
+        (
+            constants::SOURCE_SHA256,
+            Value::String(case.source_sha256.0.clone()),
+        ),
         (
             constants::EXECUTABLE_SHA256,
             Value::String(executable.to_owned()),
         ),
-        (constants::SETTINGS_SHA256, text(identity.settings.as_ref())),
-        (constants::PROFILE_SHA256, text(identity.profile.as_ref())),
+        (
+            constants::SETTINGS_SHA256,
+            Value::String(identity.settings.0.clone()),
+        ),
+        (
+            constants::PROFILE_SHA256,
+            Value::String(identity.profile.0.clone()),
+        ),
         (constants::EXIT, exit),
         (constants::SIGNAL, Value::Null),
         (constants::OBSERVER_NO_DEADLINE, Value::Bool(true)),
@@ -204,7 +193,7 @@ pub(crate) fn validate(
     let mut settings = invocation[constants::NORMALIZED_SETTINGS].clone();
     if !settings.is_object()
         || Value::String(super::discrepancy::json_digest(&settings).0)
-            != text(identity.settings.as_ref())
+            != Value::String(identity.settings.0.clone())
     {
         return Err(constants::MISSING_PINNED_NORMALIZED_INVOCATION.into());
     }

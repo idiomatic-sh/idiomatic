@@ -413,18 +413,3 @@ pub(crate) fn verify_prepared_reference_cases(
         )))
     }
 }
-
-/// Serialize an exact diagnostic multiset without changing order or dropping duplicates.
-pub(super) fn finding_values(
-    findings: &[ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding],
-) -> Vec<serde_json::Value> {
-    findings
-        .iter()
-        .map(|finding| {
-            serde_json::json!({
-                crate::application::run::constants::RULE: finding.rule.as_ref(), crate::application::run::constants::FILE: finding.file.0.as_ref(),
-                crate::application::run::constants::START: finding.start.0, crate::application::run::constants::END: finding.end.0,
-            })
-        })
-        .collect()
-}

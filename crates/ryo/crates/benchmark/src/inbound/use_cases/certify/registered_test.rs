@@ -40,7 +40,7 @@ impl ExecutionPort for Native {
             .find_map(|a| a.to_str()?.strip_prefix("--case-receipts="))
             .unwrap();
         let records = ["reference", "candidate"].map(|side| json!({
-            "rule":rule,"name":"independent","side":side,"complete":true,"error":null,
+            "rule":rule,"name":"independent","side":side,"complete":true,"error":null,"documented_reference_discrepancy":false,
             "case_passed":true,"source_sha256":"source","files":["input.txt"],"expected":[],
             "reference_expected":[],"diagnostics":[],"skipped":[],"context_manifest":null,"project_context":null,
             "observation_schema":"benchmark-case/v2","expectation_contract":"diagnostics",
@@ -120,7 +120,7 @@ impl Fixture {
             let artifacts = [definition.clone(),helper.clone(),second.clone(),evidence,context.join("benchmark.toml")].into_iter().map(|p|(p.display().to_string(),json!(digest(&p)))).collect::<serde_json::Map<_,_>>();
             json!({"rule_id":rule,"reason":null,"instance":null,"definition":{"path":definition,"sha256":digest(&definition)},"modules":{"test/helper":{"path":helper,"sha256":digest(&helper)},"test/second":{"path":second,"sha256":digest(&second)}},"artifacts":artifacts,
                 "command":{"kind":"case-verification","context":context},
-                "cases":[{"rule":rule,"name":"independent","source_sha256":"source","files":["input.txt"],"expected":[],"project_context_mode":"isolated","reference_discrepancy":null}]})
+                "cases":[{"rule":rule,"name":"independent","case_sha256":"case-pin","comparison":"rule","source_sha256":"source","files":["input.txt"],"expected":[],"project_context_mode":"isolated","reference_discrepancy":null}]})
         });
         let document = json!({"authority":{"kind":"execution","profile":profile,"profile_sha256":digest(&profile.join("benchmark.toml")),"reference":{"path":reference_executable,"sha256":digest(&reference_executable)},"worker":{"path":worker_executable,"sha256":digest(&worker_executable)}},"provider":"neutral","defaults":["A","B"],"rules":entries,"identity":{}});
         let registration = root.path().join("registration.json");

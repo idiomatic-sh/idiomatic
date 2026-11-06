@@ -3,27 +3,19 @@
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, Registration, RegistrationAuthority,
     case_document::{
-        CaseDocument, Comparison, ContextIdentity, ContextMode, EntryState, FileObservation,
+        CaseDocument, Comparison, ContextIdentity, EntryState, FileObservation,
         InventoryCompleteness, ProjectEntry, ProjectInventoryDocument,
     },
-    discrepancy::{
-        ArtifactPointer, DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind,
-        ReferenceDiscrepancy,
-    },
-    finding::{ByteOffset, Finding, SkippedPair},
-    observation_document::{
-        ContextManifest, ExitStatus, ObservationDocument, ProcessArtifacts, ProcessObservation,
-    },
-    text::{
-        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
-        YesNo,
-    },
 };
-use crate::outbound::suite::types::process::ProcessFailureWire;
+use crate::outbound::suite::types::{
+    finding::{ByteOffset, Finding},
+    observation_document::ContextMode,
+    process::ProcessFailureWire,
+    reference_discrepancy::{DiscrepancyIdentity, ReferenceDiscrepancy},
+    text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text},
+};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::reports::types::{
-    ComparisonContract, ExecutionMetadata, RuleCoverage,
-};
+use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -36,9 +28,6 @@ fn path(value: String) -> PathText {
 }
 fn canonical(value: Option<serde_json::Value>) -> Option<CanonicalJson> {
     value.map(|value| CanonicalJson(value.to_string()))
-}
-fn flag(value: Option<bool>) -> Option<YesNo> {
-    value.map(YesNo::from)
 }
 fn findings(rows: Vec<FindingSchema>) -> Vec<Finding> {
     rows.into_iter().map(Finding::from).collect()
@@ -291,17 +280,17 @@ impl From<BasisSchema> for DiscrepancyBasis {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 struct IdentitySchema {
-    tool: Option<String>,
-    version: Option<String>,
+    tool: String,
+    version: String,
     observed_executable_sha256: Option<String>,
-    profile_sha256: Option<String>,
-    settings_sha256: Option<String>,
-    source_sha256: Option<String>,
-    reference_output_sha256: Option<String>,
-    intended_output_sha256: Option<String>,
+    profile_sha256: String,
+    settings_sha256: String,
+    source_sha256: String,
+    reference_output_sha256: String,
+    intended_output_sha256: String,
     file_metadata_sha256: Option<String>,
 }
 
@@ -313,7 +302,7 @@ struct DiscrepancySchema {
     approved_executable_sha256: Vec<String>,
     reference_expected: Option<Vec<FindingSchema>>,
     intended_expected: Vec<FindingSchema>,
-    reason: Option<String>,
+    reason: String,
     process: Option<ProcessFailureWire>,
 }
 
@@ -325,14 +314,14 @@ impl From<DiscrepancySchema> for ReferenceDiscrepancy {
                 .basis
                 .map_or(DiscrepancyBasis::LanguageDefect, Into::into),
             identity: DiscrepancyIdentity {
-                tool: identity.tool.map(ReasonText),
-                version: identity.version.map(ReasonText),
+                tool: ReasonText(identity.tool),
+                version: ReasonText(identity.version),
                 observed_executable_sha256: sha(identity.observed_executable_sha256),
-                profile: sha(identity.profile_sha256),
-                settings: sha(identity.settings_sha256),
-                source: sha(identity.source_sha256),
-                reference_output: sha(identity.reference_output_sha256),
-                intended_output: sha(identity.intended_output_sha256),
+                profile: Sha256Text(identity.profile_sha256),
+                settings: Sha256Text(identity.settings_sha256),
+                source: Sha256Text(identity.source_sha256),
+                reference_output: Sha256Text(identity.reference_output_sha256),
+                intended_output: Sha256Text(identity.intended_output_sha256),
                 file_metadata: sha(identity.file_metadata_sha256),
             },
             approved_executable_sha256: wire
@@ -342,7 +331,7 @@ impl From<DiscrepancySchema> for ReferenceDiscrepancy {
                 .collect(),
             reference_expected: wire.reference_expected.map(findings),
             intended_expected: findings(wire.intended_expected),
-            reason: wire.reason.map(ReasonText),
+            reason: ReasonText(wire.reason),
             process: wire.process,
         }
     }
@@ -352,14 +341,14 @@ impl From<DiscrepancySchema> for ReferenceDiscrepancy {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CaseSchema {
-    rule: Option<String>,
-    name: Option<String>,
-    case_sha256: Option<String>,
-    source_sha256: Option<String>,
+    rule: String,
+    name: String,
+    case_sha256: String,
+    source_sha256: String,
     files: Vec<String>,
-    comparison: Option<ComparisonSchema>,
+    comparison: ComparisonSchema,
     expected: Vec<FindingSchema>,
-    project_context_mode: Option<ContextModeSchema>,
+    project_context_mode: ContextModeSchema,
     context_identity: Option<ContextIdentitySchema>,
     reference_discrepancy: Option<DiscrepancySchema>,
     expectation_contract: Option<ContractSchema>,
@@ -377,19 +366,17 @@ pub(super) struct CaseSchema {
 impl From<CaseSchema> for CaseDocument {
     fn from(wire: CaseSchema) -> Self {
         Self {
-            rule: wire.rule.map(RuleName),
-            name: wire.name.map(CaseName),
-            case_sha256: sha(wire.case_sha256),
-            source_sha256: sha(wire.source_sha256),
+            rule: RuleName(wire.rule),
+            name: CaseName(wire.name),
+            case_sha256: Sha256Text(wire.case_sha256),
+            source_sha256: Sha256Text(wire.source_sha256),
             files: wire.files.into_iter().map(path).collect(),
             comparison: match wire.comparison {
-                Some(ComparisonSchema::Full) => Comparison::Full,
-                Some(ComparisonSchema::Rule) | None => Comparison::Rule,
+                ComparisonSchema::Full => Comparison::Full,
+                ComparisonSchema::Rule => Comparison::Rule,
             },
             expected: findings(wire.expected),
-            project_context_mode: wire
-                .project_context_mode
-                .map_or(ContextMode::Isolated, Into::into),
+            project_context_mode: wire.project_context_mode.into(),
             context_identity: wire.context_identity.map(|identity| ContextIdentity {
                 mode: identity.mode.into(),
                 logical_root: path(identity.logical_root),
@@ -451,257 +438,6 @@ impl From<CaseSchema> for CaseDocument {
                 }
             }),
             project_inputs_sha256: sha(wire.project_inputs_sha256),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum SideSchema {
-    Reference,
-    Candidate,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum SkipReasonSchema {
-    SyntaxRejected,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SkippedSchema {
-    rule: String,
-    path: String,
-    reason: SkipReasonSchema,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "availability", rename_all = "kebab-case", deny_unknown_fields)]
-enum ExecutionSchema {
-    Unknown {},
-    Unavailable { reason: String },
-    Complete {},
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CoverageSchema {
-    selected_rule_file_pairs: usize,
-    evaluated_rule_file_pairs: usize,
-    skipped_rule_file_pairs: usize,
-    unknown_or_unread_rule_file_pairs: usize,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ContextManifestSchema {
-    mode: Option<ContextModeSchema>,
-    logical_root: Option<String>,
-    actual_root: Option<String>,
-    manifest_hash: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum ExpectationKindSchema {
-    Diagnostics,
-    ProcessFailure,
-}
-
-impl From<ExpectationKindSchema> for ExpectationKind {
-    fn from(wire: ExpectationKindSchema) -> Self {
-        match wire {
-            ExpectationKindSchema::Diagnostics => Self::Diagnostics,
-            ExpectationKindSchema::ProcessFailure => Self::ProcessFailure,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ArtifactPointerSchema {
-    path: String,
-    sha256: String,
-}
-
-impl From<ArtifactPointerSchema> for ArtifactPointer {
-    fn from(wire: ArtifactPointerSchema) -> Self {
-        Self {
-            path: PathText(wire.path),
-            sha256: Sha256Text(wire.sha256),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProcessArtifactsSchema {
-    stdout: ArtifactPointerSchema,
-    stderr: ArtifactPointerSchema,
-    invocation: ArtifactPointerSchema,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProcessObservationSchema {
-    kind: Option<ExpectationKindSchema>,
-    exit: Option<i64>,
-    signal: Option<i64>,
-    actual_request_root: Option<String>,
-    observer_no_deadline: Option<bool>,
-    executable_sha256: Option<String>,
-    settings_sha256: Option<String>,
-    metadata_error: Option<String>,
-    template_sha256: Option<String>,
-    artifacts: Option<ProcessArtifactsSchema>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ValidationSchema {
-    discrepancy_basis: Option<BasisSchema>,
-    process_observation_group_sha256: Option<String>,
-    reference_expectation_kind: Option<ExpectationKindSchema>,
-    settings_sha256: Option<String>,
-    actual_executable_sha256: Option<String>,
-    profile_sha256: Option<String>,
-    source_sha256: Option<String>,
-    reference_output_sha256: Option<String>,
-    intended_output_sha256: Option<String>,
-    file_metadata_sha256: Option<String>,
-}
-
-/// One native side's receipt row.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct ObservationSchema {
-    rule: Option<String>,
-    name: Option<String>,
-    side: Option<SideSchema>,
-    complete: Option<bool>,
-    error: Option<String>,
-    case_passed: Option<bool>,
-    files: Option<Vec<String>>,
-    source_sha256: Option<String>,
-    file_metadata_sha256: Option<String>,
-    project_inputs_sha256: Option<String>,
-    expected: Option<Vec<FindingSchema>>,
-    reference_expected: Option<Vec<FindingSchema>>,
-    diagnostics: Option<Vec<FindingSchema>>,
-    skipped: Option<Vec<SkippedSchema>>,
-    observation_schema: Option<String>,
-    expectation_contract: Option<ContractSchema>,
-    execution_metadata: Option<ExecutionSchema>,
-    coverage: Option<CoverageSchema>,
-    context_manifest: Option<ContextManifestSchema>,
-    project_context: Option<serde_json::Value>,
-    rule_context: Option<serde_json::Value>,
-    rule_observations: Option<serde_json::Value>,
-    selected_rules: Option<Vec<String>>,
-    actual_request_root: Option<String>,
-    documented_reference_discrepancy: Option<bool>,
-    documented_tool_contract_difference: Option<bool>,
-    discrepancy_validation: Option<ValidationSchema>,
-    raw_parity_matches_intended: Option<bool>,
-    diagnostics_match_intended: Option<bool>,
-    process_observation: Option<ProcessObservationSchema>,
-}
-
-impl From<ObservationSchema> for ObservationDocument {
-    fn from(wire: ObservationSchema) -> Self {
-        Self {
-            rule: wire.rule.map(RuleName),
-            name: wire.name.map(CaseName),
-            side: wire.side.map(|side| match side {
-                SideSchema::Reference => Side::Reference,
-                SideSchema::Candidate => Side::Candidate,
-            }),
-            complete: flag(wire.complete),
-            error: wire.error.map(ReasonText),
-            case_passed: flag(wire.case_passed),
-            files: wire
-                .files
-                .map(|files| files.into_iter().map(path).collect()),
-            source_sha256: sha(wire.source_sha256),
-            file_metadata_sha256: sha(wire.file_metadata_sha256),
-            project_inputs_sha256: sha(wire.project_inputs_sha256),
-            expected: wire.expected.map(findings),
-            reference_expected: wire.reference_expected.map(findings),
-            diagnostics: wire.diagnostics.map(findings),
-            skipped: wire.skipped.map(|rows| {
-                rows.into_iter()
-                    .map(|skip| {
-                        let SkipReasonSchema::SyntaxRejected = skip.reason;
-                        SkippedPair {
-                            rule: RuleName(skip.rule),
-                            path: PathText(skip.path),
-                        }
-                    })
-                    .collect()
-            }),
-            observation_schema: wire.observation_schema.map(SchemaName),
-            expectation_contract: wire.expectation_contract.map(Into::into),
-            execution_metadata: wire.execution_metadata.map(|value| match value {
-                ExecutionSchema::Unknown {} => ExecutionMetadata::Unknown,
-                ExecutionSchema::Unavailable { reason } => {
-                    ExecutionMetadata::Unavailable { reason }
-                }
-                ExecutionSchema::Complete {} => ExecutionMetadata::Complete,
-            }),
-            coverage: wire.coverage.map(|coverage| RuleCoverage {
-                selected: coverage.selected_rule_file_pairs,
-                evaluated: coverage.evaluated_rule_file_pairs,
-                skipped: coverage.skipped_rule_file_pairs,
-                unknown_or_unread: coverage.unknown_or_unread_rule_file_pairs,
-            }),
-            context_manifest: wire.context_manifest.map(|manifest| ContextManifest {
-                mode: manifest.mode.map(Into::into),
-                logical_root: manifest.logical_root.map(PathText),
-                actual_root: manifest.actual_root.map(PathText),
-                manifest_hash: sha(manifest.manifest_hash),
-            }),
-            project_context: canonical(wire.project_context),
-            rule_context: canonical(wire.rule_context),
-            rule_observations: canonical(wire.rule_observations),
-            selected_rules: wire
-                .selected_rules
-                .map(|rules| rules.into_iter().map(RuleName).collect()),
-            actual_request_root: wire.actual_request_root.map(PathText),
-            documented_reference_discrepancy: flag(wire.documented_reference_discrepancy),
-            documented_tool_contract_difference: flag(wire.documented_tool_contract_difference),
-            discrepancy_validation: wire.discrepancy_validation.map(|proof| {
-                DiscrepancyValidation {
-                    discrepancy_basis: proof.discrepancy_basis.map(Into::into),
-                    process_observation_group_sha256: sha(proof.process_observation_group_sha256),
-                    reference_expectation_kind: proof.reference_expectation_kind.map(Into::into),
-                    settings_sha256: sha(proof.settings_sha256),
-                    actual_executable_sha256: sha(proof.actual_executable_sha256),
-                    profile_sha256: sha(proof.profile_sha256),
-                    source_sha256: sha(proof.source_sha256),
-                    reference_output_sha256: sha(proof.reference_output_sha256),
-                    intended_output_sha256: sha(proof.intended_output_sha256),
-                    file_metadata_sha256: sha(proof.file_metadata_sha256),
-                }
-            }),
-            raw_parity_matches_intended: flag(wire.raw_parity_matches_intended),
-            diagnostics_match_intended: flag(wire.diagnostics_match_intended),
-            process_observation: wire.process_observation.map(|process| ProcessObservation {
-                kind: process.kind.map(Into::into),
-                exit: process.exit.map(ExitStatus),
-                signal: process.signal.map(ExitStatus),
-                actual_request_root: process.actual_request_root.map(PathText),
-                observer_no_deadline: flag(process.observer_no_deadline),
-                executable_sha256: sha(process.executable_sha256),
-                settings_sha256: sha(process.settings_sha256),
-                metadata_error: process.metadata_error.map(ReasonText),
-                template_sha256: sha(process.template_sha256),
-                artifacts: process.artifacts.map(|artifacts| ProcessArtifacts {
-                    stdout: artifacts.stdout.into(),
-                    stderr: artifacts.stderr.into(),
-                    invocation: artifacts.invocation.into(),
-                }),
-            }),
         }
     }
 }

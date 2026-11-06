@@ -66,17 +66,6 @@ pub(super) const INVOCATION_JSON: &str = "invocation.json";
 pub(super) const RAW_ARTIFACT_PATH_IS_NOT_UTF8: &str = "raw artifact path is not UTF8";
 /// Text of the slash in this part.
 pub(super) const SLASH: &str = "/";
-/// Text of the path in this part.
-pub(super) const PATH: &str = "path";
-/// Text of the sha256 in this part.
-pub(super) const SHA256: &str = "sha256";
-/// Text of the process observation in this part.
-pub(super) const PROCESS_OBSERVATION: &str = "process_observation";
-/// Text of the artifacts in this part.
-pub(super) const ARTIFACTS: &str = "artifacts";
-/// Text of the rule in this part.
-#[cfg(test)]
-pub(super) const RULE: &str = "rule";
 /// Text of the check001 in this part.
 #[cfg(test)]
 pub(super) const CHECK001: &str = "CHECK001";
@@ -87,15 +76,6 @@ pub(super) const NAME: &str = "name";
 pub(super) const ONE: &str = "one";
 /// Text of the side in this part.
 pub(super) const SIDE: &str = "side";
-/// Text of the reference in this part.
-#[cfg(test)]
-pub(super) const REFERENCE: &str = "reference";
-/// Text of the kind in this part.
-#[cfg(test)]
-pub(super) const KIND: &str = "kind";
-/// Text of the process failure in this part.
-#[cfg(test)]
-pub(super) const PROCESS_FAILURE: &str = "process-failure";
 /// Text of the a in this part.
 #[cfg(test)]
 pub(super) const A: &str = "a";
@@ -276,3 +256,6 @@ pub(super) const GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH: &str =
 /// Text of the given project non file entry requires in this part.
 pub(super) const GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES: &str =
     "Given project non-file entry requires a materialization contract";
+/// Refuse a process observation that has no raw artifacts to point at.
+pub(super) const PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS: &str =
+    "a process observation needs its three raw artifacts";

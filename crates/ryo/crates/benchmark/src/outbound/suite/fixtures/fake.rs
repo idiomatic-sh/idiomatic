@@ -61,10 +61,20 @@ impl SuitePort for SuiteFake {
     fn record_case(
         &self,
         receipt: ArtifactPath<'_>,
-        record: serde_json::Value,
+        record: crate::outbound::suite::types::observation_document::ObservationDocument,
         process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         crate::outbound::suite::factory::local().record_case(receipt, record, process)
+    }
+
+    fn case_observations(
+        &self,
+        receipt: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<crate::outbound::suite::types::observation_document::ObservationDocument>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        crate::outbound::suite::factory::local().case_observations(receipt)
     }
 
     fn case_reference_wires(

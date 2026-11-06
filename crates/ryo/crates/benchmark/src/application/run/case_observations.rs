@@ -1,12 +1,87 @@
 //! Convert one verification outcome into a durable boundary-owned observation.
-use super::service::finding_values;
 use crate::application::run::constants;
 use crate::outbound::suite::interface::SuitePort;
+use crate::outbound::suite::types::{
+    finding::{ByteOffset, Finding, SkippedPair},
+    observation_document::{
+        ContextManifest, ContextMode, ExitStatus, ObservationDocument, ProcessObservation,
+    },
+    reference_discrepancy::{DiscrepancyValidation, ExpectationKind},
+    text::{
+        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
+        YesNo,
+    },
+};
 use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, ComparisonContract};
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
+
+fn findings(rows: &[BenchmarkFinding]) -> Vec<Finding> {
+    rows.iter()
+        .map(|row| Finding {
+            rule: RuleName(row.rule.as_ref().to_owned()),
+            file: PathText(row.file.0.as_ref().to_owned()),
+            start: ByteOffset(u64::try_from(row.start.0).unwrap_or(u64::MAX)),
+            end: ByteOffset(u64::try_from(row.end.0).unwrap_or(u64::MAX)),
+        })
+        .collect()
+}
+
+fn text(value: &serde_json::Value) -> Option<Sha256Text> {
+    value.as_str().map(|text| Sha256Text(text.to_owned()))
+}
+
+/// The validation the discrepancy check produced, read field by field.
+fn validation_document(proof: &serde_json::Value) -> Option<DiscrepancyValidation> {
+    Some(DiscrepancyValidation {
+        discrepancy_basis: match proof[constants::DISCREPANCY_BASIS].as_str() {
+            Some(constants::TOOL_CONTRACT_DIFFERENCE) => DiscrepancyBasis::ToolContract,
+            _ => DiscrepancyBasis::LanguageDefect,
+        },
+        process_observation_group_sha256: text(&proof[constants::PROCESS_OBSERVATION_GROUP_SHA256]),
+        reference_expectation_kind: match proof[constants::REFERENCE_EXPECTATION_KIND].as_str() {
+            Some(constants::PROCESS_FAILURE) => ExpectationKind::ProcessFailure,
+            _ => ExpectationKind::Diagnostics,
+        },
+        settings_sha256: text(&proof[constants::SETTINGS_SHA256])?,
+        actual_executable_sha256: text(&proof[constants::ACTUAL_EXECUTABLE_SHA256])?,
+        profile_sha256: text(&proof[constants::PROFILE_SHA256])?,
+        source_sha256: text(&proof[constants::SOURCE_SHA256])?,
+        reference_output_sha256: text(&proof[constants::REFERENCE_OUTPUT_SHA256])?,
+        intended_output_sha256: text(&proof[constants::INTENDED_OUTPUT_SHA256])?,
+        file_metadata_sha256: text(&proof[constants::FILE_METADATA_SHA256]),
+    })
+}
+
+/// The reference process a captured invocation records.
+fn process_observation(case: &PreparedCase, invocation: &serde_json::Value) -> ProcessObservation {
+    ProcessObservation {
+        kind: ExpectationKind::ProcessFailure,
+        exit: ExitStatus(invocation[constants::EXIT].as_i64().unwrap_or_default()),
+        signal: invocation[constants::SIGNAL].as_i64().map(ExitStatus),
+        actual_request_root: PathText(
+            invocation[constants::ACTUAL_REQUEST_ROOT]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+        ),
+        observer_no_deadline: YesNo::from(
+            invocation[constants::OBSERVER_NO_DEADLINE].as_bool() == Some(true),
+        ),
+        executable_sha256: text(&invocation[constants::EXECUTABLE_SHA256]),
+        settings_sha256: text(&invocation[constants::SETTINGS_SHA256]),
+        metadata_error: invocation[constants::METADATA_ERROR]
+            .as_str()
+            .map(|reason| ReasonText(reason.to_owned())),
+        template_sha256: super::process_discrepancy::expected(case)
+            .map(|process| Sha256Text(super::process_discrepancy::output_digest(process).0)),
+        artifacts: None,
+    }
+}
 
 /// Append one complete side record while preserving the unprojected report and source identity.
 pub(super) fn write(
@@ -22,38 +97,36 @@ pub(super) fn write(
     let Some(path) = suite.case_receipt_file() else {
         return Ok(());
     };
-    let findings = report.map(|report| finding_values(&report.diagnostics));
+    let side = match side {
+        constants::REFERENCE => Side::Reference,
+        constants::CANDIDATE => Side::Candidate,
+        _ => return Err(Error::Invalid(constants::UNKNOWN_OBSERVATION_SIDE.into())),
+    };
     let files = report
         .map(|report| {
             report
                 .files
                 .iter()
-                .map(|file| file.0.as_ref())
+                .map(|file| PathText(file.0.as_ref().to_owned()))
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| {
             case.request
                 .files
                 .iter()
-                .map(|file| file.0.as_ref())
+                .map(|file| PathText(file.0.as_ref().to_owned()))
                 .collect()
         });
     let skipped = report.map(|report| {
         report
             .skipped
             .iter()
-            .map(|skip| {
-                serde_json::json!({
-                    constants::RULE: skip.rule.as_ref(),
-                    constants::PATH: skip.path.0.as_ref(),
-                    constants::REASON: match skip.reason {
-                        ryo::linter::SkipReason::SyntaxRejected => constants::SYNTAX_REJECTED,
-                    },
-                })
+            .map(|skip| SkippedPair {
+                rule: RuleName(skip.rule.as_ref().to_owned()),
+                path: PathText(skip.path.0.as_ref().to_owned()),
             })
             .collect::<Vec<_>>()
     });
-    let expected = finding_values(&case.expected.diagnostics);
     let source_identity = suite.case_source_digest(
         crate::outbound::suite::types::ArtifactPath(&case.request.root),
         &crate::domain::suite::service::materialized_sources(&case.request),
@@ -89,80 +162,95 @@ pub(super) fn write(
         (None, Some(source)) => Some(format!("source identity unavailable: {source}")),
         (None, None) => None,
     };
-    let context_identity = case.request.context_manifest.as_ref().map(|manifest| {
+    let context_manifest = case.request.context_manifest.as_ref().map(|manifest| {
         let hash = crate::outbound::context::adapters::local::adapter::fingerprint(manifest);
-        serde_json::json!({ constants::MODE: constants::LISTED_DISK, constants::LOGICAL_ROOT: manifest.logical_root,
-            constants::ACTUAL_ROOT: case.request.root.to_string_lossy(), constants::MANIFEST_HASH: hash.0 })
+        ContextManifest {
+            mode: ContextMode::ListedDisk,
+            logical_root: PathText(manifest.logical_root.to_string_lossy().into_owned()),
+            actual_root: PathText(case.request.root.to_string_lossy().into_owned()),
+            manifest_hash: Sha256Text(hash.0),
+        }
     });
-    let mut record = serde_json::json!({
-        constants::OBSERVATION_SCHEMA: constants::BENCHMARK_CASE_V2,
-        constants::EXPECTATION_CONTRACT: constants::DIAGNOSTICS,
-        constants::EXECUTION_METADATA: report.map(|report| crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&report.execution_metadata)),
-        constants::RULE: case.rule.as_ref(),
-        constants::NAME: case.name.to_string(),
-        constants::SIDE: side,
-        constants::FILES: files,
-        constants::ACTUAL_REQUEST_ROOT: case.request.root.to_string_lossy(),
-        constants::DIAGNOSTICS: findings,
-        constants::SKIPPED: skipped,
-        constants::COVERAGE: report.and_then(|report| {
-            report.coverage.map(|coverage| {
-                serde_json::json!({
-                    constants::SELECTED_RULE_FILE_PAIRS: coverage.selected,
-                    constants::EVALUATED_RULE_FILE_PAIRS: coverage.evaluated,
-                    constants::SKIPPED_RULE_FILE_PAIRS: coverage.skipped,
-                    constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS: coverage.unknown_or_unread,
-                })
+    let intended_matches =
+        report.map(|actual| YesNo::from(super::discrepancy::matches_intended(case, actual)));
+    let basis = case.reference_discrepancy.as_ref().map(|item| item.basis);
+    let mut record = ObservationDocument {
+        rule: RuleName(case.rule.as_ref().to_owned()),
+        name: CaseName(case.name.to_string()),
+        side,
+        complete: YesNo::Yes,
+        error: recorded_error.map(ReasonText),
+        case_passed: YesNo::from(passed && source_error.is_none()),
+        files,
+        source_sha256: source_sha256.map(Sha256Text),
+        file_metadata_sha256: metadata_sha256.map(Sha256Text),
+        project_inputs_sha256: project_inputs_sha256.map(Sha256Text),
+        expected: findings(&case.expected.diagnostics),
+        reference_expected: super::discrepancy::reference_expected(case)
+            .ok()
+            .map(|report| findings(&report.diagnostics)),
+        diagnostics: report.map(|report| findings(&report.diagnostics)),
+        skipped,
+        observation_schema: SchemaName(constants::BENCHMARK_CASE_V2.to_owned()),
+        expectation_contract: ComparisonContract::Diagnostics,
+        execution_metadata: report.map(|report| report.execution_metadata.clone()),
+        coverage: report.and_then(|report| report.coverage),
+        context_manifest,
+        project_context: report
+            .and_then(|report| report.project_context.clone())
+            .and_then(|context| {
+                serde_json::to_value(
+                    crate::outbound::context::adapters::local::schemas::ReceiptSchema::from(
+                        context,
+                    ),
+                )
+                .ok()
             })
+            .map(|value| CanonicalJson(value.to_string())),
+        rule_context: case.request.rule_context.as_ref().map(|context| {
+            CanonicalJson(crate::outbound::worker::schemas::prepared_value(context).to_string())
         }),
-        constants::CONTEXT_MANIFEST: context_identity,
-        constants::PROJECT_CONTEXT: report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
-        constants::EXPECTED: expected,
-        constants::REFERENCE_EXPECTED: super::discrepancy::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
-        constants::DOCUMENTED_REFERENCE_DISCREPANCY: case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect),
-        constants::DOCUMENTED_TOOL_CONTRACT_DIFFERENCE: case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract),
-        constants::DISCREPANCY_VALIDATION: validation,
-        constants::RAW_PARITY_MATCHES_INTENDED: report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        constants::DIAGNOSTICS_MATCH_INTENDED: report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        constants::SOURCE_SHA256: source_sha256,
-        constants::PROJECT_INPUTS_SHA256: project_inputs_sha256,
-        constants::ERROR: recorded_error,
-        constants::CASE_PASSED: passed && source_error.is_none(),
-        constants::COMPLETE: true,
-    });
-    if let Some(context) = &case.request.rule_context {
-        record[constants::RULE_CONTEXT] = crate::outbound::worker::schemas::prepared_value(context);
-    }
-    if let Some(declarations) = &case.request.rule_observations {
-        record[constants::RULE_OBSERVATIONS] =
-            crate::outbound::worker::schemas::observation_declarations_value(declarations);
-    }
-    if let Some(selected) = &case.request.selected_rules {
-        record[constants::SELECTED_RULES] =
-            serde_json::json!(selected.iter().map(ToString::to_string).collect::<Vec<_>>());
-    }
-    if let Some(digest) = &metadata_sha256 {
-        record[constants::FILE_METADATA_SHA256] = serde_json::json!(digest);
-    }
+        rule_observations: case.request.rule_observations.as_ref().map(|declarations| {
+            CanonicalJson(
+                crate::outbound::worker::schemas::observation_declarations_value(declarations)
+                    .to_string(),
+            )
+        }),
+        selected_rules: case.request.selected_rules.as_ref().map(|selected| {
+            selected
+                .iter()
+                .map(|rule| RuleName(rule.to_string()))
+                .collect()
+        }),
+        actual_request_root: Some(PathText(case.request.root.to_string_lossy().into_owned())),
+        documented_reference_discrepancy: YesNo::from(
+            basis == Some(DiscrepancyBasis::LanguageDefect),
+        ),
+        documented_tool_contract_difference: Some(YesNo::from(
+            basis == Some(DiscrepancyBasis::ToolContract),
+        )),
+        discrepancy_validation: validation.and_then(validation_document),
+        raw_parity_matches_intended: intended_matches,
+        diagnostics_match_intended: intended_matches,
+        process_observation: None,
+    };
     let mut raw_invocation = capture.map(|capture| capture.invocation.clone());
     if let Some(invocation) = &mut raw_invocation {
-        invocation[constants::SOURCE_SHA256] = serde_json::json!(source_sha256);
-        if let Some(digest) = &metadata_sha256 {
-            invocation[constants::FILE_METADATA_SHA256] = serde_json::json!(digest);
+        invocation[constants::SOURCE_SHA256] =
+            serde_json::json!(record.source_sha256.as_ref().map(|digest| digest.0.clone()));
+        if let Some(digest) = &record.file_metadata_sha256 {
+            invocation[constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
         }
-        record[constants::PROCESS_OBSERVATION] = serde_json::json!({
-            constants::KIND:constants::PROCESS_FAILURE, constants::EXIT:invocation[constants::EXIT], constants::SIGNAL:invocation[constants::SIGNAL],
-            constants::ACTUAL_REQUEST_ROOT:invocation[constants::ACTUAL_REQUEST_ROOT], constants::OBSERVER_NO_DEADLINE:invocation[constants::OBSERVER_NO_DEADLINE],
-            constants::EXECUTABLE_SHA256:invocation[constants::EXECUTABLE_SHA256], constants::SETTINGS_SHA256:invocation[constants::SETTINGS_SHA256],
-            constants::METADATA_ERROR:invocation.get(constants::METADATA_ERROR),
-            constants::TEMPLATE_SHA256:super::process_discrepancy::expected(case).map(|process| super::process_discrepancy::output_digest(process).0),
-        });
-        record[constants::RAW_PARITY_MATCHES_INTENDED] = serde_json::json!(false);
+        record.process_observation = Some(process_observation(case, invocation));
+        record.raw_parity_matches_intended = Some(YesNo::No);
     }
     let key = crate::domain::suite::process::service::observation_key(
         case.rule.as_ref(),
         &case.name.to_string(),
-        side,
+        match side {
+            Side::Reference => constants::REFERENCE,
+            Side::Candidate => constants::CANDIDATE,
+        },
     )
     .map_err(Error::Invalid)?;
     let process = capture

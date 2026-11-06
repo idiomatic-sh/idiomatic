@@ -5,13 +5,16 @@ use super::service::validate;
 use super::types::{ReceiptCounts, Tally};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::registered_inputs::errors::RegisteredInputsError;
-use crate::outbound::inventory::types::{
-    case_document::{ContextMode, EntryState},
-    discrepancy::{DiscrepancyIdentity, ReferenceDiscrepancy},
-    observation_document::{ContextManifest, ProcessObservation},
-    text::{CanonicalJson, SchemaName, Sha256Text, YesNo},
+use crate::outbound::inventory::types::case_document::EntryState;
+use crate::outbound::suite::types::{
+    observation_document::{ContextManifest, ContextMode, ExitStatus, ProcessObservation},
+    process::ProcessFailureWire,
+    reference_discrepancy::{DiscrepancyIdentity, ExpectationKind, ReferenceDiscrepancy},
+    text::{
+        CanonicalJson, CaseName as DocumentCaseName, PathText, ReasonText, RuleName, SchemaName,
+        Sha256Text, YesNo,
+    },
 };
-use crate::outbound::suite::types::process::ProcessFailureWire;
 use ryo_benchmark_contracts::domain::reports::types::{ComparisonContract, RuleCoverage};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
@@ -34,17 +37,43 @@ const fn counts(raw_exact: usize, documented: usize, contract_only: usize) -> Re
 fn process_discrepancy() -> ReferenceDiscrepancy {
     ReferenceDiscrepancy {
         basis: DiscrepancyBasis::LanguageDefect,
-        identity: DiscrepancyIdentity::default(),
+        identity: DiscrepancyIdentity {
+            tool: ReasonText("tool".into()),
+            version: ReasonText("1".into()),
+            observed_executable_sha256: None,
+            profile: Sha256Text("profile-pin".into()),
+            settings: Sha256Text("settings-pin".into()),
+            source: Sha256Text("source-pin".into()),
+            reference_output: Sha256Text("reference-pin".into()),
+            intended_output: Sha256Text("intended-pin".into()),
+            file_metadata: None,
+        },
         approved_executable_sha256: Vec::new(),
         reference_expected: None,
         intended_expected: Vec::new(),
-        reason: None,
+        reason: ReasonText("process failure".into()),
         process: Some(ProcessFailureWire::ProcessFailure {
             exit: 1,
             stdout: Vec::new(),
             stderr: Vec::new(),
             observations: Vec::new(),
         }),
+    }
+}
+
+/// A reference process observed instead of diagnostics.
+fn process_observation() -> ProcessObservation {
+    ProcessObservation {
+        kind: ExpectationKind::ProcessFailure,
+        exit: ExitStatus(1),
+        signal: None,
+        actual_request_root: PathText("/cases/root".into()),
+        observer_no_deadline: YesNo::Yes,
+        executable_sha256: None,
+        settings_sha256: None,
+        metadata_error: None,
+        template_sha256: None,
+        artifacts: None,
     }
 }
 
@@ -237,32 +266,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a missing registered rule identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.0[0].rule = None),
+        input: || fixtures::edited(fixtures::passing, |d| d.0[0].rule = RuleName(String::new())),
         expect: Expect::Error(InventoryReceiptsError::RegisteredRuleMissing),
     },
     Case {
         name: CaseName("a missing registered case identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.0[0].name = None),
+        input: || {
+            fixtures::edited(fixtures::passing, |d| {
+                d.0[0].name = DocumentCaseName(String::new())
+            })
+        },
         expect: Expect::Error(InventoryReceiptsError::RegisteredCaseMissing),
-    },
-    Case {
-        name: CaseName("a missing native rule identity is refused"),
-        word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[0].rule = None),
-        expect: Expect::Error(InventoryReceiptsError::NativeRuleMissing),
-    },
-    Case {
-        name: CaseName("a missing native case identity is refused"),
-        word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[0].name = None),
-        expect: Expect::Error(InventoryReceiptsError::NativeCaseMissing),
-    },
-    Case {
-        name: CaseName("a missing native side identity is refused"),
-        word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[0].side = None),
-        expect: Expect::Error(InventoryReceiptsError::NativeSideMissing),
     },
     Case {
         name: CaseName("a missing native row is refused"),
@@ -324,7 +339,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].observation_schema = Some(SchemaName("other".into()))
+                d.1[0].observation_schema = SchemaName("other".into())
             })
         },
         expect: Expect::Error(InventoryReceiptsError::ExpectationContractDiffers),
@@ -332,7 +347,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a side that did not complete is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[1].complete = Some(YesNo::No)),
+        input: || fixtures::edited(fixtures::passing, |d| d.1[1].complete = YesNo::No),
         expect: Expect::Error(InventoryReceiptsError::ObservationStale),
     },
     Case {
@@ -340,7 +355,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].documented_reference_discrepancy = Some(YesNo::Yes)
+                d.1[0].documented_reference_discrepancy = YesNo::Yes
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyAuthorityDiffers),
@@ -350,7 +365,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].process_observation = Some(ProcessObservation::default())
+                d.1[0].process_observation = Some(process_observation())
             })
         },
         expect: Expect::Error(InventoryReceiptsError::UnexpectedProcessObservation),
@@ -376,10 +391,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(fixtures::passing, |d| {
                 d.1[0].context_manifest = Some(ContextManifest {
-                    mode: Some(ContextMode::ListedDisk),
-                    logical_root: None,
-                    actual_root: None,
-                    manifest_hash: None,
+                    mode: ContextMode::ListedDisk,
+                    logical_root: PathText("root".into()),
+                    actual_root: PathText("/cases/root".into()),
+                    manifest_hash: Sha256Text("hash".into()),
                 })
             })
         },
@@ -427,7 +442,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     certificate.basis = DiscrepancyBasis::ToolContract;
                 }
                 for row in &mut d.1 {
-                    row.documented_reference_discrepancy = Some(YesNo::No);
+                    row.documented_reference_discrepancy = YesNo::No;
                     row.documented_tool_contract_difference = Some(YesNo::Yes);
                 }
             })
@@ -441,7 +456,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
                 for row in &mut d.1 {
                     if let Some(proof) = row.discrepancy_validation.as_mut() {
-                        proof.actual_executable_sha256 = Some(Sha256Text(String::new()));
+                        proof.actual_executable_sha256 = Sha256Text(String::new());
                     }
                 }
             })

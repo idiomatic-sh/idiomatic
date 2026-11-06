@@ -61,72 +61,14 @@ pub(super) const CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED: &str =
 pub(super) const RULE: &str = "rule";
 /// Text of the path in this part.
 pub(super) const PATH: &str = "path";
-/// Text of the reason in this part.
-pub(super) const REASON: &str = "reason";
-/// Text of the syntax rejected in this part.
-pub(super) const SYNTAX_REJECTED: &str = "syntax-rejected";
-/// Text of the mode in this part.
-pub(super) const MODE: &str = "mode";
-/// Text of the listed disk in this part.
-pub(super) const LISTED_DISK: &str = "listed-disk";
-/// Text of the logical root in this part.
-pub(super) const LOGICAL_ROOT: &str = "logical_root";
-/// Text of the actual root in this part.
-pub(super) const ACTUAL_ROOT: &str = "actual_root";
-/// Text of the manifest hash in this part.
-pub(super) const MANIFEST_HASH: &str = "manifest_hash";
-/// Text of the observation schema in this part.
-pub(super) const OBSERVATION_SCHEMA: &str = "observation_schema";
 /// Text of the benchmark case v2 in this part.
 pub(super) const BENCHMARK_CASE_V2: &str = "benchmark-case/v2";
-/// Text of the expectation contract in this part.
-pub(super) const EXPECTATION_CONTRACT: &str = "expectation_contract";
 /// Text of the diagnostics in this part.
 pub(super) const DIAGNOSTICS: &str = "diagnostics";
-/// Text of the execution metadata in this part.
-pub(super) const EXECUTION_METADATA: &str = "execution_metadata";
-/// Text of the name in this part.
-pub(super) const NAME: &str = "name";
-/// Text of the side in this part.
-pub(super) const SIDE: &str = "side";
 /// Text of the skipped in this part.
 pub(super) const SKIPPED: &str = "skipped";
-/// Text of the coverage in this part.
-pub(super) const COVERAGE: &str = "coverage";
-/// Text of the selected rule file pairs in this part.
-pub(super) const SELECTED_RULE_FILE_PAIRS: &str = "selected_rule_file_pairs";
-/// Text of the evaluated rule file pairs in this part.
-pub(super) const EVALUATED_RULE_FILE_PAIRS: &str = "evaluated_rule_file_pairs";
-/// Text of the skipped rule file pairs in this part.
-pub(super) const SKIPPED_RULE_FILE_PAIRS: &str = "skipped_rule_file_pairs";
-/// Text of the unknown or unread rule file pairs in this part.
-pub(super) const UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS: &str = "unknown_or_unread_rule_file_pairs";
-/// Text of the context manifest in this part.
-pub(super) const CONTEXT_MANIFEST: &str = "context_manifest";
-/// Text of the project context in this part.
-pub(super) const PROJECT_CONTEXT: &str = "project_context";
-/// Text of the expected in this part.
-pub(super) const EXPECTED: &str = "expected";
-/// Text of the reference expected in this part.
-pub(super) const REFERENCE_EXPECTED: &str = "reference_expected";
-/// Text of the documented reference discrepancy in this part.
-pub(super) const DOCUMENTED_REFERENCE_DISCREPANCY: &str = "documented_reference_discrepancy";
-/// Text of the documented tool contract difference in this part.
-pub(super) const DOCUMENTED_TOOL_CONTRACT_DIFFERENCE: &str = "documented_tool_contract_difference";
-/// Text of the discrepancy validation in this part.
-pub(super) const DISCREPANCY_VALIDATION: &str = "discrepancy_validation";
-/// Text of the raw parity matches intended in this part.
-pub(super) const RAW_PARITY_MATCHES_INTENDED: &str = "raw_parity_matches_intended";
-/// Text of the diagnostics match intended in this part.
-pub(super) const DIAGNOSTICS_MATCH_INTENDED: &str = "diagnostics_match_intended";
 /// Text of the source sha256 in this part.
 pub(super) const SOURCE_SHA256: &str = "source_sha256";
-/// Text of the project inputs sha256 in this part.
-pub(super) const PROJECT_INPUTS_SHA256: &str = "project_inputs_sha256";
-/// Text of the error in this part.
-pub(super) const ERROR: &str = "error";
-/// Text of the case passed in this part.
-pub(super) const CASE_PASSED: &str = "case_passed";
 /// Text of the complete in this part.
 pub(super) const COMPLETE: &str = "complete";
 /// Text of the rule context in this part.
@@ -135,14 +77,10 @@ pub(super) const RULE_CONTEXT: &str = "rule_context";
 pub(super) const RULE_OBSERVATIONS: &str = "rule_observations";
 /// Text of the selected rules in this part.
 pub(super) const SELECTED_RULES: &str = "selected_rules";
-/// Text of the process observation in this part.
-pub(super) const PROCESS_OBSERVATION: &str = "process_observation";
 /// Text of the kind in this part.
 pub(super) const KIND: &str = "kind";
 /// Text of the process failure in this part.
 pub(super) const PROCESS_FAILURE: &str = "process-failure";
-/// Text of the template sha256 in this part.
-pub(super) const TEMPLATE_SHA256: &str = "template_sha256";
 /// Text of the missing case profile boundary in this part.
 pub(super) const MISSING_CASE_PROFILE_BOUNDARY: &str = "missing case profile boundary";
 /// Text of the duplicate reference expectation identity in this part.
@@ -277,8 +215,6 @@ pub(super) const MISSING_OR_MALFORMED_EXECUTION_CAPABILITY: &str =
 /// Text of the execution capability is not explicitly decla in this part.
 pub(super) const EXECUTION_CAPABILITY_IS_NOT_EXPLICITLY_DECLA: &str =
     "execution capability is not explicitly declared";
-/// Text of the missing execution files in this part.
-pub(super) const MISSING_EXECUTION_FILES: &str = "missing execution files";
 /// Text of the invalid execution file in this part.
 pub(super) const INVALID_EXECUTION_FILE: &str = "invalid execution file";
 /// Text of the missing execution skips in this part.
@@ -428,8 +364,6 @@ pub(super) const MISSING_CAPTURED_PROCESS_BYTES: &str = "missing captured proces
 /// Text of the captured process byte digest differs in this part.
 pub(super) const CAPTURED_PROCESS_BYTE_DIGEST_DIFFERS: &str =
     "captured process byte digest differs";
-/// Text of the missing actual process executable in this part.
-pub(super) const MISSING_ACTUAL_PROCESS_EXECUTABLE: &str = "missing actual process executable";
 /// Text of the reference process variant or exact terminati in this part.
 pub(super) const REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI: &str =
     "reference process variant or exact termination identity differs";
@@ -442,10 +376,6 @@ pub(super) const PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING: &str =
 /// Text of the process observation root differs from receip in this part.
 pub(super) const PROCESS_OBSERVATION_ROOT_DIFFERS_FROM_RECEIP: &str =
     "process observation root differs from receipt";
-/// Text of the missing registered rule in this part.
-pub(super) const MISSING_REGISTERED_RULE: &str = "missing registered rule";
-/// Text of the missing registered case in this part.
-pub(super) const MISSING_REGISTERED_CASE: &str = "missing registered case";
 /// Text of the missing raw process path in this part.
 pub(super) const MISSING_RAW_PROCESS_PATH: &str = "missing raw process path";
 /// Text of the raw process artifact belongs to another in this part.
@@ -481,10 +411,6 @@ pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_CASE: &str =
 /// Text of the receipt validation requires registered cases in this part.
 pub(super) const RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES: &str =
     "receipt validation requires registered cases";
-/// Text of the missing observed rule in this part.
-pub(super) const MISSING_OBSERVED_RULE: &str = "missing observed rule";
-/// Text of the missing observed case in this part.
-pub(super) const MISSING_OBSERVED_CASE: &str = "missing observed case";
 /// Text of the unregistered receipt identity in this part.
 pub(super) const UNREGISTERED_RECEIPT_IDENTITY: &str = "unregistered receipt identity";
 /// Text of the missing verification command in this part.
@@ -506,3 +432,6 @@ pub(super) const PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE: &str =
 /// Text of the reference returned a decoded report instead in this part.
 pub(super) const REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD: &str =
     "reference returned a decoded report instead of the declared process failure";
+/// Refuse an observation for a contestant that is neither side.
+pub(super) const UNKNOWN_OBSERVATION_SIDE: &str =
+    "observation side is neither reference nor candidate";

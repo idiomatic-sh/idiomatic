@@ -2,8 +2,6 @@
 use super::*;
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
-    case_document::CaseDocument,
-    text::{CaseName, PathText, RuleName, Sha256Text},
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
@@ -61,7 +59,7 @@ impl ExecutionPort for ToyExecution {
                 .map(std::path::PathBuf::from)
                 .expect("explicit receipt argument");
             let records = ["reference", "candidate"].map(|side| json!({
-                "rule": rule, "name": "independent-case", "side": side, "complete": true, "error": null,
+                "rule": rule, "name": "independent-case", "side": side, "complete": true, "error": null, "documented_reference_discrepancy": false,
                 "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "reference_expected": [],
                 "diagnostics": [], "skipped": [], "context_manifest": null, "project_context": null,
                 "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
@@ -135,13 +133,12 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
                 command: Some(Command::CaseVerification {
                     context: directory.clone(),
                 }),
-                cases: vec![CaseDocument {
-                    rule: Some(RuleName(rule.clone())),
-                    name: Some(CaseName("independent-case".into())),
-                    source_sha256: Some(Sha256Text("source-pin".into())),
-                    files: vec![PathText("input.txt".into())],
-                    ..CaseDocument::default()
-                }],
+                cases: vec![
+                    crate::application::inventory_receipts::fixtures::registered_case(
+                        &rule,
+                        "independent-case",
+                    ),
+                ],
                 instance: Some(json!({"input-pin": "immutable-provider-bytes"})),
             }
         })

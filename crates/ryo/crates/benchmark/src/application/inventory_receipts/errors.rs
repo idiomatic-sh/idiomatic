@@ -19,15 +19,6 @@ pub(crate) enum InventoryReceiptsError {
     /// Refuses: duplicate registered case identity.
     #[error("duplicate registered case identity")]
     DuplicateRegisteredCase,
-    /// Refuses: native rule identity is missing.
-    #[error("native rule identity is missing")]
-    NativeRuleMissing,
-    /// Refuses: native case identity is missing.
-    #[error("native case identity is missing")]
-    NativeCaseMissing,
-    /// Refuses: native side identity is missing.
-    #[error("native side identity is missing")]
-    NativeSideMissing,
     /// Refuses: unregistered native case observation.
     #[error("unregistered native case observation")]
     UnregisteredObservation,

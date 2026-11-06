@@ -2,9 +2,7 @@
 use crate::outbound::inventory::adapters::local::constants;
 use crate::outbound::inventory::{
     interface::InventoryPort,
-    types::{
-        CapturedObservation, Registration, Row, Summary, observation_document::ObservationDocument,
-    },
+    types::{CapturedObservation, Registration, Row, Summary},
 };
 use std::{io::Write as _, path::Path};
 
@@ -34,19 +32,6 @@ fn streams(directory: &Path, stdout: &[u8], stderr: &[u8]) -> Result<(), String>
     std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
     std::fs::write(directory.join(constants::STDOUT_BIN), stdout).map_err(|e| e.to_string())?;
     std::fs::write(directory.join(constants::STDERR_BIN), stderr).map_err(|e| e.to_string())
-}
-/// Read actual per-side observations; absence and malformed records remain errors.
-fn observations(path: &Path) -> Result<Vec<ObservationDocument>, String> {
-    std::fs::read_to_string(path)
-        .map_err(|e| e.to_string())?
-        .lines()
-        .enumerate()
-        .map(|(index, line)| {
-            serde_json::from_str::<super::schemas::ObservationSchema>(line)
-                .map(ObservationDocument::from)
-                .map_err(|e| format!("receipt row {}: {e}", index + 1))
-        })
-        .collect()
 }
 /// Persist one terminal row beside its raw receipts.
 fn result(directory: &Path, row: &Row) -> Result<(), String> {
@@ -191,7 +176,10 @@ impl InventoryPort for InventoryLocalAdapter {
     }
 
     fn observations(&self, receipt: &Path) -> Result<CapturedObservation, String> {
-        let records = observations(receipt)?;
+        let records = self
+            .suite
+            .case_observations(crate::outbound::suite::types::ArtifactPath(receipt))
+            .map_err(|error| error.to_string())?;
         Ok(CapturedObservation {
             artifacts: super::case_artifacts::read(receipt, &records)?,
             records,

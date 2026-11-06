@@ -1,13 +1,20 @@
 //! Receipt-file scoped process artifacts; resumes never overwrite historical attempts.
+use super::schemas::observation::ObservationSchema;
 use crate::outbound::suite::adapters::local::constants;
-use crate::outbound::suite::types::{discrepancy::ArtifactError, process::CapturedProcess};
+use crate::outbound::suite::types::{
+    discrepancy::ArtifactError,
+    observation_document::{ObservationDocument, ProcessArtifacts},
+    process::CapturedProcess,
+    reference_discrepancy::ArtifactPointer,
+    text::{PathText, Sha256Text},
+};
 use sha2::{Digest as _, Sha256};
 use std::{io::Write as _, path::Path};
 
 /// Persist one exact observation, adding storage-only raw artifact paths/digests.
 pub(super) fn record(
     receipt: &Path,
-    mut record: serde_json::Value,
+    mut record: ObservationDocument,
     process: Option<CapturedProcess<'_>>,
 ) -> Result<(), ArtifactError> {
     let name = receipt
@@ -48,7 +55,7 @@ pub(super) fn record(
         std::fs::create_dir(&case)?;
         let invocation = serde_json::to_vec(process.invocation)
             .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
-        let mut artifacts = serde_json::Map::new();
+        let mut artifacts = std::collections::BTreeMap::new();
         for (label, filename, bytes) in [
             (constants::STDOUT, constants::STDOUT_BIN, process.stdout),
             (constants::STDERR, constants::STDERR_BIN, process.stderr),
@@ -77,13 +84,32 @@ pub(super) fn record(
                 })
                 .collect::<Result<Vec<_>, _>>()?
                 .join(constants::SLASH);
-            artifacts.insert(label.into(), serde_json::json!({constants::PATH:relative, constants::SHA256:format!("{:x}", Sha256::digest(bytes))}));
+            artifacts.insert(
+                label,
+                ArtifactPointer {
+                    path: PathText(relative),
+                    sha256: Sha256Text(format!("{:x}", Sha256::digest(bytes))),
+                },
+            );
         }
-        record[constants::PROCESS_OBSERVATION][constants::ARTIFACTS] =
-            serde_json::Value::Object(artifacts);
+        let (Some(stdout), Some(stderr), Some(invocation), Some(observation)) = (
+            artifacts.remove(constants::STDOUT),
+            artifacts.remove(constants::STDERR),
+            artifacts.remove(constants::INVOCATION),
+            record.process_observation.as_mut(),
+        ) else {
+            return Err(ArtifactError::Invalid(
+                constants::PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS.into(),
+            ));
+        };
+        observation.artifacts = Some(ProcessArtifacts {
+            stdout,
+            stderr,
+            invocation,
+        });
     }
-    let mut bytes =
-        serde_json::to_vec(&record).map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+    let mut bytes = serde_json::to_vec(&ObservationSchema::from(&record))
+        .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
     bytes.push(b'\n');
     let mut output = std::fs::OpenOptions::new()
         .create(true)
@@ -94,6 +120,21 @@ pub(super) fn record(
     Ok(())
 }
 
+/// Read every row of one receipt file; absence and malformed or unknown fields remain errors.
+pub(super) fn read(receipt: &Path) -> Result<Vec<ObservationDocument>, ArtifactError> {
+    std::fs::read_to_string(receipt)?
+        .lines()
+        .enumerate()
+        .map(|(index, line)| {
+            serde_json::from_str::<ObservationSchema>(line)
+                .map(ObservationDocument::from)
+                .map_err(|error| {
+                    ArtifactError::Invalid(format!("receipt row {}: {error}", index + 1))
+                })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,8 +142,70 @@ mod tests {
         inventory::interface::InventoryPort as _,
         suite::{interface::SuitePort as _, types::ArtifactPath},
     };
+    fn row() -> ObservationDocument {
+        use crate::outbound::suite::types::{
+            observation_document::{ExitStatus, ProcessObservation},
+            reference_discrepancy::ExpectationKind,
+            text::{CaseName, ReasonText, RuleName, SchemaName, Side, YesNo},
+        };
+        use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+        ObservationDocument {
+            rule: RuleName(constants::CHECK001.into()),
+            name: CaseName(constants::ONE.into()),
+            side: Side::Reference,
+            complete: YesNo::Yes,
+            error: None::<ReasonText>,
+            case_passed: YesNo::Yes,
+            files: Vec::new(),
+            source_sha256: None,
+            file_metadata_sha256: None,
+            project_inputs_sha256: None,
+            expected: Vec::new(),
+            reference_expected: None,
+            diagnostics: None,
+            skipped: None,
+            observation_schema: SchemaName("benchmark-case/v2".into()),
+            expectation_contract: ComparisonContract::Diagnostics,
+            execution_metadata: None,
+            coverage: None,
+            context_manifest: None,
+            project_context: None,
+            rule_context: None,
+            rule_observations: None,
+            selected_rules: None,
+            actual_request_root: None,
+            documented_reference_discrepancy: YesNo::No,
+            documented_tool_contract_difference: None,
+            discrepancy_validation: None,
+            raw_parity_matches_intended: None,
+            diagnostics_match_intended: None,
+            process_observation: Some(ProcessObservation {
+                kind: ExpectationKind::ProcessFailure,
+                exit: ExitStatus(2),
+                signal: None,
+                actual_request_root: PathText("/cases/root".into()),
+                observer_no_deadline: YesNo::Yes,
+                executable_sha256: None,
+                settings_sha256: None,
+                metadata_error: None,
+                template_sha256: None,
+                artifacts: None,
+            }),
+        }
+    }
     fn write(receipt: &Path, stdout: &[u8]) {
-        crate::outbound::suite::factory::local().record_case(ArtifactPath(receipt),serde_json::json!({constants::RULE:constants::CHECK001,constants::NAME:constants::ONE,constants::SIDE:constants::REFERENCE,constants::PROCESS_OBSERVATION:{constants::KIND:constants::PROCESS_FAILURE}}),Some(CapturedProcess { key:&constants::A.repeat(64), invocation:&serde_json::json!({constants::EXIT:2}),stdout,stderr:constants::ERROR })).unwrap();
+        crate::outbound::suite::factory::local()
+            .record_case(
+                ArtifactPath(receipt),
+                row(),
+                Some(CapturedProcess {
+                    key: &constants::A.repeat(64),
+                    invocation: &serde_json::json!({constants::EXIT:2}),
+                    stdout,
+                    stderr: constants::ERROR,
+                }),
+            )
+            .unwrap();
     }
     #[test]
     fn raw_bytes_attempts_and_unreferenced_resume_history_are_retained() {

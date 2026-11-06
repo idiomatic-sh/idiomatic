@@ -1,10 +1,11 @@
 //! Execution evidence is compared only under a declared capability and the contract asked for.
 use super::compare;
+use crate::application::inventory_receipts::fixtures::observed_row;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::inventory::types::{
+use crate::outbound::suite::types::{
     finding::SkippedPair,
     observation_document::ObservationDocument,
-    text::{PathText, RuleName},
+    text::{PathText, RuleName, Side},
 };
 use ryo_benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, ExecutionMetadata, RuleCoverage,
@@ -40,17 +41,16 @@ fn coverage() -> RuleCoverage {
 
 fn candidate() -> ObservationDocument {
     ObservationDocument {
-        files: Some(vec![PathText("input".into())]),
+        files: vec![PathText("input".into())],
         skipped: Some(skipped()),
-        diagnostics: Some(Vec::new()),
-        execution_metadata: Some(ExecutionMetadata::Complete),
         coverage: Some(coverage()),
-        ..ObservationDocument::default()
+        ..observed_row("R1", "syntax", Side::Candidate)
     }
 }
 
 fn unavailable_reference() -> ObservationDocument {
     ObservationDocument {
+        side: Side::Reference,
         skipped: Some(Vec::new()),
         coverage: None,
         execution_metadata: Some(ExecutionMetadata::Unavailable {

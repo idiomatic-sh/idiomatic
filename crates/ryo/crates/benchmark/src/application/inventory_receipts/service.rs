@@ -6,12 +6,12 @@ use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},
 };
-use crate::outbound::inventory::types::{
-    case_document::{
-        CaseDocument, ContextMode, EntryState, FileObservation, InventoryCompleteness,
-    },
+use crate::outbound::inventory::types::case_document::{
+    CaseDocument, EntryState, FileObservation, InventoryCompleteness,
+};
+use crate::outbound::suite::types::{
     finding::Finding,
-    observation_document::ObservationDocument,
+    observation_document::{ContextMode, ObservationDocument},
     text::{PathText, Sha256Text, Side, YesNo},
 };
 use ryo::linter::{
@@ -95,10 +95,6 @@ fn digest_text(
     digest.map(|value| Sha256Text(value.0))
 }
 
-fn non_empty(text: Option<&Sha256Text>) -> Option<&Sha256Text> {
-    text.filter(|value| !value.0.is_empty())
-}
-
 /// Require exact registered case identities and two actual complete, passing observations.
 pub(crate) fn validate(
     cases: &[CaseDocument],
@@ -118,25 +114,20 @@ pub(crate) fn validate_with_artifacts(
     }
     let mut registered = HashSet::with_capacity(cases.len());
     for case in cases {
-        let rule = case
-            .rule
-            .as_ref()
-            .filter(|value| !value.0.is_empty())
-            .ok_or(Failure::RegisteredRuleMissing)?;
-        let name = case
-            .name
-            .as_ref()
-            .filter(|value| !value.0.is_empty())
-            .ok_or(Failure::RegisteredCaseMissing)?;
+        let (rule, name) = (&case.rule, &case.name);
+        if rule.0.is_empty() {
+            return Err(Failure::RegisteredRuleMissing);
+        }
+        if name.0.is_empty() {
+            return Err(Failure::RegisteredCaseMissing);
+        }
         if !registered.insert((rule, name)) {
             return Err(Failure::DuplicateRegisteredCase);
         }
     }
     let mut observed = HashSet::with_capacity(observations.len());
     for row in observations {
-        let rule = row.rule.as_ref().ok_or(Failure::NativeRuleMissing)?;
-        let name = row.name.as_ref().ok_or(Failure::NativeCaseMissing)?;
-        let side = row.side.ok_or(Failure::NativeSideMissing)?;
+        let (rule, name, side) = (&row.rule, &row.name, row.side);
         if !registered.contains(&(rule, name)) {
             return Err(Failure::UnregisteredObservation);
         }
@@ -184,9 +175,7 @@ pub(crate) fn validate_with_artifacts(
         for side in [Side::Reference, Side::Candidate] {
             let row = observations
                 .iter()
-                .find(|row| {
-                    row.rule == case.rule && row.name == case.name && row.side == Some(side)
-                })
+                .find(|row| row.rule == case.rule && row.name == case.name && row.side == side)
                 .ok_or(Failure::SideReceiptCount)?;
             if row.rule_context != case.rule_context {
                 return Err(Failure::RuleContextDiffers);
@@ -197,22 +186,19 @@ pub(crate) fn validate_with_artifacts(
             if row.selected_rules != case.selected_rules {
                 return Err(Failure::SelectedCohortDiffers);
             }
-            if !row
-                .observation_schema
-                .as_ref()
-                .is_some_and(|schema| schema.0 == "benchmark-case/v2")
-                || row.expectation_contract != Some(declared)
+            if row.observation_schema.0 != "benchmark-case/v2"
+                || row.expectation_contract != declared
             {
                 return Err(Failure::ExpectationContractDiffers);
             }
-            if row.complete != Some(YesNo::Yes)
+            if row.complete != YesNo::Yes
                 || row.error.is_some()
-                || row.case_passed != Some(YesNo::Yes)
-                || row.source_sha256 != case.source_sha256
+                || row.case_passed != YesNo::Yes
+                || row.source_sha256.as_ref() != Some(&case.source_sha256)
                 || row.file_metadata_sha256 != metadata
                 || row.project_inputs_sha256 != project_inputs
-                || row.files.as_deref() != Some(case.files.as_slice())
-                || normalized(row.expected.as_ref())? != expected
+                || row.files != case.files
+                || normalized(Some(&row.expected))? != expected
                 || if process {
                     row.reference_expected.is_some()
                 } else {
@@ -221,7 +207,7 @@ pub(crate) fn validate_with_artifacts(
             {
                 return Err(Failure::ObservationStale);
             }
-            if (row.documented_reference_discrepancy == Some(YesNo::Yes))
+            if (row.documented_reference_discrepancy == YesNo::Yes)
                 != (basis == Some(DiscrepancyBasis::LanguageDefect))
                 || (row.documented_tool_contract_difference == Some(YesNo::Yes))
                     != (basis == Some(DiscrepancyBasis::ToolContract))
@@ -251,7 +237,7 @@ pub(crate) fn validate_with_artifacts(
                             == Some(coverage.selected)
                         && coverage.unknown_or_unread == 0
                 });
-                if row.expectation_contract != Some(ComparisonContract::Diagnostics)
+                if row.expectation_contract != ComparisonContract::Diagnostics
                     || row.execution_metadata != Some(ExecutionMetadata::Complete)
                     || !accounted
                 {
@@ -263,14 +249,15 @@ pub(crate) fn validate_with_artifacts(
                     return Err(Failure::UnexpectedProjectContext);
                 }
             } else {
-                let manifest = row.context_manifest.as_ref();
-                let identity = case.context_identity.as_ref();
-                if manifest.map(|value| value.mode) != identity.map(|value| Some(value.mode))
-                    || manifest.map(|value| value.logical_root.as_ref())
-                        != identity.map(|value| Some(&value.logical_root))
-                    || manifest.map(|value| value.manifest_hash.as_ref())
-                        != identity.map(|value| Some(&value.manifest_hash))
-                {
+                let manifest = row
+                    .context_manifest
+                    .as_ref()
+                    .map(|value| (value.mode, &value.logical_root, &value.manifest_hash));
+                let identity = case
+                    .context_identity
+                    .as_ref()
+                    .map(|value| (value.mode, &value.logical_root, &value.manifest_hash));
+                if manifest != identity {
                     return Err(Failure::StaleProjectContext);
                 }
             }
@@ -288,11 +275,7 @@ pub(crate) fn validate_with_artifacts(
             else {
                 return Err(Failure::DiscrepancyValidationMissing);
             };
-            if proof
-                .discrepancy_basis
-                .unwrap_or(DiscrepancyBasis::LanguageDefect)
-                != certificate.basis
-            {
+            if proof.discrepancy_basis != certificate.basis {
                 return Err(Failure::DiscrepancyAuthorityUnverified);
             }
             let identity = &certificate.identity;
@@ -303,13 +286,14 @@ pub(crate) fn validate_with_artifacts(
                 (&proof.reference_output_sha256, &identity.reference_output),
                 (&proof.intended_output_sha256, &identity.intended_output),
             ] {
-                let actual = non_empty(actual.as_ref());
-                if actual.is_none() || actual != non_empty(expected.as_ref()) {
+                if actual.0.is_empty() || actual != expected {
                     return Err(Failure::StaleDiscrepancyEvidence);
                 }
             }
-            let tool = non_empty(proof.actual_executable_sha256.as_ref())
-                .ok_or(Failure::DiscrepancyToolMissing)?;
+            let tool = &proof.actual_executable_sha256;
+            if tool.0.is_empty() {
+                return Err(Failure::DiscrepancyToolMissing);
+            }
             if !certificate.approved_executable_sha256.contains(tool) {
                 return Err(Failure::DiscrepancyToolUnpinned);
             }

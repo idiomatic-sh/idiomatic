@@ -1,7 +1,7 @@
 //! Read only referenced receipt-file attempts; retain unreferenced resume history untouched.
 use crate::outbound::inventory::adapters::local::constants;
-use crate::outbound::inventory::types::{
-    discrepancy::ArtifactPointer, observation_document::ObservationDocument,
+use crate::outbound::suite::types::{
+    observation_document::ObservationDocument, reference_discrepancy::ArtifactPointer,
 };
 use sha2::{Digest as _, Sha256};
 use std::{

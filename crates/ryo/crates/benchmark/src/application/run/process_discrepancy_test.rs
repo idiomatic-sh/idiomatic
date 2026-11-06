@@ -82,7 +82,7 @@ fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
         assert!(captured.records[0].diagnostics.is_none());
         assert_eq!(
             captured.records[0].raw_parity_matches_intended,
-            Some(crate::outbound::inventory::types::text::YesNo::No)
+            Some(crate::outbound::suite::types::text::YesNo::No)
         );
         assert_eq!(
             crate::application::inventory_receipts::service::validate_with_artifacts(
@@ -252,7 +252,7 @@ fn metadata_failure_preserves_process_bytes_and_cannot_be_admitted() {
     assert_eq!(loaded.artifacts.len(), 3);
     assert_eq!(
         loaded.records[0].case_passed,
-        Some(crate::outbound::inventory::types::text::YesNo::No)
+        crate::outbound::suite::types::text::YesNo::No
     );
     assert!(loaded.records[0].error.is_some());
 }
@@ -358,7 +358,7 @@ fn changing_raw_invocation_and_its_digest_does_not_establish_pinned_settings() {
     let mut invocation: Value = serde_json::from_slice(&captured.artifacts[&path]).unwrap();
     invocation["arguments"] = json!(["--changed-flag"]);
     let bytes = serde_json::to_vec(&invocation).unwrap();
-    pointer.sha256 = crate::outbound::inventory::types::text::Sha256Text(format!(
+    pointer.sha256 = crate::outbound::suite::types::text::Sha256Text(format!(
         "{:x}",
         sha2::Sha256::digest(&bytes)
     ));

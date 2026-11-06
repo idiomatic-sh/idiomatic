@@ -3,8 +3,8 @@ use crate::application::run::constants;
 use crate::domain::suite::types::inventory::Inventory;
 use crate::outbound::inventory::types::{
     CapturedObservation, Registration, case_document::CaseDocument,
-    observation_document::ObservationDocument, text::Side,
 };
+use crate::outbound::suite::types::{observation_document::ObservationDocument, text::Side};
 use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
@@ -29,12 +29,10 @@ pub fn validate(
             ));
         }
         for case in &rule.cases {
-            let name = case
-                .name
-                .as_ref()
+            let name = Some(&case.name)
                 .filter(|name| !name.0.is_empty())
                 .ok_or_else(|| Error::Invalid(constants::REGISTERED_CASE_NAME_IS_MISSING.into()))?;
-            if case.rule.as_ref().map(|value| value.0.as_str()) != Some(rule.rule_id.as_str())
+            if case.rule.0 != rule.rule_id
                 || cases
                     .insert((rule.rule_id.clone(), name.0.clone()), case)
                     .is_some()
@@ -52,20 +50,8 @@ pub fn validate(
     }
     let mut grouped = BTreeMap::<(String, String), Vec<ObservationDocument>>::new();
     for row in &captured.records {
-        let key = (
-            row.rule
-                .as_ref()
-                .ok_or_else(|| Error::Invalid(constants::MISSING_OBSERVED_RULE.into()))?
-                .0
-                .clone(),
-            row.name
-                .as_ref()
-                .ok_or_else(|| Error::Invalid(constants::MISSING_OBSERVED_CASE.into()))?
-                .0
-                .clone(),
-        );
-        if !cases.contains_key(&key) || !matches!(row.side, Some(Side::Reference | Side::Candidate))
-        {
+        let key = (row.rule.0.clone(), row.name.0.clone());
+        if !cases.contains_key(&key) || !matches!(row.side, Side::Reference | Side::Candidate) {
             return Err(Error::Invalid(
                 constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
             ));

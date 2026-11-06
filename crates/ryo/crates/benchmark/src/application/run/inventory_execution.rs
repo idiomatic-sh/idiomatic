@@ -1,6 +1,6 @@
 //! Decode native execution evidence into the existing typed comparison contract.
 use crate::application::run::constants;
-use crate::outbound::inventory::types::observation_document::ObservationDocument;
+use crate::outbound::suite::types::observation_document::ObservationDocument;
 
 use crate::domain::diagnostics::service::compare_with_contract;
 use ryo_benchmark_contracts::domain::reports::types::Comparison;
@@ -20,8 +20,6 @@ fn report(row: &ObservationDocument) -> Result<RunReport, String> {
     }
     let files = row
         .files
-        .as_ref()
-        .ok_or(constants::MISSING_EXECUTION_FILES)?
         .iter()
         .map(|file| {
             Some(file)

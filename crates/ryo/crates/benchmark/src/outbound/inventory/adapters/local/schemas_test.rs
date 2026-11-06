@@ -1,7 +1,8 @@
 //! Documents the python authoring and the native producers write are read by their schemas; unknown fields are refused.
-use super::schemas::{ObservationSchema, RegistrationSchema};
+use super::schemas::RegistrationSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::inventory::types::{Registration, observation_document::ObservationDocument};
+use crate::outbound::inventory::types::Registration;
+use crate::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 
 /// Which document a text is read as.
 #[derive(Clone, Copy, Debug)]
@@ -111,8 +112,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn refusal(error: &serde_json::Error) -> Failure {
-    let text = error.to_string();
+fn unknown_field(text: &str) -> Failure {
     text.split_once("unknown field `")
         .and_then(|(_, rest)| rest.split_once('`'))
         .map_or(Failure::Malformed, |(name, _)| {
@@ -129,16 +129,16 @@ fn subject((document, text): Input) -> Result<Value, Failure> {
         Document::Registration => serde_json::from_str::<RegistrationSchema>(&text)
             .map(Registration::from)
             .map(|registration| registration.rules.iter().map(|rule| rule.cases.len()).sum())
-            .map_err(|error| refusal(&error)),
-        Document::Observations => text
-            .lines()
-            .map(|line| {
-                serde_json::from_str::<ObservationSchema>(line)
-                    .map(ObservationDocument::from)
-                    .map_err(|error| refusal(&error))
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(|rows| rows.len()),
+            .map_err(|error| unknown_field(&error.to_string())),
+        Document::Observations => {
+            let directory = tempfile::tempdir().expect("receipt directory");
+            let receipt = directory.path().join("cases.jsonl");
+            std::fs::write(&receipt, text).expect("receipt rows");
+            crate::outbound::suite::factory::local()
+                .case_observations(ArtifactPath(&receipt))
+                .map(|rows| rows.len())
+                .map_err(|error| unknown_field(&error.to_string()))
+        }
     }
 }
 

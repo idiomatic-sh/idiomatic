@@ -65,9 +65,25 @@ pub trait SuitePort {
     fn record_case(
         &self,
         _receipt: ArtifactPath<'_>,
-        _record: serde_json::Value,
+        _record: super::types::observation_document::ObservationDocument,
         _process: Option<super::types::process::CapturedProcess<'_>>,
     ) -> Result<(), super::types::discrepancy::ArtifactError> {
+        Err(super::types::discrepancy::ArtifactError::Invalid(
+            constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
+        ))
+    }
+
+    /// Read every observation row of one receipt file.
+    ///
+    /// # Errors
+    /// Refuses unreadable receipts, malformed rows and fields the schema does not name.
+    fn case_observations(
+        &self,
+        _receipt: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<super::types::observation_document::ObservationDocument>,
+        super::types::discrepancy::ArtifactError,
+    > {
         Err(super::types::discrepancy::ArtifactError::Invalid(
             constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
         ))

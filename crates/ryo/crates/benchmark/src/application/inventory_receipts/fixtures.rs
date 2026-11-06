@@ -1,15 +1,19 @@
 //! Registered cases and native observation rows the receipt validation is proven over.
 use crate::domain::registered_inputs::service::project_inputs_digest;
-use crate::outbound::inventory::types::{
-    case_document::{
-        CaseDocument, ContextIdentity, ContextMode, EntryState, FileObservation,
-        InventoryCompleteness, ProjectEntry, ProjectInventoryDocument,
+use crate::outbound::inventory::types::case_document::{
+    CaseDocument, Comparison, ContextIdentity, EntryState, FileObservation, InventoryCompleteness,
+    ProjectEntry, ProjectInventoryDocument,
+};
+use crate::outbound::suite::types::{
+    finding::{ByteOffset, Finding},
+    observation_document::{ContextMode, ObservationDocument},
+    reference_discrepancy::{
+        DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind, ReferenceDiscrepancy,
     },
-    discrepancy::{DiscrepancyIdentity, DiscrepancyValidation, ReferenceDiscrepancy},
-    finding::ByteOffset,
-    finding::Finding,
-    observation_document::ObservationDocument,
-    text::{CanonicalJson, CaseName, PathText, RuleName, SchemaName, Sha256Text, Side, YesNo},
+    text::{
+        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
+        YesNo,
+    },
 };
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::artifacts::types::{
@@ -23,8 +27,8 @@ use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 /// The registered documents and the native rows observed for them.
 pub type Documents = (Vec<CaseDocument>, Vec<ObservationDocument>);
 
-fn sha(text: &str) -> Option<Sha256Text> {
-    Some(Sha256Text(text.into()))
+fn sha(text: &str) -> Sha256Text {
+    Sha256Text(text.into())
 }
 
 /// A finding at an exact span of the case file.
@@ -37,30 +41,55 @@ pub fn finding(rule: &str, file: &str, start: u64, end: u64) -> Finding {
     }
 }
 
-fn registered(name: &str) -> CaseDocument {
+/// A registered case with only its required fields.
+pub fn registered_case(rule: &str, name: &str) -> CaseDocument {
     CaseDocument {
-        rule: Some(RuleName("A001".into())),
-        name: Some(CaseName(name.into())),
+        rule: RuleName(rule.into()),
+        name: CaseName(name.into()),
+        case_sha256: sha("case-pin"),
         source_sha256: sha("source-pin"),
         files: vec![PathText("input.txt".into())],
-        ..CaseDocument::default()
+        comparison: Comparison::Rule,
+        expected: Vec::new(),
+        project_context_mode: ContextMode::Isolated,
+        context_identity: None,
+        reference_discrepancy: None,
+        expectation_contract: None,
+        rule_context: None,
+        rule_observations: None,
+        selected_rules: None,
+        file_observation: None,
+        file_metadata: None,
+        file_metadata_sha256: None,
+        project_search_roots: None,
+        given_project_inventory: None,
+        project_inputs_sha256: None,
     }
 }
 
-fn observed(name: &str) -> ObservationDocument {
+fn registered(name: &str) -> CaseDocument {
+    registered_case("A001", name)
+}
+
+/// A complete, passing native observation of one side of one case.
+pub fn observed_row(rule: &str, name: &str, side: Side) -> ObservationDocument {
     ObservationDocument {
-        rule: Some(RuleName("A001".into())),
-        name: Some(CaseName(name.into())),
-        complete: Some(YesNo::Yes),
-        case_passed: Some(YesNo::Yes),
-        source_sha256: sha("source-pin"),
-        files: Some(vec![PathText("input.txt".into())]),
-        expected: Some(Vec::new()),
+        rule: RuleName(rule.into()),
+        name: CaseName(name.into()),
+        side,
+        complete: YesNo::Yes,
+        error: None,
+        case_passed: YesNo::Yes,
+        files: vec![PathText("input.txt".into())],
+        source_sha256: Some(sha("source-pin")),
+        file_metadata_sha256: None,
+        project_inputs_sha256: None,
+        expected: Vec::new(),
         reference_expected: Some(Vec::new()),
         diagnostics: Some(Vec::new()),
         skipped: Some(Vec::new()),
-        observation_schema: Some(SchemaName("benchmark-case/v2".into())),
-        expectation_contract: Some(ComparisonContract::Diagnostics),
+        observation_schema: SchemaName("benchmark-case/v2".into()),
+        expectation_contract: ComparisonContract::Diagnostics,
         execution_metadata: Some(ExecutionMetadata::Complete),
         coverage: Some(RuleCoverage {
             selected: 1,
@@ -68,8 +97,23 @@ fn observed(name: &str) -> ObservationDocument {
             skipped: 0,
             unknown_or_unread: 0,
         }),
-        ..ObservationDocument::default()
+        context_manifest: None,
+        project_context: None,
+        rule_context: None,
+        rule_observations: None,
+        selected_rules: None,
+        actual_request_root: None,
+        documented_reference_discrepancy: YesNo::No,
+        documented_tool_contract_difference: None,
+        discrepancy_validation: None,
+        raw_parity_matches_intended: None,
+        diagnostics_match_intended: None,
+        process_observation: None,
     }
+}
+
+fn observed(name: &str) -> ObservationDocument {
+    observed_row("A001", name, Side::Reference)
 }
 
 /// Both native sides of one named case.
@@ -77,7 +121,7 @@ fn sides(base: &ObservationDocument) -> Vec<ObservationDocument> {
     [Side::Reference, Side::Candidate]
         .into_iter()
         .map(|side| ObservationDocument {
-            side: Some(side),
+            side,
             ..base.clone()
         })
         .collect()
@@ -132,37 +176,43 @@ pub fn duplicate_observation() -> Documents {
     (vec![registered("second"), registered("first")], doubled)
 }
 
-fn documented_discrepancy(settings: Option<Sha256Text>) -> Documents {
+fn documented_discrepancy(settings: Sha256Text) -> Documents {
     let finding = finding("A001", "input.txt", 0, 1);
     let mut case = registered("case");
     case.reference_discrepancy = Some(ReferenceDiscrepancy {
         basis: DiscrepancyBasis::LanguageDefect,
         identity: DiscrepancyIdentity {
-            settings: settings.clone(),
+            tool: ReasonText("tool".into()),
+            version: ReasonText("1".into()),
+            observed_executable_sha256: None,
             profile: sha("profile-pin"),
+            settings: settings.clone(),
             source: sha("source-pin"),
             reference_output: sha("reference-pin"),
             intended_output: sha("intended-pin"),
-            ..DiscrepancyIdentity::default()
+            file_metadata: None,
         },
         approved_executable_sha256: vec![Sha256Text("tool-pin".into())],
         reference_expected: Some(vec![finding.clone()]),
         intended_expected: Vec::new(),
-        reason: None,
+        reason: ReasonText("independent expectation".into()),
         process: None,
     });
     let mut base = observed("case");
     base.reference_expected = Some(vec![finding.clone()]);
     base.discrepancy_validation = Some(DiscrepancyValidation {
+        discrepancy_basis: DiscrepancyBasis::LanguageDefect,
+        process_observation_group_sha256: None,
+        reference_expectation_kind: ExpectationKind::Diagnostics,
         actual_executable_sha256: sha("tool-pin"),
         settings_sha256: settings,
         profile_sha256: sha("profile-pin"),
         source_sha256: sha("source-pin"),
         reference_output_sha256: sha("reference-pin"),
         intended_output_sha256: sha("intended-pin"),
-        ..DiscrepancyValidation::default()
+        file_metadata_sha256: None,
     });
-    base.documented_reference_discrepancy = Some(YesNo::Yes);
+    base.documented_reference_discrepancy = YesNo::Yes;
     base.documented_tool_contract_difference = Some(YesNo::No);
     let mut rows = sides(&base);
     rows[0].diagnostics = Some(vec![finding]);
@@ -176,7 +226,7 @@ pub fn independently_bound_discrepancy() -> Documents {
 
 /// The same difference whose settings identity is unbound.
 pub fn unbound_discrepancy() -> Documents {
-    documented_discrepancy(None)
+    documented_discrepancy(sha(""))
 }
 
 /// One file whose executable bit is declared and observed on both sides.
@@ -251,7 +301,7 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
         Some(roots.iter().map(|root| PathText((*root).into())).collect());
     declared.0[0].given_project_inventory = Some(inventory(state));
     if let Some(identity) = row_identity {
-        declared.1[0].project_inputs_sha256 = sha(identity);
+        declared.1[0].project_inputs_sha256 = Some(sha(identity));
     }
     declared
 }
