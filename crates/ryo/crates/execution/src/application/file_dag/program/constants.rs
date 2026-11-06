@@ -30,3 +30,9 @@ pub(super) const PRODUCER_ROOT_INCOMPLETE: &str = "named producer root is not co
 pub(super) const SOURCE_FACTS_INCOMPLETE: &str = "physical source facts are incomplete";
 pub(super) const PRODUCER_COVERAGE_INCOMPLETE: &str =
     "producer publication has incomplete physical coverage";
+pub(super) const RESOURCE_ROUTES_TARGET: &str = "ryo::diagnostic::resource_routes";
+pub(super) const FILE_OWNER_FINISH: &str = "file_owner_finish";
+pub(super) const FILE_STREAM_CONSUMER: &str = "file_stream";
+pub(super) const FILE_RULE_CONSUMER: &str = "file_rule";
+pub(super) const SYNTAX_UNDETERMINED: &str = "syntax acceptance undetermined";
+pub(super) const METADATA_UNAVAILABLE: &str = "applicability metadata unavailable";
