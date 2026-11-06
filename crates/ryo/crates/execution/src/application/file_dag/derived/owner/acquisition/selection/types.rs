@@ -5,7 +5,7 @@ use crate::domain::{
         errors::OperatingError,
         types::{Memo, NameCount},
     },
-    operator::contract::types::PredicateProgram,
+    operator::contract::views::PredicateProgram,
     table_model::types::Verdict,
     table_scratch::types::SelectScratch,
     table_texts::types::Texts,

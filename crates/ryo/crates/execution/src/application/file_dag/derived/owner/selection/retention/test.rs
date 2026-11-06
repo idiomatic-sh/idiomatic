@@ -128,7 +128,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     use crate::domain::{
         derived_views::types::*,
         operation_schema::types::InputShape,
-        operator::contract::{types::PredicateProgram, views::BorrowedRows},
+        operator::contract::views::{BorrowedRows, PredicateProgram},
         stored_selection::types::Selector,
         table_model::types::{SelectionIdentity, Verdict},
     };

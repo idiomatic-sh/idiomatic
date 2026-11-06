@@ -5,9 +5,11 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
-    derived_views::types::{DerivedContract, ViewRequest},
+    derived_views::types::{
+        DerivedContract, PreparedSelectionViews, PreparedSelectorViews, ViewRequest,
+    },
     operating::errors::OperatingError,
-    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
+    stored_selection::types::Selector,
 };
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText, Operand, Test};
@@ -22,7 +24,8 @@ pub(crate) fn prepare_views_with_schemas<'s>(
     resolver: &dyn Fn(Relation) -> &'s [CellKind],
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> Result<Arc<PreparedSelectionViews>, OperatingError> {
-    let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
+    let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess =
+        semantic.into();
     let selectors = selectors.into_iter().collect::<Vec<_>>();
     let mut literals = HashMap::<(Relation, ColumnIndex), Vec<LiteralText>>::new();
     for selector in &selectors {
