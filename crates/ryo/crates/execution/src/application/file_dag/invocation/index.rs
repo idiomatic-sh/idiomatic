@@ -1,5 +1,11 @@
 //! Application-owned equality handles and direct selected projection views.
-use super::*;
+use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use crate::application::file_dag::invocation::prepared_use::service::prepared;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::OperatorContext;
+use crate::domain::operator::contract::types::OperatorContract;
+use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
+use ryo_derived::domain::contract::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
 pub(in crate::application::file_dag) enum IndexResource<'f> {
     Derived {

@@ -11,7 +11,7 @@ pub enum PublicationSlot {
 #[derive(Clone)]
 pub(crate) enum BoundMember {
     Current(crate::application::file_dag::program::protocol::types::ObservedPublication),
-    Restored(crate::application::file_dag::program::restored::ValidatedFrontier),
+    Restored(crate::application::file_dag::program::restored::types::ValidatedFrontier),
 }
 
 /// Application-only named binding. The producer schema remains pure metadata;

@@ -1,13 +1,52 @@
 //! File execution and named observation lifecycle.
-use super::*;
+use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::ApplicabilityProof;
+use crate::application::file_dag::program::admission::FileGeneration;
+use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
+use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
+use crate::application::file_dag::program::facade_runtime::types::FileRoot;
+use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::protocol::types::ApplicabilityRefusal;
+use crate::application::file_dag::program::protocol::types::CaptureContext;
+use crate::application::file_dag::program::protocol::types::CaptureIntent;
+use crate::application::file_dag::program::protocol::types::CapturedFrontier;
+use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+use crate::application::file_dag::program::protocol::types::EmitDemand;
+use crate::application::file_dag::program::protocol::types::FileRuleIntent;
+use crate::application::file_dag::program::protocol::types::FrontierCapture;
+use crate::application::file_dag::program::protocol::types::LogicalCounts;
+use crate::application::file_dag::program::protocol::types::ObservationDemand;
+#[cfg(test)]
+use crate::application::file_dag::program::protocol::types::ProjectObservation;
+use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::application::file_dag::program::protocol::types::RuleOutcome;
+use crate::application::file_dag::program::runtime::service::InvocationOutcome;
+use crate::application::file_dag::program::runtime::service::ProgramExecution;
+use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::scope::ScopePartials;
+use crate::application::file_dag::scope::open_program_owner;
+use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
+use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::types::InputSource;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::OperatorContext;
+#[cfg(test)]
+use crate::domain::table_model::service::materialize;
+use crate::domain::table_model::types::Rows;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::InputNumber;
+#[cfg(test)]
+use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::stored_facts::types::Bucket;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
 
-pub(super) struct FileRoot {
-    pub(super) readiness: Option<ryo_values::domain::observations::types::ProducerReadiness>,
-    pub(super) committed_frontier: bool,
-    pub(super) publication: Option<AdmittedInput>,
-    pub(super) skipped: Option<ApplicabilityProof>,
-}
 pub(crate) struct FileRun<'a> {
     program: &'a Arc<PreparedProgram>,
     services: Arc<ProgramServices>,

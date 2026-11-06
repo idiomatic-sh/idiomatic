@@ -1,5 +1,32 @@
 //! Demand-triggered source admission, publication, and replay for one program generation.
-use super::*;
+use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::AvailableInput;
+use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::admission::Readiness;
+use crate::application::file_dag::program::constants::{
+    BOUND_PRODUCER_UNAVAILABLE, OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE,
+    PRODUCER_ROOT_INCOMPLETE, PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
+};
+use crate::application::file_dag::program::facade_runtime::types::FileRoot;
+use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::runtime::service::ProgramExecution;
+use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
+use crate::domain::coverage::types::RuleIndex;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::OperatorContext;
+use crate::domain::table_model::service::count_of;
+use crate::domain::table_model::service::materialize;
+use crate::domain::table_model::types::Rows;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::rows::service::reset;
+use ryo_values::domain::rows::types::Table;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 pub(super) struct ProjectSources<'a> {
     pub(super) program: &'a PreparedProgram,
@@ -127,7 +154,7 @@ impl ProjectSources<'_> {
                 return Some(result);
             }
             return Some(Err(OperatingError::ObservationIncomplete {
-                reason: "declared bound producer is unavailable".into(),
+                reason: BOUND_PRODUCER_UNAVAILABLE.into(),
             }));
         }
         None
@@ -435,7 +462,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 let outputs =
                     self.file_outputs
                         .ok_or_else(|| OperatingError::ObservationIncomplete {
-                            reason: "declared observation publication is unavailable".into(),
+                            reason: OBSERVATION_UNAVAILABLE.into(),
                         })?;
                 let named = self
                     .program
@@ -457,7 +484,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 } = producer
                 else {
                     return Err(OperatingError::ObservationIncomplete {
-                        reason: "named producer has no executable query".into(),
+                        reason: PRODUCER_WITHOUT_QUERY.into(),
                     });
                 };
                 let published = outputs
@@ -471,7 +498,7 @@ impl Inputs for SourceInputs<'_, '_> {
                         .is_some_and(|root| root.readiness.is_some())
                 {
                     return Err(OperatingError::ObservationIncomplete {
-                        reason: "named producer root is not complete".into(),
+                        reason: PRODUCER_ROOT_INCOMPLETE.into(),
                     });
                 }
                 let admitted = match published {
@@ -489,7 +516,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             != crate::domain::completion::types::ObservationAdmission::Ready
                         {
                             return Err(OperatingError::ObservationIncomplete {
-                                reason: "physical source facts are incomplete".into(),
+                                reason: SOURCE_FACTS_INCOMPLETE.into(),
                             });
                         }
                         let source = *root.source.as_ref().map_err(Clone::clone)?;
@@ -502,7 +529,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 };
                 if !admitted.observation_ready()? {
                     return Err(OperatingError::ObservationIncomplete {
-                        reason: "producer publication has incomplete physical coverage".into(),
+                        reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
                     });
                 }
                 super::super::admission::alias_member(
@@ -752,7 +779,7 @@ pub(super) fn observation_table<'facts>(
 ) -> Result<Table, OperatingError> {
     if !input.observation_ready()? {
         return Err(OperatingError::ObservationIncomplete {
-            reason: "producer publication has incomplete physical coverage".into(),
+            reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
         });
     }
     table_of(owner, input, read)

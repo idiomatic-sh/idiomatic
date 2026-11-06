@@ -5,9 +5,9 @@ use crate::application::file_dag::derived::owner::witness::service::BackingLiven
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
-use crate::application::file_dag::program::facade_runtime::ProjectFrontiers;
-use crate::application::file_dag::program::facade_runtime::ProjectRootDeclaration;
-use crate::application::file_dag::program::facade_runtime::evaluate_roots;
+use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRootDeclaration;
+use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
+use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
 use crate::application::file_dag::program::protocol::types::ProjectBatch;
 use crate::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
@@ -41,7 +41,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             );
         }
     }
-    let phase = crate::application::file_dag::program::facade_runtime::publication_owner(
+    let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
         &prepared, &services,
     )?;
     let owner = Rc::clone(phase.owner());
@@ -53,14 +53,15 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         "project phase must not install a file-only optional cache for this proof"
     );
     assert_eq!(owner.derived.retained_bytes(), 0);
-    let required = crate::application::file_dag::program::facade_runtime::required_partitions(
-        &prepared,
-        RuleIndex(0),
-        &corpus,
-        &[],
-        &[],
-        &services,
-    )?;
+    let required =
+        crate::application::file_dag::program::facade_runtime::service::required_partitions(
+            &prepared,
+            RuleIndex(0),
+            &corpus,
+            &[],
+            &[],
+            &services,
+        )?;
     let source = PlanInput::Relation(Relation::LanguageTarget);
     let source_root = prepared.program().rules()[0].frontier[0].clone();
     let partials = Partials::default();
@@ -81,7 +82,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             count: RowCount(2),
         };
         runs.push(
-            crate::application::file_dag::program::facade_runtime::open_project(
+            crate::application::file_dag::program::facade_runtime::project_execution::open_project(
                 &prepared,
                 required.clone(),
                 ScopePartials::Project {
@@ -235,7 +236,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             if at == 3 && matches!(exit, PhaseExit::RefuseLaterCohort) {
                 continue;
             }
-            let mut replay = crate::application::file_dag::program::facade_runtime::open_project(
+            let mut replay = crate::application::file_dag::program::facade_runtime::project_execution::open_project(
                 &prepared,
                 required.clone(),
                 ScopePartials::Project {

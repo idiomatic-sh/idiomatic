@@ -1,6 +1,14 @@
 //! Existing grouping semantic accumulator; input driving remains in the common engine.
-use super::*;
+use crate::application::file_dag::invocation::prepared_use::service::prepared;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::OperatorContext;
+use crate::domain::operator::contract::types::OperatorContract;
+use crate::domain::operator::contract::views::BorrowedRows;
+use crate::domain::table_groups::types::Group;
+use crate::domain::table_texts::types::Texts;
 use ryo_derived::domain::contract::types::On;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::Table;
 use {
     crate::domain::table_groups::service::count_groups,
     crate::domain::table_groups::service::digest_groups,
@@ -34,7 +42,7 @@ pub(super) fn groups(
     if let Some(column) = digest.or(distinct) {
         crate::domain::table_model::service::check_columns(input.kinds(), &[column])?;
     }
-    let use_ = super::prepared(
+    let use_ = prepared(
         contract,
         ryo_derived::domain::contract::types::DerivedKind::PartitionOrder,
     )?;
