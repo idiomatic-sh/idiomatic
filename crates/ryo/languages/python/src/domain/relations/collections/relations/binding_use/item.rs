@@ -16,8 +16,8 @@ ryo::reads! {
    None=>{partial INCOMPLETE => languages::Missing::Any;}
    Some(index)=>{
     each (index.uses.iter()) as answer {
-     given context = languages::intern_derived(symbols, tree.source, languages::NameText(vocabulary::context(answer.context)));
-given certainty = languages::intern_derived(symbols, tree.source, languages::NameText(vocabulary::certainty(answer.certainty)));
+     given context = languages::intern_derived(symbols, tree.source, vocabulary::context(answer.context));
+given certainty = languages::intern_derived(symbols, tree.source, vocabulary::certainty(answer.certainty));
 row { reference:node(answer.reference),binding:node(answer.binding),scope:node(answer.scope),phase:node(answer.phase),context:value(context),certainty:value(certainty),file:file,span:span(answer.reference), }
     }
    }

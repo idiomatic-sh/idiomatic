@@ -16,7 +16,7 @@ ryo::reads! {
    None=>{partial INCOMPLETE => languages::Missing::Any;}
    Some(index)=>{
     each (index.shadows.iter()) as answer {
-     given relationship = languages::intern_derived(symbols, tree.source, languages::NameText(vocabulary::relationship(answer.relationship)));
+     given relationship = languages::intern_derived(symbols, tree.source, vocabulary::relationship(answer.relationship));
 row { binding:node(answer.binding),previous:node(answer.previous),scope:node(answer.scope),previous_scope:node(answer.previous_scope),phase:node(answer.phase),relationship:value(relationship),file:file, }
     }
    }

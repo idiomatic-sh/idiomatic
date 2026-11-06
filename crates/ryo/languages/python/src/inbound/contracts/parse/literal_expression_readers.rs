@@ -20,7 +20,7 @@ ryo::reads! {
         given index = prepare::<RuffStringAnnotation>(tree, &model.literal_expression_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             given dialect = languages::intern_derived(symbols, tree.source, languages::NameText("python-string-annotation"));
-            given outcome = languages::intern_derived(symbols, tree.source, languages::NameText(outcome_name(occurrence.outcome)));
+            given outcome = languages::intern_derived(symbols, tree.source, outcome_name(occurrence.outcome));
             row { id: node(occurrence.node), dialect: value(dialect), outcome: value(outcome), file: file, span: span(occurrence.node), }
         }
         when identity(index.state) {

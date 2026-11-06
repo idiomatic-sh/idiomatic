@@ -14,7 +14,7 @@ use crate::domain::{
     },
     tokens::types::Token,
 };
-use ryo::languages::{self, Position, Symbols, Tree};
+use ryo::languages::{self, NameText, Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
 use super::constants;
@@ -201,10 +201,10 @@ where
 }
 
 /// Translate an application-owned outcome into the stable relation vocabulary.
-pub(crate) const fn outcome_name(outcome: LiteralParseOutcome) -> &'static str {
+pub(crate) const fn outcome_name(outcome: LiteralParseOutcome) -> NameText<'static> {
     match outcome {
-        LiteralParseOutcome::Parsed => constants::PARSED,
-        LiteralParseOutcome::Malformed => constants::MALFORMED,
-        LiteralParseOutcome::Unavailable => constants::UNAVAILABLE,
+        LiteralParseOutcome::Parsed => NameText(constants::PARSED),
+        LiteralParseOutcome::Malformed => NameText(constants::MALFORMED),
+        LiteralParseOutcome::Unavailable => NameText(constants::UNAVAILABLE),
     }
 }

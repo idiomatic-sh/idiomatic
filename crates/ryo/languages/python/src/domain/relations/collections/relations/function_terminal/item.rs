@@ -33,7 +33,7 @@ ryo::reads! {
             require matches!(crate::domain::syntax::service::kind(tree,function), Kind::Node(Node::FunctionDef|Node::AsyncFunctionDef));
             require crate::domain::semantic_syntax::service::visibility(tree, model, function, symbols) == Visibility::Visible;
             given outcome = outcome(&index,function)?;
-            given outcome = languages::intern_derived(symbols, tree.source, languages::NameText(outcome));
+            given outcome = languages::intern_derived(symbols, tree.source, outcome);
             row { id: node(function), outcome: value(outcome), file: file, span: span(function), }
         }
     }

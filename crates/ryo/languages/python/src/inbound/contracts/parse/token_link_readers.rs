@@ -19,7 +19,7 @@ ryo::reads! {
         each (scan(tree)) as event {
             when identity(event) {
                 Event::Link(link) => {
-                    given name = languages::intern_derived(symbols, tree.source, languages::NameText(link_kind(link.kind)));
+                    given name = languages::intern_derived(symbols, tree.source, link_kind(link.kind));
                     row { source: node(link.source), target: node(link.target), link_kind: value(name), file: file, span: span(link.source), }
                 }
                 Event::Incomplete => { partial "python-token-link-incomplete" => languages::Missing::Any; }

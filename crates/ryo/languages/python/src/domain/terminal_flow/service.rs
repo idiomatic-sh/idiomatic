@@ -10,7 +10,7 @@ use crate::domain::{
     },
     terminal_flow::types::{IndexState, NodeSummary, TerminalOutcome, TerminalIndex},
 };
-use ryo::languages::{self, Position, Tree};
+use ryo::languages::{self, NameText, Position, Tree};
 use std::cell::{Ref, RefCell};
 use super::constants;
 
@@ -364,15 +364,17 @@ pub(crate) fn prepare<'a>(
 }
 
 /// Return the exposed terminal label for a function node.
-pub(crate) fn outcome(index: &TerminalIndex, at: Position) -> Option<&'static str> {
+pub(crate) fn outcome(index: &TerminalIndex, at: Position) -> Option<NameText<'static>> {
     let Ok(slot) = usize::try_from(at.0) else {
         return None;
     };
     let value = index.nodes.get(slot)?.function_terminal;
     Some(match value {
-        TerminalOutcome::None | TerminalOutcome::Implicit => constants::IMPLICIT,
-        TerminalOutcome::Raise => constants::RAISE,
-        TerminalOutcome::Return | TerminalOutcome::RaiseOrReturn => constants::RETURN_OR_RAISE,
-        TerminalOutcome::ConditionalReturn => constants::CONDITIONAL_RETURN,
+        TerminalOutcome::None | TerminalOutcome::Implicit => NameText(constants::IMPLICIT),
+        TerminalOutcome::Raise => NameText(constants::RAISE),
+        TerminalOutcome::Return | TerminalOutcome::RaiseOrReturn => {
+            NameText(constants::RETURN_OR_RAISE)
+        }
+        TerminalOutcome::ConditionalReturn => NameText(constants::CONDITIONAL_RETURN),
     })
 }
