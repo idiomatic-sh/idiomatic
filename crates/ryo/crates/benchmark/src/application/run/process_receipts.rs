@@ -20,7 +20,7 @@ fn raw<'a>(artifacts: &'a BTreeMap<PathBuf, Vec<u8>>, pointer: &Value) -> Result
     Ok(bytes)
 }
 /// Validate only the explicit reference process variant; candidate diagnostics are checked by the caller.
-pub(super) fn validate(
+pub(crate) fn validate(
     case: &Value,
     reference: &Value,
     artifacts: &BTreeMap<PathBuf, Vec<u8>>,

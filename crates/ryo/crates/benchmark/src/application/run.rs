@@ -9,8 +9,7 @@ mod discrepancy;
 
 /// Complete pinned inventory verification, independent of provider policy.
 pub mod inventory;
-mod inventory_execution;
-mod inventory_receipts;
+pub(crate) mod inventory_execution;
 
 mod process_discrepancy;
 
@@ -18,7 +17,7 @@ mod case_execution;
 
 mod case_observations;
 
-mod process_receipts;
+pub(crate) mod process_receipts;
 
 /// Offline replay of exactly the same native receipt checks.
 pub mod receipt_validation;

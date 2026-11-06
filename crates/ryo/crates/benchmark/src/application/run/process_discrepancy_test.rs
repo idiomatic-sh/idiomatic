@@ -80,12 +80,18 @@ fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
         assert!(captured.records[0]["diagnostics"].is_null());
         assert_eq!(captured.records[0]["raw_parity_matches_intended"], false);
         assert_eq!(
-            inventory_receipts::validate_with_artifacts(
+            crate::application::inventory_receipts::service::validate_with_artifacts(
                 &[fixture.case.clone()],
                 &captured.records,
                 &captured.artifacts
             ),
-            Ok((0, 1, 0))
+            Ok(
+                crate::application::inventory_receipts::types::ReceiptCounts {
+                    raw_exact: crate::application::inventory_receipts::types::Tally(0),
+                    documented: crate::application::inventory_receipts::types::Tally(1),
+                    contract_only: crate::application::inventory_receipts::types::Tally(0)
+                }
+            )
         );
         let audit = receipt_validation::validate(&fixture.registration(), &captured).unwrap();
         assert!(audit.errors.is_empty());
@@ -126,7 +132,7 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
         let mut captured = fixture.load();
         *captured.records[0].pointer_mut(pointer).unwrap() = value;
         assert!(
-            inventory_receipts::validate_with_artifacts(
+            crate::application::inventory_receipts::service::validate_with_artifacts(
                 &[fixture.case.clone()],
                 &captured.records,
                 &captured.artifacts
@@ -147,7 +153,7 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
         let mut captured = fixture.load();
         *captured.records[1].pointer_mut(pointer).unwrap() = value;
         assert!(
-            inventory_receipts::validate_with_artifacts(
+            crate::application::inventory_receipts::service::validate_with_artifacts(
                 &[fixture.case.clone()],
                 &captured.records,
                 &captured.artifacts
@@ -159,7 +165,7 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
     let mut case = fixture.case.clone();
     case["expectation_contract"] = json!("complete-report");
     assert!(
-        inventory_receipts::validate_with_artifacts(
+        crate::application::inventory_receipts::service::validate_with_artifacts(
             &[case],
             &fixture.load().records,
             &fixture.load().artifacts
@@ -190,7 +196,7 @@ fn archived_pairs_are_required_for_each_actual_binary_and_raw_bytes_are_recomput
         .into();
     captured.artifacts.insert(path, b"forged".to_vec());
     assert!(
-        inventory_receipts::validate_with_artifacts(
+        crate::application::inventory_receipts::service::validate_with_artifacts(
             &[fixture.case.clone()],
             &captured.records,
             &captured.artifacts
@@ -344,12 +350,13 @@ fn changing_raw_invocation_and_its_digest_does_not_establish_pinned_settings() {
         json!(format!("{:x}", sha2::Sha256::digest(&bytes)));
     captured.artifacts.insert(path, bytes);
     assert!(
-        inventory_receipts::validate_with_artifacts(
+        crate::application::inventory_receipts::service::validate_with_artifacts(
             &[fixture.case.clone()],
             &captured.records,
             &captured.artifacts
         )
         .unwrap_err()
+        .to_string()
         .contains("argv/environment")
     );
 }

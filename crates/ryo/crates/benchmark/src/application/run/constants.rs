@@ -307,213 +307,26 @@ pub(super) const PROCESS_FAILURE_HAS_NO_COMPLETE_REPORT: &str =
 /// Text of the execution evidence does not satisfy the in this part.
 pub(super) const EXECUTION_EVIDENCE_DOES_NOT_SATISFY_THE: &str =
     "execution evidence does not satisfy the declared contract";
-/// Text of the diagnostics must be an array in this part.
-pub(super) const DIAGNOSTICS_MUST_BE_AN_ARRAY: &str = "diagnostics must be an array";
-/// Text of the diagnostic rule is missing in this part.
-pub(super) const DIAGNOSTIC_RULE_IS_MISSING: &str = "diagnostic rule is missing";
-/// Text of the diagnostic file is missing in this part.
-pub(super) const DIAGNOSTIC_FILE_IS_MISSING: &str = "diagnostic file is missing";
-/// Text of the diagnostic start is invalid in this part.
-pub(super) const DIAGNOSTIC_START_IS_INVALID: &str = "diagnostic start is invalid";
-/// Text of the diagnostic end is invalid in this part.
-pub(super) const DIAGNOSTIC_END_IS_INVALID: &str = "diagnostic end is invalid";
-/// Text of the diagnostic span or identity is invalid in this part.
-pub(super) const DIAGNOSTIC_SPAN_OR_IDENTITY_IS_INVALID: &str =
-    "diagnostic span or identity is invalid";
-/// Text of the registered files are missing in this part.
-pub(super) const REGISTERED_FILES_ARE_MISSING: &str = "registered files are missing";
-/// Text of the file observation in this part.
-pub(super) const FILE_OBSERVATION: &str = "file_observation";
-/// Text of the posix executable in this part.
-pub(super) const POSIX_EXECUTABLE: &str = "posix-executable";
-/// Text of the unsupported registered file observation in this part.
-pub(super) const UNSUPPORTED_REGISTERED_FILE_OBSERVATION: &str =
-    "unsupported registered file observation";
-/// Text of the file metadata in this part.
-pub(super) const FILE_METADATA: &str = "file_metadata";
-/// Text of the file metadata must be an object in this part.
-pub(super) const FILE_METADATA_MUST_BE_AN_OBJECT: &str = "file metadata must be an object";
-/// Text of the metadata names an undeclared source in this part.
-pub(super) const METADATA_NAMES_AN_UNDECLARED_SOURCE: &str = "metadata names an undeclared source";
-/// Text of the executable observation must be boolean in this part.
-pub(super) const EXECUTABLE_OBSERVATION_MUST_BE_BOOLEAN: &str =
-    "executable observation must be boolean";
-/// Text of the required input observations are missing in this part.
-pub(super) const REQUIRED_INPUT_OBSERVATIONS_ARE_MISSING: &str =
-    "required input observations are missing";
 /// Text of the project search roots in this part.
 pub(super) const PROJECT_SEARCH_ROOTS: &str = "project_search_roots";
-/// Text of the project search roots must be an in this part.
-pub(super) const PROJECT_SEARCH_ROOTS_MUST_BE_AN: &str =
-    "project search roots must be an ordered array";
-/// Text of the project search root is not text in this part.
-pub(super) const PROJECT_SEARCH_ROOT_IS_NOT_TEXT: &str = "project search root is not text";
 /// Text of the given project inventory in this part.
 pub(super) const GIVEN_PROJECT_INVENTORY: &str = "given_project_inventory";
-/// Text of the missing or extra native case receipts in this part.
-pub(super) const MISSING_OR_EXTRA_NATIVE_CASE_RECEIPTS: &str =
-    "missing or extra native case receipts";
-/// Text of the registered rule identity is missing in this part.
-pub(super) const REGISTERED_RULE_IDENTITY_IS_MISSING: &str = "registered rule identity is missing";
-/// Text of the registered case identity is missing in this part.
-pub(super) const REGISTERED_CASE_IDENTITY_IS_MISSING: &str = "registered case identity is missing";
-/// Text of the duplicate registered case identity in this part.
-pub(super) const DUPLICATE_REGISTERED_CASE_IDENTITY: &str = "duplicate registered case identity";
-/// Text of the native rule identity is missing in this part.
-pub(super) const NATIVE_RULE_IDENTITY_IS_MISSING: &str = "native rule identity is missing";
-/// Text of the native case identity is missing in this part.
-pub(super) const NATIVE_CASE_IDENTITY_IS_MISSING: &str = "native case identity is missing";
-/// Text of the native side identity is missing in this part.
-pub(super) const NATIVE_SIDE_IDENTITY_IS_MISSING: &str = "native side identity is missing";
-/// Text of the unregistered native case observation in this part.
-pub(super) const UNREGISTERED_NATIVE_CASE_OBSERVATION: &str =
-    "unregistered native case observation";
-/// Text of the duplicate native case observation in this part.
-pub(super) const DUPLICATE_NATIVE_CASE_OBSERVATION: &str = "duplicate native case observation";
-/// Text of the registered file metadata digest differs in this part.
-pub(super) const REGISTERED_FILE_METADATA_DIGEST_DIFFERS: &str =
-    "registered file metadata digest differs";
-/// Text of the registered project inputs digest differs in this part.
-pub(super) const REGISTERED_PROJECT_INPUTS_DIGEST_DIFFERS: &str =
-    "registered project inputs digest differs";
 /// Text of the reference discrepancy in this part.
 pub(super) const REFERENCE_DISCREPANCY: &str = "reference_discrepancy";
-/// Text of the none in this part.
-pub(super) const NONE: &str = "none";
 /// Text of the basis in this part.
 pub(super) const BASIS: &str = "basis";
-/// Text of the unknown discrepancy authority in this part.
-pub(super) const UNKNOWN_DISCREPANCY_AUTHORITY: &str = "unknown discrepancy authority";
 /// Text of the process in this part.
 pub(super) const PROCESS: &str = "process";
-/// Text of the process expectation cannot satisfy complete in this part.
-pub(super) const PROCESS_EXPECTATION_CANNOT_SATISFY_COMPLETE: &str =
-    "process expectation cannot satisfy complete-report accounting";
-/// Text of the intended expected in this part.
-pub(super) const INTENDED_EXPECTED: &str = "intended_expected";
-/// Text of the discrepancy intention differs from registere in this part.
-pub(super) const DISCREPANCY_INTENTION_DIFFERS_FROM_REGISTERE: &str =
-    "discrepancy intention differs from registered case";
-/// Text of the missing or duplicate native side receipt in this part.
-pub(super) const MISSING_OR_DUPLICATE_NATIVE_SIDE_RECEIPT: &str =
-    "missing or duplicate native side receipt";
-/// Text of the native configured rule context differs from in this part.
-pub(super) const NATIVE_CONFIGURED_RULE_CONTEXT_DIFFERS_FROM: &str =
-    "native configured rule context differs from registration";
-/// Text of the native observation declarations differ from in this part.
-pub(super) const NATIVE_OBSERVATION_DECLARATIONS_DIFFER_FROM: &str =
-    "native observation declarations differ from registration";
-/// Text of the native selected rule cohort differs from in this part.
-pub(super) const NATIVE_SELECTED_RULE_COHORT_DIFFERS_FROM: &str =
-    "native selected-rule cohort differs from registration";
-/// Text of the native expectation contract differs from reg in this part.
-pub(super) const NATIVE_EXPECTATION_CONTRACT_DIFFERS_FROM_REG: &str =
-    "native expectation contract differs from registration";
-/// Text of the failed incomplete or stale native observatio in this part.
-pub(super) const FAILED_INCOMPLETE_OR_STALE_NATIVE_OBSERVATIO: &str =
-    "failed, incomplete, or stale native observation";
-/// Text of the native discrepancy authority differs from re in this part.
-pub(super) const NATIVE_DISCREPANCY_AUTHORITY_DIFFERS_FROM_RE: &str =
-    "native discrepancy authority differs from registration";
-/// Text of the diagnostic report unexpectedly contains a pr in this part.
-pub(super) const DIAGNOSTIC_REPORT_UNEXPECTEDLY_CONTAINS_A_PR: &str =
-    "diagnostic report unexpectedly contains a process failure";
-/// Text of the native diagnostics differ from registered ex in this part.
-pub(super) const NATIVE_DIAGNOSTICS_DIFFER_FROM_REGISTERED_EX: &str =
-    "native diagnostics differ from registered expectations";
-/// Text of the availability in this part.
-pub(super) const AVAILABILITY: &str = "availability";
-/// Text of the candidate execution is not completely accoun in this part.
-pub(super) const CANDIDATE_EXECUTION_IS_NOT_COMPLETELY_ACCOUN: &str =
-    "candidate execution is not completely accounted";
 /// Text of the project context mode in this part.
 pub(super) const PROJECT_CONTEXT_MODE: &str = "project_context_mode";
-/// Text of the isolated in this part.
-pub(super) const ISOLATED: &str = "isolated";
-/// Text of the unexpected project context receipt in this part.
-pub(super) const UNEXPECTED_PROJECT_CONTEXT_RECEIPT: &str = "unexpected project-context receipt";
-/// Text of the context identity in this part.
-pub(super) const CONTEXT_IDENTITY: &str = "context_identity";
-/// Text of the stale project context receipt in this part.
-pub(super) const STALE_PROJECT_CONTEXT_RECEIPT: &str = "stale project-context receipt";
 /// Text of the identity in this part.
 pub(super) const IDENTITY: &str = "identity";
 /// Text of the file metadata sha256 2 in this part.
 pub(super) const FILE_METADATA_SHA256_2: &str = "file-metadata-sha256";
-/// Text of the discrepancy file metadata identity differs in this part.
-pub(super) const DISCREPANCY_FILE_METADATA_IDENTITY_DIFFERS: &str =
-    "discrepancy file metadata identity differs";
-/// Text of the missing independent discrepancy validation in this part.
-pub(super) const MISSING_INDEPENDENT_DISCREPANCY_VALIDATION: &str =
-    "missing independent discrepancy validation";
-/// Text of the discrepancy authority was not verified in this part.
-pub(super) const DISCREPANCY_AUTHORITY_WAS_NOT_VERIFIED: &str =
-    "discrepancy authority was not verified";
 /// Text of the settings sha256 2 in this part.
 pub(super) const SETTINGS_SHA256_2: &str = "settings-sha256";
 /// Text of the profile sha256 2 in this part.
 pub(super) const PROFILE_SHA256_2: &str = "profile-sha256";
-/// Text of the source sha256 2 in this part.
-pub(super) const SOURCE_SHA256_2: &str = "source-sha256";
-/// Text of the reference output sha256 2 in this part.
-pub(super) const REFERENCE_OUTPUT_SHA256_2: &str = "reference-output-sha256";
-/// Text of the intended output sha256 2 in this part.
-pub(super) const INTENDED_OUTPUT_SHA256_2: &str = "intended-output-sha256";
-/// Text of the stale discrepancy evidence identity in this part.
-pub(super) const STALE_DISCREPANCY_EVIDENCE_IDENTITY: &str = "stale discrepancy evidence identity";
-/// Text of the discrepancy tool identity is missing in this part.
-pub(super) const DISCREPANCY_TOOL_IDENTITY_IS_MISSING: &str =
-    "discrepancy tool identity is missing";
-/// Text of the approved executable sha256 in this part.
-pub(super) const APPROVED_EXECUTABLE_SHA256: &str = "approved_executable_sha256";
-/// Text of the discrepancy tool is not independently pinned in this part.
-pub(super) const DISCREPANCY_TOOL_IS_NOT_INDEPENDENTLY_PINNED: &str =
-    "discrepancy tool is not independently pinned";
-/// Text of the a001 in this part.
-#[cfg(test)]
-pub(super) const A001: &str = "A001";
-/// Text of the case in this part.
-#[cfg(test)]
-pub(super) const CASE: &str = "case";
-/// Text of the source pin in this part.
-#[cfg(test)]
-pub(super) const SOURCE_PIN: &str = "source-pin";
-/// Text of the input txt in this part.
-#[cfg(test)]
-pub(super) const INPUT_TXT: &str = "input.txt";
-/// Text of the native diagnostics differ in this part.
-#[cfg(test)]
-pub(super) const NATIVE_DIAGNOSTICS_DIFFER: &str = "native diagnostics differ";
-/// Text of the not in this part.
-#[cfg(test)]
-pub(super) const NOT: &str = "not";
-/// Text of the an array in this part.
-#[cfg(test)]
-pub(super) const AN_ARRAY: &str = "an array";
-/// Text of the first in this part.
-#[cfg(test)]
-pub(super) const FIRST: &str = "first";
-/// Text of the unrelated in this part.
-#[cfg(test)]
-pub(super) const UNRELATED: &str = "unrelated";
-/// Text of the second in this part.
-#[cfg(test)]
-pub(super) const SECOND: &str = "second";
-/// Text of the tool pin in this part.
-#[cfg(test)]
-pub(super) const TOOL_PIN: &str = "tool-pin";
-/// Text of the settings pin in this part.
-#[cfg(test)]
-pub(super) const SETTINGS_PIN: &str = "settings-pin";
-/// Text of the profile pin in this part.
-#[cfg(test)]
-pub(super) const PROFILE_PIN: &str = "profile-pin";
-/// Text of the reference pin in this part.
-#[cfg(test)]
-pub(super) const REFERENCE_PIN: &str = "reference-pin";
-/// Text of the intended pin in this part.
-#[cfg(test)]
-pub(super) const INTENDED_PIN: &str = "intended-pin";
 /// Text of the non utf8 reference invocation in this part.
 pub(super) const NON_UTF8_REFERENCE_INVOCATION: &str = "non-UTF8 reference invocation";
 /// Text of the state 2 in this part.

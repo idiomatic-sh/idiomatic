@@ -75,14 +75,14 @@ pub fn validate(
     };
     for (key, case) in cases {
         let rows = grouped.remove(&key).unwrap_or_default();
-        match super::inventory_receipts::validate_with_artifacts(
+        match crate::application::inventory_receipts::service::validate_with_artifacts(
             std::slice::from_ref(case),
             &rows,
             &captured.artifacts,
         ) {
-            Ok((raw, documented, contract_only)) => {
-                let recomputed =
-                    super::inventory_receipts::metadata_digest(case).map_err(Error::Invalid)?;
+            Ok(counts) => {
+                let recomputed = crate::domain::registered_inputs::service::metadata_digest(case)
+                    .map_err(|error| Error::Invalid(error.to_string()))?;
                 if let Some(digest) = recomputed.as_str() {
                     audit.metadata_verified.push((
                         key.0.clone(),
@@ -92,19 +92,23 @@ pub fn validate(
                         ),
                     ));
                 }
-                if documented > 0
+                if counts.documented.0 > 0
                     && case[constants::REFERENCE_DISCREPANCY][constants::BASIS]
                         == constants::TOOL_CONTRACT_DIFFERENCE
                 {
                     audit.tool_contract_differences.push(key.clone());
                 }
                 audit.verified.push(key);
-                audit.raw_exact += raw;
-                audit.documented_discrepancies += documented;
-                audit.contract_only += contract_only;
+                audit.raw_exact += counts.raw_exact.0;
+                audit.documented_discrepancies += counts.documented.0;
+                audit.contract_only += counts.contract_only.0;
             }
             Err(error) => audit.errors.push(format!("{}/{}: {error}", key.0, key.1)),
         }
     }
     Ok(audit)
 }
+
+#[cfg(test)]
+#[path = "receipt_validation_test.rs"]
+mod tests;

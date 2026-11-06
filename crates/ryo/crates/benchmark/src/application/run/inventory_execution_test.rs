@@ -36,11 +36,17 @@ fn unavailable_is_not_known_empty_and_contract_pass_is_not_raw_equality() {
     );
     assert!(compare(&reference, &candidate, ComparisonContract::CompleteReport).is_err());
     assert_eq!(
-        super::super::inventory_receipts::validate(
+        crate::application::inventory_receipts::service::validate(
             &[case],
             &[reference.clone(), candidate.clone()]
         ),
-        Ok((0, 0, 1))
+        Ok(
+            crate::application::inventory_receipts::types::ReceiptCounts {
+                raw_exact: crate::application::inventory_receipts::types::Tally(0),
+                documented: crate::application::inventory_receipts::types::Tally(0),
+                contract_only: crate::application::inventory_receipts::types::Tally(1)
+            }
+        )
     );
     assert_ne!(
         reference["skipped"], candidate["skipped"],
@@ -80,7 +86,7 @@ fn absent_forged_or_contradictory_capability_and_contract_are_refused() {
         let mut wrong = reference.clone();
         wrong["expectation_contract"] = value;
         assert!(
-            super::super::inventory_receipts::validate(
+            crate::application::inventory_receipts::service::validate(
                 &[case.clone()],
                 &[wrong, candidate.clone()]
             )

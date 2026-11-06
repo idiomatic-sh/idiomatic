@@ -97,12 +97,18 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
     );
     let captured = fixture.load();
     assert_eq!(
-        inventory_receipts::validate_with_artifacts(
+        crate::application::inventory_receipts::service::validate_with_artifacts(
             &[fixture.case.clone()],
             &captured.records,
             &captured.artifacts
         ),
-        Ok((0, 1, 0))
+        Ok(
+            crate::application::inventory_receipts::types::ReceiptCounts {
+                raw_exact: crate::application::inventory_receipts::types::Tally(0),
+                documented: crate::application::inventory_receipts::types::Tally(1),
+                contract_only: crate::application::inventory_receipts::types::Tally(0)
+            }
+        )
     );
     suite.prepared[0].reference_discrepancy = None;
     std::fs::remove_file(suite.case_receipt.as_ref().unwrap()).unwrap();

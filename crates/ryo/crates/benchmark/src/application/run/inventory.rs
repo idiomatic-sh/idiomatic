@@ -168,10 +168,13 @@ pub fn verify(
                     String::from_utf8_lossy(&observed.stderr.0)
                 ));
             }
-            let (raw, documented, contract_only) = if captured.artifacts.is_empty() {
-                super::inventory_receipts::validate(&entry.cases, &captured.records)?
+            let counts = if captured.artifacts.is_empty() {
+                crate::application::inventory_receipts::service::validate(
+                    &entry.cases,
+                    &captured.records,
+                )?
             } else {
-                super::inventory_receipts::validate_with_artifacts(
+                crate::application::inventory_receipts::service::validate_with_artifacts(
                     &entry.cases,
                     &captured.records,
                     &captured.artifacts,
@@ -181,7 +184,13 @@ pub fn verify(
             let digest = captured
                 .sha256
                 .ok_or(constants::NATIVE_RECEIPT_DIGEST_IS_MISSING)?;
-            Ok((entry.cases.len(), raw, documented, contract_only, digest))
+            Ok((
+                entry.cases.len(),
+                counts.raw_exact.0,
+                counts.documented.0,
+                counts.contract_only.0,
+                digest,
+            ))
         })();
         let row = &mut inventory.rules[index];
         match outcome {

@@ -9,7 +9,7 @@ use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
 use ryo_benchmark_contracts::domain::reports::types::RuleCoverage;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 
-pub(super) fn contract(value: &Value) -> Result<ComparisonContract, String> {
+pub(crate) fn contract(value: &Value) -> Result<ComparisonContract, String> {
     match value.as_str() {
         Some(constants::DIAGNOSTICS) => Ok(ComparisonContract::Diagnostics),
         Some(constants::COMPLETE_REPORT) => Ok(ComparisonContract::CompleteReport),
@@ -94,7 +94,7 @@ fn report(row: &Value) -> Result<RunReport, String> {
     })
 }
 
-pub(super) fn compare(
+pub(crate) fn compare(
     reference: &Value,
     candidate: &Value,
     contract: ComparisonContract,
