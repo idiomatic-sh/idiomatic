@@ -627,7 +627,7 @@ impl ProgramExecution {
                 probe.producer,
                 ryo_derived::domain::contract::types::DerivedKind::Equality,
             )
-            .expect("unique backing of the observed actual producer");
+            .unwrap();
         let index_live = index
             .as_ref()
             .is_some_and(|index| index.liveness() == crate::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive);
@@ -645,17 +645,13 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
     ) -> Vec<ProducerLeaseEvent> {
-        self.validate_state(state)
-            .expect("live observed population");
+        self.validate_state(state).unwrap();
         let probe = self
             .producer_lease_probe
             .borrow_mut()
             .take()
             .expect("installed read-only lifecycle observer");
-        assert_eq!(
-            probe.scope, state.scope,
-            "read the actual observed population"
-        );
+        assert_eq!(probe.scope, state.scope);
         probe.events
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
