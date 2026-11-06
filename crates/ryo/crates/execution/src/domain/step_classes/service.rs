@@ -1,4 +1,4 @@
-//! Equivalence classes of typed relation selections, with no IO and no ports.
+//! Equivalent typed source predicates and pure projections, with no IO and no ports.
 
 use super::types::{Merge, MergedStep, Rooted, StepClass};
 use crate::domain::coverage::types::RuleIndex;
@@ -28,15 +28,20 @@ fn over_source(operand: &Operand, columns: &[ColumnIndex]) -> Option<Operand> {
     })
 }
 
-/// Map a select chain's predicates and output columns to its original relation.
+/// Map pure selection/projection predicates and columns to their original relation.
 fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
-    let Operation::Select {
-        from,
-        comparisons,
-        kept,
-    } = operation
-    else {
-        return None;
+    let (from, comparisons, kept) = match operation {
+        Operation::Select {
+            from,
+            comparisons,
+            kept,
+        } => (from, comparisons.as_slice(), kept),
+        Operation::Project {
+            from,
+            columns,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+        } => (from, &[][..], columns),
+        _ => return None,
     };
     let (source, mut chosen, columns) = match from {
         Input::Relation(relation) => (
@@ -67,7 +72,7 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
             origin: comparison.origin,
         });
     }
-    let kept = if kept.is_empty() {
+    let kept = if kept.is_empty() && matches!(operation, Operation::Select { .. }) {
         columns
     } else {
         kept.iter()
@@ -106,7 +111,7 @@ fn operand_bindings_match(
 }
 
 /// Keep each rule's missing-vector fallback and compare exact typed values only where read.
-fn predicate_bindings_match(
+pub(crate) fn predicate_bindings_match(
     comparisons: &[Comparison],
     left: Option<&[ParameterBinding]>,
     right: Option<&[ParameterBinding]>,

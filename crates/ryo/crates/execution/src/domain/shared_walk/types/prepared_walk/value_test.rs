@@ -128,3 +128,60 @@ fn sparse_cohorts_merge_only_reached_results_and_reject_overlap_atomically() {
     );
     assert_eq!(accumulated.class(ClassPlace(1)).unwrap().positions.0, [2]);
 }
+
+#[test]
+fn predicate_prefixes_share_only_the_referenced_bound_values_in_authored_order() {
+    use ryo_values::domain::plan_parts::types::{
+        ColumnIndex, Comparison, Input, Operand, ParameterId, QueryLiteral, Test,
+    };
+    use ryo_values::domain::plans::types::Operation;
+    let mut authored = plans();
+    let first = Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(2)),
+        right: Operand::Parameter(ParameterId(0)),
+        origin: None,
+    };
+    let second = Comparison {
+        test: Test::NotEqual,
+        left: Operand::Column(ColumnIndex(2)),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText("other".into()))),
+        origin: None,
+    };
+    for (at, plan) in authored.iter_mut().enumerate() {
+        plan.steps[0].operation = Operation::Select {
+            from: Input::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
+            comparisons: if at == 3 {
+                vec![second.clone(), first.clone()]
+            } else {
+                vec![first.clone(), second.clone()]
+            },
+            kept: vec![],
+        };
+    }
+    let bindings = vec![
+        vec![ParameterBinding::Text(LiteralText("a".into()))],
+        vec![ParameterBinding::Text(LiteralText("b".into()))],
+        vec![
+            ParameterBinding::Text(LiteralText("a".into())),
+            ParameterBinding::Numbers(vec![]),
+        ],
+        vec![ParameterBinding::Text(LiteralText("a".into()))],
+    ];
+    let prepared = PreparedWalk::compile(&authored, &bindings);
+    let class = |rule| prepared.class_of(RuleIndex(rule)).unwrap()[0].unwrap();
+    assert_eq!(class(0), class(2));
+    assert_ne!(
+        prepared.prefixes(class(0))[0],
+        prepared.prefixes(class(1))[0]
+    );
+    assert_ne!(
+        prepared.prefixes(class(0))[1],
+        prepared.prefixes(class(3))[0]
+    );
+    let missing = PreparedWalk::compile(&authored, &vec![vec![]; 4]);
+    assert_ne!(
+        missing.prefixes(ClassPlace(0))[0],
+        missing.prefixes(ClassPlace(1))[0]
+    );
+}

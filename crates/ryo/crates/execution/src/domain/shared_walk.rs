@@ -1,5 +1,5 @@
-//! The `core` domain's `shared_walk` concept: the `select` steps of the call's rules over the elements of a file, merged at run time so
-//! that the elements are visited once, each handed to every step that reads its kind, and a text is decided once for all of them.
+//! Request-prepared source classes and ordered predicate prefixes over admitted
+//! file populations. Application owns readiness, sharing scope and result leases.
 
 pub(crate) mod service;
 #[cfg(test)]

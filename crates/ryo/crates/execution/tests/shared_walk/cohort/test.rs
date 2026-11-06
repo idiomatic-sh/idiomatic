@@ -198,3 +198,134 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     file.finish().unwrap();
     request.finish();
 }
+
+#[test]
+fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
+    use ryo_values::domain::plan_parts::types::ColumnIndex;
+    const RULES: usize = 413;
+    let (engine, semantics) = engine();
+    let mut authored = authored_request(RULES);
+    for (index, plan) in authored.plans.iter_mut().enumerate() {
+        let mut comparisons = selection(Selector::Kind("word"));
+        comparisons.push(compared(
+            Test::NotEqual,
+            2,
+            text(&format!("absent-{index}")),
+        ));
+        plan.steps[0].operation = Operation::Select {
+            from: Input::Relation(Relation::SyntaxTree),
+            comparisons,
+            kept: vec![ColumnIndex(2)],
+        };
+    }
+    let program = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let intents = vec![
+        FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        };
+        RULES
+    ];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+            &mut symbols,
+        )
+        .unwrap();
+    assert_eq!(file.walk_counts().predicate_tests.0, 0);
+    for index in (0..RULES).rev() {
+        let actual = complete(file.rule(RuleIndex(index), demand(), &mut symbols).unwrap());
+        assert_eq!(actual.count.0, 2);
+        assert_eq!(actual.kinds.len(), 1);
+    }
+    let actual = file.walk_counts();
+    assert_eq!(actual.passes.0, 1);
+    assert_eq!(actual.source_rows.0, 4);
+    assert_eq!(actual.decoded_rows.0, 2);
+    assert_eq!(actual.predicate_rows.0, 2 * RULES as u64);
+    assert_eq!(actual.predicate_tests.0, 2 * (RULES as u64 + 1));
+    assert_eq!(actual.predicate_reuses.0, 2 * (RULES as u64 - 1));
+    assert_eq!(actual.result_slots.0, RULES as u64);
+    assert_eq!(semantics.selects(), 0);
+    let replay = complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap());
+    assert_eq!(replay.count.0, 2);
+    assert_eq!(file.walk_counts(), actual);
+    file.finish().unwrap();
+    request.finish();
+}
+
+#[test]
+fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
+    use ryo_values::domain::{
+        plan_parts::types::{ParameterId, ParameterName},
+        plans::types::{ParameterType, PlanParameter},
+        query_bindings::types::ParameterBinding,
+    };
+    let (engine, semantics) = engine();
+    let mut authored = authored_request(3);
+    for (index, plan) in authored.plans.iter_mut().enumerate() {
+        plan.parameters.push(PlanParameter {
+            name: ParameterName("pattern".into()),
+            kind: ParameterType::Text,
+        });
+        authored.bindings[index] = vec![ParameterBinding::Text(
+            ryo_values::domain::plan_parts::types::LiteralText(
+                if index == 0 { "[" } else { "a" }.into(),
+            ),
+        )];
+        let mut comparisons = selection(Selector::Kind("word"));
+        comparisons.push(compared(
+            Test::Matches,
+            2,
+            Operand::Parameter(ParameterId(0)),
+        ));
+        comparisons.push(compared(
+            Test::NotEqual,
+            2,
+            text(if index == 2 { "different" } else { "absent" }),
+        ));
+        plan.steps[0].operation = Operation::Select {
+            from: Input::Relation(Relation::SyntaxTree),
+            comparisons,
+            kept: vec![],
+        };
+    }
+    let program = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let intents = [FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::Disabled,
+    }; 3];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+            &mut symbols,
+        )
+        .unwrap();
+    failed(
+        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
+        regex_error("["),
+    );
+    for rule in [RuleIndex(2), RuleIndex(1)] {
+        assert_eq!(
+            complete(file.rule(rule, demand(), &mut symbols).unwrap()),
+            expected(FileId(0), &elements, &[1])
+        );
+    }
+    let actual = file.walk_counts();
+    assert_eq!(actual.passes.0, 1);
+    assert_eq!(actual.decoded_rows.0, 2);
+    // Kind tests share across all classes, while only the two equal bound regexes share.
+    assert_eq!(actual.predicate_tests.0, 7);
+    assert_eq!(actual.predicate_reuses.0, 5);
+    assert_eq!(semantics.selects(), 0);
+    file.finish().unwrap();
+    request.finish();
+}

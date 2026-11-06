@@ -22,7 +22,6 @@ use crate::domain::{
         service::{count_of, kinds_of, read_row},
         types::{Rows, Verdict},
     },
-    text_gate::service::needed_of_rest,
 };
 use ryo_language::domain::{
     elements::service::{kind_at, kind_names},
@@ -70,7 +69,14 @@ fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[Cohor
 )]
 fn consider(
     row: &[Value],
+    program: &PreparedWalk,
+    place: ClassPlace,
     class: &StepClass,
+    predicates: &mut std::collections::HashMap<
+        super::types::prepared_walk::value::PredicatePlace,
+        Result<Verdict, crate::domain::operating::errors::OperatingError>,
+    >,
+    batch: &mut NativeBatch,
     each: &mut ClassWork,
     position: Position,
     names: NameCount,
@@ -86,13 +92,29 @@ fn consider(
     };
     each.visits.0 = each.visits.0.saturating_add(1);
     let mut class_context = class_context(context, bound, &mut each.memo);
-    match holds_all(
-        &class.comparisons,
-        row,
-        source_kinds,
-        names,
-        &mut class_context,
-    ) {
+    let mut verdict = Ok(Verdict::Holds);
+    for &predicate in program.prefixes(place) {
+        let decision = if let Some(decision) = predicates.get(&predicate) {
+            batch.record_predicate_reuse();
+            decision.clone()
+        } else {
+            batch.record_predicate_test();
+            let decision = holds_all(
+                std::slice::from_ref(program.comparison(predicate)),
+                row,
+                source_kinds,
+                names,
+                &mut class_context,
+            );
+            let _previous = predicates.insert(predicate, decision.clone());
+            decision
+        };
+        if decision != Ok(Verdict::Holds) {
+            verdict = decision;
+            break;
+        }
+    }
+    match verdict {
         Ok(Verdict::Holds) => {
             if let Some(result) = &mut each.result {
                 result.positions.0.push(position.0);
@@ -166,6 +188,7 @@ pub(crate) fn evaluate(
         columns_by_kind,
         every,
         cells,
+        predicates,
     } = scratch;
     active.clear();
     active.extend_from_slice(ready);
@@ -177,7 +200,6 @@ pub(crate) fn evaluate(
         each.result = None;
         each.visits = Default::default();
         each.kinds = KindCount(0);
-        each.rest.0.clear();
         each.needed.0.clear();
         each.memo.clear();
         each.eligible = Eligibility::Declined;
@@ -222,8 +244,7 @@ pub(crate) fn evaluate(
         if let Some(tree) = tree {
             kind_tests(tree, &comparisons[..prefix], &mut prepared, &mut kinds);
         }
-        each.rest.0.extend(0..comparisons.len());
-        needed_of_rest(comparisons, &each.rest, &mut each.needed);
+        each.needed.0.extend_from_slice(&program.needed(*place).0);
         if each
             .needed
             .0
@@ -300,6 +321,8 @@ pub(crate) fn evaluate(
             };
             row
         };
+        batch.record_decoded_row();
+        predicates.clear();
         for place in group {
             if let (Some(class), Some(each)) = (
                 program.classes().get(active[place.0].0),
@@ -307,7 +330,11 @@ pub(crate) fn evaluate(
             ) {
                 consider(
                     row,
+                    program,
+                    active[place.0],
                     class,
+                    predicates,
+                    &mut batch,
                     each,
                     position,
                     names,

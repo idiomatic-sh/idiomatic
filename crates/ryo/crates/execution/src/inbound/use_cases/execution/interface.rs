@@ -7,6 +7,7 @@ pub use crate::domain::shared_walk::types::WalkCounts;
 pub use crate::domain::shared_walk::types::WalkPassCount;
 pub use crate::domain::shared_walk::types::WalkPredicateRows;
 pub use crate::domain::shared_walk::types::WalkSourceRows;
+pub use crate::domain::shared_walk::types::{WalkDecodedRows, WalkPredicateTests};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     files::types::CorpusInput, runs::types::Skipped, stored_facts::types::Bucket,

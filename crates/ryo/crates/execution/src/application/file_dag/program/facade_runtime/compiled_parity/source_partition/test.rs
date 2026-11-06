@@ -20,6 +20,11 @@ enum SourceCase {
     File,
     ProjectRefusal,
     Project,
+    FileInvocation,
+    ProjectInvocation,
+    FileAsProject,
+    ProjectAsFile,
+    ForeignWalkGeneration,
     Partial,
     Hosted,
     Parameter,
@@ -37,12 +42,18 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut source_plan = plan(Scenario::Words);
     let mut bindings = vec![];
     let mut hosted = vec![];
-    let relation = if matches!(case, SourceCase::Project) {
+    let relation = if matches!(
+        case,
+        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
+    ) {
         Relation::ManifestDiagnostic
     } else {
         Relation::SyntaxTree
     };
-    if matches!(case, SourceCase::Project) {
+    if matches!(
+        case,
+        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
+    ) {
         source_plan.steps[0].scope = StepScope::CrossFile;
         source_plan.steps[0].operation = Operation::Select {
             from: PlanInput::Relation(relation),
@@ -134,9 +145,12 @@ fn subject(case: Input) -> Result<Value, Failure> {
         handover.validate_scope(prepared.program(), &required)?;
         return Ok("frontier-scope");
     }
-    let owner = open_program_owner(prepared.program(), derived, true);
+    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), true);
     let project = Partition::Project(required);
-    let scope = if matches!(case, SourceCase::Project) {
+    let scope = if matches!(
+        case,
+        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
+    ) {
         project.clone()
     } else {
         Partition::File(FileGeneration::from_owner(FileId(0), &owner))
@@ -153,7 +167,10 @@ fn subject(case: Input) -> Result<Value, Failure> {
         at: Some(FileId(0)),
     }];
     let project_partials = Partials::default();
-    let completion = if matches!(case, SourceCase::Project) {
+    let completion = if matches!(
+        case,
+        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
+    ) {
         CompletionPolicy::project_inputs(RuleIndex(0), &project_partials, &project_partials)
     } else {
         CompletionPolicy::file_inputs(
@@ -180,7 +197,27 @@ fn subject(case: Input) -> Result<Value, Failure> {
             _ => Err(OperatingError::NotRead),
         }
     };
-    let kernels = KernelSession::new(engine.as_ref(), &prepared, Rc::clone(&owner), &read, None);
+    let walk_owner = if matches!(case, SourceCase::ForeignWalkGeneration) {
+        open_program_owner(prepared.program(), Arc::clone(&derived), true)
+    } else {
+        Rc::clone(&owner)
+    };
+    let walk = super::super::super::super::native_walk::FileWalk::new(FileGeneration::from_owner(
+        FileId(0),
+        &walk_owner,
+    ));
+    let kernels = match (&scope, case) {
+        (_, SourceCase::FileAsProject) => {
+            KernelSession::project(engine.as_ref(), &prepared, Rc::clone(&owner), &read)
+        }
+        (_, SourceCase::ProjectAsFile) => {
+            KernelSession::file(engine.as_ref(), &prepared, Rc::clone(&owner), &read, &walk)
+        }
+        (Partition::File(_), _) => {
+            KernelSession::file(engine.as_ref(), &prepared, Rc::clone(&owner), &read, &walk)
+        }
+        _ => KernelSession::project(engine.as_ref(), &prepared, Rc::clone(&owner), &read),
+    };
     let mut observed = std::collections::HashMap::new();
     let mut sources = super::super::super::SourceInputs {
         execution: &execution,
@@ -196,6 +233,25 @@ fn subject(case: Input) -> Result<Value, Failure> {
     };
     let mut run_context = RunContext::file(&services, SMALL_SOURCE, &mut symbols, None, None);
     let mut context = run_context.borrow(&mut symbols, &prepared, RuleIndex(0))?;
+    if matches!(
+        case,
+        SourceCase::FileAsProject
+            | SourceCase::ProjectAsFile
+            | SourceCase::ForeignWalkGeneration
+            | SourceCase::FileInvocation
+            | SourceCase::ProjectInvocation
+    ) {
+        let root = prepared.program().rules()[0].emit.clone()?;
+        execution.invoke(
+            execution.file_state(),
+            root,
+            &mut sources,
+            &kernels,
+            &completion,
+            &mut context,
+        )?;
+        return Ok("scope-admitted");
+    }
     if matches!(case, SourceCase::Hosted | SourceCase::Parameter) {
         let root = *prepared.program().rules()[0]
             .emit
@@ -241,6 +297,36 @@ fn subject(case: Input) -> Result<Value, Failure> {
     }
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_file_invocation_accepts_its_required_generation_owner"),
+        word: Word::Succeeds,
+        input: || SourceCase::FileInvocation,
+        expect: Expect::Value("scope-admitted"),
+    },
+    Case {
+        name: CaseName("a_project_invocation_accepts_its_explicit_project_stage"),
+        word: Word::Succeeds,
+        input: || SourceCase::ProjectInvocation,
+        expect: Expect::Value("scope-admitted"),
+    },
+    Case {
+        name: CaseName("a_file_invocation_cannot_select_the_project_walk_stage"),
+        word: Word::Refuses,
+        input: || SourceCase::FileAsProject,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("a_project_invocation_cannot_borrow_a_file_walk_owner"),
+        word: Word::Refuses,
+        input: || SourceCase::ProjectAsFile,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+    Case {
+        name: CaseName("a_file_walk_from_another_generation_cannot_execute"),
+        word: Word::Refuses,
+        input: || SourceCase::ForeignWalkGeneration,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
     Case {
         name: CaseName("one_file_frontier_certificate_cannot_supply_two_file_request"),
         word: Word::Refuses,

@@ -1,0 +1,114 @@
+description = "File walk ownership and semantic dispatch stay inside the required engine boundary."
+why = "All file invocation strategies receive one required file-walk owner and use its acquisition policy. Explicit project scope is checked against the live runtime permit; it is never an optional file owner. FileWalk, WalkResult and PermittedWalk have private representations in native_walk.rs. Only that owner constructs the request from its actual ready-class queue and calls the semantic shared walker. Rust privacy resolves construction aliases; runtime controls prove scope, readiness, source identity and semantic barriers. The structural checks reject optional KernelSession state, moved or widened owner representations and written raw evaluator paths. Resolved same-crate source dependencies also reject aliased application access to the semantic service. Macro expansion and facade re-export chains remain outside this source proof."
+query = '''
+let nodes = select id, kind, file, span from "syntax-tree" where text = "";
+let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
+let structs = select * from nodes where kind = "struct";
+let names = select * from nodes where kind = "name";
+let struct-children = select l.id as id, l.file as file, l.span as span, r.child as child from structs as l join "syntax-child" as r on l.id = r.parent;
+let struct-names = select l.id as id, l.file as file, l.span as span, l.child as node from struct-children as l join names as r on l.child = r.id;
+let name-children = select l.id as id, l.file as file, l.span as span, r.child as token from struct-names as l join "syntax-child" as r on l.node = r.parent;
+let named-structs = select l.id as id, l.file as file, l.span as span, r.text as name from name-children as l join tokens as r on l.token = r.id;
+let sealed = select * from named-structs where glob_any(name, "{FileWalk,PermittedWalk,WalkResult}");
+let wrong-placement = select file, span from sealed where not glob_any(file, "{src,**/src}/application/file_dag/program/native_walk.rs");
+let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
+let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
+let fields = select * from nodes where glob_any(kind, "{record-field,tuple-field}");
+let sealed-fields = select r.id as id, r.file as file, r.span as span from field-edges as l join fields as r on l.field = r.id;
+let visibilities = select * from nodes where kind = "visibility";
+let visible-owners = select l.parent as id from "syntax-child" as l join visibilities as r on l.child = r.id;
+let widened = select l.file as file, l.span as span from sealed-fields as l join visible-owners as r on l.id = r.id;
+let sessions = select * from named-structs where name = "KernelSession";
+let session-descendants = axis(from=sessions, relation="syntax-child", direction=descendant, domain=tokens);
+let optional-session = select r.file as file, r.span as span from session-descendants as l join tokens as r on l.related = r.id where r.kind = "ident" and r.text = "Option";
+let paths = select * from nodes where kind = "path";
+let path-names = axis(from=paths, relation="syntax-child", direction=descendant, domain=tokens);
+let shared-paths = select l.id as id from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and r.text = "shared_walk";
+let evaluator-paths = select l.id as id from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and r.text = "evaluate";
+let raw-evaluators = select l.id as id from shared-paths as l join evaluator-paths as r on l.id = r.id;
+let raw-sites = select r.file as file, r.span as span from raw-evaluators as l join paths as r on l.id = r.id where not glob_any(r.file, "{src,**/src}/application/file_dag/program/native_walk.rs");
+let boundary = union(left=wrong-placement, right=widened);
+let session-boundary = union(left=boundary, right=optional-session);
+let dependencies = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
+let semantic-targets = capture(from=dependencies, path="target", pattern="{*target-root}/{*semantic-tail}", captures=["target-root", "semantic-tail"]);
+let foreign-semantics = select source as file, span from semantic-targets where source-root = target-root and glob_any(semantic-tail, "{domain/shared_walk.rs,domain/shared_walk/service.rs}") and glob_any(source-tail, "application/**") and source-tail != "application/file_dag/program/native_walk.rs";
+let written-boundary = union(left=session-boundary, right=raw-sites);
+let violations = union(left=written-boundary, right=foreign-semantics);
+emit violations subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "shared file-walk ownership escapes its required private engine boundary"
+help = "Keep the file walk and permitted request representations private in native_walk.rs. Give file sessions a required owner and project sessions an explicitly validated stage. Acquire shared results through the file owner."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "shared_walk_owner_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'mod application; mod domain;'
+files.'src/domain.rs' = 'mod shared_walk;'
+files.'src/domain/shared_walk.rs' = 'pub(crate) mod service;'
+files.'src/domain/shared_walk/service.rs' = 'pub(crate) fn evaluate() {}'
+files.'src/application.rs' = 'mod file_dag;'
+files.'src/application/file_dag.rs' = 'mod program;'
+files.'src/application/file_dag/program.rs' = 'mod native_walk; mod kernel_session;'
+files.'src/application/file_dag/program/native_walk.rs' = '''
+pub(super) struct FileWalk { generation: () }
+pub(super) struct WalkResult { result: () }
+pub(crate) struct PermittedWalk { permit: (), ready: () }
+fn dispatch() { crate::domain::shared_walk::service::evaluate(); }
+'''
+files.'src/application/file_dag/program/kernel_session.rs' = "struct KernelSession<'a> { walk: &'a super::native_walk::FileWalk }"
+
+[[scenarios]]
+id = "required-owner-and-sealed-dispatch"
+scenario = "The required file owner holds the ready queue and dispatches through a sealed permitted request."
+
+[[scenarios]]
+id = "optional-owner-refused"
+scenario = "A session cannot restore a nullable walk owner."
+given.files.'src/application/file_dag/program/kernel_session.rs' = "struct KernelSession<'a> { walk: Option<&'a super::native_walk::FileWalk> }"
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "widened-permitted-ready-queue-refused"
+scenario = "A sibling cannot receive construction access to the admitted ready-class request."
+given.files.'src/application/file_dag/program/native_walk.rs' = 'pub(crate) struct PermittedWalk { pub(super) ready: () }'
+then.findings = [{ path = "src/application/file_dag/program/native_walk.rs", line = 1 }]
+
+[[scenarios]]
+id = "widened-generation-refused"
+scenario = "The walk generation cannot be supplied or rebound through a visible field."
+given.files.'src/application/file_dag/program/native_walk.rs' = 'pub(super) struct FileWalk { pub generation: () }'
+then.findings = [{ path = "src/application/file_dag/program/native_walk.rs", line = 1 }]
+
+[[scenarios]]
+id = "moved-owner-refused"
+scenario = "A semantic consumer cannot become the file-walk owner."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'struct FileWalk { generation: () }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "raw-evaluator-refused"
+scenario = "A caller cannot bypass ready-class acquisition with a raw semantic walk."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'fn bypass() { crate::domain::shared_walk::service::evaluate(); }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "comments-and-strings-are-not-owners"
+scenario = "A comment or diagnostic string has no ownership or dispatch authority."
+given.files.'src/application/file_dag/program/kernel_session.rs' = '''
+// struct KernelSession { walk: Option<FileWalk> }
+const NOTE: &str = "crate::domain::shared_walk::service::evaluate()";
+'''
+
+[[scenarios]]
+id = "aliased-semantic-service-refused"
+scenario = "Resolved module aliases cannot restore a raw walk outside the file owner."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]

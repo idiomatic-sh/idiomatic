@@ -79,9 +79,9 @@ pub(crate) fn open_file<'a>(
         prepared_roots: Vec::new(),
         prepared_named: Vec::new(),
         intents: intents.into(),
-        generation,
+        generation: generation.clone(),
         observed: HashMap::new(),
-        walk: super::super::native_walk::FileWalk::new(file),
+        walk: super::super::native_walk::FileWalk::new(generation),
         walk_prepared: false,
         context: super::super::context::RunContext::file(
             &services, source, symbols, semantic, kinds,
@@ -256,12 +256,12 @@ impl FileRun<'_> {
             ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
         };
         let mut context = self.context.borrow(symbols, self.program, rule)?;
-        let kernels = super::super::kernel_session::KernelSession::new(
+        let kernels = super::super::kernel_session::KernelSession::file(
             self.services.kernels(),
             self.program,
             Rc::clone(&self.owner),
             read,
-            Some(&self.walk),
+            &self.walk,
         );
         let mut sources = SourceInputs {
             execution: &self.execution,
@@ -375,12 +375,12 @@ impl FileRun<'_> {
             } => CompletionPolicy::file_inputs(rule, self.file, evaluation, publication),
             ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
         };
-        let kernels = super::super::kernel_session::KernelSession::new(
+        let kernels = super::super::kernel_session::KernelSession::file(
             self.services.kernels(),
             self.program,
             Rc::clone(&self.owner),
             read,
-            Some(&self.walk),
+            &self.walk,
         );
         let mut sources = SourceInputs {
             execution: &self.execution,
@@ -510,12 +510,12 @@ impl FileRun<'_> {
             .iter()
             .cloned()
             .collect::<Vec<_>>();
-        let kernels = super::super::kernel_session::KernelSession::new(
+        let kernels = super::super::kernel_session::KernelSession::file(
             self.services.kernels(),
             self.program,
             Rc::clone(&self.owner),
             read,
-            Some(&self.walk),
+            &self.walk,
         );
         let mut inputs = SourceInputs {
             execution: &self.execution,
@@ -833,12 +833,12 @@ impl FileRun<'_> {
             } => CompletionPolicy::file_inputs(rule, self.file, evaluation, publication),
             ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
         };
-        let kernels = super::super::kernel_session::KernelSession::new(
+        let kernels = super::super::kernel_session::KernelSession::file(
             self.services.kernels(),
             self.program,
             Rc::clone(&self.owner),
             read,
-            Some(&self.walk),
+            &self.walk,
         );
         let mut sources = SourceInputs {
             execution: &self.execution,

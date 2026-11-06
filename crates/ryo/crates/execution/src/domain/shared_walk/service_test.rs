@@ -621,7 +621,11 @@ fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
         let replayed = crate::domain::replay::service::selected(
             result,
             &source,
-            &[ColumnIndex(2), ColumnIndex(0), ColumnIndex(2)],
+            crate::domain::replay::types::SelectionColumns::Columns(&[
+                ColumnIndex(2),
+                ColumnIndex(0),
+                ColumnIndex(2),
+            ]),
             context,
             &mut collected,
         );
@@ -645,7 +649,13 @@ fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
             }
         }
         assert!(matches!(
-            crate::domain::replay::service::selected(result, &source, &[], context, &mut Refuse),
+            crate::domain::replay::service::selected(
+                result,
+                &source,
+                crate::domain::replay::types::SelectionColumns::All,
+                context,
+                &mut Refuse
+            ),
             Err(OperatingError::NotRead)
         ));
     });

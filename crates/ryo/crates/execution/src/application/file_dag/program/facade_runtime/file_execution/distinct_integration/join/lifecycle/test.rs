@@ -186,12 +186,12 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         .rule_metadata(RuleIndex(1))?
         .emit_root
         .clone()?;
-    let kernels = super::super::super::super::super::super::kernel_session::KernelSession::new(
+    let kernels = super::super::super::super::super::super::kernel_session::KernelSession::file(
         file.services.kernels(),
         file.program,
         Rc::clone(&owner),
         &read,
-        Some(&file.walk),
+        &file.walk,
     );
     let completion = CompletionPolicy::file_inputs(RuleIndex(0), file.file, &[], &[]);
     let inner_completion = CompletionPolicy::file_inputs(RuleIndex(1), file.file, &[], &[]);

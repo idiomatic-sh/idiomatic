@@ -214,6 +214,7 @@ language-test-entries = "0.1.0"
 program-implementation-boundary = "0.1.0"
 readers-in-items = "0.1.0"
 runtime-authority = "0.1.0"
+shared-walk-owner = "0.1.0"
 source-import-allowlist = "0.1.0"
 
 [packages."idiomatic.ryo".specs]

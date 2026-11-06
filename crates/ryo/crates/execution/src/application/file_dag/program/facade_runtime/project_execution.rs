@@ -344,12 +344,11 @@ impl ProjectRun<'_> {
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;
         let unavailable = |_relation| Err(OperatingError::NotRead);
-        let kernels = super::super::kernel_session::KernelSession::new(
+        let kernels = super::super::kernel_session::KernelSession::project(
             self.services.kernels(),
             self.program,
             Rc::clone(&self.owner),
             &unavailable,
-            None,
         );
         let mut absent = HashMap::new();
         let mut sources = SourceInputs {

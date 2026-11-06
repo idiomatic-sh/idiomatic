@@ -2,7 +2,6 @@
 
 use crate::domain::{
     operating::types::Memo, positions::types::ClassPlace, table_cells::types::ColumnPlaces,
-    table_scratch::types::ComparisonNumbers,
 };
 use ryo_relations::domain::relations::types::Value;
 
@@ -26,7 +25,6 @@ pub(crate) struct ClassWork {
     pub result: Option<ClassResult>,
     pub visits: prepared_walk::value::RowsVisited,
     pub kinds: KindCount,
-    pub rest: ComparisonNumbers,
     pub needed: ColumnPlaces,
     pub memo: Vec<Memo>,
     pub eligible: Eligibility,
@@ -44,6 +42,13 @@ pub(crate) struct WalkWork {
     pub columns_by_kind: Vec<ColumnPlaces>,
     pub every: Vec<CohortPlace>,
     pub cells: Vec<Value>,
+    pub predicates: std::collections::HashMap<
+        prepared_walk::value::PredicatePlace,
+        Result<
+            crate::domain::table_model::types::Verdict,
+            crate::domain::operating::errors::OperatingError,
+        >,
+    >,
 }
 
 /// Actual outer shared native traversals in this file generation.
@@ -58,12 +63,21 @@ pub struct WalkPredicateRows(pub u64);
 /// Actual cohort scratch resets and stored class result allocations.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WalkClassWork(pub u64);
+/// Semantic predicate decisions actually performed after prefix sharing.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkPredicateTests(pub u64);
+/// Source rows actually decoded for demanded predicates.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkDecodedRows(pub u64);
 /// Read-only work performed by the actual shared walk, never a schedule or capability.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WalkCounts {
     pub passes: WalkPassCount,
     pub source_rows: WalkSourceRows,
     pub predicate_rows: WalkPredicateRows,
+    pub predicate_tests: WalkPredicateTests,
+    pub predicate_reuses: WalkPredicateTests,
+    pub decoded_rows: WalkDecodedRows,
     pub scratch_classes: WalkClassWork,
     pub result_slots: WalkClassWork,
 }

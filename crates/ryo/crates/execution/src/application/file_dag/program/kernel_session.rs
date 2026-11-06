@@ -33,22 +33,36 @@ pub(super) struct KernelSession<'a, 'facts> {
     prepared: &'a super::facade::PreparedProgram,
     owner: Rc<RelationOwner>,
     read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    walk: Option<&'a super::native_walk::FileWalk>,
+    walk: super::native_walk::WalkPartition<'a>,
 }
 impl<'a, 'facts> KernelSession<'a, 'facts> {
-    pub(super) fn new(
+    pub(super) fn file(
         kernels: &'a dyn PrimitiveExecutor,
         prepared: &'a super::facade::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        walk: Option<&'a super::native_walk::FileWalk>,
+        walk: &'a super::native_walk::FileWalk,
     ) -> Self {
         Self {
             kernels,
             prepared,
             owner,
             read,
-            walk,
+            walk: super::native_walk::WalkPartition::File(walk),
+        }
+    }
+    pub(super) fn project(
+        kernels: &'a dyn PrimitiveExecutor,
+        prepared: &'a super::facade::PreparedProgram,
+        owner: Rc<RelationOwner>,
+        read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+    ) -> Self {
+        Self {
+            kernels,
+            prepared,
+            owner,
+            read,
+            walk: super::native_walk::WalkPartition::Project,
         }
     }
 }
@@ -59,23 +73,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
         inputs: &[super::admission::AdmittedInput],
         _context: &mut OperatorContext<'_>,
     ) -> Result<bool, OperatingError> {
-        let Some(walk) = self.walk else {
-            return Ok(false);
-        };
-        let permit = ready.permit();
-        let instruction = permit.descriptor();
-        let ryo_values::domain::plans::types::Operation::Select {
-            from: ryo_values::domain::plan_parts::types::Input::Relation(relation),
-            ..
-        } = &instruction.operation
-        else {
-            return Ok(false);
-        };
-        let [input] = inputs else {
-            return Ok(false);
-        };
-        let rows = input.rows(&self.owner, self.read)?;
-        walk.submit(self.prepared, ready, *relation, &rows)
+        self.walk
+            .submit(self.prepared, ready, inputs, &self.owner, self.read)
     }
 
     fn ordered(
@@ -87,6 +86,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+        self.walk
+            .validate(permit)
+            .map_err(InvocationFailure::Semantic)?;
         let mut rebound = OperatorContext {
             phase: context.phase,
             semantic: context.semantic,
@@ -164,6 +166,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
     {
+        self.walk
+            .validate(permit)
+            .map_err(InvocationFailure::Semantic)?;
         permit
             .validate_program(self.prepared.program())
             .map_err(InvocationFailure::Semantic)?;
@@ -260,44 +265,32 @@ impl KernelInvocation for KernelSession<'_, '_> {
             permit.operation(),
             ryo_values::domain::plans::types::Operation::Join { .. }
         ) && rows.first().is_some_and(|rows| count_of(rows).0 == 0);
-        let shared_class = self.walk.and_then(|walk| {
-            walk.class(self.prepared, instruction)
-                .map(|class| (walk, class))
-        });
-        let result = if let Some((walk, class)) = shared_class {
+        let shared = match rows.as_slice() {
+            [source] => self
+                .walk
+                .acquire(
+                    self.prepared,
+                    permit,
+                    source,
+                    super::native_walk::WalkDelivery::Positions,
+                    &mut rebound,
+                    self.kernels,
+                )
+                .map_err(InvocationFailure::Semantic)?,
+            _ => None,
+        };
+        let result = if let Some(shared) = shared {
             // The shared pass already owns this head's predicate work. Preserve
             // its actual tree coordinates instead of materializing rows and
             // making every downstream native operator decline.
             let [Rows::Tree(tree)] = rows.as_slice() else {
                 return Ok(None);
             };
-            let ryo_values::domain::plans::types::Operation::Select {
-                from: ryo_values::domain::plan_parts::types::Input::Relation(relation),
-                ..
-            } = permit.operation()
-            else {
-                return Err(InvocationFailure::Semantic(OperatingError::WrongOperation));
-            };
             if shape.width.0 != 1 || shape.columns.iter().any(|column| column.slot.0 != 0) {
                 return Err(InvocationFailure::Semantic(OperatingError::ShapeMismatch));
             }
-            let Some(batch) = walk
-                .prepare(
-                    self.prepared,
-                    permit,
-                    *relation,
-                    &rows[0],
-                    &mut rebound,
-                    self.kernels,
-                )
-                .map_err(InvocationFailure::Semantic)?
-            else {
-                return Ok(None);
-            };
-            let Some(selected) = batch.class(class) else {
-                return Ok(None);
-            };
-            workspace.work.found(0, batch.visits(class).0);
+            let selected = shared.result();
+            workspace.work.found(0, shared.visits().0);
             selected
                 .completion
                 .clone()
@@ -391,6 +384,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
     {
+        self.walk
+            .validate(permit)
+            .map_err(InvocationFailure::Semantic)?;
         let mut rebound = OperatorContext {
             phase: context.phase,
             semantic: context.semantic,
@@ -420,26 +416,34 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 permit.descriptor().contract.as_ref(),
             )
         });
-        if let Some((walk, class)) = self.walk.and_then(|walk| {
-            walk.class(self.prepared, permit.descriptor())
-                .map(|class| (walk, class))
-        }) {
-            let Rows::Stored(columns) = &rows else {
-                return Ok(None);
-            };
-            if !self.owner.stable() {
-                return Ok(None);
-            }
-            let source = input
-                .publication(&self.owner)
-                .map_err(InvocationFailure::Semantic)?;
-            let proof = self
-                .owner
-                .admit(source.as_ref(), BorrowedRows::from(&rows))
-                .map_err(InvocationFailure::Semantic)?;
-            if proof.physical_shape() != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete {
-                return Ok(None);
-            }
+        let Rows::Stored(columns) = &rows else {
+            return Ok(None);
+        };
+        if !self.owner.stable() {
+            return Ok(None);
+        }
+        let source = input
+            .publication(&self.owner)
+            .map_err(InvocationFailure::Semantic)?;
+        let proof = self
+            .owner
+            .admit(source.as_ref(), BorrowedRows::from(&rows))
+            .map_err(InvocationFailure::Semantic)?;
+        if proof.physical_shape() != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete {
+            return Ok(None);
+        }
+        if let Some(shared) = self
+            .walk
+            .acquire(
+                self.prepared,
+                permit,
+                &rows,
+                super::native_walk::WalkDelivery::Stored,
+                context,
+                self.kernels,
+            )
+            .map_err(InvocationFailure::Semantic)?
+        {
             let selector = shape.selector();
             let kinds = selector
                 .columns
@@ -457,23 +461,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 return Err(InvocationFailure::Semantic(OperatingError::ShapeMismatch));
             }
             let selection = {
-                let Some(batch) = walk
-                    .prepare(
-                        self.prepared,
-                        permit,
-                        selector.relation,
-                        &rows,
-                        context,
-                        self.kernels,
-                    )
-                    .map_err(InvocationFailure::Semantic)?
-                else {
-                    return Ok(None);
-                };
-                let Some(result) = batch.class(class) else {
-                    return Ok(None);
-                };
-                workspace.work.found(0, batch.visits(class).0);
+                let result = shared.result();
+                workspace.work.found(0, shared.visits().0);
                 result
                     .completion
                     .clone()
@@ -519,6 +508,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         counts: &super::runtime::ColumnCounters,
         rows: &mut ryo_values::domain::rows::types::Table,
     ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+        self.walk
+            .validate(permit)
+            .map_err(InvocationFailure::Semantic)?;
         let mut rebound = OperatorContext {
             phase: context.phase,
             semantic: context.semantic,
@@ -641,6 +633,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<(), InvocationFailure> {
+        self.walk
+            .validate(permit)
+            .map_err(InvocationFailure::Semantic)?;
         let mut rebound = OperatorContext {
             phase: context.phase,
             semantic: context.semantic,
@@ -712,38 +707,48 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         .map(|input| input.rows(&self.owner, self.read))
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(InvocationFailure::Semantic)?;
-                    if let (Some(walk), [source]) = (self.walk, originals.as_slice()) {
-                        if let Some(class) = walk.class(self.prepared, instruction) {
-                            let ryo_values::domain::plans::types::Operation::Select {
-                                from:
-                                    ryo_values::domain::plan_parts::types::Input::Relation(relation),
-                                kept,
-                                ..
-                            } = &instruction.operation
-                            else {
-                                return Err(InvocationFailure::Semantic(
-                                    OperatingError::WrongOperation,
-                                ));
+                    if let [source] = originals.as_slice() {
+                        if let Some(shared) = self
+                            .walk
+                            .acquire(
+                                self.prepared,
+                                permit,
+                                source,
+                                super::native_walk::WalkDelivery::Rows,
+                                context,
+                                self.kernels,
+                            )
+                            .map_err(InvocationFailure::Semantic)?
+                        {
+                            use crate::domain::replay::types::SelectionColumns;
+                            use ryo_values::domain::{
+                                plan_parts::types::RepeatedRows, plans::types::Operation,
                             };
-                            let batch = walk
-                                .prepare(
-                                    self.prepared,
-                                    permit,
-                                    *relation,
-                                    source,
-                                    context,
-                                    self.kernels,
-                                )
-                                .map_err(InvocationFailure::Semantic)?;
-                            if let Some(batch) = batch {
-                                if let Some(result) = batch.class(class) {
-                                    workspace.work.found(0, batch.visits(class).0);
-                                    return crate::domain::replay::service::selected(
-                                        result, source, kept, context, output,
-                                    )
-                                    .map_err(InvocationFailure::Semantic);
+                            let kept = match &instruction.operation {
+                                Operation::Select { kept, .. } if kept.is_empty() => {
+                                    SelectionColumns::All
                                 }
-                            }
+                                Operation::Select { kept, .. } => SelectionColumns::Columns(kept),
+                                Operation::Project {
+                                    columns,
+                                    distinct: RepeatedRows::Kept,
+                                    ..
+                                } => SelectionColumns::Columns(columns),
+                                _ => {
+                                    return Err(InvocationFailure::Semantic(
+                                        OperatingError::WrongOperation,
+                                    ));
+                                }
+                            };
+                            workspace.work.found(0, shared.visits().0);
+                            return crate::domain::replay::service::selected(
+                                shared.result(),
+                                source,
+                                kept,
+                                context,
+                                output,
+                            )
+                            .map_err(InvocationFailure::Semantic);
                         }
                     }
                     let views: Vec<_> = originals.iter().map(BorrowedRows::from).collect();

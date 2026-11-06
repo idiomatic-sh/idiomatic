@@ -21,3 +21,10 @@ impl Emit for Collect<'_> {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+/// The authored projection, including the deliberate zero-column projection.
+#[derive(Clone, Copy)]
+pub(crate) enum SelectionColumns<'a> {
+    All,
+    Columns(&'a [ryo_values::domain::plan_parts::types::ColumnIndex]),
+}

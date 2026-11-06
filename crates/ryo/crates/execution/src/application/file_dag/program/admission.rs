@@ -373,6 +373,9 @@ impl AdmittedInput {
     }
 }
 impl FileGeneration {
+    pub(super) fn file(&self) -> FileId {
+        self.file
+    }
     pub(in crate::application::file_dag::program) fn from_owner(
         file: FileId,
         owner: &RelationOwner,
@@ -426,6 +429,7 @@ pub(crate) struct KernelPermit<'scope> {
     region: RegionId,
     instruction: usize,
     generation: &'scope Arc<()>,
+    partition: &'scope Partition,
     live: &'scope Arc<super::super::relations::GenerationLease>,
     bindings: BoundInputs<'scope>,
     strategy: KernelStrategy,
@@ -470,6 +474,7 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
+            partition: execution.partition(),
             live: &execution.generation_live,
             bindings: BoundInputs::Ordinary(inputs),
             strategy: KernelStrategy::Registered,
@@ -492,6 +497,7 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
+            partition: execution.partition(),
             live: &execution.generation_live,
             bindings: BoundInputs::Ordered(input),
             strategy: KernelStrategy::Ordered,
@@ -516,6 +522,7 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
+            partition: execution.partition(),
             live: &execution.generation_live,
             bindings: BoundInputs::Column { left, right },
             strategy: KernelStrategy::Column,
@@ -536,6 +543,7 @@ impl<'scope> KernelPermit<'scope> {
             region: self.region,
             instruction: at,
             generation: self.generation,
+            partition: self.partition,
             live: self.live,
             bindings: self.bindings,
             strategy: self.strategy,
@@ -610,6 +618,29 @@ impl<'scope> KernelPermit<'scope> {
             Err(OperatingError::NotRead)
         }
     }
+    pub(super) fn require_file_walk(
+        &self,
+        expected: &FileGeneration,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        match self.partition {
+            Partition::File(actual)
+                if actual.file == expected.file
+                    && Arc::ptr_eq(&actual.generation, &expected.generation)
+                    && Arc::ptr_eq(self.generation, &expected.generation) =>
+            {
+                Ok(())
+            }
+            _ => Err(OperatingError::NotRead),
+        }
+    }
+    pub(super) fn require_project_walk(&self) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        match self.partition {
+            Partition::Project(_) => Ok(()),
+            _ => Err(OperatingError::NotRead),
+        }
+    }
     pub(super) fn admit_walk_source<'call>(
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
@@ -624,12 +655,21 @@ impl<'scope> KernelPermit<'scope> {
         if source.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }
-        let ryo_values::domain::plans::types::Operation::Select {
-            from: ryo_values::domain::plan_parts::types::Input::Relation(authored),
-            ..
-        } = &self.descriptor().operation
-        else {
-            return Err(OperatingError::WrongOperation);
+        use ryo_values::domain::{
+            plan_parts::types::{Input, RepeatedRows},
+            plans::types::Operation,
+        };
+        let authored = match &self.descriptor().operation {
+            Operation::Select {
+                from: Input::Relation(authored),
+                ..
+            }
+            | Operation::Project {
+                from: Input::Relation(authored),
+                distinct: RepeatedRows::Kept,
+                ..
+            } => authored,
+            _ => return Err(OperatingError::WrongOperation),
         };
         if *authored != relation {
             return Err(OperatingError::WrongOperation);
@@ -659,33 +699,15 @@ impl<'scope> KernelPermit<'scope> {
             population,
         }))
     }
-    pub(super) fn walk<'call, 'context>(
-        &'call self,
-        prepared: &'call super::facade::PreparedProgram,
-        source: AdmittedWalkSource<'call>,
-        context: &'call mut crate::domain::operating::types::OperatorContext<'context>,
-        ready: &'call [crate::domain::positions::types::ClassPlace],
-        work: &'call mut crate::domain::shared_walk::types::WalkWork,
-    ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
+    pub(super) fn validate_walk_source(
+        &self,
+        source: &AdmittedWalkSource<'_>,
+    ) -> Result<(), OperatingError> {
         self.validate_live()?;
         if !std::ptr::eq(source.source, self.bound_input(0)?) {
             return Err(OperatingError::NotRead);
         }
-        if !std::ptr::eq(self.program, prepared.program().as_ref()) {
-            return Err(OperatingError::WrongOperation);
-        }
-        let instruction = &self.program.regions()[self.region.0].instructions[self.instruction];
-        if prepared.walk_class(instruction).is_none() {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(super::native_walk::PermittedWalk {
-            permit: self,
-            prepared,
-            source,
-            context,
-            ready,
-            work,
-        })
+        Ok(())
     }
     pub(super) fn selection_input<'a>(
         &'a self,

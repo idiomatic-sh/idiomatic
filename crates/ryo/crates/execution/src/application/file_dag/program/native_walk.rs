@@ -3,14 +3,13 @@ use super::{admission::KernelPermit, facade::PreparedProgram};
 use crate::{
     application::file_dag::derived::owner::PopulationId,
     domain::{
-        executable_program::types::Instruction,
         operating::{errors::OperatingError, types::OperatorContext},
         positions::types::ClassPlace,
         shared_walk::types::{WalkWork, prepared_walk::value::NativeBatch},
         table_model::types::Rows,
     },
 };
-use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::relations::types::Relation;
 use std::{
     cell::{Ref, RefCell},
     collections::{BTreeSet, HashMap},
@@ -26,31 +25,130 @@ struct SourceWork {
     batch: NativeBatch,
 }
 
+/// The production invocation is explicitly bound to a file owner or project stage.
+/// A file invocation cannot opt out of the shared-walk owner.
+pub(super) enum WalkPartition<'a> {
+    File(&'a FileWalk),
+    Project,
+}
+impl WalkPartition<'_> {
+    pub(super) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {
+        match self {
+            Self::File(walk) => permit.require_file_walk(&walk.generation),
+            Self::Project => permit.require_project_walk(),
+        }
+    }
+    pub(super) fn submit<'facts>(
+        &self,
+        prepared: &PreparedProgram,
+        ready: &super::runtime::ReadySelection<'_, '_>,
+        inputs: &[super::admission::AdmittedInput],
+        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+    ) -> Result<bool, OperatingError> {
+        self.validate(ready.permit())?;
+        let Self::File(walk) = self else {
+            return Ok(false);
+        };
+        let permit = ready.permit();
+        if prepared.walk_class(permit.descriptor()).is_none() {
+            return Ok(false);
+        }
+        let [input] = inputs else {
+            return Err(OperatingError::WrongOperation);
+        };
+        let rows = input.rows(owner, read)?;
+        let relation = walk.relation(prepared, permit)?;
+        walk.submit(prepared, ready, relation, &rows)
+    }
+    pub(super) fn acquire(
+        &self,
+        prepared: &PreparedProgram,
+        permit: &KernelPermit<'_>,
+        rows: &Rows<'_>,
+        delivery: WalkDelivery,
+        context: &mut OperatorContext<'_>,
+        kernels: &dyn super::super::executor::PrimitiveExecutor,
+    ) -> Result<Option<WalkResult>, OperatingError> {
+        self.validate(permit)?;
+        let Self::File(walk) = self else {
+            return Ok(None);
+        };
+        let Some(class) = prepared.walk_class(permit.descriptor()) else {
+            return Ok(None);
+        };
+        match (delivery, rows) {
+            (WalkDelivery::Positions, Rows::Tree(_))
+            | (WalkDelivery::Stored, Rows::Stored(_))
+            | (WalkDelivery::Rows, _) => {}
+            _ => return Ok(None),
+        }
+        let relation = walk.relation(prepared, permit)?;
+        let Some(batch) = walk.prepare(prepared, permit, relation, rows, context, kernels)? else {
+            return Ok(None);
+        };
+        // Result leases contain no RefCell guard or provider borrow. Reentrant
+        // delivery may safely advance another admitted source in this file.
+        Ok(batch
+            .lease(class)
+            .map(|(result, visits)| WalkResult { result, visits }))
+    }
+}
+/// Physical delivery must decline before opening any shared predicate work.
+#[derive(Clone, Copy)]
+pub(super) enum WalkDelivery {
+    Positions,
+    Stored,
+    Rows,
+}
+pub(super) struct WalkResult {
+    result: std::sync::Arc<crate::domain::shared_walk::types::ClassResult>,
+    visits: crate::domain::shared_walk::types::prepared_walk::value::RowsVisited,
+}
+impl WalkResult {
+    pub(super) fn result(&self) -> &crate::domain::shared_walk::types::ClassResult {
+        &self.result
+    }
+    pub(super) fn visits(
+        &self,
+    ) -> crate::domain::shared_walk::types::prepared_walk::value::RowsVisited {
+        self.visits
+    }
+}
+
 pub(super) struct FileWalk {
-    file: FileId,
+    generation: super::admission::FileGeneration,
     // Position batches live until this file owner drops. Last-consumer retirement
     // and accounting are not implemented by this source cache.
     batches: RefCell<HashMap<WalkSourceIdentity, SourceWork>>,
     work: RefCell<WalkWork>,
 }
 impl FileWalk {
-    pub(super) fn new(file: FileId) -> Self {
+    pub(super) fn new(generation: super::admission::FileGeneration) -> Self {
         Self {
-            file,
+            generation,
             batches: RefCell::new(HashMap::new()),
             work: RefCell::new(WalkWork::default()),
         }
     }
-    pub(super) fn class(
+    fn relation(
         &self,
         prepared: &PreparedProgram,
-        instruction: &Instruction,
-    ) -> Option<ClassPlace> {
-        prepared.walk_class(instruction)
+        permit: &KernelPermit<'_>,
+    ) -> Result<Relation, OperatingError> {
+        let class = prepared
+            .walk_class(permit.descriptor())
+            .ok_or(OperatingError::WrongOperation)?;
+        prepared
+            .walk()
+            .classes()
+            .get(class.0)
+            .map(|class| class.source)
+            .ok_or(OperatingError::WrongOperation)
     }
     /// Called only when the existing runtime has completed the head's demand program.
     /// A rule being requested is never sufficient to queue its other classes.
-    pub(super) fn submit(
+    fn submit(
         &self,
         prepared: &PreparedProgram,
         ready: &super::runtime::ReadySelection<'_, '_>,
@@ -58,14 +156,14 @@ impl FileWalk {
         rows: &Rows<'_>,
     ) -> Result<bool, OperatingError> {
         let permit = ready.permit();
-        let Some(class) = self.class(prepared, permit.descriptor()) else {
+        let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(false);
         };
         permit.validate_program(prepared.program().as_ref())?;
         let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
             return Ok(false);
         };
-        if matches!(rows, Rows::Tree(tree) if tree.file != self.file) {
+        if matches!(rows, Rows::Tree(tree) if tree.file != self.generation.file()) {
             return Err(OperatingError::NotRead);
         }
         let key = WalkSourceIdentity {
@@ -83,7 +181,7 @@ impl FileWalk {
         Ok(true)
     }
 
-    pub(super) fn prepare<'walk>(
+    fn prepare<'walk>(
         &'walk self,
         prepared: &PreparedProgram,
         permit: &KernelPermit<'_>,
@@ -93,7 +191,7 @@ impl FileWalk {
         kernels: &dyn super::super::executor::PrimitiveExecutor,
     ) -> Result<Option<Ref<'walk, NativeBatch>>, OperatingError> {
         if let Rows::Tree(tree) = rows {
-            if tree.file != self.file {
+            if tree.file != self.generation.file() {
                 return Err(OperatingError::NotRead);
             }
         }
@@ -116,13 +214,23 @@ impl FileWalk {
         };
         if !ready.is_empty() {
             let mut work = self.work.borrow_mut();
-            let request = permit.walk(prepared, admitted, context, &ready, &mut work)?;
+            permit.validate_walk_source(&admitted)?;
+            let request = PermittedWalk {
+                permit,
+                prepared,
+                source: admitted,
+                context,
+                ready: &ready,
+                work: &mut work,
+            };
             let batch = match kernels.execute(super::super::executor::KernelCall::Walk { request })
             {
                 Ok(super::super::executor::KernelAnswer::Walk(batch)) => batch,
                 Err(super::super::executor::KernelFault::Refused(error)) => return Err(error),
-                Err(super::super::executor::KernelFault::Portable(_)) => {
-                    return Err(OperatingError::NotRead);
+                Err(super::super::executor::KernelFault::Portable(error)) => {
+                    return Err(crate::domain::operator::contract::types::portable_fault(
+                        error,
+                    ));
                 }
                 _ => return Err(OperatingError::WrongOperation),
             };
@@ -150,6 +258,15 @@ impl FileWalk {
                     .predicate_rows
                     .0
                     .saturating_add(counts.predicate_rows.0);
+                total.predicate_tests.0 = total
+                    .predicate_tests
+                    .0
+                    .saturating_add(counts.predicate_tests.0);
+                total.predicate_reuses.0 = total
+                    .predicate_reuses
+                    .0
+                    .saturating_add(counts.predicate_reuses.0);
+                total.decoded_rows.0 = total.decoded_rows.0.saturating_add(counts.decoded_rows.0);
                 total.scratch_classes.0 = total
                     .scratch_classes
                     .0
@@ -162,16 +279,17 @@ impl FileWalk {
 }
 /// Only the live engine permit can bind these borrowed, already-admitted rows.
 pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
-    pub(super) permit: &'call KernelPermit<'scope>,
-    pub(super) prepared: &'call PreparedProgram,
-    pub(super) source: super::admission::AdmittedWalkSource<'call>,
-    pub(super) context: &'call mut OperatorContext<'context>,
-    pub(super) ready: &'call [ClassPlace],
-    pub(super) work: &'call mut WalkWork,
+    permit: &'call KernelPermit<'scope>,
+    prepared: &'call PreparedProgram,
+    source: super::admission::AdmittedWalkSource<'call>,
+    context: &'call mut OperatorContext<'context>,
+    ready: &'call [ClassPlace],
+    work: &'call mut WalkWork,
 }
 impl PermittedWalk<'_, '_, '_> {
     pub(in crate::application::file_dag) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
-        self.permit.validate_live()?;
+        self.permit.validate_program(self.prepared.program())?;
+        self.permit.validate_walk_source(&self.source)?;
         Ok(crate::domain::shared_walk::service::evaluate(
             self.prepared.walk(),
             self.source.relation(),

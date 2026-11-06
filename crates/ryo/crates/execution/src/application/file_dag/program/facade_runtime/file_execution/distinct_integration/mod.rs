@@ -174,12 +174,12 @@ fn forward<'a, 'service, 'facts>(
     };
     let completion = CompletionPolicy::file_inputs(rule, file.file, evaluation, publication);
     let mut context = file.context.borrow(symbols, file.program, rule)?;
-    let kernels = super::super::super::kernel_session::KernelSession::new(
+    let kernels = super::super::super::kernel_session::KernelSession::file(
         file.services.kernels(),
         file.program,
         Rc::clone(&file.owner),
         read,
-        Some(&file.walk),
+        &file.walk,
     );
     let mut sources = SourceInputs {
         execution: &file.execution,

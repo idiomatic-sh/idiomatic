@@ -434,3 +434,56 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
         }
     }
 }
+
+#[test]
+fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats() {
+    use ryo_values::domain::plan_parts::types::RepeatedRows;
+    let (engine, semantics) = engine();
+    let mut authored = authored_request(3);
+    for (plan, columns) in authored.plans.iter_mut().zip([
+        vec![ColumnIndex(2), ColumnIndex(2)],
+        vec![],
+        vec![ColumnIndex(1)],
+    ]) {
+        plan.steps[0].operation = Operation::Project {
+            from: Input::Relation(Relation::SyntaxTree),
+            columns,
+            distinct: RepeatedRows::Kept,
+        };
+    }
+    let program = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let intents = [FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::Disabled,
+    }; 3];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+            &mut symbols,
+        )
+        .unwrap();
+    for (rule, width) in [(RuleIndex(0), 2), (RuleIndex(1), 0), (RuleIndex(2), 1)] {
+        let actual = complete(file.rule(rule, demand(), &mut symbols).unwrap());
+        assert_eq!(actual.count.0, 4);
+        assert_eq!(actual.kinds.len(), width);
+        assert_eq!(actual.cells.len(), width * 4);
+        if width == 2 {
+            for row in actual.cells.chunks(2) {
+                assert_eq!(row[0], row[1]);
+            }
+        }
+    }
+    let actual = file.walk_counts();
+    assert_eq!(actual.passes.0, 1);
+    assert_eq!(actual.source_rows.0, 4);
+    assert_eq!(actual.scratch_classes.0, 1);
+    assert_eq!(actual.result_slots.0, 1);
+    assert_eq!(actual.predicate_tests.0, 0);
+    assert_eq!(semantics.selects(), 0);
+    file.finish().unwrap();
+    request.finish();
+}

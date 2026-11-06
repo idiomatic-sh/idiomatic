@@ -44,7 +44,7 @@ pub(crate) fn scan(
 pub(crate) fn selected(
     result: &crate::domain::shared_walk::types::ClassResult,
     source: &Rows<'_>,
-    kept: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+    kept: super::types::SelectionColumns<'_>,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
@@ -57,14 +57,15 @@ pub(crate) fn selected(
             &mut cells,
         )
         .ok_or(OperatingError::NotRead)?;
-        let row = if kept.is_empty() {
-            row
-        } else {
-            projected.clear();
-            for column in kept {
-                projected.push(*row.get(column.0 as usize).ok_or(OperatingError::NotRead)?);
+        let row = match kept {
+            super::types::SelectionColumns::All => row,
+            super::types::SelectionColumns::Columns(columns) => {
+                projected.clear();
+                for column in columns {
+                    projected.push(*row.get(column.0 as usize).ok_or(OperatingError::NotRead)?);
+                }
+                &projected
             }
-            &projected
         };
         emit.row(context, row)?;
     }
