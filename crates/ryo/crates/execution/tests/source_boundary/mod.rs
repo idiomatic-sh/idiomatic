@@ -9,3 +9,5 @@ mod publication;
 mod activation;
 
 mod facade;
+
+mod submission;

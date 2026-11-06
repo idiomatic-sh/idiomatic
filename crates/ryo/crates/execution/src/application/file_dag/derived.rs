@@ -9,4 +9,4 @@ pub(in crate::application::file_dag) mod prepared;
 
 pub(in crate::application::file_dag) mod population;
 
-mod constants;
+pub(in crate::application::file_dag) mod constants;

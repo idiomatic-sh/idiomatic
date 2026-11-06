@@ -256,24 +256,22 @@ impl ProjectRootExecution for ProjectPhase<'_> {
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
     ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
-        let mut opened = Vec::with_capacity(tasks.len());
-        let mut declarations = Vec::with_capacity(tasks.len());
+        let mut roots = Vec::with_capacity(tasks.len());
         for task in tasks {
-            declarations.push(facade_runtime::project_execution::ProjectRootDeclaration {
-                rule: task.rule,
-                demand: task.demand,
-            });
-            if !std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {
-                opened.push(Err(OperatingError::NotRead));
-                continue;
-            }
-            opened.push(
+            let run = if std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {
                 self.request
                     .open_project(task.input, symbols)
-                    .map(|session| session.inner),
-            );
+                    .map(|session| session.inner)
+            } else {
+                Err(OperatingError::NotRead)
+            };
+            roots.push(facade_runtime::project_execution::ProjectRoot {
+                rule: task.rule,
+                demand: task.demand,
+                run,
+            });
         }
-        facade_runtime::project_execution::evaluate_roots(opened, &declarations, symbols, guard)
+        facade_runtime::project_execution::evaluate_roots(roots, symbols, guard)
     }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.publication.readiness_counts()

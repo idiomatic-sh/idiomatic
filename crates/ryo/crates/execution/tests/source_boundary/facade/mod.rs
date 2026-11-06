@@ -11,7 +11,7 @@ mod facade_owning_paths {
 const DELETED_REEXPORTS: &str = r#"
 mod facade_deleted_reexports {
     use crate::application::file_dag::program::facade_runtime::{
-        FileRun, ProgramServices, ProjectRootDeclaration, ProjectRun, evaluate_roots, open_file, open_project,
+        FileRun, ProgramServices, ProjectRoot, ProjectRun, evaluate_roots, open_file, open_project,
     };
 }
 "#;
