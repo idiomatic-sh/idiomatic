@@ -1090,6 +1090,11 @@ impl FileAnalysis {
 
     /// Hands the words a file handed the last run in `bucket`, moved as `map` says, to the worker's bucket, when the run makes the
     /// steps that read the bucket again; words that cannot be moved are left out. `out` is room the words are moved into.
+    ///
+    /// Order: both callers select the bucket first (`wanted_buckets`) and read no words, staged or old, of an unselected bucket, so
+    /// this is reached only for a selected one. It checks the proof of that bucket against the prepared root (version, rule digest,
+    /// frontier ordinal, capture flag, first bucket, coverage) before it moves any words, and refuses a stale one; the proof of an
+    /// unselected bucket is never checked, as its words are never read.
     fn hand_words_again(
         worker: &mut Worker,
         setting: &VisitSetting<'_>,
@@ -1136,11 +1141,6 @@ impl FileAnalysis {
                 }
                 .into(),
             );
-        }
-        if let BucketsWanted::These(buckets) = setting.wanted_buckets
-            && buckets.binary_search(&bucket).is_err()
-        {
-            return Ok(());
         }
         out.0.clear();
         if remap_packed(words, map, out).is_some() {

@@ -87,6 +87,158 @@ fn prepared_test_program(
     (program, request)
 }
 
+/// A plan of one rule that captures one frontier input.
+fn one_capture_plan() -> Plan {
+    Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
+        parameters: vec![],
+        steps: vec![ryo_values::domain::plans::types::PlanStep {
+            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            operation: ryo_values::domain::plans::types::Operation::Select {
+                from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
+                comparisons: Vec::new(),
+                kept: vec![ColumnIndex(0)],
+            },
+        }],
+        comparison_origins: vec![],
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(0))],
+    }
+}
+
+/// Replays one handed bucket, kept under `proof`, into a worker of the program of `one_capture_plan`, when the run wants `wanted`.
+fn replay_under(
+    proof: ryo_values::domain::records::types::FrontierProof,
+    wanted: &BucketsWanted,
+) -> Result<(), FileAnalysisError> {
+    use super::types::{FileVisit, Worker};
+    use crate::domain::visit::types::{Keeping, Noting, RoleRead};
+    use crate::domain::workers::types::FileOrder;
+    use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
+    use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
+    use ryo_values::domain::records::types::{
+        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record,
+    };
+    use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
+    use ryo_values::domain::table_words::service::{encode_table, pack};
+    use ryo_values::domain::table_words::types::WordSlice;
+    let mut words = Words::default();
+    encode_table(
+        &Table {
+            kinds: vec![CellKind::Number],
+            cells: vec![Value::Number(Integer(7))],
+            count: RowCount(1),
+        },
+        &[],
+        &mut words,
+    );
+    let record = Record {
+        executable: Default::default(),
+        path: FilePath("case.py".into()),
+        size: FileSize(0),
+        modified: Nanoseconds(0),
+        digest: Digest([3; 16]),
+        number: FileNumber(0),
+        outcome: FileOutcome::Read(Ran {
+            rows: FindingRows::default(),
+            number: FileNumber(0),
+            interface: Digest([1; 16]),
+            noted: Digest([2; 16]),
+            frontier: vec![],
+            handed: Handing::Made(Handed {
+                buckets: vec![HandedWords {
+                    bucket: Bucket(0),
+                    proof,
+                    words: pack(WordSlice(&words.0)).into(),
+                }],
+                text: ArenaBytes::default(),
+                ..Handed::default()
+            }),
+        }),
+    };
+    let plans = [one_capture_plan()];
+    let ids = [RuleId("capture".into())];
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let (program, request) = prepared_test_program(&plans, &ids, &[]);
+    let placed = PlacedScopes {
+        placement: ScopePlacement::default(),
+        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+            .compile(&[])
+            .expect("matcher"),
+    };
+    let visit = FileVisit {
+        store: None,
+        setting: VisitSetting {
+            source_language: None,
+            program,
+            services: &request,
+            domain: crate::domain::workers::types::VisitSetting {
+                metadata: &metadata,
+                wanted: &[],
+                paths: &[],
+                first_bucket: &[Bucket(0)],
+                ids: &ids,
+                applicability: &[],
+                applicability_can_gate: true,
+                placed: &placed,
+                records: &[],
+                replaying: crate::domain::workers::types::Replaying::FindingsAndHanded,
+                stored: &NOTHING_STORED,
+                handed: &NOTHING_HANDED,
+                wanted_buckets: wanted,
+                budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+                noted: Noting::Unwanted,
+                roled: RoleRead::Skips,
+                needs: &[],
+                answering: &crate::domain::render::types::Answering::Findings,
+                keeping: Keeping::Keeps,
+                unknown: &[],
+            },
+        },
+    };
+    let mut worker = Worker {
+        tables: tables_for(WorkerNumber(0), &[]),
+        facts: FactsFake::default().worker().expect("worker"),
+        old_rows: None,
+        failure: None,
+    };
+    FileAnalysis::hand_again(&mut worker, &visit, FileOrder(0), FileId(0), &record)
+}
+
+#[test]
+fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read() {
+    use ryo_values::domain::records::types::FrontierCoverage;
+    use ryo_values::domain::stored_facts::types::{Bucket, Digest};
+    let good = crate::outbound::lint_store::fixtures::proof();
+    let selected = BucketsWanted::These(vec![Bucket(0)]);
+    replay_under(good.clone(), &selected).expect("the proof of the prepared root is accepted");
+    let mut wrong_digest = good.clone();
+    wrong_digest.rule_digest = Digest([9; 16]);
+    let mut wrong_ordinal = good.clone();
+    wrong_ordinal.input = 1;
+    let mut wrong_coverage = good.clone();
+    wrong_coverage.coverage = FrontierCoverage::Partial(Vec::new());
+    for stale in [wrong_digest, wrong_ordinal, wrong_coverage] {
+        assert!(
+            matches!(
+                replay_under(stale.clone(), &selected),
+                Err(FileAnalysisError::Execution(
+                    ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+                ))
+            ),
+            "{stale:?} must be refused for a selected bucket"
+        );
+        replay_under(stale, &BucketsWanted::These(Vec::new()))
+            .expect("the proof of a bucket the run does not select is never checked");
+    }
+}
+
 #[test]
 fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     let plan = Plan {
@@ -1397,7 +1549,12 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             .expect("matcher"),
     };
     let wanted = BucketsWanted::These(vec![Bucket(0)]);
-    let (program, request) = prepared_test_program(&[], &[], &[]);
+    // The proofs the replay checks are those of this program: one rule capturing one frontier input, its first bucket 0.
+    let plan = one_capture_plan();
+    let plans = [plan];
+    let ids = [RuleId("capture".into())];
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let visit = FileVisit {
         store: Some(snapshot.as_ref()),
         setting: VisitSetting {
@@ -1405,11 +1562,11 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             program,
             services: &request,
             domain: crate::domain::workers::types::VisitSetting {
-                metadata: &[],
+                metadata: &metadata,
                 wanted: &[],
                 paths: &[],
-                first_bucket: &[],
-                ids: &[],
+                first_bucket: &[Bucket(0)],
+                ids: &ids,
                 applicability: &[],
                 applicability_can_gate: true,
                 placed: &placed,
@@ -1466,6 +1623,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let mut persisted = crate::outbound::lint_store::fixtures::fake::stored(1);
     persisted.files[0].path = record.path.clone();
     persisted.handed.frontier[0].bucket = Bucket(0);
+    persisted.handed.proofs[0].bucket = Bucket(0);
     persisted.handed.frontier[0].words = valid;
     snapshot
         .keep(persisted.clone(), &KeptRows::default())
