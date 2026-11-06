@@ -1,4 +1,5 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
+use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::coverage::types::Partial;
 
@@ -85,6 +86,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
     let mut columns = std::collections::BTreeMap::new();
     for selector in &cache.selectors {
         for comparison in &selector.identity.comparisons {
+            tracing::trace!(target: activation::TARGET, event = activation::CANDIDATE);
             let ((Test::Equal, Operand::Column(column), _)
             | (Test::Equal, _, Operand::Column(column))) =
                 (&comparison.test, &comparison.left, &comparison.right)
