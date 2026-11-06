@@ -319,6 +319,51 @@ fn an_in_range_root_the_session_did_not_declare_is_refused_by_name() {
     }
 }
 
+/// The guard is asked about the undeclared in-range root by name; its refusal ends the batch there.
+#[test]
+fn a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_before_it() {
+    let engine = engine();
+    let undeclared = Root {
+        declared: 0,
+        named: 1,
+    };
+    let refused = submit(
+        &engine,
+        Entry::Phase,
+        3,
+        &[root(0), undeclared, root(2)],
+        Some(RuleIndex(1)),
+    );
+    assert!(matches!(refused.refused, Some(OperatingError::WrongBinding)));
+    assert_eq!(refused.outcomes.len(), 1);
+    assert!(refused.outcomes[0].is_ok());
+    assert!(refused.guarded.contains(&RuleIndex(1)));
+    assert!(!refused.guarded.contains(&RuleIndex(2)));
+}
+
+/// A root submitted twice is two submissions: each gets its own outcome, neither is dropped,
+/// and a duplicated undeclared root is refused every time rather than once.
+#[test]
+fn a_duplicated_root_keeps_one_outcome_per_submission() {
+    let engine = engine();
+    let twice = submit(&engine, Entry::Phase, 3, &[root(0), root(0)], None);
+    assert!(twice.refused.is_none());
+    assert_eq!(twice.outcomes.len(), 2);
+    assert!(twice.outcomes.iter().all(Result::is_ok));
+    assert!(twice.guarded.iter().all(|rule| *rule == RuleIndex(0)));
+    assert!(!twice.guarded.is_empty());
+
+    let undeclared = Root {
+        declared: 0,
+        named: 1,
+    };
+    let refused = submit(&engine, Entry::Phase, 3, &[root(0), undeclared, undeclared], None);
+    assert_eq!(refused.outcomes.len(), 3);
+    assert!(refused.outcomes[0].is_ok());
+    assert!(matches!(refused.outcomes[1], Err(OperatingError::NotRead)));
+    assert!(matches!(refused.outcomes[2], Err(OperatingError::NotRead)));
+}
+
 #[test]
 fn finish_refuses_while_a_scope_still_shares_the_publication() {
     let engine = engine();

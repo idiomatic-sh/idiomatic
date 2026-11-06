@@ -60,17 +60,24 @@ pub(crate) enum Entry {
     /// Named roots through the observation stage that owns that phase.
     Stage,
 }
-enum Held<'a> {
+pub(crate) enum Held<'a> {
     Phase(ProjectPhase<'a>),
     Stage(ObservationStage<'a>),
 }
 impl Held<'_> {
-    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> ProjectScope {
-        let scope = match self {
+    pub(crate) fn try_scope(
+        &self,
+        rule: RuleIndex,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+    ) -> Result<ProjectScope, OperatingError> {
+        match self {
             Held::Phase(phase) => phase.project_scope(rule, corpus, covered, &[]),
             Held::Stage(stage) => stage.project_scope(rule, corpus, covered, &[]),
-        };
-        scope.unwrap()
+        }
+    }
+    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> ProjectScope {
+        self.try_scope(rule, corpus, covered).unwrap()
     }
     fn evaluate<E>(
         &self,
@@ -91,27 +98,8 @@ impl Held<'_> {
     }
 }
 
-/// What the caller declared: the scope and frontiers come from `declared`, while the
-/// task names `named`. The two differ only when the caller submits a root nobody declared.
-#[derive(Clone, Copy)]
-pub(crate) struct Root {
-    pub declared: usize,
-    pub named: usize,
-}
-pub(crate) struct Submitted {
-    pub outcomes: Vec<Result<ProjectRuleOutcome, OperatingError>>,
-    pub guarded: Vec<RuleIndex>,
-    pub refused: Option<OperatingError>,
-}
-/// Evaluate `roots` through the real project phase of a request over `rule_count` rules.
-/// `refuse` is the rule the guard rejects, if any.
-pub(crate) fn submit(
-    engine: &ExecutionUseCaseImpl,
-    entry: Entry,
-    rule_count: usize,
-    roots: &[Root],
-    refuse: Option<RuleIndex>,
-) -> Submitted {
+/// The prepared program of `rule_count` rules; the stage entry declares one closed named binding.
+fn program(engine: &ExecutionUseCaseImpl, entry: Entry, rule_count: usize) -> PreparedProgram {
     let mut authored = crate::boundary_fixture::authored_request(rule_count);
     if matches!(entry, Entry::Stage) {
         // A named request needs a dependency schedule: rule 0 declares one closed empty binding.
@@ -142,7 +130,30 @@ pub(crate) fn submit(
         authored.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
         authored.observations = ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }
-    let prepared = engine.prepare(authored).expect("valid public request");
+    engine.prepare(authored).expect("valid public request")
+}
+/// What the caller declared: the scope and frontiers come from `declared`, while the
+/// task names `named`. The two differ only when the caller submits a root nobody declared.
+#[derive(Clone, Copy)]
+pub(crate) struct Root {
+    pub declared: usize,
+    pub named: usize,
+}
+pub(crate) struct Submitted {
+    pub outcomes: Vec<Result<ProjectRuleOutcome, OperatingError>>,
+    pub guarded: Vec<RuleIndex>,
+    pub refused: Option<OperatingError>,
+}
+/// Evaluate `roots` through the real project phase of a request over `rule_count` rules.
+/// `refuse` is the rule the guard rejects, if any.
+pub(crate) fn submit(
+    engine: &ExecutionUseCaseImpl,
+    entry: Entry,
+    rule_count: usize,
+    roots: &[Root],
+    refuse: Option<RuleIndex>,
+) -> Submitted {
+    let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
     let request = engine.begin(&prepared, &corpus);
     let covered = [Covered {
@@ -220,5 +231,100 @@ pub(crate) fn submit(
         outcomes,
         guarded,
         refused,
+    }
+}
+
+/// Open the request and its phase (or observation stage) for `entry`, hand them to `check`,
+/// and release everything once `check` has dropped every scope it made.
+pub(crate) fn with_held<T>(
+    engine: &ExecutionUseCaseImpl,
+    entry: Entry,
+    rule_count: usize,
+    check: impl FnOnce(&RequestExecution, &mut Held<'_>, &[CorpusInput], &[Covered]) -> T,
+) -> T {
+    let prepared = program(engine, entry, rule_count);
+    let corpus = corpus();
+    let request = engine.begin(&prepared, &corpus);
+    let covered = [Covered {
+        file: FileId(0),
+        rules: (0..rule_count).map(RuleIndex).collect(),
+        partial: vec![],
+    }];
+    let mut arenas = Vec::new();
+    let mut held = match entry {
+        Entry::Phase => Held::Phase(request.project_phase().unwrap()),
+        Entry::Stage => Held::Stage(request.observations(&mut arenas).unwrap()),
+    };
+    let found = check(&request, &mut held, &corpus, &covered);
+    held.finish();
+    request.finish();
+    found
+}
+/// Prepare the frontiers of `rule` against a scope that declared another rule.
+pub(crate) fn prepare_for(
+    request: &RequestExecution,
+    scope: &ProjectScope,
+    rule: RuleIndex,
+) -> Result<PreparedFrontiers, PreparationError> {
+    request.prepare_frontiers(
+        FrontierRequest {
+            demand: FrontierDemand::Diagnostic,
+            scope,
+            rule,
+            first: Bucket(0),
+            facts: &NoFacts,
+            project: &NoFacts,
+            project_symbols: &Symbols::default(),
+        },
+        &mut Symbols::default(),
+    )
+}
+/// A scope opened by one phase of the request, evaluated through another phase of it.
+pub(crate) fn foreign_phase_outcome(
+    engine: &ExecutionUseCaseImpl,
+) -> Result<ProjectRuleOutcome, OperatingError> {
+    let prepared = program(engine, Entry::Phase, 1);
+    let corpus = corpus();
+    let request = engine.begin(&prepared, &corpus);
+    let covered = [Covered {
+        file: FileId(0),
+        rules: vec![RuleIndex(0)],
+        partial: vec![],
+    }];
+    let (owner, other) = (
+        request.project_phase().unwrap(),
+        request.project_phase().unwrap(),
+    );
+    let scope = owner
+        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .unwrap();
+    let ordinary = prepare_for(&request, &scope, RuleIndex(0)).unwrap();
+    let partials = Partials::default();
+    let batch = other.evaluate(
+        vec![ProjectTask {
+            rule: RuleIndex(0),
+            demand: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            input: ProjectInput {
+                scope: &scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: &[],
+            },
+        }],
+        &mut Symbols::default(),
+        |_| Ok::<(), OperatingError>(()),
+    );
+    drop(scope);
+    owner.finish().unwrap();
+    other.finish().unwrap();
+    request.finish();
+    match batch {
+        ProjectBatch::Complete(mut done) => done.remove(0),
+        ProjectBatch::Refused { error, .. } => Err(error),
     }
 }
