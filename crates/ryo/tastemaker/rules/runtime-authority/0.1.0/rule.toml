@@ -296,3 +296,60 @@ then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs",
 id = "issuer-may-use-alias-and-self-with-private-fields"
 scenario = "The sole issuer may construct its private records through aliases and Self without exposing those fields to its parent."
 given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelAdmission { region: usize } type Authority = KernelAdmission; impl Authority { fn issue() -> Self { Self { region: 0 } } } fn issue_alias() -> Authority { Authority { region: 0 } }'
+
+[[scenarios]]
+id = "program-proof-alias-cannot-regain-parent-fields"
+scenario = "The qualified program-proof alias path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; fn forge(value: Authority) -> Authority { Authority { root: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "program-proof-self-cannot-regain-parent-fields"
+scenario = "The qualified program-proof self path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { root: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "program-proof-retarget-cannot-regain-parent-fields"
+scenario = "The qualified program-proof retarget path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; fn retarget(value: &mut Authority) { value.root = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "program-proof-issuer-alias-and-self-remain-private"
+scenario = "The actual qualified issuer may construct and retarget its private representation through aliases and Self."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { root: usize } use self::AdmittedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { root: 0, ..value } } } fn retarget(value: &mut Authority) { value.root = 0; }'
+
+[[scenarios]]
+id = "relation-proof-alias-cannot-regain-parent-fields"
+scenario = "The qualified relation-proof alias path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::AdmittedInput as Authority; fn forge(value: Authority) -> Authority { Authority { rows: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-self-cannot-regain-parent-fields"
+scenario = "The qualified relation-proof self path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::AdmittedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { rows: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-retarget-cannot-regain-parent-fields"
+scenario = "The qualified relation-proof retarget path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::AdmittedInput as Authority; fn retarget(value: &mut Authority) { value.rows = 0; }'
+then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-issuer-alias-and-self-remain-private"
+scenario = "The actual qualified issuer may construct and retarget its private representation through aliases and Self."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { rows: usize } use self::AdmittedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { rows: 0, ..value } } } fn retarget(value: &mut Authority) { value.rows = 0; }'
