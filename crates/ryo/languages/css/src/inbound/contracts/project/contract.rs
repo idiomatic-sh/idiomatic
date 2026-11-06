@@ -71,17 +71,20 @@ impl Project for ProjectContract {
     }
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: the CSS Syntax Module Level 3, §3 Tokenizing and Parsing CSS: a stylesheet is parsed from its text alone and the standard defines no manifest.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
+        // standard: the CSS Syntax Module Level 3, §3 Tokenizing and Parsing CSS: a stylesheet is parsed from its text alone and the standard defines no manifest.
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn project_namespace_membership(
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: the CSS Syntax Module Level 3, §3 Tokenizing and Parsing CSS: a stylesheet is parsed from its text alone and the standard defines no manifest.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

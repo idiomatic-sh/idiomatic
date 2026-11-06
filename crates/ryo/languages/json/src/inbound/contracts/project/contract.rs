@@ -65,7 +65,8 @@ impl Project for ProjectContract {
     }
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the standard names no project manifest.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
@@ -75,7 +76,8 @@ impl Project for ProjectContract {
     fn project_namespace_membership(
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the standard names no project manifest.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

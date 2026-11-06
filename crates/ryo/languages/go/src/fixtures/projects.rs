@@ -124,6 +124,22 @@ impl Show for languages::AnalyzedSourceRow {
     }
 }
 
+impl Show for languages::ManifestDiagnosticRow {
+    fn show(&self, shown: &Shown<'_>) -> String {
+        format!(
+            "{} at {}..{} {} {} {} {} {}",
+            shown.file(self.file),
+            self.span.start.0,
+            self.span.end.0,
+            shown.name(self.location_kind),
+            shown.name(self.phase),
+            shown.name(self.schema),
+            shown.name(self.code),
+            shown.name(self.message)
+        )
+    }
+}
+
 impl Show for languages::FilePackageRow {
     fn show(&self, shown: &Shown<'_>) -> String {
         format!("{} in {}", shown.file(self.path), shown.file(self.package))
@@ -286,6 +302,12 @@ pub(crate) const WITH_A_BROKEN_MANIFEST: &[(&str, &str)] = &[
     ("go.mod", "module example.com/a\n"),
     ("b/go.mod", "module example.com/b\nrequire (\n"),
     ("b/c.go", "package b\n"),
+];
+
+/// A repository whose workspace manifest the tool cannot read.
+pub(crate) const WITH_A_BROKEN_WORKSPACE: &[(&str, &str)] = &[
+    ("go.work", "go 1.24\n\nuse (\n\t./app\n"),
+    ("app/go.mod", "module example.com/app\n"),
 ];
 
 /// A repository whose Go files import one another every way the links read: a package of several files and its test, the module's own

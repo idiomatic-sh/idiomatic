@@ -6,7 +6,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::OUTPUTS;
 use super::errors::PackagesError;
-use super::types::{Analysis, Cause, Dependency, WorkspacePackageMembership, Packages, Refusal};
+use super::types::{
+    Analysis, Cause, Dependency, Diagnosed, Packages, Refusal, Stage, WorkspacePackageMembership,
+};
 use crate::domain::dependencies::service::declared_of;
 use crate::domain::dependencies::types::{DeclaredDependency, Shared};
 use crate::domain::package_index::types::ListIndex;
@@ -20,7 +22,7 @@ use crate::domain::targets::types::Manifest;
 use crate::domain::workspaces::service::{
     configurations_above, excluded, load, members_of, root_of,
 };
-use crate::domain::workspaces::types::{WorkspaceConfiguration, Looking, Reason};
+use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use ryo::languages;
 
 /// Where the outputs of the workspace in `directory` go, relative to the root when they go inside it: where the nearest configuration
@@ -212,6 +214,35 @@ pub(crate) fn refused_membership(refusal: &Refusal) -> Analysis {
     } else {
         Analysis::Unanalyzed
     }
+}
+
+/// The manifests refused that are among the `files` the run lists, which are in the order of their paths, each with the stage it was
+/// refused at and what the reader said: a refusal of the workspace not holding the package, or of a value taken from a workspace the
+/// package is not in, is of the validation; any other is of the reading.
+#[must_use]
+pub(crate) fn diagnoses_in(files: &[languages::FilePath], packages: &Packages) -> Vec<Diagnosed> {
+    let validated = [
+        PackagesError::NotAMember.to_string(),
+        PackagesError::NoWorkspaceToInheritFrom.to_string(),
+    ];
+    packages
+        .refused
+        .iter()
+        .filter_map(|refusal| {
+            let Ok(at) = files.binary_search_by(|each| (*each.0).cmp(&*refusal.manifest.0)) else {
+                return None;
+            };
+            Some(Diagnosed {
+                file: languages::FileId(u32::try_from(at).unwrap_or(u32::MAX)),
+                stage: if validated.iter().any(|said| **said == *refusal.reason.0) {
+                    Stage::Validation
+                } else {
+                    Stage::Parse
+                },
+                reason: refusal.reason.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Whether the package a dependency is on is held by no workspace that was read: what it declares is missing.
