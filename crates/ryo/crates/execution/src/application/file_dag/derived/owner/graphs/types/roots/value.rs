@@ -34,12 +34,12 @@ use std::sync::Arc;
 /// Mutable backend access ends before a downstream row can emit.
 pub(in crate::application::file_dag) struct DemandAnswers<'a> {
     owner: &'a DerivedOwner,
-    cache: Option<&'a mut CacheBackend>,
+    cache: &'a mut CacheBackend,
 }
 impl<'a> DemandAnswers<'a> {
     pub(in crate::application::file_dag) fn new(
         owner: &'a DerivedOwner,
-        cache: Option<&'a mut CacheBackend>,
+        cache: &'a mut CacheBackend,
     ) -> Self {
         Self { owner, cache }
     }
@@ -56,7 +56,8 @@ impl<'a> DemandAnswers<'a> {
         walk.reached.clear();
         walk.expanded = 0;
         walk.examined = 0;
-        if let Some(cache) = self.cache.as_mut() {
+        {
+            let cache = &mut *self.cache;
             cache.graph_counts.roots += 1;
         }
         crate::application::file_dag::route_counts::event(
@@ -69,8 +70,8 @@ impl<'a> DemandAnswers<'a> {
         let Some(root) = access.graph().vertex(partition, root) else {
             return Ok(None);
         };
+        let cache = &mut *self.cache;
         if access.sharing() == GraphSharing::Shared
-            && let Some(cache) = self.cache.as_mut()
             && let Some(entry) = cache
                 .graphs
                 .iter()
@@ -94,7 +95,8 @@ impl<'a> DemandAnswers<'a> {
         let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
         let stopped = traversal.breadth(root, access.orientation(), None);
         traversal.sort();
-        if let Some(cache) = self.cache.as_mut() {
+        {
+            let cache = &mut *self.cache;
             cache.graph_counts.traversals += 1;
             cache.graph_counts.expanded += walk.expanded;
             cache.graph_counts.examined += walk.examined;
@@ -125,7 +127,8 @@ impl<'a> DemandAnswers<'a> {
         } else {
             let _ = traversal.breadth(root, orientation, None);
         }
-        if let Some(cache) = self.cache.as_mut() {
+        {
+            let cache = &mut *self.cache;
             cache.observe_graph_walk(
                 crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(
                     walk.expanded,
@@ -167,7 +170,8 @@ impl<'a> DemandAnswers<'a> {
                 orientation,
                 Some(domain.members.as_slice()),
             );
-            if let Some(cache) = self.cache.as_mut() {
+            {
+                let cache = &mut *self.cache;
                 cache.graph_counts.early_stops += u64::from(stopped);
                 cache.graph_counts.expanded += walk.expanded;
                 cache.graph_counts.examined += walk.examined;
@@ -180,12 +184,12 @@ impl<'a> DemandAnswers<'a> {
             }));
         }
         let shared = self.forest_context(access, domain, orientation)?;
-        let (answer, hit) = if let (Some(index), Some(cache)) = (shared, self.cache.as_mut()) {
+        let (answer, hit) = if let Some(index) = shared {
             GraphTraversal::new(access.raw_graph(), walk).nearest(
                 root,
                 orientation,
                 &domain.members,
-                &mut cache.nearest[index].answers,
+                &mut self.cache.nearest[index].answers,
             )
         } else {
             GraphTraversal::new(access.raw_graph(), walk).nearest(
@@ -195,7 +199,8 @@ impl<'a> DemandAnswers<'a> {
                 local,
             )
         };
-        if let Some(cache) = self.cache.as_mut() {
+        {
+            let cache = &mut *self.cache;
             crate::application::file_dag::route_counts::event(
                 if hit {
                     constants::NEAREST_MEMO_HIT
@@ -216,9 +221,7 @@ impl<'a> DemandAnswers<'a> {
         root: u32,
         walk: &GraphWalk,
     ) -> Result<Option<RootAnswer>, OperatingError> {
-        let Some(cache) = self.cache.as_mut() else {
-            return Ok(None);
-        };
+        let cache = &mut *self.cache;
         let Some(index) = cache
             .graphs
             .iter()
@@ -299,9 +302,7 @@ impl<'a> DemandAnswers<'a> {
         domain: &Arc<GraphDomain>,
         orientation: Orientation,
     ) -> Result<Option<usize>, OperatingError> {
-        let Some(cache) = self.cache.as_mut() else {
-            return Ok(None);
-        };
+        let cache = &mut *self.cache;
         if access.sharing() == GraphSharing::Local {
             return Ok(None);
         }

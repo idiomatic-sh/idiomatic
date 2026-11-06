@@ -1,9 +1,33 @@
 //! Sealed authority controls: contract forgery, dependency forgery, backend mutation, build escape.
 use super::super::fixtures::{Compilation, Expectation, Probe};
 
+pub(super) const TYPES: &str = "src/application/file_dag/derived/owner/types.rs";
 pub(super) const CACHE: &str = "src/application/file_dag/derived/owner/cache/types.rs";
-/// Every retained field of the backend, so a new field cannot be added without extending the control.
-const CACHE_FIELDS: &str = "let _ = &cache.selector_repetition; let _ = &cache.selector_repetition_failed; let _ = &cache.selection_views; let _ = &cache.graph_enabled; let _ = &cache.graph_bytes; let _ = &cache.memo_bytes; let _ = &cache.graphs; let _ = &cache.graph_domains; let _ = &cache.nearest; let _ = &cache.graph_counts; let _ = &cache.selectors; let _ = &cache.active_postings; let _ = &cache.discriminator_columns; let _ = &cache.selection_counts; let _ = &cache.selection_histogram; let _ = &cache.eligible; let _ = &cache.bytes; let _ = &cache.limit; let _ = &cache.builds; let _ = &cache.reuses; let _ = &cache.refusals;";
+/// Every non-test field of the backend, read from its declaration, so a new field is probed
+/// individually and a public field is refused by its own probe.
+fn cache_fields() -> Vec<String> {
+    let source = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(CACHE)).unwrap();
+    let start = source.find("struct CacheBackend {").expect("CacheBackend is declared in its source");
+    let lines: Vec<&str> = source[start..].lines().skip(1).collect();
+    let mut fields = Vec::new();
+    for (at, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed == "}" {
+            break;
+        }
+        if !(trimmed.starts_with("pub(") || trimmed.starts_with("pub ")) || !line.starts_with("    pub") {
+            continue;
+        }
+        if at > 0 && lines[at - 1].trim() == "#[cfg(test)]" {
+            continue;
+        }
+        let after = trimmed.split_once(") ").map_or(trimmed, |(_, rest)| rest);
+        let name = after.split(':').next().unwrap().trim();
+        fields.push(name.to_owned());
+    }
+    assert!(fields.len() >= 21, "the backend declares at least the 21 fields known at the review: {fields:?}");
+    fields
+}
 const CONTRACT_UPDATE: &str = r#"
 mod contract_update { use crate::domain::derived_views::types::DerivedContract as Authority; fn forge(value: Authority) -> Authority { Authority { identity_hash: 0, ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
@@ -59,6 +83,28 @@ mod selection_build {
 }
 "#;
 
+const PORT_BUILD: &str = r#"
+mod port_build { use crate::application::file_dag::derived::owner::types::DerivedAccess; fn escape(access: &DerivedAccess) { let _ = access.build(); } const _: fn(&DerivedAccess) = escape; }
+"#;
+const PORT_FIELD: &str = r#"
+mod port_field { use crate::application::file_dag::derived::owner::types::DerivedAccess; fn escape(access: &DerivedAccess) { let _ = &access.port; } const _: fn(&DerivedAccess) = escape; }
+"#;
+const PORT_ACCESSOR: &str = r#"
+mod port_accessor { use crate::application::file_dag::derived::owner::types::DerivedAccess; fn escape(access: &DerivedAccess) { let _ = access.port(); } const _: fn(&DerivedAccess) = escape; }
+"#;
+const ACCESS_PREPARE: &str = r#"
+mod access_prepare {
+    use crate::application::file_dag::derived::owner::types::DerivedAccess;
+    use ryo_derived::domain::contract::types::{PreparedDerived, ViewRequest};
+    use std::sync::Arc;
+    fn prepare(access: &DerivedAccess, request: ViewRequest) -> Arc<PreparedDerived> { access.prepare(request, Vec::new()) }
+    const _: fn(&DerivedAccess, ViewRequest) -> Arc<PreparedDerived> = prepare;
+}
+"#;
+const PORT_OWNER: &str = r#"
+mod port_owner { use super::DerivedAccess; fn own(access: &DerivedAccess) { let _ = access.port(); } const _: fn(&DerivedAccess) = own; }
+"#;
+
 fn refuse(
     owner: &'static str,
     source: String,
@@ -79,19 +125,14 @@ fn refuse(
 }
 
 pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
-    vec![
+    let fields = cache_fields();
+    let field_reads = fields.iter().map(|field| format!("let _ = &cache.{field};")).collect::<Vec<_>>().join(" ");
+    let mut probes = vec![
         refuse(root, CONTRACT_UPDATE.into(), "E0451", "identity_hash", "private"),
         refuse(root, CONTRACT_READ.into(), "E0616", "identity_hash", "private"),
         Probe { compilation: Compilation::Library, owner: root, source: CONTRACT_PREPARED.into(), expected: Expectation::Accept },
         refuse(root, DEPENDENCY_FORGERY.into(), "E0451", "backings", "private"),
         Probe { compilation: Compilation::Library, owner: root, source: DEPENDENCY_AUTHORIZED.into(), expected: Expectation::Accept },
-        refuse(
-            root,
-            format!("mod cache_fields {{ use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn escape(cache: &CacheBackend) {{ {CACHE_FIELDS} }} const _: fn(&CacheBackend) = escape; }}"),
-            "E0616",
-            "CacheBackend",
-            "private",
-        ),
         Probe {
             compilation: Compilation::LibraryTests,
             owner: root,
@@ -104,10 +145,27 @@ pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
             compilation: Compilation::Library,
             owner: CACHE,
             source: format!(
-                "mod cache_owner {{ use super::CacheBackend; use crate::domain::stored_selection::types::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {CACHE_FIELDS} cache.observe_graph_walk(crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(1), crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
+                "mod cache_owner {{ use super::CacheBackend; use crate::domain::stored_selection::types::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {field_reads} cache.observe_graph_walk(crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(1), crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
             ),
             expected: Expectation::Accept,
         },
         refuse(module, SELECTION_BUILD.into(), "E0624", "build", "private"),
-    ]
+        // The builder port: a file_dag sibling can prepare through the capability, and can
+        // neither call build, name the accessor nor read the port; the owner reads it.
+        refuse(root, PORT_BUILD.into(), "E0599", "build", "DerivedAccess"),
+        refuse(root, PORT_ACCESSOR.into(), "E0624", "port", "private"),
+        refuse(root, PORT_FIELD.into(), "E0616", "port", "private"),
+        Probe { compilation: Compilation::Library, owner: root, source: ACCESS_PREPARE.into(), expected: Expectation::Accept },
+        Probe { compilation: Compilation::Library, owner: TYPES, source: PORT_OWNER.into(), expected: Expectation::Accept },
+    ];
+    for field in &fields {
+        probes.push(refuse(
+            root,
+            format!("mod cache_field_{field} {{ use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn escape(cache: &CacheBackend) {{ let _ = &cache.{field}; }} const _: fn(&CacheBackend) = escape; }}"),
+            "E0616",
+            "CacheBackend",
+            "private",
+        ));
+    }
+    probes
 }

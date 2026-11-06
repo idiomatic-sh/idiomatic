@@ -4,7 +4,7 @@ use crate::domain::{operating::errors::OperatingError, operation_schema::types::
 
 /// All preparation routes delegate semantic metadata to the injected capability.
 pub(in crate::application::file_dag) fn view(
-    semantic: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: &crate::domain::derived_views::types::ViewRequest,
     schemas: &[InputShape<'_>],
 ) -> Result<crate::domain::derived_views::types::DerivedContract, OperatingError> {
@@ -94,7 +94,8 @@ pub(in crate::application::file_dag) fn view(
             view: view.clone(),
         },
     };
-    let prepared = semantic.prepare(
+    let access: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
+    let prepared = access.prepare(
         meaning,
         schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
     );

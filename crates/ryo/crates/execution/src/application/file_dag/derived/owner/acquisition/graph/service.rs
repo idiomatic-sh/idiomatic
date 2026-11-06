@@ -31,7 +31,7 @@ use std::sync::Arc;
 pub(in crate::application::file_dag::derived::owner) fn acquire(
     plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
     input: &GraphInput<'_>,
-    mut cache: Option<&mut CacheBackend>,
+    cache: &mut CacheBackend,
 ) -> Result<Option<GraphHandle>, OperatingError> {
     // Without a generation-stable admitted backing, use the existing ordinary
     // traversal rather than retain duplicate artifacts under fresh local IDs.
@@ -48,10 +48,12 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     else {
         return Err(OperatingError::WrongOperation);
     };
-    let Some(backend) = cache.as_ref().filter(|cache| cache.graph_enabled == crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled) else {
+    if cache.graph_enabled
+        != crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled
+    {
         return Ok(None);
-    };
-    let Some(source) = source(input, *endpoints, keys, &backend.eligible) else {
+    }
+    let Some(source) = source(input, *endpoints, keys, &cache.eligible) else {
         return Ok(None);
     };
     validate_input(plan, rows)?;
@@ -68,7 +70,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
         &admitted,
         ViewContext::default(),
         StoredObservation::Unobserved,
-        cache.as_deref_mut(),
+        Some(&mut *cache),
         |cache| {
             invoked.set(true);
             let built = build::adjacency(owner, population, &admitted, plan, source, rows, cache)?;
@@ -91,15 +93,11 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
         .payload()
         .share_adjacency()
         .ok_or(OperatingError::WrongOperation)?;
-    let mut shared = cache.as_ref().is_some_and(|cache| {
-        cache
-            .graphs
-            .iter()
-            .any(|entry| Arc::ptr_eq(&entry.graph, &graph))
-    });
-    if !invoked.get()
-        && let Some(cache) = cache.as_deref_mut()
-    {
+    let mut shared = cache
+        .graphs
+        .iter()
+        .any(|entry| Arc::ptr_eq(&entry.graph, &graph));
+    if !invoked.get() {
         cache.graph_counts.reuses += 1;
         if !shared {
             shared = owner.retain_graph(
@@ -141,7 +139,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
     access: &GraphHandle,
     input: &GraphInput<'_>,
-    mut cache: Option<&mut CacheBackend>,
+    cache: &mut CacheBackend,
 ) -> Result<DomainHandle, OperatingError> {
     let owner = input.owner();
     let population = input.population()?;
@@ -164,10 +162,10 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     };
     validate_input(plan, rows)?;
     check_columns(kinds_of(rows), &[*column])?;
-    let identity = cache
-        .as_ref()
-        .filter(|_| input.canonical_backing())
-        .and_then(|cache| domain_identity(input, *column, &cache.eligible));
+    let identity = input
+        .canonical_backing()
+        .then_some(&cache.eligible)
+        .and_then(|eligible| domain_identity(input, *column, eligible));
     let physical_column = identity
         .as_ref()
         .map_or(*column, |identity| identity.column);
@@ -194,7 +192,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
             &admitted,
             ViewContext::default(),
             StoredObservation::Unobserved,
-            cache.as_deref_mut(),
+            Some(&mut *cache),
             |cache| {
                 invoked.set(true);
                 let built = build::domain(
@@ -226,7 +224,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
                 access,
                 identity.clone(),
                 rows,
-                cache.as_deref_mut(),
+                Some(&mut *cache),
             )?;
             Ok(InvocationStorage {
                 storage: built.storage,
@@ -249,11 +247,8 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
     let members = members.backing();
-    let found = cache.as_ref().and_then(|cache| {
-        cache.graph_domains.iter().find(|entry| {
-            Arc::ptr_eq(&entry.graph, access.raw_graph())
-                && Arc::ptr_eq(&entry.domain.members, members)
-        })
+    let found = cache.graph_domains.iter().find(|entry| {
+        Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(&entry.domain.members, members)
     });
     let domain = found.map_or_else(
         || {
@@ -298,9 +293,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     )?;
     let backings: Arc<[crate::application::file_dag::derived::ledger::types::Backing]> =
         backings.into();
-    if !invoked.get()
-        && let Some(cache) = cache.as_deref_mut()
-    {
+    if !invoked.get() {
         owner.retain_domain(
             cache,
             population,

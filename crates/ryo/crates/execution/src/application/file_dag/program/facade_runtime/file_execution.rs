@@ -106,7 +106,7 @@ pub(crate) fn open_file<'a>(
     }
     let owner = open_program_owner(
         program.program(),
-        Arc::clone(services.derived()),
+        services.derived().clone(),
         matches!(reuse_eligible, ReuseEligibility::Eligible),
     );
     let ScopePartials::File { publication, .. } = partials else {

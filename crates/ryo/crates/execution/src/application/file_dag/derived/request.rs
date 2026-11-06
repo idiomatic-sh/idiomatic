@@ -16,17 +16,17 @@ use std::sync::Arc;
 pub(super) mod identity;
 use identity::types::StaticRequest;
 pub(in crate::application::file_dag) struct RequestViews {
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    semantic: crate::application::file_dag::derived::owner::types::DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,
     bindings: Vec<Arc<PreparedViewUse>>,
     logical: Vec<ryo_values::domain::plan_parts::types::Input>,
 }
 impl RequestViews {
     pub(in crate::application::file_dag) fn new(
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self {
-            semantic,
+            semantic: semantic.into(),
             plans: Vec::new(),
             bindings: Vec::new(),
             logical: Vec::new(),
@@ -333,7 +333,7 @@ impl RequestViews {
         }) {
             return Ok((plan).clone());
         }
-        let mut plan = super::prepare::view(Arc::clone(&self.semantic), request, schemas)?;
+        let mut plan = super::prepare::view(self.semantic.clone(), request, schemas)?;
         plan.metadata = Err(error);
         let plan = Arc::new(plan);
         self.plans.push((plan).clone());
@@ -356,7 +356,7 @@ impl RequestViews {
             return Ok((plan).clone());
         }
         let plan = Arc::new(super::prepare::view(
-            Arc::clone(&self.semantic),
+            self.semantic.clone(),
             request,
             schemas,
         )?);

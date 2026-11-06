@@ -18,7 +18,7 @@ pub(crate) enum ScopePartials<'a> {
 /// The one outer owner factory. Kernels have no way to acquire this permit.
 pub(in crate::application::file_dag) fn open_program_owner(
     program: &Arc<crate::domain::executable_program::types::ExecutableProgram>,
-    derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     stable: bool,
 ) -> Rc<RelationOwner> {
     Rc::new(RelationOwner::for_scope(

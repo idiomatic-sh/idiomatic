@@ -9,7 +9,6 @@ use crate::domain::prepared_request::types::Compiled;
 use crate::domain::prepared_request::types::ObservationIdentity;
 use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use crate::domain::trust::types::RelationRead;
-use crate::outbound::derived::interface::DerivedPort;
 
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::observations::types::ObservationIndex;
@@ -209,9 +208,10 @@ pub(crate) fn prepare(
     rules: &[RuleSpec],
     rule_digests: &[ryo_values::domain::stored_facts::types::Digest],
     hosted: &[HostRelation],
-    derived: Arc<dyn DerivedPort>,
+    derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
+    let derived: crate::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);
     }
@@ -226,7 +226,7 @@ pub(crate) fn prepare(
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators = RequestOperators::prepare(&plans, &bindings, hosted, Arc::clone(&derived))?;
+    let operators = RequestOperators::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
             crate::domain::file_program::types::ObservationRequest::Independent

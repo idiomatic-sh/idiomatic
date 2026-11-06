@@ -20,8 +20,9 @@ use std::collections::HashMap;
 pub(crate) fn prepare_views_with_schemas<'s>(
     selectors: impl IntoIterator<Item = Arc<Selector>>,
     resolver: &dyn Fn(Relation) -> &'s [CellKind],
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> Result<Arc<PreparedSelectionViews>, OperatingError> {
+    let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
     let selectors = selectors.into_iter().collect::<Vec<_>>();
     let mut literals = HashMap::<(Relation, ColumnIndex), Vec<LiteralText>>::new();
     for selector in &selectors {
@@ -68,7 +69,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             prepared.clone()
         } else {
             let prepared = Arc::new(crate::application::file_dag::derived::prepare::view(
-                Arc::clone(&semantic),
+                semantic.clone(),
                 &ViewRequest::PredicateMatches(selector.clone()),
                 &schema,
             )?);
@@ -82,7 +83,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             (plan).clone()
         } else {
             let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
-                Arc::clone(&semantic),
+                semantic.clone(),
                 &ViewRequest::CandidatePostings {
                     column,
                     literals: literals.remove(&key).unwrap_or_default(),
@@ -93,7 +94,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             plan
         };
         let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
-            Arc::clone(&semantic),
+            semantic.clone(),
             &ViewRequest::DistinctRepresentatives {
                 columns: selector.columns.clone(),
             },
@@ -113,7 +114,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                     (plan).clone()
                 } else {
                     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
-                        Arc::clone(&semantic),
+                        semantic.clone(),
                         &ViewRequest::Equality {
                             columns: vec![*column],
                         },

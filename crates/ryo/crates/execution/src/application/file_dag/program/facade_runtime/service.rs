@@ -15,7 +15,7 @@ pub(crate) fn publication_owner(
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
         program: Arc::clone(program.program()),
-        owner: open_program_owner(program.program(), Arc::clone(services.derived()), true),
+        owner: open_program_owner(program.program(), services.derived().clone(), true),
         execution: std::cell::OnceCell::new(),
         populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),

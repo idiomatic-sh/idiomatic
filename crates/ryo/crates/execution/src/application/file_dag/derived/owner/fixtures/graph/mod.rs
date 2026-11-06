@@ -106,7 +106,7 @@ impl GraphFixture {
         }
         let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
             &plans,
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
         );
         self.owner
             .derived
@@ -189,7 +189,7 @@ impl GraphFixture {
         keys: &[ColumnIndex],
     ) -> Result<Option<GraphHandle>, OperatingError> {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Adjacency {
                 endpoints,
                 keys: keys.to_vec(),
@@ -214,11 +214,10 @@ impl GraphFixture {
         let Some(source) = workspace.graph_input(0, &admitted_rows)? else {
             return Ok(None);
         };
-        self.owner.derived.acquire_graph(
-            plan,
-            &source,
-            self.owner.derived.backend.borrow_mut().as_mut(),
-        )
+        let mut cache = self.owner.derived.graph_cache()?;
+        self.owner
+            .derived
+            .acquire_graph(plan, &source, &mut cache)
     }
     pub(in crate::application::file_dag) fn domain(
         &self,
@@ -228,7 +227,7 @@ impl GraphFixture {
         column: ColumnIndex,
     ) -> Result<Option<DomainHandle>, OperatingError> {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Membership { column },
             rows,
         );
@@ -242,14 +241,10 @@ impl GraphFixture {
         let Some(source) = workspace.graph_input(0, &admitted_rows)? else {
             return Ok(None);
         };
+        let mut cache = self.owner.derived.graph_cache()?;
         self.owner
             .derived
-            .acquire_graph_domain(
-                &plan,
-                graph,
-                &source,
-                self.owner.derived.backend.borrow_mut().as_mut(),
-            )
+            .acquire_graph_domain(&plan, graph, &source, &mut cache)
             .map(Some)
     }
     pub(in crate::application::file_dag) fn reach(
@@ -259,10 +254,8 @@ impl GraphFixture {
         root: Value,
         walk: &mut GraphWalk,
     ) -> Result<Option<RootAnswer>, OperatingError> {
-        DemandAnswers::new(
-            &self.owner.derived,
-            self.owner.derived.backend.borrow_mut().as_mut(),
-        )
+        let mut cache = self.owner.derived.graph_cache()?;
+        DemandAnswers::new(&self.owner.derived, &mut cache)
         .reach(access, partition, root, walk)
     }
     pub(in crate::application::file_dag) fn nearest(
@@ -274,10 +267,8 @@ impl GraphFixture {
         local: &mut Vec<u32>,
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
-        DemandAnswers::new(
-            &self.owner.derived,
-            self.owner.derived.backend.borrow_mut().as_mut(),
-        )
+        let mut cache = self.owner.derived.graph_cache()?;
+        DemandAnswers::new(&self.owner.derived, &mut cache)
         .nearest(access, domain, root, orientation, local, walk)
     }
     pub(in crate::application::file_dag) fn index(
@@ -290,7 +281,7 @@ impl GraphFixture {
         OperatingError,
     > {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            Arc::clone(&self.owner.derived.semantic),
+            self.owner.derived.semantic.clone(),
             ViewRequest::Equality {
                 columns: columns.to_vec(),
             },
@@ -325,6 +316,14 @@ impl GraphFixture {
                 crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
             )
             .unwrap();
+    }
+    /// Whether a graph demand can reach the cache of the owner now.
+    pub(in crate::application::file_dag) fn cache_ready(&self) -> Result<(), OperatingError> {
+        self.owner.derived.graph_cache().map(|_| ())
+    }
+    /// Retire the generation: the owner drops its cache until the file is prepared again.
+    pub(in crate::application::file_dag) fn retire(&self) {
+        self.owner.derived.clear();
     }
     pub(in crate::application::file_dag) fn clear(&self) {
         self.owner.release_population();

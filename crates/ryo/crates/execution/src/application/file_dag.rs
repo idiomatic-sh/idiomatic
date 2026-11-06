@@ -15,7 +15,6 @@ pub(crate) mod workspace;
 #[cfg(test)]
 mod contract_route_test;
 
-pub(crate) mod cached_graph;
 pub(crate) mod closure_partitions;
 pub(crate) mod selected;
 

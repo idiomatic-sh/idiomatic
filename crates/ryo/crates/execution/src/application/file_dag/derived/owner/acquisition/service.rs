@@ -149,7 +149,7 @@ impl DerivedOwner {
     ) -> Result<Option<DerivedStorage>, OperatingError> {
         admitted.validate(self, plan, &inputs)?;
         crate::application::file_dag::derived::owner::acquisition::semantics::service::build(
-            Arc::clone(&self.semantic),
+            Arc::clone(self.semantic.port()),
             plan,
             inputs,
             scratch,

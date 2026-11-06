@@ -25,7 +25,7 @@ impl RequestOperators {
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         hosted: &[HostRelation],
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Result<Self, OperatingError> {
         Self::prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
     }
@@ -34,8 +34,9 @@ impl RequestOperators {
         bindings: &[Vec<ParameterBinding>],
         hosted: &[HostRelation],
         relation_kinds: &dyn Fn(Relation) -> &'s [CellKind],
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Result<Self, OperatingError> {
+        let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
         let host_kinds = hosted
             .iter()
             .map(|relation| {
@@ -50,7 +51,7 @@ impl RequestOperators {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        let mut views = super::derived::request::RequestViews::new(Arc::clone(&semantic));
+        let mut views = super::derived::request::RequestViews::new(semantic.clone());
         let mut rules = Vec::with_capacity(plans.len());
         let mut preparations = 0;
         for (rule, plan) in plans.iter().enumerate() {
