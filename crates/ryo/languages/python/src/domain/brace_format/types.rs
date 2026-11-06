@@ -1,8 +1,7 @@
 //! Plain values for the decoded brace-format parser.
 use crate::domain::format_syntax::types::{
-    FormatCacheInput, FormatCharacter, FormatFieldOrdinal, FormatOccurrence, FormatResultIndex,
+    FormatCharacter, FormatFieldOrdinal, RetainedFormatIndex,
 };
-use indexmap::IndexMap;
 
 /// Stable categories reported by the brace field parser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,19 +108,8 @@ pub(crate) struct CachedBraceFormat {
 }
 
 /// Retained parse state for one source tree; populated only when either brace relation is requested.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct BraceFormatIndex {
-    /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::GrammarMemo<BraceFormatResult>,
-    /// Decoded input to cached parse result.
-    pub by_input: IndexMap<FormatCacheInput, FormatResultIndex>,
-    /// Distinct decoded input results.
-    pub values: Vec<CachedBraceFormat>,
-    /// Source occurrences.
-    pub occurrences: Vec<FormatOccurrence>,
-    /// Completeness of the current source's brace-format inputs.
-    pub state: BraceFormatState,
-}
+pub(crate) type BraceFormatIndex =
+    RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>;
 
 /// Cache/read completeness.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

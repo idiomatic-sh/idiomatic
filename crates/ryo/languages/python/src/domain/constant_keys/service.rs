@@ -1,7 +1,7 @@
 //! Lazily build full, parser-derived constant keys for supported Python expressions.
 
 use crate::domain::constant_keys::types::{
-    BuiltKey, ConstantKeyIndex, KeyClass, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
+    BuiltKey, ConstantKeyIndex, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
     LiteralKind, NumberKey, NumericState, RealKey,
 };
 use crate::domain::{
@@ -355,14 +355,14 @@ fn integer_as_float(value: i128) -> f64 {
 fn intern(index: &mut ConstantKeyIndex, at: Position) -> Option<Position> {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     Hash::hash(&index.scratch, &mut hasher);
-    intern_with_hash(index, at, Hasher::finish(&hasher))
+    intern_with_hash(index, at, KeyHash(Hasher::finish(&hasher)))
 }
 
 /// Intern after a caller-selected hash, also making collision handling directly testable.
 pub(super) fn intern_with_hash(
     index: &mut ConstantKeyIndex,
     at: Position,
-    hash: u64,
+    hash: KeyHash,
 ) -> Option<Position> {
     let mut candidate = index.buckets.get(&hash).copied();
     while let Some(place) = candidate {

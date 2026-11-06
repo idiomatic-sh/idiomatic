@@ -96,21 +96,37 @@ pub(crate) struct KeyClass {
 }
 
 /// Capacity-retaining file-local full keys. Hashes choose candidates; complete word slices decide equality.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ConstantKeyIndex {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RetainedKeyIndex<Class, Word, Hash, State> {
     /// One supported canonical class per source element position.
-    pub classes: Vec<Option<KeyClass>>,
+    pub classes: Vec<Option<Class>>,
     /// Full keys retained once per distinct value class.
-    pub words: Vec<KeyWord>,
+    pub words: Vec<Word>,
     /// Canonical representatives and collision chains.
     pub records: Vec<KeyRecord>,
-    /// Full hash bucket heads.
-    pub buckets: std::collections::HashMap<u64, KeyRecordIndex>,
+    /// Hash bucket heads; equality never relies on a hash alone.
+    pub buckets: std::collections::HashMap<Hash, KeyRecordIndex>,
     /// Reusable full-key construction buffer.
-    pub scratch: Vec<KeyWord>,
+    pub scratch: Vec<Word>,
     /// Whether this index belongs to the current source revision.
-    pub state: KeyState,
+    pub state: State,
 }
+
+impl<Class, Word, Hash, State: Default> Default for RetainedKeyIndex<Class, Word, Hash, State> {
+    fn default() -> Self {
+        Self {
+            classes: Vec::new(),
+            words: Vec::new(),
+            records: Vec::new(),
+            buckets: std::collections::HashMap::new(),
+            scratch: Vec::new(),
+            state: State::default(),
+        }
+    }
+}
+
+/// The retained index of normalized constant-expression keys.
+pub(crate) type ConstantKeyIndex = RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>;
 
 /// Whether a candidate expression belongs to the caller's semantic projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,3 +148,7 @@ pub(crate) struct BuiltKey {
     /// Numeric value when this is a primitive or normalized numeric expression.
     pub number: Option<NumericState>,
 }
+
+/// The hash that selects a bucket of candidate keys.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct KeyHash(pub u64);

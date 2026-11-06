@@ -3,7 +3,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::service::{clear, intern_with_hash, key_of, prepare};
 use crate::domain::{
-    constant_keys::types::{ConstantKeyIndex, KeyState, KeyWord, LiteralKind},
+    constant_keys::types::{ConstantKeyIndex, KeyHash, KeyState, KeyWord, LiteralKind},
     model::types::Declarations,
     semantic_syntax::{service::{positions, visibility}, types::Visibility},
     syntax::service::{kind, written},
@@ -212,7 +212,7 @@ fn full_keys_disambiguate_hash_collisions() {
         LiteralKind::Integer,
         Some(languages::Symbol(10)),
     ));
-    let first = intern_with_hash(&mut index, languages::Position(2), 0).expect("first key interns");
+    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0)).expect("first key interns");
     index.scratch.clear();
     index.scratch.push(KeyWord::Literal(
         LiteralKind::Integer,
@@ -220,7 +220,7 @@ fn full_keys_disambiguate_hash_collisions() {
     ));
     // Test the collision chain directly by using the same bucket hash in the service's intern path.
     let second =
-        intern_with_hash(&mut index, languages::Position(5), 0).expect("second key interns");
+        intern_with_hash(&mut index, languages::Position(5), KeyHash(0)).expect("second key interns");
     assert_ne!(first, second);
     assert_eq!(index.records.len(), 2);
 }

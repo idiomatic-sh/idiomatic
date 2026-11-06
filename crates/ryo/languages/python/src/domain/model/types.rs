@@ -2,7 +2,7 @@
 //! language works out of a file once, before its readers run.
 
 use crate::domain::brace_format::types::BraceFormatIndex;
-use crate::domain::constant_keys::types::{ConstantKeyIndex, KeyRecord, KeyRecordIndex};
+use crate::domain::constant_keys::types::{ConstantKeyIndex, RetainedKeyIndex};
 use crate::domain::expression_types::types::ExpressionTypeIndex;
 use crate::domain::format_syntax::types::FormatParseIndex;
 use crate::domain::indentation::types::IndentationIndex;
@@ -161,21 +161,8 @@ pub(crate) enum ShapeState {
     Partial,
 }
 /// Storage is kept across source edits; no index is built until requested.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ExpressionShapeIndex {
-    /// One optional canonical representative per syntax element.
-    pub classes: Vec<Option<Position>>,
-    /// Full keys, stored once for each unique class.
-    pub words: Vec<ShapeWord>,
-    /// Canonical classes and collision chains.
-    pub records: Vec<KeyRecord>,
-    /// Hash bucket heads; equality never relies on this key alone.
-    pub buckets: std::collections::HashMap<ShapeHash, KeyRecordIndex>,
-    /// One reusable key builder.
-    pub scratch: Vec<ShapeWord>,
-    /// Current parse validity.
-    pub state: ShapeState,
-}
+pub(crate) type ExpressionShapeIndex =
+    RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>;
 /// A sparse environment frame; branches inherit their entry state without copying it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct BindingFrameId(pub usize);
