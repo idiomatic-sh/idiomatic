@@ -84,7 +84,7 @@ pub(crate) mod scenarios {
         let request = |query: &str, include: &str, file: &str, spec: &str| LintRequest {
             project_search_scope: Default::default(),
             given_project_inventory: Default::default(),
-            source_language: None,
+            source_language: crate::domain::language::types::SourceLanguage::Recognized,
             root: root.to_path_buf(),
             rules: BTreeMap::from([(
                 RuleId::try_from("rule").expect("a rule id"),
@@ -176,8 +176,8 @@ pub(crate) mod scenarios {
             &self,
             _: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
             _: &ryo_language::domain::elements::types::Elements,
-        ) -> Option<Box<dyn ryo_language::domain::semantics::interface::SemanticSession>> {
-            None
+            _: &mut ryo_language::domain::semantics::types::SemanticSlot,
+        ) {
         }
         fn capabilities(
             &self,
@@ -221,7 +221,7 @@ pub(crate) mod scenarios {
             table: &mut ryo_language::domain::elements::types::Elements,
             symbols: &mut ryo_language::domain::symbols::types::Symbols,
         ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
-            use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
+            use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
             use ryo_relations::domain::relations::types::{KindBits, Offset};
             let mut builder = table_builder(table, symbols, request.bytes);
             enter_node(&mut builder, KindBits(0), Offset(0));
@@ -257,6 +257,16 @@ pub(crate) mod scenarios {
             self.build_file(request, table, symbols)?;
             self.walk_file(table, symbols, source, file, wanted, out);
             Ok(())
+        }
+        fn read_file_explicit(
+            &self,
+            _: ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+            _: &mut ryo_language::domain::elements::types::Elements,
+            _: &mut ryo_language::domain::symbols::types::Symbols,
+            _: &[ryo_relations::domain::relations::types::Relation],
+            _: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+        ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
+            Err(ryo_language::inbound::use_cases::parse::errors::ParseError::Unsupported)
         }
         fn walk_file(
             &self,
@@ -459,7 +469,7 @@ pub(crate) mod scenarios {
         let request = LintRequest {
             project_search_scope: Default::default(),
             given_project_inventory: Default::default(),
-            source_language: None,
+            source_language: crate::domain::language::types::SourceLanguage::Recognized,
             root: root.path().to_path_buf(),
             rules: BTreeMap::from([(
                 RuleId::try_from("optional").expect("rule"),
@@ -515,9 +525,9 @@ pub(crate) mod scenarios {
             "the cache must contain a real optional finding"
         );
         let mut selected = request.clone();
-        selected.source_language = Some(crate::domain::language::types::LanguageName(
-            "fixture".into(),
-        ));
+        selected.source_language = crate::domain::language::types::SourceLanguage::Named(
+            crate::domain::language::types::LanguageName("fixture".into(),),
+        );
         let explicit =
             crate::resources::linter::lint::entry::lint_with(&advertised, selected.clone())
                 .expect("explicit refusal report");
@@ -544,9 +554,9 @@ pub(crate) mod scenarios {
                 .expect("ordinary selection restored"),
             first
         );
-        selected.source_language = Some(crate::domain::language::types::LanguageName(
-            "missing-provider".into(),
-        ));
+        selected.source_language = crate::domain::language::types::SourceLanguage::Named(
+            crate::domain::language::types::LanguageName("missing-provider".into(),),
+        );
         assert!(matches!(
             crate::resources::linter::lint::entry::lint_with(&advertised, selected),
             Err(crate::resources::linter::lint::errors::LintError::SourceLanguage { .. })
@@ -562,9 +572,9 @@ pub(crate) mod scenarios {
             Cache::None,
         );
         let mut ambiguous_request = request.clone();
-        ambiguous_request.source_language = Some(crate::domain::language::types::LanguageName(
-            "fixture".into(),
-        ));
+        ambiguous_request.source_language = crate::domain::language::types::SourceLanguage::Named(
+            crate::domain::language::types::LanguageName("fixture".into(),),
+        );
         assert!(matches!(
             crate::resources::linter::lint::entry::lint_with(&ambiguous, ambiguous_request),
             Err(crate::resources::linter::lint::errors::LintError::SourceLanguage { .. })
@@ -729,7 +739,7 @@ pub(crate) mod scenarios {
                 entries: Vec::new(),
                 completeness: ProjectInventoryCompleteness::Partial,
             },
-            source_language: None,
+            source_language: crate::domain::language::types::SourceLanguage::Recognized,
             root: root.to_owned(),
             files: Vec::new(),
             beside: Vec::new(),
@@ -844,7 +854,7 @@ pub(crate) mod scenarios {
         LintRequest {
             project_search_scope: Default::default(),
             given_project_inventory: Default::default(),
-            source_language: None,
+            source_language: crate::domain::language::types::SourceLanguage::Recognized,
             root: root.to_path_buf(),
             rules: BTreeMap::from([(rule_id("permissions"), ordinary(query))]),
             files: Vec::new(),

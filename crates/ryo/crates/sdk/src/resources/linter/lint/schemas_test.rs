@@ -199,7 +199,7 @@ fn converted_policy(applicability: RuleApplicability) -> Result<Value, Failure> 
     let converted = request(LintRequest {
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
-        source_language: None,
+        source_language: crate::domain::language::types::SourceLanguage::Recognized,
         root: std::path::PathBuf::from("."),
         rules: [(
             id,
@@ -318,9 +318,9 @@ fn explicit_source_language_is_preserved_at_sdk_request_boundary() -> usize {
     let converted = request(LintRequest {
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
-        source_language: Some(crate::domain::language::types::LanguageName(
-            "selected-provider".into(),
-        )),
+        source_language: crate::domain::language::types::SourceLanguage::Named(
+            crate::domain::language::types::LanguageName("selected-provider".into(),),
+        ),
         root: std::path::PathBuf::from("."),
         rules: std::collections::BTreeMap::new(),
         files: vec![],
@@ -352,7 +352,7 @@ fn project_paths_are_normalized_before_observation_or_rejected() -> usize {
             }],
             ..Default::default()
         },
-        source_language: None,
+        source_language: crate::domain::language::types::SourceLanguage::Recognized,
         root: std::path::PathBuf::from("."),
         rules: std::collections::BTreeMap::new(),
         files: vec![],

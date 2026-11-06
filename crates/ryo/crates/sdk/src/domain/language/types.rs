@@ -16,6 +16,16 @@ use ryo_relations::domain::relations::types::FileId;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LanguageName(pub Box<str>);
 
+/// Which language reads the sources a request gives.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum SourceLanguage {
+    /// Each file is read by the language that recognises its path.
+    #[default]
+    Recognized,
+    /// Every file is read by the language of this name.
+    Named(LanguageName),
+}
+
 /// Which build of a language it is: its crate's version.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LanguageBuild(pub Box<str>);

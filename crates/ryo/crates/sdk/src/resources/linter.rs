@@ -54,11 +54,13 @@ pub use lint::types::Finding;
 
 pub use lint::types::Glob;
 
-pub use lint::entry::dependency_fingerprint;
 pub use lint::types::LintReport;
 pub use lint::types::Skipped;
-pub use lint::types::{DependencyFingerprint, ProjectDependency, ProjectDependencyState};
+pub use lint::types::{
+    DependencyBytes, DependencyFingerprint, ProjectDependency, ProjectDependencyState,
+};
 
+pub use crate::domain::language::types::SourceLanguage;
 pub use lint::types::LintRequest;
 pub use lint::types::{
     GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,

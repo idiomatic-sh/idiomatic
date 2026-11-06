@@ -235,7 +235,7 @@ fn query_bundle_retains_module_identity_and_exact_source() -> usize {
     assert_eq!(&*empty_root.root.text, "root query\n");
     assert_eq!(first, same);
     assert_ne!(first, changed_source);
-    assert_eq!(first.root_text(), "root query\n");
+    assert_eq!(&**first.root_text(), "root query\n");
     let original = first.clone().into_bundle();
     let cloned = first.into_bundle();
     let other_root = other_root.into_bundle();
@@ -245,14 +245,14 @@ fn query_bundle_retains_module_identity_and_exact_source() -> usize {
     assert!(Arc::ptr_eq(&original.root.text.0, &cloned.root.text.0));
     assert!(Arc::ptr_eq(&original.modules, &other_root.modules));
     let id = ryo_values::domain::program::service::source_id(
-        ryo_values::domain::query_tokens::types::QuerySpelling(module.id()),
+        ryo_values::domain::query_tokens::types::QuerySpelling(&module.id().0),
     )
     .unwrap();
     assert!(Arc::ptr_eq(
         &original.modules[&id].text.0,
         &cloned.modules[&id].text.0
     ));
-    assert!(std::ptr::eq(module.text(), &*original.modules[&id].text));
+    assert!(std::ptr::eq(&**module.text(), &*original.modules[&id].text));
     let mut edited = original.clone();
     Arc::make_mut(&mut edited.modules)
         .get_mut(&id)

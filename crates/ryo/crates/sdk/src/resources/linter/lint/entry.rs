@@ -61,7 +61,8 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
     schemas::project_context(&mut request)?;
     let engine = linter.engine();
     let connections = super::connections::connect(&engine.cache, engine)?;
-    let reading = super::composition::build_reading(&request);
+    let inventory = schemas::given_project_inventory(request.given_project_inventory.clone());
+    let reading = super::composition::build_reading(&request, inventory);
     let budget = schemas::budget(engine.memory);
     let mut core: CoreRequest = schemas::request(request)?;
     let opened = super::composition::build_open(budget)
@@ -95,10 +96,4 @@ impl From<Workers> for WorkerPool {
             super::composition::build_workers(asked),
         )
     }
-}
-
-/// Fingerprint dependency bytes using the same opaque content identity as lint reports.
-#[must_use]
-pub fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
-    super::composition::dependency_fingerprint(bytes)
 }

@@ -19,7 +19,9 @@ use crate::domain::capacity::types::{MemoryBudget, WorkerPool};
 use crate::domain::language::types::Language;
 
 use super::connections::LinterLintConnections;
-use super::types::{Corpus, LintRequest, LinterLintEngine, Reading, Spill};
+use super::types::{
+    Corpus, DependencyBytes, DependencyFingerprint, LintRequest, LinterLintEngine, Reading, Spill,
+};
 
 /// The dependencies the caller supplies: how the service is built over the adapters its builder chose.
 pub(crate) struct LinterLintParts<Construct> {
@@ -213,7 +215,10 @@ pub(crate) fn build_matching() -> impl MatchingPort {
 
 /// Which files the run reads, as the corpus adapters take them: the disk walked or as the caller listed, with the files given beside
 /// it, or only the files given.
-pub(crate) fn build_reading(request: &LintRequest) -> Reading {
+pub(crate) fn build_reading(
+    request: &LintRequest,
+    inventory: ryo_language::domain::project_context::types::GivenProjectInventory,
+) -> Reading {
     let given = |sources: &[super::types::CaseSource]| {
         sources
             .iter()
@@ -235,10 +240,7 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
             let mut files = given(sources);
             files.retain(|file| beside.iter().all(|other| other.path != file.path));
             files.extend(beside);
-            Reading::Memory(
-                files,
-                super::schemas::given_project_inventory(request.given_project_inventory.clone()),
-            )
+            Reading::Memory(files, inventory)
         }
     }
 }
@@ -315,11 +317,14 @@ pub(crate) fn store_skip(
 }
 
 /// The dependency content identity using the digest adapter composed by the SDK.
-pub(crate) fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
-    use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort as _;
-    let digest = digest::factory::blake3()
-        .digest(ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes(bytes));
-    super::types::DependencyFingerprint(digest.0)
+impl From<DependencyBytes<'_>> for DependencyFingerprint {
+    fn from(bytes: DependencyBytes<'_>) -> Self {
+        use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort as _;
+        let digest = digest::factory::blake3().digest(
+            ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes(bytes.0),
+        );
+        Self(digest.0)
+    }
 }
 /// What joins the parts of a path the walk skips, on every platform.
 const SKIP_SEPARATOR: char = '/';

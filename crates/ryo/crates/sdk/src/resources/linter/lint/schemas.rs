@@ -102,7 +102,7 @@ impl TryFrom<&str> for RuleId {
         if text.trim().is_empty() {
             return Err(RuleIdSchemaError);
         }
-        Ok(Self::from_text(text.into()))
+        Ok(Self(text.into()))
     }
 }
 
@@ -112,7 +112,7 @@ impl TryFrom<&str> for Glob {
     fn try_from(text: &str) -> Result<Self, Self::Error> {
         // A glob is the text the matching reads: the schema keeps the text, and the run makes it ready among its rule's globs.
         match super::composition::build_matching().parse(&CoreGlob(text.into())) {
-            Ok(()) => Ok(Self::from_text(text.into())),
+            Ok(()) => Ok(Self(text.into())),
             Err(MatchingError::BadGlob { glob, reason }) => Err(GlobSchemaError { glob, reason }),
         }
     }
@@ -145,11 +145,11 @@ pub(super) fn given_project_inventory(
             entries: inventory.entries.into_iter().map(|entry| ryo_language::domain::project_context::types::EntryObservation {
                 path: FilePath(entry.path.0),
                 state: match entry.state {
-                    super::types::ProjectEntryState::File => ryo_language::domain::project_context::types::EntryState::File,
-                    super::types::ProjectEntryState::Directory => ryo_language::domain::project_context::types::EntryState::Directory,
-                    super::types::ProjectEntryState::Other => ryo_language::domain::project_context::types::EntryState::Other,
-                    super::types::ProjectEntryState::Missing => ryo_language::domain::project_context::types::EntryState::Missing,
-                    super::types::ProjectEntryState::Unknown => ryo_language::domain::project_context::types::EntryState::Unknown,
+                    super::types::ProjectEntryState::File => ryo_language::domain::project_context::types::ObservedEntryState::File,
+                    super::types::ProjectEntryState::Directory => ryo_language::domain::project_context::types::ObservedEntryState::Directory,
+                    super::types::ProjectEntryState::Other => ryo_language::domain::project_context::types::ObservedEntryState::Other,
+                    super::types::ProjectEntryState::Missing => ryo_language::domain::project_context::types::ObservedEntryState::Missing,
+                    super::types::ProjectEntryState::Unknown => ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
                 },
             }).collect(),
             completeness: match inventory.completeness {
@@ -218,9 +218,12 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .collect::<Vec<_>>()
         };
         Ok(Self {
-            source_language: request
-                .source_language
-                .map(|name| ryo_values::domain::descriptions::types::LanguageName(name.0)),
+            source_language: match request.source_language {
+                crate::domain::language::types::SourceLanguage::Recognized => None,
+                crate::domain::language::types::SourceLanguage::Named(name) => Some(
+                    ryo_values::domain::descriptions::types::LanguageName(name.0),
+                ),
+            },
             session: Session {
                 root: RootPath(root.into()),
                 repository: match request.corpus {
@@ -317,7 +320,7 @@ impl TryFrom<LintReportSchema> for LintReport {
                 .unknowns
                 .into_iter()
                 .map(|each| Unknown {
-                    rule: RuleId::from_text(each.rule.0),
+                    rule: RuleId(each.rule.0),
                     path: RelativePath(each.path.0),
                     message: Message(each.message.0),
                 })
@@ -326,7 +329,7 @@ impl TryFrom<LintReportSchema> for LintReport {
                 .skipped
                 .into_iter()
                 .map(|each| super::types::Skipped {
-                    rule: RuleId::from_text(each.rule.0),
+                    rule: RuleId(each.rule.0),
                     path: RelativePath(each.path.0),
                     reason: match each.reason {
                         ryo_values::domain::runs::types::SkipReason::SyntaxRejected => SkipReason::SyntaxRejected,
@@ -347,17 +350,17 @@ impl From<LintErrorSchema> for LintError {
             CoreError::ObservationBindings { reason } => Self::ObservationBindings { reason },
             CoreError::ObservationExecution { reason } => Self::ObservationExecution { reason },
             CoreError::Query { id, error } => Self::Rule {
-                id: RuleId::from_text(id.into()),
+                id: RuleId(id.into()),
                 error: compile_error(error),
             },
             CoreError::Rule { id, reason } | CoreError::UnknownKind { id, reason } => {
                 Self::Unrunnable {
-                    id: RuleId::from_text(id.into()),
+                    id: RuleId(id.into()),
                     reason,
                 }
             }
             CoreError::MissingParameter { id } => Self::MissingParameter {
-                id: RuleId::from_text(id.into()),
+                id: RuleId(id.into()),
             },
             CoreError::TooLarge { size, budget } => Self::TooLarge { size, budget },
             CoreError::MemoryBudgetExceeded {
@@ -369,7 +372,7 @@ impl From<LintErrorSchema> for LintError {
                 budget,
                 plans: plans
                     .into_iter()
-                    .map(|plan| RuleId::from_text(plan.into()))
+                    .map(|plan| RuleId(plan.into()))
                     .collect(),
             },
             CoreError::Provider { provider, code } => Self::Provider {
@@ -394,7 +397,7 @@ impl From<LintErrorSchema> for LintError {
             // Ids are unique and not blank by construction: these cannot happen, and say so if they do.
             other @ (CoreError::BlankRuleId | CoreError::DuplicateRuleId { .. }) => {
                 Self::Unrunnable {
-                    id: RuleId::from_text(Box::default()),
+                    id: RuleId(Box::default()),
                     reason: other.to_string(),
                 }
             }
@@ -622,7 +625,7 @@ fn finding_of(cells: &[Option<RowCell>]) -> Result<Finding, LintError> {
         _ => Place::Missing,
     };
     Ok(Finding {
-        rule: RuleId::from_text(rule.clone()),
+        rule: RuleId(rule.clone()),
         subject: cell_of(subject.as_ref()),
         key: FindingKey(key.iter().map(|cell| cell_of(cell.as_ref())).collect()),
         place,

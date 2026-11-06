@@ -61,7 +61,7 @@ impl crate::domain::query::types::QueryModuleSource {
                 ryo_values::domain::query_tokens::types::QuerySpelling(id),
             )
             .map_err(QueryBundleError::from_internal)?,
-            text.into(),
+            ryo_values::domain::query_tokens::types::QuerySourceText(text.into()),
         ))
     }
 }

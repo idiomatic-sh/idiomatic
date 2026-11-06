@@ -22,15 +22,7 @@ use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
 
 /// The name a rule's findings carry: text that is not blank. Made through `RuleId::try_from`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RuleId(Box<str>);
-
-// the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
-impl RuleId {
-    /// A rule id of `text`, which the core holds or a schema has checked: what the sibling schemas build, never a caller.
-    pub(super) const fn from_text(text: Box<str>) -> Self {
-        Self(text)
-    }
-}
+pub struct RuleId(pub(super) Box<str>);
 
 impl std::fmt::Display for RuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -46,15 +38,7 @@ impl AsRef<str> for RuleId {
 
 /// A glob over the paths of a repository, relative to its root: text that parses as one. Made through `Glob::try_from`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Glob(Box<str>);
-
-// the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
-impl Glob {
-    /// A glob of `text`, which a schema has checked: what the sibling schemas build, never a caller.
-    pub(super) const fn from_text(text: Box<str>) -> Self {
-        Self(text)
-    }
-}
+pub struct Glob(pub(super) Box<str>);
 
 impl std::fmt::Display for Glob {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -216,8 +200,8 @@ impl std::fmt::Debug for Linter {
 /// The rules to check in a repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
-    /// Explicit provider for these sources; none preserves ordinary path recognition.
-    pub source_language: Option<crate::domain::language::types::LanguageName>,
+    /// Explicit provider for these sources; otherwise the language that recognises each path.
+    pub source_language: crate::domain::language::types::SourceLanguage,
     /// The repository's root directory.
     pub root: PathBuf,
     /// Explicit ordered import roots; undeclared scope keeps project membership unknown.
@@ -411,7 +395,11 @@ pub struct LintReport {
     pub skipped: Vec<Skipped>,
 }
 
-/// An opaque project dependency content fingerprint. Use `dependency_fingerprint` to compare bytes.
+/// The bytes of a project dependency, borrowed, which `DependencyFingerprint::from` fingerprints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DependencyBytes<'a>(pub &'a [u8]);
+
+/// An opaque project dependency content fingerprint. Made from `DependencyBytes` to compare bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DependencyFingerprint(pub [u8; 16]);
 

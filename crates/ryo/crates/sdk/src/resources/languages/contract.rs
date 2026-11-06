@@ -12,7 +12,7 @@ pub use ryo_language::domain::elements::service::{element_count, notes_of};
 pub use ryo_language::domain::elements::service::{
     has_incomplete_lexical_stream, has_incomplete_syntax,
 };
-pub use ryo_language::domain::symbols::service::name_count;
+pub use ryo_language::domain::names::service::name_count;
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
     Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point,
     SemanticExpected, Stretch, Text, Unfilled, Unshown, expected_rows, file, name, node, number,
@@ -139,6 +139,14 @@ pub fn conformance(linked: &super::Language, manifest_dir: ManifestDir, expected
     conformance_with(linked, manifest_dir, expected, &|_| Ok(None));
 }
 
+/// The text of a fixture, which a language reads its declared configuration from.
+#[derive(Clone, Copy, Debug)]
+pub struct FixtureText<'a>(pub &'a str);
+
+/// Why a language refuses the configuration a fixture declares.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixtureRefusal(pub String);
+
 /// A fixture-only language selection and matching independent references.
 pub struct ConfiguredFixture {
     /// Immutable configured language constructed through its existing public setup.
@@ -165,7 +173,7 @@ pub fn conformance_with(
     linked: &super::Language,
     manifest_dir: ManifestDir,
     expected: &Fixtures,
-    configure: &dyn Fn(&str) -> Result<Option<ConfiguredFixture>, String>,
+    configure: &dyn Fn(FixtureText<'_>) -> Result<Option<ConfiguredFixture>, FixtureRefusal>,
 ) {
     let directory = Path::new(manifest_dir.0);
     assert_eq!(
@@ -180,7 +188,7 @@ pub fn conformance_with(
         &directory.join(FIXTURES),
         expected,
         &|text| {
-            configure(text).map(|configured| {
+            configure(FixtureText(text)).map_err(|refusal| refusal.0).map(|configured| {
                 configured.map(|context| EngineFixture {
                     parse: context.language.parse_engine(),
                     shape: context.shape,

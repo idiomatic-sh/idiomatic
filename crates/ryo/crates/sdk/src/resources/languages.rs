@@ -17,9 +17,10 @@ pub use macros::link::link;
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
-pub use ryo_language::domain::semantics::interface::SemanticSession;
+pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
+pub use ryo_language::domain::semantics::errors::SemanticsError;
 pub use ryo_language::domain::semantics::types::{
-    RenderContext, RenderError, RenderOutcome, RenderRequest,
+    RenderContext, RenderOutcome, RenderRequest, RenderedNode,
 };
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
@@ -35,6 +36,8 @@ pub use ryo_language::inbound::use_cases::parse::types::{
 pub use ryo_language::inbound::use_cases::project::interface::ProjectUseCase as Project;
 
 pub use ryo_language::inbound::use_cases::project::types::ProjectRequest;
+pub use ryo_language::domain::project_context::service::{search_roots, state as entry_state};
+pub use ryo_language::domain::project_context::types::ObservedEntryState;
 
 pub use ryo_language::inbound::use_cases::project::types::ManifestFile;
 
@@ -78,11 +81,14 @@ pub use ryo_relations::domain::relations::types::Relation;
 
 pub use ryo_relations::domain::relations::types::Column;
 
-pub use ryo_language::domain::elements::types::{
-    DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, SyntaxAcceptance, TreeImpact,
+pub use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
+pub use ryo_language::domain::diagnostics::service::{impact_name, phase_name};
+pub use ryo_language::domain::diagnostics::types::{
+    SyntaxCompleteness, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact,
 };
 
-pub use ryo_language::domain::elements::service::{set_syntax_acceptance, syntax_acceptance};
+pub use ryo_language::domain::elements::service::syntax_acceptance;
+pub use ryo_language::domain::builders::service::set_syntax_acceptance;
 
 pub use ryo_language::domain::elements::types::Children;
 
@@ -90,16 +96,17 @@ pub use ryo_relations::domain::relations::constants::TOKEN;
 
 pub use ryo_relations::domain::relations::constants::{NO_FILE, NO_SYMBOL};
 
-pub use ryo_language::domain::elements::service::enter_node;
-pub use ryo_language::domain::elements::service::{decoded_at, decoded_token};
+pub use ryo_language::domain::builders::service::enter_node;
+pub use ryo_language::domain::builders::service::decoded_token;
+pub use ryo_language::domain::decoded::service::decoded_at;
 
 pub use ryo_language::domain::completion::service::name_kind;
 
 pub use ryo_language::domain::completion::service::write_notes;
 
-pub use ryo_language::domain::elements::service::leave_node;
+pub use ryo_language::domain::builders::service::leave_node;
 
-pub use ryo_language::domain::elements::service::token;
+pub use ryo_language::domain::builders::service::token;
 
 pub use ryo_language::domain::elements::service::children;
 
@@ -133,31 +140,30 @@ pub use ryo_language::domain::targets::types::{ResolvedTarget, TargetReach, Writ
 
 pub use ryo_language::domain::symbols::types::Symbols;
 
-pub use ryo_language::domain::symbols::types::NameStart;
+pub use ryo_language::domain::names::types::NameStart;
 
 pub use ryo_language::domain::symbols::service::intern_derived;
 
 pub use ryo_language::domain::symbols::service::vocabulary_symbol;
 
-pub use ryo_language::domain::symbols::service::begin_name;
+pub use ryo_language::domain::names::service::begin_name;
 
-pub use ryo_language::domain::symbols::service::push_text;
+pub use ryo_language::domain::names::service::push_text;
 
-pub use ryo_language::domain::symbols::service::push_span;
+pub use ryo_language::domain::names::service::push_span;
 
-pub use ryo_language::domain::symbols::service::push_name;
+pub use ryo_language::domain::names::service::push_name;
 
-pub use ryo_language::domain::symbols::service::end_name;
+pub use ryo_language::domain::names::service::end_name;
 
-pub use ryo_language::domain::elements::service::{
-    diagnose, diagnose_with_metadata, has_incomplete_lexical_stream, has_incomplete_syntax,
-};
+pub use ryo_language::domain::elements::service::{has_incomplete_lexical_stream, has_incomplete_syntax};
+pub use ryo_language::domain::builders::service::{diagnose, diagnose_with_metadata};
 
 pub use ryo_language::domain::expansions::service::adopt;
 
 pub use ryo_language::domain::expansions::service::release;
 
-pub use ryo_language::domain::elements::types::Diagnostic;
+pub use ryo_language::domain::diagnostics::types::Diagnostic;
 
 pub use ryo_language::domain::elements::service::diagnostic_count;
 
@@ -165,13 +171,13 @@ pub use ryo_language::domain::elements::service::diagnostics;
 
 pub use ryo_language::domain::elements::service::ordinal_at;
 
-pub use ryo_language::domain::symbols::service::has_noted_words;
+pub use ryo_language::domain::notes::service::has_noted_words;
 
-pub use ryo_language::domain::symbols::service::note_of;
+pub use ryo_language::domain::notes::service::note_of;
 
-pub use ryo_language::domain::symbols::service::note_word;
+pub use ryo_language::domain::notes::service::note_word;
 
-pub use ryo_language::domain::symbols::service::set_note;
+pub use ryo_language::domain::notes::service::set_note;
 
 /// The seals of the item traits, which the declaration macro implements and nothing else does.
 #[doc(hidden)]
@@ -212,7 +218,7 @@ pub use ryo_language::domain::elements::types::TableBuilder;
 
 pub use ryo_language::domain::elements::types::Completion;
 
-pub use ryo_language::domain::elements::service::table_builder;
+pub use ryo_language::domain::builders::service::table_builder;
 
 pub use ryo_language::inbound::use_cases::parse::types::SourceFile;
 
@@ -232,13 +238,13 @@ pub use ryo_relations::domain::relations::types::Count;
 
 pub use ryo_language::domain::answers::types::Expansions;
 pub use ryo_language::domain::completion::service::{name_field, write_fields};
-pub use ryo_language::domain::elements::service::builder_position;
+pub use ryo_language::domain::builders::service::builder_position;
 pub use ryo_language::domain::elements::service::embedded_source_at;
 pub use ryo_language::domain::elements::service::{field_at, field_name_at, origin_at};
 pub use ryo_language::domain::expansions::service::mark_expansion;
 pub use ryo_language::domain::expansions::service::{embedded_expressions, write_embedded};
 pub use ryo_language::domain::symbols::types::ByteSlice;
-pub use ryo_language::domain::symbols::types::Noted;
+pub use ryo_language::domain::notes::types::Noted;
 pub use ryo_relations::domain::relations::constants::NO_FIELD;
 pub use ryo_relations::domain::relations::types::ReportText;
 pub use ryo_relations::domain::relations::types::{Bytes, Extent, Flag, Integer, Optionality};
@@ -285,7 +291,7 @@ pub use ryo_language::inbound::use_cases::project::types::ManifestItem;
 
 pub use ryo_language::inbound::use_cases::project::types::ManifestInput;
 
-pub use ryo_language::inbound::use_cases::project::types::ManifestName;
+pub use ryo_language::domain::files::types::ManifestName;
 
 pub use ryo_language::inbound::use_cases::project::types::Resolved;
 
@@ -299,9 +305,9 @@ pub use ryo_relations::domain::relations::types::Rows;
 
 pub use ryo_language::inbound::use_cases::project::types::Refused;
 
-pub use ryo_language::domain::elements::service::{
-    enter_implied_node, node_property, node_property_fmt, property_at, source_order,
-};
+pub use ryo_language::domain::elements::service::source_order;
+pub use ryo_language::domain::builders::service::{enter_implied_node, node_property, node_property_fmt};
+pub use ryo_language::domain::decoded::service::property_at;
 pub use ryo_language::domain::elements::types::SourceOrder;
 pub use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN};
 pub use ryo_relations::domain::relations::service::location;

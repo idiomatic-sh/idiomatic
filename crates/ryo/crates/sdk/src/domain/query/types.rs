@@ -1,6 +1,8 @@
 //! The types of the `query` concept: RyoQL text, and a stretch of it.
 
-use ryo_values::domain::query_tokens::types::{QueryDocumentSource, QuerySourceId};
+use ryo_values::domain::query_tokens::types::{
+    QueryDocumentSource, QuerySourceId, QuerySourceText,
+};
 use std::{collections::BTreeMap, sync::Arc};
 
 /// A place in the query text, counted in bytes from its start.
@@ -22,12 +24,12 @@ pub struct QueryModuleSource {
     /// The validated logical identity used by imports in the bundle.
     id: QuerySourceId,
     /// Exact module source bytes interpreted as UTF-8 text.
-    text: Arc<str>,
+    text: QuerySourceText,
 }
 
 impl QueryModuleSource {
     /// Construct a module value from already checked components.
-    pub(crate) const fn from_parts(id: QuerySourceId, text: Arc<str>) -> Self {
+    pub(crate) const fn from_parts(id: QuerySourceId, text: QuerySourceText) -> Self {
         Self { id, text }
     }
 
@@ -35,19 +37,19 @@ impl QueryModuleSource {
     pub(crate) fn into_document(self) -> QueryDocumentSource {
         QueryDocumentSource {
             id: self.id,
-            text: self.text.into(),
+            text: self.text,
         }
     }
 
     /// The stable logical module id.
     #[must_use]
-    pub fn id(&self) -> &str {
-        &self.id.0
+    pub fn id(&self) -> &QuerySourceId {
+        &self.id
     }
 
     /// The exact source text.
     #[must_use]
-    pub fn text(&self) -> &str {
+    pub fn text(&self) -> &QuerySourceText {
         &self.text
     }
 }
@@ -69,11 +71,24 @@ impl QueryModuleCatalog {
         &self.0
     }
 
-    /// Whether this catalog declares no modules.
+    /// Whether this catalog declares modules.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+    pub fn content(&self) -> CatalogContent {
+        if self.0.is_empty() {
+            CatalogContent::Empty
+        } else {
+            CatalogContent::Modules
+        }
     }
+}
+
+/// Whether a module catalog declares any module.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CatalogContent {
+    /// The catalog declares no module.
+    Empty,
+    /// The catalog declares at least one module.
+    Modules,
 }
 
 /// RyoQL text: text that is not blank. Made through `RyoQlQuery::try_from`; `query::validate` says whether it is correct.
@@ -96,7 +111,7 @@ impl RyoQlQuery {
 
     /// The root query text, preserving the standalone API's view.
     #[must_use]
-    pub fn root_text(&self) -> &str {
+    pub fn root_text(&self) -> &QuerySourceText {
         ryo_values::domain::program::service::root_text(&self.0)
     }
 }
