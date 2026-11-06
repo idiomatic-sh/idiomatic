@@ -1,4 +1,5 @@
 //! Inject the brace grammar into a language fact reader, independently of lint call policy.
+use super::constants::{DYNAMIC, INVALID_TYPE, OTHER_ERROR, PARTIAL_CAUSE, RECOGNIZED};
 use crate::domain::{
     brace_format::service::prepare,
     format_specification::service::observe,
@@ -10,11 +11,9 @@ use crate::domain::{
 };
 use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
-pub(super) struct FormatSpecificationItem;
 
-fn incomplete(observations: &crate::domain::format_specification::types::Observations) -> bool {
-    observations.partial
-}
+/// Reads the standard format specifications of whole string carriers.
+pub(crate) struct FormatSpecificationItem;
 
 ryo::reads! {
     FormatSpecificationItem => languages::FormatSpecification, model(Declarations) |tree, model, at, symbols| {
@@ -27,7 +26,7 @@ ryo::reads! {
             given parent_ordinal = languages::Integer(spec.parent.map_or(-1,|parent|i64::try_from(parent).unwrap_or(i64::MAX)));
             given source_kind = languages::intern_derived(symbols,tree.source,languages::NameText(spec.source_kind));
             given value = match &spec.value { Some(value) => languages::intern_derived(symbols,tree.source,languages::NameText(value)), None => crate::domain::names::service::string_or_unknown(tree,symbols,spec.origin) };
-            given label = match spec.outcome { StandardSpecOutcome::Recognized => "recognized", StandardSpecOutcome::Dynamic => "dynamic", StandardSpecOutcome::InvalidType(_) => "invalid-type", StandardSpecOutcome::OtherError => "other-error" };
+            given label = match spec.outcome { StandardSpecOutcome::Recognized => RECOGNIZED, StandardSpecOutcome::Dynamic => DYNAMIC, StandardSpecOutcome::InvalidType(_) => INVALID_TYPE, StandardSpecOutcome::OtherError => OTHER_ERROR };
             given outcome = languages::intern_derived(symbols,tree.source,languages::NameText(label));
             given invalid = match spec.outcome { StandardSpecOutcome::InvalidType(character) => character.to_string(), _ => String::new() };
             given invalid_type = languages::intern_derived(symbols,tree.source,languages::NameText(&invalid));
@@ -35,12 +34,9 @@ ryo::reads! {
             given conversion = languages::intern_derived(symbols,tree.source,languages::NameText(&spec.conversion));
             row { id: node(spec.id), ordinal: value(ordinal), parent_ordinal: value(parent_ordinal), origin: node(spec.origin), source_kind: value(source_kind), value: value(value), outcome: value(outcome), invalid_type: value(invalid_type), selector: value(selector), conversion: value(conversion), file: file, span: span(spec.origin), }
         }
-        when incomplete(&observations) {
-            true => { partial "format specifications require complete parser-decoded inputs" => languages::Missing::Any; }
+        when observations.partial {
+            true => { partial PARTIAL_CAUSE => languages::Missing::Any; }
             false => {}
         }
     }
 }
-#[cfg(test)]
-#[path = "format_specification_readers_test.rs"]
-mod tests;

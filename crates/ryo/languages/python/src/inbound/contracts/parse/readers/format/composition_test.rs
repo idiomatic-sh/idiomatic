@@ -1,5 +1,5 @@
 //! Regression cases for format readers bindings.
-use super::{FormatFieldItem, FormatParseItem};
+use super::composition::{FormatFieldItem, FormatParseItem};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;

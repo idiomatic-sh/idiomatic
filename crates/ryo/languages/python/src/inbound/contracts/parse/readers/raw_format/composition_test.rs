@@ -1,5 +1,5 @@
 //! Regression cases for raw format readers bindings.
-use super::{RawFormatFieldItem, RawFormatSegmentItem};
+use super::composition::{RawFormatFieldItem, RawFormatSegmentItem};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::{proposed, reading};

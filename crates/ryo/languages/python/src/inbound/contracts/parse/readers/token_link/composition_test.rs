@@ -1,4 +1,5 @@
 //! Actual parser output is inspected without a second lexer or inferred token IDs.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::token_links::{
     service::scan,
     types::{Event, LinkKind},
@@ -36,7 +37,6 @@ fn edges(source: &str) -> (Vec<(String, String, LinkKind)>, bool) {
     (edges, partial)
 }
 
-#[test]
 fn immediate_enclosure_excludes_a_closing_tokens_own_pair() {
     let (edges, partial) = edges("f((x, y), [z])\n");
     assert!(!partial);
@@ -68,7 +68,6 @@ fn immediate_enclosure_excludes_a_closing_tokens_own_pair() {
     );
 }
 
-#[test]
 fn strings_comments_yield_and_commas_have_physical_ownership() {
     let (edges, partial) = edges("def f():\n    return ((yield x), '[(]', # )]\n            y)\n");
     assert!(!partial);
@@ -87,7 +86,6 @@ fn strings_comments_yield_and_commas_have_physical_ownership() {
     assert!(!edges.iter().any(|edge| edge.0 == "[(]"));
 }
 
-#[test]
 fn unmatched_openers_preserve_prefix_edges_but_not_complete_absence() {
     let (edges, partial) = edges("f((x,\n");
     assert!(partial);
@@ -99,9 +97,8 @@ fn unmatched_openers_preserve_prefix_edges_but_not_complete_absence() {
     assert!(!edges.iter().any(|edge| edge.2 == LinkKind::Matching));
 }
 
-#[test]
 fn full_reader_contract_and_incomplete_pairing_remain_observable() {
-    use super::TokenLinkItem;
+    use super::composition::TokenLinkItem;
     use crate::domain::relations::collections::relations::fixtures::contract::check;
     use crate::fixtures::reading::reading;
     check::<TokenLinkItem>();
@@ -117,7 +114,6 @@ fn full_reader_contract_and_incomplete_pairing_remain_observable() {
     }
 }
 
-#[test]
 fn mismatched_closer_has_no_guessed_enclosing_edge() {
     let (edges, partial) = edges("([)]\n");
     assert!(partial);
@@ -127,4 +123,80 @@ fn mismatched_closer_has_no_guessed_enclosing_edge() {
             .any(|edge| edge.0 == ")" && edge.2 == LinkKind::Enclosing)
     );
     assert!(!edges.iter().any(|edge| edge.2 == LinkKind::Matching));
+}
+
+/// The cases of this file, one variant each.
+#[derive(Clone, Copy)]
+enum Body {
+    /// The case `immediate_enclosure_excludes_a_closing_tokens_own_pair`.
+    ImmediateEnclosureExcludesAClosingTokensOwnPair,
+    /// The case `strings_comments_yield_and_commas_have_physical_ownership`.
+    StringsCommentsYieldAndCommasHavePhysicalOwnership,
+    /// The case `unmatched_openers_preserve_prefix_edges_but_not_complete_absence`.
+    UnmatchedOpenersPreservePrefixEdgesButNotCompleteAbsence,
+    /// The case `full_reader_contract_and_incomplete_pairing_remain_observable`.
+    FullReaderContractAndIncompletePairingRemainObservable,
+    /// The case `mismatched_closer_has_no_guessed_enclosing_edge`.
+    MismatchedCloserHasNoGuessedEnclosingEdge,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("immediate_enclosure_excludes_a_closing_tokens_own_pair"),
+        word: Word::Succeeds,
+        input: || Body::ImmediateEnclosureExcludesAClosingTokensOwnPair,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("strings_comments_yield_and_commas_have_physical_ownership"),
+        word: Word::Succeeds,
+        input: || Body::StringsCommentsYieldAndCommasHavePhysicalOwnership,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unmatched_openers_preserve_prefix_edges_but_not_complete_absence"),
+        word: Word::Succeeds,
+        input: || Body::UnmatchedOpenersPreservePrefixEdgesButNotCompleteAbsence,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("full_reader_contract_and_incomplete_pairing_remain_observable"),
+        word: Word::Succeeds,
+        input: || Body::FullReaderContractAndIncompletePairingRemainObservable,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("mismatched_closer_has_no_guessed_enclosing_edge"),
+        word: Word::Succeeds,
+        input: || Body::MismatchedCloserHasNoGuessedEnclosingEdge,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::ImmediateEnclosureExcludesAClosingTokensOwnPair => {
+            immediate_enclosure_excludes_a_closing_tokens_own_pair()
+        }
+        Body::StringsCommentsYieldAndCommasHavePhysicalOwnership => {
+            strings_comments_yield_and_commas_have_physical_ownership()
+        }
+        Body::UnmatchedOpenersPreservePrefixEdgesButNotCompleteAbsence => {
+            unmatched_openers_preserve_prefix_edges_but_not_complete_absence()
+        }
+        Body::FullReaderContractAndIncompletePairingRemainObservable => {
+            full_reader_contract_and_incomplete_pairing_remain_observable()
+        }
+        Body::MismatchedCloserHasNoGuessedEnclosingEdge => {
+            mismatched_closer_has_no_guessed_enclosing_edge()
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

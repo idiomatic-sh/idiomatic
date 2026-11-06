@@ -1,76 +1,51 @@
 //! The `parse` contract: it implements the contract another crate declares, with nothing of its own beside it. It says which files
-//! are Python, builds the file's tree in the worker's element table through a builder, works out the file's `global` and `nonlocal`
-//! names once, notes the imports of the file when the run asks for its notes, gives each element its role in the fields of
-//! `Python.asdl` when the run asks for roles, and answers, for every syntax relation of ryo's catalog, how Python reads it or that it
-//! is not in the language: Python has no macros, so nothing is a mention, and it is code, so it has no keyed documents.
+//! are Python and builds, completes and answers, for every syntax relation of ryo's catalog, how Python reads it or that it is not in the language.
 
-use std::sync::Arc;
-
-use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
-
-use crate::domain::fact_notes::service::noted;
-use crate::domain::fields::service::role_of;
-use crate::domain::labels::service::{field_bits, field_name, fields};
+use super::constants::CAPABILITIES;
+use super::service::{complete_file, prepare_model, read_file, source_kind};
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::reads;
 use crate::domain::model::types::Declarations;
-use crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
-use crate::domain::relations::collections::relations::assigns::item::AssignsItem;
-use crate::domain::relations::collections::relations::comment::item::CommentItem;
-use crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
-use crate::domain::relations::collections::relations::defines::item::DefinesItem;
-use crate::domain::relations::collections::relations::function::item::FunctionItem;
-use crate::domain::relations::collections::relations::inherits::item::InheritsItem;
-use crate::domain::relations::collections::relations::parameter::item::ParameterItem;
-use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
-use crate::domain::relations::collections::relations::scope::item::ScopeItem;
-use crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
-use crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
-use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
-use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
-use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
-use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
-use crate::domain::scopes::service::declare;
-use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
+use crate::domain::relations::collections::relations::{
+    annotates::item::AnnotatesItem, assigns::item::AssignsItem,
+    binding_event::item::BindingEventItem, binding_read::item::BindingReadItem,
+    binding_shadow::item::BindingShadowItem, binding_use::item::BindingUseItem,
+    bytes_literal::item::BytesLiteralItem, call_argument::item::CallArgumentItem,
+    comment::item::CommentItem, compiler_feature::item::CompilerFeatureItem,
+    constant_key::item::ConstantKeyItem, decorates::item::DecoratesItem,
+    defines::item::DefinesItem, embedded_expression::item::EmbeddedExpressionItem,
+    expression_shape::item::ExpressionShapeItem, expression_type::item::ExpressionTypeItem,
+    function::item::FunctionItem, function_terminal::item::FunctionTerminalItem,
+    identifier::item::IdentifierItem, implicit_symbol::item::ImplicitSymbolItem,
+    indent_region::item::IndentRegionItem, inherits::item::InheritsItem,
+    interpolated_string_literal::item::InterpolatedStringLiteralItem,
+    language_target::item::LanguageTargetItem, literal_properties::item::LiteralPropertiesItem,
+    numeric_literal::item::NumericLiteralItem, parameter::item::ParameterItem,
+    qualified_name::item::QualifiedNameItem, reference::item::ReferenceItem,
+    resolves::item::ResolvesItem, scope::item::ScopeItem, semantic_child::item::SemanticChildItem,
+    semantic_syntax::item::SemanticSyntaxItem,
+    standard_library_import::item::StandardLibraryImportItem, static_call::item::StaticCallItem,
+    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
+    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
+    syntax_tree::item::SyntaxTreeItem,
+};
+use crate::domain::syntax::service::{kind_name, kinds};
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::PythonParserSettings;
+use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
+use std::sync::Arc;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub(crate) struct ParseContract {
-    /// Immutable parser settings shared with the syntax adapter and the cache identity.
-    settings: PythonParserSettings,
-    /// The parser that reads Python text into the tree.
-    syntax: Arc<dyn SyntaxPort>,
-    /// What writes the notes of a file as bytes.
-    notes: Arc<dyn NotesPort>,
-    /// Actual model initialization calls on this contract instance.
+    pub(super) settings: PythonParserSettings,
+    pub(super) syntax: Arc<dyn SyntaxPort>,
+    pub(super) notes: Arc<dyn NotesPort>,
     #[cfg(test)]
-    model_preparations: std::sync::atomic::AtomicUsize,
-}
-
-/// Select stubs by the exact lowercase `.pyi` suffix used by the existing parser contract.
-fn source_kind(path: &str) -> PythonSourceKind {
-    if std::path::Path::new(path)
-        .extension()
-        .is_some_and(|extension| extension == std::ffi::OsStr::new("pyi"))
-    {
-        PythonSourceKind::Stub
-    } else {
-        PythonSourceKind::Python
-    }
+    pub(super) model_preparations: std::sync::atomic::AtomicUsize,
 }
 
 impl ParseContract {
-    /// Observe the actual common-engine call, without retaining a fabricated model snapshot.
-    #[cfg(test)]
-    pub(crate) fn model_preparation_count(&self) -> usize {
-        self.model_preparations
-            .load(std::sync::atomic::Ordering::Relaxed)
-    }
-
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(
@@ -97,41 +72,11 @@ impl Parse for ParseContract {
         tree: &languages::Elements,
     ) -> Option<Box<dyn languages::SemanticSession>> {
         self.syntax
-            .begin_semantics(tree, source_kind(request.path.0), self.settings)
+            .begin_semantics(tree, source_kind(request.path), self.settings)
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
-        &[
-            languages::OptionalCapability::ModuleIdentity,
-            languages::OptionalCapability::Identifier,
-            languages::OptionalCapability::QualifiedName,
-            languages::OptionalCapability::EmbeddedExpression,
-            languages::OptionalCapability::ExpressionShape,
-            languages::OptionalCapability::BindingEvent,
-            languages::OptionalCapability::BindingRead,
-            languages::OptionalCapability::BindingUse,
-            languages::OptionalCapability::BindingShadow,
-            languages::OptionalCapability::ImplicitSymbol,
-            languages::OptionalCapability::LiteralProperties,
-            languages::OptionalCapability::NumericLiteral,
-            languages::OptionalCapability::InterpolatedStringLiteral,
-            languages::OptionalCapability::BytesLiteral,
-            languages::OptionalCapability::FormatSpecification,
-            languages::OptionalCapability::ConstantKey,
-            languages::OptionalCapability::FormatParse,
-            languages::OptionalCapability::FormatField,
-            languages::OptionalCapability::RawFormatSegment,
-            languages::OptionalCapability::RawFormatField,
-            languages::OptionalCapability::TokenLink,
-            languages::OptionalCapability::LiteralExpressionParse,
-            languages::OptionalCapability::BraceFormatParse,
-            languages::OptionalCapability::BraceFormatField,
-            languages::OptionalCapability::LanguageTarget,
-            languages::OptionalCapability::StandardLibraryImport,
-            languages::OptionalCapability::CompilerFeature,
-            languages::OptionalCapability::FunctionTerminal,
-            languages::OptionalCapability::ExpressionType,
-        ]
+        CAPABILITIES
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
@@ -156,24 +101,7 @@ impl Parse for ParseContract {
         let _previous = self
             .model_preparations
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        model.language_target = self.settings.target_version().components();
-        crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
-        crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
-        crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
-        crate::domain::raw_format::service::clear(model.raw_format.get_mut());
-        crate::domain::literal_expression_parsing::service::clear(
-            model.literal_expression_parsing.get_mut(),
-        );
-        crate::domain::brace_format::service::clear(model.brace_format.get_mut());
-        crate::domain::expression_types::service::clear(model.expression_types.get_mut());
-        crate::domain::terminal_flow::service::clear(model.terminal_flow.get_mut());
-        crate::domain::indentation::service::clear(model.indentation.get_mut());
-        crate::domain::qualification::service::clear(model.qualification.get_mut());
-        crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
-        model.semantic.get_mut().roots.clear();
-        model.semantic.get_mut().state = crate::domain::model::types::QualificationState::Fresh;
-        declare(tree, model);
-        crate::domain::bindings::service::index(tree, model);
+        prepare_model(&self.settings, tree, model);
     }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
@@ -208,12 +136,7 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
-        self.syntax.read(
-            SourceText(request.bytes.0),
-            source_kind(request.path.0),
-            &self.settings,
-            builder,
-        );
+        read_file(self.syntax.as_ref(), &self.settings, request, builder);
         Ok(())
     }
 
@@ -222,25 +145,12 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         completion: &mut languages::Completion<'_>,
     ) {
-        crate::application::completion::service::expand(
-            SourceText(request.bytes.0),
-            completion,
+        complete_file(
             self.syntax.as_ref(),
+            self.notes.as_ref(),
+            request,
+            completion,
         );
-        for kind in kinds() {
-            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
-        }
-        if request.fields == languages::FieldRequest::Wanted {
-            for field in fields() {
-                languages::name_field(completion, field_bits(field), field_name(field));
-            }
-            languages::write_fields(completion, role_of);
-        }
-        if request.notes == languages::NoteRequest::Wanted {
-            languages::write_notes(completion, |tree, out| {
-                self.notes.write(&noted(tree), out);
-            });
-        }
     }
 
     fn annotates(&self) -> Support<Reader<languages::Annotates, Declarations>> {
@@ -300,161 +210,136 @@ impl Parse for ParseContract {
     fn embedded_expression(
         &self,
     ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::reads::<crate::domain::relations::collections::relations::embedded_expression::item::EmbeddedExpressionItem>()
+        languages::reads::<EmbeddedExpressionItem>()
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::reads::<crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxItem>()
+        languages::reads::<SemanticSyntaxItem>()
     }
 
     fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::reads::<crate::domain::relations::collections::relations::semantic_child::item::SemanticChildItem>()
+        languages::reads::<SemanticChildItem>()
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Declarations>> {
-        languages::reads::<crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem>()
+        languages::reads::<ExpressionShapeItem>()
     }
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem,
-        >()
+        languages::reads::<ConstantKeyItem>()
     }
 
     fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::reads::<super::format_readers::FormatParseItem>()
+        languages::reads::<super::readers::format::composition::FormatParseItem>()
     }
 
     fn literal_expression_parse(
         &self,
     ) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::reads::<super::literal_expression_readers::LiteralExpressionParseItem>()
+        languages::reads::<
+            super::readers::literal_expression::composition::LiteralExpressionParseItem,
+        >()
     }
 
     fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::reads::<super::raw_format_readers::RawFormatSegmentItem>()
+        languages::reads::<super::readers::raw_format::composition::RawFormatSegmentItem>()
     }
 
     fn token_link(&self) -> Support<Reader<languages::TokenLink, Self::FileModel>> {
-        languages::reads::<super::token_link_readers::TokenLinkItem>()
+        languages::reads::<super::readers::token_link::composition::TokenLinkItem>()
     }
 
     fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::reads::<super::raw_format_readers::RawFormatFieldItem>()
+        languages::reads::<super::readers::raw_format::composition::RawFormatFieldItem>()
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::reads::<super::format_readers::FormatFieldItem>()
+        languages::reads::<super::readers::format::composition::FormatFieldItem>()
     }
 
     fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::reads::<super::brace_format_readers::BraceFormatParseItem>()
+        languages::reads::<super::readers::brace_format::composition::BraceFormatParseItem>()
     }
 
     fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::reads::<super::brace_format_readers::BraceFormatFieldItem>()
+        languages::reads::<super::readers::brace_format::composition::BraceFormatFieldItem>()
     }
 
     fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::reads::<crate::domain::relations::collections::relations::function_terminal::item::FunctionTerminalItem>()
+        languages::reads::<FunctionTerminalItem>()
     }
 
     fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::reads::<crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem>()
+        languages::reads::<ExpressionTypeItem>()
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem,
-        >()
+        languages::reads::<LiteralPropertiesItem>()
     }
 
     fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem,
-        >()
+        languages::reads::<NumericLiteralItem>()
     }
 
     fn format_specification(
         &self,
     ) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
-        languages::reads::<super::format_specification_readers::FormatSpecificationItem>()
+        languages::reads::<super::readers::format_specification::composition::FormatSpecificationItem>(
+        )
     }
 
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralItem,
-        >()
+        languages::reads::<BytesLiteralItem>()
     }
 
     fn interpolated_string_literal(
         &self,
     ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem,
-        >()
+        languages::reads::<InterpolatedStringLiteralItem>()
     }
 
     fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::reads::<crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem>()
+        languages::reads::<CompilerFeatureItem>()
     }
 
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::language_target::item::LanguageTargetItem,
-        >()
+        languages::reads::<LanguageTargetItem>()
     }
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::implicit_symbol::item::ImplicitSymbolItem,
-        >()
+        languages::reads::<ImplicitSymbolItem>()
     }
 
     fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::binding_event::item::BindingEventItem,
-        >()
+        languages::reads::<BindingEventItem>()
     }
 
     fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::binding_read::item::BindingReadItem,
-        >()
+        languages::reads::<BindingReadItem>()
     }
 
     fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::binding_use::item::BindingUseItem,
-        >()
+        languages::reads::<BindingUseItem>()
     }
 
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::binding_shadow::item::BindingShadowItem,
-        >()
+        languages::reads::<BindingShadowItem>()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::identifier::item::IdentifierItem,
-        >()
+        languages::reads::<IdentifierItem>()
     }
 
     fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Declarations>> {
-        languages::reads::<crate::domain::relations::collections::relations::qualified_name::item::QualifiedNameItem>()
+        languages::reads::<QualifiedNameItem>()
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, Declarations>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::resolves::item::ResolvesItem,
-        >()
+        languages::reads::<ResolvesItem>()
     }
 
     fn call_argument(&self) -> Support<Reader<languages::CallArgument, Declarations>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem,
-        >()
+        languages::reads::<CallArgumentItem>()
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, Declarations>> {
@@ -493,9 +378,7 @@ impl Parse for ParseContract {
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Declarations>> {
         // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
-        languages::reads::<
-            crate::domain::relations::collections::relations::indent_region::item::IndentRegionItem,
-        >()
+        languages::reads::<IndentRegionItem>()
     }
 
     fn mention(&self) -> Support<Reader<languages::Mention, Declarations>> {

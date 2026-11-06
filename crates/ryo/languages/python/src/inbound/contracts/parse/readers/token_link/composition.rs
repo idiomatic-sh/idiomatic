@@ -1,4 +1,5 @@
 //! Optional lexical token metadata over the completed native tree only.
+use super::constants::TOKEN_LINK_INCOMPLETE;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -11,7 +12,8 @@ use crate::domain::{
 use ryo::languages;
 use std::convert::identity;
 
-pub(super) struct TokenLinkItem;
+/// Reads the optional lexical links between physical native tokens.
+pub(crate) struct TokenLinkItem;
 
 ryo::reads! {
     TokenLinkItem => languages::TokenLink, model(Declarations) |tree, model, at, symbols| {
@@ -22,11 +24,8 @@ ryo::reads! {
                     given name = languages::intern_derived(symbols, tree.source, link_kind(link.kind));
                     row { source: node(link.source), target: node(link.target), link_kind: value(name), file: file, span: span(link.source), }
                 }
-                Event::Incomplete => { partial "python-token-link-incomplete" => languages::Missing::Any; }
+                Event::Incomplete => { partial TOKEN_LINK_INCOMPLETE => languages::Missing::Any; }
             }
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

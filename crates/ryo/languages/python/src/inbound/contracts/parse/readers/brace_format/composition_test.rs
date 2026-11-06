@@ -1,5 +1,5 @@
 //! Regression cases for brace format readers bindings.
-use super::{BraceFormatFieldItem, BraceFormatParseItem};
+use super::composition::{BraceFormatFieldItem, BraceFormatParseItem};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;

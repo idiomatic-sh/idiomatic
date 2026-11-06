@@ -1,5 +1,5 @@
 //! Real readers retain grammar ancestry and origins independently of call policy.
-use super::FormatSpecificationItem;
+use super::composition::FormatSpecificationItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;

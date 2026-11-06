@@ -1,5 +1,6 @@
 //! Actual reader rows and unchanged embedded-AST visibility.
-use super::LiteralExpressionParseItem;
+use super::composition::LiteralExpressionParseItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::literal_expression_parsing::{
     interface::LiteralExpressionSyntax as _,
     types::{LiteralDialect, LiteralParseOutcome},
@@ -24,7 +25,6 @@ fn outcomes(report: &Reading) -> Vec<&str> {
         .collect()
 }
 
-#[test]
 fn rows_keep_empty_and_malformed_carriers_and_full_original_spans() {
     check::<LiteralExpressionParseItem>();
     let report = reading::<LiteralExpressionParseItem>("'T'\n''\n'T +'\n");
@@ -54,7 +54,6 @@ fn rows_keep_empty_and_malformed_carriers_and_full_original_spans() {
     );
 }
 
-#[test]
 fn actual_adapter_preserves_string_annotation_modes() {
     for (carrier, expected) in [
         ("'T'", LiteralParseOutcome::Parsed),
@@ -79,7 +78,6 @@ fn actual_adapter_preserves_string_annotation_modes() {
     }
 }
 
-#[test]
 fn token_reconstruction_preserves_unicode_comments_crlf_and_concatenation() {
     let report =
         reading::<LiteralExpressionParseItem>("(r'T' # trivia\r\n u'| U')\r\n'λ'\n'\\u03bb'\n");
@@ -87,14 +85,12 @@ fn token_reconstruction_preserves_unicode_comments_crlf_and_concatenation() {
     assert_eq!(outcomes(&report), ["parsed", "parsed", "parsed"]);
 }
 
-#[test]
 fn bytes_and_all_interpolated_and_template_strings_are_outside_the_relation() {
     let report = reading::<LiteralExpressionParseItem>("b'T'\nf'T'\nf'{value}'\nf'' 'T'\nt'T'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
     assert!(report.rows.is_empty());
 }
 
-#[test]
 fn additional_syntax_outcomes_do_not_publish_roots_or_arbitrary_names() {
     let source = "from typing import Literal\nx: Literal['arbitrary_metadata_name']\ny=list['unexposed_runtime_name']\n";
     let before = reading::<SemanticSyntaxItem>(source);
@@ -111,7 +107,6 @@ fn additional_syntax_outcomes_do_not_publish_roots_or_arbitrary_names() {
     );
 }
 
-#[test]
 fn visible_embedded_literals_use_logical_spelling_after_physical_remapping() {
     let report = reading::<LiteralExpressionParseItem>("x: \"list['T']\"\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
@@ -122,10 +117,110 @@ fn visible_embedded_literals_use_logical_spelling_after_physical_remapping() {
     assert!(outcomes(&report).iter().all(|outcome| *outcome == "parsed"));
 }
 
-#[test]
 fn incomplete_source_preserves_partial_knowledge() {
     let report = proposed::<LiteralExpressionParseItem>("'T'\n(\n");
     assert!(!report.causes.is_empty());
 }
 
-mod preseal;
+/// The cases of this file, one variant each.
+#[derive(Clone, Copy)]
+enum Body {
+    /// The case `rows_keep_empty_and_malformed_carriers_and_full_original_spans`.
+    RowsKeepEmptyAndMalformedCarriersAndFullOriginalSpans,
+    /// The case `actual_adapter_preserves_string_annotation_modes`.
+    ActualAdapterPreservesStringAnnotationModes,
+    /// The case `token_reconstruction_preserves_unicode_comments_crlf_and_concatenation`.
+    TokenReconstructionPreservesUnicodeCommentsCrlfAndConcatenation,
+    /// The case `bytes_and_all_interpolated_and_template_strings_are_outside_the_relation`.
+    BytesAndAllInterpolatedAndTemplateStringsAreOutsideTheRelation,
+    /// The case `additional_syntax_outcomes_do_not_publish_roots_or_arbitrary_names`.
+    AdditionalSyntaxOutcomesDoNotPublishRootsOrArbitraryNames,
+    /// The case `visible_embedded_literals_use_logical_spelling_after_physical_remapping`.
+    VisibleEmbeddedLiteralsUseLogicalSpellingAfterPhysicalRemapping,
+    /// The case `incomplete_source_preserves_partial_knowledge`.
+    IncompleteSourcePreservesPartialKnowledge,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("rows_keep_empty_and_malformed_carriers_and_full_original_spans"),
+        word: Word::Succeeds,
+        input: || Body::RowsKeepEmptyAndMalformedCarriersAndFullOriginalSpans,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("actual_adapter_preserves_string_annotation_modes"),
+        word: Word::Succeeds,
+        input: || Body::ActualAdapterPreservesStringAnnotationModes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("token_reconstruction_preserves_unicode_comments_crlf_and_concatenation"),
+        word: Word::Succeeds,
+        input: || Body::TokenReconstructionPreservesUnicodeCommentsCrlfAndConcatenation,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("bytes_and_all_interpolated_and_template_strings_are_outside_the_relation"),
+        word: Word::Succeeds,
+        input: || Body::BytesAndAllInterpolatedAndTemplateStringsAreOutsideTheRelation,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("additional_syntax_outcomes_do_not_publish_roots_or_arbitrary_names"),
+        word: Word::Succeeds,
+        input: || Body::AdditionalSyntaxOutcomesDoNotPublishRootsOrArbitraryNames,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("visible_embedded_literals_use_logical_spelling_after_physical_remapping"),
+        word: Word::Succeeds,
+        input: || Body::VisibleEmbeddedLiteralsUseLogicalSpellingAfterPhysicalRemapping,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("incomplete_source_preserves_partial_knowledge"),
+        word: Word::Succeeds,
+        input: || Body::IncompleteSourcePreservesPartialKnowledge,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::RowsKeepEmptyAndMalformedCarriersAndFullOriginalSpans => {
+            rows_keep_empty_and_malformed_carriers_and_full_original_spans()
+        }
+        Body::ActualAdapterPreservesStringAnnotationModes => {
+            actual_adapter_preserves_string_annotation_modes()
+        }
+        Body::TokenReconstructionPreservesUnicodeCommentsCrlfAndConcatenation => {
+            token_reconstruction_preserves_unicode_comments_crlf_and_concatenation()
+        }
+        Body::BytesAndAllInterpolatedAndTemplateStringsAreOutsideTheRelation => {
+            bytes_and_all_interpolated_and_template_strings_are_outside_the_relation()
+        }
+        Body::AdditionalSyntaxOutcomesDoNotPublishRootsOrArbitraryNames => {
+            additional_syntax_outcomes_do_not_publish_roots_or_arbitrary_names()
+        }
+        Body::VisibleEmbeddedLiteralsUseLogicalSpellingAfterPhysicalRemapping => {
+            visible_embedded_literals_use_logical_spelling_after_physical_remapping()
+        }
+        Body::IncompleteSourcePreservesPartialKnowledge => {
+            incomplete_source_preserves_partial_knowledge()
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
+}
+
+#[cfg(test)]
+mod demand_test;
+#[cfg(test)]
+mod preseal_test;

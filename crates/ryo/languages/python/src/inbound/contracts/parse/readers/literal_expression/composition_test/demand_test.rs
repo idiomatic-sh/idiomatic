@@ -1,5 +1,7 @@
-//! Actual completion: nested provenance, resolved scope and no unrelated carrier parsing.
+//! Actual completion under repeated demands: native ids, one model preparation, zero parses and the single mapping writer.
+use super::preseal_test::{build, name};
 use super::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::{
     inbound::contracts::parse::contract::ParseContract,
     outbound::{
@@ -17,100 +19,7 @@ use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
-fn build(
-    parse: &ParseContract,
-    source: &[u8],
-    elements: &mut languages::Elements,
-    symbols: &mut languages::Symbols,
-) {
-    languages::contract::build(
-        parse,
-        languages::ParseRequest {
-            path: languages::SourcePath("case.pyi"),
-            file: languages::FileId(0),
-            bytes: ByteSlice(source),
-            notes: languages::NoteRequest::Unwanted,
-            fields: languages::FieldRequest::Wanted,
-        },
-        elements,
-        symbols,
-    )
-    .unwrap();
-}
-fn name(report: &Reading, text: &str) -> bool {
-    report.rows.iter().any(
-        |row| matches!(*row,[_,Want::Name("name-token"),Want::Name(value),_,_] if *value==text),
-    )
-}
-#[test]
-fn nested_runtime_alias_has_two_real_hosts_and_live_semantic_tokens() {
-    let source = "Alias = list[\"'T'\"]\n";
-    let literals = reading::<LiteralExpressionParseItem>(source);
-    assert!(literals.causes.is_empty());
-    assert_eq!(outcomes(&literals), ["parsed", "parsed"]);
-    assert_eq!(
-        literals.rows.iter().map(|row| row[4]).collect::<Vec<_>>(),
-        [
-            languages::contract::want_span((1, 14), (1, 19)),
-            languages::contract::want_span((1, 15), (1, 18))
-        ]
-    );
-    let embedded = reading::<EmbeddedExpressionItem>(source);
-    assert_eq!(embedded.rows.len(), 2);
-    assert_eq!(
-        embedded.rows[1][1], embedded.rows[0][0],
-        "second host is the first actual parsed literal, not a duplicate finding"
-    );
-    assert!(
-        name(&reading::<SemanticSyntaxItem>(source), "T"),
-        "actual name-token kind is a live positive control"
-    );
-}
-#[test]
-fn values_and_shadowing_stay_negative_beside_live_type_controls() {
-    for source in [
-        "list = lambda value: value\nAlias = list[\"'Hidden'\"]\n",
-        "def f(list):\n    return list[\"'Hidden'\"]\n",
-        "Alias = unknown[\"'Hidden'\"]\n",
-        "env = {}\nvalue = env[\"'Hidden'\"]\n",
-        "value = list[\"'Hidden'\":]\n",
-        "value = 'base'[\"'Hidden'\"]\n",
-        "from typing import Literal\nAlias = tuple[Literal[\"'Hidden'\"], int]\n",
-        "from typing import Annotated\nAlias = Annotated[int, \"'Hidden'\"]\n",
-        "from typing import cast\nvalue = cast(object, \"'Hidden'\")\n",
-    ] {
-        let syntax = reading::<SemanticSyntaxItem>(source);
-        assert!(!syntax.rows.is_empty());
-        assert!(!name(&syntax, "Hidden"), "{source:?}");
-        assert!(
-            reading::<EmbeddedExpressionItem>(source).rows.is_empty(),
-            "{source:?}"
-        );
-    }
-    for source in [
-        "Alias = list[\"'Visible'\"]\n",
-        "foo(list[\"'Visible'\"])\n",
-        "Alias = list[UnknownMapping[\"'Visible'\"]]\n",
-        "from typing import Literal\nAlias = tuple[Literal[\"'Hidden'\"], \"'Visible'\"]\n",
-    ] {
-        let syntax = reading::<SemanticSyntaxItem>(source);
-        assert!(name(&syntax, "Visible"), "{source:?}");
-        assert!(
-            !name(&syntax, "Hidden"),
-            "Literal metadata stays a value inside an outer generic"
-        );
-    }
-}
-#[test]
-fn invalid_nested_expression_keeps_outer_success_without_guessed_inner_root() {
-    let source = "Alias = list[\"'T +'\"]\n";
-    let report = reading::<LiteralExpressionParseItem>(source);
-    assert!(report.causes.is_empty());
-    assert_eq!(outcomes(&report), ["parsed", "malformed"]);
-    assert_eq!(reading::<EmbeddedExpressionItem>(source).rows.len(), 1);
-    assert!(!name(&reading::<SemanticSyntaxItem>(source), "T"));
-}
-#[test]
+
 fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refill() {
     let source = b"Alias = list[\"'T'\"]\n";
     let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
@@ -143,7 +52,7 @@ fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refi
         languages::Symbols::default(),
     );
     build(&parse, source, &mut elements, &mut symbols);
-    assert_eq!(parse.model_preparation_count(), 1);
+    assert_eq!(parse.model_preparations.load(Ordering::Relaxed), 1);
     assert_eq!(count.load(Ordering::Relaxed), 1);
     let after = languages::positions(&elements)
         .map(|at| {
@@ -176,7 +85,7 @@ fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refi
         );
         assert!(!out.rows().is_empty());
         assert!(out.partials.is_empty());
-        assert_eq!(parse.model_preparation_count(), 1);
+        assert_eq!(parse.model_preparations.load(Ordering::Relaxed), 1);
         assert_eq!(count.load(Ordering::Relaxed), 1);
         assert_eq!(languages::end_of(&elements), end);
     }
@@ -187,13 +96,12 @@ fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refi
         &mut symbols,
     );
     assert_eq!(
-        parse.model_preparation_count(),
+        parse.model_preparations.load(Ordering::Relaxed),
         2,
         "same-sized refill is a new generation"
     );
     assert_eq!(count.load(Ordering::Relaxed), 2);
 }
-#[test]
 fn unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes() {
     let source = (0..512)
         .map(|i| format!("value_{i} = env_{i}[\"'runtime_key_{i}'\"]\n"))
@@ -210,7 +118,7 @@ fn unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
         languages::Symbols::default(),
     );
     build(&parse, source.as_bytes(), &mut elements, &mut symbols);
-    assert_eq!(parse.model_preparation_count(), 1);
+    assert_eq!(parse.model_preparations.load(Ordering::Relaxed), 1);
     assert_eq!(count.load(Ordering::Relaxed), 0);
     assert_eq!(languages::embedded_expressions(&elements).count(), 0);
     let native_end = u32::try_from(languages::positions(&elements).count()).unwrap();
@@ -228,7 +136,6 @@ fn unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
         "actual appended decoded payload stays empty"
     );
 }
-#[test]
 fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() {
     for source in ["Alias = list[\"'λ'\"]\n", "Alias = list[\"'\\u03bb'\"]\n"] {
         let semantic = reading::<SemanticSyntaxItem>(source);
@@ -240,7 +147,6 @@ fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() {
     }
 }
 
-#[test]
 fn complete_relation_rows_do_not_depend_on_demand_order() {
     fn run(order: &[languages::Relation]) -> Vec<(languages::Relation, Vec<Vec<String>>)> {
         let source = b"Alias = list[\"'T'\"]\nvalue = env[\"ordinary_key\"]\n";
@@ -307,7 +213,7 @@ fn complete_relation_rows_do_not_depend_on_demand_order() {
             rows.sort();
             result.push((relation, rows));
         }
-        assert_eq!(parse.model_preparation_count(), 1);
+        assert_eq!(parse.model_preparations.load(Ordering::Relaxed), 1);
         assert_eq!(count.load(Ordering::Relaxed), 1);
         result.sort_by_key(|(relation, _)| *relation);
         result
@@ -323,4 +229,77 @@ fn complete_relation_rows_do_not_depend_on_demand_order() {
         languages::Relation::LiteralExpressionParse,
     ];
     assert_eq!(run(&forward), run(&reverse));
+}
+
+/// The cases of this file, one variant each.
+#[derive(Clone, Copy)]
+enum Body {
+    /// The case `native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refill`.
+    NativeIdsAndOneActualModelPreparationSurviveRepeatedDemandsAndRefill,
+    /// The case `unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes`.
+    UnrelatedRuntimeSubscriptsAddZeroParsesAndZeroLogicalPayloadBytes,
+    /// The case `unicode_and_escaped_carriers_use_the_existing_single_mapping_writer`.
+    UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
+    /// The case `complete_relation_rows_do_not_depend_on_demand_order`.
+    CompleteRelationRowsDoNotDependOnDemandOrder,
+}
+
+type Input = Body;
+type Value = ();
+type Failure = ();
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refill",
+        ),
+        word: Word::Succeeds,
+        input: || Body::NativeIdsAndOneActualModelPreparationSurviveRepeatedDemandsAndRefill,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes",
+        ),
+        word: Word::Succeeds,
+        input: || Body::UnrelatedRuntimeSubscriptsAddZeroParsesAndZeroLogicalPayloadBytes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unicode_and_escaped_carriers_use_the_existing_single_mapping_writer"),
+        word: Word::Succeeds,
+        input: || Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("complete_relation_rows_do_not_depend_on_demand_order"),
+        word: Word::Succeeds,
+        input: || Body::CompleteRelationRowsDoNotDependOnDemandOrder,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn subject(given: Input) -> Result<Value, Failure> {
+    match given {
+        Body::NativeIdsAndOneActualModelPreparationSurviveRepeatedDemandsAndRefill => {
+            native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refill()
+        }
+        Body::UnrelatedRuntimeSubscriptsAddZeroParsesAndZeroLogicalPayloadBytes => {
+            unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
+        }
+        Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter => {
+            unicode_and_escaped_carriers_use_the_existing_single_mapping_writer()
+        }
+        Body::CompleteRelationRowsDoNotDependOnDemandOrder => {
+            complete_relation_rows_do_not_depend_on_demand_order()
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

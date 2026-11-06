@@ -1,21 +1,25 @@
 //! Static raw-token reader binding; ordinary decoded format demand remains independent.
-use super::format_readers::{error_parts, flag, intern, intern_character, summary_of, width_mode};
 use crate::domain::format_syntax::service::flag_text;
 use crate::domain::raw_format::constants::INCOMPLETE;
 use crate::domain::{
-    format_syntax::types::{FormatArgument, FormatParseResult, FormatParseState},
+    format_syntax::types::{DynamicInput, FormatParseResult, FormatParseState},
     model::types::Declarations,
     nodes::types::Node,
     raw_format::service::{prepare, result, segments, state},
     syntax::{service::kind_bits, types::Kind},
 };
+use crate::inbound::contracts::parse::readers::format::composition::{
+    argument_kind, error_parts, intern, intern_character, mapping_key, property_flag,
+    quantity_mode, summary_of,
+};
+use crate::inbound::contracts::parse::readers::format::constants::PERCENT_STRING;
 use crate::outbound::format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat;
 use ryo::languages;
 
 /// Reads one parse outcome for each original raw string token.
-pub(super) struct RawFormatSegmentItem;
+pub(crate) struct RawFormatSegmentItem;
 /// Reads fields parsed independently from each original raw string token.
-pub(super) struct RawFormatFieldItem;
+pub(crate) struct RawFormatFieldItem;
 
 ryo::reads! {
     RawFormatSegmentItem => languages::RawFormatSegment, model(Declarations) |tree, model, at, symbols| {
@@ -24,15 +28,15 @@ ryo::reads! {
         each (index.occurrences.iter()) as occurrence {
             each (segments(&index, occurrence)) as segment {
                 given parsed = result(&index, segment);
-                given summary = summary_of(parsed, false);
+                given summary = summary_of(parsed, DynamicInput::NotObserved);
                 given errors = error_parts(parsed);
-                given dialect = intern(symbols, tree.source, "percent-string");
-                given outcome = intern(symbols, tree.source, summary.1);
-                given error_category = intern(symbols, tree.source, errors.0);
-                given error_character = intern_character(symbols, tree.source, errors.1);
+                given dialect = intern(symbols, tree.source, languages::NameText(PERCENT_STRING));
+                given outcome = intern(symbols, tree.source, summary.outcome);
+                given error_category = intern(symbols, tree.source, errors.category);
+                given error_character = intern_character(symbols, tree.source, errors.character);
                 given segment_ordinal = languages::Integer(i64::try_from(segment.ordinal.0).unwrap_or(i64::MAX));
-                given positional_consumption = languages::Integer(i64::try_from(summary.0.positional_consumption.0).unwrap_or(i64::MAX));
-                row { id: node(occurrence.node), segment: node(segment.token), segment_ordinal: value(segment_ordinal), dialect: value(dialect), outcome: value(outcome), error_category: value(error_category), error_character: value(error_character), error_index: value(languages::Integer(errors.2)), positional_consumption: value(positional_consumption), mapping_present: value(flag(summary.0.mapping_present.into())), dynamic_width: value(flag(summary.0.dynamic_width.into())), dynamic_precision: value(flag(summary.0.dynamic_precision.into())), file: file, span: span(segment.token), }
+                given positional_consumption = languages::Integer(i64::try_from(summary.summary.positional_consumption.0).unwrap_or(i64::MAX));
+                row { id: node(occurrence.node), segment: node(segment.token), segment_ordinal: value(segment_ordinal), dialect: value(dialect), outcome: value(outcome), error_category: value(error_category), error_character: value(error_character), error_index: value(errors.index), positional_consumption: value(positional_consumption), mapping_present: value(property_flag(summary.summary.mapping_present)), dynamic_width: value(property_flag(summary.summary.dynamic_width)), dynamic_precision: value(property_flag(summary.summary.dynamic_precision)), file: file, span: span(segment.token), }
             }
         }
         when state(&index) {
@@ -52,12 +56,12 @@ ryo::reads! {
                 when result(&index, segment) {
                     Some(FormatParseResult::Parsed(parsed)) => {
                         each (parsed.fields.iter()) as field {
-                            given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });
-                            given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key.0.as_str() });
-                            given conversion = intern_character(symbols, tree.source, Some(field.conversion.0));
-                            given flags = intern(symbols, tree.source, flag_text(field.flags).0);
-                            given width = intern(symbols, tree.source, width_mode(field.width));
-                            given precision = intern(symbols, tree.source, width_mode(field.precision));
+                            given argument_kind = intern(symbols, tree.source, argument_kind(&field.argument));
+                            given mapping_key = intern(symbols, tree.source, mapping_key(&field.argument));
+                            given conversion = intern_character(symbols, tree.source, Some(field.conversion));
+                            given flags = intern(symbols, tree.source, languages::NameText(flag_text(field.flags).0));
+                            given width = intern(symbols, tree.source, quantity_mode(field.width));
+                            given precision = intern(symbols, tree.source, quantity_mode(field.precision));
                             given segment_ordinal = languages::Integer(i64::try_from(segment.ordinal.0).unwrap_or(i64::MAX));
                             given ordinal = languages::Integer(i64::try_from(segment.first_field.0 + field.ordinal.0).unwrap_or(i64::MAX));
                             given local = languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX));
@@ -75,7 +79,3 @@ ryo::reads! {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "raw_format_readers_test.rs"]
-mod tests;
