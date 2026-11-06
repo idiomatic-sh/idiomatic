@@ -298,6 +298,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             assert_eq!(files, vec![Some(FileId(0))]);
             Ok("partial")
         }
+        crate::domain::completion::types::CoverageState::Inapplicable { .. } => Ok("inapplicable"),
     }
 }
 const CASES: &[Case<Input, Value, Failure>] = &[

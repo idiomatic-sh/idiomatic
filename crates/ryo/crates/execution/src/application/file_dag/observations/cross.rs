@@ -517,6 +517,8 @@ fn frontier_compatible(
             // admitted physical provenance, never by a cached readiness bit.
             if !matches!(physical, CoverageState::Partial { files }
                 if files.contains(&None) || files.contains(&Some(*file)))
+                && !matches!(physical, CoverageState::Inapplicable { files }
+                    if files.contains(file))
             {
                 return Ok(false);
             }

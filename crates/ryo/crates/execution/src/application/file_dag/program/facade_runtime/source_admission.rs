@@ -578,6 +578,7 @@ impl Inputs for SourceInputs<'_, '_> {
             && matches!(
                 readiness,
                 super::super::admission::Readiness::Partial { .. }
+                    | super::super::admission::Readiness::Inapplicable { .. }
             )
         {
             // A region starts with the admitted operands, then contains only
@@ -668,6 +669,9 @@ impl Inputs for SourceInputs<'_, '_> {
                 }
                 crate::domain::completion::types::CoverageState::Partial { files } => {
                     super::super::admission::Readiness::Partial { files }
+                }
+                crate::domain::completion::types::CoverageState::Inapplicable { files } => {
+                    super::super::admission::Readiness::Inapplicable { files }
                 }
             };
         }

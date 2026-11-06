@@ -67,23 +67,9 @@ fn is_file_kind(kind: CellKind) -> Keying {
     }
 }
 
-/// Drops from `out`, the rows an operator made from the absence of rows, that the missing ones of `files` could change. A row
-/// keyed by a file or a node is uncertain only if its file is among them; a row with no such key, whatever file the missing rows are
-/// in, is. `probed` is the columns of the input whose absence of rows the operator trusts.
-pub(crate) fn drop_uncertain(
-    operation: &Operation,
-    probed: &[CellKind],
-    out: &mut Table,
-    files: &[Option<FileId>],
-) {
-    if files.is_empty() {
-        return;
-    }
-    let width = out.kinds.len();
-    // A relation read in part in the repository as a whole could have a missing row anywhere.
-    let everywhere = files.contains(&None);
-    // The column of the answer that says which file a row is in, when the operator keys by one.
-    let keyed: Option<usize> = match operation {
+/// The column of the answer that says which file a row is in, when the operator keys by one.
+fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<usize> {
+    match operation {
         Operation::Antijoin {
             left_on, right_on, ..
         } => left_on
@@ -135,7 +121,25 @@ pub(crate) fn drop_uncertain(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => None,
-    };
+    }
+}
+
+/// Drops from `out`, the rows an operator made from the absence of rows, that the missing ones of `files` could change. A row
+/// keyed by a file or a node is uncertain only if its file is among them; a row with no such key, whatever file the missing rows are
+/// in, is. `probed` is the columns of the input whose absence of rows the operator trusts.
+pub(crate) fn drop_uncertain(
+    operation: &Operation,
+    probed: &[CellKind],
+    out: &mut Table,
+    files: &[Option<FileId>],
+) {
+    if files.is_empty() {
+        return;
+    }
+    let width = out.kinds.len();
+    // A relation read in part in the repository as a whole could have a missing row anywhere.
+    let everywhere = files.contains(&None);
+    let keyed = file_key(operation, probed, out);
     let Some(column) = keyed.filter(|column| *column < width && !everywhere) else {
         out.cells.clear();
         out.count = ryo_values::domain::rows::types::RowCount(0);
@@ -156,6 +160,22 @@ pub(crate) fn drop_uncertain(
     }
     out.cells = kept;
     out.count = ryo_values::domain::rows::types::RowCount(rows);
+}
+
+/// Drops from `out` the rows keyed to the inapplicable `files` (sorted, once each). A file no language reads, or whose syntax a rule
+/// skipped, is out of scope for an answer not keyed by file, so such an answer withholds nothing on its account.
+pub(crate) fn drop_inapplicable(
+    operation: &Operation,
+    probed: &[CellKind],
+    out: &mut Table,
+    files: &[FileId],
+) {
+    let width = out.kinds.len();
+    if file_key(operation, probed, out).is_none_or(|column| column >= width) {
+        return;
+    }
+    let keyed: Vec<Option<FileId>> = files.iter().copied().map(Some).collect();
+    drop_uncertain(operation, probed, out, &keyed);
 }
 
 /// The relations of a file that are read in part: those the reader said so of, and, when the whole file is only a recovery of what was

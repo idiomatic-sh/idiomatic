@@ -45,6 +45,7 @@ pub enum ApplicabilityReason {
 pub(super) enum Readiness {
     Complete,
     Partial { files: Vec<Option<FileId>> },
+    Inapplicable { files: Vec<FileId> },
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -286,7 +287,7 @@ impl AdmittedInput {
     pub(super) fn observation_ready(&self) -> Result<bool, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(true),
-            Readiness::Partial { .. } => Ok(false),
+            Readiness::Partial { .. } | Readiness::Inapplicable { .. } => Ok(false),
         }
     }
 
@@ -300,14 +301,21 @@ impl AdmittedInput {
                     files: files.clone(),
                 })
             }
+            Readiness::Inapplicable { files } => {
+                Ok(crate::domain::completion::types::CoverageState::Inapplicable {
+                    files: files.clone(),
+                })
+            }
         }
     }
     pub(super) fn with_coverage(
         mut self,
         coverage: crate::domain::completion::types::CoverageState,
     ) -> Self {
-        if let crate::domain::completion::types::CoverageState::Partial { mut files } = coverage {
-            match &mut self.readiness {
+        use crate::domain::completion::types::CoverageState;
+        match coverage {
+            CoverageState::Complete => {}
+            CoverageState::Partial { mut files } => match &mut self.readiness {
                 Readiness::Complete => self.readiness = Readiness::Partial { files },
                 Readiness::Partial { files: existing } => {
                     for file in files.drain(..) {
@@ -316,7 +324,30 @@ impl AdmittedInput {
                         }
                     }
                 }
-            }
+                Readiness::Inapplicable { files: existing } => {
+                    files.extend(existing.iter().copied().map(Some));
+                    files.sort_unstable();
+                    files.dedup();
+                    self.readiness = Readiness::Partial { files };
+                }
+            },
+            CoverageState::Inapplicable { files } => match &mut self.readiness {
+                Readiness::Complete => self.readiness = Readiness::Inapplicable { files },
+                Readiness::Partial { files: existing } => {
+                    for file in files {
+                        if !existing.contains(&Some(file)) {
+                            existing.push(Some(file));
+                        }
+                    }
+                }
+                Readiness::Inapplicable { files: existing } => {
+                    for file in files {
+                        if !existing.contains(&file) {
+                            existing.push(file);
+                        }
+                    }
+                }
+            },
         }
         self
     }
@@ -416,7 +447,9 @@ impl AdmittedInput {
             return Err(OperatingError::NotRead);
         }
         match &self.readiness {
-            Readiness::Complete | Readiness::Partial { .. } => Ok(&self.publication),
+            Readiness::Complete | Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
+                Ok(&self.publication)
+            }
         }
     }
 }
@@ -567,27 +600,44 @@ pub(super) fn contributor_readiness(
     owner: &Rc<RelationOwner>,
 ) -> Result<Readiness, OperatingError> {
     let mut affected = Vec::new();
+    let mut inapplicable = Vec::new();
     for input in inputs {
         input.publication(owner)?;
         if !input.partition.supplies(partition) {
             return Err(OperatingError::NotRead);
         }
-        if let Readiness::Partial { files } = &input.readiness {
-            for file in files {
-                if !affected.contains(file) {
-                    affected.push(*file);
+        match &input.readiness {
+            Readiness::Complete => {}
+            Readiness::Partial { files } => {
+                for file in files {
+                    if !affected.contains(file) {
+                        affected.push(*file);
+                    }
+                }
+            }
+            Readiness::Inapplicable { files } => {
+                for file in files {
+                    if !inapplicable.contains(file) {
+                        inapplicable.push(*file);
+                    }
                 }
             }
         }
     }
-    if affected.is_empty()
-        && !inputs
-            .iter()
-            .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
+    if inputs
+        .iter()
+        .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
     {
+        for file in inapplicable {
+            if !affected.contains(&Some(file)) {
+                affected.push(Some(file));
+            }
+        }
+        Ok(Readiness::Partial { files: affected })
+    } else if inapplicable.is_empty() {
         Ok(Readiness::Complete)
     } else {
-        Ok(Readiness::Partial { files: affected })
+        Ok(Readiness::Inapplicable { files: inapplicable })
     }
 }
 

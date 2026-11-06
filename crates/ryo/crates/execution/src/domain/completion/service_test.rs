@@ -283,3 +283,94 @@ fn ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_unc
         CoverageState::Partial { files: vec![None] }
     );
 }
+
+/// A file no language reads, or whose syntax a rule skipped, is out of scope for a group not keyed by file and costs a group keyed
+/// by file only its own rows; it is never reported complete for the rows keyed to it.
+#[test]
+fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its_own_rows_from_a_file_keyed_one() {
+    use super::service::{filter_contributor_rows, output_coverage};
+    use super::types::InputCoverage;
+    use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+    use ryo_relations::domain::terms::types::Symbol;
+    use ryo_values::domain::{
+        plan_parts::types::{ColumnIndex, Input, StepId},
+        plans::types::Operation,
+        rows::types::{RowCount, Table},
+    };
+    let group = |key: u32| Operation::GroupCount {
+        from: Input::Step(StepId(0)),
+        keys: vec![ColumnIndex(key)],
+        distinct: None,
+    };
+    let operand = [CellKind::Symbol, CellKind::File];
+    let coverage = || CoverageState::Inapplicable {
+        files: vec![FileId(1)],
+    };
+    let by_symbol = Table {
+        kinds: vec![CellKind::Symbol, CellKind::Number],
+        cells: (0..3)
+            .flat_map(|name| [Cell::Symbol(Symbol(name)), Cell::Number(Integer(1))])
+            .collect(),
+        count: RowCount(3),
+    };
+    let mut kept = by_symbol.clone();
+    filter_contributor_rows(
+        &group(0),
+        1,
+        &[InputCoverage {
+            ordinal: 0,
+            kinds: &operand,
+            coverage: coverage(),
+        }],
+        &mut kept,
+    );
+    assert_eq!(kept.count, RowCount(3), "a symbol-keyed group withholds nothing");
+    assert_eq!(
+        output_coverage(
+            &group(0),
+            &kept.kinds,
+            &[InputCoverage {
+                ordinal: 0,
+                kinds: &operand,
+                coverage: coverage(),
+            }],
+        )
+        .unwrap(),
+        CoverageState::Complete,
+        "an answer with no file to be keyed by is not made partial by an inapplicable file"
+    );
+    let by_file = Table {
+        kinds: vec![CellKind::File, CellKind::Number],
+        cells: (0..3)
+            .flat_map(|file| [Cell::File(FileId(file)), Cell::Number(Integer(1))])
+            .collect(),
+        count: RowCount(3),
+    };
+    let mut kept = by_file.clone();
+    filter_contributor_rows(
+        &group(1),
+        1,
+        &[InputCoverage {
+            ordinal: 0,
+            kinds: &operand,
+            coverage: coverage(),
+        }],
+        &mut kept,
+    );
+    assert_eq!(kept.count, RowCount(2), "a file-keyed group withholds its own rows");
+    assert!(!kept.cells.contains(&Cell::File(FileId(1))));
+    assert_eq!(
+        output_coverage(
+            &group(1),
+            &kept.kinds,
+            &[InputCoverage {
+                ordinal: 0,
+                kinds: &operand,
+                coverage: coverage(),
+            }],
+        )
+        .unwrap(),
+        coverage(),
+        "the rows keyed to the file stay inapplicable, never complete"
+    );
+}
