@@ -73,7 +73,7 @@ impl SelectionFixture {
         let plans = wanted
             .iter()
             .copied()
-            .map(crate::application::file_dag::derived::owner::resource_fixture::source_plan)
+            .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
             .collect::<Vec<_>>();
         Self::prepared(wanted, partials, active, authored, kinds, &plans)
     }
@@ -91,13 +91,11 @@ impl SelectionFixture {
         let mut plans = wanted
             .iter()
             .copied()
-            .map(crate::application::file_dag::derived::owner::resource_fixture::source_plan)
+            .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
             .collect::<Vec<_>>();
         if let Some(&relation) = wanted.first() {
             let mut graph =
-                crate::application::file_dag::derived::owner::resource_fixture::source_plan(
-                    relation,
-                );
+                crate::application::file_dag::derived::owner::fixtures::source_plan(relation);
             graph.steps[0].operation = Operation::Axis {
                 from: Input::Relation(relation),
                 edges: Input::Relation(relation),
@@ -129,8 +127,10 @@ impl SelectionFixture {
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
-        let descriptors =
-            crate::application::file_dag::derived::owner::resource_fixture::prepared_sources(plans);
+        let descriptors = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
+            plans,
+            Arc::clone(&owner.derived.semantic),
+        );
         owner.derived.prepare_program_file(
             &descriptors,
             &(0..plans.len())

@@ -121,12 +121,13 @@ impl GraphFixture {
             .wanted
             .iter()
             .copied()
-            .map(super::resource_fixture::source_plan)
+            .map(super::fixtures::source_plan)
             .collect::<Vec<_>>();
         if !self.wanted.is_empty() {
             plans.push(self.request());
         }
-        let prepared = super::resource_fixture::prepared_sources(&plans);
+        let prepared =
+            super::fixtures::prepared_sources(&plans, Arc::clone(&self.owner.derived.semantic));
         self.owner
             .derived
             .prepare_program_file(
@@ -194,25 +195,6 @@ impl GraphFixture {
         workspace.capture_admitted(vec![publication.clone()]);
         Ok((workspace, publication))
     }
-    pub(in crate::application::file_dag) fn prepare(
-        request: ViewRequest,
-        rows: &Rows<'_>,
-    ) -> Arc<DerivedContract> {
-        Arc::new(
-            super::super::prepare::view(
-                (std::sync::Arc::new(
-                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-                )
-                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-                &request,
-                &[InputShape {
-                    kinds: kinds_of(rows),
-                    tree: None,
-                }],
-            )
-            .unwrap(),
-        )
-    }
     pub(in crate::application::file_dag) fn acquire(
         &self,
         input: Input,
@@ -220,7 +202,8 @@ impl GraphFixture {
         endpoints: [ColumnIndex; 2],
         keys: &[ColumnIndex],
     ) -> Result<Option<GraphHandle>, OperatingError> {
-        let plan = Self::prepare(
+        let plan = super::fixtures::prepare_view(
+            Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Adjacency {
                 endpoints,
                 keys: keys.to_vec(),
@@ -258,7 +241,11 @@ impl GraphFixture {
         rows: &Rows<'_>,
         column: ColumnIndex,
     ) -> Result<Option<DomainHandle>, OperatingError> {
-        let plan = Self::prepare(ViewRequest::Membership { column }, rows);
+        let plan = super::fixtures::prepare_view(
+            Arc::clone(&self.owner.derived.semantic),
+            ViewRequest::Membership { column },
+            rows,
+        );
         let (workspace, publication) = self.workspace(input, rows)?;
         let admitted_rows = self
             .owner
@@ -316,7 +303,8 @@ impl GraphFixture {
         crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
-        let plan = Self::prepare(
+        let plan = super::fixtures::prepare_view(
+            Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Equality {
                 columns: columns.to_vec(),
             },
