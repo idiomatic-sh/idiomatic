@@ -32,6 +32,10 @@ Process observations separate measured wall time from decoded reports.
 
 An explicit completed process failure binds its templates and its exact-binary archive group.
 
+### registered_inputs
+
+The declared inputs of a registered case, resolved the same way for registration and for its receipts.
+
 ### suite
 
 Pinned profiles, authored cases and shared project inputs define the benchmark contract.
