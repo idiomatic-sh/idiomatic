@@ -166,7 +166,7 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
         .files
         .push(ryo::linter::RelativePath("__init__.py".into()));
     assert!(
-        engine.run_prepared(isolated).is_err(),
+        matches!(engine.run_prepared(isolated), Err(Error::Invalid(_))),
         "Given root package is unknown rather than an empty success"
     );
     let mut edited = request(&profile, pkg, &cache);
@@ -228,27 +228,30 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     let _verified_1 = engine.run_prepared(escape).expect_err("expected refusal");
     std::fs::write(case.request.root.join("__init__.py"), "changed")?;
     assert!(
-        engine
-            .run_prepared(request(&profile, case, &cache))
-            .is_err(),
+        matches!(
+            engine.run_prepared(request(&profile, case, &cache)),
+            Err(Error::Invalid(_))
+        ),
         "auxiliary bytes cannot change after sealing"
     );
     std::fs::write(case.request.root.join("__init__.py"), "")?;
     let manifest = case.request.context_manifest.as_ref().expect("seal");
     std::fs::write(manifest.boundary.join("__init__.py"), "")?;
     assert!(
-        engine
-            .run_prepared(request(&profile, case, &cache))
-            .is_err(),
+        matches!(
+            engine.run_prepared(request(&profile, case, &cache)),
+            Err(Error::Invalid(_))
+        ),
         "a sealed missing marker cannot appear"
     );
     std::fs::remove_file(manifest.boundary.join("__init__.py"))?;
     std::fs::remove_file(case.request.root.join("__init__.py"))?;
     std::fs::create_dir_all(case.request.root.join("__init__.py"))?;
     assert!(
-        engine
-            .run_prepared(request(&profile, case, &cache))
-            .is_err(),
+        matches!(
+            engine.run_prepared(request(&profile, case, &cache)),
+            Err(Error::Invalid(_))
+        ),
         "unreadable file content is never a missing dependency"
     );
     Ok(())

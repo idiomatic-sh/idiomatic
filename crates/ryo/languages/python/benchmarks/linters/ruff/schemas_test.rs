@@ -15,7 +15,13 @@ fn failure(error: &Error) -> BoundaryFailure {
 }
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 
-type Input = (&'static str, usize, usize);
+#[derive(Clone, Copy)]
+enum SchemaInput {
+    Offset(&'static str, usize, usize),
+    UnavailableSource,
+    RuleConfiguration,
+}
+type Input = SchemaInput;
 type Value = usize;
 type Failure = BoundaryFailure;
 
@@ -23,73 +29,97 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unicode_scalar_is_not_a_byte"),
         word: Word::Succeeds,
-        input: || ("é = 1\r\npass\n", 1, 2),
+        input: || SchemaInput::Offset("é = 1\r\npass\n", 1, 2),
         expect: Expect::Value(2),
     },
     Case {
         name: CaseName("crlf_counts_as_one_line_break"),
         word: Word::Succeeds,
-        input: || ("é = 1\r\npass\n", 2, 1),
+        input: || SchemaInput::Offset("é = 1\r\npass\n", 2, 1),
         expect: Expect::Value(8),
     },
     Case {
         name: CaseName("exclusive_end_after_last_newline"),
         word: Word::Succeeds,
-        input: || ("pass\n", 2, 1),
+        input: || SchemaInput::Offset("pass\n", 2, 1),
         expect: Expect::Value(5),
     },
     Case {
         name: CaseName("bom_is_excluded_from_first_scalar_column"),
         word: Word::Succeeds,
-        input: || ("\u{feff}import os\n", 1, 8),
+        input: || SchemaInput::Offset("\u{feff}import os\n", 1, 8),
         expect: Expect::Value(10),
     },
     Case {
         name: CaseName("bom_does_not_shift_exclusive_end"),
         word: Word::Succeeds,
-        input: || ("\u{feff}import os\n", 1, 10),
+        input: || SchemaInput::Offset("\u{feff}import os\n", 1, 10),
         expect: Expect::Value(12),
     },
     Case {
         name: CaseName("lone_carriage_return_ends_a_line"),
         word: Word::Succeeds,
-        input: || ("x = 1\rtry:\r    pass\rexcept:\r    pass\r", 4, 1),
+        input: || SchemaInput::Offset("x = 1\rtry:\r    pass\rexcept:\r    pass\r", 4, 1),
         expect: Expect::Value(20),
     },
     Case {
         name: CaseName("mixed_line_endings"),
         word: Word::Succeeds,
-        input: || ("one\r\ntwo\rthree\nfour", 4, 1),
+        input: || SchemaInput::Offset("one\r\ntwo\rthree\nfour", 4, 1),
         expect: Expect::Value(15),
     },
     Case {
         name: CaseName("zero_row_is_invalid"),
         word: Word::Refuses,
-        input: || ("é", 0, 1),
+        input: || SchemaInput::Offset("é", 0, 1),
         expect: Expect::Error(BoundaryFailure::Invalid),
     },
     Case {
         name: CaseName("zero_column_is_invalid"),
         word: Word::Refuses,
-        input: || ("é", 1, 0),
+        input: || SchemaInput::Offset("é", 1, 0),
         expect: Expect::Error(BoundaryFailure::Invalid),
     },
     Case {
         name: CaseName("row_outside_source_is_invalid"),
         word: Word::Refuses,
-        input: || ("é", 2, 1),
+        input: || SchemaInput::Offset("é", 2, 1),
         expect: Expect::Error(BoundaryFailure::Invalid),
     },
     Case {
         name: CaseName("column_outside_source_is_invalid"),
         word: Word::Refuses,
-        input: || ("é", 1, 5),
+        input: || SchemaInput::Offset("é", 1, 5),
         expect: Expect::Error(BoundaryFailure::Invalid),
+    },
+    Case {
+        name: CaseName("unavailable_source_accepts_only_declared_file_origin_without_a_fix"),
+        word: Word::Succeeds,
+        input: || SchemaInput::UnavailableSource,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName(
+            "rule_configuration_arguments_round_trip_as_toml_including_control_characters",
+        ),
+        word: Word::Succeeds,
+        input: || SchemaInput::RuleConfiguration,
+        expect: Expect::Value(4),
     },
 ];
 
-fn subject((source, row, column): Input) -> Result<Value, Failure> {
-    offset(source, row, column).map_err(|error| failure(&error))
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        SchemaInput::Offset(source, row, column) => {
+            offset(source, row, column).map_err(|error| failure(&error))
+        }
+        SchemaInput::UnavailableSource => {
+            Ok(unavailable_source_accepts_only_declared_file_origin_without_a_fix())
+        }
+        SchemaInput::RuleConfiguration => {
+            Ok(rule_configuration_arguments_round_trip_as_toml_including_control_characters())
+        }
+    }
 }
 
 #[test]
@@ -101,8 +131,7 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-#[test]
-fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
+fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize {
     use ryo::linter::{RelativePath, RuleId};
     use ryo_benchmark_contracts::domain::context::types::ContextManifest;
     use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
@@ -152,18 +181,25 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
     let report = decode(&request, finding.clone()).unwrap();
     assert_eq!(report.diagnostics[0].start.0, 0);
     assert_eq!(report.diagnostics[0].end.0, 0);
+    let diagnostics = report.diagnostics.len();
     let mut undeclared = request.clone();
     undeclared.context_manifest = None;
-    assert!(decode(&undeclared, finding.clone()).is_err());
+    assert!(matches!(
+        decode(&undeclared, finding.clone()),
+        Err(Error::Invalid(_))
+    ));
     finding["end_location"]["column"] = serde_json::json!(2);
-    assert!(decode(&request, finding.clone()).is_err());
+    assert!(matches!(
+        decode(&request, finding.clone()),
+        Err(Error::Invalid(_))
+    ));
     finding["end_location"]["column"] = serde_json::json!(1);
     finding["fix"] = serde_json::json!({"edits":[]});
-    assert!(decode(&request, finding).is_err());
+    assert!(matches!(decode(&request, finding), Err(Error::Invalid(_))));
+    diagnostics
 }
 
-#[test]
-fn rule_configuration_arguments_round_trip_as_toml_including_control_characters() {
+fn rule_configuration_arguments_round_trip_as_toml_including_control_characters() -> usize {
     use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
     let configuration = RuleConfiguration {
         external_prefixes: vec!["V\u{7f}\n\"".into(), "é\\".into()],
@@ -193,4 +229,5 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
         disabled["lint"]["per-file-ignores"][expected.as_str()][0].as_str(),
         Some("F401")
     );
+    args.len()
 }

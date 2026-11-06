@@ -368,7 +368,8 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
             );
         }
         Err(error) => return Err(error),
-        Ok(_) => {
+        Ok(unexpected) => {
+            drop(unexpected);
             return Err(Error::Invalid(
                 "provider partial was not retained for the always rule".into(),
             ));
@@ -1418,7 +1419,7 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     std::fs::remove_file(missing.rules.join("PRODUCER/query.ryoql"))?;
     missing.state = ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh;
     assert!(
-        engine.run_prepared(missing).is_err(),
+        matches!(engine.run_prepared(missing), Err(Error::Invalid(_))),
         "missing bound producer cannot become empty"
     );
     Ok(())

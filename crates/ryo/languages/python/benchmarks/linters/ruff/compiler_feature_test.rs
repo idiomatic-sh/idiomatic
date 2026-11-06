@@ -406,7 +406,10 @@ fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
             failures.push(format!("{code}: {error:?}"));
         }
         if let Some(request) = undeclared {
-            if ryo::query::validate(&super::prepared_engine_test::python_310(), request).is_ok() {
+            if let Ok(accepted) =
+                ryo::query::validate(&super::prepared_engine_test::python_310(), request)
+            {
+                drop(accepted);
                 failures.push("RUF100 undeclared root input was accepted".into());
             }
         }

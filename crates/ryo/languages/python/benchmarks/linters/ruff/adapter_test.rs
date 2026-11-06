@@ -28,6 +28,7 @@ enum AdapterScenario {
     ReversedSpan,
     CanonicalRoot,
     FrontendFinding,
+    ReferenceRootsMustMatchTheDeclaredProjectScope,
 }
 type Input = AdapterScenario;
 type Value = bool;
@@ -136,6 +137,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || AdapterScenario::InvalidJson,
         expect: Expect::Error(BoundaryFailure::Json),
     },
+    Case {
+        name: CaseName("reference_roots_must_match_the_declared_project_scope"),
+        word: Word::Succeeds,
+        input: || AdapterScenario::ReferenceRootsMustMatchTheDeclaredProjectScope,
+        expect: Expect::Value(true),
+    },
 ];
 
 #[expect(
@@ -147,6 +154,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     reason = "one scenario dispatcher keeps the adapter contract matrix aligned with its cases"
 )]
 fn exercise(scenario: Input) -> Result<Value, Error> {
+    if matches!(
+        scenario,
+        AdapterScenario::ReferenceRootsMustMatchTheDeclaredProjectScope
+    ) {
+        return reference_roots_must_match_the_declared_project_scope().map(|()| true);
+    }
     let root = tempfile::tempdir()?;
     let executable = root.path().join("missing-ruff");
     let target_version = if matches!(scenario, AdapterScenario::InvocationPy311) {
@@ -303,9 +316,8 @@ fn fails() {
     run(CASES, Word::Fails, subject);
 }
 
-#[test]
 #[expect(clippy::expect_used, reason = "the literal fixture rule is valid")]
-fn reference_roots_must_match_the_declared_project_scope() {
+fn reference_roots_must_match_the_declared_project_scope() -> Result<(), Error> {
     use ryo::linter::RelativePath;
     let adapter = LinterRuffAdapter::new(LinterRuffSettings {
         executable: "/missing-ruff".into(),
@@ -328,13 +340,13 @@ fn reference_roots_must_match_the_declared_project_scope() {
         files: vec![RelativePath("input.py".into())],
         state: "/tmp/cache".into(),
     };
-    assert!(adapter.prepare(&request).is_ok());
+    adapter.prepare(&request)?;
     request.project_search_roots = Some(vec![RelativePath("".into())]);
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
     request.project_search_roots = Some(Vec::new());
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
     request.project_search_roots = None;
-    assert!(adapter.prepare(&request).is_ok());
+    adapter.prepare(&request)?;
     let unrelated = LinterRuffAdapter::new(LinterRuffSettings {
         executable: "/missing-ruff".into(),
         defaults: [RuleId::try_from("F401").expect("valid rule")]
@@ -347,6 +359,7 @@ fn reference_roots_must_match_the_declared_project_scope() {
         unrelated.prepare(&request),
         Err(Error::Invalid(_))
     ));
+    Ok(())
 }
 
 fn invocation_matches(
