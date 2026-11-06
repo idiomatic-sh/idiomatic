@@ -10,6 +10,7 @@ macro_rules! kinds {
     ($($kind:ident),+ $(,)?) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub(crate) enum RepresentationKind { $($kind,)+ }
+        #[cfg(test)]
         impl RepresentationKind {
             pub(crate) const ALL: &'static [Self] = &[$(Self::$kind,)+];
         }
