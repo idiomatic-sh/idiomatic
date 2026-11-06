@@ -1,0 +1,103 @@
+{
+ "schema": "contract-review-verdict/v1",
+ "scope": "Phase 2 re-review of the seven d92fce4796 blockers and the PreparedFrontiers read-sharing fix",
+ "source": {
+  "base": "d92fce4796120d2ad9ba982917f1e554b6a1b353",
+  "head": "cd2b23f100b0c32a359aa81fd12515f61c4de73a",
+  "tree": "9c0bc302d7728e05d3e7205bce0becbc871a8d45",
+  "validated_source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+  "note": "validated_to_head_diff b5074c6ba3..cd2b23f100: docs only (README.md, evidence/checkpoint/validation.json). Raw dir /tmp/ryo-contract-validation314-20261106/validation.json is a stale validation-313 copy (source cc325716); per-check json/logs and identity.json are 314/b5074c6ba3."
+ },
+ "reviewers": {
+  "lead": "unavailable: Astra not reachable in this session",
+  "independent": {
+   "model": "claude-opus-5-5",
+   "harness": "Claude Code subagent (contract-review)",
+   "session": "49097a8d-ede0-49a6-a00e-e5e13e0b95b9",
+   "round": "7280e411-950d-441a-b87d-ef3b64eb85b3"
+  },
+  "mode": "read-only; git read commands only; no build, test or tm run",
+  "worktree": "/workspaces/ryo-review-314 detached at cd2b23f100b0c32a359aa81fd12515f61c4de73a, status clean before and after",
+  "evidence": "/tmp/ryo-contract-validation314-20261106 per-check *.json/*.log (source b5074c6ba3); committed evidence/checkpoint/validation.json (validation 314)"
+ },
+ "verdict": "blocking",
+ "axes": {
+  "enforced_boundaries": "PASS",
+  "ownership_and_flow": "FAIL",
+  "proof": "FAIL"
+ },
+ "findings": [
+  {
+   "id": 1,
+   "axis": "ownership_and_flow",
+   "location": "crates/ryo/crates/execution/src/application/file_dag/frontiers/types.rs:34-37; crates/ryo/crates/execution/tests/project_phase/mod.rs:84 (prepared.clone() at the prepare_frontiers call, reads==1); crates/ryo/crates/core/src/inbound/use_cases/lint/use_case.rs:986; crates/ryo/crates/core/src/application/cross_file/coordinator.rs:88",
+   "failure": "Read sharing is a caller accommodation, not an engine guarantee. The engine only derives Clone on PreparedFrontiers; the test calls prepare_frontiers once and clones it itself. Production core calls prepare_frontiers once per todo inside prepare_all, so two declared roots of one population (or the Duplicate scenario, core preparation/service_test.rs:181) read the provider twice. Clone also deep-copies decoded FrontierInput rows per root.",
+   "owner": "Phase 2 agent (engine: ProjectPhase / prepare_frontiers)",
+   "required_enforcement": "Engine-owned dedup keyed by (population, producer, required partitions) inside ProjectPhase so a second prepare_frontiers for the same population returns the shared acquisition (Rc-shared rows); a production-route control through core's lint use case asserting provider reads 1 for two roots; or narrow the claim and row text to 'Clone available'."
+  },
+  {
+   "id": 2,
+   "axis": "proof",
+   "location": "crates/ryo/crates/execution/tests/source_boundary/submission/witness/mod.rs:15-53,56-61",
+   "failure": "The census is compiler-forced only partly. (a) implements_every_entry_trait omits FileExecution (interface.rs:59: rule, emit_rows, capture_frontiers, commit_frontier, counts take a RuleIndex), so a new RuleIndex-taking file-session method escapes the census. (b) ALL: [Method; 17] is hand-listed; a new Method variant added to the enum and the exhaustive match but not to ALL compiles and its control never runs. (c) a new trait method can reuse an existing variant in witness(..).",
+   "owner": "Phase 2 agent",
+   "required_enforcement": "Add FileExecution (and ExecutionUseCase::begin if it is an entry) to the witness; derive ALL from the enum (macro like DerivedKind::ALL in crates/derived/src/domain/contract/types.rs:10-19) so completeness is compiler-checked."
+  },
+  {
+   "id": 3,
+   "axis": "proof",
+   "location": "crates/ryo/docs/contracts/audits/2026-11-03-operator-execution-routes.md:42,47; crates/ryo/docs/contracts/README.md:21,71,73,141",
+   "failure": "Matrix/audit not current (earlier blocker 6/7 only partly repaired). Route audit header still 'source 31e4692274, validation311 ... repairs in claude/p2-review-repairs'; Native walk row 47 still cites walk_routes/continuation 'Passed at pass307' as the continuation control with no Phase 5 / ryo-c01b note, and the README never records the weakened fused-continuation/Calls(2) deferral (only phase3 review.json scope does). README:21 header 'Current ownership checkpoint \u2014 source 31e4692274, validation311'. A9 and row 73 cite program/** test findings 17 at validation313; validation314 shows 21 (4 new application-service#closed in distinct_integration/join/raw_scope/family/{identity,lifecycle}).",
+   "owner": "integrator (matrix author)",
+   "required_enforcement": "Rebind headers and rows to 314; add the ryo-c01b deferral for the continuation weakening to the Phase 2 row and audit row 47; independent re-verify."
+  },
+  {
+   "id": 4,
+   "axis": "proof",
+   "location": "crates/ryo/docs/contracts/evidence/checkpoint/validation.json evidence_reuse[0] (project_boundary)",
+   "failure": "The core project_batch_boundary suite (the 8 core sealing controls cited by the Phase 2 issuer row) was not re-run at 314; reuse is recorded as 'reuse without full proof' because the execution crate it compiles against changed. Missing evidence for a claimed guarantee.",
+   "owner": "integrator",
+   "required_enforcement": "Add project_boundary to commands.json and execute it on the validated source."
+  }
+ ],
+ "repaired": [
+  {
+   "earlier": 1,
+   "status": "fixed",
+   "evidence": "ProjectExecution/ProjectSession deleted; RequestExecution::open_project pub(super) (use_case.rs:159); ProjectRun::rule cfg(test) (project_execution.rs:212); validate_consumer_sources refuses empty or unmatched sources (frontiers/types.rs:80-110); compile_fail E0432/E0432/E0624 doctests types.rs:37-51; doctest.log 12 compile-fail + 2 positive ok"
+  },
+  {
+   "earlier": 2,
+   "status": "partly fixed; see finding 2",
+   "evidence": "Witness over four traits + exhaustive control(Method) (controls/mod.rs:28-49)"
+  },
+  {
+   "earlier": 3,
+   "status": "fixed",
+   "evidence": "tests/project_phase/negative/roots/test.rs in-range mismatch (NotRead), guard refusal at undeclared in-range root, duplicate root; each fails against the d92fce4796 validate_consumer_sources (Ok on empty sources)"
+  },
+  {
+   "earlier": 4,
+   "status": "fixed",
+   "evidence": "interface.rs:101-123 imports ProjectRootExecution/ProjectStage, paired positive doctest"
+  },
+  {
+   "earlier": 5,
+   "status": "fixed",
+   "evidence": "tm_source by directory without --fix; at 314 program/** and invocation/** production findings 0 (all 21 under cfg(test) distinct_integration and compiled_parity); suppressed 0"
+  },
+  {
+   "earlier": 6,
+   "status": "reassigned in phase3 review scope and README row 77 for RowSemantics ops, not for the continuation test; see finding 3"
+  },
+  {
+   "earlier": 7,
+   "status": "partly fixed; see finding 3"
+  }
+ ],
+ "dispositions": [],
+ "manual_judgment": [
+  "Duplicate root semantics (two outcomes, guard asked per submission) is a design choice, accepted as stated.",
+  "The witness cannot prove a new method is mapped to its own variant; review must check witness diffs."
+ ]
+}
