@@ -133,55 +133,64 @@ pub(crate) fn output_coverage(
                 view,
                 ..
             } => {
-                let mut preserves = true;
-                for (at, kind) in output_kinds
+                let own = if input.ordinal == 0 {
+                    left_on
+                } else {
+                    right_on
+                };
+                // A relation's rows are partitioned by their file column and its nodes lie in that file, so when the join key
+                // is a file or a node, the rows it matches of the other operand lie in the missing file as well.
+                let mut file_keyed = false;
+                for own in own {
+                    let own = if input.ordinal == 1 && !view.is_empty() {
+                        *view.get(own.0 as usize).ok_or(OperatingError::NotRun)?
+                    } else {
+                        *own
+                    };
+                    file_keyed |= input
+                        .kinds
+                        .get(own.0 as usize)
+                        .copied()
+                        .is_some_and(file_kind);
+                }
+                // Only the other operand's file identity depends on the key; the missing operand's own is the missing file.
+                let mut other_identity = false;
+                for (at, _) in output_kinds
                     .iter()
                     .copied()
                     .enumerate()
                     .filter(|(_, kind)| file_kind(*kind))
                 {
                     let column = output.get(at).ok_or(OperatingError::NotRun)?;
-                    let side = match column.side {
+                    other_identity |= match column.side {
                         Side::Left => 0,
                         Side::Right => 1,
-                    };
-                    if side == input.ordinal {
-                        continue;
-                    }
-                    let (own, other) = if input.ordinal == 0 {
-                        (left_on, right_on)
-                    } else {
-                        (right_on, left_on)
-                    };
-                    let mut correlated = false;
-                    for (own, other) in own.iter().zip(other) {
-                        if *other != column.column {
-                            continue;
-                        }
-                        let own = if input.ordinal == 1 && !view.is_empty() {
-                            *view.get(own.0 as usize).ok_or(OperatingError::NotRun)?
-                        } else {
-                            *own
-                        };
-                        correlated |= input.kinds.get(own.0 as usize).copied() == Some(kind);
-                    }
-                    preserves &= correlated;
+                    } != input.ordinal;
                 }
-                preserves
+                file_keyed || !other_identity
             }
             Operation::Antijoin {
                 left_on, right_on, ..
-            } if input.ordinal == 1 => output_kinds
-                .iter()
-                .copied()
-                .enumerate()
-                .filter(|(_, kind)| file_kind(*kind))
-                .all(|(at, kind)| {
-                    left_on.iter().zip(right_on).any(|(left, right)| {
-                        left.0 as usize == at
-                            && input.kinds.get(right.0 as usize).copied() == Some(kind)
+            } if input.ordinal == 1 => {
+                // The rows of the left operand a file or node key matches lie in the missing file, as the join above has it.
+                right_on.iter().any(|right| {
+                    input
+                        .kinds
+                        .get(right.0 as usize)
+                        .copied()
+                        .is_some_and(file_kind)
+                }) || output_kinds
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .filter(|(_, kind)| file_kind(*kind))
+                    .all(|(at, kind)| {
+                        left_on.iter().zip(right_on).any(|(left, right)| {
+                            left.0 as usize == at
+                                && input.kinds.get(right.0 as usize).copied() == Some(kind)
+                        })
                     })
-                }),
+            }
             Operation::OrderedMatch { .. }
             | Operation::OrderedDfs { .. }
             | Operation::Axis { .. }

@@ -409,3 +409,87 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
         "a skipped file is still unavailable for an absence check"
     );
 }
+
+/// Two files, one syntax-rejected (file 1): a join whose rows are anchored to the file it joins on withholds only the rejected
+/// file's partition, so the other file's answer is complete; a join on a key that is no file leaves the missing rows anywhere.
+#[test]
+fn a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file() {
+    use super::service::output_coverage;
+    use super::types::InputCoverage;
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::{
+        plan_parts::types::{ColumnIndex, Input, JoinColumn, Side, StepId},
+        plans::types::Operation,
+    };
+    let join = |left_on: u32, right_on: u32| Operation::Join {
+        left: Input::Step(StepId(0)),
+        right: Input::Step(StepId(1)),
+        left_on: vec![ColumnIndex(left_on)],
+        right_on: vec![ColumnIndex(right_on)],
+        output: vec![
+            JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(0),
+            },
+            JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(1),
+            },
+        ],
+        filter: Vec::new(),
+        view: Vec::new(),
+        reach: None,
+    };
+    let left = [CellKind::Node, CellKind::File, CellKind::Symbol];
+    let right = [CellKind::File, CellKind::Symbol];
+    let output = [CellKind::Node, CellKind::File];
+    let coverage = |operation: &Operation, missing: CoverageState| {
+        output_coverage(
+            operation,
+            &output,
+            &[
+                InputCoverage {
+                    ordinal: 0,
+                    kinds: &left,
+                    coverage: CoverageState::Complete,
+                },
+                InputCoverage {
+                    ordinal: 1,
+                    kinds: &right,
+                    coverage: missing,
+                },
+            ],
+        )
+        .unwrap()
+    };
+    let rejected = || CoverageState::Partial {
+        files: vec![Some(FileId(1))],
+    };
+    assert_eq!(
+        coverage(&join(1, 0), rejected()),
+        rejected(),
+        "the rejected file's partition alone is withheld, never the whole repository"
+    );
+    assert_eq!(
+        coverage(
+            &join(1, 0),
+            CoverageState::Partial {
+                files: vec![Some(FileId(0))]
+            }
+        ),
+        CoverageState::Partial {
+            files: vec![Some(FileId(0))]
+        },
+        "a genuinely partial valid file is still reported partial"
+    );
+    assert_eq!(
+        super::service::file_frontier_coverage(CoverageState::Complete, FileId(0)).unwrap(),
+        ryo_values::domain::records::types::FrontierCoverage::Complete,
+        "a complete read of the valid file stays complete"
+    );
+    assert_eq!(
+        coverage(&join(2, 1), rejected()),
+        CoverageState::Partial { files: vec![None] },
+        "a key that is no file cannot place the missing rows"
+    );
+}
