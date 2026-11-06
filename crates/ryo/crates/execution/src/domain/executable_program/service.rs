@@ -458,7 +458,7 @@ pub(crate) fn compile(
         let target = selection.target();
         if !matches!(
             executable.regions[target.0].instructions[0].operation,
-            Operation::Select { .. }
+            Operation::Select { .. } | Operation::Project { .. }
         ) {
             continue;
         }

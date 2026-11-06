@@ -20,14 +20,14 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
         let mapping = &program.prepared.program().rules()[rule.0].original_steps;
         let head = mapping[0].as_ref().unwrap().logical;
         let tail = mapping[1].as_ref().unwrap().logical;
-        let region = program.prepared.program().logical_regions()[head.0];
-        assert_eq!(
-            region,
-            program.prepared.program().logical_regions()[tail.0],
-            "the fault must cross an actual compiled row continuation"
+        let head_region = program.prepared.program().logical_regions()[head.0];
+        let region = program.prepared.program().logical_regions()[tail.0];
+        assert_ne!(
+            head_region, region,
+            "an Extend is not a fusable row continuation: it owns the region the fault crosses"
         );
         let instructions = &program.prepared.program().regions()[region.0].instructions;
-        assert!(instructions.len() > 1);
+        assert_eq!(instructions.len(), 1);
         let continuation = instructions
             .iter()
             .find(|instruction| instruction.logical == tail)
@@ -82,8 +82,8 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
     );
     assert_eq!(
         semantic.appended,
-        Calls(2),
-        "equivalent healthy delivery obligations compute once"
+        Calls(4),
+        "each healthy Extend rule appends its two rows once; retries never recompute them"
     );
     let work = file.walk_counts();
     let populations = match residency {
