@@ -91,7 +91,18 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
                     row.sites.iter().map(|site| (*site).to_owned()).collect();
                 assert_eq!(found, expected, "{entry:?}: consumers of {}", row.name);
             }
-            Class::Reads { .. } => assert!(row.sites.is_empty()),
+            Class::Reads {
+                authority,
+                owner_type,
+                ..
+            } => {
+                assert!(row.sites.is_empty());
+                assert_eq!(
+                    authority.control().0,
+                    owner_type,
+                    "{entry:?}: a read is controlled by the forgery control of its own authority"
+                );
+            }
             Class::Exempt(reason) => assert!(!reason.is_empty(), "{entry:?} states why"),
         }
     }
