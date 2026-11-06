@@ -1,9 +1,9 @@
 {
-  "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+  "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
   "scope": "Ownership consolidation checkpoint; not full product acceptance",
   "checks": {
     "libraries": {
-      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "cargo",
         "test",
@@ -39,10 +39,10 @@
         "--test-threads=6"
       ],
       "exit": 101,
-      "elapsed_seconds": 52.94202208518982
+      "elapsed_seconds": 91.83033227920532
     },
     "boundary": {
-      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "cargo",
         "test",
@@ -62,10 +62,10 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 237.63641142845154
+      "elapsed_seconds": 264.00328516960144
     },
     "tm_guards": {
-      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "tm",
         "--root",
@@ -82,10 +82,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.04442572593688965
+      "elapsed_seconds": 0.07335114479064941
     },
     "tm_source": {
-      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "tm",
         "--root",
@@ -104,14 +104,15 @@
         "crates/execution/src/application/file_dag/derived/owner/acquisition/service.rs",
         "crates/execution/src/application/file_dag/derived/owner/fixtures/mod.rs",
         "crates/execution/src/application/file_dag/derived/owner/graph.rs",
-        "crates/execution/src/application/file_dag/derived/owner/graph_fixture.rs",
+        "crates/execution/src/application/file_dag/derived/owner/fixtures/graph/mod.rs",
         "crates/execution/src/application/file_dag/derived/owner/graph_key.rs",
-        "crates/execution/src/application/file_dag/derived/owner/graph_lifetime_test.rs",
+        "crates/execution/src/application/file_dag/derived/owner/lifetime/graph/test.rs",
+        "crates/execution/src/application/file_dag/derived/owner/lifetime/index/test.rs",
         "crates/execution/src/application/file_dag/derived/owner/graph_policy.rs",
         "crates/execution/src/application/file_dag/derived/owner/graphs/types/retained/types.rs",
         "crates/execution/src/application/file_dag/derived/owner/observations.rs",
         "crates/execution/src/application/file_dag/derived/owner/raw_scope.rs",
-        "crates/execution/src/application/file_dag/derived/owner/resource_fixture.rs",
+        "crates/execution/src/application/file_dag/derived/owner/fixtures/resources/mod.rs",
         "crates/execution/src/application/file_dag/derived/owner/selection/candidates/service.rs",
         "crates/execution/src/application/file_dag/derived/owner/selection/fanout/service.rs",
         "crates/execution/src/application/file_dag/derived/owner/selection/fixtures/mod.rs",
@@ -123,7 +124,7 @@
         "crates/execution/src/application/file_dag/derived/owner/selection/types.rs",
         "crates/execution/src/application/file_dag/derived/owner/witness/mod.rs",
         "crates/execution/src/application/file_dag/derived/owner/witness/service.rs",
-        "crates/execution/src/application/file_dag/derived/owner_test.rs",
+        "crates/execution/src/application/file_dag/derived/owner/test.rs",
         "crates/execution/src/application/file_dag/derived/population/mod.rs",
         "crates/execution/src/application/file_dag/derived/population/types.rs",
         "crates/execution/src/application/file_dag/execution.rs",
@@ -219,10 +220,10 @@
         "json"
       ],
       "exit": 1,
-      "elapsed_seconds": 25.399353981018066
+      "elapsed_seconds": 44.67408871650696
     },
     "ownership_edges": {
-      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "ryo",
         "query",
@@ -237,10 +238,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 1.5312514305114746
+      "elapsed_seconds": 2.3259012699127197
     },
     "tm_import_cli": {
-      "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "cargo",
         "test",
@@ -263,10 +264,10 @@
         "--exact"
       ],
       "exit": 0,
-      "elapsed_seconds": 2.64020037651062
+      "elapsed_seconds": 0.9210937023162842
     },
     "tm_cli_source": {
-      "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
       "command": [
         "tm",
         "--root",
@@ -278,7 +279,7 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.5689122676849365
+      "elapsed_seconds": 0.4544484615325928
     },
     "observer_source": {
       "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
@@ -379,11 +380,36 @@
       ],
       "exit": 0,
       "elapsed_seconds": 49.18089318275452
+    },
+    "activation_targeted": {
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/ryo/Cargo.toml",
+        "--target-dir",
+        "/workspaces/idiomatic-benchmark-guards/target",
+        "--locked",
+        "--offline",
+        "-j6",
+        "--all-features",
+        "-p",
+        "idiomatic-sh-ryo-execution",
+        "--lib",
+        "--test",
+        "activation",
+        "--test",
+        "boundary_contract",
+        "--no-fail-fast"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 243.48124194145203
     }
   },
   "results": {
     "execution_library": {
-      "passed": 459,
+      "passed": 464,
       "failed": 0
     },
     "core_library": {
@@ -395,13 +421,8 @@
     "sdk_passed": 43,
     "other_libraries_passed": 155,
     "execution_boundary": {
-      "passed": 90,
-      "failed": 0,
-      "compiler_controls_completed": 86,
-      "authorized": 18,
-      "forbidden": 68,
-      "production_context": 79,
-      "test_context": 7
+      "passed": 91,
+      "failed": 0
     },
     "core_compiler_controls_passed": 8,
     "configured_413_one_file_sharing": "pass",
@@ -411,13 +432,13 @@
       "failed": 0
     },
     "program_guard_scenarios": 112,
-    "actual_CLI_cases_executed": 8,
-    "actual_CLI_cases_passed": 8,
+    "actual_CLI_cases_executed": 1,
+    "actual_CLI_cases_passed": 1,
     "source_TM": {
-      "paths": 123,
-      "findings": 493,
+      "paths": 125,
+      "findings": 416,
       "suppressed": 0,
-      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47"
+      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc"
     },
     "observer_TM": {
       "findings": 55,
@@ -427,7 +448,8 @@
     "CLI_source_TM": {
       "findings": 0,
       "suppressed": 0
-    }
+    },
+    "activation_cases_passed": 7
   },
   "ownership_graph": {
     "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
@@ -499,29 +521,8 @@
     "unread_count": 5404,
     "unread_rust": []
   },
-  "evidence_reuse": [
-    {
-      "from": "307 on839190fd547ff7e8d08b05a7c314741a7eec3f47",
-      "to": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
-      "accepted": [
-        "libraries",
-        "all86 compiler controls",
-        "guard validation",
-        "execution ownership edge census"
-      ],
-      "basis": "Exact diff has only runtime service test-only expect\u2192unwrap/assert message removal and CLI test support placement. Observer conditions,scope/population selection,weak witnesses,all assertions and every compiler probe unchanged. Runtime change affects failure diagnostics only;CLI actually reruns308. No fresh ten-package build claimed."
-    },
-    {
-      "from": "305 on4067e8e93a13ddc27672bd29c79ab7df11e692aa",
-      "to": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
-      "accepted": [
-        "core project boundary8",
-        "configured413 onefile sharing"
-      ],
-      "basis": "Reviewed complete Rust diff:all observer additions cfg(test),restoration/value/source-probe/CLI files test-only;only non-test executable-source edit removes an unused local DerivedStorage import. Actual production behavior/authority,core probe files and benchmark sharing sources are otherwise identical.307 libraries/boundaries compile and execute successor source. Reuse is explicit semantic nonchange plus identical relevant assertions,not a claim the whole Git tree matches.",
-      "limits": "Onefile reached eligible heads only;not fullRuff/fullcorpus parity or performance."
-    }
-  ],
+  "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
-  "new_performance_measurement": false
+  "new_performance_measurement": false,
+  "validation": "310"
 }
