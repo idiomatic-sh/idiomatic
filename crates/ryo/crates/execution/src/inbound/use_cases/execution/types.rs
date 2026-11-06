@@ -130,6 +130,8 @@ pub struct RequestExecution {
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(super) services:
         Arc<crate::application::file_dag::program::facade_runtime::types::ProgramServices>,
+    /// Prepared frontiers of this request, one acquisition per population.
+    pub(super) frontiers: crate::application::file_dag::frontiers::types::FrontierCache,
 }
 pub enum SourceLanguage {
     Recognized,

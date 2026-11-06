@@ -31,19 +31,66 @@ pub(in crate::application::file_dag) struct FrontierSource {
         crate::domain::operating::errors::OperatingError,
     >,
 }
-/// One acquisition of the frontier sources. Roots of one population submit clones of it,
-/// so the provider is read once per cohort, never once per root.
+/// One acquisition of the frontier sources. The request owner hands the same acquisition to every
+/// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
 pub struct PreparedFrontiers {
     pub(in crate::application::file_dag) producer: crate::domain::coverage::types::RuleIndex,
-    pub(in crate::application::file_dag) sources: Box<[FrontierSource]>,
-    pub(in crate::application::file_dag) rows: Vec<FrontierInput>,
+    pub(in crate::application::file_dag) sources: std::sync::Arc<[FrontierSource]>,
+    pub(in crate::application::file_dag) rows: std::sync::Arc<[FrontierInput]>,
     pub(in crate::application::file_dag) program:
         std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
     pub(in crate::application::file_dag) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
     pub(in crate::application::file_dag) refused:
-        Vec<crate::domain::crossing::types::RefusedFrontier>,
+        std::sync::Arc<[crate::domain::crossing::types::RefusedFrontier]>,
+}
+
+/// What makes two prepare calls one population: the same rule, first bucket, demand and request scope.
+struct FrontierKey {
+    rule: crate::domain::coverage::types::RuleIndex,
+    first: ryo_values::domain::stored_facts::types::Bucket,
+    ready: Option<Vec<bool>>,
+    required: crate::application::file_dag::program::admission::RequiredPartitions,
+}
+
+/// Engine-owned dedup of prepared frontiers for one request: the first call for a population reads
+/// the provider; every later call for it receives the same shared acquisition. Failures are not kept.
+/// Callers of one population share one symbol table and one facts provider, as the request does.
+#[derive(Default)]
+pub(crate) struct FrontierCache(std::sync::Mutex<Vec<(FrontierKey, PreparedFrontiers)>>);
+
+impl FrontierCache {
+    pub(crate) fn shared<E>(
+        &self,
+        rule: crate::domain::coverage::types::RuleIndex,
+        first: ryo_values::domain::stored_facts::types::Bucket,
+        ready: Option<&[bool]>,
+        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        acquire: impl FnOnce() -> Result<PreparedFrontiers, E>,
+    ) -> Result<PreparedFrontiers, E> {
+        let mut held = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((_, found)) = held.iter().find(|(key, _)| {
+            key.rule == rule
+                && key.first == first
+                && key.ready.as_deref() == ready
+                && key.required.same_request(required)
+                    == crate::application::file_dag::program::admission::Agreement::Same
+        }) {
+            return Ok(found.clone());
+        }
+        let prepared = acquire()?;
+        held.push((
+            FrontierKey {
+                rule,
+                first,
+                ready: ready.map(<[bool]>::to_vec),
+                required: required.clone(),
+            },
+            prepared.clone(),
+        ));
+        Ok(prepared)
+    }
 }
 
 /// Admitted phase inputs. Compact sources have schemas/name mappings but no
@@ -56,7 +103,7 @@ pub(crate) enum FrontierInput {
     },
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
-        table: ryo_values::domain::table_words::types::CompactTable,
+        table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>,
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
         coverage: crate::domain::completion::types::CoverageState,
     },

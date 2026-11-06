@@ -97,17 +97,17 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                             input: source,
                             root: source_root.clone(),
                         }]
-                        .into_boxed_slice(),
+                        .into(),
                         rows: vec![FrontierInput::Decoded {
                             frontier: Frontier {
                                 input: source,
-                                table,
+                                table: std::sync::Arc::new(table),
                             },
                             coverage: CoverageState::Complete,
-                        }],
+                        }].into(),
                         program: Arc::clone(prepared.program()),
                         required: required.clone(),
-                        refused: vec![],
+                        refused: vec![].into(),
                     },
                     bound_inputs: &[],
                 },
@@ -255,11 +255,11 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                             input: source,
                             root: source_root.clone(),
                         }]
-                        .into_boxed_slice(),
+                        .into(),
                         rows: vec![FrontierInput::Decoded {
                             frontier: Frontier {
                                 input: source,
-                                table: Table {
+                                table: Arc::new(Table {
                                     kinds: kinds(Relation::LanguageTarget).to_vec(),
                                     cells: vec![
                                         Cell::File(FileId(0)),
@@ -270,13 +270,13 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                                         Cell::Number(Integer(7)),
                                     ],
                                     count: RowCount(2),
-                                },
+                                }),
                             },
                             coverage: CoverageState::Complete,
-                        }],
+                        }].into(),
                         program: Arc::clone(prepared.program()),
                         required: required.clone(),
-                        refused: vec![],
+                        refused: vec![].into(),
                     },
                     bound_inputs: &[],
                 },

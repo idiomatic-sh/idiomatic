@@ -40,7 +40,10 @@ pub(crate) fn project_input(
     materialize(&Rows::Stored(view), &mut table, &mut Vec::new());
     carry(&mut table, project, cross);
     distinct(&mut table, &mut HashTable::new());
-    Frontier { input, table }
+    Frontier {
+        input,
+        table: std::sync::Arc::new(table),
+    }
 }
 
 /// The rows the files handed to an input of a rule, from the words the workers kept, their names made again among the names of the
