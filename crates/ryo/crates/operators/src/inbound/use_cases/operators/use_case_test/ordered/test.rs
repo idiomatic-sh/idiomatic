@@ -1,6 +1,64 @@
 //! The public ordered-pair call observes prepared inputs and immediately honors downstream refusal.
-use super::*;
+use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+use std::borrow::Cow;
+
+#[derive(Clone, Copy)]
+enum Scenario {
+    OrderedPairs,
+    OrderedMissing,
+    OrderedInterrupted,
+}
+#[derive(Debug, PartialEq)]
+enum Observation {
+    Cells(Cow<'static, [Cell]>),
+}
+type Input = Scenario;
+type Value = Observation;
+type Failure = PortableOperatorFault;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("ordered_dispatch_preserves_fifo_witnesses_and_repeated_columns"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedPairs,
+        expect: Expect::Value(Observation::Cells(Cow::Borrowed(&[
+            Cell::Number(Integer(1)),
+            Cell::Number(Integer(0)),
+            Cell::Number(Integer(1)),
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(1)),
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(3)),
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(3)),
+        ]))),
+    },
+    Case {
+        name: CaseName("ordered_projection_fault_precedes_any_delivery"),
+        word: Word::Refuses,
+        input: || Scenario::OrderedMissing,
+        expect: Expect::Error(Failure::NoSuchColumn { index: 2 }),
+    },
+    Case {
+        name: CaseName("ordered_sink_failure_preserves_prefix_and_stops_reads"),
+        word: Word::Fails,
+        input: || Scenario::OrderedInterrupted,
+        expect: Expect::Error(Failure::Interrupted),
+    },
+];
+fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
+    assert_eq!(
+        fixtures::operators().operators(call)?,
+        OperatorAnswer::Written
+    );
+    Ok(())
+}
 struct Driver {
     visits: Vec<(usize, usize)>,
     attempts: usize,
@@ -44,7 +102,7 @@ impl OrderedMatchDriver for Driver {
         Ok(())
     }
 }
-pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
+fn subject(input: Scenario) -> Result<Observation, Failure> {
     let mut driver = Driver {
         visits: Vec::new(),
         attempts: 0,
@@ -106,8 +164,20 @@ pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
                 "first delivered row survives second delivery refusal"
             );
         }
-        _ => unreachable!(),
     }
     result?;
     Ok(Observation::Cells(Cow::Owned(driver.rows)))
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

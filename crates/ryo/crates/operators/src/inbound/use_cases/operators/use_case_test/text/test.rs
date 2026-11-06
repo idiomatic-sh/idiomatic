@@ -1,229 +1,82 @@
-//! Public text calls keep matcher construction at the edge and preserve exact delivery prefixes.
-use super::*;
-use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
-};
-use ryo_relations::domain::relations::types::{Offset, Span};
-use ryo_relations::domain::terms::types::Symbol;
+//! Public text calls preserve Unicode word, path-capture, rank and literal replacement semantics.
+use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::LiteralText;
+use std::borrow::Cow;
 
-fn regex(pattern: &str) -> ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex {
-    MatchingUseCaseImpl::new()
-        .compile_regex(pattern)
-        .expect("valid acceptance pattern")
+#[derive(Clone, Copy)]
+enum Scenario {
+    Words,
+    WordsEmpty,
+    CaptureUtf8,
+    CaptureSlash,
+    RankFirst,
+    RankAbsent,
+    ReplaceLiteral,
 }
-fn span(start: u32, end: u32) -> Cell {
-    Cell::Span(Span {
-        start: Offset(start),
-        end: Offset(end),
-    })
+#[derive(Debug, PartialEq)]
+enum Observation {
+    Text(Cow<'static, str>),
+    Rank(Option<i64>),
 }
-#[derive(Default)]
-struct Delivery {
-    rows: Vec<Vec<Cell>>,
-    attempts: usize,
-    interns: usize,
-    names: Vec<String>,
-    fail_second: bool,
-}
-impl TextRowDriver for Delivery {
-    fn intern(&mut self, text: &str) -> Cell {
-        self.interns += 1;
-        assert!(
-            matches!(text, "b" | "c" | "d"),
-            "capture resolves the original physical text"
-        );
-        self.names.push(text.to_owned());
-        Cell::Symbol(Symbol(u32::try_from(self.interns).unwrap()))
-    }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
-        self.attempts += 1;
-        if self.fail_second && self.attempts == 2 {
-            return Err(SemanticInterrupted);
-        }
-        self.rows.push(row.to_vec());
-        Ok(())
-    }
-}
-fn source_optional(input: Scenario) -> Result<Observation, Failure> {
-    let interrupted = matches!(input, Scenario::SourceOrdinaryInterrupted);
-    let ordinary = matches!(
-        input,
-        Scenario::SourceOrdinary | Scenario::SourceOrdinaryInterrupted
+type Input = Scenario;
+type Value = Observation;
+type Failure = PortableOperatorFault;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("words_dispatch_keeps_unicode_case_and_digit_boundaries"),
+        word: Word::Succeeds,
+        input: || Scenario::Words,
+        expect: Expect::Value(Observation::Text(Cow::Borrowed("httpserver2|go|über|name"))),
+    },
+    Case {
+        name: CaseName("words_separators_produce_no_empty_words"),
+        word: Word::Succeeds,
+        input: || Scenario::WordsEmpty,
+        expect: Expect::Value(Observation::Text(Cow::Borrowed(""))),
+    },
+    Case {
+        name: CaseName("capture_dispatch_keeps_utf8_boundaries_and_match_order"),
+        word: Word::Succeeds,
+        input: || Scenario::CaptureUtf8,
+        expect: Expect::Value(Observation::Text(Cow::Borrowed("é,ab|éa,b"))),
+    },
+    Case {
+        name: CaseName("capture_ordinary_slots_refuse_crossing_a_slash"),
+        word: Word::Succeeds,
+        input: || Scenario::CaptureSlash,
+        expect: Expect::Value(Observation::Text(Cow::Borrowed(""))),
+    },
+    Case {
+        name: CaseName("rank_dispatch_chooses_first_matching_layer"),
+        word: Word::Succeeds,
+        input: || Scenario::RankFirst,
+        expect: Expect::Value(Observation::Rank(Some(0))),
+    },
+    Case {
+        name: CaseName("rank_unmatched_text_has_no_output"),
+        word: Word::Succeeds,
+        input: || Scenario::RankAbsent,
+        expect: Expect::Value(Observation::Rank(None)),
+    },
+    Case {
+        name: CaseName("replacement_dispatch_treats_dollar_text_literally"),
+        word: Word::Succeeds,
+        input: || Scenario::ReplaceLiteral,
+        expect: Expect::Value(Observation::Text(Cow::Borrowed("$1$1é"))),
+    },
+];
+fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
+    assert_eq!(
+        fixtures::operators().operators(call)?,
+        OperatorAnswer::Written
     );
-    let source = if interrupted {
-        "a\r\nb\rc\nd"
-    } else {
-        "a\r\nb\rc"
-    };
-    let regex = regex("(?P<cap>b|c|d)");
-    let mut delivery = Delivery {
-        fail_second: interrupted,
-        ..Delivery::default()
-    };
-    let mut output = Vec::new();
-    let result = written(OperatorCall::SourceMatches {
-        input: SourceMatchesInput {
-            row: &[Cell::Number(Integer(7))],
-            source: source.as_bytes(),
-            base: 0,
-            text: source,
-            line: if matches!(input, Scenario::SourceSpanOnly) {
-                Some(1)
-            } else {
-                None
-            },
-            regex: &regex,
-            capture: if ordinary { None } else { Some("cap") },
-            capture_text: matches!(input, Scenario::SourceNoLine),
-            capture_line: false,
-        },
-        driver: &mut delivery,
-        target: &mut output,
-    });
-    if ordinary {
-        let expected = if interrupted {
-            vec![vec![number(7), span(3, 4)]]
-        } else {
-            vec![vec![number(7), span(3, 4)], vec![number(7), span(5, 6)]]
-        };
-        assert_eq!(
-            delivery.rows, expected,
-            "ordinary matches retain the original row and append only the whole span"
-        );
-        assert_eq!(
-            delivery.attempts, 2,
-            "second refusal prevents any third delivery"
-        );
-        assert_eq!(delivery.interns, 0);
-        assert!(
-            delivery.names.is_empty(),
-            "ordinary find_iter never interns capture text"
-        );
-    } else if matches!(input, Scenario::SourceNoLine) {
-        assert_eq!(
-            delivery.rows,
-            vec![
-                vec![number(7), span(3, 4), span(3, 4), Cell::Symbol(Symbol(1))],
-                vec![number(7), span(5, 6), span(5, 6), Cell::Symbol(Symbol(2))],
-            ]
-        );
-        assert_eq!((delivery.attempts, delivery.interns), (2, 2));
-        assert_eq!(delivery.names, ["b", "c"]);
-    } else {
-        assert_eq!(
-            delivery.rows,
-            vec![
-                vec![number(7), span(3, 4), number(2), span(3, 4)],
-                vec![number(7), span(5, 6), number(3), span(5, 6)],
-            ]
-        );
-        assert_eq!((delivery.attempts, delivery.interns), (2, 0));
-        assert!(
-            delivery.names.is_empty(),
-            "span-only captures never intern text"
-        );
-    }
-    result?;
-    Ok(Observation::Cells(Cow::Owned(
-        delivery.rows.into_iter().flatten().collect(),
-    )))
+    Ok(())
 }
-fn source(input: Scenario) -> Result<Observation, Failure> {
-    let source = if matches!(input, Scenario::SourceInterrupted) {
-        "a\r\nb\rc\nd"
-    } else {
-        "a\r\nb\rc"
-    };
-    let regex = regex(if matches!(input, Scenario::SourceMissingCapture) {
-        "(?P<cap>x)"
-    } else {
-        "(?P<cap>b|c|d)"
-    });
-    let capture = match input {
-        Scenario::SourceMissingCapture => Some("absent"),
-        Scenario::SourceMissingOptions => None,
-        _ => Some("cap"),
-    };
-    let mut delivery = Delivery {
-        fail_second: matches!(input, Scenario::SourceInterrupted),
-        ..Delivery::default()
-    };
-    let mut output = vec![number(99)];
-    let result = written(OperatorCall::SourceMatches {
-        input: SourceMatchesInput {
-            row: &[],
-            source: source.as_bytes(),
-            base: 0,
-            text: source,
-            line: Some(1),
-            regex: &regex,
-            capture,
-            capture_text: true,
-            capture_line: true,
-        },
-        driver: &mut delivery,
-        target: &mut output,
-    });
-    match input {
-        Scenario::SourceLines => {
-            assert_eq!(
-                delivery.rows,
-                vec![
-                    vec![
-                        span(3, 4),
-                        number(2),
-                        span(3, 4),
-                        Cell::Symbol(Symbol(1)),
-                        number(2)
-                    ],
-                    vec![
-                        span(5, 6),
-                        number(3),
-                        span(5, 6),
-                        Cell::Symbol(Symbol(2)),
-                        number(3)
-                    ]
-                ]
-            );
-            assert_eq!((delivery.attempts, delivery.interns), (2, 2));
-            assert_eq!(delivery.names, ["b", "c"]);
-        }
-        Scenario::SourceInterrupted => {
-            assert_eq!(
-                delivery.rows,
-                vec![vec![
-                    span(3, 4),
-                    number(2),
-                    span(3, 4),
-                    Cell::Symbol(Symbol(1)),
-                    number(2)
-                ]]
-            );
-            assert_eq!(
-                (delivery.attempts, delivery.interns),
-                (2, 2),
-                "failure prevents the third capture and downstream delivery"
-            );
-            assert_eq!(delivery.names, ["b", "c"]);
-        }
-        Scenario::SourceMissingCapture | Scenario::SourceMissingOptions => {
-            assert!(delivery.rows.is_empty());
-            assert_eq!((delivery.attempts, delivery.interns), (0, 0));
-            assert_eq!(
-                output,
-                vec![number(99)],
-                "option faults precede output mutation"
-            );
-        }
-        _ => unreachable!(),
-    }
-    result?;
-    Ok(Observation::Cells(Cow::Owned(
-        delivery.rows.iter().map(|row| row[1]).collect(),
-    )))
+fn regex(pattern: &str) -> ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex {
+    fixtures::regex(pattern)
 }
-pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Scenario::Words | Scenario::WordsEmpty => {
             let text = if matches!(input, Scenario::Words) {
@@ -299,7 +152,7 @@ pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
             } else {
                 "absent"
             };
-            let answer = OperatorsUseCaseImpl::new().operators(OperatorCall::Rank {
+            let answer = fixtures::operators().operators(OperatorCall::Rank {
                 text,
                 layers: &layers,
             })?;
@@ -322,14 +175,10 @@ pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
             assert_eq!(output.as_ptr(), original);
             Ok(Observation::Text(Cow::Owned(output)))
         }
-        Scenario::SourceLines
-        | Scenario::SourceMissingCapture
-        | Scenario::SourceMissingOptions
-        | Scenario::SourceInterrupted => source(input),
-        Scenario::SourceOrdinary
-        | Scenario::SourceOrdinaryInterrupted
-        | Scenario::SourceNoLine
-        | Scenario::SourceSpanOnly => source_optional(input),
-        _ => unreachable!("text fixture receives only text scenarios"),
     }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -1,14 +1,5 @@
 //! Public acceptance of extrema, projection, antijoin and interruption semantics.
-use crate::domain::contract::types::OperatorCall;
-use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::equality_join::types::JoinInterrupted;
-use crate::domain::ordered_existence::types::{
-    OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
-};
-use crate::domain::set_rows::types::{SetInput, SetInterrupted, SetKind, SetRowDriver};
-use crate::inbound::use_cases::operators::{
-    interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
-};
+use crate::inbound::use_cases::operators::{fixtures, interface::*};
 use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -78,7 +69,7 @@ fn execute(
     extremum: PartitionExtremum,
     scratch: &mut OrderedExistenceScratch,
 ) -> Result<(), PortableOperatorFault> {
-    OperatorsUseCaseImpl::new()
+    fixtures::operators()
         .operators(OperatorCall::OrderedExistence {
             partition: &[ColumnIndex(0)],
             order: ColumnIndex(2),
@@ -106,6 +97,46 @@ fn oracle(rows: &[[ValueCell; 3]], extremum: PartitionExtremum) -> Vec<usize> {
                 .then_some(at)
         })
         .collect()
+}
+
+struct Poisoned {
+    keys: Vec<ValueCell>,
+    rows: Vec<Vec<ValueCell>>,
+}
+impl SetRowDriver for Poisoned {
+    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+        Ok(self.keys.is_empty())
+    }
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
+        Ok(self.keys.contains(&key[0]))
+    }
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
+        panic!("antijoin must preserve left bags")
+    }
+    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
+        self.rows.push(row.to_vec());
+        Ok(())
+    }
+}
+
+struct Reordered {
+    dropped: Vec<Vec<ValueCell>>,
+    emitted: Vec<Vec<ValueCell>>,
+}
+impl SetRowDriver for Reordered {
+    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+        Ok(self.dropped.is_empty())
+    }
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
+        Ok(self.dropped.iter().any(|row| row == key))
+    }
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
+        panic!("bag-preserving antijoin")
+    }
+    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
+        self.emitted.push(row.to_vec());
+        Ok(())
+    }
 }
 
 fn finite_extrema_matches_pair_oracle_with_ties_bags_partitions_and_integer_limits() {
@@ -142,31 +173,12 @@ fn projected_dominated_keys_poison_the_entire_unchanged_antijoin_key_group() {
     )
     .expect("flag");
     assert_eq!(input.emitted, [0, 2]);
-    struct Anti {
-        keys: Vec<ValueCell>,
-        rows: Vec<Vec<ValueCell>>,
-    }
-    impl SetRowDriver for Anti {
-        fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
-            Ok(self.keys.is_empty())
-        }
-        fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
-            Ok(self.keys.contains(&key[0]))
-        }
-        fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
-            panic!("antijoin must preserve left bags")
-        }
-        fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
-            self.rows.push(row.to_vec());
-            Ok(())
-        }
-    }
-    let mut anti = Anti {
+    let mut anti = Poisoned {
         keys: input.emitted.iter().map(|at| input.rows[*at][1]).collect(),
         rows: Vec::new(),
     };
     for row in &input.rows {
-        OperatorsUseCaseImpl::new()
+        fixtures::operators()
             .operators(OperatorCall::SetRow {
                 input: SetInput::Values {
                     kind: SetKind::Antijoin,
@@ -227,7 +239,7 @@ fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns(
             witness[2],
         ];
         let mut projected = Vec::new();
-        OperatorsUseCaseImpl::new()
+        fixtures::operators()
             .operators(OperatorCall::Project {
                 row: &joined,
                 columns: &[ColumnIndex(0), ColumnIndex(2)],
@@ -236,32 +248,13 @@ fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns(
             .expect("unchanged project");
         dropped.push(projected);
     }
-    struct Anti {
-        dropped: Vec<Vec<ValueCell>>,
-        emitted: Vec<Vec<ValueCell>>,
-    }
-    impl SetRowDriver for Anti {
-        fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
-            Ok(self.dropped.is_empty())
-        }
-        fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
-            Ok(self.dropped.iter().any(|row| row == key))
-        }
-        fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
-            panic!("bag-preserving antijoin")
-        }
-        fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
-            self.emitted.push(row.to_vec());
-            Ok(())
-        }
-    }
     assert_eq!(dropped, vec![vec![source[0][1], source[0][1]]]);
-    let mut anti = Anti {
+    let mut anti = Reordered {
         dropped,
         emitted: Vec::new(),
     };
     for row in &source {
-        OperatorsUseCaseImpl::new()
+        fixtures::operators()
             .operators(OperatorCall::SetRow {
                 input: SetInput::Values {
                     kind: SetKind::Antijoin,
