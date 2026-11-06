@@ -1,5 +1,5 @@
 //! Admission and once-charged cache policy are exercised under their application owner.
-use crate::application::file_dag::derived::selection::fixtures::SelectionFixture;
+use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
@@ -160,13 +160,13 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let before = fixture.snapshot(None);
     assert_eq!(
         before.limit,
-        super::super::indexes::LIMIT,
+        crate::application::file_dag::derived::owner::index::service::LIMIT,
         "capacity refusal is tested with the normal byte budget"
     );
     let table = Table {
         kinds: vec![],
         cells: vec![],
-        count: RowCount(super::MAX_RETAINED_POSITION_CAPACITY + 1),
+        count: RowCount(super::super::MAX_RETAINED_POSITION_CAPACITY + 1),
     };
     let owner = fixture.owner();
     let publication = owner.computed(table.clone())?;
@@ -199,11 +199,11 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let DerivedView::RowIds(rows) = handle.view()? else {
         panic!("predicate view")
     };
-    assert_eq!(rows.len(), super::MAX_RETAINED_POSITION_CAPACITY + 1);
+    assert_eq!(rows.len(), super::super::MAX_RETAINED_POSITION_CAPACITY + 1);
     assert_eq!(rows.first(), Some(&0));
     assert_eq!(
         rows.last(),
-        Some(&(super::MAX_RETAINED_POSITION_CAPACITY as u32))
+        Some(&(super::super::MAX_RETAINED_POSITION_CAPACITY as u32))
     );
     let after = fixture.snapshot(None);
     assert_eq!(after.selections, 0);
@@ -284,7 +284,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         bindings: vec![],
     });
     let selector = Arc::new(selector);
-    let views = super::prepare_views_with_schemas(
+    let views = super::super::prepare_views_with_schemas(
         [(selector).clone()],
         &|_| &[CellKind::Number; 3],
         (std::sync::Arc::new(
@@ -376,15 +376,15 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         panic!("registered distinct view")
     };
     let original_buffer = actual.as_ptr();
-    let shared = super::shared_positions(&acquired, 3, 3)?;
+    let shared = super::super::shared_positions(&acquired, 3, 3)?;
     assert_eq!(shared.as_slice(), &[0, 2]);
     assert_eq!(shared.as_ptr(), original_buffer, "no row-ID buffer copy");
     assert!(matches!(
-        super::shared_positions(&acquired, 2, 3),
+        super::super::shared_positions(&acquired, 2, 3),
         Err(OperatingError::ShapeMismatch)
     ));
     assert!(matches!(
-        super::shared_positions(&acquired, 3, 1),
+        super::super::shared_positions(&acquired, 3, 1),
         Err(OperatingError::ShapeMismatch)
     ));
     let wrong = owner.derived.acquire_stored(
@@ -396,7 +396,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         None,
     )?;
     assert!(matches!(
-        super::shared_positions(&wrong, 3, 3),
+        super::super::shared_positions(&wrong, 3, 3),
         Err(OperatingError::WrongOperation)
     ));
     Ok(())

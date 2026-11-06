@@ -73,7 +73,7 @@ impl SelectionFixture {
         let plans = wanted
             .iter()
             .copied()
-            .map(super::super::owner::resource_fixture::source_plan)
+            .map(crate::application::file_dag::derived::owner::resource_fixture::source_plan)
             .collect::<Vec<_>>();
         Self::prepared(wanted, partials, active, authored, kinds, &plans)
     }
@@ -91,10 +91,13 @@ impl SelectionFixture {
         let mut plans = wanted
             .iter()
             .copied()
-            .map(super::super::owner::resource_fixture::source_plan)
+            .map(crate::application::file_dag::derived::owner::resource_fixture::source_plan)
             .collect::<Vec<_>>();
         if let Some(&relation) = wanted.first() {
-            let mut graph = super::super::owner::resource_fixture::source_plan(relation);
+            let mut graph =
+                crate::application::file_dag::derived::owner::resource_fixture::source_plan(
+                    relation,
+                );
             graph.steps[0].operation = Operation::Axis {
                 from: Input::Relation(relation),
                 edges: Input::Relation(relation),
@@ -126,7 +129,8 @@ impl SelectionFixture {
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
-        let descriptors = super::super::owner::resource_fixture::prepared_sources(plans);
+        let descriptors =
+            crate::application::file_dag::derived::owner::resource_fixture::prepared_sources(plans);
         owner.derived.prepare_program_file(
             &descriptors,
             &(0..plans.len())
@@ -162,20 +166,17 @@ impl SelectionFixture {
         {
             return Ok(None);
         }
-        let Some(produced) =
-            self.owner
-                .derived
-                .select(program, source, &self.owner, &proof, context)?
-        else {
-            return Ok(None);
-        };
-        let publication = crate::application::file_dag::relations::selection::publish(
+        let Some(publication) = self.owner.derived.select(
+            program,
+            source,
             &self.owner,
             &population,
             &proof,
-            produced.rows.selection,
-            produced.resources,
-        )?;
+            context,
+        )?
+        else {
+            return Ok(None);
+        };
         let rows = self.owner.selected_rows(publication.as_ref(), source)?;
         let Rows::Selected(rows) = rows else {
             unreachable!("selected producer")

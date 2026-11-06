@@ -166,9 +166,7 @@ impl<'a> GraphInput<'a> {
     pub(super) fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
         self.relation
     }
-    pub(super) fn generation(&self) -> Arc<()> {
-        self.proof.generation_guard()
-    }
+
 }
 impl InvocationWorkspace {
     pub(super) fn graph_input<'a>(
@@ -360,6 +358,10 @@ impl InvocationWorkspace {
         {
             return Err(OperatingError::MissingInput { position: 2 });
         }
+        // The prepared Membership slot also declares the native tree space.
+        // Keep admission/error order for all demanded operands, while the value
+        // view's identity and row proof contain only its actual semantic source.
+        let semantic_sources = if matches!(&supplied, ViewInputs::MembershipValues) { 1 } else { count };
         let mut proofs: [Option<&AdmittedInput<'_>>; 2] = [None, None];
         let mut relations = [None; 2];
         for at in 0..count {
@@ -420,7 +422,7 @@ impl InvocationWorkspace {
             None
         };
         let owner = &self.owner().derived;
-        let sources = proofs[..count]
+        let sources = proofs[..semantic_sources]
             .iter()
             .map(|proof| proof.expect("admitted input"))
             .collect::<Vec<_>>();

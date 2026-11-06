@@ -67,7 +67,7 @@ impl DerivedOwner {
         })
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn retained_index_count(&self) -> usize {
+    pub(in crate::application::file_dag::derived::owner) fn retained_index_count(&self) -> usize {
         self.state
             .borrow()
             .entries
@@ -132,26 +132,28 @@ impl DerivedOwner {
 }
 
 #[cfg(test)]
-use crate::application::file_dag::derived::selection::fixtures::{
+use crate::application::file_dag::derived::owner::selection::fixtures::{
     SelectionCounters, SelectionSnapshot,
 };
 #[cfg(test)]
 use crate::domain::stored_selection::types::Selector;
 impl DerivedOwner {
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn fixture_limit_to_metadata(&self) {
+    pub(in crate::application::file_dag::derived::owner) fn fixture_limit_to_metadata(&self) {
         if let Some(cache) = self.backend.borrow_mut().as_mut() {
             cache.limit = cache.bytes;
         }
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn fixture_ineligible(&self) {
+    pub(in crate::application::file_dag::derived::owner) fn fixture_ineligible(&self) {
         if let Some(cache) = self.backend.borrow_mut().as_mut() {
             cache.eligible.clear();
         }
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn fixture_corrupt_prepared_group_count(&self) {
+    pub(in crate::application::file_dag::derived::owner) fn fixture_corrupt_prepared_group_count(
+        &self,
+    ) {
         let mut backend = self.backend.borrow_mut();
         let cache = backend.as_mut().expect("selection fixture backend");
         let mut prepared = cache
@@ -161,10 +163,10 @@ impl DerivedOwner {
         Arc::get_mut(&mut prepared)
             .expect("unshared request fixture")
             .groups = 0;
-        super::super::selection::install_views(cache, prepared);
+        crate::application::file_dag::derived::owner::selection::install_views(cache, prepared);
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn fixture_reserve_spare_selections(
+    pub(in crate::application::file_dag::derived::owner) fn fixture_reserve_spare_selections(
         &self,
         extra: usize,
     ) {
@@ -175,7 +177,7 @@ impl DerivedOwner {
             .expect("test spare metadata capacity");
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn fixture_snapshot(
+    pub(in crate::application::file_dag::derived::owner) fn fixture_snapshot(
         &self,
         descriptor: Option<&Arc<Selector>>,
     ) -> SelectionSnapshot {
@@ -279,7 +281,7 @@ impl DerivedOwner {
         }
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived) fn fixture_install_views(
+    pub(in crate::application::file_dag::derived::owner) fn fixture_install_views(
         &self,
         active: Vec<Arc<Selector>>,
         authored: impl IntoIterator<Item = Arc<Selector>>,
@@ -288,15 +290,17 @@ impl DerivedOwner {
         let mut backend = self.backend.borrow_mut();
         let cache = backend.as_mut().ok_or(OperatingError::ShapeMismatch)?;
         cache.selectors = active;
-        let prepared = super::super::selection::prepare_views_with_schemas(
-            authored,
-            &|_| kinds,
-            (std::sync::Arc::new(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-        )?;
-        super::super::selection::install_views(cache, prepared);
-        super::super::indexes::candidate_columns(cache);
+        let prepared =
+            crate::application::file_dag::derived::owner::selection::prepare_views_with_schemas(
+                authored,
+                &|_| kinds,
+                (std::sync::Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                )
+                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+            )?;
+        crate::application::file_dag::derived::owner::selection::install_views(cache, prepared);
+        crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);
         drop(backend);
         Ok(())
     }

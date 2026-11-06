@@ -1,12 +1,12 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
-use super::super::graph_cache::{
+use super::*;
+use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
         handles::{DomainHandle, GraphHandle, RootAnswer},
         roots::value::DemandAnswers,
     },
 };
-use super::*;
 use crate::application::file_dag::{
     relations::{PublishedInput, RelationOwner},
     workspace::InvocationWorkspace,

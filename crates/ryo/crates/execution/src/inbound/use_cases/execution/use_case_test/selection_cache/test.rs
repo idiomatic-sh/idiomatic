@@ -3,7 +3,7 @@
 //! they are never supplied as catalog providers to the public execution owner.
 
 use super::super::super::{fixtures as public_owner, types::SourceRows};
-use crate::application::file_dag::derived::selection::fixtures::SelectionFixture;
+use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;

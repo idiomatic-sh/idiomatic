@@ -2,7 +2,7 @@
 use super::super::*;
 use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
 use crate::application::file_dag::derived::ledger::{Backing, ResourceLease};
-use crate::application::file_dag::derived::{indexes, selection};
+use crate::application::file_dag::derived::owner::{index::service as indexes, selection};
 use crate::application::file_dag::route_counts::{self, BuildRoute};
 
 impl DerivedOwner {

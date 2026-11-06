@@ -82,15 +82,12 @@ impl AcquiredView {
     pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         #[cfg(test)]
         self.lease.assert_required(&self.backings);
-        if !self.origin.is_live() {
-            return Err(OperatingError::NotRead);
-        }
         self.storage.view()
     }
-    pub(in crate::application::file_dag::derived) fn storage(&self) -> &Arc<DerivedStorage> {
+    pub(in crate::application::file_dag::derived::owner) fn storage(&self) -> &Arc<DerivedStorage> {
         &self.storage
     }
-    pub(in crate::application::file_dag::derived) fn backings(&self) -> &Arc<[Backing]> {
+    pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {
         &self.backings
     }
 }
@@ -353,11 +350,6 @@ impl DerivedOwner {
     }
 }
 
-impl AcquisitionOrigin {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn is_live(&self) -> bool {
-        self.live.is_live()
-    }
-}
 impl AdmittedViewInputs<'_> {
     pub(in crate::application::file_dag::derived::owner::acquisition) fn lifetime(
         &self,
@@ -400,5 +392,14 @@ impl AcquiredView {
         &self,
     ) -> &Arc<ResourceLease> {
         &self.lease
+    }
+}
+
+impl AcquiredView {
+    pub(in crate::application::file_dag::derived::owner) fn validate_owner(
+        &self,
+        owner: &DerivedOwner,
+    ) -> Result<(), OperatingError> {
+        self.origin.validate(owner, &self.plan)
     }
 }

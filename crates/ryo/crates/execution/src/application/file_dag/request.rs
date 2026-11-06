@@ -146,7 +146,7 @@ impl RequestOperators {
                 })
                 .collect::<Vec<_>>(),
         );
-        let selection_views = super::derived::selection::prepare_views_with_schemas(
+        let selection_views = super::derived::owner::selection::prepare_views_with_schemas(
             selection_plans
                 .iter()
                 .flat_map(|plan| plan.steps.iter().flatten())

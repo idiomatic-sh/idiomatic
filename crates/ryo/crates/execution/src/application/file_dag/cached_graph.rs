@@ -1,11 +1,11 @@
 //! Generation-owned complete graph acquisition and one-row demand answers.
 //! The primitive sees only borrowed values after the mutable cache borrow ends.
-use crate::application::file_dag::derived::backend::CacheBackend;
-use crate::application::file_dag::derived::graph_cache::types::handles::{
+use crate::application::file_dag::derived::owner::DerivedOwner;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::graphs::types::handles::{
     DomainHandle, GraphHandle,
 };
-use crate::application::file_dag::derived::graph_cache::types::roots::value::DemandAnswers;
-use crate::application::file_dag::derived::owner::DerivedOwner;
+use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     graph_view::{AxisResult, CachedGraphRow, ReachResult},
@@ -179,8 +179,15 @@ impl CachedGraph {
         cache: Option<&mut CacheBackend>,
     ) -> Result<CachedGraphRow<'a>, OperatingError> {
         match self {
-            Self::Reach(reach) => Ok(CachedGraphRow::Reach(reach.row(left, owner, cache)?)),
-            Self::Axis(axis) => Ok(CachedGraphRow::Axis(axis.row(left, owner, cache)?)),
+            Self::Reach(reach) => {
+                reach.access.validate_owner(owner)?;
+                Ok(CachedGraphRow::Reach(reach.row(left, owner, cache)?))
+            }
+            Self::Axis(axis) => {
+                axis.access.validate_owner(owner)?;
+                axis.domain.validate_owner(owner, &axis.access)?;
+                Ok(CachedGraphRow::Axis(axis.row(left, owner, cache)?))
+            }
         }
     }
 }
@@ -225,7 +232,7 @@ impl ReachGraph {
                 self.destinations.push(
                     *self
                         .access
-                        .graph
+                        .graph()
                         .vertices()
                         .get(*vertex as usize)
                         .ok_or(OperatingError::ShapeMismatch)?,
@@ -248,15 +255,15 @@ impl AxisGraph {
     ) -> Result<AxisResult<'a>, OperatingError> {
         self.destinations.clear();
         let start = cell(left, self.id)?;
-        let Some(root) = self.access.graph.vertex(0, start) else {
+        let Some(root) = self.access.graph().vertex(0, start) else {
             return Ok(AxisResult {
                 destinations: &self.destinations,
             });
         };
         let orientation = match self.direction {
-            Direction::Child | Direction::Descendant => self.access.orientation,
+            Direction::Child | Direction::Descendant => self.access.orientation(),
             Direction::Parent | Direction::Ancestor | Direction::NearestAncestor => {
-                match self.access.orientation {
+                match self.access.orientation() {
                     Orientation::Forward => Orientation::Reverse,
                     Orientation::Reverse => Orientation::Forward,
                 }
@@ -280,14 +287,14 @@ impl AxisGraph {
                 self.destinations.push(
                     *self
                         .access
-                        .graph
+                        .graph()
                         .vertices()
                         .get(found as usize)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
             }
         } else {
-            let mut traversal = GraphTraversal::new(&self.access.graph, &mut self.walk);
+            let mut traversal = GraphTraversal::new(self.access.graph(), &mut self.walk);
             if matches!(self.direction, Direction::Parent | Direction::Child) {
                 traversal.direct(root, orientation);
             } else {
@@ -297,11 +304,11 @@ impl AxisGraph {
                 cache.observe_graph_walk(self.walk.expanded, self.walk.examined);
             }
             for vertex in &self.walk.reached {
-                if self.domain.members.get(*vertex as usize) == Some(&true) {
+                if self.domain.members().get(*vertex as usize) == Some(&true) {
                     self.destinations.push(
                         *self
                             .access
-                            .graph
+                            .graph()
                             .vertices()
                             .get(*vertex as usize)
                             .ok_or(OperatingError::ShapeMismatch)?,

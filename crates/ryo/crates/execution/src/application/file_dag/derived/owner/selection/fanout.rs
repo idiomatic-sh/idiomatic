@@ -1,6 +1,6 @@
 //! Active literal metadata is prepared once; only the common owner retains completed postings.
-use super::super::backend::ActivePostings;
 use super::*;
+use crate::application::file_dag::derived::owner::cache::types::ActivePostings;
 fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
     active
         .capacity()
@@ -67,7 +67,7 @@ pub(super) fn prepare_active(cache: &mut CacheBackend) {
 }
 pub(super) fn fanout_candidates(
     cache: &mut CacheBackend,
-    resources: super::super::owner::acquisition::selection::service::SelectionSource<'_>,
+    resources: crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Selector,
     plan: &Arc<DerivedContract>,
     source: ColumnsView<'_>,

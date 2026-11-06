@@ -7,54 +7,62 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct CacheBackend {
     #[cfg(test)]
-    pub(super) selector_descriptor: Option<usize>,
+    pub(in crate::application::file_dag::derived::owner) selector_descriptor: Option<usize>,
     /// Sparse active repetition counts keyed by request-prepared predicate group.
-    pub(super) selector_repetition: std::collections::HashMap<usize, u8>,
-    pub(super) selector_repetition_failed: bool,
+    pub(in crate::application::file_dag::derived::owner) selector_repetition:
+        std::collections::HashMap<usize, u8>,
+    pub(in crate::application::file_dag::derived::owner) selector_repetition_failed: bool,
     /// Immutable request-owned selector requirements, never file-owned payload.
-    pub(super) selection_views:
+    pub(in crate::application::file_dag::derived::owner) selection_views:
         Option<Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,
     /// An active eligible graph consumer may request bounded adjacency admission.
-    pub(super) graph_enabled: bool,
+    pub(in crate::application::file_dag::derived::owner) graph_enabled: bool,
     /// Charged graph/domain/memo bytes within `bytes`.
-    pub(super) graph_bytes: usize,
+    pub(in crate::application::file_dag::derived::owner) graph_bytes: usize,
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
-    pub(super) memo_bytes: usize,
+    pub(in crate::application::file_dag::derived::owner) memo_bytes: usize,
     /// Complete immutable graph populations.
-    pub(super) graphs: Vec<super::graph_cache::types::retained::GraphEntry>,
+    pub(in crate::application::file_dag::derived::owner) graphs:
+        Vec<crate::application::file_dag::derived::owner::graphs::types::retained::GraphEntry>,
     /// Exact stable domain memberships.
-    pub(super) graph_domains: Vec<super::graph_cache::types::retained::DomainEntry>,
+    pub(in crate::application::file_dag::derived::owner) graph_domains:
+        Vec<crate::application::file_dag::derived::owner::graphs::types::retained::DomainEntry>,
     /// Mutable nearest answers remain owned by this generation.
-    pub(super) nearest: Vec<super::graph_cache::types::retained::NearestMemo>,
+    pub(in crate::application::file_dag::derived::owner) nearest:
+        Vec<crate::application::file_dag::derived::owner::graphs::types::retained::NearestMemo>,
     /// Aggregate requested/traversed work and graph admission accounting.
-    pub(super) graph_counts: crate::domain::stored_graph::types::GraphCounts,
+    pub(in crate::application::file_dag::derived::owner) graph_counts:
+        crate::domain::stored_graph::types::GraphCounts,
     /// Active pure stored descriptors; prepared metadata is owned by the worker's plans.
-    pub(super) selectors: Vec<Arc<crate::domain::stored_selection::types::Selector>>,
+    pub(in crate::application::file_dag::derived::owner) selectors:
+        Vec<Arc<crate::domain::stored_selection::types::Selector>>,
     /// Active immutable literal inputs prepared once for this generation; contains no row payload.
-    pub(super) active_postings: Vec<ActivePostings>,
+    pub(in crate::application::file_dag::derived::owner) active_postings: Vec<ActivePostings>,
     /// Candidate indexes are built only for columns shared by distinct active predicates.
-    pub(super) discriminator_columns: Vec<crate::domain::stored_selection::types::CandidateColumn>,
+    pub(in crate::application::file_dag::derived::owner) discriminator_columns:
+        Vec<crate::domain::stored_selection::types::CandidateColumn>,
     /// Aggregate compact-selection execution counters.
-    pub(super) selection_counts: crate::domain::stored_selection::types::SelectionCounts,
+    pub(in crate::application::file_dag::derived::owner) selection_counts:
+        crate::domain::stored_selection::types::SelectionCounts,
     /// Explicit diagnostic runs only; absent and allocation-free in normal execution.
-    pub(super) selection_histogram:
+    pub(in crate::application::file_dag::derived::owner) selection_histogram:
         Option<Vec<crate::domain::stored_selection::types::SelectorHistogram>>,
     /// Active relations whose physical read reported no partiality, of any missing kind.
-    pub(super) eligible: Vec<Relation>,
+    pub(in crate::application::file_dag::derived::owner) eligible: Vec<Relation>,
     /// Accounted actual capacities and conservative allocation metadata.
-    pub(super) bytes: usize,
+    pub(in crate::application::file_dag::derived::owner) bytes: usize,
     /// Maximum retained cache bytes for this file and worker.
-    pub(super) limit: usize,
+    pub(in crate::application::file_dag::derived::owner) limit: usize,
     /// Physical stored-key builds, including invocation-local admission refusals.
-    pub(super) builds: u64,
+    pub(in crate::application::file_dag::derived::owner) builds: u64,
     /// Successful immutable index reuse.
-    pub(super) reuses: u64,
+    pub(in crate::application::file_dag::derived::owner) reuses: u64,
     /// Eligible requests whose index could not be retained within the bound.
-    pub(super) refusals: u64,
+    pub(in crate::application::file_dag::derived::owner) refusals: u64,
 }
 
 #[derive(Debug)]
-pub(super) struct ActivePostings {
+pub(in crate::application::file_dag::derived::owner) struct ActivePostings {
     pub relation: Relation,
     pub column: ryo_values::domain::plan_parts::types::ColumnIndex,
     pub literals: Arc<[ryo_values::domain::plan_parts::types::LiteralText]>,

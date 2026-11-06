@@ -1,8 +1,8 @@
 //! Graph priority is an admission policy of the one resource owner.
-use super::super::graph_cache::service::room;
 use super::*;
+use crate::application::file_dag::derived::owner::graphs::service::room;
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived) fn prepare_graph_room(
+    pub(in crate::application::file_dag::derived::owner) fn prepare_graph_room(
         &self,
         cache: &mut CacheBackend,
         cost: usize,
@@ -15,7 +15,7 @@ impl DerivedOwner {
             .optional_units
             .checked_add(extra_units)
             .ok_or(OperatingError::ShapeMismatch)?
-            .saturating_sub(super::super::selection::MAX_RETAINED_POSITION_CAPACITY);
+            .saturating_sub(crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY);
         drop(ledger);
         if room(cache, cost).is_some() && required_units == 0 {
             return Ok(true);

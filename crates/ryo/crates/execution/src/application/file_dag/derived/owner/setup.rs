@@ -27,15 +27,20 @@ impl DerivedOwner {
             return Err(OperatingError::NotRun);
         }
         let wanted = prepared.wanted(demanded)?;
-        let mut backend =
-            super::super::indexes::new(&wanted, partial, super::super::indexes::LIMIT);
+        let mut backend = crate::application::file_dag::derived::owner::index::service::new(
+            &wanted,
+            partial,
+            crate::application::file_dag::derived::owner::index::service::LIMIT,
+        );
         if let Some(cache) = backend.as_mut() {
             // Request-wide graph eligibility is indexed once. File activation
             // examines only its demanded roots, never the full graph-rule inventory.
             cache.graph_enabled = demanded
                 .iter()
                 .any(|rule| prepared.graph_rules.contains(rule));
-            super::super::selection::activate_program(cache, prepared, demanded);
+            crate::application::file_dag::derived::owner::selection::activate_program(
+                cache, prepared, demanded,
+            );
         }
         *self.backend.borrow_mut() = backend;
         self.file_prepared.set(true);

@@ -1,6 +1,8 @@
 //! Same-crate controls target the actual derived owner and its actual private issuers.
 use super::fixtures::{Expectation, Probe};
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
+pub(super) const GRAPH_ISSUER: &str =
+    "src/application/file_dag/derived/owner/graphs/types/handles.rs";
 pub(super) const MODULE: &str = "src/application/file_dag/derived/owner/acquisition/mod.rs";
 pub(super) const ISSUER: &str =
     "src/application/file_dag/derived/owner/acquisition/admission/service.rs";
@@ -100,8 +102,120 @@ mod acquired_source_retarget {
     const _: fn(&mut Authority, &mut Authority) = retarget;
 }
 "#;
+const OWNED_STORAGE_ESCAPE: &str = r#"
+mod owned_storage_escape { use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView; fn escape(view: &AcquiredView) { let _ = std::sync::Arc::clone(view.storage()); } const _: fn(&AcquiredView) = escape; }
+"#;
+const RAW_PAYLOAD_ESCAPE: &str = r#"
+mod raw_payload_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.payload(); } const _: fn(&DerivedStorage) = escape; }
+"#;
+const RAW_VIEW_ESCAPE: &str = r#"
+mod raw_view_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.view(); } const _: fn(&DerivedStorage) = escape; }
+"#;
+const GRAPH_ALLOCATION_ESCAPE: &str = r#"
+mod graph_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::GraphHandle; use ryo_derived::domain::contract::types::CompactGraph; fn escape(value: &GraphHandle) { let _: std::sync::Arc<CompactGraph> = std::sync::Arc::clone(value.graph()); } const _: fn(&GraphHandle) = escape; }
+"#;
+const DOMAIN_ALLOCATION_ESCAPE: &str = r#"
+mod domain_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::DomainHandle; fn escape(value: &DomainHandle) { let _: std::sync::Arc<Vec<bool>> = std::sync::Arc::clone(value.members()); } const _: fn(&DomainHandle) = escape; }
+"#;
+const GRAPH_RECORD_FORGERY: &str = r#"
+mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { shared: true, ..value } } const _: fn(Authority) -> Authority = forge; }
+"#;
+const UNADMITTED_GRAPH_DEMAND: &str = r#"
+mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::contract::types::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk) = forge; }
+"#;
+const PRIVATE_RETAINED_STORAGE: &str = r#"
+mod private_retained_storage { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn escape(cache: &CacheBackend) { let _ = &cache.graphs; } const _: fn(&CacheBackend) = escape; }
+"#;
+const BORROWED_LEASED_READ: &str = r#"
+mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
+"#;
+const OWNED_GRAPH_PRIVATE_FIELDS: &str = r#"
+mod owned_graph_private_fields { use super::GraphHandle as Authority; fn policy(value: &mut Authority) { value.shared = false; } const _: fn(&mut Authority) = policy; }
+"#;
 pub(super) fn controls() -> Vec<Probe> {
     vec![
+        Probe {
+            owner: ROOT,
+            source: OWNED_STORAGE_ESCAPE.into(),
+            expected: Expectation::Refuse {
+                code: "E0624",
+                first: "storage",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: RAW_PAYLOAD_ESCAPE.into(),
+            expected: Expectation::Refuse {
+                code: "E0624",
+                first: "payload",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: RAW_VIEW_ESCAPE.into(),
+            expected: Expectation::Refuse {
+                code: "E0624",
+                first: "view",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: GRAPH_ALLOCATION_ESCAPE.into(),
+            expected: Expectation::Refuse {
+                code: "E0308",
+                first: "Arc",
+                second: "CompactGraph",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: DOMAIN_ALLOCATION_ESCAPE.into(),
+            expected: Expectation::Refuse {
+                code: "E0308",
+                first: "Arc",
+                second: "bool",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: GRAPH_RECORD_FORGERY.into(),
+            expected: Expectation::Refuse {
+                code: "E0451",
+                first: "shared",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: UNADMITTED_GRAPH_DEMAND.into(),
+            expected: Expectation::Refuse {
+                code: "E0308",
+                first: "GraphHandle",
+                second: "CompactGraph",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: PRIVATE_RETAINED_STORAGE.into(),
+            expected: Expectation::Refuse {
+                code: "E0616",
+                first: "graphs",
+                second: "private",
+            },
+        },
+        Probe {
+            owner: ROOT,
+            source: BORROWED_LEASED_READ.into(),
+            expected: Expectation::Accept,
+        },
+        Probe {
+            owner: GRAPH_ISSUER,
+            source: OWNED_GRAPH_PRIVATE_FIELDS.into(),
+            expected: Expectation::Accept,
+        },
         Probe {
             owner: ROOT,
             source: RAW_BRIDGE_SIBLING.into(),

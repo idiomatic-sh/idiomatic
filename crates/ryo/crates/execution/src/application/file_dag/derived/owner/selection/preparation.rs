@@ -52,7 +52,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         let predicate = if let Some(prepared) = predicates.get(group) {
             prepared.clone()
         } else {
-            let prepared = Arc::new(super::super::prepare::view(
+            let prepared = Arc::new(crate::application::file_dag::derived::prepare::view(
                 Arc::clone(&semantic),
                 &ViewRequest::PredicateMatches(selector.clone()),
                 &schema,
@@ -66,7 +66,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         let candidate = if let Some(plan) = postings.get(&key) {
             (plan).clone()
         } else {
-            let plan = Arc::new(super::super::prepare::view(
+            let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
                 Arc::clone(&semantic),
                 &ViewRequest::CandidatePostings {
                     column,
@@ -77,7 +77,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             postings.insert(key, (plan).clone());
             plan
         };
-        let distinct = Arc::new(super::super::prepare::view(
+        let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
             Arc::clone(&semantic),
             &ViewRequest::DistinctRepresentatives {
                 columns: selector.columns.clone(),
@@ -97,7 +97,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                 let plan = if let Some(plan) = equalities.get(&key) {
                     (plan).clone()
                 } else {
-                    let plan = Arc::new(super::super::prepare::view(
+                    let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
                         Arc::clone(&semantic),
                         &ViewRequest::Equality {
                             columns: vec![*column],
@@ -125,7 +125,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
     Ok(Arc::new(prepared))
 }
 
-pub(in crate::application::file_dag::derived) fn activate_program(
+pub(in crate::application::file_dag::derived::owner) fn activate_program(
     cache: &mut CacheBackend,
     prepared: &crate::application::file_dag::derived::prepared::PreparedDerived,
     demanded: &[crate::domain::coverage::types::RuleIndex],
@@ -141,7 +141,12 @@ pub(in crate::application::file_dag::derived) fn activate_program(
         let bytes = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
         if bytes
             .and_then(|bytes| cache.bytes.checked_add(bytes))
-            .is_none_or(|bytes| bytes > super::super::indexes::non_graph_limit(cache))
+            .is_none_or(|bytes| {
+                bytes
+                    > crate::application::file_dag::derived::owner::index::service::non_graph_limit(
+                        cache,
+                    )
+            })
         {
             break;
         }
@@ -151,18 +156,23 @@ pub(in crate::application::file_dag::derived) fn activate_program(
         .capacity()
         .checked_mul(size_of::<Arc<Selector>>())
         .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .filter(|bytes| *bytes <= super::super::indexes::non_graph_limit(cache))
+        .filter(|bytes| {
+            *bytes
+                <= crate::application::file_dag::derived::owner::index::service::non_graph_limit(
+                    cache,
+                )
+        })
     {
         cache.bytes = bytes;
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
         cache.selectors = selectors;
-        super::super::indexes::candidate_columns(cache);
+        crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);
     }
     install_views(cache, Arc::clone(&prepared.views));
 }
 
 /// Install one immutable request descriptor and prepare active repetition once/file.
-pub(in crate::application::file_dag::derived) fn install_views(
+pub(in crate::application::file_dag::derived::owner) fn install_views(
     cache: &mut CacheBackend,
     views: Arc<PreparedSelectionViews>,
 ) {

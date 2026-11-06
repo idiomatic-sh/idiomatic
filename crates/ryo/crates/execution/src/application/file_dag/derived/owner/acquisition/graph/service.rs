@@ -3,11 +3,11 @@ use super::{
     construction::service as build,
     identity::service::{domain_identity, source},
 };
-use crate::application::file_dag::derived::backend::CacheBackend;
-use crate::application::file_dag::derived::graph_cache::types::handles::{
-    DomainHandle, GraphAccess, GraphHandle,
-};
 use crate::application::file_dag::derived::ledger::append_backing;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::graphs::types::handles::{
+    DomainHandle, GraphHandle,
+};
 use crate::application::file_dag::derived::owner::{
     DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, PopulationId, ViewContext,
 };
@@ -100,16 +100,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
             )?;
         }
     }
-    Ok(Some(GraphHandle {
-        generation: input.generation(),
-        access: GraphAccess {
-            graph: Arc::clone(&graph),
-            orientation,
-            shared,
-        },
-        backings: Arc::clone(acquired.backings()),
-        acquired,
-    }))
+    GraphHandle::new(owner, acquired, orientation, shared).map(Some)
 }
 pub(super) fn graph_requirement(
     identity: &crate::domain::stored_graph::types::GraphIdentity,
@@ -139,20 +130,17 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     let owner = input.owner();
     let population = input.population()?;
     let rows = input.rows();
-    access.acquired.view()?;
+    access.acquired().view()?;
     let graph = access
-        .acquired
+        .acquired()
         .storage()
         .payload()
         .share_adjacency()
         .ok_or(OperatingError::WrongOperation)?;
-    if !Arc::ptr_eq(&graph, &access.graph) {
+    if !Arc::ptr_eq(&graph, access.raw_graph()) {
         return Err(OperatingError::NotRead);
     }
-    let admitted = owner.admit_domain(plan, input, &access.acquired)?;
-    if !Arc::ptr_eq(&access.generation, &input.generation()) {
-        return Err(OperatingError::NotRead);
-    }
+    let admitted = owner.admit_domain(plan, input, access.acquired())?;
 
     let crate::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
     else {
@@ -170,7 +158,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     let requirement = GraphViewIdentity::Dense {
         graph: graph_requirement(
             access
-                .acquired
+                .acquired()
                 .storage()
                 .graph_identity()
                 .ok_or(OperatingError::WrongOperation)?
@@ -207,7 +195,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
             },
         )?
     } else {
-        owner.acquire_invocation_with(plan, &admitted, &access.backings, || {
+        owner.acquire_invocation_with(plan, &admitted, access.backings(), || {
             invoked.set(true);
             let built = build::domain(
                 owner,
@@ -228,7 +216,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     else {
         return Err(OperatingError::WrongOperation);
     };
-    if members.len() != access.graph.vertices().len() {
+    if members.len() != access.graph().vertices().len() {
         return Err(OperatingError::ShapeMismatch);
     }
     let members = acquired
@@ -239,7 +227,8 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     let members = members.backing();
     let found = cache.as_ref().and_then(|cache| {
         cache.graph_domains.iter().find(|entry| {
-            Arc::ptr_eq(&entry.graph, &access.graph) && Arc::ptr_eq(&entry.domain.members, members)
+            Arc::ptr_eq(&entry.graph, access.raw_graph())
+                && Arc::ptr_eq(&entry.domain.members, members)
         })
     });
     let domain = found.map_or_else(
@@ -252,7 +241,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         |entry| Arc::clone(&entry.domain),
     );
     let mut backings = acquired.backings().to_vec();
-    for backing in access.backings.iter().copied() {
+    for backing in access.backings().iter().copied() {
         append_backing(&mut backings, backing)?;
     }
     if let Some(rows) = domain
@@ -292,12 +281,13 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
             &backings,
         )?;
     }
-    Ok(DomainHandle {
-        _parent: access.acquired.clone(),
-        _acquired: acquired.clone(),
+    DomainHandle::new(
+        owner,
+        access,
+        acquired,
         domain,
-        _lease: owner.required_lease(&backings)?,
-    })
+        owner.required_lease(&backings)?,
+    )
 }
 
 pub(super) fn validate_input(

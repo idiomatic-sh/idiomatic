@@ -1,6 +1,8 @@
 //! Generation-local sharing, exact identity and bounded admission through the real owner.
 
-use crate::application::file_dag::derived::{indexes::LIMIT, owner::graph_fixture::GraphFixture};
+use crate::application::file_dag::derived::owner::{
+    graph_fixture::GraphFixture, index::service::LIMIT,
+};
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
 use crate::domain::table_model::types::{Rows, SelectedRows, SelectionIdentity, StoredSelection};
 use ryo_relations::domain::relations::types::{
@@ -35,7 +37,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .expect("memo admitted");
     let values: Vec<_> = actual
         .iter()
-        .map(|vertex| first.graph.vertices()[*vertex as usize])
+        .map(|vertex| first.graph().vertices()[*vertex as usize])
         .collect();
     assert_eq!(
         values,
@@ -54,7 +56,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(Arc::ptr_eq(&first.graph, &second.graph));
+    assert!(Arc::ptr_eq(first.raw_graph(), second.raw_graph()));
     let again = fixture
         .reach(&second, &[], Value::Number(Integer(1)), &mut walk)
         .unwrap()
@@ -75,8 +77,8 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .acquire(SOURCE, &rows, [ENDPOINTS[1], ENDPOINTS[0]], &[])
         .unwrap()
         .unwrap();
-    assert_eq!(reverse.orientation, Orientation::Reverse);
-    assert!(Arc::ptr_eq(&first.graph, &reverse.graph));
+    assert_eq!(reverse.orientation(), Orientation::Reverse);
+    assert!(Arc::ptr_eq(first.raw_graph(), reverse.raw_graph()));
     assert!(fixture.snapshot().bytes <= LIMIT);
 }
 
@@ -117,7 +119,7 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
         .acquire(SOURCE, &reordered, [ENDPOINTS[1], ENDPOINTS[0]], &[])
         .unwrap()
         .unwrap();
-    assert!(Arc::ptr_eq(&original.graph, &same.graph));
+    assert!(Arc::ptr_eq(original.raw_graph(), same.raw_graph()));
     for different in [
         selection(2, vec![0, 1], vec![ColumnIndex(0), ColumnIndex(1)]),
         selection(1, vec![0, 2], vec![ColumnIndex(0), ColumnIndex(1)]),
@@ -126,7 +128,7 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
             .acquire(SOURCE, &different, ENDPOINTS, &[])
             .unwrap()
             .unwrap();
-        assert!(!Arc::ptr_eq(&original.graph, &graph.graph));
+        assert!(!Arc::ptr_eq(original.raw_graph(), graph.raw_graph()));
     }
     let other = fixture
         .acquire(
@@ -137,7 +139,7 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
         )
         .unwrap()
         .unwrap();
-    assert!(!Arc::ptr_eq(&original.graph, &other.graph));
+    assert!(!Arc::ptr_eq(original.raw_graph(), other.raw_graph()));
     assert_eq!(fixture.snapshot().counts.builds, 4);
 }
 
@@ -151,7 +153,7 @@ fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!graph.shared);
+    assert!(!graph.shared());
     let refused = fixture.snapshot();
     assert_eq!(refused.graphs, 0);
     assert_eq!(refused.optional_bytes, before.optional_bytes);
@@ -209,14 +211,14 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap()
         .unwrap();
-    assert!(Arc::ptr_eq(&membership.domain, &again.domain));
+    assert!(Arc::ptr_eq(membership.raw_domain(), again.raw_domain()));
     assert_eq!(
         fixture.snapshot().domains,
         1,
         "exact membership shares one domain"
     );
     let root = graph
-        .graph
+        .graph()
         .vertex(0, Value::Number(Integer(1)))
         .expect("stored vertex");
     let mut walk = GraphWalk::default();
@@ -232,7 +234,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap();
     assert_eq!(
-        first.map(|vertex| graph.graph.vertices()[vertex as usize]),
+        first.map(|vertex| graph.graph().vertices()[vertex as usize]),
         Some(Value::Number(Integer(3)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
@@ -277,7 +279,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap();
     assert_eq!(
-        changed.map(|vertex| graph.graph.vertices()[vertex as usize]),
+        changed.map(|vertex| graph.graph().vertices()[vertex as usize]),
         Some(Value::Number(Integer(2)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
@@ -324,10 +326,10 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
         .acquire(SOURCE, &rows(&changed), ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!Arc::ptr_eq(&old.graph, &new.graph));
+    assert!(!Arc::ptr_eq(old.raw_graph(), new.raw_graph()));
     assert_eq!(fixture.snapshot().counts.builds, 1);
     assert_eq!(fixture.snapshot().counts.reuses, 0);
-    assert_ne!(old.graph.vertices(), new.graph.vertices());
+    assert_ne!(old.graph().vertices(), new.graph().vertices());
 }
 
 #[test]
@@ -354,7 +356,7 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!local.shared);
+    assert!(!local.shared());
     let refused = fixture.snapshot();
     assert_eq!(refused.indexes, 1);
     assert_eq!(refused.counts.pinned_refusals, 1);
@@ -364,7 +366,7 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(shared.shared);
+    assert!(shared.shared());
     let admitted = fixture.snapshot();
     assert_eq!(admitted.indexes, 0);
     assert_eq!(
@@ -378,9 +380,9 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
         before.retained_view_bytes as u64
     );
     assert!(admitted.optional_bytes <= admitted.limit);
-    assert!(Arc::ptr_eq(&local.graph, &shared.graph));
-    assert_eq!(local.graph.vertices(), shared.graph.vertices());
-    assert_eq!(local.graph.neighbors(), shared.graph.neighbors());
+    assert!(Arc::ptr_eq(local.raw_graph(), shared.raw_graph()));
+    assert_eq!(local.graph().vertices(), shared.graph().vertices());
+    assert_eq!(local.graph().neighbors(), shared.graph().neighbors());
     assert_eq!(admitted.counts.builds, 1);
 }
 
@@ -407,7 +409,10 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
     let mut walk = GraphWalk::default();
     let mut local = Vec::new();
     for (root, expected) in [(3, None), (1, Some(2))] {
-        let root = graph.graph.vertex(0, Value::Number(Integer(root))).unwrap();
+        let root = graph
+            .graph()
+            .vertex(0, Value::Number(Integer(root)))
+            .unwrap();
         let answer = fixture
             .nearest(
                 &graph,
@@ -419,8 +424,62 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
             )
             .unwrap();
         assert_eq!(
-            answer.map(|id| graph.graph.vertices()[id as usize]),
+            answer.map(|id| graph.graph().vertices()[id as usize]),
             expected.map(|n| Value::Number(Integer(n)))
         );
     }
+}
+
+#[test]
+fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands() {
+    let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
+    let rows = rows(&columns);
+    let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
+    let graph = fixture
+        .acquire(SOURCE, &rows, ENDPOINTS, &[])
+        .unwrap()
+        .unwrap();
+    let domain_columns = [FactColumn(vec![3]), FactColumn(vec![0])];
+    let domain = fixture
+        .domain(
+            &graph,
+            Input::Relation(Relation::Identifier),
+            &self::rows(&domain_columns),
+            ColumnIndex(0),
+        )
+        .unwrap()
+        .unwrap();
+    let vertices = graph.graph().vertices().to_vec();
+    let members = domain.members().to_vec();
+    fixture.clear();
+    assert_eq!(
+        graph.graph().vertices(),
+        vertices,
+        "held immutable graph remains leased"
+    );
+    assert_eq!(
+        domain.members(),
+        members,
+        "held immutable domain remains leased"
+    );
+    assert!(matches!(
+        fixture.reach(
+            &graph,
+            &[],
+            Value::Number(Integer(1)),
+            &mut GraphWalk::default()
+        ),
+        Err(crate::domain::operating::errors::OperatingError::NotRead)
+    ));
+    assert!(matches!(
+        fixture.nearest(
+            &graph,
+            &domain,
+            0,
+            Orientation::Forward,
+            &mut vec![],
+            &mut GraphWalk::default()
+        ),
+        Err(crate::domain::operating::errors::OperatingError::NotRead)
+    ));
 }

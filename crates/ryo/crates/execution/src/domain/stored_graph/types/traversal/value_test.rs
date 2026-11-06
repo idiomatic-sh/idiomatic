@@ -101,7 +101,7 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     assert!(GraphTraversal::new(&graph, &mut walk).breadth(
         root,
         Orientation::Forward,
-        Some(&domain)
+        Some(&domain.members)
     ));
     assert_eq!(walk.reached, [vertex(&graph, 9)]);
     assert_eq!(walk.expanded, 1);
@@ -138,7 +138,7 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
     let first = GraphTraversal::new(&graph, &mut walk).nearest(
         vertex(&graph, 1),
         Orientation::Forward,
-        &domain,
+        &domain.members,
         &mut answers,
     );
     assert_eq!(first, (Some(vertex(&graph, 4)), false));
@@ -146,7 +146,7 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
     let next = GraphTraversal::new(&graph, &mut walk).nearest(
         vertex(&graph, 8),
         Orientation::Forward,
-        &domain,
+        &domain.members,
         &mut answers,
     );
     assert_eq!(next.0, Some(vertex(&graph, 4)));
@@ -155,7 +155,7 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
         GraphTraversal::new(&graph, &mut walk).nearest(
             vertex(&graph, 1),
             Orientation::Forward,
-            &domain,
+            &domain.members,
             &mut answers
         ),
         (first.0, true)

@@ -116,18 +116,8 @@ pub(super) fn acquire(
     let before = owner.derived.selector_work()?;
     let result = owner
         .derived
-        .select(shape.selector(), *columns, owner, &proof, &mut rebound);
+        .select(shape.selector(), *columns, owner, publication, &proof, &mut rebound);
     let after = owner.derived.selector_work()?;
     work.found(0, after.0[0].saturating_sub(before.0[0]));
-    let Some(selected) = result? else {
-        return Ok(None);
-    };
-    crate::application::file_dag::relations::selection::publish(
-        owner,
-        publication,
-        &proof,
-        selected.rows.selection,
-        selected.resources,
-    )
-    .map(Some)
+    result
 }

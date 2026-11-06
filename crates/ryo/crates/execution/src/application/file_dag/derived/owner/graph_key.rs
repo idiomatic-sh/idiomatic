@@ -3,7 +3,7 @@ use super::*;
 /// Selected positions are immutable. A Weak guard prevents address reuse while
 /// retaining no position payload after the last semantic/consumer handle drops.
 #[derive(Clone, Debug)]
-pub(in crate::application::file_dag::derived) struct GraphSelection {
+pub(in crate::application::file_dag::derived::owner) struct GraphSelection {
     rows: Weak<Vec<u32>>,
     identity: Arc<crate::domain::table_model::types::SelectionIdentity>,
 }
@@ -20,7 +20,7 @@ impl std::hash::Hash for GraphSelection {
     }
 }
 impl GraphSelection {
-    pub(in crate::application::file_dag::derived) fn new(
+    pub(in crate::application::file_dag::derived::owner) fn new(
         rows: &Arc<Vec<u32>>,
         identity: &Arc<crate::domain::table_model::types::SelectionIdentity>,
     ) -> Self {
@@ -92,13 +92,13 @@ impl RequirementIdentity {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::derived) struct GraphRequirement {
+pub(in crate::application::file_dag::derived::owner) struct GraphRequirement {
     pub endpoints: [ryo_values::domain::plan_parts::types::ColumnIndex; 2],
     pub keys: Arc<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
     pub selection: Option<GraphSelection>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::derived) enum GraphViewIdentity {
+pub(in crate::application::file_dag::derived::owner) enum GraphViewIdentity {
     Adjacency(GraphRequirement),
     Dense {
         graph: GraphRequirement,
@@ -132,7 +132,7 @@ impl PreparedIdentity {
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::derived) enum RequirementIdentity {
+pub(in crate::application::file_dag::derived::owner) enum RequirementIdentity {
     Prepared(PreparedIdentity),
     Graph(Arc<GraphViewIdentity>),
 }

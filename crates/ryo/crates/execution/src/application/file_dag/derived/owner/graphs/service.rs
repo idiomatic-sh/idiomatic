@@ -1,6 +1,6 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
-use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 
 /// Root and nearest answers cannot silently grow into a retained all-pairs closure.
 pub(crate) const MEMO_LIMIT: usize = 2 * 1024 * 1024;
@@ -30,7 +30,7 @@ pub(crate) fn replace<T>(entries: &mut Vec<T>, replacement: Option<Vec<T>>) {
 }
 
 /// Account all retained payload under the original total; no fixed allowance is stranded.
-pub(in crate::application::file_dag::derived) fn room(
+pub(in crate::application::file_dag::derived::owner) fn room(
     cache: &CacheBackend,
     cost: usize,
 ) -> Option<usize> {

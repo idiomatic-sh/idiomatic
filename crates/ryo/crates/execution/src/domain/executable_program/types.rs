@@ -93,7 +93,7 @@ pub(crate) struct Region {
     pub dependencies: Box<[RegionId]>,
     pub ordered_existence: Option<OrderedExistence>,
     pub column: Option<super::column::ColumnAlternative>,
-    pub selection: Option<super::selection::SelectionAlternative>,
+    pub selection: Option<crate::application::file_dag::derived::owner::selection::SelectionAlternative>,
     pub native_positions: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

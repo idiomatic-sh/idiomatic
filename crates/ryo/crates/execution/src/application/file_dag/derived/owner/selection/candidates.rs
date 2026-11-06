@@ -1,9 +1,9 @@
 //! Candidate choice and immutable equality-cache acquisition remain application policy.
 use super::*;
 /// Use a column index only when multiple active descriptors can amortize its build.
-pub(in crate::application::file_dag::derived) fn candidates(
+pub(in crate::application::file_dag::derived::owner) fn candidates(
     cache: &mut CacheBackend,
-    resources: super::super::owner::acquisition::selection::service::SelectionSource<'_>,
+    resources: crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Selector,
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,
@@ -64,7 +64,7 @@ pub(in crate::application::file_dag::derived) fn candidates(
             crate::application::file_dag::route_counts::BuildRoute::SelectorCandidate,
             cache,
             &equality,
-            super::super::owner::ViewContext::default(),
+            crate::application::file_dag::derived::owner::ViewContext::default(),
             DerivedInputs::Rows(&[BorrowedRows::Stored(source)]),
             &mut DerivedScratch::default(),
             Some((program.relation, source)),

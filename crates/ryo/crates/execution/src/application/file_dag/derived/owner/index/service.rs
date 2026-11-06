@@ -1,5 +1,5 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
-use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::coverage::types::Partial;
 
 use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
@@ -14,7 +14,7 @@ const ARC_BYTES: usize =
     size_of::<KeyIndex>() + 2 * size_of::<usize>() + align_of::<KeyIndex>() - 1;
 
 /// Start one generation from the actual physical read state, not execution-mode coverage.
-pub(in crate::application::file_dag::derived) fn new(
+pub(in crate::application::file_dag::derived::owner) fn new(
     wanted: &[Relation],
     partials: &[Partial],
     limit: usize,
@@ -70,12 +70,16 @@ pub(in crate::application::file_dag::derived) fn new(
 }
 
 /// Every admitted payload competes under the same actual-use per-file cap; no allowance is stranded.
-pub(in crate::application::file_dag::derived) fn non_graph_limit(cache: &CacheBackend) -> usize {
+pub(in crate::application::file_dag::derived::owner) fn non_graph_limit(
+    cache: &CacheBackend,
+) -> usize {
     cache.limit
 }
 
 /// Prepare bounded equality demand; duplicate projections alone cannot justify a new index.
-pub(in crate::application::file_dag::derived) fn candidate_columns(cache: &mut CacheBackend) {
+pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
+    cache: &mut CacheBackend,
+) {
     use crate::domain::stored_selection::types::CandidateColumn;
     use ryo_values::domain::plan_parts::types::{Operand, Test};
     let mut columns = std::collections::BTreeMap::new();
@@ -113,7 +117,7 @@ pub(in crate::application::file_dag::derived) fn candidate_columns(cache: &mut C
 }
 
 /// A lower bound avoids building a second, unretainable index when the budget clearly cannot fit it.
-pub(in crate::application::file_dag::derived) fn minimum_bytes(
+pub(in crate::application::file_dag::derived::owner) fn minimum_bytes(
     rows: usize,
     columns: usize,
 ) -> Option<usize> {
@@ -127,7 +131,7 @@ pub(in crate::application::file_dag::derived) fn minimum_bytes(
 }
 
 /// A selector should scan instead of building an index that cannot possibly be shared.
-pub(in crate::application::file_dag::derived) fn can_retain(
+pub(in crate::application::file_dag::derived::owner) fn can_retain(
     cache: &CacheBackend,
     relation: Relation,
     view: ColumnsView<'_>,
@@ -138,9 +142,5 @@ pub(in crate::application::file_dag::derived) fn can_retain(
         .and_then(|bytes| cache.bytes.checked_add(bytes))
         .is_some_and(|bytes| bytes <= non_graph_limit(cache))
 }
-
-#[cfg(test)]
-#[path = "indexes_test.rs"]
-mod tests;
 
 use ryo_values::domain::rows::types::RowIndex;

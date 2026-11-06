@@ -15,7 +15,7 @@ fn empty_graph_and_absent_partition_clear_previous_answer() {
     let fixture = GraphFixture::new(
         &[Relation::Function],
         &[],
-        crate::application::file_dag::derived::indexes::LIMIT,
+        crate::application::file_dag::derived::owner::index::service::LIMIT,
     );
     let access = fixture
         .acquire(

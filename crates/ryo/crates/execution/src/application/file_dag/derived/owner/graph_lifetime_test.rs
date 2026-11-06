@@ -31,7 +31,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
         .acquire(SOURCE, &input, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!first.shared);
+    assert!(!first.shared());
     let live = fixture.snapshot();
     assert_eq!(live.optional_bytes, 0);
     assert_eq!(live.graph_backings, 1);
@@ -39,8 +39,8 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
         .acquire(SOURCE, &input, [ENDPOINTS[1], ENDPOINTS[0]], &[])
         .unwrap()
         .unwrap();
-    assert!(Arc::ptr_eq(&first.graph, &reverse.graph));
-    assert_eq!(reverse.orientation, Orientation::Reverse);
+    assert!(Arc::ptr_eq(first.raw_graph(), reverse.raw_graph()));
+    assert_eq!(reverse.orientation(), Orientation::Reverse);
     let shared = fixture.snapshot();
     assert_eq!(shared.unique_bytes, live.unique_bytes);
     assert_eq!(shared.graph_backings, 1);
@@ -55,7 +55,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
     assert_eq!(
         walk.reached
             .iter()
-            .map(|vertex| reverse.graph.vertices()[*vertex as usize])
+            .map(|vertex| reverse.graph().vertices()[*vertex as usize])
             .collect::<Vec<_>>(),
         [number(1), number(2)]
     );
@@ -80,7 +80,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     let fixture = GraphFixture::new(
         &[Relation::Function, Relation::Identifier],
         &[],
-        super::super::indexes::LIMIT,
+        crate::application::file_dag::derived::owner::index::service::LIMIT,
     );
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let input = rows(&columns);
@@ -100,7 +100,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         .unwrap()
         .unwrap();
     let mut walk = GraphWalk::default();
-    let root = graph.graph.vertex(0, number(1)).expect("prepared vertex");
+    let root = graph.graph().vertex(0, number(1)).expect("prepared vertex");
     let nearest = fixture
         .nearest(
             &graph,
@@ -112,7 +112,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         )
         .unwrap()
         .unwrap();
-    assert_eq!(graph.graph.vertices()[nearest as usize], number(3));
+    assert_eq!(graph.graph().vertices()[nearest as usize], number(3));
     let answer = fixture
         .reach(&graph, &[], number(1), &mut walk)
         .unwrap()
@@ -252,7 +252,7 @@ fn unavailable_canonical_source_declines_without_retaining_duplicate_graphs() {
         let fixture = GraphFixture::with_identity(
             &[Relation::Function],
             &[],
-            super::super::indexes::LIMIT,
+            crate::application::file_dag::derived::owner::index::service::LIMIT,
             stable,
             max_views,
         );
@@ -280,7 +280,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
     let mut fixture = GraphFixture::new(
         &[Relation::Function, Relation::Identifier],
         &[],
-        super::super::indexes::LIMIT,
+        crate::application::file_dag::derived::owner::index::service::LIMIT,
     );
     drop(
         fixture
@@ -288,8 +288,9 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
             .unwrap(),
     );
     let before = fixture.snapshot();
-    let mut positions =
-        Vec::with_capacity(super::super::selection::MAX_RETAINED_POSITION_CAPACITY + 1);
+    let mut positions = Vec::with_capacity(
+        crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY + 1,
+    );
     positions.extend([0, 1]);
     let Rows::Stored(source) = input else {
         unreachable!()
@@ -308,9 +309,9 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         .acquire(SOURCE, &selected, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!first.shared);
+    assert!(!first.shared());
     assert_eq!(
-        first.graph.vertices(),
+        first.graph().vertices(),
         vec![1, 2, 3].into_iter().map(number).collect::<Vec<_>>()
     );
     let cost = fixture.graph_cost(&first);
@@ -320,10 +321,10 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         .unwrap()
         .unwrap();
     assert!(
-        !second.shared,
+        !second.shared(),
         "a repeated refusal cannot destructively reclaim unrelated cache entries"
     );
-    assert!(Arc::ptr_eq(&first.graph, &second.graph));
+    assert!(Arc::ptr_eq(first.raw_graph(), second.raw_graph()));
     let after = fixture.snapshot();
     assert_eq!(
         (after.bytes, after.optional_bytes, after.indexes),
@@ -338,7 +339,7 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
     let fixture = GraphFixture::with_identity(
         &[Relation::Function, Relation::Identifier],
         &[],
-        super::super::indexes::LIMIT,
+        crate::application::file_dag::derived::owner::index::service::LIMIT,
         true,
         1,
     );
@@ -347,7 +348,7 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
         .acquire(SOURCE, &rows(&edges), ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(graph.shared);
+    assert!(graph.shared());
     let domain_columns = [FactColumn(vec![2, 3]), FactColumn(vec![0, 0])];
     let input = rows(&domain_columns);
     let mut walk = GraphWalk::default();
@@ -370,14 +371,14 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
             .nearest(
                 &graph,
                 &domain,
-                graph.graph.vertex(0, number(1)).expect("prepared vertex"),
+                graph.graph().vertex(0, number(1)).expect("prepared vertex"),
                 Orientation::Forward,
                 &mut local,
                 &mut walk,
             )
             .unwrap();
         assert_eq!(
-            nearest.map(|at| graph.graph.vertices()[at as usize]),
+            nearest.map(|at| graph.graph().vertices()[at as usize]),
             Some(number(2))
         );
     }

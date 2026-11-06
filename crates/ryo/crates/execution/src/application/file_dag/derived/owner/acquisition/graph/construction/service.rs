@@ -3,8 +3,8 @@ use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::ledger::append_backing;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
 use crate::application::file_dag::derived::{
-    backend::CacheBackend,
-    graph_cache::types::handles::GraphHandle,
+    owner::cache::types::CacheBackend,
+    owner::graphs::types::handles::GraphHandle,
     owner::{DerivedOwner, PopulationId},
 };
 use crate::domain::{
@@ -98,11 +98,11 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     };
     let column = *column;
     check_columns(kinds_of(rows), &[column])?;
-    if access.shared
+    if access.shared()
         && let (Some(cache), Some(identity)) = (cache.as_ref(), identity.as_ref())
         && let Some(entry) = cache.graph_domains.iter().find(|entry| {
             entry.population == population
-                && Arc::ptr_eq(&entry.graph, &access.graph)
+                && Arc::ptr_eq(&entry.graph, access.raw_graph())
                 && entry.domain.identity.as_ref() == Some(identity)
         })
     {
@@ -121,7 +121,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
                 crate::domain::derived_views::types::DerivedInputs::Membership {
                     rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
                     space: crate::domain::derived_views::types::MembershipSpace::Dense(
-                        access.graph.vertices(),
+                        access.graph().vertices(),
                     ),
                 },
                 &mut crate::domain::derived_views::types::DerivedScratch::default(),
@@ -134,7 +134,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
         .payload()
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
-    if members.as_slice().len() != access.graph.vertices().len() {
+    if members.as_slice().len() != access.graph().vertices().len() {
         return Err(OperatingError::ShapeMismatch);
     }
     let domain = Arc::new(GraphDomain {
@@ -144,7 +144,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     let storage = Arc::new(storage);
     let mut backings = owner.graph_backings(&storage)?;
     let mut dependencies = backings.to_vec();
-    for backing in access.backings.iter().copied() {
+    for backing in access.backings().iter().copied() {
         append_backing(&mut dependencies, backing)?;
     }
     if let Some(rows) = domain

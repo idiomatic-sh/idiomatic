@@ -1,6 +1,6 @@
 //! Graph preparation and row memo acquisition are scoped inside the same owner.
 use super::*;
-use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::{
     application::file_dag::{cached_graph::CachedGraph, workspace::InvocationWorkspace},
     domain::{
@@ -40,8 +40,10 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
         cache: Option<&mut CacheBackend>,
-    ) -> Result<Option<super::super::graph_cache::types::handles::GraphHandle>, OperatingError>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::derived::owner::graphs::types::handles::GraphHandle>,
+        OperatingError,
+    > {
         if !std::ptr::eq(self, input.owner()) {
             return Err(OperatingError::NotRead);
         }
@@ -50,10 +52,13 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn acquire_graph_domain(
         &self,
         plan: &Arc<DerivedContract>,
-        graph: &super::super::graph_cache::types::handles::GraphHandle,
+        graph: &crate::application::file_dag::derived::owner::graphs::types::handles::GraphHandle,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
         cache: Option<&mut CacheBackend>,
-    ) -> Result<super::super::graph_cache::types::handles::DomainHandle, OperatingError> {
+    ) -> Result<
+        crate::application::file_dag::derived::owner::graphs::types::handles::DomainHandle,
+        OperatingError,
+    > {
         if !std::ptr::eq(self, input.owner()) {
             return Err(OperatingError::NotRead);
         }
@@ -69,7 +74,7 @@ impl DerivedOwner {
 }
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived) fn graph_backings(
+    pub(in crate::application::file_dag::derived::owner) fn graph_backings(
         &self,
         storage: &Arc<DerivedStorage>,
     ) -> Result<Arc<[super::super::ledger::Backing]>, OperatingError> {
@@ -78,7 +83,7 @@ impl DerivedOwner {
     /// Compatibility is an owner lookup guard, never HashMap key equality.
     /// Only the matching stable hash bucket is visited; expired matching views
     /// are unlinked before retry, without retaining position payloads in keys.
-    pub(in crate::application::file_dag::derived) fn canonical_graph_requirement(
+    pub(in crate::application::file_dag::derived::owner) fn canonical_graph_requirement(
         &self,
         requested: GraphViewIdentity,
         populations: &[PopulationId],
@@ -146,7 +151,7 @@ impl DerivedOwner {
     }
     /// Physical payload increments come from the one ledger; vector metadata
     /// remains a bounded capacity charge, never a scan of retained populations.
-    pub(in crate::application::file_dag::derived) fn graph_retention_cost(
+    pub(in crate::application::file_dag::derived::owner) fn graph_retention_cost(
         &self,
         backings: &[super::super::ledger::Backing],
         metadata: usize,
@@ -157,7 +162,7 @@ impl DerivedOwner {
             .checked_add(metadata)
             .ok_or(OperatingError::ShapeMismatch)
     }
-    pub(in crate::application::file_dag::derived) fn graph_room(
+    pub(in crate::application::file_dag::derived::owner) fn graph_room(
         &self,
         cache: &CacheBackend,
         cost: usize,
@@ -168,13 +173,12 @@ impl DerivedOwner {
             .checked_add(cost)
             .is_some_and(|n| n <= cache.limit)
             && (!memo
-                || cache
-                    .memo_bytes
-                    .checked_add(cost)
-                    .is_some_and(|n| n <= super::super::graph_cache::service::MEMO_LIMIT))
+                || cache.memo_bytes.checked_add(cost).is_some_and(|n| {
+                    n <= crate::application::file_dag::derived::owner::graphs::service::MEMO_LIMIT
+                }))
     }
     /// Graph, domain and successful memo admissions use the same authority.
-    pub(in crate::application::file_dag::derived) fn try_graph_lease(
+    pub(in crate::application::file_dag::derived::owner) fn try_graph_lease(
         &self,
         cache: &CacheBackend,
         backings: &[super::super::ledger::Backing],
@@ -195,7 +199,7 @@ impl DerivedOwner {
             && snapshot
                 .optional_units
                 .checked_add(units)
-                .is_some_and(|n| n <= super::super::selection::MAX_RETAINED_POSITION_CAPACITY);
+                .is_some_and(|n| n <= crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY);
         drop(ledger);
         if fits {
             self.optional_lease(backings).map(Some)

@@ -1,5 +1,5 @@
 //! Application policy for prepared compact selections and their shared file backend.
-use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::{errors::OperatingError, types::OperatorContext},
@@ -32,13 +32,13 @@ use std::sync::Arc;
 pub(super) mod candidates;
 mod fanout;
 mod preparation;
-use super::owner::acquisition::selection::service::matches;
+use crate::application::file_dag::derived::owner::acquisition::selection::service::matches;
 #[cfg(test)]
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use candidates::{candidates, first_literal};
 use fanout::fanout_candidates;
-pub(in crate::application::file_dag::derived) use preparation::activate_program;
-pub(in crate::application::file_dag::derived) use preparation::install_views;
+pub(in crate::application::file_dag::derived::owner) use preparation::activate_program;
+pub(in crate::application::file_dag::derived::owner) use preparation::install_views;
 pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
 #[cfg(test)]
 use ryo_values::domain::plans::types::Plan;
@@ -55,7 +55,7 @@ const MIN_FANOUT_LITERALS: usize = 8;
 
 /// Diagnostic reasons are fixed integers so normal selection never formats strings.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(in crate::application::file_dag::derived) enum SelectionPath {
+pub(in crate::application::file_dag::derived::owner) enum SelectionPath {
     NoDiscriminator = 0,
     NotRepeated = 1,
     SmallPopulation = 2,
@@ -115,16 +115,16 @@ fn same(left: &Selector, right: &Selector) -> bool {
         && left.identity.bindings == right.identity.bindings
 }
 
-pub(in crate::application::file_dag) struct SelectionOutput<'a> {
-    pub rows: SelectedRows<'a>,
-    pub resources: [Option<
+pub(in crate::application::file_dag::derived::owner) struct SelectionOutput<'a> {
+    pub(in crate::application::file_dag::derived::owner) rows: SelectedRows<'a>,
+    pub(in crate::application::file_dag::derived::owner) resources: [Option<
         crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     >; 2],
 }
 /// Produce a compact handle only after the provider has been read successfully by the caller.
-pub(in crate::application::file_dag::derived) fn select<'a>(
+pub(in crate::application::file_dag::derived::owner) fn select<'a>(
     cache: &mut CacheBackend,
-    resources: super::owner::acquisition::selection::service::SelectionSource<'_>,
+    resources: crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
@@ -139,7 +139,7 @@ pub(in crate::application::file_dag::derived) fn select<'a>(
 /// Validate projected columns before cache acquisition and leave matching ownership independent of projection.
 fn make<'a>(
     cache: &mut CacheBackend,
-    resources: super::owner::acquisition::selection::service::SelectionSource<'_>,
+    resources: crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
@@ -179,7 +179,9 @@ fn make<'a>(
             crate::application::file_dag::route_counts::BuildRoute::SelectorDistinct,
             cache,
             &views.distinct,
-            super::owner::ViewContext::for_predicate(&views.predicate),
+            crate::application::file_dag::derived::owner::ViewContext::for_predicate(
+                &views.predicate,
+            ),
             DerivedInputs::Distinct {
                 rows: BorrowedRows::Stored(source),
                 positions: &rows,
@@ -214,8 +216,7 @@ fn make<'a>(
 }
 
 #[cfg(test)]
-#[path = "selection/retention_test.rs"]
-mod retention_test;
+mod retention;
 
 /// Admit the trait's immutable positions before transferring the same owned buffer
 /// to the legacy compact handle. Registered predicate/distinct kernels establish
