@@ -5,7 +5,7 @@ use ryo_operators::inbound::use_cases::operators::interface::{
     JoinInput, JoinRow, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
-const REFUSAL: u32 = 60001;
+pub(in super::super) const REFUSAL: u32 = 60001;
 
 #[derive(Debug, Default)]
 pub(in super::super) struct Witness {

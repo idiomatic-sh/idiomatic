@@ -101,6 +101,16 @@ pub trait FileExecution {
     ) -> Result<(), OperatingError>;
     fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError>;
 }
+/// Project rules are collected only; no row callback delivery exists on this route.
+/// ```compile_fail,E0599
+/// use ryo_execution::inbound::use_cases::execution::{
+///     interface::FileExecution,
+///     types::ProjectSession,
+/// };
+/// fn deliver(project: &mut ProjectSession<'_>) {
+///     project.emit_rows();
+/// }
+/// ```
 pub trait ProjectExecution {
     fn finish(self)
     where

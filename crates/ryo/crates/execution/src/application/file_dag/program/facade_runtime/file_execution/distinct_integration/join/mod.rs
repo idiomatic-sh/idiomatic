@@ -530,3 +530,6 @@ mod generations;
 
 #[cfg(test)]
 mod raw_scope;
+
+#[cfg(test)]
+mod release;
