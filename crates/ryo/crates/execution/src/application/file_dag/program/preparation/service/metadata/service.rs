@@ -20,13 +20,22 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
     let mut metadata = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter().enumerate() {
         let rule = RuleIndex(rule);
+        // A rule with an errored origin is refused on its own roots; sibling rules prepare.
+        let refusal = program
+            .rules()
+            .get(rule.0)
+            .and_then(|compiled| compiled.original_steps.iter().find_map(|origin| origin.as_ref().err()))
+            .cloned();
         let reads = crate::domain::trust::service::physical_reads(plan);
         let outputs = plan
             .observations
             .iter()
             .map(|output| {
                 Ok(RootMetadata {
-                    source: source(program, named, rule, output.source),
+                    source: match &refusal {
+                        Some(error) => Err(error.clone()),
+                        None => source(program, named, rule, output.source),
+                    },
                     phase: output.scope,
                     reads: match output.source {
                         Input::Step(step) => reads
@@ -45,12 +54,15 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
             .collect::<Result<Vec<_>, OperatingError>>()?;
         metadata.push(RuleMetadata {
             emit: plan.emit.clone(),
-            emit_root: program
-                .rules()
-                .get(rule.0)
-                .ok_or(OperatingError::NotRun)?
-                .emit
-                .clone(),
+            emit_root: match &refusal {
+                Some(error) => Err(error.clone()),
+                None => program
+                    .rules()
+                    .get(rule.0)
+                    .ok_or(OperatingError::NotRun)?
+                    .emit
+                    .clone(),
+            },
             frontiers: plan.frontier.clone().into_boxed_slice(),
             observations: outputs.into_boxed_slice(),
             observation_frontiers: observation_frontiers

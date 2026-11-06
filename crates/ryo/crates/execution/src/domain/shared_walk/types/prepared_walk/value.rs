@@ -128,24 +128,20 @@ impl PreparedWalk {
         census.classes = classes.into_iter().map(ClassPlace).collect();
         census
     }
-    /// Resolve only a physical selection head whose rows this walk can deliver.
+    /// Resolve only a physical selection head whose rows this walk can deliver. A rule with
+    /// an errored origin shares nothing; that rule is refused on its own roots by metadata.
     fn resolve_class(
         &self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
         instruction: &crate::domain::executable_program::types::Instruction,
-    ) -> Result<Option<ClassPlace>, OperatingError> {
-        let Some(region) = program.logical_regions().get(instruction.logical.0) else {
-            return Ok(None);
-        };
-        let Some(first) = program
+    ) -> Option<ClassPlace> {
+        let region = program.logical_regions().get(instruction.logical.0)?;
+        let first = program
             .regions()
             .get(region.0)
-            .and_then(|region| region.instructions.first())
-        else {
-            return Ok(None);
-        };
+            .and_then(|region| region.instructions.first())?;
         if first.logical != instruction.logical {
-            return Ok(None);
+            return None;
         }
         use ryo_values::domain::{plan_parts::types::RepeatedRows, plans::types::Operation};
         let (relation, comparisons, kept) = match &instruction.operation {
@@ -159,41 +155,29 @@ impl PreparedWalk {
                 columns,
                 distinct: RepeatedRows::Kept,
             } => (relation, &[][..], columns),
-            _ => return Ok(None),
+            _ => return None,
         };
         if kept.iter().any(|column| {
             column.0 as usize >= ryo_relations::domain::relations::service::columns(*relation).len()
         }) {
-            return Ok(None);
+            return None;
         }
-        let Some(rule) = program.rules().get(instruction.producer.0) else {
-            return Ok(None);
-        };
-        // An errored origin is a refusal of the whole preparation, never a rule
-        // silently left out of sharing.
-        let mut original = None;
-        for origin in rule.original_steps.iter() {
-            let origin = origin.as_ref().map_err(Clone::clone)?;
-            if origin.logical == instruction.logical {
-                original = Some(origin);
-                break;
-            }
+        let rule = program.rules().get(instruction.producer.0)?;
+        if rule.original_steps.iter().any(Result::is_err) {
+            return None;
         }
-        let Some(original) = original else {
-            return Ok(None);
-        };
-        let Some(class) = self
+        let original = rule
+            .original_steps
+            .iter()
+            .flatten()
+            .find(|origin| origin.logical == instruction.logical)?;
+        let class = self
             .class_of(instruction.producer)
             .and_then(|classes| classes.get(original.step.0 as usize))
             .copied()
-            .flatten()
-        else {
-            return Ok(None);
-        };
-        let Some(chosen) = self.classes().get(class.0) else {
-            return Ok(None);
-        };
-        Ok((chosen.source == *relation && chosen.comparisons == comparisons).then_some(class))
+            .flatten()?;
+        let chosen = self.classes().get(class.0)?;
+        (chosen.source == *relation && chosen.comparisons == comparisons).then_some(class)
     }
 
     /// Exclude logical classes with no physical consumer of the shared result.
@@ -212,7 +196,11 @@ impl PreparedWalk {
                 else {
                     continue;
                 };
-                let origin = origin.as_ref().map_err(Clone::clone)?;
+                // An errored origin leaves its whole rule out of sharing; only that rule is
+                // refused, by its own roots in metadata.
+                let Ok(origin) = origin else {
+                    continue;
+                };
                 let Some(region) = program
                     .logical_regions()
                     .get(origin.logical.0)
@@ -227,7 +215,7 @@ impl PreparedWalk {
                 else {
                     continue;
                 };
-                if self.resolve_class(program, head)? == Some(ClassPlace(at)) {
+                if self.resolve_class(program, head) == Some(ClassPlace(at)) {
                     members.push(member);
                 }
             }
@@ -292,7 +280,7 @@ impl PreparedWalk {
             let Some(head) = region.instructions.first() else {
                 continue;
             };
-            if let Some(class) = self.resolve_class(program, head)? {
+            if let Some(class) = self.resolve_class(program, head) {
                 *self
                     .physical
                     .get_mut(head.logical.0)
