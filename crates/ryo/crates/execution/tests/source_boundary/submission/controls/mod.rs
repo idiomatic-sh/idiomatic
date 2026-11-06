@@ -123,6 +123,7 @@ pub(super) fn file_session_undeclared_rule() {
         .into_iter()
         .find(|intent| matches!(intent, FileRuleIntent::Run { .. }))
         .expect("a running intent exists");
+    let intents = [intent, intent];
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let mut file = request
         .open_file(
@@ -132,7 +133,7 @@ pub(super) fn file_session_undeclared_rule() {
                 file: ryo_relations::domain::relations::types::FileId(0),
                 evaluation: &[],
                 publication: &[],
-                intents: &[intent, intent],
+                intents: &intents,
                 source: b"abc",
                 elements: &elements,
                 read: &read,
