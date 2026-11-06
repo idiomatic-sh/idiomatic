@@ -1,4 +1,5 @@
 //! A classified physical catalog handle; implementer storage never crosses this value.
+use super::super::super::positioned::item::PositionedItem;
 use super::super::super::{
     interface::RepresentationsItem,
     types::{
@@ -96,9 +97,7 @@ impl RegisteredRepresentation {
             RepresentationKind::Tree => &super::super::super::tree::item::TreeItem,
             RepresentationKind::Computed => &super::super::super::computed::item::ComputedItem,
             RepresentationKind::Compact => &super::super::super::compact::item::CompactItem,
-            RepresentationKind::Positioned => {
-                &super::super::super::positioned::item::PositionedItem
-            }
+            RepresentationKind::Positioned => &PositionedItem,
         }
     }
 }
