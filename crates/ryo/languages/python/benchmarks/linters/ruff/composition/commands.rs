@@ -99,7 +99,7 @@ pub(super) fn worker(
             _ => return Err(Error::Invalid(constants::MISSING_TRACE.into())),
         };
     let transport =
-        ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));
+        ryo_benchmark::outbound::worker::factory::json(input.0.into(), Box::new(std::io::stdout()));
     RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
 }
 

@@ -131,4 +131,4 @@ pub(crate) const PYTHON_TARGET_3_09: &str = "python-target=3.09";
 /// Text `python-target=3.10 `.
 pub(crate) const PYTHON_TARGET_3_10_2: &str = "python-target=3.10 ";
 /// The phases of the pinned Ruff rules, as pinned beside the profiles.
-pub(crate) const PINNED_RULE_PHASES: &str = include_str!("../profiles/pinned-rule-phases.json");
+pub(crate) const PINNED_RULE_PHASES: &str = include_str!("profiles/pinned-rule-phases.json");
