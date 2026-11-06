@@ -25,8 +25,8 @@ pub struct PreparedRequest {
 /// Even a valid public handle cannot expose the private execution owner.
 /// Root admission and scheduling remain behind the inbound protocol.
 /// ```compile_fail,E0616
-/// use ryo_execution::inbound::use_cases::execution::types::PreparedProgram;
-/// fn bypass(program: &PreparedProgram) { let _ = &program.inner; }
+/// use ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram;
+/// fn bypass(program: &PreparedExecutionProgram) { let _ = &program.inner; }
 /// ```
 /// ```compile_fail,E0616
 /// use ryo_execution::inbound::use_cases::execution::types::FileSession;
@@ -39,14 +39,14 @@ pub struct PreparedRequest {
 /// Public prepared handles can be accepted and inspected through the inbound contract.
 /// ```
 /// use ryo_execution::inbound::use_cases::execution::{
-///     interface::PreparedExecution, types::PreparedProgram,
+///     interface::PreparedExecution, types::PreparedExecutionProgram,
 /// };
-/// fn count(program: &PreparedProgram) -> usize { program.rule_count() }
+/// fn count(program: &PreparedExecutionProgram) -> usize { program.rule_count() }
 /// ```
 /// They cannot be minted by a caller.
 /// ```compile_fail,E0451
-/// use ryo_execution::inbound::use_cases::execution::types::PreparedProgram;
-/// let _ = PreparedProgram { inner: panic!(), kernels: panic!(), derived: panic!() };
+/// use ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram;
+/// let _ = PreparedExecutionProgram { inner: panic!(), kernels: panic!(), derived: panic!() };
 /// ```
 /// ```compile_fail,E0451
 /// use ryo_execution::inbound::use_cases::execution::types::FileSession;
@@ -55,7 +55,7 @@ pub struct PreparedRequest {
 ///     elements: panic!(), read: panic!(),
 /// };
 /// ```
-pub struct PreparedProgram {
+pub struct PreparedExecutionProgram {
     pub(super) kernels: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send>,
     pub(super) derived: Arc<dyn DerivedPort>,
     pub(super) inner:

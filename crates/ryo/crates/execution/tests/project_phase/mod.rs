@@ -33,7 +33,7 @@ mod restoration;
 mod source_facts;
 use self::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 
-fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedProgram {
+fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     let file_column = kinds(Relation::Function)
         .iter()

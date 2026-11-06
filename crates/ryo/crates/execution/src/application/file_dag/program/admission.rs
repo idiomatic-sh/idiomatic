@@ -391,7 +391,7 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn from_publication(
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
-        admitted: &super::super::relations::admission::service::AdmittedInput<'_>,
+        admitted: &super::super::relations::admission::service::BorrowedInput<'_>,
         root: ProducerRoot,
         partition: Partition,
         readiness: Readiness,

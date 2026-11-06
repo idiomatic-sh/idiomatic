@@ -67,12 +67,12 @@ pub trait MetadataUseCase {
     fn feature_catalog(&self) -> Vec<Feature>;
     fn work_over(
         &self,
-        metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
+        metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
         fed: &[Vec<RowsFed>],
     ) -> Vec<Vec<StepWork>>;
     fn fed_over(
         &self,
-        metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
+        metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
         fed: &[Vec<RowsFed>],
     ) -> Vec<FeatureRows>;
 

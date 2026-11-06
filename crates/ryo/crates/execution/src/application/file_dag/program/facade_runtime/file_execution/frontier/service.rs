@@ -3,7 +3,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
-use crate::application::file_dag::program::protocol::types::CaptureContext;
+use crate::application::file_dag::program::protocol::types::FrontierCapture;
 use crate::application::file_dag::program::protocol::types::CaptureIntent;
 use crate::application::file_dag::program::protocol::types::CapturedFrontier;
 use crate::application::file_dag::program::protocol::types::FrontierCapture;
@@ -24,7 +24,7 @@ impl FileRun<'_> {
         first: Bucket,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        capture: CaptureContext<'_>,
+        capture: FrontierCapture<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let (_, _, capture_intent) = self.declared(rule)?;
         if capture_intent == CaptureIntent::Disabled {
@@ -70,7 +70,7 @@ impl FileRun<'_> {
             rule,
             project: None,
         };
-        let CaptureContext {
+        let FrontierCapture {
             file,
             rule_digest,
             worker,

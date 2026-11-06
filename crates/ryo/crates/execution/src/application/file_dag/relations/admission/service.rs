@@ -10,7 +10,7 @@ use std::sync::Arc;
 /// Only the representation owner can bind population identity to borrowed input.
 /// No provider reference or proof is retained beyond the immutable demand scope.
 #[derive(Clone)]
-pub(in crate::application::file_dag) struct AdmittedInput<'a> {
+pub(in crate::application::file_dag) struct BorrowedInput<'a> {
     rows: BorrowedRows<'a>,
     shape: PhysicalShape,
     backing_population: PopulationId,

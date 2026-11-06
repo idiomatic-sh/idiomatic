@@ -243,7 +243,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
                 ryo_values::domain::stored_facts::types::Bucket(0),
                 &read,
                 &mut symbols,
-                crate::application::file_dag::program::protocol::types::CaptureContext {
+                crate::application::file_dag::program::protocol::types::FrontierCapture {
                     file: FileId(0),
                     rule_digest: Digest([0; 16]),
                     worker: ryo_relations::domain::relations::types::WorkerNumber(0),

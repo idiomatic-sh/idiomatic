@@ -1,5 +1,5 @@
 description = "Runtime admission authority is sealed to its declaring owner concept."
-why = "The runtime concept owns invocation state, permits, and semantic/physical authority. Runtime service records have strictly private fields in runtime/service.rs, and construction and retargeting are confined to the service.rs files of the runtime directory tree (runtime/**/service.rs: concept directories beneath the record module are its Rust-private descendants); independent scratch, counters and observed DTOs stay in types.rs and never depend back on issuance. The program source/proof admission module retains private admitted-input fields, while the separately qualified relation AdmittedInput proof has strictly private data in relations/admission/service.rs, with owner-dependent admission methods in its private issuance child and validates explicit owner, generation, partition and root requirements, never an interpreter object. KernelAdmission remains the unforgeable prerequisite of all three KernelPermit constructors. This AST rule rejects moved/widened representations, every visible field on every runtime issuer record including newly added records, and written named authority construction outside the runtime directory's service.rs files. It does not resolve constructor aliases or Self: those are rejected by Rust privacy on the actual production records, with independent source-overlay controls covering every catalog member. Aliased/Self field-widening scenarios prove TM rejects the representation weakening that previously made those constructions legal. Rust privacy independently resolves aliases and rejects sibling program construction or field retargeting. Constructor contracts, macro expansion and runtime admission behavior remain compiler/production obligations."
+why = "The runtime concept owns invocation state, permits, and semantic/physical authority. Runtime service records have strictly private fields in runtime/service.rs, and construction and retargeting are confined to the service.rs files of the runtime directory tree (runtime/**/service.rs: concept directories beneath the record module are its Rust-private descendants); independent scratch, counters and observed DTOs stay in types.rs and never depend back on issuance. The program source/proof admission module retains private admitted-input fields, while the separately qualified relation BorrowedInput proof has strictly private data in relations/admission/service.rs, with owner-dependent admission methods in its private issuance child and validates explicit owner, generation, partition and root requirements, never an interpreter object. KernelAdmission remains the unforgeable prerequisite of all three KernelPermit constructors. This AST rule rejects moved/widened representations, every visible field on every runtime issuer record including newly added records, and written named authority construction outside the runtime directory's service.rs files. It does not resolve constructor aliases or Self: those are rejected by Rust privacy on the actual production records, with independent source-overlay controls covering every catalog member. Aliased/Self field-widening scenarios prove TM rejects the representation weakening that previously made those constructions legal. Rust privacy independently resolves aliases and rejects sibling program construction or field retargeting. Constructor contracts, macro expansion and runtime admission behavior remain compiler/production obligations."
 query = '''
 let nodes = select id, kind, file, span from "syntax-tree" where text = "";
 let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
@@ -9,11 +9,13 @@ let struct-children = select l.id as id, l.file as file, l.span as span, r.child
 let struct-names = select l.id as id, l.file as file, l.span as span, l.child as node from struct-children as l join names as r on l.child = r.id;
 let name-children = select l.id as id, l.file as file, l.span as span, r.child as token from struct-names as l join "syntax-child" as r on l.node = r.parent;
 let named-structs = select l.id as id, l.file as file, l.span as span, r.text as name from name-children as l join tokens as r on l.token = r.id;
-let catalog = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,AdmittedInput,RuntimeState}");
+let catalog = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,AdmittedInput,BorrowedInput,RuntimeState}");
 let issuer-records = select * from named-structs where glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
 let sealed = union(left=catalog, right=issuer-records);
-let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
-let wrong-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/{program/admission.rs,relations/admission/service.rs}");
+let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and name != "BorrowedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
+let wrong-program-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/admission.rs");
+let wrong-relation-admission = select file, span from sealed where name = "BorrowedInput" and not glob_any(file, "{src,**/src}/application/file_dag/relations/admission/service.rs");
+let wrong-admission = union(left=wrong-program-admission, right=wrong-relation-admission);
 let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
 let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
 let fields = select * from nodes where glob_any(kind, "{record-field,tuple-field}");
@@ -130,7 +132,7 @@ scenario = "The relation owner's distinct admitted representation proof keeps it
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
 given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
-given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct AdmittedInput { population: () }'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { population: () }'
 
 [[scenarios]]
 id = "relation-proof-cannot-widen-to-crate"
@@ -138,7 +140,7 @@ scenario = "Qualifying the relation proof separately does not allow its represen
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
 given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
-given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct AdmittedInput { pub(crate) population: () }'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(crate) population: () }'
 then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
 
 [[scenarios]]
@@ -330,8 +332,8 @@ id = "relation-proof-alias-cannot-regain-parent-fields"
 scenario = "The qualified relation-proof alias path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
-given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct AdmittedInput { pub(super) rows: usize }'
-given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::AdmittedInput as Authority; fn forge(value: Authority) -> Authority { Authority { rows: 0, ..value } }'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::BorrowedInput as Authority; fn forge(value: Authority) -> Authority { Authority { rows: 0, ..value } }'
 then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
 
 [[scenarios]]
@@ -339,8 +341,8 @@ id = "relation-proof-self-cannot-regain-parent-fields"
 scenario = "The qualified relation-proof self path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
-given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct AdmittedInput { pub(super) rows: usize }'
-given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::AdmittedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { rows: 0, ..value } } }'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::BorrowedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { rows: 0, ..value } } }'
 then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
 
 [[scenarios]]
@@ -348,8 +350,8 @@ id = "relation-proof-retarget-cannot-regain-parent-fields"
 scenario = "The qualified relation-proof retarget path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
-given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct AdmittedInput { pub(super) rows: usize }'
-given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::AdmittedInput as Authority; fn retarget(value: &mut Authority) { value.rows = 0; }'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::BorrowedInput as Authority; fn retarget(value: &mut Authority) { value.rows = 0; }'
 then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
 
 [[scenarios]]
@@ -358,14 +360,14 @@ scenario = "The actual qualified issuer may construct and retarget its private r
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
 given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
-given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct AdmittedInput { rows: usize } use self::AdmittedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { rows: 0, ..value } } } fn retarget(value: &mut Authority) { value.rows = 0; }'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { rows: usize } use self::BorrowedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { rows: 0, ..value } } } fn retarget(value: &mut Authority) { value.rows = 0; }'
 
 [[scenarios]]
 id = "relation-proof-cannot-return-to-parent-module"
 scenario = "Moving admission behavior into a private child does not allow the parent to regain the proof representation."
 given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
-given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { rows: usize }'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct BorrowedInput { rows: usize }'
 then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]
 
 [[scenarios]]

@@ -60,14 +60,14 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     }
     fn work_over(
         &self,
-        metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
+        metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
         fed: &[Vec<RowsFed>],
     ) -> Vec<Vec<StepWork>> {
         crate::domain::features::service::work_over(metadata, fed)
     }
     fn fed_over(
         &self,
-        metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
+        metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
         fed: &[Vec<RowsFed>],
     ) -> Vec<FeatureRows> {
         crate::domain::features::service::fed_over(metadata, fed)

@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};
-use ryo_values::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::run_metadata::types::RuleRunMetadata;
 use ryo_values::domain::stores::types::MadeAgain;
 
 /// Whether the cross-file steps of a plan read what the project writes - the manifests and how the files link to one another.
@@ -25,7 +25,7 @@ pub(crate) fn reads_project(plan: &Plan) -> PlanReads {
 
 /// Whether the cross-file steps of any of the plans read what the project writes.
 #[must_use]
-pub(crate) fn reads_any(metadata: &[RuleMetadata]) -> PlanReads {
+pub(crate) fn reads_any(metadata: &[RuleRunMetadata]) -> PlanReads {
     if metadata.iter().any(|rule| rule.reads_project) {
         PlanReads::Reads
     } else {
@@ -35,7 +35,7 @@ pub(crate) fn reads_any(metadata: &[RuleMetadata]) -> PlanReads {
 
 /// The rules that read what the project writes, by their place among `plans`, in order.
 #[must_use]
-pub(crate) fn project_rules(metadata: &[RuleMetadata]) -> Vec<PlacedRule> {
+pub(crate) fn project_rules(metadata: &[RuleRunMetadata]) -> Vec<PlacedRule> {
     metadata
         .iter()
         .enumerate()

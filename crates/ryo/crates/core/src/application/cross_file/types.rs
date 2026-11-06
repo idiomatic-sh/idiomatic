@@ -12,7 +12,7 @@ pub(crate) struct CrossedWithPublications {
 pub(crate) struct ObservationRun<'a> {
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
     pub program:
-        std::sync::Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
+        std::sync::Arc<ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram>,
     pub services: &'a ryo_execution::inbound::use_cases::execution::types::RequestExecution,
     pub batches: &'a [Vec<ryo_execution::inbound::use_cases::execution::types::RuleIndex>],
     pub first_bucket: &'a [ryo_values::domain::stored_facts::types::Bucket],

@@ -81,7 +81,7 @@ impl DerivedOwner {
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,
-        proofs: &[&crate::application::file_dag::relations::admission::service::AdmittedInput<
+        proofs: &[&crate::application::file_dag::relations::admission::service::BorrowedInput<
             'a,
         >],
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
@@ -107,7 +107,7 @@ impl DerivedOwner {
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,
-        proof: &crate::application::file_dag::relations::admission::service::AdmittedInput<'a>,
+        proof: &crate::application::file_dag::relations::admission::service::BorrowedInput<'a>,
         parent: &AcquiredView,
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         parent.origin().validate(self, &parent.origin().plan)?;

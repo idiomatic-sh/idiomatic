@@ -49,7 +49,7 @@ pub(super) fn records_of<'a>(files: &[CorpusInput], kept: &'a [Record]) -> Vec<O
 /// alone, and what the store kept of them.
 pub(super) fn handed_of(
     read: Option<&Arc<dyn ReadStore>>,
-    metadata: &[ryo_values::domain::run_metadata::types::RuleMetadata],
+    metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
     first_bucket: &[Bucket],
     again: &Reuse,
     producer_buckets: &[Bucket],

@@ -1,5 +1,5 @@
 //! The application owns each invocation's mutable allocations and release boundary.
-use super::relations::admission::service::AdmittedInput;
+use super::relations::admission::service::BorrowedInput;
 use crate::domain::{
     derived_views::types::PreparedViewUse,
     operating::{errors::OperatingError, types::OperatorContext},
@@ -136,7 +136,7 @@ impl InvocationWorkspace {
 /// The graph path never receives independently replaceable raw rows and proof.
 pub(super) struct GraphInput<'a> {
     rows: &'a crate::domain::table_model::types::Rows<'a>,
-    proof: AdmittedInput<'a>,
+    proof: BorrowedInput<'a>,
     relation: Option<ryo_relations::domain::relations::types::Relation>,
     owner: &'a super::relations::RelationOwner,
 }
@@ -205,7 +205,7 @@ pub(super) enum ViewInputs<'a, 's> {
 pub(super) struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
     inputs: &'a [BorrowedRows<'f>],
-    proofs: [std::cell::OnceCell<AdmittedInput<'f>>; 3],
+    proofs: [std::cell::OnceCell<BorrowedInput<'f>>; 3],
 }
 impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
@@ -222,7 +222,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn rows(&self, place: usize) -> Result<BorrowedRows<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
-    fn proof(&self, place: usize) -> Result<&AdmittedInput<'f>, OperatingError> {
+    fn proof(&self, place: usize) -> Result<&BorrowedInput<'f>, OperatingError> {
         use OperatingError;
         let cell = self
             .proofs
@@ -320,7 +320,7 @@ impl InvocationWorkspace {
         &self,
         place: usize,
         rows: BorrowedRows<'a>,
-    ) -> Result<AdmittedInput<'a>, OperatingError> {
+    ) -> Result<BorrowedInput<'a>, OperatingError> {
         let owner = self.owner();
         if let Some(record) = self.publications.get(place).and_then(Option::as_ref) {
             return owner.admit(record.as_ref(), rows);
@@ -368,7 +368,7 @@ impl InvocationWorkspace {
         } else {
             count
         };
-        let mut proofs: [Option<&AdmittedInput<'_>>; 2] = [None, None];
+        let mut proofs: [Option<&BorrowedInput<'_>>; 2] = [None, None];
         let mut relations = [None; 2];
         for at in 0..count {
             let proof = inputs.proof(use_.inputs[at])?;

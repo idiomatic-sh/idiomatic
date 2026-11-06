@@ -2,7 +2,7 @@
 use super::*;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-fn program(engine: &ExecutionUseCaseImpl) -> PreparedProgram {
+fn program(engine: &ExecutionUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     input.plans[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,

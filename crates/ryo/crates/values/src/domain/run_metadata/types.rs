@@ -25,7 +25,7 @@ pub struct StepMetadata {
 
 /// The small facts needed beyond the executable program, without a retained Plan.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuleMetadata {
+pub struct RuleRunMetadata {
     pub reads_project: bool,
     pub has_cross_steps: bool,
     /// A false slot is a cross-file observation input, never a per-file captured frontier.

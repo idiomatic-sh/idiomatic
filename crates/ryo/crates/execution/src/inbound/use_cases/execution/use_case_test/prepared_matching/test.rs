@@ -1,5 +1,5 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners.
-use super::super::super::{fixtures, types::PreparedProgram, use_case::ExecutionUseCaseImpl};
+use super::super::super::{fixtures, types::PreparedExecutionProgram, use_case::ExecutionUseCaseImpl};
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
     elements::types::Elements,
@@ -52,7 +52,7 @@ fn prepare(
     subject: Option<&str>,
     bindings: &[ParameterBinding],
     shadow: &Operation,
-) -> Result<(ExecutionUseCaseImpl, PreparedProgram, Symbols, Table), Failure> {
+) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram, Symbols, Table), Failure> {
     let mut symbols = Symbols::default();
     let mut input = Table {
         kinds: vec![CellKind::Symbol],
@@ -78,7 +78,7 @@ fn prepare(
 }
 fn evaluate(
     engine: &ExecutionUseCaseImpl,
-    program: &PreparedProgram,
+    program: &PreparedExecutionProgram,
     symbols: &mut Symbols,
 ) -> Result<(Table, usize, usize), Failure> {
     let read = |_| Err(OperatingError::NotRead);
@@ -90,7 +90,7 @@ fn evaluate(
     );
     Ok((table, observed.regexes, observed.globs))
 }
-fn builds(program: &PreparedProgram) -> usize {
+fn builds(program: &PreparedExecutionProgram) -> usize {
     program.inner.matchers().builds.load(Ordering::Relaxed)
 }
 fn subject(scenario: Input) -> Result<Value, Failure> {

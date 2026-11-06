@@ -139,7 +139,7 @@ pub(crate) struct Tables {
 #[derive(Clone)]
 pub(crate) struct VisitSetting<'a> {
     /// Pure source and accounting facts extracted once before executable plans are consumed.
-    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleMetadata],
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
     /// The relations the languages are asked to walk the files for.
     pub wanted: &'a [Relation],
     /// The path of each file of the run.

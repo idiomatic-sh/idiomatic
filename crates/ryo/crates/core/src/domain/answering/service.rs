@@ -6,7 +6,7 @@ use crate::domain::render::types::Rendered;
 use crate::domain::workers::service::add_fed;
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
-use ryo_values::domain::run_metadata::types::RuleMetadata;
+use ryo_values::domain::run_metadata::types::RuleRunMetadata;
 use ryo_values::domain::runs::types::RuleId;
 
 /// Whether the plan has cross-file steps.
@@ -25,7 +25,7 @@ pub(crate) fn cross_steps(plan: &Plan) -> CrossSteps {
 
 /// The rules whose cross-file steps are made, in the order of the rules.
 #[must_use]
-pub(crate) fn todo_list(metadata: &[RuleMetadata], ids: &[RuleId]) -> Vec<Todo> {
+pub(crate) fn todo_list(metadata: &[RuleRunMetadata], ids: &[RuleId]) -> Vec<Todo> {
     metadata
         .iter()
         .enumerate()

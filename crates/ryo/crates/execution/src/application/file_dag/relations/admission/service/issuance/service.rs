@@ -3,7 +3,7 @@ use super::super::*;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
 use crate::domain::table_model::collections::representations::publication::PublishedRelation;
-impl<'a> AdmittedInput<'a> {
+impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn require_publication(
         &self,
         owner: &RelationOwner,
@@ -69,7 +69,7 @@ impl RelationOwner {
         &self,
         result: &dyn PublishedRelation,
         input: BorrowedRows<'a>,
-    ) -> Result<AdmittedInput<'a>, OperatingError> {
+    ) -> Result<BorrowedInput<'a>, OperatingError> {
         self.inspect_available(result, input)?
     }
 
@@ -77,7 +77,7 @@ impl RelationOwner {
         &self,
         result: &dyn PublishedRelation,
         input: BorrowedRows<'a>,
-    ) -> Result<Result<AdmittedInput<'a>, OperatingError>, OperatingError> {
+    ) -> Result<Result<BorrowedInput<'a>, OperatingError>, OperatingError> {
         let result = self.private(result)?;
         if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
@@ -86,7 +86,7 @@ impl RelationOwner {
         // first supplied borrow but can be consumed after static preflight.
         Ok(self
             .inspect_current(result, input)
-            .map(|shape| AdmittedInput {
+            .map(|shape| BorrowedInput {
                 publication_population: PopulationId(result.population),
                 rows: input,
                 shape,

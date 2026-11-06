@@ -9,17 +9,17 @@ pub(super) const ISSUER: &str =
     "src/application/file_dag/derived/owner/acquisition/admission/service.rs";
 const AUTHORIZED: &str = r#"
 mod derived_authorized {
-    use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
+    use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
     use crate::application::file_dag::program::runtime::service::KernelPermit;
     use crate::domain::derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch};
     use crate::domain::operating::errors::OperatingError;
     use std::{rc::Rc, sync::Arc};
-    fn acquire<'a>(owner: &'a RelationOwner, plan: &'a Arc<DerivedContract>, proof: &'a AdmittedInput<'a>, scratch: &'a mut DerivedScratch) -> Result<(), OperatingError> {
+    fn acquire<'a>(owner: &'a RelationOwner, plan: &'a Arc<DerivedContract>, proof: &'a BorrowedInput<'a>, scratch: &'a mut DerivedScratch) -> Result<(), OperatingError> {
         let admitted = owner.derived.admit_view(plan, owner, &[proof])?;
         let _ = owner.derived.acquire_stored(plan, &admitted, Default::default(), DerivedInputs::Rows(&[proof.rows()]), scratch, None)?;
         Ok(())
     }
-    const _: for<'a> fn(&'a RelationOwner, &'a Arc<DerivedContract>, &'a AdmittedInput<'a>, &'a mut DerivedScratch) -> Result<(), OperatingError> = acquire;
+    const _: for<'a> fn(&'a RelationOwner, &'a Arc<DerivedContract>, &'a BorrowedInput<'a>, &'a mut DerivedScratch) -> Result<(), OperatingError> = acquire;
     fn raw<'a>(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>, permit: &'a KernelPermit<'a>) -> Result<(), OperatingError> {
         let _ = owner.derived.finite_raw(Rc::clone(&owner), Some(plan), permit)?;
         Ok(())
