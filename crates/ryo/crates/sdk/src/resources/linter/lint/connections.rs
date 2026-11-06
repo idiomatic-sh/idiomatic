@@ -51,14 +51,20 @@ pub(crate) fn connect(
 /// Which build runs: the size and the date of the program say which build of it, the SDK in it included, and each linked language
 /// says its own.
 pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
-    let program = std::env::current_exe()
-        .ok() // a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|path| std::fs::metadata(path).ok()); // a program the system cannot describe has no size or time: the build identity reads 0
-    let modified = program
-        .as_ref()
-        .and_then(|meta| meta.modified().ok()) // a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // a program the system cannot describe has no size or time: the build identity reads 0
-        .map_or(0, |since| since.as_nanos());
+    // A program the system cannot describe has no size or time: the build identity reads 0.
+    let program = match std::env::current_exe() {
+        Ok(path) => std::fs::metadata(path),
+        Err(error) => Err(error),
+    };
+    let modified = match &program {
+        Ok(meta) => match meta.modified() {
+            Ok(time) => time
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |since| since.as_nanos()),
+            Err(_) => 0,
+        },
+        Err(_) => 0,
+    };
     let size = program.map_or(0, |meta| meta.len());
     let mut build = size.to_string();
     let parts = [modified.to_string()];
@@ -83,12 +89,12 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
                 capabilities.sort_unstable();
                 capabilities.dedup();
                 // Release identity plus length-delimited canonical names: declaration order is irrelevant.
-                let mut identity = language.build().0.to_string();
                 let configuration = language.configuration_identity().0;
-                identity.push_str(" config:");
-                identity.push_str(&configuration.len().to_string());
-                identity.push(':');
-                identity.push_str(configuration);
+                let mut identity = format!(
+                    "{} config:{}:{configuration}",
+                    language.build().0,
+                    configuration.len()
+                );
                 for capability in capabilities {
                     identity.push(' ');
                     identity.push_str(&capability.len().to_string());

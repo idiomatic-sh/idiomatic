@@ -13,6 +13,7 @@ macro_rules! link {
     ($name:expr, parse: $parse:expr, project: $project:expr $(,)?) => {
         $crate::languages::link(
             $crate::languages::LanguageName(($name).into()),
+            // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - the build of a language is the version of the crate that calls the macro: `env!` is expanded in that crate, which only the macro text can name
             $crate::languages::LanguageBuild(env!("CARGO_PKG_VERSION").into()),
             $parse,
             $project,

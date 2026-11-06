@@ -1,7 +1,7 @@
+// ignore: idiomatic.arch/file-length - what a caller states and what comes back are one vocabulary of the entry, and the entry places one types.rs for it
 //! The types of `linter lint`: what a caller states and what comes back. They are the SDK's own: nothing of the core is in them.
 
-/// Edge-observed POSIX executable-bit knowledge, independent of file content.
-pub use ryo_values::domain::files::types::ExecutablePermission;
+use ryo_values::domain::files::types::ExecutablePermission;
 
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;

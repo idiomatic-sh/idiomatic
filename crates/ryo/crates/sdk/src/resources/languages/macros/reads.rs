@@ -111,6 +111,7 @@ macro_rules! reads {
     };
     (@syntax $item:ident $relation:ty [$tree:ident $at:ident $symbols:ident] [$model:ident : $model_type:ty] $expansions:expr, { $reads:expr } $($body:tt)*) => {
         impl $item {
+            // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - the literal is the reason of a lint attribute inside macro text, which no constant can name
             #[allow(clippy::redundant_closure_call, reason = "the closure is the scope a failed `require` or `?` leaves")]
             fn rows_at(
                 $tree: &$crate::languages::Tree<'_>,
@@ -171,6 +172,7 @@ macro_rules! reads {
                 }
             }
 
+            // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - the literal is the reason of a lint attribute inside macro text, which no constant can name
             #[allow(clippy::redundant_closure_call, reason = "the closure is the scope a failed `require` or `?` leaves")]
             pub(crate) fn rows(
                 $model: &$model_type,

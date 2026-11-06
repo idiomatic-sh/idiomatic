@@ -21,13 +21,14 @@ pub(crate) mod scenarios {
     use crate::resources::linter::lint::entry::lint_with;
     use crate::resources::linter::lint::errors::LintError;
     use crate::resources::linter::lint::types::{
-        Cache, CaseSource, Corpus, ExecutablePermission, GivenProjectInventory, Glob, HostRelation,
-        HostRow, LintReport, LintRequest, Linter, ObservationBinding, ObservationProducer,
-        ParameterName, ParameterText, ParameterValue, ProjectInventoryCompleteness,
-        ProjectSearchScope, Rule, RuleId, SourceText, Workers,
+        Cache, CaseSource, Corpus, GivenProjectInventory, Glob, HostRelation, HostRow, LintReport,
+        LintRequest, Linter, ObservationBinding, ObservationProducer, ParameterName, ParameterText,
+        ParameterValue, ProjectInventoryCompleteness, ProjectSearchScope, Rule, RuleId, SourceText,
+        Workers,
     };
     use crate::resources::query::RyoQlQuery;
     use ryo_relations::domain::relations::types::OptionalCapability;
+    use ryo_values::domain::files::types::ExecutablePermission;
 
     /// What a scenario answers: how many findings, how many files nothing read, whether the repository holds nothing but what it held,
     /// and how many columns the first finding carries.

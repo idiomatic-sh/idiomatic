@@ -26,7 +26,8 @@ pub use lint::schemas::RuleIdSchemaError;
 pub use lint::types::Cache;
 
 pub use lint::types::CaseSource;
-pub use lint::types::ExecutablePermission;
+/// Edge-observed POSIX executable-bit knowledge, independent of file content.
+pub use ryo_values::domain::files::types::ExecutablePermission;
 
 pub use lint::types::SourceText;
 
