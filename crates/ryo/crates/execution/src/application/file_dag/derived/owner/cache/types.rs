@@ -73,13 +73,13 @@ pub(in crate::application::file_dag::derived::owner) struct ActivePostings {
 
 impl CacheBackend {
     /// Install immutable request descriptors without exposing their catalog to a caller.
-    pub(in crate::application::file_dag::derived) fn bind_request_views(
+    pub(in crate::application::file_dag::derived::owner) fn bind_request_views(
         &mut self,
         views: Arc<crate::domain::stored_selection::types::PreparedSelectionViews>,
     ) {
         self.selection_views = Some(views);
     }
-    pub(in crate::application::file_dag) fn observe_graph_walk(
+    pub(in crate::application::file_dag::derived::owner) fn observe_graph_walk(
         &mut self,
         expanded: u64,
         examined: u64,

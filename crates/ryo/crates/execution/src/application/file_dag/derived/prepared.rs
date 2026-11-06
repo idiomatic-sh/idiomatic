@@ -143,10 +143,8 @@ impl PreparedDerived {
         }
         Ok(eligible)
     }
-    pub(in crate::application::file_dag) fn bind_views(
-        &self,
-        cache: &mut super::owner::cache::types::CacheBackend,
-    ) {
-        cache.bind_request_views(Arc::clone(&self.views));
+    /// Immutable request descriptors; the owner alone installs them in its backend.
+    pub(in crate::application::file_dag) fn views(&self) -> Arc<PreparedSelectionViews> {
+        Arc::clone(&self.views)
     }
 }

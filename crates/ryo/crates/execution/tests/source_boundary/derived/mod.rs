@@ -1,5 +1,6 @@
 //! Same-crate controls target the actual derived owner and its actual private issuers.
 use super::fixtures::{Compilation, Expectation, Probe};
+mod sealing;
 mod witness;
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
 pub(super) const GRAPH_ISSUER: &str =
@@ -123,9 +124,6 @@ mod graph_record_forgery { use crate::application::file_dag::derived::owner::gra
 "#;
 const UNADMITTED_GRAPH_DEMAND: &str = r#"
 mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::contract::types::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk) = forge; }
-"#;
-const PRIVATE_RETAINED_STORAGE: &str = r#"
-mod private_retained_storage { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn escape(cache: &CacheBackend) { let _ = &cache.graphs; } const _: fn(&CacheBackend) = escape; }
 "#;
 const BORROWED_LEASED_READ: &str = r#"
 mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
@@ -260,16 +258,6 @@ pub(super) fn controls() -> Vec<Probe> {
         Probe {
             compilation: Compilation::Library,
             owner: ROOT,
-            source: PRIVATE_RETAINED_STORAGE.into(),
-            expected: Expectation::Refuse {
-                code: "E0616",
-                first: "graphs",
-                second: "private",
-            },
-        },
-        Probe {
-            compilation: Compilation::Library,
-            owner: ROOT,
             source: BORROWED_LEASED_READ.into(),
             expected: Expectation::Accept,
         },
@@ -372,6 +360,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
     ];
+    probes.extend(sealing::controls(ROOT, MODULE));
     probes.extend(witness::controls(ROOT));
     probes
 }

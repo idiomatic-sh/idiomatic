@@ -11,10 +11,7 @@ use crate::domain::operator::contract::{
     graph_view::{AxisResult, CachedGraphRow, ReachResult},
     resources::ResourceProgram,
 };
-use crate::domain::stored_graph::{
-    types::traversal::value::GraphTraversal,
-    types::{GraphWalk, Orientation},
-};
+use crate::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::service::cell};
@@ -294,15 +291,13 @@ impl AxisGraph {
                 );
             }
         } else {
-            let mut traversal = GraphTraversal::new(self.access.graph(), &mut self.walk);
-            if matches!(self.direction, Direction::Parent | Direction::Child) {
-                traversal.direct(root, orientation);
-            } else {
-                let _ = traversal.breadth(root, orientation, None);
-            }
-            if let Some(cache) = cache.as_deref_mut() {
-                cache.observe_graph_walk(self.walk.expanded, self.walk.examined);
-            }
+            DemandAnswers::new(owner, cache.as_deref_mut()).axis(
+                &self.access,
+                root,
+                orientation,
+                self.direction,
+                &mut self.walk,
+            )?;
             for vertex in &self.walk.reached {
                 if self.domain.members().get(*vertex as usize) == Some(&true) {
                     self.destinations.push(

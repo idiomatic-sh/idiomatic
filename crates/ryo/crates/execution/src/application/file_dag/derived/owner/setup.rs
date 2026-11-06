@@ -36,7 +36,7 @@ impl DerivedOwner {
             crate::application::file_dag::derived::owner::index::service::LIMIT,
         );
         if let Some(cache) = backend.as_mut() {
-            prepared.bind_views(cache);
+            cache.bind_request_views(prepared.views());
             // Request-wide graph eligibility is indexed once. File activation
             // examines only its demanded roots, never the full graph-rule inventory.
             for rule in demanded {
