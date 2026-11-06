@@ -1,5 +1,5 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
-use super::views::{BorrowedRows, IndexedRows};
+use super::views::{BorrowedRows, IndexedRows, PredicateProgram};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use ryo_language::domain::symbols::types::QuerySymbols;
@@ -336,7 +336,7 @@ pub(crate) struct RequestOperators {
     pub ordered_existence: std::sync::Arc<Vec<crate::domain::ordered_existence::types::Program>>,
     pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
     pub selection_views:
-        std::sync::Arc<crate::domain::stored_selection::types::PreparedSelectionViews>,
+        std::sync::Arc<crate::domain::derived_views::types::PreparedSelectionViews>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: usize,
     pub physical: Vec<
@@ -346,16 +346,6 @@ pub(crate) struct RequestOperators {
     >,
 }
 
-/// The evaluator is bound to the prepared contract's exact ordered program.
-/// Its implementation is engine-private; this interface cannot choose predicates,
-/// schemas, cache keys or upstream scheduling.
-pub(crate) trait PredicateProgram {
-    fn holds(
-        &mut self,
-        row: &[Value],
-        symbols: &ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<crate::domain::table_model::types::Verdict, OperatingError>;
-}
 impl<'a> PrimitiveLease<'a> {
     pub(crate) fn distinct(&mut self) -> Result<&mut DistinctWorkspace, OperatingError> {
         let state = self

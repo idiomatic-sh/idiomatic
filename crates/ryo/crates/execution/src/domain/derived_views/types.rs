@@ -11,8 +11,8 @@ use ryo_values::domain::{
 use std::sync::Arc;
 use {
     crate::domain::operator::contract::resources::DfsResources,
-    crate::domain::operator::contract::types::PredicateProgram,
     crate::domain::operator::contract::views::BorrowedRows,
+    crate::domain::operator::contract::views::PredicateProgram,
     crate::domain::stored_graph::types::GraphSource,
     crate::domain::stored_selection::types::Selector, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
@@ -65,6 +65,25 @@ pub(crate) enum ViewRequest {
         view: Vec<ColumnIndex>,
     },
 }
+impl ViewRequest {
+    pub(crate) fn kind(&self) -> DerivedKind {
+        match self {
+            ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
+            ViewRequest::Equality { .. } => DerivedKind::Equality,
+            ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
+            ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
+            ViewRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
+            ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
+            ViewRequest::Membership { .. } => DerivedKind::Membership,
+            ViewRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
+            ViewRequest::ClosureAdjacency { .. } => DerivedKind::ClosureAdjacency,
+            ViewRequest::CycleAdjacency { .. } => DerivedKind::CycleAdjacency,
+            ViewRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
+            ViewRequest::OrderedDfs(_) => DerivedKind::OrderedDfs,
+            ViewRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
+        }
+    }
+}
 #[derive(Clone, Debug)]
 pub(crate) struct DerivedContract {
     /// Prepared once; equality still checks the complete semantic descriptor on collisions.
@@ -92,7 +111,7 @@ impl DerivedContract {
             .map_err(crate::domain::operator::contract::derived::portable_fault);
         Self {
             identity_hash,
-            kind: crate::domain::derived_views::service::kind(&request),
+            kind: request.kind(),
             semantic,
             request,
             schemas,
@@ -181,3 +200,22 @@ pub(crate) struct DerivedSlots {
 use ryo_values::domain::rows::types::RowIndex;
 
 use ryo_derived::domain::contract::types::DerivedKind;
+
+/// Prepared construction contracts indexed by exact request-owned selector identity.
+#[derive(Debug, Default)]
+pub(crate) struct PreparedSelectionViews {
+    /// Pins every selector address for the complete request lifetime.
+    pub selectors: Vec<Arc<Selector>>,
+    /// O(1) capability lookup; no metadata construction occurs while selecting.
+    pub by_selector: std::collections::HashMap<usize, Arc<PreparedSelectorViews>>,
+    pub groups: usize,
+}
+#[derive(Debug)]
+pub(crate) struct PreparedSelectorViews {
+    pub group: usize,
+    pub predicate: Arc<DerivedContract>,
+    pub postings: Arc<DerivedContract>,
+    pub distinct: Arc<DerivedContract>,
+    /// Every statically possible equality discriminator, chosen without runtime preparation.
+    pub equalities: std::collections::HashMap<ColumnIndex, Arc<DerivedContract>>,
+}

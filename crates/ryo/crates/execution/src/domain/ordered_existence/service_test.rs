@@ -162,7 +162,7 @@ fn request_binding_rejects_a_second_rules_bag_sensitive_terminal_select() {
         "local shape alone is insufficient"
     );
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &request);
-    use crate::domain::ordered_existence::types::ResolvedAlternative;
+    use crate::domain::file_program::types::ResolvedAlternative;
     assert!(graph.ordered_existence.iter().any(|alternative| matches!(
         alternative,
         Some(ResolvedAlternative::Declined(Decline::ExtraConsumer))
