@@ -180,6 +180,7 @@ impl ReadStore for FakeRead {
 /// Registers, in `handed.proofs`, exactly the proof of every frontier row: a store keeps a frontier payload only under the exact
 /// proof of its (file, bucket), as a run issues it, once. The fixtures replace frontier rows, so they register their proofs here.
 pub fn register_proofs(handed: &mut StoredHanded) {
+    let handed = &mut handed.0;
     handed.proofs.clear();
     for row in &handed.frontier {
         if !handed

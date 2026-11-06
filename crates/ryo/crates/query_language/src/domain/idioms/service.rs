@@ -19,7 +19,11 @@ use ryo_values::domain::query_tokens::types::QuerySpelling;
 /// Says the pairs whose two functions have equal sets of texts as a comparison of digests: each
 /// function's texts are reduced in its own file to one digest and one size, and what the files
 /// hand over is those rows, never the texts.
-pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName, idiom: SameSets) {
+pub(crate) fn push_same_sets(
+    builder: &mut Builder<'_>,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    idiom: SameSets,
+) {
     if push_same_sets_joined(builder, name, idiom) == SameSetsPush::Joined {
         return;
     }
@@ -115,7 +119,7 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
 /// each to be compared after. Answers whether it did.
 pub(crate) fn push_same_sets_joined(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
+    name: &ryo_values::domain::query_tokens::types::StepName,
     idiom: SameSets,
 ) -> SameSetsPush {
     let Some(found) = recognize_same_sets(builder, idiom) else {
@@ -212,7 +216,7 @@ pub(crate) fn push_same_sets_joined(
 /// A column of numbers the digest steps add, open and shared.
 fn number(label: QuerySpelling<'_>) -> PlannedColumn {
     PlannedColumn {
-        name: syntax::ColumnName(Box::from(label.0)),
+        name: ryo_values::domain::descriptions::types::ColumnName(Box::from(label.0)),
         kind: CellKind::Number,
         unique: Uniqueness::Shared,
         words: Vocabulary::Open,

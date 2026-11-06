@@ -1751,10 +1751,8 @@ fn assert_count_findings(
     presentation: &[u32],
 ) -> Vec<i64> {
     use ryo_relations::domain::relations::types::Integer;
-    use ryo_values::domain::records::{
-        service::lent,
-        types::{Cell as RecordCell, CellText, RowsTextView},
-    };
+    use ryo_values::domain::records::service::lent;
+    use ryo_values::domain::row_texts::types::{Cell as RecordCell, CellText, RowsTextView};
     let observed = rendered
         .cells
         .iter()

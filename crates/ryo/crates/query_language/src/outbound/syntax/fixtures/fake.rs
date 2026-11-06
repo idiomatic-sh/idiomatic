@@ -25,7 +25,7 @@ impl Default for SyntaxFake {
     fn default() -> Self {
         Self {
             program: WrittenProgram {
-                linked: false,
+                linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
                 imports: Vec::new(),
                 origins: Vec::new(),
                 fragment_contracts: Vec::new(),

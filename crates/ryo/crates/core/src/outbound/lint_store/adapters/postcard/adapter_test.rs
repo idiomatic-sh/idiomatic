@@ -567,6 +567,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     let row = warm
         .handed(&BucketsWanted::All)
         .expect("warm frontier")
+        .0
         .frontier
         .into_iter()
         .next()
@@ -700,10 +701,8 @@ fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() {
     let root = tempfile::tempdir().expect("directory");
     let store = store_in(root.path(), "old-descriptors");
     let mut original = stored(1);
-    original
-        .handed
-        .frontier
-        .push(original.handed.frontier[0].clone());
+    let first = original.handed.frontier[0].clone();
+    original.handed.frontier.push(first);
     store
         .stored()
         .unwrap()
@@ -806,17 +805,19 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
         let root = tempfile::tempdir().expect("directory");
         let store = store_in(root.path(), "bucket-window");
         let mut source = stored(1);
-        source
-            .handed
-            .frontier
-            .push(source.handed.frontier[0].clone());
+        let first = source.handed.frontier[0].clone();
+        source.handed.frontier.push(first);
         store
             .stored()
             .unwrap()
             .keep(source.clone(), &KeptRows::default())
             .unwrap();
         let snapshot = store.stored().expect("snapshot");
-        let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+        let rows = snapshot
+            .handed(&BucketsWanted::All)
+            .expect("rows")
+            .0
+            .frontier;
         let first = match &rows[0].words {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
@@ -883,7 +884,11 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
             .keep(source, &KeptRows::default())
             .unwrap();
         let snapshot = store.stored().expect("snapshot");
-        let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+        let rows = snapshot
+            .handed(&BucketsWanted::All)
+            .expect("rows")
+            .0
+            .frontier;
         let first = match &rows[0].words {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
@@ -931,7 +936,11 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
         .keep(original.clone(), &KeptRows::default())
         .unwrap();
     let snapshot = store.stored().expect("snapshot");
-    let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+    let rows = snapshot
+        .handed(&BucketsWanted::All)
+        .expect("rows")
+        .0
+        .frontier;
     let descriptor = match &rows[0].words {
         ReadWordPayload::Old(words) => *words,
         ReadWordPayload::Inline(_) => panic!("old row"),
@@ -940,6 +949,7 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
     let foreign_rows = foreign
         .handed(&BucketsWanted::All)
         .expect("foreign rows")
+        .0
         .frontier;
     let foreign_descriptor = match &foreign_rows[0].words {
         ReadWordPayload::Old(words) => *words,

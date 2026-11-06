@@ -57,7 +57,7 @@ fn project_keeps_exact_file_column() {
     );
     assert_eq!(
         builder.lowered[0].fields[0].name,
-        syntax::ColumnName("file".into())
+        ryo_values::domain::descriptions::types::ColumnName("file".into())
     );
 }
 fn unknown_call_keeps_operation_and_span() {

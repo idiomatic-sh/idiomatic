@@ -271,7 +271,7 @@ fn placed_manifests(root: &Path) -> HostRelation {
         }
     }
     manifests.sort();
-    let text = |value: &str| ryo_values::domain::records::types::Cell::Text(value.into());
+    let text = |value: &str| ryo_values::domain::row_texts::types::Cell::Text(value.into());
     HostRelation {
         name: HostName(PLACED.into()),
         columns: columns
@@ -292,7 +292,7 @@ fn placed_manifests(root: &Path) -> HostRelation {
                 let relative = path.strip_prefix(root).expect("a path under the root");
                 HostRow(vec![
                     // `/` on every platform, as Tastemaker names a placed file.
-                    ryo_values::domain::records::types::Cell::File(
+                    ryo_values::domain::row_texts::types::Cell::File(
                         relative
                             .to_string_lossy()
                             .replace(std::path::MAIN_SEPARATOR, "/")

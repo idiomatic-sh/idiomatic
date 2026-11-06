@@ -201,7 +201,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<WrittenProgram> {
                 );
             }
             Ok(WrittenProgram {
-                linked: false,
+                linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
                 imports,
                 origins: Vec::new(),
                 fragment_contracts: Vec::new(),

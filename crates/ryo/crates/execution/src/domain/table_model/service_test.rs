@@ -14,13 +14,14 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Span, Value as Cell,
 };
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::selects;
 
 use super::types::Rows;
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::types::On;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
 use {
@@ -436,7 +437,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_position_the_row_lacks_is_refused"),
         word: Word::Refuses,
         input: || misses_a_cell,
-        expect: Expect::Refusal(|error| selects(matches!(error, RowsError::NoSuchColumn { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, RowsError::NoSuchColumn { .. }))),
     },
 ];
 

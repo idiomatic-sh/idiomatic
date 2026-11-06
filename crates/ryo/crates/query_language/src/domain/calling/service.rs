@@ -169,13 +169,19 @@ pub(crate) fn call_extend(
                     bad_argument(call, Some(ArgumentSlot::Values), ArgumentFault::Undeclared)
                 })?;
                 let kind = match *parameter_of(&builder.kinds, id) {
-                    plans::ParameterType::Flag => CellKind::Flag,
-                    plans::ParameterType::Number => CellKind::Number,
-                    plans::ParameterType::Text => CellKind::Symbol,
-                    plans::ParameterType::Numbers
-                    | plans::ParameterType::Texts
-                    | plans::ParameterType::TextSets
-                    | plans::ParameterType::Tables => {
+                    ryo_values::domain::query_bindings::types::ParameterType::Flag => {
+                        CellKind::Flag
+                    }
+                    ryo_values::domain::query_bindings::types::ParameterType::Number => {
+                        CellKind::Number
+                    }
+                    ryo_values::domain::query_bindings::types::ParameterType::Text => {
+                        CellKind::Symbol
+                    }
+                    ryo_values::domain::query_bindings::types::ParameterType::Numbers
+                    | ryo_values::domain::query_bindings::types::ParameterType::Texts
+                    | ryo_values::domain::query_bindings::types::ParameterType::TextSets
+                    | ryo_values::domain::query_bindings::types::ParameterType::Tables => {
                         return Err(bad_argument(
                             call,
                             Some(ArgumentSlot::Values),
@@ -198,7 +204,7 @@ pub(crate) fn call_extend(
         };
         operands.push(operand);
         fields.push(PlannedColumn {
-            name: syntax::ColumnName(value.name.0.clone()),
+            name: ryo_values::domain::descriptions::types::ColumnName(value.name.0.clone()),
             kind,
             unique: Uniqueness::Shared,
             words: Vocabulary::Open,

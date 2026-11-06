@@ -488,9 +488,8 @@ pub(crate) fn frontier_readiness<'a>(
     files: &[ryo_relations::domain::relations::types::FileId],
     frames: &'a [crate::domain::coverage::types::FileObservationReadiness],
 ) -> Result<FrontierPopulation<'a>, OperatingError> {
-    use ryo_values::domain::observations::{
-        service::validate_frontiers, types::ObservationReadinessCount,
-    };
+    use ryo_values::domain::observations::service::validate_frontiers;
+    use ryo_values::domain::records::types::ObservationReadinessCount;
     let count = ObservationReadinessCount(
         u32::try_from(metadata.frontiers.len()).map_err(|_| incomplete())?,
     );
@@ -518,9 +517,8 @@ fn frontier_compatible(
     readiness: &FrontierPopulation<'_>,
     physical: &CoverageState,
 ) -> Result<bool, OperatingError> {
-    use ryo_values::domain::observations::{
-        service::frontier_state, types::ObservationReadinessSlot,
-    };
+    use ryo_values::domain::observations::service::frontier_state;
+    use ryo_values::domain::records::types::ObservationReadinessSlot;
     let slot = ObservationReadinessSlot(u32::try_from(slot).map_err(|_| incomplete())?);
     for (file, frame) in &readiness.frames {
         if frontier_state(*frame, slot).map_err(|_| incomplete())? != ProducerReadiness::Complete {

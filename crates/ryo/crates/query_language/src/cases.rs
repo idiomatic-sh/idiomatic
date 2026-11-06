@@ -28,7 +28,7 @@ pub enum Selection {
 /// `matches!` over the error.
 #[macro_export]
 macro_rules! selects {
-    ($matched:expr) => {
+    ($matched:expr $(,)?) => {
         if $matched {
             $crate::cases::Selection::Matches
         } else {

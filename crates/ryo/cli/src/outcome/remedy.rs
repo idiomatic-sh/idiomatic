@@ -54,7 +54,7 @@ impl Remedy for tracing::subscriber::SetGlobalDefaultError {
 impl Remedy for ryo_core::inbound::use_cases::validate::errors::ValidateError {
     fn next(&self) -> Next {
         use ryo_core::inbound::use_cases::validate::errors::ValidateError;
-        use ryo_values::domain::plan_parts::types::RefusedKind;
+        use ryo_values::domain::program::types::RefusedKind;
         match self {
             ValidateError::Refused { error } => match error.kind {
                 RefusedKind::Syntax => Next::Fix("correct the query text at the byte the message names; `ryo operator list` shows the operations it may call".to_owned()),

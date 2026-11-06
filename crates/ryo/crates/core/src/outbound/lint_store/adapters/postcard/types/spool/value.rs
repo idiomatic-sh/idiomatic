@@ -185,6 +185,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn validate(
     }
     if span
         .offset
+        .0
         .checked_add(span.length.0)
         .is_none_or(|end| end > held)
     {

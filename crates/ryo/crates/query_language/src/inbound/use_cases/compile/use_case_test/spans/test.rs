@@ -1,6 +1,5 @@
 //! The span, source and projection calls over fragment scopes, from the compile inbound API.
 
-use crate::cases::run;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;

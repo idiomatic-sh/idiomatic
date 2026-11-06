@@ -7,10 +7,11 @@ use ryo_relations::domain::relations::types::{
     WorkerNumber,
 };
 use ryo_values::domain::stored_facts::types::ArenaBytes;
+use ryo_values::selects;
 
 use super::errors::SpellingError;
 use super::service::check_spellings;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 use ryo_values::domain::rows::service::push_row;
 
@@ -70,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Colliding("bee", "bat"),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, SpellingError::EntityInTwoSources { .. }))
+            selects!(matches!(error, SpellingError::EntityInTwoSources { .. }))
         }),
     },
 ];

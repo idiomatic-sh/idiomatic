@@ -34,6 +34,7 @@ use ryo_values::domain::{
     query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
+use ryo_values::selects;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},

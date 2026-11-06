@@ -1,10 +1,11 @@
 //! The `tree_walk` service's cases, on the columns a walk makes.
 
 use ryo_relations::domain::relations::types::{CellKind, Position};
+use ryo_values::selects;
 
 use super::service::walk_kinds;
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::domain::table_scratch::types::ElementPlaces;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
@@ -46,7 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_output_column_the_side_lacks_is_refused"),
         word: Word::Refuses,
         input: || Scenario::Missing,
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
     },
     Case {
         name: CaseName("a_nearest_ancestor_with_no_slot_crashes_instead_of_finding_nothing"),

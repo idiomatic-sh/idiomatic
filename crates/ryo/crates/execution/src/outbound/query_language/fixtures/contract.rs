@@ -2,9 +2,10 @@
 
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::query_tokens::types::QueryBundle;
+use ryo_values::selects;
 
 /// What a row of the contract is given: query text, which every implementation validates and compiles alike.
 type Input = QueryBundle;
@@ -32,7 +33,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || QueryBundle::from(QueryText(TEXT_THAT_REFUSE_AND_IS_NOT_A_QUERY.into())),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, QueryLanguageError::Refused { .. }))
+            selects!(matches!(error, QueryLanguageError::Refused { .. }))
         }),
     },
 ];

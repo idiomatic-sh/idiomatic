@@ -14,7 +14,7 @@ type Failure = std::convert::Infallible;
 fn column(alias: &str, name: &str) -> ast::ColumnReference {
     ast::ColumnReference {
         alias: ast::Alias::Written(tokens::AliasName(alias.into())),
-        column: syntax::ColumnName(name.into()),
+        column: ryo_values::domain::descriptions::types::ColumnName(name.into()),
     }
 }
 fn source(alias: &str) -> ast::QuerySource {

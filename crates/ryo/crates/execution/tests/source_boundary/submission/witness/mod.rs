@@ -139,6 +139,7 @@ impl ProjectStage for Witness {
         _: &[CorpusInput],
         _: &[Covered],
         _: &[Skipped],
+        _: &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError> {
         witness(Method::StageProjectScope)
     }
@@ -168,6 +169,7 @@ impl ObservationExecution for Witness {
         _: &[CorpusInput],
         _: &[Covered],
         _: &[Skipped],
+        _: &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError> {
         witness(Method::ObservedProjectScope)
     }

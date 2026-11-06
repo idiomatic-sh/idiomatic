@@ -16,7 +16,8 @@ use ryo_relations::domain::relations::constants::UNLOCATED;
 use ryo_relations::domain::relations::service::location;
 use ryo_relations::domain::relations::types::Locatedness;
 use ryo_values::domain::plan_parts::types::Heading;
-use ryo_values::domain::records::types::{Cell, CellText, RowTotal, Unread, Unreadable};
+use ryo_values::domain::records::types::{Unread, Unreadable};
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 
 use super::Format;
 

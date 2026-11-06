@@ -50,8 +50,13 @@ fn closure_keeps_endpoint_columns() {
             (crate::domain::syntax::constants::DESTINATION, word("child")),
         ],
     );
-    super::service::call_closure(&mut builder, &name(), &call, plans::QueryOperator::Closure)
-        .unwrap();
+    super::service::call_closure(
+        &mut builder,
+        &name(),
+        &call,
+        ryo_values::domain::query_operators::types::QueryOperator::Closure,
+    )
+    .unwrap();
     assert_eq!(
         builder.steps[0].operation,
         plans::Operation::Closure {
@@ -77,7 +82,12 @@ fn endpoint_cannot_also_be_a_partition_key() {
         ],
     );
     assert_eq!(
-        super::service::call_closure(&mut builder, &name(), &call, plans::QueryOperator::Closure),
+        super::service::call_closure(
+            &mut builder,
+            &name(),
+            &call,
+            ryo_values::domain::query_operators::types::QueryOperator::Closure
+        ),
         Err(LoweringError::DuplicateOutput {
             name: "parent".into(),
             span: call.span

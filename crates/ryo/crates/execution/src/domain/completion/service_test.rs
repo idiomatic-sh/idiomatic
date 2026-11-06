@@ -2,8 +2,9 @@
 use super::{service::file_frontier_coverage, types::CoverageState};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_values::selects;
 use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run, selects},
+    cases::{Case, CaseName, Expect, Word, run},
     domain::records::types::{FrontierAffected, FrontierCoverage},
 };
 struct FrontierCase {
@@ -68,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             expected: FrontierCoverage::Complete,
         },
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_str() == "file frontier carries a foreign physical partition"),
             )
         }),
@@ -81,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             expected: FrontierCoverage::Complete,
         },
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_str() == "partial frontier has no affected physical partition"),
             )
         }),

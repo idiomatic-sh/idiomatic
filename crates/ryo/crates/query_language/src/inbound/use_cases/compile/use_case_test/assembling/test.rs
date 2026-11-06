@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::assembling::service::lower;
+use crate::domain::assembling::service::lower as lower_program;
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
@@ -194,7 +194,7 @@ fn lower(text: Text) -> Result<Operations, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("the row's text is readable");
-    let plan = lower(
+    let plan = lower_program(
         &program,
         &[
             Relation::Function,
@@ -254,7 +254,7 @@ fn actual_compilation_removes_global_closure_for_partition_and_source_keyed_look
         emit found subject file key(id, child);
     "#;
     let program = winnow().read(QueryView(text)).expect("query syntax");
-    let plan = lower(
+    let plan = lower_program(
         &program,
         &[Relation::Function, Relation::SemanticChild],
         &[],
@@ -298,7 +298,7 @@ fn authored_projected_edge_and_shared_consumers_lower_to_demand_in_the_real_pipe
     let program = winnow()
         .read(QueryView(text))
         .expect("authored edge syntax");
-    let plan = lower(
+    let plan = lower_program(
         &program,
         &[Relation::Function, Relation::SemanticChild],
         &[],

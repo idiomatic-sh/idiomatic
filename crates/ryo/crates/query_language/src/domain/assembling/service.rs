@@ -84,7 +84,7 @@ pub(crate) fn lower_with_observations(
             .columns
             .iter()
             .map(|column| PlannedColumn {
-                name: syntax::ColumnName(column.name.0.clone()),
+                name: ryo_values::domain::descriptions::types::ColumnName(column.name.0.clone()),
                 kind: column.kind,
                 unique: Uniqueness::Shared,
                 words: Vocabulary::Open,
@@ -108,13 +108,15 @@ pub(crate) fn lower_with_observations(
             check_fragment_inputs(&builder, contract)?;
         }
         builder.span = step.span;
-        builder.origin = step
-            .name
-            .1
+        builder.origin = ryo_values::domain::program::service::identity_of(step.name.1)
             .and_then(|identity| program.step_origins.get(&identity).cloned());
         let lowered = match &step.expression {
-            syntax::Expression::Select(select) => lower_select(&mut builder, &step.name, select),
-            syntax::Expression::Call(call) => lower_call(&mut builder, &step.name, call),
+            ryo_values::domain::query_syntax::types::Expression::Select(select) => {
+                lower_select(&mut builder, &step.name, select)
+            }
+            ryo_values::domain::query_syntax::types::Expression::Call(call) => {
+                lower_call(&mut builder, &step.name, call)
+            }
         };
         lowered.map_err(|error| {
             locate_step_error(
@@ -222,10 +224,12 @@ pub(crate) fn lower_with_observations(
             .parameters
             .iter()
             .zip(&builder.kinds)
-            .map(|(parameter, kind)| plans::PlanParameter {
-                name: parts::ParameterName(parameter.name.0.clone()),
-                kind: *kind,
-            })
+            .map(
+                |(parameter, kind)| ryo_values::domain::query_bindings::types::PlanParameter {
+                    name: parts::ParameterName(parameter.name.0.clone()),
+                    kind: *kind,
+                },
+            )
             .collect(),
         frontier: frontier_of(&steps),
         steps,
@@ -245,11 +249,14 @@ pub(crate) fn lower_with_observations(
 /// Attaches the expanded fragment origin to a lowering error for one root step.
 fn locate_step_error(
     program: &syntax::WrittenProgram,
-    identity: Option<syntax::StepIdentity>,
+    identity: Option<ryo_values::domain::query_tokens::types::StepIdentity>,
     error: LoweringError,
 ) -> LoweringError {
     locate_error(
-        identity.and_then(|identity| program.step_origins.get(&identity).cloned()),
+        match identity.and_then(|identity| program.step_origins.get(&identity).cloned()) {
+            Some(origin) => ryo_values::domain::query_tokens::types::Attribution::Located(origin),
+            None => ryo_values::domain::query_tokens::types::Attribution::Unlocated,
+        },
         error,
     )
 }
@@ -279,11 +286,15 @@ fn check_fragment_inputs(
         let mut origin = contract.origin.clone();
         origin.span = input.span;
         let reference = match &input.value {
-            syntax::ArgumentValue::Text(text) => {
-                syntax::SourceReference::Relation(syntax::WrittenRelation(text.0.clone()))
+            ryo_values::domain::query_syntax::types::ArgumentValue::Text(text) => {
+                ryo_values::domain::query_syntax::types::SourceReference::Relation(
+                    ryo_values::domain::query_tokens::types::WrittenRelation(text.0.clone()),
+                )
             }
-            syntax::ArgumentValue::Step(step) => syntax::SourceReference::Step(step.clone()),
-            syntax::ArgumentValue::Word(_) => {
+            ryo_values::domain::query_syntax::types::ArgumentValue::Step(step) => {
+                ryo_values::domain::query_syntax::types::SourceReference::Step(step.clone())
+            }
+            ryo_values::domain::query_syntax::types::ArgumentValue::Word(_) => {
                 return Err(LoweringError::FragmentContract {
                     message: format!(
                         "input `{}` did not link to a visible relation or step",
@@ -292,19 +303,19 @@ fn check_fragment_inputs(
                     origin,
                 });
             }
-            syntax::ArgumentValue::Number(_)
-            | syntax::ArgumentValue::Parameter(_)
-            | syntax::ArgumentValue::List(_)
-            | syntax::ArgumentValue::Map(_) => {
+            ryo_values::domain::query_syntax::types::ArgumentValue::Number(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::List(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Map(_) => {
                 return Err(LoweringError::FragmentContract {
                     message: format!("input `{}` is not a relation source", input.name.0),
                     origin,
                 });
             }
         };
-        let source = syntax::QuerySource {
+        let source = ryo_values::domain::query_syntax::types::QuerySource {
             reference,
-            alias: syntax::Alias::Unwritten,
+            alias: ryo_values::domain::query_syntax::types::Alias::Unwritten,
             span: input.span,
         };
         let actual =

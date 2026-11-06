@@ -16,16 +16,19 @@ use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// The alternatives of a `where`, each the tests that all hold for it: one when there is no `or`, and an `or` inside an
 /// alternative multiplies it into one alternative for each of its own.
-fn alternatives_of(conditions: &[syntax::Condition]) -> Vec<Vec<&syntax::Filter>> {
-    let mut alternatives: Vec<Vec<&syntax::Filter>> = vec![Vec::new()];
+fn alternatives_of(
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
+) -> Vec<Vec<&ryo_values::domain::query_syntax::types::Filter>> {
+    let mut alternatives: Vec<Vec<&ryo_values::domain::query_syntax::types::Filter>> =
+        vec![Vec::new()];
     for condition in conditions {
         match condition {
-            syntax::Condition::Test(filter) => {
+            ryo_values::domain::query_syntax::types::Condition::Test(filter) => {
                 for alternative in &mut alternatives {
                     alternative.push(filter);
                 }
             }
-            syntax::Condition::Any(choices) => {
+            ryo_values::domain::query_syntax::types::Condition::Any(choices) => {
                 let mut multiplied = Vec::new();
                 for alternative in &alternatives {
                     for choice in choices {
@@ -46,8 +49,8 @@ fn alternatives_of(conditions: &[syntax::Condition]) -> Vec<Vec<&syntax::Filter>
 /// Puts in `kept` the columns a projection keeps, each named as the query renamed it, and in `indexes` where each sits among `fields`.
 fn projected(
     fields: &[PlannedColumn],
-    columns: &[syntax::SelectColumn],
-    span: syntax::QuerySpan,
+    columns: &[ryo_values::domain::query_syntax::types::SelectColumn],
+    span: ryo_values::domain::query_tokens::types::QuerySpan,
     kept: &mut Vec<PlannedColumn>,
     indexes: &mut Vec<parts::ColumnIndex>,
 ) -> Result<(), LoweringError> {
@@ -56,8 +59,12 @@ fn projected(
         indexes.push(index);
         kept.push(PlannedColumn {
             name: match &column.rename {
-                syntax::Renaming::Renamed(renamed) => renamed.clone(),
-                syntax::Renaming::Unchanged => column.column.column.clone(),
+                ryo_values::domain::query_syntax::types::Renaming::Renamed(renamed) => {
+                    renamed.clone()
+                }
+                ryo_values::domain::query_syntax::types::Renaming::Unchanged => {
+                    column.column.column.clone()
+                }
             },
             kind: column_of(fields, index).kind,
             unique: column_of(fields, index).unique,
@@ -72,15 +79,20 @@ fn projected(
 /// alternative and the union of those keeps each row once; the columns a join gives only for its `where` are dropped after it.
 pub(crate) fn lower_select(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    select: &syntax::Select,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    select: &ryo_values::domain::query_syntax::types::Select,
 ) -> Result<(), LoweringError> {
     let Sourced {
         mut input,
         mut fields,
     } = read_source(builder, &select.from)?;
-    let projects = matches!(select.join, syntax::Joining::Alone)
-        && matches!(select.columns, syntax::Columns::Listed(_));
+    let projects = matches!(
+        select.join,
+        ryo_values::domain::query_syntax::types::Joining::Alone
+    ) && matches!(
+        select.columns,
+        ryo_values::domain::query_syntax::types::Columns::Listed(_)
+    );
     let filtered = !select.filters.is_empty();
     let last = if !filtered && !projects {
         LastStep::Join
@@ -88,7 +100,7 @@ pub(crate) fn lower_select(
         LastStep::Later
     };
     let (mut sides, mut shown) = (Vec::new(), ShownColumns(fields.len()));
-    if let syntax::Joining::Joined(join) = &select.join {
+    if let ryo_values::domain::query_syntax::types::Joining::Joined(join) = &select.join {
         shown = shown_of(&select.columns);
         Joined {
             sourced: Sourced { input, fields },
@@ -107,7 +119,9 @@ pub(crate) fn lower_select(
     )?;
     let mut kept = Vec::new();
     let mut indexes = Vec::new();
-    if let (true, syntax::Columns::Listed(columns)) = (projects, &select.columns) {
+    if let (true, ryo_values::domain::query_syntax::types::Columns::Listed(columns)) =
+        (projects, &select.columns)
+    {
         projected(&fields, columns, builder.span, &mut kept, &mut indexes)?;
     }
     let distinct = repeated_rows(&kept);
@@ -152,7 +166,12 @@ pub(crate) fn lower_select(
         );
         return Ok(());
     }
-    if !filtered && matches!(select.join, syntax::Joining::Alone) {
+    if !filtered
+        && matches!(
+            select.join,
+            ryo_values::domain::query_syntax::types::Joining::Alone
+        )
+    {
         push(
             builder,
             Some(name),
@@ -173,7 +192,7 @@ pub(crate) fn lower_select(
 /// the depth of a demanded plan. The final step is given `name`, when it has one.
 fn filtered_by(
     builder: &mut Builder<'_>,
-    name: Option<&syntax::StepName>,
+    name: Option<&ryo_values::domain::query_tokens::types::StepName>,
     input: parts::Input,
     alternatives: Vec<Vec<parts::PlanComparison>>,
     fields: &[PlannedColumn],
@@ -222,7 +241,7 @@ fn filtered_by(
 /// The comparisons of each alternative of a `where`, resolved over `columns`.
 fn comparisons_of(
     builder: &mut Builder<'_>,
-    conditions: &[syntax::Condition],
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
     columns: Addressable<'_>,
 ) -> Result<Vec<Vec<parts::PlanComparison>>, LoweringError> {
     let mut alternatives = Vec::new();
@@ -240,7 +259,7 @@ fn comparisons_of(
 /// a row they alone told apart is kept once. The step is given `name`.
 fn unshown(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
+    name: &ryo_values::domain::query_tokens::types::StepName,
     input: parts::Input,
     shown: Vec<PlannedColumn>,
 ) {

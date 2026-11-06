@@ -2,6 +2,7 @@
 
 use crate::domain::plan_parts::types::QueryText;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// A place in the query text, counted in bytes from its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -200,7 +201,7 @@ pub struct BareWord<'a>(pub &'a str);
 pub struct QuerySpelling<'a>(pub &'a str);
 
 /// Whether a statement or refusal has source attribution.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Attribution {
     /// Where it came from, through any hygienic fragment expansion.
     Located(QueryOrigin),

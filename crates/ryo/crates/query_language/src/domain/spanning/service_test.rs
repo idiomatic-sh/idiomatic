@@ -76,11 +76,11 @@ fn span_bounds_preserves_operand_and_appends_numbers() {
     let fields = &builder.lowered[0].fields;
     assert_eq!(
         fields[fields.len() - 2].name,
-        syntax::ColumnName("start".into())
+        ryo_values::domain::descriptions::types::ColumnName("start".into())
     );
     assert_eq!(
         fields[fields.len() - 1].name,
-        syntax::ColumnName("end".into())
+        ryo_values::domain::descriptions::types::ColumnName("end".into())
     );
 }
 fn non_span_operand_preserves_refusal_location() {

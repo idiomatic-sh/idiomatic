@@ -1,20 +1,20 @@
 //! The `binding` service: free functions named by verb over what a call binds its fragment's inputs and parameters to.
 
+use super::types::{Bindings, BoundArguments, FragmentBindingKey, ScalarMatch};
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
 use crate::domain::syntax::constants::BOOLEAN_WORDS;
 use crate::domain::syntax::constants::fragment_scalar_kind_named;
+use ryo_values::domain::program::types::FragmentProgram;
+use ryo_values::domain::program::types::LetStep;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_syntax::types::Argument;
 use ryo_values::domain::query_syntax::types::ArgumentValue;
 use ryo_values::domain::query_syntax::types::Call;
-use ryo_values::domain::program::types::FragmentProgram;
-use ryo_values::domain::program::types::LetStep;
 use ryo_values::domain::query_tokens::types::QuerySourceId;
 use ryo_values::domain::query_tokens::types::QueryTraceSite;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use super::types::{Bindings, BoundArguments, FragmentBindingKey, ScalarMatch};
 
 /// Binds a call's named inputs and scalar parameters to a fragment signature.
 #[expect(
@@ -133,7 +133,7 @@ pub(crate) fn bind_relation_argument(
             preceding
                 .iter()
                 .rev()
-                .find(|step| step.name.0 == word.0)
+                .find(|step| *step.name.0 == *word.0)
                 .map_or_else(
                     || value.clone(),
                     |step| ArgumentValue::Step(step.name.clone()),

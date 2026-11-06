@@ -210,8 +210,8 @@ fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
     };
     let mut handed = StoredHanded::default();
     let mut partial = crate::outbound::lint_store::fixtures::proof();
-    partial.rule = 7;
-    partial.input = 2;
+    partial.rule = ryo_values::domain::records::types::ProducerRule(7);
+    partial.input = ryo_values::domain::records::types::FrontierOrdinal(2);
     partial.rule_digest = Digest([9; 16]);
     partial.coverage = FrontierCoverage::Partial(vec![
         FrontierAffected::CurrentFile,

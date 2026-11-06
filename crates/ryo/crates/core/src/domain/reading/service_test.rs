@@ -14,11 +14,12 @@ use ryo_relations::domain::relations::types::{Relation, WorkerNumber};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, InputNumber, StepId, StepScope},
     plans::types::{Emit, Operation, Plan, PlanStep},
-    runs::types::RuleNumber,
     records::{
         service::keep,
-        types::{Cell as Typed, CellText, FrontierCoverage, FrontierProof, Kept},
+        types::{FrontierCoverage, FrontierProof, Kept},
     },
+    row_texts::types::{Cell as Typed, CellText},
+    runs::types::RuleNumber,
     stored_facts::{
         service::frontier_bucket,
         types::{ArenaBytes, Bucket, Digest, KeptWords, PackedWords},

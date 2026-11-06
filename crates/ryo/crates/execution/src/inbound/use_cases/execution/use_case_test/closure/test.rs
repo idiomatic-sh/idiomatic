@@ -1,5 +1,6 @@
 //! Closure outcomes through the mandatory public execution owner.
 use super::super::super::fixtures;
+use ryo_values::selects;
 
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 
@@ -8,7 +9,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::ExecutionObservation;
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plans::types::Operation;
@@ -475,7 +476,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("empty_partition_input_checks_endpoint_columns"),
         word: Word::Refuses,
         input: || endpoints_are_checked_on_empty_partition_input,
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
     },
     Case {
         name: CaseName("partitions_are_independent"),
@@ -511,7 +512,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("empty_partition_input_still_checks_columns"),
         word: Word::Refuses,
         input: || partition_columns_are_checked_on_empty_input,
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
     },
     Case {
         name: CaseName("every_reachable_pair_is_listed"),
@@ -565,7 +566,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_missing_column_is_refused"),
         word: Word::Refuses,
         input: || closes_over_a_missing_column,
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
     },
 ];
 

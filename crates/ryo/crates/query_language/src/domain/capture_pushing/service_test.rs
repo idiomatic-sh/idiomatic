@@ -4,8 +4,8 @@ use super::service::push_below_captures;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, Input as Reads, LiteralText, Operand, PlanComparison, QueryLiteral,
-    StepId, StepScope, Test,
+    CapturePattern, ColumnIndex, Input as Reads, LiteralText, Operand, PlanComparison,
+    QueryLiteral, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 
@@ -68,7 +68,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 test: Test::Equal,
                 left: Operand::Column(asked),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: Vec::new(),
         }),

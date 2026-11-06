@@ -312,18 +312,15 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
         },
     ));
     let readiness = file.finish().unwrap().readiness.unwrap();
-    assert!(readiness.complete.iter().any(|bits| *bits != 0));
-    assert!(readiness.skipped.is_empty());
+    assert!(readiness.complete.0.iter().any(|bits| *bits != 0));
+    assert!(readiness.skipped.0.is_empty());
     request.finish();
 }
 
 #[test]
 fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
-    use ryo_values::domain::observations::{
-        service::{frontier_state, validate_frontiers},
-        types::ProducerReadiness,
-    };
-    use ryo_values::domain::records::types::ObservationReadinessSlot;
+    use ryo_values::domain::observations::service::{frontier_state, validate_frontiers};
+    use ryo_values::domain::records::types::{ObservationReadinessSlot, ProducerReadiness};
     let engine = engine();
     let program = engine.prepare(named_request()).unwrap();
     let corpus = corpus();
@@ -350,10 +347,10 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
             ProducerReadiness::Unknown(_)
         ));
         assert!(
-            readiness.skipped.is_empty(),
+            readiness.skipped.0.is_empty(),
             "no positive applicability proof was issued"
         );
-        assert!(readiness.complete.iter().all(|word| *word == 0));
+        assert!(readiness.complete.0.iter().all(|word| *word == 0));
     }
     request.finish();
 }

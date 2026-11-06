@@ -13,12 +13,16 @@ use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::selects;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::hosted::types::HostedRelation;
-use ryo_values::domain::observations::types::BoundObservationInput;
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+};
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::program::types::LetStep;
 use ryo_values::domain::program::types::WrittenEmit;
 use ryo_values::domain::program::types::WrittenProgram;

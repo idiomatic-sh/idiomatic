@@ -25,7 +25,7 @@ use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::{
     FlagState, LiteralText, ParameterName, QueryText as CoreQueryText, WholeNumber,
 };
-use ryo_values::domain::plans::types::{ParameterType, PlanParameter};
+use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
 
 /// The directory of the recordings.
 pub(crate) fn directory() -> PathBuf {
@@ -126,7 +126,7 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
         &compiler,
         ryo_query_language::inbound::use_cases::compile::types::CompileRequest {
             observations: Vec::new(),
-            text: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
+            text: ryo_values::domain::query_tokens::types::QueryBundle::from(CoreQueryText(
                 query.into(),
             )),
             hosted: Vec::new(),
@@ -431,7 +431,7 @@ pub(crate) fn rule_of(each: &Recording) -> Rule {
     Rule {
         observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(each.name.as_str().into()),
-        query: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(CoreQueryText(
             each.query.as_str().into(),
         )),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
@@ -476,9 +476,9 @@ pub(crate) fn base_rows(collected: &row_sink::types::Collector) -> Vec<Vec<Strin
 /// character, each value as it reads (a span as its two ends); its columns, which a recording does not hold, left out. A row not laid
 /// out as a finding's is each of its cells as text.
 pub(crate) fn finding_texts(
-    cells: &[Option<ryo_values::domain::records::types::Cell>],
+    cells: &[Option<ryo_values::domain::row_texts::types::Cell>],
 ) -> Vec<String> {
-    use ryo_values::domain::records::types::Cell;
+    use ryo_values::domain::row_texts::types::Cell;
     let text = |cell: &Option<Cell>| match cell {
         Some(Cell::File(each) | Cell::Text(each)) => each.to_string(),
         Some(Cell::Number(number)) => number.0.to_string(),

@@ -10,7 +10,7 @@ fn recognizer_requires_matching_function_columns() {
     use crate::domain::rewriting::types::SameSets;
     let mut builder = lowering_builder();
     builder.steps = vec![plans::PlanStep {
-        scope: plans::StepScope::PerFile,
+        scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
         operation: plans::Operation::Join {
             left: parts::Input::Step(parts::StepId(7)),
             right: parts::Input::Step(parts::StepId(7)),

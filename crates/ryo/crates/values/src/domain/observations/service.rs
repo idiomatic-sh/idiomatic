@@ -13,7 +13,7 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
         return ObservationIdentityBytes::default();
     }
     let mut bytes = ObservationIdentityBytes(super::constants::BINDINGS_TAG.to_vec());
-    tally(&mut bytes, &bindings);
+    tally(&mut bytes, bindings);
     for binding in bindings {
         text(&mut bytes, ObservationText(binding.name.0.as_bytes()));
         tally(&mut bytes, &binding.columns);
@@ -274,7 +274,7 @@ pub fn output_identity(outputs: &[super::types::PlanObservation]) -> Observation
         return ObservationIdentityBytes::default();
     }
     let mut bytes = ObservationIdentityBytes(super::constants::DEMANDED_ROOTS_TAG.to_vec());
-    tally(&mut bytes, &outputs);
+    tally(&mut bytes, outputs);
     for output in outputs {
         text(&mut bytes, ObservationText(output.name.0.as_bytes()));
         bytes.0.push(match output.scope {
@@ -301,7 +301,7 @@ pub fn output_identity(outputs: &[super::types::PlanObservation]) -> Observation
 #[must_use]
 pub fn layout_identity(layout: &[super::types::ObservationRuleLayout]) -> ObservationIdentityBytes {
     let mut bytes = ObservationIdentityBytes(super::constants::REQUEST_LAYOUT_TAG.to_vec());
-    tally(&mut bytes, &layout);
+    tally(&mut bytes, layout);
     for rule in layout {
         text(&mut bytes, ObservationText(rule.rule.0.as_bytes()));
         bytes.0.extend_from_slice(&rule.frontiers.0.to_le_bytes());

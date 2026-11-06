@@ -20,7 +20,7 @@ pub fn materialized_handed(
     read: &dyn ReadStore,
     wanted: &BucketsWanted,
 ) -> Result<StoredHanded, LintStoreError> {
-    let handed = read.handed(wanted)?;
+    let handed = read.handed(wanted)?.0;
     let mut rows = Vec::with_capacity(handed.frontier.len());
     for row in handed.frontier {
         let words = match row.words {
@@ -199,7 +199,7 @@ fn answer(
                 proof: super::proof(),
                 words: PackedWords(vec![5]),
             };
-            let was = stored(1).handed.frontier;
+            let was = stored(1).handed.0.frontier;
             kept(stored(1), &KeptRows::default())?;
             let mut again = stored(2);
             again.handed.frontier = vec![read_now.clone()];
@@ -215,9 +215,13 @@ fn answer(
                     }],
                 },
             )?;
-            let moved = materialized_handed(&*store.stored()?, &BucketsWanted::All)?.frontier;
+            let moved = materialized_handed(&*store.stored()?, &BucketsWanted::All)?
+                .0
+                .frontier;
             kept(again, &KeptRows::default())?;
-            let gone = materialized_handed(&*store.stored()?, &BucketsWanted::All)?.frontier;
+            let gone = materialized_handed(&*store.stored()?, &BucketsWanted::All)?
+                .0
+                .frontier;
             moved
                 == [read_now.clone()]
                     .into_iter()

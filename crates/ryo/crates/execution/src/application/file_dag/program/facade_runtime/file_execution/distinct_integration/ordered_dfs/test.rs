@@ -1,13 +1,14 @@
 //! Ordered graph semantics and work counts through the compiled execution owner.
 use super::super::*;
 use crate::domain::operating::types::ExecutionObservation;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostCell;
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::selects;
 type Input = fn() -> Result<usize, OperatingError>;
 type Value = usize;
 type Failure = OperatingError;
@@ -546,7 +547,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ties_are_rejected_even_without_roots,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, OperatingError::DuplicateDfsOrder))
+            selects!(matches!(error, OperatingError::DuplicateDfsOrder))
         }),
     },
     Case {
@@ -554,20 +555,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || duplicate_edges_are_ties,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, OperatingError::DuplicateDfsOrder))
+            selects!(matches!(error, OperatingError::DuplicateDfsOrder))
         }),
     },
     Case {
         name: CaseName("missing_columns_refused_on_empty_input"),
         word: Word::Refuses,
         input: || malformed_empty_input_is_rejected,
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
     },
     Case {
         name: CaseName("entity_kinds_checked_on_empty_input"),
         word: Word::Refuses,
         input: || empty_input_kind_mismatch_is_rejected,
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::ShapeMismatch))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::ShapeMismatch))),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

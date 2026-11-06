@@ -91,12 +91,12 @@ pub(crate) fn scope_of(
     operation: &plans::Operation,
     inputs: &[ScopedInput],
     out: &[PlannedColumn],
-) -> plans::StepScope {
+) -> ryo_values::domain::plan_parts::types::StepScope {
     if inputs
         .iter()
-        .any(|input| input.scope == plans::StepScope::CrossFile)
+        .any(|input| input.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile)
     {
-        return plans::StepScope::CrossFile;
+        return ryo_values::domain::plan_parts::types::StepScope::CrossFile;
     }
     let first = inputs
         .first()
@@ -163,9 +163,9 @@ pub(crate) fn scope_of(
         plans::Operation::Rows { .. } | plans::Operation::Hosted { .. } => false,
     };
     if per_file {
-        plans::StepScope::PerFile
+        ryo_values::domain::plan_parts::types::StepScope::PerFile
     } else {
-        plans::StepScope::CrossFile
+        ryo_values::domain::plan_parts::types::StepScope::CrossFile
     }
 }
 
@@ -174,12 +174,15 @@ pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
     let mut frontier = Vec::new();
     for step in steps
         .iter()
-        .filter(|step| step.scope == plans::StepScope::CrossFile)
+        .filter(|step| step.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile)
     {
         for input in inputs_of(&step.operation) {
             let handed_over = match input {
                 parts::Input::Relation(_) | parts::Input::BoundObservation(_) => true,
-                parts::Input::Step(id) => step_of(steps, id).scope == plans::StepScope::PerFile,
+                parts::Input::Step(id) => {
+                    step_of(steps, id).scope
+                        == ryo_values::domain::plan_parts::types::StepScope::PerFile
+                }
             };
             if handed_over && !frontier.contains(&input) {
                 frontier.push(input);
@@ -195,9 +198,9 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
     match input {
         parts::Input::Relation(relation) => ScopedInput {
             scope: if provenance_of(relation) == Provenance::Manifests {
-                plans::StepScope::CrossFile
+                ryo_values::domain::plan_parts::types::StepScope::CrossFile
             } else {
-                plans::StepScope::PerFile
+                ryo_values::domain::plan_parts::types::StepScope::PerFile
             },
             fields: relation_fields(relation),
         },
@@ -210,7 +213,9 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
                     .columns
                     .iter()
                     .map(|column| PlannedColumn {
-                        name: syntax::ColumnName(column.name.0.clone()),
+                        name: ryo_values::domain::descriptions::types::ColumnName(
+                            column.name.0.clone(),
+                        ),
                         kind: column.kind,
                         unique: crate::domain::lowering::types::Uniqueness::Shared,
                         words: ryo_relations::domain::terms::types::Vocabulary::Open,

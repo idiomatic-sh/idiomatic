@@ -84,7 +84,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
     }
     carry_proofs(&mut current, &old, &kept);
-    Ok(Cow::Owned(current.proofs))
+    Ok(Cow::Owned(std::mem::take(&mut current.proofs)))
 }
 
 #[test]

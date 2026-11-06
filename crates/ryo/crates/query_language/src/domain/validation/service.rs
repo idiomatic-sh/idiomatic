@@ -4,6 +4,7 @@
 use ryo_relations::domain::relations::service::relation_named;
 use ryo_relations::domain::relations::types::{NameRef, Relation};
 use ryo_values::domain::hosted::types::HostedName;
+use ryo_values::domain::program::service::identity_of;
 
 use super::errors::ValidationError;
 use super::types::{Identities, Known};
@@ -15,7 +16,7 @@ use ryo_values::domain::query_syntax::types::{
     ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, QuerySource, Select,
     SourceReference, WrittenOperand,
 };
-use ryo_values::domain::query_tokens::types::{QuerySpan, QuerySpelling};
+use ryo_values::domain::query_tokens::types::{Attribution, Linking, QuerySpan, QuerySpelling};
 use std::collections::BTreeSet;
 
 /// Checks that every name a program writes exists and every call has its required arguments; the first fault is answered.
@@ -25,11 +26,10 @@ pub(crate) fn validate_with_observations(
     hosted: &[HostedName],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<(), ValidationError> {
-    if program.linked == ryo_values::domain::query_tokens::types::Linking::Linked {
+    if program.linked == Linking::Linked {
         let mut identities = BTreeSet::new();
         for step in &program.steps {
-            let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1)
-            else {
+            let Some(identity) = identity_of(step.name.1) else {
                 return Err(ValidationError::UnknownStep {
                     name: step.name.0.to_string(),
                     span: step.span,
@@ -44,7 +44,7 @@ pub(crate) fn validate_with_observations(
         }
     }
     let mut known = Known {
-        identities: if program.linked == ryo_values::domain::query_tokens::types::Linking::Linked {
+        identities: if program.linked == Linking::Linked {
             Identities::Assigned
         } else {
             Identities::Unassigned
@@ -54,7 +54,9 @@ pub(crate) fn validate_with_observations(
         observations,
     };
     for step in &program.steps {
-        if !program.linked && known.steps.iter().any(|known| known.0 == step.name.0) {
+        if program.linked == Linking::Unlinked
+            && known.steps.iter().any(|known| known.0 == step.name.0)
+        {
             return Err(ValidationError::DuplicateStep {
                 name: step.name.0.to_string(),
                 span: step.span,
@@ -67,9 +69,7 @@ pub(crate) fn validate_with_observations(
             Expression::Call(call) => check_call(call, &known, catalog, &program.parameters),
         };
         checked.map_err(|error| {
-            match step
-                .name
-                .1
+            match identity_of(step.name.1)
                 .and_then(|identity| program.step_origins.get(&identity))
                 .cloned()
             {
@@ -101,13 +101,11 @@ pub(crate) fn validate_with_observations(
         };
         if let Some(error) = error {
             return Err(match output.origin.clone() {
-                ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
-                    ValidationError::Located {
-                        origin,
-                        error: Box::new(error),
-                    }
-                }
-                ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
+                Attribution::Located(origin) => ValidationError::Located {
+                    origin,
+                    error: Box::new(error),
+                },
+                Attribution::Unlocated => error,
             });
         }
     }
@@ -117,13 +115,11 @@ pub(crate) fn validate_with_observations(
             span: program.emit.span,
         };
         return Err(match program.emit_origin.clone() {
-            ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
-                ValidationError::Located {
-                    origin,
-                    error: Box::new(error),
-                }
-            }
-            ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
+            Attribution::Located(origin) => ValidationError::Located {
+                origin,
+                error: Box::new(error),
+            },
+            Attribution::Unlocated => error,
         });
     }
     Ok(())
@@ -177,14 +173,15 @@ fn check_source(
             check_relation(QuerySpelling(&text.0), source.span, catalog, known)
         }
         SourceReference::Step(text) => {
-            let exists = match ryo_values::domain::program::service::identity_of(text.1) {
-                Some(identity) => known.steps.iter().any(|step| {
-                    ryo_values::domain::program::service::identity_of(step.1) == Some(identity)
-                }),
+            let exists = match identity_of(text.1) {
+                Some(identity) => known
+                    .steps
+                    .iter()
+                    .any(|step| identity_of(step.1) == Some(identity)),
                 None if known
                     .observations
                     .iter()
-                    .any(|bound| bound.name.0 == text.0) =>
+                    .any(|bound| *bound.name.0 == *text.0) =>
                 {
                     true
                 }
@@ -302,16 +299,15 @@ fn check_call(
                     });
                 }
                 ArgumentValue::Step(step) => {
-                    if !(ryo_values::domain::program::service::identity_of(step.1).is_none()
+                    if !(identity_of(step.1).is_none()
                         && known
                             .observations
                             .iter()
-                            .any(|bound| bound.name.0 == step.0))
-                        && !known.steps.iter().any(|known| {
-                            known.1 == step.1
-                                && ryo_values::domain::program::service::identity_of(step.1)
-                                    .is_some()
-                        })
+                            .any(|bound| *bound.name.0 == *step.0))
+                        && !known
+                            .steps
+                            .iter()
+                            .any(|known| known.1 == step.1 && identity_of(step.1).is_some())
                     {
                         return Err(ValidationError::UnknownStep {
                             name: step.0.to_string(),

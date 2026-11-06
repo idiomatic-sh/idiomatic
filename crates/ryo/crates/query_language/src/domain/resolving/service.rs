@@ -21,7 +21,7 @@ use ryo_values::domain::query_tokens::types::QuerySpelling;
 pub(crate) fn position(
     fields: &[PlannedColumn],
     name: QuerySpelling<'_>,
-    span: syntax::QuerySpan,
+    span: ryo_values::domain::query_tokens::types::QuerySpan,
 ) -> Result<parts::ColumnIndex, LoweringError> {
     find_column(fields, |field| {
         if *field.name.0 == *name.0 {
@@ -41,7 +41,9 @@ pub(crate) fn relation_fields(relation: Relation) -> Vec<PlannedColumn> {
     columns(relation)
         .into_iter()
         .map(|column| PlannedColumn {
-            name: syntax::ColumnName(Box::from(column_name(column).0)),
+            name: ryo_values::domain::descriptions::types::ColumnName(Box::from(
+                column_name(column).0,
+            )),
             kind: kind(column),
             unique: if is_key(column) == ColumnKeyness::Key {
                 Uniqueness::Unique
@@ -125,7 +127,7 @@ pub(crate) fn find_parameter<T>(
 /// The step the `let` called `name` made.
 pub(crate) fn step_named(
     builder: &Builder<'_>,
-    name: &syntax::StepName,
+    name: &ryo_values::domain::query_tokens::types::StepName,
 ) -> Result<parts::StepId, LoweringError> {
     find_step(&builder.lowered, |lowered| {
         if matches!(&lowered.name, StepLabel::Named(named) if match (ryo_values::domain::program::service::identity_of(named.1), ryo_values::domain::program::service::identity_of(name.1)) {
@@ -146,16 +148,18 @@ pub(crate) fn step_named(
 /// What a source reads, and the columns it has.
 pub(crate) fn read_source(
     builder: &Builder<'_>,
-    source: &syntax::QuerySource,
+    source: &ryo_values::domain::query_syntax::types::QuerySource,
 ) -> Result<Sourced, LoweringError> {
     let external = match &source.reference {
-        syntax::SourceReference::Relation(text) => Some(text.0.as_ref()),
-        syntax::SourceReference::Step(text)
+        ryo_values::domain::query_syntax::types::SourceReference::Relation(text) => {
+            Some(text.0.as_ref())
+        }
+        ryo_values::domain::query_syntax::types::SourceReference::Step(text)
             if ryo_values::domain::program::service::identity_of(text.1).is_none() =>
         {
             Some(text.0.as_ref())
         }
-        syntax::SourceReference::Step(_) => None,
+        ryo_values::domain::query_syntax::types::SourceReference::Step(_) => None,
     };
     if let Some((index, bound)) = builder
         .observation_inputs
@@ -175,7 +179,9 @@ pub(crate) fn read_source(
                 .columns
                 .iter()
                 .map(|column| PlannedColumn {
-                    name: syntax::ColumnName(column.name.0.clone()),
+                    name: ryo_values::domain::descriptions::types::ColumnName(
+                        column.name.0.clone(),
+                    ),
                     kind: column.kind,
                     unique: Uniqueness::Shared,
                     words: Vocabulary::Open,
@@ -185,7 +191,7 @@ pub(crate) fn read_source(
     }
 
     match &source.reference {
-        syntax::SourceReference::Relation(text) => {
+        ryo_values::domain::query_syntax::types::SourceReference::Relation(text) => {
             if let Some(hosted) = builder
                 .hosted_steps
                 .iter()
@@ -207,7 +213,7 @@ pub(crate) fn read_source(
                 fields: relation_fields(relation),
             })
         }
-        syntax::SourceReference::Step(text) => {
+        ryo_values::domain::query_syntax::types::SourceReference::Step(text) => {
             let id = step_named(builder, text)?;
             Ok(Sourced {
                 input: parts::Input::Step(id),
@@ -220,23 +226,31 @@ pub(crate) fn read_source(
 /// What an argument that names an input reads, and the columns it has.
 pub(crate) fn input_argument(
     builder: &Builder<'_>,
-    call: &syntax::Call,
+    call: &ryo_values::domain::query_syntax::types::Call,
     argument: ArgumentSlot,
 ) -> Result<Sourced, LoweringError> {
     let value = argument_named(call, argument)?;
     let reference = match value {
-        syntax::ArgumentValue::Text(name) => {
-            syntax::SourceReference::Relation(syntax::WrittenRelation(name.0.clone()))
+        ryo_values::domain::query_syntax::types::ArgumentValue::Text(name) => {
+            ryo_values::domain::query_syntax::types::SourceReference::Relation(
+                ryo_values::domain::query_tokens::types::WrittenRelation(name.0.clone()),
+            )
         }
-        syntax::ArgumentValue::Word(name) => syntax::SourceReference::Step(syntax::StepName(
-            name.0.clone().into(),
-            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
-        )),
-        syntax::ArgumentValue::Step(step) => syntax::SourceReference::Step(step.clone()),
-        syntax::ArgumentValue::Number(_)
-        | syntax::ArgumentValue::Parameter(_)
-        | syntax::ArgumentValue::List(_)
-        | syntax::ArgumentValue::Map(_) => {
+        ryo_values::domain::query_syntax::types::ArgumentValue::Word(name) => {
+            ryo_values::domain::query_syntax::types::SourceReference::Step(
+                ryo_values::domain::query_tokens::types::StepName(
+                    name.0.clone().into(),
+                    ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+                ),
+            )
+        }
+        ryo_values::domain::query_syntax::types::ArgumentValue::Step(step) => {
+            ryo_values::domain::query_syntax::types::SourceReference::Step(step.clone())
+        }
+        ryo_values::domain::query_syntax::types::ArgumentValue::Number(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::List(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::Map(_) => {
             return Err(bad_argument(
                 call,
                 Some(argument),
@@ -246,9 +260,9 @@ pub(crate) fn input_argument(
     };
     read_source(
         builder,
-        &syntax::QuerySource {
+        &ryo_values::domain::query_syntax::types::QuerySource {
             reference,
-            alias: syntax::Alias::Unwritten,
+            alias: ryo_values::domain::query_syntax::types::Alias::Unwritten,
             span: call.span,
         },
     )
@@ -256,7 +270,7 @@ pub(crate) fn input_argument(
 
 /// The error that `call` was given its `argument` wrongly, for `reason`, at the call.
 pub(crate) fn bad_argument(
-    call: &syntax::Call,
+    call: &ryo_values::domain::query_syntax::types::Call,
     argument: Option<ArgumentSlot>,
     reason: ArgumentFault,
 ) -> LoweringError {
@@ -270,9 +284,9 @@ pub(crate) fn bad_argument(
 
 /// The value of the argument of `call` in `slot`; refused when the call does not give it.
 pub(crate) fn argument_named(
-    call: &syntax::Call,
+    call: &ryo_values::domain::query_syntax::types::Call,
     slot: ArgumentSlot,
-) -> Result<&syntax::ArgumentValue, LoweringError> {
+) -> Result<&ryo_values::domain::query_syntax::types::ArgumentValue, LoweringError> {
     call.arguments
         .iter()
         .find(|argument| *argument.name.0 == *slot_name(slot))
@@ -282,17 +296,21 @@ pub(crate) fn argument_named(
 
 /// The column name the argument of `call` in `name` holds, written as a word or a text; refused for any other value.
 pub(crate) fn word_of(
-    call: &syntax::Call,
+    call: &ryo_values::domain::query_syntax::types::Call,
     name: ArgumentSlot,
-) -> Result<syntax::ColumnName, LoweringError> {
+) -> Result<ryo_values::domain::descriptions::types::ColumnName, LoweringError> {
     match argument_named(call, name)? {
-        syntax::ArgumentValue::Text(text) => Ok(syntax::ColumnName(text.0.clone())),
-        syntax::ArgumentValue::Word(word) => Ok(syntax::ColumnName(word.0.clone())),
-        syntax::ArgumentValue::Number(_)
-        | syntax::ArgumentValue::Parameter(_)
-        | syntax::ArgumentValue::Step(_)
-        | syntax::ArgumentValue::List(_)
-        | syntax::ArgumentValue::Map(_) => {
+        ryo_values::domain::query_syntax::types::ArgumentValue::Text(text) => Ok(
+            ryo_values::domain::descriptions::types::ColumnName(text.0.clone()),
+        ),
+        ryo_values::domain::query_syntax::types::ArgumentValue::Word(word) => Ok(
+            ryo_values::domain::descriptions::types::ColumnName(word.0.clone()),
+        ),
+        ryo_values::domain::query_syntax::types::ArgumentValue::Number(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::Step(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::List(_)
+        | ryo_values::domain::query_syntax::types::ArgumentValue::Map(_) => {
             Err(bad_argument(call, Some(name), ArgumentFault::ExpectedName))
         }
     }
@@ -300,22 +318,28 @@ pub(crate) fn word_of(
 
 /// The column names the list argument of `call` in `name` holds; refused when it is not a list of words or texts.
 pub(crate) fn words_of(
-    call: &syntax::Call,
+    call: &ryo_values::domain::query_syntax::types::Call,
     name: ArgumentSlot,
-) -> Result<Vec<syntax::ColumnName>, LoweringError> {
-    let syntax::ArgumentValue::List(values) = argument_named(call, name)? else {
+) -> Result<Vec<ryo_values::domain::descriptions::types::ColumnName>, LoweringError> {
+    let ryo_values::domain::query_syntax::types::ArgumentValue::List(values) =
+        argument_named(call, name)?
+    else {
         return Err(bad_argument(call, Some(name), ArgumentFault::ExpectedNames));
     };
     values
         .iter()
         .map(|value| match value {
-            syntax::ArgumentValue::Text(text) => Ok(syntax::ColumnName(text.0.clone())),
-            syntax::ArgumentValue::Word(word) => Ok(syntax::ColumnName(word.0.clone())),
-            syntax::ArgumentValue::Number(_)
-            | syntax::ArgumentValue::Parameter(_)
-            | syntax::ArgumentValue::Step(_)
-            | syntax::ArgumentValue::List(_)
-            | syntax::ArgumentValue::Map(_) => {
+            ryo_values::domain::query_syntax::types::ArgumentValue::Text(text) => Ok(
+                ryo_values::domain::descriptions::types::ColumnName(text.0.clone()),
+            ),
+            ryo_values::domain::query_syntax::types::ArgumentValue::Word(word) => Ok(
+                ryo_values::domain::descriptions::types::ColumnName(word.0.clone()),
+            ),
+            ryo_values::domain::query_syntax::types::ArgumentValue::Number(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Step(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::List(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Map(_) => {
                 Err(bad_argument(call, Some(name), ArgumentFault::ExpectedNames))
             }
         })
@@ -326,7 +350,7 @@ pub(crate) fn words_of(
 pub(crate) fn positions_of(
     builder: &Builder<'_>,
     fields: &[PlannedColumn],
-    names: &[syntax::ColumnName],
+    names: &[ryo_values::domain::descriptions::types::ColumnName],
 ) -> Result<Vec<parts::ColumnIndex>, LoweringError> {
     names
         .iter()

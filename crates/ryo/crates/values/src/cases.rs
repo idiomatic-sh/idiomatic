@@ -28,7 +28,7 @@ pub enum Selection {
 /// Whether an error is the one a row picks, as a selector answers it: `selects!(matches!(error, Variant { .. }))`.
 #[macro_export]
 macro_rules! selects {
-    ($matched:expr) => {
+    ($matched:expr $(,)?) => {
         if $matched {
             $crate::cases::Selection::Matches
         } else {

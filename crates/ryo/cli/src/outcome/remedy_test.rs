@@ -45,7 +45,7 @@ fn a_blank_query_refuses_with_the_text_flag() {
 fn only_a_kind_refusal_is_told_to_correct_the_kind() {
     use ryo_core::inbound::use_cases::validate::errors::ValidateError;
     use ryo_relations::domain::relations::types::{Offset, Span};
-    use ryo_values::domain::plan_parts::types::{RefusalMessage, RefusedKind, RefusedQuery};
+    use ryo_values::domain::program::types::{RefusalMessage, RefusedKind, RefusedQuery};
     assert_eq!(
         ValidateError::UnknownKind {
             reason: "no such kind".to_owned(),
@@ -63,7 +63,7 @@ fn only_a_kind_refusal_is_told_to_correct_the_kind() {
                     start: Offset(0),
                     end: Offset(0),
                 },
-                origin: ryo_values::domain::program::types::Attribution::Unlocated,
+                origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
             },
         }
         .next(),

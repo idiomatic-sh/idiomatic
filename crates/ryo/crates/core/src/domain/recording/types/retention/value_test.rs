@@ -160,7 +160,10 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
             RetainedBytes::packed(&packed).packed_live,
             RetainedBytes::packed(&packed).packed_capacity
         ),
-        (2, packed.0.0.capacity())
+        (
+            ryo_values::domain::stores::types::LiveBytes(2),
+            ryo_values::domain::stores::types::CapacityBytes(packed.0.0.capacity())
+        )
     );
 }
 

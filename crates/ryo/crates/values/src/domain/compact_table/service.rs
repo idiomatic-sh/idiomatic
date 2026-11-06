@@ -21,7 +21,7 @@ pub fn admit_compact(
     backing: CompactBacking,
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
-) -> Result<Admitted, super::errors::TableWordsError> {
+) -> Result<Admitted, crate::domain::table_words::errors::TableWordsError> {
     let before = places.len();
     let mut complete =
         mode == DecodeMode::Permissive || canonical_words(&backing.0.0) == WordSpelling::Canonical;
@@ -128,7 +128,7 @@ pub fn admit_compact(
     }
     if mode == DecodeMode::Complete && !complete {
         places.truncate(before);
-        return Err(super::errors::TableWordsError::Incomplete);
+        return Err(crate::domain::table_words::errors::TableWordsError::Incomplete);
     }
     tracing::trace!(target: crate::domain::table_words::constants::LIFECYCLE_TARGET, phase=crate::domain::table_words::constants::COMPACT_ADMISSION, packed_bytes=backing.0.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
     Ok(Admitted {
@@ -158,10 +158,10 @@ pub fn compact_cells(input: &CompactTable) -> CellCount {
 pub fn shape_compact(
     input: &mut CompactTable,
     kinds: &[ryo_relations::domain::relations::types::CellKind],
-) -> Result<(), super::errors::TableWordsError> {
+) -> Result<(), crate::domain::table_words::errors::TableWordsError> {
     if input.kinds.is_empty() {
         if input.cells.0 != 0 {
-            return Err(super::errors::TableWordsError::Incomplete);
+            return Err(crate::domain::table_words::errors::TableWordsError::Incomplete);
         }
         input.kinds.extend_from_slice(kinds);
     }

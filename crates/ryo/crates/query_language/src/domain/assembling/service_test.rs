@@ -16,7 +16,7 @@ fn select(column: &str) -> ast::Select {
         columns: ast::Columns::Listed(vec![ast::SelectColumn {
             column: ast::ColumnReference {
                 alias: ast::Alias::Unwritten,
-                column: syntax::ColumnName(column.into()),
+                column: ryo_values::domain::descriptions::types::ColumnName(column.into()),
             },
             rename: ast::Renaming::Unchanged,
         }]),
@@ -54,8 +54,10 @@ fn program() -> syntax::WrittenProgram {
                 "result".into(),
                 ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
             ),
-            subject: syntax::ColumnName("file".into()),
-            key: vec![syntax::ColumnName("file".into())],
+            subject: ryo_values::domain::descriptions::types::ColumnName("file".into()),
+            key: vec![ryo_values::domain::descriptions::types::ColumnName(
+                "file".into(),
+            )],
             span,
         },
     }
@@ -66,7 +68,7 @@ fn typed_program_keeps_emitted_projection() {
     assert_eq!(
         plan.steps,
         vec![plans::PlanStep {
-            scope: plans::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Project {
                 from: parts::Input::Relation(Relation::Function),
                 columns: vec![parts::ColumnIndex(2)],

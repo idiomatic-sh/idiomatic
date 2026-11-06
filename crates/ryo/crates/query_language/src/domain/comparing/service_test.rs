@@ -15,7 +15,7 @@ fn comparison() -> ast::Filter {
     ast::Filter {
         left: ast::WrittenOperand::Column(ast::ColumnReference {
             alias: ast::Alias::Unwritten,
-            column: syntax::ColumnName("name".into()),
+            column: ryo_values::domain::descriptions::types::ColumnName("name".into()),
         }),
         test: ast::WrittenTest::Equal,
         right: ast::WrittenOperand::Text(tokens::WrittenLiteral("main".into())),
@@ -52,7 +52,7 @@ fn incompatible_operand_keeps_exact_location() {
     let mut comparison = comparison();
     comparison.left = ast::WrittenOperand::Column(ast::ColumnReference {
         alias: ast::Alias::Unwritten,
-        column: syntax::ColumnName("id".into()),
+        column: ryo_values::domain::descriptions::types::ColumnName("id".into()),
     });
     assert_eq!(
         super::service::comparison_of(
@@ -86,7 +86,7 @@ fn refusal_of(relation: Relation, filter: &ast::Filter) -> LoweringError {
 fn column(name: &str) -> ast::WrittenOperand {
     ast::WrittenOperand::Column(ast::ColumnReference {
         alias: ast::Alias::Unwritten,
-        column: syntax::ColumnName(name.into()),
+        column: ryo_values::domain::descriptions::types::ColumnName(name.into()),
     })
 }
 fn written(value: &str) -> ast::WrittenOperand {

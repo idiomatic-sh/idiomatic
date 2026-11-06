@@ -271,7 +271,12 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         | Operation::Join {
             filter: comparisons,
             ..
-        } => comparisons.iter().find_map(|comparison| comparison.origin),
+        } => comparisons
+            .iter()
+            .find_map(|comparison| match comparison.origin {
+                ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(id) => Some(id),
+                ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded => None,
+            }),
         Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Union { .. }

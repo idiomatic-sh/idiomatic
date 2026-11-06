@@ -52,7 +52,7 @@ pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
         out.0.extend_from_slice(value.0);
     }
     let mut out = super::types::HostIdentity(super::constants::IDENTITY_TAG.to_vec());
-    tally(&mut out, &relations);
+    tally(&mut out, relations);
     for relation in relations {
         text(
             &mut out,

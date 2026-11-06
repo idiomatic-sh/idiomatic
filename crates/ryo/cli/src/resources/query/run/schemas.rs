@@ -5,7 +5,7 @@ use ryo_core::inbound::use_cases::lint::errors::LintError;
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::{AnswerShape, RuleApplicability};
 use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session};
@@ -95,7 +95,7 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
                 .map(|(place, text)| Rule {
                     observations: Vec::new(),
                     id: RuleId((place + 1).to_string().into()),
-                    query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                    query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                         text.into(),
                     )),
                     applicability: RuleApplicability::Always,

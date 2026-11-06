@@ -27,6 +27,13 @@ fn refusal_of(lower: Lowering, call: &ast::Call) -> LoweringError {
     lower(&mut builder, &name(), call).expect_err("the call is refused")
 }
 
+fn name() -> tokens::StepName {
+    tokens::StepName(
+        tokens::StepSpelling("result".into()),
+        tokens::StepIdentified::Unassigned,
+    )
+}
+
 fn call(name: &str, arguments: Vec<(&str, ast::ArgumentValue)>) -> ast::Call {
     ast::Call {
         name: tokens::OperationName(name.into()),

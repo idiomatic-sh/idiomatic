@@ -216,12 +216,10 @@ impl FileRun<'_> {
     pub(crate) fn observation_snapshot(
         &self,
     ) -> Option<Arc<ryo_values::domain::records::types::FrontierReadiness>> {
-        use ryo_values::domain::observations::{
-            service::{new_frontiers, set_frontier},
-            types::ProducerReadiness,
-        };
+        use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
         use ryo_values::domain::records::types::ObservationReadinessCount;
         use ryo_values::domain::records::types::ObservationReadinessSlot;
+        use ryo_values::domain::records::types::ProducerReadiness;
         let metadata = self.program.observation_metadata()?;
         if metadata.frontiers.is_empty() {
             return None;

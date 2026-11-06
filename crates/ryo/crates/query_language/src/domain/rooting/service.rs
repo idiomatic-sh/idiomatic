@@ -190,7 +190,7 @@ pub(crate) fn bind_declared_sources(
                     {
                         input.reference = SourceReference::Relation(
                             ryo_values::domain::query_tokens::types::WrittenRelation(
-                                name.0.clone(),
+                                name.0.0.clone(),
                             ),
                         );
                     }
@@ -226,7 +226,7 @@ pub(crate) fn bind_declared_sources(
                                 .is_none()
                                 && names.contains(name.0.as_ref()) =>
                         {
-                            Some(name.0.clone())
+                            Some(name.0.0.clone())
                         }
                         _ => None,
                     };

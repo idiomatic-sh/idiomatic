@@ -1,5 +1,6 @@
 //! Checked construction and accessors for query source bundles.
 
+use crate::domain::query_tokens::types::{StepIdentified, StepIdentity};
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::errors::ProgramError;
@@ -90,7 +91,9 @@ pub fn standalone(text: QuerySpelling<'_>) -> Result<QueryBundle, ProgramError> 
     if text.0.trim().is_empty() {
         return Err(ProgramError::BlankRootText);
     }
-    let id = source_id(QuerySpelling(super::constants::STANDALONE_SOURCE_ID))?;
+    let id = source_id(QuerySpelling(
+        crate::domain::query_tokens::constants::STANDALONE_SOURCE_ID,
+    ))?;
     query_bundle(document_source(id, text.0), [])
 }
 

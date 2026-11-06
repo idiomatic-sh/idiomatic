@@ -84,7 +84,10 @@ pub(crate) fn remap_select(
             })
         } else {
             inputs
-                .get(reference.0.as_ref())
+                .0
+                .get(&crate::domain::binding::types::FragmentBindingKey(
+                    reference.0.0.clone(),
+                ))
                 .and_then(|input| match input {
                     ArgumentValue::Text(name) => Some(SourceReference::Relation(
                         ryo_values::domain::query_tokens::types::WrittenRelation(name.0.clone()),
@@ -224,7 +227,7 @@ pub(crate) fn remap_call(
                 preceding
                     .iter()
                     .rev()
-                    .find(|step| step.name.0 == word.0)
+                    .find(|step| *step.name.0 == *word.0)
                     .map_or_else(
                         || argument.value.clone(),
                         |step| ArgumentValue::Step(step.name.clone()),

@@ -16,7 +16,7 @@ fn select(column: &str) -> ast::Select {
         columns: ast::Columns::Listed(vec![ast::SelectColumn {
             column: ast::ColumnReference {
                 alias: ast::Alias::Unwritten,
-                column: syntax::ColumnName(column.into()),
+                column: ryo_values::domain::descriptions::types::ColumnName(column.into()),
             },
             rename: ast::Renaming::Unchanged,
         }]),
@@ -44,7 +44,7 @@ fn projection_is_typed_and_file_scoped() {
     assert_eq!(
         builder.steps,
         vec![plans::PlanStep {
-            scope: plans::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Project {
                 from: parts::Input::Relation(Relation::Function),
                 columns: vec![parts::ColumnIndex(2)],

@@ -21,8 +21,8 @@ use ryo_values::domain::query_tokens::types::QuerySpelling;
 /// Lowers an `axis` call: the rows of its input joined to the elements the relation's edges reach from them, as the step `name`.
 pub(crate) fn call_axis(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
@@ -86,7 +86,9 @@ pub(crate) fn call_axis(
         output: Vec::new(),
     };
     fields.push(PlannedColumn {
-        name: syntax::ColumnName(Box::from(heading(HierarchyColumn::Related))),
+        name: ryo_values::domain::descriptions::types::ColumnName(Box::from(heading(
+            HierarchyColumn::Related,
+        ))),
         kind: CellKind::Node,
         unique: Uniqueness::Shared,
         words: Vocabulary::Open,
@@ -98,8 +100,8 @@ pub(crate) fn call_axis(
 /// Lowers a `closure` or `cycles` call over the source and target columns of its edges, as the step `name`.
 pub(crate) fn call_closure(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
     operator: QueryOperator,
 ) -> Result<(), LoweringError> {
     let Sourced {
@@ -184,7 +186,7 @@ fn dfs_output_columns(
     root_keys: &[parts::ColumnIndex],
     root: parts::ColumnIndex,
     endpoints: [parts::ColumnIndex; 3],
-    call: &syntax::Call,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<Vec<PlannedColumn>, LoweringError> {
     let mut kept: Vec<_> = root_keys
         .iter()
@@ -219,8 +221,8 @@ fn dfs_output_columns(
 /// Lower deterministic depth-first edge visits, partitioned by matching root/edge keys.
 pub(crate) fn call_ordered_dfs(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,

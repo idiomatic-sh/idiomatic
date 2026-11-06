@@ -37,21 +37,21 @@ fn name() -> tokens::StepName {
 fn all_set_operations_keep_both_typed_inputs() {
     for (operator, expected) in [
         (
-            plans::QueryOperator::Union,
+            ryo_values::domain::query_operators::types::QueryOperator::Union,
             plans::Operation::Union {
                 left: parts::Input::Relation(Relation::Function),
                 right: parts::Input::Relation(Relation::Function),
             },
         ),
         (
-            plans::QueryOperator::Intersection,
+            ryo_values::domain::query_operators::types::QueryOperator::Intersection,
             plans::Operation::Intersection {
                 left: parts::Input::Relation(Relation::Function),
                 right: parts::Input::Relation(Relation::Function),
             },
         ),
         (
-            plans::QueryOperator::Difference,
+            ryo_values::domain::query_operators::types::QueryOperator::Difference,
             plans::Operation::Difference {
                 left: parts::Input::Relation(Relation::Function),
                 right: parts::Input::Relation(Relation::Function),
@@ -74,7 +74,12 @@ fn incompatible_inputs_keep_typed_refusal() {
         vec![("left", text("function")), ("right", text("syntax-child"))],
     );
     assert_eq!(
-        super::service::call_set(&mut builder, &name(), &call, plans::QueryOperator::Union),
+        super::service::call_set(
+            &mut builder,
+            &name(),
+            &call,
+            ryo_values::domain::query_operators::types::QueryOperator::Union
+        ),
         Err(LoweringError::BadArgument {
             operation: "union".into(),
             argument: "right".into(),

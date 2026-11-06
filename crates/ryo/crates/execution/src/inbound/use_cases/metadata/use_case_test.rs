@@ -9,7 +9,7 @@ use crate::domain::kind_check::types::KindRefusal;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{FileId, Relation};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::{
     KindVocabularies, KindVocabulary, KindWord, LanguageName,
 };
@@ -24,6 +24,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::PartialCause;
+use ryo_values::selects;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
@@ -114,7 +115,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::UnknownKind,
         expect: Expect::Refusal(|failure| {
-            selects(
+            selects!(
                 matches!(failure, Refusal::Kind(KindRefusal(message, None)) if message.contains("ghost") && message.contains("rust")),
             )
         }),
@@ -170,7 +171,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ForeignAffected,
         expect: Expect::Refusal(|failure| {
-            selects(matches!(
+            selects!(matches!(
                 failure,
                 Refusal::Coverage(OperatingError::ObservationIncomplete { .. })
             ))

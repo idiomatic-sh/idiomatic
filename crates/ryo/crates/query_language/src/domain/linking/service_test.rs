@@ -21,7 +21,7 @@ enum Scenario {
 }
 
 /// The id of the module the import reads.
-type Value = QuerySourceId;
+type Value = std::borrow::Cow<'static, str>;
 type Failure = LinkingError;
 /// What a row asks of the service.
 type Input = Scenario;
@@ -36,7 +36,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_import_reads_the_module_it_names"),
         word: Word::Succeeds,
         input: || Scenario::NamedModule,
-        expect: Expect::Value(QuerySourceId(Box::from("module"))),
+        expect: Expect::Value(std::borrow::Cow::Borrowed("module")),
     },
     Case {
         name: CaseName("an_import_of_a_blank_module_id_is_refused_at_the_import"),
@@ -69,8 +69,11 @@ fn import(module: &str) -> ImportDeclaration {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let root = QuerySourceId(Box::from("root"));
     match scenario {
-        Scenario::NamedModule => source_id(&root, &import("module")),
-        Scenario::BlankModule => source_id(&root, &import(" ")),
+        Scenario::NamedModule => source_id(&root, &import("module"))
+            .map(|id| std::borrow::Cow::Owned(id.0.into_string())),
+        Scenario::BlankModule => {
+            source_id(&root, &import(" ")).map(|id| std::borrow::Cow::Owned(id.0.into_string()))
+        }
         Scenario::LocatedRefusal => Err(located(&root, SPAN, Vec::new(), "refused")),
     }
 }

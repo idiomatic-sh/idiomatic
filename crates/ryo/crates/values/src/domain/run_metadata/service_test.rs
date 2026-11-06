@@ -263,7 +263,7 @@ fn comparison(test: Test) -> PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("name".into()))),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+        origin: crate::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 fn subject(input: Input) -> Result<Value, Failure> {

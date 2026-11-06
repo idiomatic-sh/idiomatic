@@ -2,11 +2,11 @@
 
 use crate::domain::stored_selection::types::{PreparedPlan, Selector};
 use ryo_relations::domain::relations::service::kinds;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
@@ -91,7 +91,8 @@ impl<'a> SelectionProgram<'a> {
                     let mut normalized = comparison.clone();
                     normalized.left = self.operand(&comparison.left, &mut selector)?;
                     normalized.right = self.operand(&comparison.right, &mut selector)?;
-                    normalized.origin = None;
+                    normalized.origin =
+                        ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded;
                     Arc::make_mut(&mut selector.identity)
                         .comparisons
                         .push(normalized);

@@ -4,7 +4,7 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::{Budget, Session};
@@ -54,7 +54,7 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         rules: vec![Rule {
             observations: Vec::new(),
             id: RuleId("1".into()),
-            query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+            query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                 "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into()),
             ),
             applicability: ryo_values::domain::runs::types::RuleApplicability::Always,

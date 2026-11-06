@@ -10,9 +10,10 @@ use crate::domain::{
     },
     row_texts::types::FindingRows,
     stored_facts::types::{ArenaBytes, Bucket, Digest, PackedWords, StoredPartial},
+    stored_findings::types::StoredFileNumber,
     stores::types::{
-        HandedRows, KeptRows, StagedRow, StoredCovered, StoredFileNumber, StoredHanded,
-        StoredNotes, StoredText, StoredWords,
+        HandedRows, KeptRows, StagedRow, StoredCovered, StoredHanded, StoredNotes, StoredText,
+        StoredWords,
     },
 };
 use ryo_language::domain::files::types::FilePath;
@@ -83,7 +84,7 @@ fn records() -> RetainedBytes {
         digest: Digest([0; 16]),
         number: FileNumber(0),
         outcome: FileOutcome::Read(Ran {
-            rows: crate::domain::rows::types::RowCount(FindingRows::default()),
+            rows: FindingRows::default(),
             number: FileNumber(0),
             interface: Digest([0; 16]),
             frontier,
@@ -107,13 +108,13 @@ fn records() -> RetainedBytes {
                 owner.capacity() * size_of::<Record>() + nested_metadata
             ),
             packed_live: crate::domain::stores::types::LiveBytes(5),
-            packed_capacity,
+            packed_capacity: crate::domain::stores::types::CapacityBytes(packed_capacity),
             staged_objects: crate::domain::stores::types::ObjectCount(1),
             staged_payload_bytes: crate::domain::records::types::PayloadLength(11),
             text_live: crate::domain::stores::types::LiveBytes(3),
-            text_capacity,
+            text_capacity: crate::domain::stores::types::CapacityBytes(text_capacity),
             notes_live: crate::domain::stores::types::LiveBytes(4),
-            notes_capacity,
+            notes_capacity: crate::domain::stores::types::CapacityBytes(notes_capacity),
             ..RetainedBytes::default()
         }
     );

@@ -91,7 +91,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
             file.commit_frontier(RuleIndex(0), capture.input).unwrap();
             captures.push((file_id, capture.outcome.unwrap()));
             let root = file.finish().unwrap().readiness.unwrap();
-            assert!(root.complete.iter().any(|bits| *bits != 0));
+            assert!(root.complete.0.iter().any(|bits| *bits != 0));
             readiness.push(FileObservationReadiness {
                 file: file_id,
                 root,

@@ -58,7 +58,7 @@ fn group_count_keeps_key_and_count_column() {
     );
     assert_eq!(
         builder.lowered[0].fields[1].name,
-        syntax::ColumnName("n".into())
+        ryo_values::domain::descriptions::types::ColumnName("n".into())
     );
     assert_eq!(
         builder.lowered[0].fields[1].kind,
