@@ -7,3 +7,5 @@ mod fixtures;
 mod publication;
 
 mod activation;
+
+mod submission;

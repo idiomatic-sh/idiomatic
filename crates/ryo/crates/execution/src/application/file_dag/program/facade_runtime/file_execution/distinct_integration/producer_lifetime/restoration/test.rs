@@ -4,9 +4,7 @@ use super::fixtures::{BoundSupply, CapturedProject, Exit};
 use crate::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness,
 };
-use crate::application::file_dag::program::facade_runtime::{
-    ProjectRootDeclaration, evaluate_roots,
-};
+use crate::application::file_dag::program::facade_runtime::{ProjectRoot, evaluate_roots};
 use crate::application::file_dag::program::protocol::types::ProjectBatch;
 use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint,
@@ -38,12 +36,6 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::Required,
     };
-    let declarations = (1..5)
-        .map(|at| ProjectRootDeclaration {
-            rule: RuleIndex(at),
-            demand,
-        })
-        .collect::<Vec<_>>();
     let runs = (1..5)
         .map(|at| {
             captured.open(
@@ -114,8 +106,17 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         .as_ref()
         .map_err(|error| error.clone())?
         .observe_producer_releases(RuleIndex(3), producer, &[consumer])?;
+    let roots = runs
+        .into_iter()
+        .enumerate()
+        .map(|(at, run)| ProjectRoot {
+            rule: RuleIndex(at + 1),
+            demand,
+            run,
+        })
+        .collect::<Vec<_>>();
     let guards = std::cell::Cell::new(0);
-    let batch = evaluate_roots(runs, &declarations, &mut symbols, |rule| {
+    let batch = evaluate_roots(roots, &mut symbols, |rule| {
         guards.set(guards.get() + 1);
         if rule == RuleIndex(4) && matches!(exit, Exit::CancelledDelivery) {
             Err(OperatingError::NotRead)

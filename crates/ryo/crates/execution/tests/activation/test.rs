@@ -1,6 +1,6 @@
 //! Actual derived activation visits and allocator blocks exclude dormant compiled roots.
 mod fixtures;
-use fixtures::{Sample, measure};
+use fixtures::{Access, Sample, measure, measure_project};
 use ryo_execution::inbound::use_cases::execution::types::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
@@ -16,6 +16,9 @@ enum Input {
     Mixed,
     TailSelectors,
     Dense,
+    ProjectSparse,
+    ProjectDense,
+    ProjectUncounted,
 }
 fn same_cost(left: Sample, right: Sample) {
     assert_eq!(left.work, right.work);
@@ -28,6 +31,10 @@ fn same_cost(left: Sample, right: Sample) {
         left.bytes, right.bytes,
         "dormant roots cannot grow activation allocations"
     );
+}
+/// Equal counted accesses, work and allocations: nothing but the demanded roots was touched.
+fn project_cost_matches(left: (Sample, Access), right: (Sample, Access)) -> bool {
+    left.0 == right.0 && left.1.reads == right.1.reads && left.1.scanned == right.1.scanned
 }
 fn subject(input: Input) -> Result<(), OperatingError> {
     const TOTAL: usize = 131;
@@ -103,6 +110,60 @@ fn subject(input: Input) -> Result<(), OperatingError> {
                 "the oracle must falsify dense processing"
             );
         }
+        Input::ProjectSparse => {
+            let small = measure_project(3, &[1], &|_| {});
+            let tail = measure_project(131, &[129], &|_| {});
+            assert!(
+                small.1.reads > 0 && tail.1.reads > 0,
+                "the demanded project root reads its own metadata"
+            );
+            assert_eq!(small.1.scanned, 0, "no project route scans the rule table");
+            assert_eq!(tail.1.scanned, 0, "no project route scans the rule table");
+            assert_eq!(small.1.read_rules, small.1.reads);
+            assert_eq!(
+                tail.1.read_rules,
+                129 * tail.1.reads,
+                "every counted access names the demanded rule, never a dormant one"
+            );
+            assert_eq!(small.1.reads, tail.1.reads);
+            same_cost(small.0, tail.0);
+        }
+        Input::ProjectDense => {
+            let sparse = measure_project(131, &[0], &|_| {});
+            let dense = measure_project(131, &(0..131).collect::<Vec<_>>(), &|_| {});
+            assert!(dense.1.reads > sparse.1.reads);
+            assert!(dense.0.blocks > sparse.0.blocks && dense.0.bytes > sparse.0.bytes);
+            let sparse_holds = |sample: (Sample, Access)| {
+                sample.1.reads == sparse.1.reads
+                    && sample.1.scanned == sparse.1.scanned
+                    && sample.0.blocks <= sparse.0.blocks
+                    && sample.0.bytes <= sparse.0.bytes
+            };
+            assert!(sparse_holds(sparse));
+            assert!(
+                !sparse_holds(dense),
+                "the oracle must falsify dense project processing"
+            );
+        }
+        Input::ProjectUncounted => {
+            // A scan over every dormant rule that reports no counter. Only the
+            // independent allocation measurement can see it.
+            let scan = |total: usize| {
+                std::hint::black_box((0..total).map(|rule| vec![rule]).collect::<Vec<_>>());
+            };
+            let small = measure_project(3, &[1], &|_| {});
+            let honest = measure_project(131, &[129], &|_| {});
+            let uncounted = measure_project(131, &[129], &scan);
+            assert_eq!(
+                honest.1, uncounted.1,
+                "the uncounted scan leaves every counter unchanged"
+            );
+            assert!(project_cost_matches(small, honest));
+            assert!(
+                !project_cost_matches(small, uncounted),
+                "allocation measurement must detect an uncounted dormant scan"
+            );
+        }
     }
     Ok(())
 }
@@ -155,11 +216,34 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         input: || Input::Dense,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName(
+            "project_roots_cost_the_same_actual_work_and_allocations_with_128_dormant_roots",
+        ),
+        word: Word::Succeeds,
+        input: || Input::ProjectSparse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "actual_dense_project_submission_is_rejected_by_the_sparse_work_and_allocation_oracle",
+        ),
+        word: Word::Succeeds,
+        input: || Input::ProjectDense,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_uncounted_dormant_project_scan_is_detected_by_allocation"),
+        word: Word::Succeeds,
+        input: || Input::ProjectUncounted,
+        expect: Expect::Value(()),
+    },
 ];
 fn main() {
     // This target is alone in its process; assertions count blocks and bytes,
     // never elapsed time. Request compilation and full intent binding precede
-    // the observed derived activation boundary and are outside this claim.
+    // the observed derived activation boundary and are outside this claim; the
+    // project cases observe phase opening through the last root delivery.
     let _profiler = dhat::Profiler::builder().testing().build();
     let selected = std::env::args().nth(1);
     let mut executed = 0;

@@ -6,7 +6,7 @@ use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime::ProjectFrontiers;
-use crate::application::file_dag::program::facade_runtime::ProjectRootDeclaration;
+use crate::application::file_dag::program::facade_runtime::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::evaluate_roots;
 use crate::application::file_dag::program::protocol::types::ProjectBatch;
 use crate::domain::{
@@ -120,17 +120,21 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         runs.iter().all(Result::is_ok),
         "all submitted project owners bind before scheduling"
     );
-    let declarations: Vec<_> = (0..4)
-        .map(|at| ProjectRootDeclaration {
+    let demand = RuleDemand {
+        emit: EmitDemand::Enabled,
+        observations: ObservationDemand::NotRequired,
+    };
+    let roots: Vec<_> = runs
+        .into_iter()
+        .enumerate()
+        .map(|(at, run)| ProjectRoot {
             rule: RuleIndex(at),
-            demand: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            demand,
+            run,
         })
         .collect();
     let guards = std::cell::Cell::new(0);
-    let result = evaluate_roots(runs, &declarations, &mut symbols, |rule| {
+    let result = evaluate_roots(roots, &mut symbols, |rule| {
         guards.set(guards.get() + 1);
         if matches!(exit, PhaseExit::RefuseBeforeWork)
             || (matches!(exit, PhaseExit::RefuseLaterCohort) && rule == RuleIndex(3))
@@ -280,7 +284,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                 Arc::clone(&services),
             )?;
             for _ in 0..2 {
-                let outcome = replay.rule(RuleIndex(at), declarations[at].demand, &mut symbols)?;
+                let outcome = replay.rule(RuleIndex(at), demand, &mut symbols)?;
                 if at == 3 && matches!(exit, PhaseExit::SemanticFailure) {
                     assert!(
                         matches!(

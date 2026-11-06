@@ -121,6 +121,11 @@ impl PreparedProgram {
         &self,
         rule: RuleIndex,
     ) -> Result<&RuleMetadata, OperatingError> {
+        tracing::trace!(
+            target: crate::application::file_dag::derived::constants::TARGET,
+            event = crate::application::file_dag::derived::constants::RULE_METADATA,
+            rule = rule.0
+        );
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
@@ -270,7 +275,14 @@ impl PreparedProgram {
         self.rules.len()
     }
     pub(crate) fn semantic_needed(&self) -> bool {
-        self.rules.iter().any(|rule| rule.semantic_needed)
+        self.rules.iter().enumerate().any(|(at, rule)| {
+            tracing::trace!(
+                target: crate::application::file_dag::derived::constants::TARGET,
+                event = crate::application::file_dag::derived::constants::RULE_SCAN,
+                rule = at
+            );
+            rule.semantic_needed
+        })
     }
     pub(crate) fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
         let order = match &self.schedule {

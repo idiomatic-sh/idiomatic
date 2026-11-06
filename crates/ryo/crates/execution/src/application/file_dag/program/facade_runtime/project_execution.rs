@@ -488,14 +488,15 @@ impl ProjectRun<'_> {
 
 /// Cohort binding never reads source geometry. Exact immutable source/policy identity
 /// selects a shared state; the existing interpreter remains the only evaluator.
-#[derive(Clone, Copy)]
-pub(crate) struct ProjectRootDeclaration {
+/// A declared root travels with its own run, so a submission cannot omit or add a
+/// run without also omitting or adding its declaration.
+pub(crate) struct ProjectRoot<'a> {
     pub(crate) rule: RuleIndex,
     pub(crate) demand: RuleDemand,
+    pub(crate) run: Result<ProjectRun<'a>, OperatingError>,
 }
 pub(crate) fn evaluate_roots<E>(
-    mut runs: Vec<Result<ProjectRun<'_>, OperatingError>>,
-    declarations: &[ProjectRootDeclaration],
+    mut roots: Vec<ProjectRoot<'_>>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     mut guard: impl FnMut(RuleIndex) -> Result<(), E>,
 ) -> crate::application::file_dag::program::protocol::types::ProjectBatch<
@@ -513,9 +514,9 @@ pub(crate) fn evaluate_roots<E>(
     }
     let mut cohorts = Vec::new();
     let mut by_identity: HashMap<PopulationId, usize> = HashMap::new();
-    let mut memberships = Vec::with_capacity(runs.len());
-    for (run, declaration) in runs.iter_mut().zip(declarations) {
-        let ProjectRootDeclaration { rule, demand } = *declaration;
+    let mut memberships = Vec::with_capacity(roots.len());
+    for ProjectRoot { rule, demand, run } in roots.iter_mut() {
+        let (rule, demand) = (*rule, *demand);
         let membership = match run {
             Ok(run) => (|| {
                 let identity = run.identity(rule)?;
@@ -541,9 +542,8 @@ pub(crate) fn evaluate_roots<E>(
         };
         memberships.push(membership);
     }
-    let mut completed = Vec::with_capacity(runs.len());
-    for ((run, declaration), membership) in runs.into_iter().zip(declarations).zip(memberships) {
-        let ProjectRootDeclaration { rule, demand } = *declaration;
+    let mut completed = Vec::with_capacity(roots.len());
+    for (ProjectRoot { rule, demand, run }, membership) in roots.into_iter().zip(memberships) {
         let requires_guard = match &membership {
             Ok(index) => matches!(cohorts[*index].roots, RootSet::Pending(_)),
             Err(_) => true,

@@ -1,5 +1,6 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
 use super::super::source_facts::fixtures::ProjectFacts;
+use super::fixtures::{Entry, Root, submit};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, prepared, source};
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
@@ -239,4 +240,60 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
     ));
     file.finish().unwrap();
     request.finish();
+}
+
+fn root(rule: usize) -> Root {
+    Root {
+        declared: rule,
+        named: rule,
+    }
+}
+
+#[test]
+fn an_omitted_declared_root_gets_no_outcome_and_no_guard_and_every_submitted_root_gets_one() {
+    let engine = engine();
+    let all = [root(0), root(1), root(2)];
+    for count in 0..=all.len() {
+        let submitted = submit(&engine, Entry::Phase, 3, &all[..count], None);
+        assert!(submitted.refused.is_none());
+        assert_eq!(
+            submitted.outcomes.len(),
+            count,
+            "one outcome per submitted root, none invented for the rest"
+        );
+        assert!(submitted.outcomes.iter().all(Result::is_ok));
+    }
+    let omitted = submit(&engine, Entry::Phase, 3, &[root(0), root(2)], None);
+    assert_eq!(omitted.outcomes.len(), 2);
+    assert!(
+        !omitted.guarded.contains(&RuleIndex(1)),
+        "the omitted root is never admitted, guarded or delivered"
+    );
+}
+
+#[test]
+fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
+    let engine = engine();
+    let extra = Root {
+        declared: 0,
+        named: 3,
+    };
+    let submitted = submit(&engine, Entry::Phase, 3, &[root(0), extra, root(2)], None);
+    assert!(submitted.refused.is_none());
+    assert_eq!(submitted.outcomes.len(), 3, "the extra root keeps its own slot");
+    assert!(submitted.outcomes[0].is_ok());
+    assert!(
+        matches!(submitted.outcomes[1], Err(OperatingError::NotRun)),
+        "a rule the program never declared is a typed refusal"
+    );
+    assert!(submitted.outcomes[2].is_ok());
+
+    let guarded = submit(&engine, Entry::Phase, 3, &[root(0), extra, root(2)], Some(RuleIndex(3)));
+    assert!(matches!(guarded.refused, Some(OperatingError::WrongBinding)));
+    assert_eq!(
+        guarded.outcomes.len(),
+        1,
+        "refusal at the extra root completes only the roots declared before it"
+    );
+    assert!(!guarded.guarded.contains(&RuleIndex(2)));
 }

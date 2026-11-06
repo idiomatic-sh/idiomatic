@@ -1,6 +1,9 @@
+// ignore: idiomatic.arch/file-length - the file and project measurements share one private subscriber and one heap-window state; splitting would widen that state to a second module.
 //! Real public file opening, observed without allocating in the activation subscriber.
 use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
+    interface::{
+        ExecutionRequest, ExecutionUseCase, FileExecution, ProjectRootExecution, ProjectStage,
+    },
     types::*,
     use_case::ExecutionUseCaseImpl,
 };
@@ -9,7 +12,7 @@ use ryo_language::domain::{
 };
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{CellKind, FileId, Relation},
+    types::{CellKind, ColumnsView, FileId, Relation},
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
@@ -21,7 +24,7 @@ use ryo_values::domain::{
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
-    stored_facts::types::Digest,
+    stored_facts::types::{Bucket, Digest},
 };
 use std::{
     cell::Cell,
@@ -39,6 +42,16 @@ pub(super) struct Sample {
     pub blocks: u64,
     pub bytes: u64,
 }
+/// Per-rule accesses to private prepared metadata, counted at their only accessors.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Access {
+    /// Single-rule metadata reads.
+    pub reads: u64,
+    /// Sum of the rule indices those reads named.
+    pub read_rules: u64,
+    /// Rules visited by scans over the whole prepared rule table.
+    pub scanned: u64,
+}
 #[derive(Default)]
 struct State {
     active: bool,
@@ -46,6 +59,7 @@ struct State {
     ends: usize,
     before: (u64, u64),
     sample: Sample,
+    access: Access,
 }
 // Field values borrow an event only while Visit runs; the event name is copied
 // to a small ordinal instead of storing an event-owned string.
@@ -70,6 +84,8 @@ impl tracing::field::Visit for EventFields {
                 "repetition" => 9,
                 "fanout" => 10,
                 "graph_hit" => 11,
+                "rule_metadata" => 12,
+                "rule_scan" => 13,
                 _ => 0,
             };
         }
@@ -109,6 +125,7 @@ impl tracing::Subscriber for Activation {
             let heap = dhat::HeapStats::get();
             state.before = (heap.total_blocks, heap.total_bytes);
             state.sample = Sample::default();
+            state.access = Access::default();
             state.starts += 1;
             state.active = true;
         } else if fields.event == 2 {
@@ -118,6 +135,11 @@ impl tracing::Subscriber for Activation {
             state.sample.bytes = heap.total_bytes - state.before.1;
             state.ends += 1;
             state.active = false;
+        } else if state.active && fields.event == 12 {
+            state.access.reads += 1;
+            state.access.read_rules += fields.rule;
+        } else if state.active && fields.event == 13 {
+            state.access.scanned += 1;
         } else if state.active && fields.event == 11 {
             state.sample.graph_hits += 1;
         } else if state.active && (3..=10).contains(&fields.event) {
@@ -199,45 +221,9 @@ fn plan(index: usize) -> Plan {
 
 /// Only declared relevant intents change; the installed engine and public entry stay identical.
 pub(super) fn measure(total: usize, demanded: &[usize]) -> Sample {
-    let engine = ExecutionUseCaseImpl::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
-    let prepared = engine
-        .prepare(PreparedRequest {
-            plans: (0..total).map(plan).collect(),
-            bindings: vec![vec![]; total],
-            rules: (0..total)
-                .map(|index| RuleSpec {
-                    id: RuleId(format!("activation-{index}").into()),
-                    query: QueryBundle {
-                        root: QueryDocumentSource {
-                            id: QuerySourceId(format!("activation-{index}").into()),
-                            text: "".into(),
-                        },
-                        modules: Default::default(),
-                    },
-                    applicability: RuleApplicability::Always,
-                    given: vec![],
-                    observations: vec![],
-                    spelled: RuleParameters("".into()),
-                    include: vec![],
-                    exclude: vec![],
-                })
-                .collect(),
-            digests: (0..total).map(|index| Digest([index as u8; 16])).collect(),
-            hosted: vec![],
-            observations: ObservationIdentity::Independent,
-        })
-        .unwrap();
-    let corpus = [CorpusInput::Available(CorpusEntry {
-        executable: ExecutablePermission::Unknown,
-        path: FilePath("activation.fixture".into()),
-        size: FileSize(0),
-        modified: Nanoseconds(0),
-    })];
+    let engine = engine();
+    let prepared = prepared(&engine, total);
+    let corpus = corpus();
     let request = engine.begin(&prepared, &corpus);
     let mut intents = vec![FileRuleIntent::Undemanded; total];
     for &index in demanded {
@@ -287,4 +273,170 @@ pub(super) fn measure(total: usize, demanded: &[usize]) -> Sample {
     let state = observed.0.lock().unwrap();
     assert_eq!((state.starts, state.ends, state.active), (2, 2, false));
     state.sample
+}
+fn engine() -> ExecutionUseCaseImpl {
+    ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    )
+}
+fn corpus() -> [CorpusInput; 1] {
+    [CorpusInput::Available(CorpusEntry {
+        executable: ExecutablePermission::Unknown,
+        path: FilePath("activation.fixture".into()),
+        size: FileSize(0),
+        modified: Nanoseconds(0),
+    })]
+}
+fn prepared(engine: &ExecutionUseCaseImpl, total: usize) -> PreparedProgram {
+    engine
+        .prepare(PreparedRequest {
+            plans: (0..total).map(plan).collect(),
+            bindings: vec![vec![]; total],
+            rules: (0..total)
+                .map(|index| RuleSpec {
+                    id: RuleId(format!("activation-{index}").into()),
+                    query: QueryBundle {
+                        root: QueryDocumentSource {
+                            id: QuerySourceId(format!("activation-{index}").into()),
+                            text: "".into(),
+                        },
+                        modules: Default::default(),
+                    },
+                    applicability: RuleApplicability::Always,
+                    given: vec![],
+                    observations: vec![],
+                    spelled: RuleParameters("".into()),
+                    include: vec![],
+                    exclude: vec![],
+                })
+                .collect(),
+            digests: (0..total).map(|index| Digest([index as u8; 16])).collect(),
+            hosted: vec![],
+            observations: ObservationIdentity::Independent,
+        })
+        .unwrap()
+}
+
+/// Compiled frontiers are empty, so no source row or kept bucket may be requested.
+struct NoFacts;
+impl facts::FactsFinish for NoFacts {
+    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+        panic!("an activation rule has no file frontier to fetch")
+    }
+}
+impl facts::FactsWorker for NoFacts {
+    fn resident_stability(&self) -> facts::ResidentStability {
+        facts::ResidentStability::Stable
+    }
+    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, facts::FactsError> {
+        panic!("an activation rule has no project relation to read")
+    }
+    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+        panic!("an activation rule writes no facts")
+    }
+    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+        panic!("an activation rule writes no facts")
+    }
+    fn release(&mut self) -> Result<(), facts::FactsError> {
+        panic!("an activation rule writes no facts")
+    }
+    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+        panic!("an activation rule writes no facts")
+    }
+}
+
+/// The public project entry for the declared roots in `demanded` (ascending), observed from
+/// phase opening to the last delivery. `intrusion` runs inside the observed window and stands
+/// for work no production counter reports; the allocator still sees what it allocates.
+pub(super) fn measure_project(
+    total: usize,
+    demanded: &[usize],
+    intrusion: &dyn Fn(usize),
+) -> (Sample, Access) {
+    let engine = engine();
+    let prepared = prepared(&engine, total);
+    let corpus = corpus();
+    let covered = [Covered {
+        file: FileId(0),
+        rules: demanded.iter().copied().map(RuleIndex).collect(),
+        partial: vec![],
+    }];
+    let observed = Activation::default();
+    let dispatch = tracing::Dispatch::new(observed.clone());
+    let project_symbols = Symbols::default();
+    // The first cycle warms callsite registration and allocator metadata; the second
+    // sees exactly the same real request and declared roots.
+    for _ in 0..2 {
+        let request = engine.begin(&prepared, &corpus);
+        let partials = Partials::default();
+        let mut symbols = Symbols::default();
+        tracing::dispatcher::with_default(&dispatch, || {
+            tracing::trace!(target: "ryo::diagnostic::activation", event = "begin");
+            let phase = request.project_phase().unwrap();
+            let mut scopes = Vec::with_capacity(demanded.len());
+            let mut frontiers = Vec::with_capacity(demanded.len());
+            for &rule in demanded {
+                let scope = phase
+                    .project_scope(RuleIndex(rule), &corpus, &covered, &[])
+                    .unwrap();
+                frontiers.push(
+                    request
+                        .prepare_frontiers(
+                            FrontierRequest {
+                                demand: FrontierDemand::Diagnostic,
+                                scope: &scope,
+                                rule: RuleIndex(rule),
+                                first: Bucket(0),
+                                facts: &NoFacts,
+                                project: &NoFacts,
+                                project_symbols: &project_symbols,
+                            },
+                            &mut symbols,
+                        )
+                        .unwrap(),
+                );
+                scopes.push(scope);
+            }
+            let tasks = demanded
+                .iter()
+                .zip(&scopes)
+                .zip(frontiers)
+                .map(|((&rule, scope), ordinary)| ProjectTask {
+                    rule: RuleIndex(rule),
+                    demand: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    input: ProjectInput {
+                        scope,
+                        evaluation: &partials,
+                        publication: &partials,
+                        ordinary,
+                        bound: &[],
+                        arenas: &[],
+                    },
+                })
+                .collect();
+            let ProjectBatch::Complete(outcomes) =
+                phase.evaluate(tasks, &mut symbols, |_| Ok::<(), std::convert::Infallible>(()))
+            else {
+                panic!("an infallible guard cannot refuse")
+            };
+            assert_eq!(outcomes.len(), demanded.len());
+            for outcome in outcomes {
+                outcome.unwrap();
+            }
+            intrusion(total);
+            tracing::trace!(target: "ryo::diagnostic::activation", event = "end");
+            drop(scopes);
+            phase.finish().unwrap();
+        });
+        request.finish();
+    }
+    let state = observed.0.lock().unwrap();
+    assert_eq!((state.starts, state.ends, state.active), (2, 2, false));
+    (state.sample, state.access)
 }

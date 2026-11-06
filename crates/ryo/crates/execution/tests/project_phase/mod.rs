@@ -312,7 +312,7 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
     }
 }
 
-mod negative;
+pub(crate) mod negative;
 
 /// Migration control for the old pipeline proof's invalid schema and arbitrary cross-file hashes.
 /// Every grouped name below is obtained from a real captured Function population.
