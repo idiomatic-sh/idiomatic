@@ -1,10 +1,16 @@
 //! Compiler directives: `from __future__` imports are valid only in a module prefix, and only known features enable a mode.
 
-use super::types::SemanticSyntaxDiagnostic;
+use super::constants::{
+    BRACES, FUTURE, FUTURE_FEATURE_NOT_DEFINED, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED,
+    UNKNOWN_FEATURE,
+};
+use super::types::{ParserRefusal, Said, SemanticSyntaxDiagnostic};
 use ruff_python_ast::Stmt;
+use ruff_python_ast::token::{TokenKind, Tokens};
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
-use ruff_text_size::Ranged as _;
-use ryo::languages::{DiagnosticCode, DiagnosticPhase, TreeImpact};
+use ruff_python_ast::{StmtImportFrom, StmtTry};
+use ruff_text_size::{Ranged, TextRange};
+use ryo::languages::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact};
 use std::collections::HashSet;
 
 struct FutureImports<'a> {
@@ -99,4 +105,53 @@ pub(super) fn module_future_annotations(
         visitor.visit_stmt(statement);
     }
     visitor.enabled && visitor.valid
+}
+
+/// Where `CPython`'s parser refuses a `try` the library reads without an error: an `else` with no `except` before it (`CPython`: "expected
+/// 'except' or 'finally' block", at the `else`). The library refuses a `try` with neither `except` nor `finally`, and nothing else
+/// of this.
+#[must_use]
+pub(super) fn else_without_except(statement: &StmtTry, tokens: &Tokens) -> Option<TextRange> {
+    if !statement.handlers.is_empty() {
+        return None;
+    }
+    let from = statement.body.last().map_or(statement.start(), Ranged::end);
+    let to = statement.orelse.first()?.start();
+    tokens
+        .in_range(TextRange::new(from, to))
+        .iter()
+        .find(|token| token.kind() == TokenKind::Else)
+        .map(Ranged::range)
+}
+
+/// Where `CPython`'s parser refuses a feature of `from __future__ import ...` it does not know, and what it says: each alias whose
+/// name is none of `__future__`'s features. The library reads any name there without an error.
+pub(super) fn unknown_futures(
+    statement: &StmtImportFrom,
+) -> impl Iterator<Item = ParserRefusal> + '_ {
+    let future = statement.level == 0
+        && statement
+            .module
+            .as_ref()
+            .is_some_and(|module| module.as_str() == FUTURE);
+    statement
+        .names
+        .iter()
+        .filter(move |alias| future && !FUTURE_FEATURES.contains(&alias.name.as_str()))
+        .map(|alias| {
+            let said = if alias.name.as_str() == BRACES {
+                NOT_A_CHANCE.to_owned()
+            } else {
+                format!("{UNKNOWN_FEATURE}{}{NOT_DEFINED}", alias.name.as_str())
+            };
+            ParserRefusal {
+                at: alias.name.range(),
+                said: Said(said),
+                metadata: DiagnosticMetadata::new(
+                    DiagnosticPhase::Validation,
+                    TreeImpact::Preserved,
+                    FUTURE_FEATURE_NOT_DEFINED,
+                ),
+            }
+        })
 }

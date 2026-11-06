@@ -1,8 +1,8 @@
 //! Serialize native and embedded AST occurrences through one source-order writer.
 use super::constants::{ELSE_WITHOUT_EXCEPT, ELSE_WITHOUT_EXCEPT_CODE};
-use super::schemas::{
-    concrete_node_kind, decoded_of, else_without_except, opens, token_kind, unknown_futures,
-};
+use super::future::{else_without_except, unknown_futures};
+use super::lexical::{decoded_of, opens};
+use super::schemas::{concrete_node_kind, token_kind};
 use super::types::{
     AnnotationCandidate, AnnotationContext, Decoded, Depth, ParserRefusal, Said, Strings,
     TokenIndex, Writer,

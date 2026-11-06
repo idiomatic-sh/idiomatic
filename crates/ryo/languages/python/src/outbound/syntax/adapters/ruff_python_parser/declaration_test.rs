@@ -1,6 +1,7 @@
 //! Compiler declaration validity is independent of stub typing or future recovery.
 
 use super::adapter::SyntaxRuffPythonParserAdapter;
+use super::declaration::semantic_syntax_errors;
 use super::fixtures::diagnostics::{diagnostics, diagnostics_at, diagnostics_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::interface::SyntaxPort as _;
@@ -140,9 +141,27 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
     }
 }
 
+/// A module that declares no name, parameter or scope reports nothing.
+fn a_module_without_declarations_reports_no_semantic_syntax_error() {
+    let parsed = ruff_python_parser::parse_unchecked(
+        "value = 1\n",
+        ruff_python_parser::ParseOptions::from(ruff_python_ast::PySourceType::Python),
+    );
+    assert!(
+        semantic_syntax_errors(
+            parsed.syntax(),
+            ruff_python_ast::PythonVersion::PY314,
+            false
+        )
+        .is_empty()
+    );
+}
+
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Body {
+    /// The case `a_module_without_declarations_reports_no_semantic_syntax_error`.
+    AModuleWithoutDeclarationsReportsNoSemanticSyntaxError,
     /// The case `comprehension_rebinding_preserves_ast_and_respects_lambda_scope`.
     ComprehensionRebindingPreservesAstAndRespectsLambdaScope,
     /// The case `conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources`.
@@ -155,6 +174,12 @@ enum Body {
 
 /// The rows of the cases whose bodies assert for themselves.
 const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("a_module_without_declarations_reports_no_semantic_syntax_error"),
+        word: Word::Succeeds,
+        input: || Body::AModuleWithoutDeclarationsReportsNoSemanticSyntaxError,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("comprehension_rebinding_preserves_ast_and_respects_lambda_scope"),
         word: Word::Succeeds,
@@ -200,6 +225,9 @@ const BODIES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
+        Body::AModuleWithoutDeclarationsReportsNoSemanticSyntaxError => {
+            a_module_without_declarations_reports_no_semantic_syntax_error()
+        }
         Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope => {
             comprehension_rebinding_preserves_ast_and_respects_lambda_scope()
         }

@@ -1,4 +1,3 @@
-// the one `_ =>` arm of this adapter is in `decoded_of`, a match over the library's hundred-odd node kinds whose answer is the text the library decoded, `Option<Decoded>`, not a domain enum: only two kinds carry such text, so a kind the library gains has none until it is named, and naming each of the others would be a hundred arms that all say None
 //! The library's kinds mapped onto the language's, the standards' names: every node kind of `ruff_python_ast` onto the `CPython` `ast`
 //! kind it stands for, or onto the closed list of the extras the standard lacks; every token kind of its lexer onto the name of
 //! Python's `token` module, a keyword being a `NAME`. Both matches have no wildcard arm, so a kind the library gains is a compile
@@ -13,26 +12,13 @@
 //!   a parameter with its default, type parameter brackets, class pattern arguments and keywords, and the parts of an implicit
 //!   concatenation.
 
-use ruff_python_ast::NodeKind as RuffNode;
-use ruff_python_ast::{StmtImportFrom, StmtTry};
-
-use super::constants::FUTURE_FEATURE_NOT_DEFINED;
-use super::constants::{
-    BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE, UNREADABLE,
-};
-use ruff_python_ast::token::{TokenKind, Tokens};
-use ruff_text_size::{Ranged, TextRange};
-
+use super::types::Strings;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-
-use super::types::{ByteIndex, Decoded, ParserRefusal, Readable, Said, Strings};
-use crate::outbound::syntax::types::SourceText;
-use ruff_python_ast::AnyNodeRef;
-use ryo::languages::{DiagnosticMetadata, DiagnosticPhase, Offset, TreeImpact};
-use std::borrow::Cow;
+use ruff_python_ast::token::TokenKind;
+use ruff_python_ast::{AnyNodeRef, NodeKind as RuffNode};
 
 /// A kind of node of the library's tree, and the kind of string an interpolation inside it is in.
 pub(super) struct NodeSchema {
@@ -397,104 +383,6 @@ pub(super) fn token_kind(kind: TokenKind) -> Kind {
     Kind::from(TokenSchema(kind))
 }
 
-/// The kind of string a node of the library opens, for the interpolations inside it: an f-string or a format spec, a t-string, or
-/// none. The standard's format spec is a `JoinedStr` in a t-string too: what it interpolates is a `FormattedValue`.
-#[must_use]
-pub(super) const fn opens(kind: RuffNode) -> Option<Strings> {
-    if matches!(kind, RuffNode::ExprTString) {
-        Some(Strings::Template)
-    } else if matches!(
-        kind,
-        RuffNode::ExprFString | RuffNode::InterpolatedStringFormatSpec
-    ) {
-        Some(Strings::Formatted)
-    } else {
-        None
-    }
-}
-
-/// Where `CPython`'s parser refuses a `try` the library reads without an error: an `else` with no `except` before it (`CPython`: "expected
-/// 'except' or 'finally' block", at the `else`). The library refuses a `try` with neither `except` nor `finally`, and nothing else
-/// of this.
-#[must_use]
-pub(super) fn else_without_except(statement: &StmtTry, tokens: &Tokens) -> Option<TextRange> {
-    if !statement.handlers.is_empty() {
-        return None;
-    }
-    let from = statement.body.last().map_or(statement.start(), Ranged::end);
-    let to = statement.orelse.first()?.start();
-    tokens
-        .in_range(TextRange::new(from, to))
-        .iter()
-        .find(|token| token.kind() == TokenKind::Else)
-        .map(Ranged::range)
-}
-
-/// Where `CPython`'s parser refuses a feature of `from __future__ import ...` it does not know, and what it says: each alias whose
-/// name is none of `__future__`'s features. The library reads any name there without an error.
-pub(super) fn unknown_futures(
-    statement: &StmtImportFrom,
-) -> impl Iterator<Item = ParserRefusal> + '_ {
-    let future = statement.level == 0
-        && statement
-            .module
-            .as_ref()
-            .is_some_and(|module| module.as_str() == FUTURE);
-    statement
-        .names
-        .iter()
-        .filter(move |alias| future && !FUTURE_FEATURES.contains(&alias.name.as_str()))
-        .map(|alias| {
-            let said = if alias.name.as_str() == BRACES {
-                NOT_A_CHANCE.to_owned()
-            } else {
-                format!("{UNKNOWN_FEATURE}{}{NOT_DEFINED}", alias.name.as_str())
-            };
-            ParserRefusal {
-                at: alias.name.range(),
-                said: Said(said),
-                metadata: DiagnosticMetadata::new(
-                    DiagnosticPhase::Validation,
-                    TreeImpact::Preserved,
-                    FUTURE_FEATURE_NOT_DEFINED,
-                ),
-            }
-        })
-}
-
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
-
-/// The text the library reads for `bytes`: the bytes themselves when they are UTF-8, or else each byte that is not part of a
-/// character replaced by one the lexer cannot read, so every offset is the file's.
-pub(super) fn readable(bytes: SourceText<'_>) -> Readable<'_> {
-    if let Ok(text) = std::str::from_utf8(bytes.0) {
-        return Readable(Cow::Borrowed(text));
-    }
-    let mut text = String::with_capacity(bytes.0.len());
-    for chunk in bytes.0.utf8_chunks() {
-        text.push_str(chunk.valid());
-        text.extend(chunk.invalid().iter().map(|_| UNREADABLE));
-    }
-    Readable(Cow::Owned(text))
-}
-
-/// The text the library decoded for the tokens of a node: a string's value, or the literal part of an f-string's or a t-string's. Only
-/// these two kinds of the library's nodes carry it; every other kind carries none.
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "only the nodes of a string's text carry what the library decoded; the other ninety-odd kinds carry nothing, and a kind the library gains carries nothing until it is named here"
-)]
-pub(super) fn decoded_of(node: AnyNodeRef<'_>) -> Option<Decoded<'_>> {
-    match node {
-        AnyNodeRef::StringLiteral(literal) => Some(Decoded(&literal.value)),
-        AnyNodeRef::InterpolatedStringLiteralElement(element) => Some(Decoded(&element.value)),
-        _ => None,
-    }
-}
-
-/// The offset of a byte index of the text.
-pub(super) fn offset(index: ByteIndex) -> Offset {
-    Offset(u32::try_from(index.0).unwrap_or(u32::MAX))
-}

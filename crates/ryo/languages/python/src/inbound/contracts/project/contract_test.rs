@@ -3,6 +3,7 @@
 //! for.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::contract::ProjectContract;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -10,6 +11,7 @@ use crate::domain::language::service::reads;
 use crate::fixtures::projects::notes_of;
 use crate::outbound::manifest_reading::fixtures::fake::ManifestReadingFake;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
+use crate::outbound::module_context::interface::ModuleContextPort;
 use crate::outbound::notes::factory::postcard;
 use ryo::languages::{self, Project as _};
 
@@ -154,80 +156,64 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
     ))
 }
 
-/// Which of the file's cases a row runs.
-#[derive(Clone, Copy, Debug)]
-enum Body {
-    /// The case `primary_metadata_rejection_keeps_real_dependency_projection`.
-    PrimaryMetadataRejectionKeepsRealDependencyProjection,
-    /// The case `metadata_rejection_and_dependency_refusal_have_independent_applicability`.
-    MetadataRejectionAndDependencyRefusalHaveIndependentApplicability,
-    /// The case `module_identity_only_preserves_inputs_without_projecting_or_validating`.
-    ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating,
-    /// The case `positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots`.
-    PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
+/// The readers of a run whose only manifest tool is pep621.
+fn pep(_: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
+    vec![Arc::new(
+        crate::outbound::manifest_reading::factory::pep621(),
+    )]
 }
 
-/// The rows of the cases whose bodies assert for themselves.
-const BODIES: &[Case<Body, (), ()>] = &[
-    Case {
-        name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
-        word: Word::Succeeds,
-        input: || Body::PrimaryMetadataRejectionKeepsRealDependencyProjection,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
-        word: Word::Succeeds,
-        input: || Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
-        word: Word::Succeeds,
-        input: || Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots",
-        ),
-        word: Word::Succeeds,
-        input: || Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
-    match given {
-        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
-            primary_metadata_rejection_keeps_real_dependency_projection()
-        }
-        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => {
-            metadata_rejection_and_dependency_refusal_have_independent_applicability()
-        }
-        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => {
-            module_identity_only_preserves_inputs_without_projecting_or_validating()
-        }
-        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => {
-            positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots()
-        }
+#[derive(Default)]
+struct ReaderOutcome {
+    rows: usize,
+    partial: Vec<String>,
+}
+impl<Row> languages::Rows<Row> for ReaderOutcome {
+    fn write(&mut self, _row: Row) {
+        self.rows += 1;
     }
-    Ok(())
+    fn partial(&mut self, cause: languages::ReportText<'_>, _missing: languages::Missing) {
+        self.partial.push(cause.0.to_owned());
+    }
+    fn partial_at(
+        &mut self,
+        _file: languages::FileId,
+        cause: languages::ReportText<'_>,
+        missing: languages::Missing,
+    ) {
+        <Self as languages::Rows<Row>>::partial(self, cause, missing);
+    }
 }
 
-#[test]
-fn succeeds() {
-    run(BODIES, Word::Succeeds, body);
-    run(CASES, Word::Succeeds, subject);
+/// A module context that counts the lookups it answers and checks the request it is given.
+struct ContextProbe {
+    inner: Arc<dyn ModuleContextPort>,
+    seen: Arc<AtomicUsize>,
+}
+impl ModuleContextPort for ContextProbe {
+    fn resolve(
+        &self,
+        request: &languages::ProjectRequest,
+    ) -> Result<crate::domain::module_context::types::ModuleContexts, languages::ProjectError> {
+        assert_eq!(request.manifests.len(), 1);
+        assert_eq!(
+            request.manifests[0].text.0.as_ref(),
+            "not TOML: projection must not be attempted"
+        );
+        self.seen.fetch_add(1, Ordering::Relaxed);
+        self.inner.resolve(request)
+    }
+}
+/// The readers of a run that must build none for a module identity request.
+fn no_projection(manifests: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
+    assert!(
+        manifests.is_empty(),
+        "only initial declared-name discovery may build these readers"
+    );
+    vec![Arc::new(ManifestReadingFake)]
 }
 
 fn primary_metadata_rejection_keeps_real_dependency_projection() {
-    fn pep(_: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
-        vec![Arc::new(
-            crate::outbound::manifest_reading::factory::pep621(),
-        )]
-    }
     let contract = ProjectContract::new(
         pep,
         Arc::new(postcard()),
@@ -278,11 +264,6 @@ fn primary_metadata_rejection_keeps_real_dependency_projection() {
 }
 
 fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
-    fn pep(_: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
-        vec![Arc::new(
-            crate::outbound::manifest_reading::factory::pep621(),
-        )]
-    }
     let contract = ProjectContract::new(
         pep,
         Arc::new(postcard()),
@@ -363,57 +344,7 @@ fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
     assert!(unrelated.refused.is_empty());
 }
 
-#[derive(Default)]
-struct ReaderOutcome {
-    rows: usize,
-    partial: Vec<String>,
-}
-impl<Row> languages::Rows<Row> for ReaderOutcome {
-    fn write(&mut self, _row: Row) {
-        self.rows += 1;
-    }
-    fn partial(&mut self, cause: languages::ReportText<'_>, _missing: languages::Missing) {
-        self.partial.push(cause.0.to_owned());
-    }
-    fn partial_at(
-        &mut self,
-        _file: languages::FileId,
-        cause: languages::ReportText<'_>,
-        missing: languages::Missing,
-    ) {
-        <Self as languages::Rows<Row>>::partial(self, cause, missing);
-    }
-}
-
 fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
-    use crate::outbound::module_context::interface::ModuleContextPort;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    struct ContextProbe {
-        inner: Arc<dyn ModuleContextPort>,
-        seen: Arc<AtomicUsize>,
-    }
-    impl ModuleContextPort for ContextProbe {
-        fn resolve(
-            &self,
-            request: &languages::ProjectRequest,
-        ) -> Result<crate::domain::module_context::types::ModuleContexts, languages::ProjectError>
-        {
-            assert_eq!(request.manifests.len(), 1);
-            assert_eq!(
-                request.manifests[0].text.0.as_ref(),
-                "not TOML: projection must not be attempted"
-            );
-            self.seen.fetch_add(1, Ordering::Relaxed);
-            self.inner.resolve(request)
-        }
-    }
-    fn no_projection(manifests: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
-        assert!(
-            manifests.is_empty(),
-            "only initial declared-name discovery may build these readers"
-        );
-        vec![Arc::new(ManifestReadingFake)]
-    }
     let seen = Arc::new(AtomicUsize::new(0));
     let contract = ProjectContract::new(
         no_projection,
@@ -548,4 +479,53 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
             }
         );
     }
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {}
+
+/// The rows of the cases whose bodies assert for themselves.
+const BODIES: &[Case<Body, (), ()>] = &[Case {
+    name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
+    word: Word::Succeeds,
+    input: || Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
+    expect: Expect::Value(()),
+}];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => {
+            positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots()
+        }
+        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => {
+            module_identity_only_preserves_inputs_without_projecting_or_validating()
+        }
+        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => {
+            metadata_rejection_and_dependency_refusal_have_independent_applicability()
+        }
+        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
+            primary_metadata_rejection_keeps_real_dependency_projection()
+        }
+        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
+            primary_metadata_rejection_keeps_real_dependency_projection()
+        }
+        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => {
+            metadata_rejection_and_dependency_refusal_have_independent_applicability()
+        }
+        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => {
+            module_identity_only_preserves_inputs_without_projecting_or_validating()
+        }
+        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => {
+            positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots()
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(BODIES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
 }

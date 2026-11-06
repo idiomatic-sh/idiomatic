@@ -2,8 +2,8 @@
 use super::constants::{INVALID_UTF8, NOT_UTF8, PARSER_ERROR, UNSUPPORTED_SYNTAX};
 use super::declaration::semantic_syntax_errors;
 use super::future::module_future_annotations;
+use super::lexical::{offset, readable};
 use super::options::options;
-use super::schemas::{offset, readable};
 use super::types::{
     AnnotationCandidate, AnnotationContext, ByteIndex, Readable, SemanticSyntaxDiagnostic, Writer,
 };

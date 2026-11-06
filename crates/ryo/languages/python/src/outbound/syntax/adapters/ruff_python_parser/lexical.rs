@@ -1,8 +1,14 @@
 //! Certify lexical facts from the parser's consumed token stream and lexer state errors.
+use super::constants::UNREADABLE;
+use super::types::{ByteIndex, Decoded, Readable, Strings};
+use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::Mod;
 use ruff_python_ast::token::{Token, TokenKind};
+use ruff_python_ast::{AnyNodeRef, NodeKind as RuffNode};
 use ruff_python_parser::{LexicalErrorType, ParseErrorType, Parsed};
 use ruff_text_size::Ranged as _;
+use ryo::languages::Offset;
+use std::borrow::Cow;
 
 /// Parser recovery does not by itself make comment or indentation facts incomplete.
 /// The parser consumes its token source through EOF. An unclosed delimiter reports
@@ -93,4 +99,51 @@ pub(super) fn covered(tokens: &[Token], source: &[u8], delimiter_eof: bool) -> b
     source
         .get(usize::try_from(previous_end).unwrap_or(usize::MAX)..)
         .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace))
+}
+
+/// The text the library reads for `bytes`: the bytes themselves when they are UTF-8, or else each byte that is not part of a
+/// character replaced by one the lexer cannot read, so every offset is the file's.
+pub(super) fn readable(bytes: SourceText<'_>) -> Readable<'_> {
+    if let Ok(text) = std::str::from_utf8(bytes.0) {
+        return Readable(Cow::Borrowed(text));
+    }
+    let mut text = String::with_capacity(bytes.0.len());
+    for chunk in bytes.0.utf8_chunks() {
+        text.push_str(chunk.valid());
+        text.extend(chunk.invalid().iter().map(|_| UNREADABLE));
+    }
+    Readable(Cow::Owned(text))
+}
+
+/// The text the library decoded for the tokens of a node: a string's value, or the literal part of an f-string's or a t-string's. Only
+/// these two kinds of the library's nodes carry it; every other kind carries none.
+pub(super) fn decoded_of(node: AnyNodeRef<'_>) -> Option<Decoded<'_>> {
+    if let AnyNodeRef::StringLiteral(literal) = node {
+        return Some(Decoded(&literal.value));
+    }
+    if let AnyNodeRef::InterpolatedStringLiteralElement(element) = node {
+        return Some(Decoded(&element.value));
+    }
+    None
+}
+
+/// The offset of a byte index of the text.
+pub(super) fn offset(index: ByteIndex) -> Offset {
+    Offset(u32::try_from(index.0).unwrap_or(u32::MAX))
+}
+
+/// The kind of string a node of the library opens, for the interpolations inside it: an f-string or a format spec, a t-string, or
+/// none. The standard's format spec is a `JoinedStr` in a t-string too: what it interpolates is a `FormattedValue`.
+#[must_use]
+pub(super) const fn opens(kind: RuffNode) -> Option<Strings> {
+    if matches!(kind, RuffNode::ExprTString) {
+        Some(Strings::Template)
+    } else if matches!(
+        kind,
+        RuffNode::ExprFString | RuffNode::InterpolatedStringFormatSpec
+    ) {
+        Some(Strings::Formatted)
+    } else {
+        None
+    }
 }
