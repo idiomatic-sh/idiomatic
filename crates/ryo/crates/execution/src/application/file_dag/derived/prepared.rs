@@ -17,7 +17,7 @@ pub(in crate::application::file_dag) struct PreparedDerived {
     pub selector_ranges: Box<[std::ops::Range<usize>]>,
     pub views: Arc<PreparedSelectionViews>,
     pub relations: Box<[Box<[Relation]>]>,
-    pub graph_rules: Box<[RuleIndex]>,
+    pub graph_rules: std::collections::HashSet<RuleIndex>,
 }
 impl PreparedDerived {
     pub(in crate::application::file_dag) fn compile(
@@ -30,7 +30,7 @@ impl PreparedDerived {
         let mut selectors = Vec::new();
         let mut selector_ranges = Vec::with_capacity(program.rules().len());
         let mut relations = Vec::with_capacity(program.rules().len());
-        let mut graph_rules = Vec::with_capacity(program.rules().len());
+        let mut graph_rules = std::collections::HashSet::new();
         for (rule, (mapping, selected)) in program
             .rules()
             .iter()
@@ -94,7 +94,7 @@ impl PreparedDerived {
             selector_ranges.push(first_selector..selectors.len());
             relations.push(reads.into_boxed_slice());
             if graph {
-                graph_rules.push(RuleIndex(rule));
+                graph_rules.insert(RuleIndex(rule));
             }
         }
         Ok(Self {
@@ -102,7 +102,7 @@ impl PreparedDerived {
             selector_ranges: selector_ranges.into_boxed_slice(),
             views: Arc::clone(&prepared.selection_views),
             relations: relations.into_boxed_slice(),
-            graph_rules: graph_rules.into_boxed_slice(),
+            graph_rules,
         })
     }
     pub(in crate::application::file_dag) fn wanted(

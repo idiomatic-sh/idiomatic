@@ -30,10 +30,11 @@ impl DerivedOwner {
         let mut backend =
             super::super::indexes::new(&wanted, partial, super::super::indexes::LIMIT);
         if let Some(cache) = backend.as_mut() {
-            cache.graph_enabled = prepared
-                .graph_rules
+            // Request-wide graph eligibility is indexed once. File activation
+            // examines only its demanded roots, never the full graph-rule inventory.
+            cache.graph_enabled = demanded
                 .iter()
-                .any(|rule| demanded.binary_search(rule).is_ok());
+                .any(|rule| prepared.graph_rules.contains(rule));
             super::super::selection::activate_program(cache, prepared, demanded);
         }
         *self.backend.borrow_mut() = backend;
