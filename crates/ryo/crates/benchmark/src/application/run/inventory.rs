@@ -191,7 +191,7 @@ pub fn verify(
 }
 
 #[cfg(test)]
-#[path = "inventory_tests.rs"]
+#[path = "inventory_test.rs"]
 mod tests;
 
 /// A complete result cannot contradict its pinned canonical profile.
