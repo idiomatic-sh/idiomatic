@@ -365,4 +365,5 @@ mod project_inputs_test;
 
 mod i001_observation_test;
 
-pub mod worker_request_input_test;
+#[cfg(test)]
+mod worker_request_input_test;

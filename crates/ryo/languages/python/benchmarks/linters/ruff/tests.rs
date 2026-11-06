@@ -2,8 +2,8 @@
 mod adapter;
 #[path = "adapter_test.rs"]
 mod adapter_test;
-pub mod constants;
-pub mod engine_test;
+mod constants;
+mod engine_test;
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;

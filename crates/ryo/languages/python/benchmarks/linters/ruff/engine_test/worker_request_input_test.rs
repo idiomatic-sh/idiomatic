@@ -1,5 +1,5 @@
 #[path = "../composition/constants.rs"]
-pub mod constants;
+mod constants;
 use super::constants::{
     ACCEPTED_SYNTAX, ALWAYS, DIAGNOSTIC_RYO, DIAGNOSTIC_UNKNOWN, EXE004, PARSER_CONFIGURATION,
     PROFILE_RYO, PYTHON_TARGET_3_7, PYTHON_TARGET_3_8, PYTHON_TARGET_3_9, PYTHON_TARGET_3_10,
