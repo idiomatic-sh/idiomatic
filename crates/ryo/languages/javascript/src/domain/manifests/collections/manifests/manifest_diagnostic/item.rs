@@ -17,7 +17,7 @@ pub(crate) struct ManifestDiagnosticItem;
 ryo::reads! {
     ManifestDiagnosticItem => languages::ManifestDiagnostic, manifests(Linked) |input, symbols|
     model diagnosed: Vec<Diagnosed> = (Some(diagnoses_in(&input.request.files, packages_in(input)))) {
-        each (&diagnosed) as diagnosis {
+        each (diagnosed) as diagnosis {
             row {
                 file: value(diagnosis.file),
                 span: value(languages::Span { start: languages::Offset(0), end: languages::Offset(0) }),

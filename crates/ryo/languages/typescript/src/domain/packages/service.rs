@@ -3,7 +3,8 @@
 use super::constants::{CURRENT, EMPTY, PACKAGE, PARENT, SEPARATOR, UNRESOLVED_CATALOG};
 use super::types::{
     Containment, Declared, Dependency, Diagnosed, Directory, Fact, ManifestKind, ManifestPath,
-    Package, PackageName, Packages, Projection, RepositoryPath, Requirement, Stage, Version,
+    Package, PackageName, Packages, Projection, ReadAs, RepositoryPath, Requirement, Stage,
+    Version,
 };
 use ryo::languages;
 
