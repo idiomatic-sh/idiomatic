@@ -73,7 +73,6 @@ impl PreparedWalk {
                         self.predicates.push(PreparedPredicate {
                             class: ClassPlace(at),
                             number,
-                            parent,
                             comparison: comparison.clone(),
                         });
                         place
@@ -398,7 +397,6 @@ struct PreparedPredicate {
     /// The class and place that first defined it; meaningful only while building the trie.
     class: ClassPlace,
     number: usize,
-    parent: Option<PredicatePlace>,
     /// Owned, so retention can drop its defining class without invalidating the trie.
     comparison: ryo_values::domain::plan_parts::types::Comparison,
 }

@@ -348,7 +348,7 @@ enum RouteScenario {
     RowsSource,
     RelabelledBarrier,
 }
-const ROUTE_CASES: &[Case<RouteScenario, (), Refusal>] = &[
+const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
     Case {
         name: CaseName("every variant's classifier route matches its meaning"),
         word: Word::Succeeds,

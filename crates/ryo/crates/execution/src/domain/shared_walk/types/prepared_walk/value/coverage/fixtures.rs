@@ -233,7 +233,7 @@ pub(super) const FUNCTION: Relation = Relation::Function;
 pub(super) const EDGES: Relation = Relation::SyntaxChild;
 
 /// Where an instruction's first row comes from, as the walk may route it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(super) enum Route {
     Shared,
     Representation,
