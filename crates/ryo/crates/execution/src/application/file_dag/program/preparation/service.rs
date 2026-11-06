@@ -392,7 +392,9 @@ pub(crate) fn prepare(
         let census = walk.census();
         tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = crate::application::file_dag::program::constants::WALK_CENSUS,
             rules = ?rules.iter().map(|rule| rule.id.0.as_ref()).collect::<Vec<_>>(),
-            instructions = census.instructions.0, shared = census.shared.0,
+            instructions = census.instructions.0,
+            physical_instructions = program.regions().iter().map(|region| region.instructions.len()).sum::<usize>(),
+            shared = census.shared.0,
             classes = census.classes.len(), representation = census.representation.0,
             dependent = census.dependent.0, observation = census.observation.0,
             row = census.row.0, derived = census.derived.0, request = census.request.0,

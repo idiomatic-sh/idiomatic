@@ -242,3 +242,30 @@ fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() {
         Ok(InputSource::Observation(1))
     );
 }
+
+#[test]
+fn shared_walk_census_includes_every_synthetic_observation_union() {
+    let Fixture { plans, graph, operators } = fixture(false);
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
+    let instructions = program.regions().iter().flat_map(|region| region.instructions.iter());
+    let total = instructions.clone().count();
+    let unions = instructions
+        .filter(|instruction| instruction.logical.0 >= program.logical_regions().len())
+        .count();
+    assert_eq!(unions, 2, "both named observation inputs compile a union");
+    assert!(total > program.logical_regions().len());
+    let bindings = vec![vec![]; plans.len()];
+    let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+        &plans, &bindings,
+    );
+    walk.retain_program_consumers(&program, &bindings).unwrap();
+    let census = walk.census();
+    assert_eq!(census.instructions.0, total);
+    assert_eq!(census.observation.0, unions + 2, "union heads and observation consumers");
+    assert_eq!(
+        census.shared.0 + census.representation.0 + census.dependent.0
+            + census.observation.0 + census.row.0 + census.derived.0
+            + census.request.0 + census.continuation.0,
+        total,
+    );
+}

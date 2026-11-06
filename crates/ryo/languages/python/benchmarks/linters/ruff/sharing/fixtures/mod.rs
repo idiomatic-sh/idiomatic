@@ -14,11 +14,13 @@ use ryo_benchmark_contracts::domain::{
 };
 use std::{collections::BTreeSet, fs, path::Path};
 
+#[derive(Clone)]
 pub(super) struct Observation {
     pub selected: BTreeSet<String>,
     pub census: Census,
     pub classes: std::collections::BTreeMap<u64, String>,
     pub dispatches: Vec<Dispatch>,
+    pub admitted: BTreeSet<(String, u64)>,
 }
 pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     let canonical = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
@@ -54,7 +56,8 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
         "import os\n\ndef identity(value):\n    return value\n",
     )?;
     let files = vec![ryo::linter::RelativePath("case.py".into())];
-    let context = suite.seal_context(ArtifactPath(&root), &files, &[])?;
+    let tracked = vec![std::path::PathBuf::from("case.py")];
+    let context = suite.seal_context(ArtifactPath(&root), &files, &tracked)?;
     let request = RunRequest {
         performance: PerformanceOptions {
             diagnostics: DiagnosticOptions {
@@ -112,13 +115,16 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     decode(selected, &fs::read_to_string(destination)?)
 }
 
+#[derive(Clone)]
 pub(super) struct Census {
     pub rules: Vec<String>,
     pub instructions: u64,
+    pub physical_instructions: u64,
     pub shared: u64,
     pub classes: u64,
     pub barriers: [u64; 7],
 }
+#[derive(Clone)]
 pub(super) struct Dispatch {
     pub relation: String,
     pub population: String,
@@ -138,6 +144,7 @@ fn decode(
     let mut census = None;
     let mut classes = std::collections::BTreeMap::new();
     let mut dispatches = Vec::new();
+    let mut admitted = BTreeSet::new();
     for line in lines.lines() {
         let event: serde_json::Value = serde_json::from_str(line)?;
         let fields = &event["fields"];
@@ -152,6 +159,7 @@ fn decode(
                 let actual = Census {
                     rules: serde_json::from_str(fields["rules"].as_str().unwrap())?,
                     instructions: count(fields, "instructions"),
+                    physical_instructions: count(fields, "physical_instructions"),
                     shared: count(fields, "shared"),
                     classes: count(fields, "classes"),
                     barriers: [
@@ -178,6 +186,12 @@ fn decode(
                     "duplicate compiled class"
                 );
             }
+            "shared_walk_ready" => {
+                admitted.insert((
+                    fields["population"].as_str().unwrap().to_owned(),
+                    count(fields, "class"),
+                ));
+            }
             "shared_walk_dispatch" => dispatches.push(Dispatch {
                 relation: fields["relation"].as_str().unwrap().to_owned(),
                 population: fields["population"].as_str().unwrap().to_owned(),
@@ -195,5 +209,6 @@ fn decode(
         census: census.expect("actual bound program census"),
         classes,
         dispatches,
+        admitted,
     })
 }

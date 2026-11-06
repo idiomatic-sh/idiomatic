@@ -1,5 +1,5 @@
 //! Actual configured classes and explicit barriers, through the production SDK.
-use super::fixtures::observe;
+use super::fixtures::{Observation, observe};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use std::collections::BTreeSet;
 type Input = ();
@@ -13,6 +13,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
     let observed = observe().map_err(|error| error.to_string())?;
+    verify(observed.clone())?;
+    let mut omitted = observed;
+    assert!(omitted.dispatches.len() > 1, "negative control retains other actual dispatches");
+    omitted.dispatches.remove(0);
+    assert!(
+        std::panic::catch_unwind(|| verify(omitted)).is_err(),
+        "removing an actual admitted cohort must fail coverage"
+    );
+    Ok(())
+}
+fn verify(observed: Observation) -> Result<Value, Failure> {
     let census = observed.census;
     let mut expected = observed.selected;
     expected.insert("invalid-syntax".into());
@@ -22,6 +33,11 @@ fn subject(_: Input) -> Result<Value, Failure> {
         "no duplicate or extra prepared rules"
     );
     assert_eq!(census.rules.into_iter().collect::<BTreeSet<_>>(), expected);
+    assert_eq!(
+        census.instructions,
+        census.physical_instructions,
+        "route census covers the independent compiled instruction total, including observation unions"
+    );
     assert_eq!(
         census.shared + census.barriers.into_iter().sum::<u64>(),
         census.instructions,
@@ -64,13 +80,18 @@ fn subject(_: Input) -> Result<Value, Failure> {
         rows += event.source_rows;
         assert!(event.decoded_rows <= event.source_rows);
     }
+    assert_eq!(
+        dispatched, observed.admitted,
+        "every admitted ready class is served by exactly one actual shared dispatch per population"
+    );
     assert!(dispatched.len() > 1 && passes > 0 && rows > 0);
     assert!(
         shared_cohort,
         "actual configured rules must share a source traversal across distinct classes"
     );
-    // This corpus proves reached classes under all413 selection. Other classes
-    // remain candidates, not a claim that every operation runs in one scan.
+    // This corpus proves all runtime-admitted classes under all413 selection.
+    // Independently proving every statically eligible head is classified correctly
+    // remains a separate contract; dormant classes need not execute.
     // Replay/native/column/ordered proofs remain execution's actual route tests.
     Ok(())
 }

@@ -169,6 +169,9 @@ impl FileWalk {
             population: admitted.population(),
             relation,
         };
+        tracing::trace!(target: super::constants::WALK_TARGET,
+            event = super::constants::WALK_READY,
+            class = class.0, relation = ?relation, population = ?key.population);
         let mut sources = self.batches.borrow_mut();
         let source = sources.entry(key).or_insert_with(|| SourceWork {
             ready: BTreeSet::new(),

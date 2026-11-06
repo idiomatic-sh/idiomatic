@@ -16,7 +16,7 @@ use ryo_values::domain::plans::types::Plan;
 #[derive(Debug)]
 pub(crate) struct PreparedWalk {
     classes: Merge,
-    physical: Vec<WalkRoute>,
+    physical: Vec<Option<WalkRoute>>,
     prefixes: Vec<Vec<PredicatePlace>>,
     predicates: Vec<PreparedPredicate>,
     needed: Vec<crate::domain::table_cells::types::ColumnPlaces>,
@@ -104,11 +104,11 @@ impl PreparedWalk {
     pub(crate) fn census(&self) -> crate::domain::shared_walk::types::WalkCensus {
         use crate::domain::shared_walk::types::{WalkCensus, WalkRouteCount};
         let mut census = WalkCensus {
-            instructions: WalkRouteCount(self.physical.len()),
+            instructions: WalkRouteCount(self.physical.iter().flatten().count()),
             ..WalkCensus::default()
         };
         let mut classes = std::collections::BTreeSet::new();
-        for route in &self.physical {
+        for route in self.physical.iter().flatten() {
             let count = match route {
                 WalkRoute::Shared(class) => {
                     classes.insert(class.0);
@@ -133,7 +133,7 @@ impl PreparedWalk {
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<ClassPlace> {
-        match self.physical.get(instruction.logical.0)? {
+        match self.physical.get(instruction.logical.0)?.as_ref()? {
             WalkRoute::Shared(class) => Some(*class),
             WalkRoute::Barrier(_barrier) => None,
         }
@@ -256,20 +256,33 @@ impl PreparedWalk {
             }
         }
         self.prepare_predicates(bindings);
-        self.physical =
-            vec![WalkRoute::Barrier(WalkBarrier::Representation); program.logical_regions().len()];
+        // Observation unions also own physical instructions, beyond the original
+        // logical-to-region table. Allocate by actual instruction identity; holes
+        // are absent instructions, never invented representation barriers.
+        let slots = program
+            .regions()
+            .iter()
+            .flat_map(|region| region.instructions.iter())
+            .map(|instruction| instruction.logical.0)
+            .max()
+            .map_or(0, |last| last + 1);
+        self.physical = vec![None; slots];
         for region in program.regions() {
             for (at, instruction) in region.instructions.iter().enumerate() {
-                // Synthetic observation union heads have their own namespace and
-                // remain publication barriers, never ordinary source-walk classes.
-                let Some(route) = self.physical.get_mut(instruction.logical.0) else {
-                    continue;
-                };
-                *route = WalkRoute::Barrier(if at == 0 {
+                let route = self
+                    .physical
+                    .get_mut(instruction.logical.0)
+                    .ok_or(OperatingError::NotRun)?;
+                let barrier = if instruction.logical.0 >= program.logical_regions().len() {
+                    WalkBarrier::Observation
+                } else if at == 0 {
                     source_barrier(&instruction.operation)
                 } else {
                     WalkBarrier::Continuation
-                });
+                };
+                if route.replace(WalkRoute::Barrier(barrier)).is_some() {
+                    return Err(OperatingError::NotRun);
+                }
             }
             let Some(head) = region.instructions.first() else {
                 continue;
@@ -278,7 +291,7 @@ impl PreparedWalk {
                 *self
                     .physical
                     .get_mut(head.logical.0)
-                    .ok_or(OperatingError::NotRun)? = WalkRoute::Shared(class);
+                    .ok_or(OperatingError::NotRun)? = Some(WalkRoute::Shared(class));
             }
         }
         Ok(())
