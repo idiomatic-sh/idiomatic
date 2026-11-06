@@ -1,9 +1,9 @@
 {
-  "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+  "source": "66738be927f795f571f54974cef79cabe98ae439",
   "scope": "Ownership consolidation checkpoint; not full product acceptance",
   "checks": {
     "project_boundary": {
-      "source": "5d2e33bd922136581d6661df2cccdfbbff465a3b",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -23,10 +23,10 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 19.47
+      "elapsed_seconds": 36.8
     },
     "libraries": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -62,10 +62,10 @@
         "--test-threads=6"
       ],
       "exit": 101,
-      "elapsed_seconds": 59.61769366264343
+      "elapsed_seconds": 60.37
     },
     "boundary": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -85,10 +85,11 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 309.5533981323242
+      "elapsed_seconds": 312.04,
+      "note": "re-run alone at the following commit (tests/source_boundary only: ExecutionUseCase joins the witness census): 98 passed, 0 failed"
     },
     "bdd": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -106,10 +107,10 @@
         "bdd"
       ],
       "exit": 0,
-      "elapsed_seconds": 2.607440710067749
+      "elapsed_seconds": 2.93
     },
     "doctest": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -126,10 +127,10 @@
         "--doc"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.9287469387054443
+      "elapsed_seconds": 0.81
     },
     "tm_import_cli": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -152,10 +153,10 @@
         "--exact"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.7942812442779541
+      "elapsed_seconds": 0.6
     },
     "tm_cli_source": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "tm",
         "--root",
@@ -167,10 +168,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.44715166091918945
+      "elapsed_seconds": 0.47
     },
     "tm_source": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "tm",
         "--root",
@@ -185,10 +186,10 @@
         "json"
       ],
       "exit": 1,
-      "elapsed_seconds": 14.851887941360474
+      "elapsed_seconds": 14.84
     },
     "tm_guards": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "tm",
         "--root",
@@ -205,10 +206,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.03829813003540039
+      "elapsed_seconds": 0.04
     },
     "ownership_edges": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "ryo",
         "query",
@@ -223,10 +224,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.9783034324645996
+      "elapsed_seconds": 1.29
     },
     "activation": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -244,10 +245,10 @@
         "activation"
       ],
       "exit": 0,
-      "elapsed_seconds": 1.8487064838409424
+      "elapsed_seconds": 1.7
     },
     "ruff_sharing": {
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+      "source": "66738be927f795f571f54974cef79cabe98ae439",
       "command": [
         "cargo",
         "test",
@@ -267,16 +268,16 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 61.012142181396484
+      "elapsed_seconds": 96.77
     }
   },
   "results": {
     "execution_library": {
-      "passed": 492,
+      "passed": 518,
       "failed": 0
     },
     "core_library": {
-      "passed": 177,
+      "passed": 176,
       "failed": 6,
       "deferred": true,
       "names": [
@@ -307,28 +308,11 @@
     "actual_CLI_cases_passed": 1,
     "source_TM": {
       "scope": "program, invocation, derived, domain/shared_walk, tests/shared_walk (by directory, no --fix)",
-      "findings": 60,
+      "findings": 53,
       "suppressed": 0,
-      "production": 28,
+      "production": 21,
       "test": 32,
-      "program_and_invocation": {
-        "findings": 21,
-        "production": 0,
-        "test": 21
-      },
-      "derived": {
-        "findings": 21,
-        "production": 21,
-        "test": 0,
-        "deferred_to": "Phase 7 (ryo-fcrp/ryo-36z0/ryo-p87j notes): 20 no-bare-integers, 1 no-bare-bool on domain-typed u32/bool fields"
-      },
-      "shared_walk": {
-        "findings": 18,
-        "production": 7,
-        "test": 11,
-        "production_detail": "domain/shared_walk/types/prepared_walk/value.rs: file-length 1, no-ok-on-result 2, no-bare-integers 2, no-bare-tuples 2; deferred to Phase 7 by PM decision on ryo-vuzf"
-      },
-      "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56"
+      "deferred_to": "Phase 7: 20 no-bare-integers, 1 no-bare-bool in derived"
     },
     "CLI_source_TM": {
       "findings": 0,
@@ -350,10 +334,15 @@
     "core_project_batch_boundary": {
       "passed": 1,
       "failed": 0
-    }
+    },
+    "activation": {
+      "passed": 10,
+      "failed": 0
+    },
+    "doctests_execution": 14
   },
   "ownership_graph": {
-    "source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
+    "source": "66738be927f795f571f54974cef79cabe98ae439",
     "raw": "ownership_edges.log",
     "occurrences": 6201,
     "unique_edges": 3522,
@@ -365,20 +354,19 @@
     ],
     "targeted_cycles": [],
     "other_cycles": 7,
-    "note": "7 cycles (SCC over unique source-target file edges), none under program/**, invocation/** or derived/**; the derived SCC of 313 is gone"
+    "note": "7 file-level cycles (sizes 2,2,2,2,2,3,8), the same sets as validation314; one introduced by the route merge (frontiers service/types) was removed in this checkpoint; the shared_walk domain-concept cycle of tm check remains through executable_program/observations/test.rs"
   },
   "evidence_reuse": [
     {
       "checks": [
-        "project_boundary"
+        "values_core_sdk_doctests"
       ],
-      "executed_source": "5d2e33bd922136581d6661df2cccdfbbff465a3b",
-      "labelled_source": "b5074c6ba3b6a273ca3a812cb5aca83069a60d56",
-      "diff_proof": "not in commands.json and not re-executed at 314; crates/ryo/crates/core is byte-identical to 5d2e33bd92 (git diff --stat 5d2e33bd92 HEAD -- crates/ryo/crates/core is empty) but the execution crate it depends on changed, so this is reuse without full proof"
+      "executed_source": "66738be927f795f571f54974cef79cabe98ae439",
+      "note": "compile-fail doctests of values (4), core (1) and sdk (3) run once outside commands.json: all pass"
     }
   ],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": "314",
-  "raw_identity": "/tmp/ryo-contract-validation314-20261106/identity.json"
+  "validation": "315",
+  "raw_identity": "/tmp/ryo-contract-validation315-20261106/identity.json"
 }
