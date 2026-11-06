@@ -120,8 +120,17 @@ pub(crate) struct ExecutableProgram {
     pub(super) rules: Box<[RuleProgram]>,
     pub(super) logical_regions: Box<[RegionId]>,
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
+    /// The fusion classification of every instruction, indexed by its logical number.
+    pub fusibility: Box<[super::fusion::types::Fusibility]>,
 }
 impl ExecutableProgram {
+    /// How the compiler classified an instruction against the region of its producer.
+    pub(crate) fn fusibility(
+        &self,
+        logical: LogicalInstruction,
+    ) -> Option<super::fusion::types::Fusibility> {
+        self.fusibility.get(logical.0).copied()
+    }
     pub(crate) fn file_readers(&self) -> &FileReaderGraph {
         &self.file_readers
     }
@@ -222,6 +231,16 @@ impl Region {
             .map(|instruction| &instruction.operation)
             .ok_or(OperatingError::NotRun)
     }
+}
+
+/// The compiler's fusion classification of the whole request graph, indexed by original node.
+#[derive(Debug)]
+pub(crate) struct Fusibilities {
+    pub fusibility: Vec<super::fusion::types::Fusibility>,
+    /// Independent readers of each node's publication, including rule roots.
+    pub readers: Vec<ReaderMultiplicity>,
+    /// The identity that holds each node's publication, when one does.
+    pub held: Vec<Option<super::fusion::types::Barrier>>,
 }
 
 /// Number of independent readers of the same publication.

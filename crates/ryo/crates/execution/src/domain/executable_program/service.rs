@@ -1,15 +1,13 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
+use super::fusion::types::{Fusibility, Ineligible, RegionSharing};
 use super::types::*;
 use crate::domain::{
-    file_program::types::{FileProgramNode, NodeId, NodeInput, RequestGraph},
+    file_program::types::{NodeId, NodeInput, RequestGraph},
     operating::errors::OperatingError,
-    operator::contract::{
-        resources::ResourceProgram,
-        types::{DemandOrder, Effects, InputShape, SemanticContract},
-    },
+    operator::contract::types::{DemandOrder, SemanticContract},
 };
 use ryo_values::domain::{
-    plan_parts::types::{Input, RepeatedRows, StepId},
+    plan_parts::types::{Input, StepId},
     plans::types::{Operation, Plan, StepScope},
 };
 
@@ -33,34 +31,30 @@ struct DraftRegion {
     instructions: Vec<Instruction>,
     inputs: Vec<NodeInput>,
     needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
+    /// Whether every instruction's answer depends only on its operation and inputs.
+    sharing: RegionSharing,
 }
-fn continuation(node: &FileProgramNode) -> bool {
-    node.schema_valid
-        && node.contract.effects == Effects::Pure
-        && matches!(node.contract.resources, ResourceProgram::None)
-        && node.contract.derived.slots.iter().all(Option::is_none)
-        && matches!(node.contract.semantics.shape, InputShape::Row { .. })
-        && match &node.operation {
-            Operation::Select { kept, .. } => kept.is_empty(),
-            Operation::Project { distinct, .. } => *distinct == RepeatedRows::Kept,
-            _ => false,
-        }
+/// The canonical inputs of a region: producers named by the region that now serves them.
+fn canonical(draft: &DraftRegion, mapping: &[usize]) -> Vec<NodeInput> {
+    draft
+        .inputs
+        .iter()
+        .map(|input| match input {
+            NodeInput::Node(child) => NodeInput::Node(NodeId(mapping[child.0])),
+            other => *other,
+        })
+        .collect()
 }
-fn root(
-    plan: &Plan,
-    graph: &RequestGraph,
-    rule: usize,
-    step: StepId,
-) -> Result<usize, OperatingError> {
-    let _ = plan;
-    graph
-        .program_nodes
-        .get(rule)
-        .and_then(|nodes| nodes.get(step.0 as usize))
-        .ok_or(OperatingError::NotRun)?
-        .as_ref()
-        .map(|id| id.0)
-        .map_err(Clone::clone)
+/// Equal regions of different rules compute once: same instructions, same inputs, same bindings.
+fn equivalent(left: &DraftRegion, right: &DraftRegion, mapping: &[usize]) -> bool {
+    left.phase == right.phase
+        && left.instructions.len() == right.instructions.len()
+        && left
+            .instructions
+            .iter()
+            .zip(&right.instructions)
+            .all(|(a, b)| a.operation == b.operation && a.partition == b.partition)
+        && canonical(left, mapping) == canonical(right, mapping)
 }
 /// The analysis graph is consumed. Its native regions, layouts, cuts, liveness
 /// tables and original-plan execution copies do not survive into this program.
@@ -73,97 +67,30 @@ pub(crate) fn compile(
     let mut column_candidates = super::column::ColumnCandidates::capture(&graph);
     let native_shapes = super::native::capture(&graph);
     let count = graph.nodes.len();
-    let mut consumers = vec![0usize; count];
     let mut origins = vec![None; count];
     for (rule, nodes) in graph.program_nodes.iter().enumerate() {
         for node in nodes.iter().filter_map(|node| node.as_ref().ok()) {
             origins[node.0].get_or_insert(crate::domain::coverage::types::RuleIndex(rule));
         }
     }
-    let mut boundary = graph.derived_sources.clone();
     let ordered_alternatives = graph.ordered_existence.clone();
-    for alternative in ordered_alternatives.iter().flatten() {
-        if let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(shape) =
-            alternative
-        {
-            boundary[shape.join.0] = true;
-            boundary[shape.select.0] = true;
-        }
-    }
-
-    for node in &graph.nodes {
-        for input in &node.inputs {
-            if let NodeInput::Node(child) = input {
-                consumers[child.0] += 1;
-            }
-        }
-    }
-    for (rule, plan) in plans.iter().enumerate() {
-        if let Ok(id) = root(plan, &graph, rule, plan.emit.step) {
-            boundary[id] = true;
-            consumers[id] += 1;
-        }
-        for input in plan.frontier.iter().chain(
-            plan.observations
-                .iter()
-                .map(|observation| &observation.source),
-        ) {
-            if let Input::Step(step) = input {
-                if let Ok(id) = root(plan, &graph, rule, *step) {
-                    boundary[id] = true;
-                    consumers[id] += 1;
-                }
-            }
-        }
-    }
-    // Every named publication is a true owner-issued identity, even without an Emit reader.
-    if let Some(observations) = &graph.observations {
-        for output in observations.outputs.iter().flatten() {
-            if let crate::domain::file_program::types::GraphObservationRoot::PerFile(id) =
-                output.root
-            {
-                boundary[id.0] = true;
-            }
-        }
-    }
-    column_candidates.retain_internal(|node| {
-        if consumers[node.0] == 1 && !boundary[node.0] {
-            super::column::ReplacementUse::Exclusive
-        } else {
-            super::column::ReplacementUse::Observed
-        }
-    });
-    for node in column_candidates.fences() {
-        boundary[node.0] = true;
-    }
+    let classification = super::fusion::service::classify(plans, &graph, &mut column_candidates);
     let mut drafts: Vec<Option<DraftRegion>> = Vec::new();
     let mut mapping = vec![usize::MAX; count];
     for (logical, mut node) in graph.nodes.into_iter().enumerate() {
         // PhysicalRegion's plans/layouts have no place in executable state.
         node.regions.clear();
-        let fuse = if continuation(&node) && node.inputs.len() == 1 {
-            match node.inputs[0] {
-                NodeInput::Node(child) if !boundary[child.0] && consumers[child.0] == 1 => {
-                    let region = mapping[child.0];
-                    drafts
-                        .get(region)
-                        .and_then(Option::as_ref)
-                        .filter(|region| region.phase == node.phase)
-                        // Publish absence-sensitive answers before a continuation
-                        // can project away the file key needed for completeness.
-                        .filter(|region| {
-                            region
-                                .instructions
-                                .iter()
-                                .all(|instruction| instruction.contract.absence_inputs == 0)
-                        })
-                        .map(|_| region)
+        let fuse = match (classification.fusibility[logical], node.inputs.first()) {
+            (Fusibility::Fusable, Some(NodeInput::Node(child))) => {
+                let region = mapping[child.0];
+                if drafts.get(region).is_none_or(Option::is_none) {
+                    return Err(OperatingError::NotRun);
                 }
-                _ => None,
+                Some(region)
             }
-        } else {
-            None
+            _ => None,
         };
+        let sharing = super::fusion::service::region_sharing(&node, classification.held[logical]);
         let rule = origins[logical].ok_or(OperatingError::NotRun)?;
         let partition = match &node.operation {
             Operation::Hosted { relation } => partitions.hosted(rule, *relation)?,
@@ -199,6 +126,9 @@ pub(crate) fn compile(
             region_body.nodes.push(logical);
             region_body.instructions.push(instruction);
             region_body.needs = node.needs;
+            if sharing == RegionSharing::RuleScoped {
+                region_body.sharing = RegionSharing::RuleScoped;
+            }
             region
         } else {
             let region = drafts.len();
@@ -208,10 +138,61 @@ pub(crate) fn compile(
                 instructions: vec![instruction],
                 inputs: node.inputs,
                 needs: node.needs,
+                sharing,
             }));
             region
         };
         mapping[logical] = region;
+    }
+    // Equivalent regions of different rules compute once; their readers add up.
+    let mut readers: Vec<ReaderMultiplicity> = drafts
+        .iter()
+        .map(|draft| {
+            draft
+                .as_ref()
+                .and_then(|draft| draft.nodes.last())
+                .map_or_else(ReaderMultiplicity::default, |last| {
+                    classification.readers[*last]
+                })
+        })
+        .collect();
+    // A merged node is served by its twin's instruction at the same place in the region.
+    let mut representative: Vec<usize> = (0..count).collect();
+    let mut shared: Vec<usize> = Vec::new();
+    for at in 0..drafts.len() {
+        let Some(draft) = drafts[at].as_ref() else {
+            continue;
+        };
+        if draft.sharing == RegionSharing::RuleScoped {
+            continue;
+        }
+        let twin = shared.iter().copied().find(|earlier| {
+            drafts[*earlier]
+                .as_ref()
+                .is_some_and(|earlier| equivalent(earlier, draft, &mapping))
+        });
+        let Some(twin) = twin else {
+            shared.push(at);
+            continue;
+        };
+        let Some(merged) = drafts[at].take() else {
+            continue;
+        };
+        if let Some(kept) = drafts[twin].as_ref() {
+            for (node, served) in merged.nodes.iter().zip(&kept.nodes) {
+                representative[*node] = *served;
+            }
+        }
+        for node in &merged.nodes {
+            mapping[*node] = twin;
+        }
+        for input in &merged.inputs {
+            if let NodeInput::Node(child) = input {
+                let producer = mapping[child.0];
+                readers[producer].0 = readers[producer].0.saturating_sub(1);
+            }
+        }
+        readers[twin].0 += readers[at].0;
     }
     let mut dense = vec![usize::MAX; drafts.len()];
     let mut next = 0;
@@ -235,7 +216,6 @@ pub(crate) fn compile(
     let mut regions = Vec::with_capacity(next);
     for (at, draft) in drafts.into_iter().enumerate() {
         let Some(draft) = draft else { continue };
-        let logical = *draft.nodes.last().ok_or(OperatingError::NotRun)?;
         let mut inputs: Vec<_> = draft.inputs.into_iter().map(source).collect();
         if let Some(Instruction {
             producer,
@@ -260,7 +240,7 @@ pub(crate) fn compile(
             phase: draft.phase,
             instructions: draft.instructions.into_boxed_slice(),
             inputs: inputs.into_boxed_slice(),
-            consumers: consumers[logical],
+            consumers: readers[at].0,
             dependencies: Box::new([]),
             ordered_existence: None,
             column: None,
@@ -308,7 +288,7 @@ pub(crate) fn compile(
                 node.map(|id| Origin {
                     rule: crate::domain::coverage::types::RuleIndex(rule),
                     step: StepId(step as u32),
-                    logical: LogicalInstruction(id.0),
+                    logical: LogicalInstruction(representative[id.0]),
                 })
             })
             .collect();
@@ -376,12 +356,26 @@ pub(crate) fn compile(
             original_steps: original_steps.into_boxed_slice(),
         });
     }
+    let synthesized = regions.len();
     let observation_regions = super::observed::compile_unions(
         &mut regions,
         graph.observations.as_ref(),
         partitions,
         count,
     )?;
+    // Named distinct-set unions are synthesized instructions: two members, never a continuation.
+    let mut fusibility = classification.fusibility;
+    for instruction in regions[synthesized..]
+        .iter()
+        .flat_map(|region| region.instructions.iter())
+    {
+        if fusibility.len() <= instruction.logical.0 {
+            fusibility.resize(
+                instruction.logical.0 + 1,
+                Fusibility::Excluded(Ineligible::MultiInput),
+            );
+        }
+    }
     // Resolve aliases into the same prepared dependency graph once. Runtime
     // completion consumes these edges without rescanning source kinds.
     let mut named_readers = vec![0usize; observation_regions.len()];
@@ -453,6 +447,7 @@ pub(crate) fn compile(
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
+        fusibility: fusibility.into_boxed_slice(),
     };
     for selection in super::selection::compile(&executable, prepared) {
         let target = selection.target();
