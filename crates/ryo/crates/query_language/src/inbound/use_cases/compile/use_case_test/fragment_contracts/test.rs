@@ -1,13 +1,11 @@
 //! Fragment relation contracts compiled through the real parser, from the compile inbound API.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use ryo_relations::domain::relations::types::Relation;
-use std::sync::Arc;
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
+use super::super::compiler_over;
 use crate::inbound::use_cases::compile::types::CompileRequest;
-use crate::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 
 type Input = fn();
 type Value = ();
@@ -57,8 +55,7 @@ fn succeeds() {
 }
 
 fn fragment_contract_compiles_against_real_relation_columns() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-    let root = ryo_values::domain::program::service::query_bundle(
+        let root = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
             ryo_values::domain::program::service::source_id("root").unwrap(),
             "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);",
@@ -69,13 +66,7 @@ fn fragment_contract_compiles_against_real_relation_columns() {
         )],
     )
     .unwrap();
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
+    let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let report = use_case
         .compile(CompileRequest {
             observations: Vec::new(),
@@ -87,15 +78,8 @@ fn fragment_contract_compiles_against_real_relation_columns() {
 }
 
 fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
+    
+    let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let root_text = "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);";
     for module_text in [
         "input source: relation<id: file>;\noutput relation<id: node>;\nlet selected = select id from source;\nreturn selected;",
@@ -147,8 +131,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
 }
 
 fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-
+    
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
             ryo_values::domain::program::service::source_id("root").unwrap(),
@@ -166,13 +149,7 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
         ],
     )
     .unwrap();
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
+    let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let error = use_case
         .compile(CompileRequest {
             observations: Vec::new(),
@@ -188,8 +165,7 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
 }
 
 fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-
+    
     let root_with_caller = "import query from \"query\";\nlet secret = select id from \"syntax-tree\";\nlet result = query();\nemit result subject id key(id);";
     let caller_capture = "output relation<id: node, n: number>;\nlet counted = group-count(from=secret, keys=[\"id\"], count=\"n\");\nreturn counted;";
     let root_with_nested =
@@ -233,13 +209,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
             "outer",
         ),
     ];
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
+    let use_case = compiler_over(vec![Relation::SyntaxTree]);
     for (bundle, source) in bundles {
         let error = use_case
             .compile(CompileRequest {
@@ -255,8 +225,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
 }
 
 fn a_fused_fragment_comparison_keeps_its_original_source_span() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-    use ryo_values::domain::plans::types::Operation;
+        use ryo_values::domain::plans::types::Operation;
 
     let module = "input nodes: relation<id: node, kind: symbol>;\noutput relation<id: node, kind: symbol>;\nlet selected = select id, kind from nodes where kind = \"totally-unknown\";\nlet projected = select id, kind from selected;\nreturn projected;";
     let bundle = ryo_values::domain::program::service::query_bundle(
@@ -270,13 +239,7 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         )],
     )
     .unwrap();
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
+    let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let plan = use_case
         .compile(CompileRequest {
             observations: Vec::new(),

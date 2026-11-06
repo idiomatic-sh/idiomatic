@@ -36,7 +36,8 @@ use ryo_values::domain::program::types::WrittenRelation;
 use ryo_values::domain::program::types::WrittenTest;
 use std::sync::Arc;
 use super::errors::CompileError;
-use super::interface::CompileUseCase as _;
+use crate::outbound::syntax::fixtures::winnow::winnow;
+use super::interface::CompileUseCase;
 use super::types::CompileRequest;
 use super::use_case::CompileUseCaseImpl;
 
@@ -297,8 +298,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject(given: fn() -> Given) -> Result<Value, Failure> {
-    let given = given();
+/// The compile use case over the real parser and a catalog that holds `relations`.
+fn compiler_over(relations: Vec<Relation>) -> impl CompileUseCase {
+    CompileUseCaseImpl::new(
+        Arc::new(winnow()),
+        Arc::new(CatalogFake {
+            relations,
+            fails: false,
+        }),
+    )
+}
+
+/// The compile use case over the real parser and the catalog of every relation the language reads.
+fn compiler_over_the_language() -> impl CompileUseCase {
+    CompileUseCaseImpl::new(
+        Arc::new(winnow()),
+        Arc::new(crate::outbound::catalog::factory::language()),
+    )
+}
+
+/// What the use case answers, twice, for what a row gives it: how many steps the plan has.
+fn compile_twice(given: Given) -> Result<Value, Failure> {
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
         observations: given.observations,
@@ -309,6 +329,10 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let second = use_case.compile(request)?;
     assert_eq!(first, second, "compilation is deterministic");
     Ok(first.plan.steps.len())
+}
+
+fn subject(given: fn() -> Given) -> Result<Value, Failure> {
+    compile_twice(given())
 }
 
 #[test]

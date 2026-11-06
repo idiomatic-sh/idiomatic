@@ -9,10 +9,9 @@ use ryo_values::domain::observations::types::ObservationColumn;
 use ryo_values::domain::observations::types::ObservationColumnName;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepScope;
-use std::sync::Arc;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
+use super::super::compiler_over_the_language;
 use crate::inbound::use_cases::compile::types::CompileRequest;
-use crate::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 
 type Input = fn();
 type Value = ();
@@ -54,10 +53,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
     use ryo_values::domain::plans::types::Operation;
     use ryo_values::domain::program::types::QueryBundle;
 
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
-        Arc::new(crate::outbound::catalog::factory::language()),
-    );
+    let compiler = compiler_over_the_language();
     for predicate in [
         "r.text = \":\"",
         "r.text = \":\" and r.text != \"!\"",
@@ -116,10 +112,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
 fn authored_observation_keeps_independent_root_through_optimization() {
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::program::types::QueryBundle;
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
-        Arc::new(crate::outbound::catalog::factory::language()),
-    );
+    let compiler = compiler_over_the_language();
     let report = compiler
         .compile(CompileRequest {
             observations: Vec::new(),
@@ -161,10 +154,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::plan_parts::types::StepScope;
     use ryo_values::domain::program::types::QueryBundle;
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
-        Arc::new(crate::outbound::catalog::factory::language()),
-    );
+    let compiler = compiler_over_the_language();
     let report = compiler.compile(CompileRequest {
         hosted: Vec::new(),
         observations: vec![BoundObservationInput {

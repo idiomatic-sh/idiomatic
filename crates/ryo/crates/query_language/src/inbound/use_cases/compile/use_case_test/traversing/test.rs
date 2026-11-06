@@ -18,11 +18,11 @@ use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::program::types::{Expression, QueryView};
 
 /// The query text a row gives.
-pub(in super::super) type Input = &'static str;
+type Input = &'static str;
 /// The operations of the plan's steps, in order, named.
-pub(in super::super) type Value = &'static str;
+type Value = &'static str;
 /// What the lowering refuses a row with.
-pub(in super::super) type Failure = LoweringError;
+type Failure = LoweringError;
 
 
 /// The rows of this part's cases.
@@ -257,7 +257,7 @@ fn named(steps: &[PlanStep]) -> String {
 }
 
 /// Lowers the text step by step with the part's own lowering, but the answer must be one of the known lists.
-pub(in super::super) fn subject(text: Input) -> Result<Value, Failure> {
+fn subject(text: Input) -> Result<Value, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("the row's text is readable");

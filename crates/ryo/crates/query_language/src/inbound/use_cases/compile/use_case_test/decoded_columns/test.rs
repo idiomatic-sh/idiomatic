@@ -1,6 +1,18 @@
 //! The words and decoded columns a comparison reads, on query text read by the real syntax adapter.
 
-use super::super::comparing::test::{Input, Value, Failure, subject};
+use crate::domain::comparing::service::comparison_of;
+use crate::domain::lowering::types::Addressable;
+use crate::domain::lowering::types::Builder;
+use crate::domain::lowering::types::Sourced;
+use crate::domain::resolving::service::read_source;
+use crate::domain::syntax::constants::parameter_kind_named;
+use crate::outbound::syntax::fixtures::winnow::winnow;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::program::types::Condition;
+use ryo_values::domain::program::types::Expression;
+use ryo_values::domain::program::types::QueryView;
+
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -43,6 +55,73 @@ const DOC_COMMENT: &str =
 
 const NUMBER_AND_TEXT_ORDERED: &str =
     "let a = select * from \"function\" where name < 5; emit a subject file key(span);";
+
+/// The query text a row gives.
+type Input = &'static str;
+
+/// How many comparisons the `where` of the row made.
+type Value = usize;
+
+/// What the lowering refuses a row with.
+type Failure = LoweringError;
+
+/// The relations the rows may read.
+const CATALOG: &[Relation] = &[
+    Relation::NumericLiteral,
+    Relation::LiteralProperties,
+    Relation::Defines,
+    Relation::Function,
+    Relation::SyntaxChild,
+    Relation::StringLiteral,
+    Relation::SyntaxTree,
+    Relation::WorkspaceMember,
+    Relation::Entry,
+    Relation::SequenceElement,
+    Relation::PackageDependency,
+    Relation::Comment,
+];
+
+/// Compares each test of each `where` with the part's own comparison and counts the comparisons made.
+fn subject(text: Input) -> Result<Value, Failure> {
+    let program = winnow()
+        .read(QueryView(text))
+        .expect("the row's text is readable");
+    let mut builder = Builder {
+        catalog: CATALOG,
+        observation_inputs: &[],
+        hosted_steps: Vec::new(),
+        parameters: &program.parameters,
+        kinds: program
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter_kind_named(&parameter.kind.0).expect("the row's parameter type is known")
+            })
+            .collect(),
+        steps: Vec::new(),
+        lowered: Vec::new(),
+        span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
+    };
+    let mut compared = 0;
+    for step in &program.steps {
+        if let Expression::Select(select) = &step.expression {
+            let Sourced { fields, .. } = read_source(&builder, &select.from)?;
+            for condition in &select.filters {
+                if let Condition::Test(filter) = condition {
+                    let columns = Addressable {
+                        fields: &fields,
+                        sides: &[],
+                    };
+                    let Comparison { .. } = comparison_of(&mut builder, filter, columns)?;
+                    compared += 1;
+                }
+            }
+        }
+    }
+    Ok(compared)
+}
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

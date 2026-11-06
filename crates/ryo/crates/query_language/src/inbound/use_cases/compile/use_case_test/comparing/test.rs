@@ -15,11 +15,11 @@ use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::program::types::{Condition, Expression, QueryView};
 
 /// The query text a row gives.
-pub(in super::super) type Input = &'static str;
+type Input = &'static str;
 /// How many comparisons the `where` of the row made.
-pub(in super::super) type Value = usize;
+type Value = usize;
 /// What the lowering refuses a row with.
-pub(in super::super) type Failure = LoweringError;
+type Failure = LoweringError;
 
 const FILTERED: &str =
     "let a = select * from \"function\" where name = \"main\"; emit a subject file key(span);";
@@ -220,7 +220,7 @@ const CATALOG: &[Relation] = &[
 ];
 
 /// Compares each test of each `where` with the part's own comparison and counts the comparisons made.
-pub(in super::super) fn subject(text: Input) -> Result<Value, Failure> {
+fn subject(text: Input) -> Result<Value, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("the row's text is readable");

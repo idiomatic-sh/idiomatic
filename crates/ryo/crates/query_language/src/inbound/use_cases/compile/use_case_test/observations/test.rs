@@ -1,6 +1,6 @@
 //! The names, columns and schemas of observation inputs, from the compile inbound API.
 
-use super::{Failure, Given, Input, Value, subject};
+use super::super::{Given, compile_twice, text_the_fake_reads};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::ColumnLabel;
 use ryo_values::domain::hosted::types::HostedColumn;
@@ -27,6 +27,16 @@ fn observed(name: &str, columns: &[&str]) -> BoundObservationInput {
             .collect(),
         scope: StepScope::PerFile,
     }
+}
+
+/// What a row gives the use case.
+type Input = fn() -> Given;
+/// What `compile` answers: how many steps the plan has.
+type Value = usize;
+type Failure = CompileError;
+
+fn subject(given: Input) -> Result<Value, Failure> {
+    compile_twice(given())
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
