@@ -20,6 +20,7 @@ use types::{
 
 pub(in crate::application::file_dag) mod acquisition;
 mod backings;
+pub(in crate::application::file_dag) mod cached_graph;
 mod diagnostics;
 mod footprint;
 mod graph;

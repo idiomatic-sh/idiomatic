@@ -276,10 +276,10 @@ mod census_acquire_graph {
     negative: refuses(
         r#"
 mod census_acquire_graph_denied {
-    use crate::application::file_dag::derived::owner::DerivedOwner;
+    use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend};
     use crate::domain::{derived_views::types::DerivedContract, table_model::types::Rows};
     use std::sync::Arc;
-    fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, rows: &Rows<'_>) { let _ = owner.acquire_graph(plan, rows, None); }
+    fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, rows: &Rows<'_>, cache: &mut CacheBackend) { let _ = owner.acquire_graph(plan, rows, cache); }
     const _: () = { let _ = bypass; };
 }
 "#,
@@ -298,10 +298,10 @@ mod census_acquire_graph_domain {
     negative: refuses(
         r#"
 mod census_acquire_graph_domain_denied {
-    use crate::application::file_dag::{derived::owner::{DerivedOwner, graphs::types::handles::service::DomainHandle}, workspace::GraphInput};
+    use crate::application::file_dag::{derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::handles::service::DomainHandle}, workspace::GraphInput};
     use crate::domain::derived_views::types::DerivedContract;
     use std::sync::Arc;
-    fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, domain: &DomainHandle, input: &GraphInput<'_>) { let _ = owner.acquire_graph_domain(plan, domain, input, None); }
+    fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, domain: &DomainHandle, input: &GraphInput<'_>, cache: &mut CacheBackend) { let _ = owner.acquire_graph_domain(plan, domain, input, cache); }
     const _: () = { let _ = bypass; };
 }
 "#,
@@ -335,15 +335,15 @@ pub(super) static DEMAND_ANSWERS: Acquire = Acquire {
     positive: r#"
 mod census_demand_answers {
     use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers};
-    fn demand<'a>(owner: &'a DerivedOwner, cache: Option<&'a mut CacheBackend>) -> DemandAnswers<'a> { DemandAnswers::new(owner, cache) }
+    fn demand<'a>(owner: &'a DerivedOwner, cache: &'a mut CacheBackend) -> DemandAnswers<'a> { DemandAnswers::new(owner, cache) }
     const _: () = { let _ = demand; };
 }
 "#,
     negative: refuses(
         r#"
 mod census_demand_answers_denied {
-    use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers};
-    fn forge(owner: &DerivedOwner) { let _ = DemandAnswers { owner, cache: None }; }
+    use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers};
+    fn forge<'a>(owner: &'a DerivedOwner, cache: &'a mut CacheBackend) { let _ = DemandAnswers { owner, cache }; }
     const _: () = { let _ = forge; };
 }
 "#,
@@ -362,11 +362,11 @@ mod census_reach {
     negative: refuses(
         r#"
 mod census_reach_denied {
-    use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers};
+    use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers};
     use crate::domain::stored_graph::types::GraphWalk;
     use ryo_derived::domain::contract::types::CompactGraph;
     use ryo_relations::domain::relations::types::{Integer, Value};
-    fn bypass(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).reach(graph, &[], Value::Number(Integer(1)), walk); }
+    fn bypass(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); }
     const _: () = { let _ = bypass; };
 }
 "#,
@@ -385,11 +385,11 @@ mod census_axis {
     negative: refuses(
         r#"
 mod census_axis_denied {
-    use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers};
+    use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers};
     use crate::domain::stored_graph::types::{GraphWalk, Orientation};
     use ryo_derived::domain::contract::types::CompactGraph;
     use ryo_values::domain::plan_parts::types::Direction;
-    fn bypass(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).axis(graph, 0, Orientation::Forward, Direction::Child, walk); }
+    fn bypass(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).axis(graph, 0, Orientation::Forward, Direction::Child, walk); }
     const _: () = { let _ = bypass; };
 }
 "#,
@@ -408,10 +408,10 @@ mod census_nearest {
     negative: refuses(
         r#"
 mod census_nearest_denied {
-    use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::{handles::service::DomainHandle, roots::value::DemandAnswers}};
+    use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::{handles::service::DomainHandle, roots::value::DemandAnswers}};
     use crate::domain::stored_graph::types::{GraphWalk, Orientation};
     use ryo_derived::domain::contract::types::CompactGraph;
-    fn bypass(owner: &DerivedOwner, graph: &CompactGraph, domain: &DomainHandle, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).nearest(graph, domain, 0, Orientation::Forward, &mut Vec::new(), walk); }
+    fn bypass(owner: &DerivedOwner, graph: &CompactGraph, domain: &DomainHandle, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).nearest(graph, domain, 0, Orientation::Forward, &mut Vec::new(), walk); }
     const _: () = { let _ = bypass; };
 }
 "#,
@@ -580,7 +580,7 @@ mod census_authority_access {
 pub(super) static AUTHORITY_CACHED: Negative = refuses(
     r#"
 mod census_authority_cached {
-    use crate::application::file_dag::cached_graph::ReachGraph as Authority;
+    use crate::application::file_dag::derived::owner::cached_graph::types::ReachGraph as Authority;
     use crate::domain::stored_graph::types::GraphWalk;
     fn forge(value: Authority) -> Authority { Authority { walk: GraphWalk::default(), ..value } }
     const _: () = { let _ = forge; };

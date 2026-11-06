@@ -240,7 +240,8 @@ impl Entry {
         let handles = owner!("graphs/types/handles/service.rs");
         let owner = "application/file_dag/derived/owner.rs";
         let accounting = "accounting: bytes and counts the owner reports, no view crosses";
-        let cached = &[file!("cached_graph.rs")];
+        // The graph demand lives under the owner: no file outside it calls these entries.
+        let cached: &'static [&'static str] = &[];
         match self {
             Entry::AdmitView => acquires(admission, "admit_view", &c::ADMIT_VIEW, &[file!("closure_partitions.rs"), file!("relations/selected_access.rs"), file!("workspace.rs")], ".admit_view(", ""),
             Entry::AdmitPartition => acquires(admission, "admit_partition", &c::ADMIT_PARTITION, &[file!("closure_partitions.rs")], ".admit_partition(", ""),

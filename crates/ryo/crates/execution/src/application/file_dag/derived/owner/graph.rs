@@ -3,7 +3,9 @@ use super::*;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::{CacheBackend, GraphAdmission};
 use crate::{
-    application::file_dag::{cached_graph::CachedGraph, workspace::InvocationWorkspace},
+    application::file_dag::{
+        derived::owner::cached_graph::types::CachedGraph, workspace::InvocationWorkspace,
+    },
     domain::{
         operator::contract::{
             graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
@@ -28,21 +30,27 @@ impl DerivedOwner {
         if !std::ptr::eq(self, &admission.owner().derived) {
             return Err(OperatingError::NotRead);
         }
-        let mut backend = self.backend.borrow_mut();
-        let Some(cache) = backend
-            .as_mut()
-            .filter(|cache| cache.graph_enabled == GraphAdmission::Enabled)
-        else {
+        let mut cache = self.graph_cache()?;
+        if cache.graph_enabled != GraphAdmission::Enabled {
             return Ok(None);
-        };
-        CachedGraph::prepare(contract, admission, program, rows, Some(cache))
+        }
+        CachedGraph::prepare(contract, admission, program, rows, &mut cache)
+    }
+    /// The one place a graph demand reaches the cache: before `prepare_program_file`, after
+    /// retirement, or when the file's cache was refused, the demand is refused with
+    /// `NotRun` and never traversed by an ordinary route.
+    pub(in crate::application::file_dag::derived::owner) fn graph_cache(
+        &self,
+    ) -> Result<std::cell::RefMut<'_, CacheBackend>, OperatingError> {
+        std::cell::RefMut::filter_map(self.backend.borrow_mut(), Option::as_mut)
+            .map_err(|_| OperatingError::NotRun)
     }
     /// Only admitted original inputs enter the physical graph adapter.
     pub(in crate::application::file_dag) fn acquire_graph(
         &self,
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
-        cache: Option<&mut CacheBackend>,
+        cache: &mut CacheBackend,
     ) -> Result<
         Option<crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle>,
         OperatingError,
@@ -57,7 +65,7 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         graph: &crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
-        cache: Option<&mut CacheBackend>,
+        cache: &mut CacheBackend,
     ) -> Result<
         crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle,
         OperatingError,
@@ -72,7 +80,8 @@ impl DerivedOwner {
         graph: &'a mut CachedGraph,
         row: &[Value],
     ) -> Result<CachedGraphRow<'a>, OperatingError> {
-        graph.row(row, self, self.backend.borrow_mut().as_mut())
+        let mut cache = self.graph_cache()?;
+        graph.row(row, self, &mut cache)
     }
 }
 

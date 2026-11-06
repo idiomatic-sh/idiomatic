@@ -49,7 +49,7 @@ fn input<'f>(inputs: &[BorrowedRows<'f>], at: usize) -> Result<BorrowedRows<'f>,
 /// Resources are prepared once, after the scheduler's static/empty/first-row gates.
 /// Regex resources are acquired separately after the checked physical/text row gates.
 pub(crate) struct InvocationResources<'f> {
-    pub(crate) cached_graph: Option<super::cached_graph::CachedGraph>,
+    pub(crate) cached_graph: Option<super::derived::owner::cached_graph::types::CachedGraph>,
     pub(crate) inputs: InvocationInputs<'f>,
 }
 
