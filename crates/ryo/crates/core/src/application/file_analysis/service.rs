@@ -1,4 +1,10 @@
 //! Bounded read, parse and per-file evaluation using injected ports.
+use crate::application::file_analysis::constants::{
+    EXECUTION_DIAGNOSTIC, INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE,
+    PHYSICAL_SOURCE_FACTS_ARE_INCOMPLETE, PROVIDER_PARSE,
+    RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE, RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED,
+    STORED_FRONTIER_PROOF_DOES_NOT_MATCH,
+};
 use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, FileExecution, PreparedExecution,
 };
@@ -317,11 +323,11 @@ impl FileAnalysis {
                     continue;
                 }
                 (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Undetermined) => {
-                    "rule skipped: syntax acceptance undetermined"
+                    RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED
                 }
                 (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Accepted)
                 | (Some(RuleApplicability::Always), _) => continue,
-                (None, _) => "rule skipped: applicability metadata unavailable",
+                (None, _) => RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE,
             };
             let Some(rule) = setting.ids.get(place) else {
                 continue;
@@ -514,7 +520,7 @@ impl FileAnalysis {
                                     rule: visit.setting.ids[rule.0].clone(),
                                     path: visit.setting.paths[file.0 as usize].clone(),
                                     message: ryo_execution::inbound::use_cases::metadata::interface::Message(
-                                        "physical source facts are incomplete".into(),
+                                        PHYSICAL_SOURCE_FACTS_ARE_INCOMPLETE.into(),
                                     ),
                                 });
                         }
@@ -1086,13 +1092,14 @@ impl FileAnalysis {
         use ryo_values::domain::records::types::FrontierCoverage;
         let rule = RuleIndex(usize::try_from(proof.rule.0).unwrap_or(usize::MAX));
         let input = usize::try_from(proof.input.0).unwrap_or(usize::MAX);
-        let valid = setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
+        let valid = setting
+            .program
+            .rule_digest(rule)
+            .is_ok_and(|digest| digest == proof.rule_digest)
             && setting
                 .program
                 .frontiers(rule)
-                .ok()
-                .and_then(|frontiers| frontiers.get(input))
-                .is_some()
+                .is_ok_and(|frontiers| frontiers.get(input).is_some())
             && setting
                 .metadata
                 .get(rule.0)
@@ -1114,7 +1121,7 @@ impl FileAnalysis {
         if !valid {
             return Err(
                 ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete {
-                    reason: "stored frontier proof does not match the prepared root".into(),
+                    reason: STORED_FRONTIER_PROOF_DOES_NOT_MATCH.into(),
                 }
                 .into(),
             );
@@ -1157,9 +1164,8 @@ impl FileAnalysis {
             roles: setting.roled.into(),
         };
         let mut writer = worker.facts.columns_mut()?;
-        let parse_started =
-            tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
-                .then(Instant::now);
+        let parse_started = tracing::enabled!(target: EXECUTION_DIAGNOSTIC, tracing::Level::TRACE)
+            .then(Instant::now);
         let reading = self.language.parse(
             source,
             &mut worker.tables.elements,
@@ -1167,7 +1173,7 @@ impl FileAnalysis {
             &mut writer,
         );
         if let Some(started) = parse_started {
-            tracing::trace!(target: "ryo::diagnostic::execution", phase = "provider_parse", file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+            tracing::trace!(target: EXECUTION_DIAGNOSTIC, phase = PROVIDER_PARSE, file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
         }
         let mut said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let acceptance = syntax_acceptance(&worker.tables.elements);
@@ -1299,9 +1305,7 @@ impl FileAnalysis {
                 ExecutablePermission::Unsupported => {}
                 ExecutablePermission::Unknown => said.push(ReadInPart {
                     relation: Relation::FilesystemExecutable,
-                    cause: PartialCause(
-                        "input edge did not supply executable permission metadata".into(),
-                    ),
+                    cause: PartialCause(INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE.into()),
                     lacking: ryo_relations::domain::relations::types::Missing::Any,
                     at: PartialScope::OneFile(PartialAt(number.0)),
                 }),
@@ -1352,13 +1356,16 @@ impl FileAnalysis {
         let layout = setting.program.observation_layout();
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (Some(map), Some((layout, slots))) => {
-                let count = ryo_values::domain::records::types::ObservationReadinessCount(
-                    u32::try_from(slots.len()).ok()?,
-                );
-                let checked = ryo_values::domain::observations::service::validate_frontiers(
+                let Ok(slot_count) = u32::try_from(slots.len()) else {
+                    return None;
+                };
+                let count =
+                    ryo_values::domain::records::types::ObservationReadinessCount(slot_count);
+                let Ok(checked) = ryo_values::domain::observations::service::validate_frontiers(
                     map, layout, count,
-                )
-                .ok()?;
+                ) else {
+                    return None;
+                };
                 (Some(checked), slots)
             }
             (None, Some((_, slots))) if !slots.is_empty() => return None,

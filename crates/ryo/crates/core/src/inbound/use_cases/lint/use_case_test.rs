@@ -2108,4 +2108,5 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
     );
 }
 
+mod inapplicable_identity;
 mod project_budget;

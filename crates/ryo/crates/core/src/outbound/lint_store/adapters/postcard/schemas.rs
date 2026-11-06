@@ -1234,14 +1234,15 @@ pub(super) fn contents_bytes(
 
 /// The table of contents `bytes` hold, when `build` wrote them.
 pub(super) fn contents(build: &str, bytes: &[u8]) -> Option<TableOfContents> {
-    postcard::from_bytes::<ContentsSchema<'_>>(bytes)
-        .ok() // a table of contents that does not read back is a store kept by another build or cut short: nothing is kept, and the run reads every file again
-        .filter(|contents| *contents.build == *build)
-        .map(|contents| TableOfContents {
-            tables: SectionSpan::from(contents.tables),
-            rest: SectionSpan::from(contents.rest),
-            buckets: contents.buckets.into_iter().map(BucketSpan::from).collect(),
-        })
+    // A table of contents that does not read back is a store kept by another build or cut short: nothing is kept.
+    let Ok(contents) = postcard::from_bytes::<ContentsSchema<'_>>(bytes) else {
+        return None;
+    };
+    (*contents.build == *build).then(|| TableOfContents {
+        tables: SectionSpan::from(contents.tables),
+        rest: SectionSpan::from(contents.rest),
+        buckets: contents.buckets.into_iter().map(BucketSpan::from).collect(),
+    })
 }
 
 /// The tables the section's bytes hold; empty when they do not read back as the tables.
@@ -1253,9 +1254,14 @@ pub(super) fn tables_of(bytes: &[u8]) -> Stored {
 
 /// What the files handed but their words, from the section's bytes.
 pub(super) fn rest_from(bytes: &[u8]) -> Option<StoredHanded> {
-    postcard::from_bytes::<RestSchema<'_>>(bytes)
-        .and_then(|rest| handed_of(&rest))
-        .ok() // a section that does not read back holds nothing the run can use again: the files are read again
+    // A section that does not read back holds nothing the run can use again.
+    let Ok(rest) = postcard::from_bytes::<RestSchema<'_>>(bytes) else {
+        return None;
+    };
+    match handed_of(&rest) {
+        Ok(handed) => Some(handed),
+        Err(_) => None,
+    }
 }
 
 /// The words the files handed `bucket`, from its section's bytes.
@@ -1265,24 +1271,23 @@ pub(super) fn bucket_from(
     bytes: &[u8],
     proofs: &[ryo_values::domain::stores::types::StoredFrontierProof],
 ) -> Option<Vec<StoredWords>> {
-    postcard::from_bytes::<Vec<WordsSchema<'_>>>(bytes)
-        .ok() // a section that does not read back holds nothing the run can use again: the files are read again
-        .and_then(|rows| {
-            rows.into_iter()
-                .map(|each| {
-                    Some(StoredWords {
-                        file: StoredFileNumber(each.file),
-                        bucket,
-                        proof: proofs
-                            .iter()
-                            .find(|row| row.file.0 == each.file && row.bucket == bucket)?
-                            .proof
-                            .clone(),
-                        words: PackedWords(each.words.into_owned()),
-                    })
-                })
-                .collect::<Option<Vec<_>>>()
+    let Ok(rows) = postcard::from_bytes::<Vec<WordsSchema<'_>>>(bytes) else {
+        return None;
+    };
+    rows.into_iter()
+        .map(|each| {
+            Some(StoredWords {
+                file: StoredFileNumber(each.file),
+                bucket,
+                proof: proofs
+                    .iter()
+                    .find(|row| row.file.0 == each.file && row.bucket == bucket)?
+                    .proof
+                    .clone(),
+                words: PackedWords(each.words.into_owned()),
+            })
         })
+        .collect::<Option<Vec<_>>>()
 }
 
 #[cfg(test)]

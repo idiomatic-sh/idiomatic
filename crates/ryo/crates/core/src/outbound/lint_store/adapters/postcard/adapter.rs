@@ -2,6 +2,13 @@
 //! The store port, implemented with one file in the cache directory: sections one after the other and a table of contents last, so
 //! a run reads only the sections it needs; written whole through a temporary file renamed into place, so a reader sees the old store
 //! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is.
+use crate::outbound::lint_store::adapters::postcard::constants::{
+    FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE, FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED,
+    NO_STAGING_SESSION_WAS_READ, OLD_BUCKET_END_OVERFLOWS, OLD_BUCKET_LOGICAL_POSITION_OVERFLOWS,
+    OLD_BUCKET_POSITION_OVERFLOWS, OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION,
+    OLD_ROW_BELONGS_TO_ANOTHER_STORE, OLD_ROW_BUCKET_IS_ABSENT, OLD_ROW_BUCKET_OR_SPAN_IS,
+    STORE_SNAPSHOT_IDENTITIES_EXHAUSTED,
+};
 
 use std::collections::BTreeMap;
 use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
@@ -66,7 +73,7 @@ impl std::io::Read for PositionalBucket {
         self.at = self
             .at
             .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
-            .ok_or_else(|| std::io::Error::other("old bucket position overflows"))?;
+            .ok_or_else(|| std::io::Error::other(OLD_BUCKET_POSITION_OVERFLOWS))?;
         Ok(read)
     }
 }
@@ -81,7 +88,7 @@ impl std::io::Seek for PositionalBucket {
         };
         let at = u64::try_from(target).map_err(std::io::Error::other)?;
         if at < self.start || at > self.end {
-            return Err(std::io::Error::other("old bucket seek exceeds its section"));
+            return Err(std::io::Error::other(OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION));
         }
         self.at = at;
         Ok(at)
@@ -104,7 +111,7 @@ impl std::io::Read for BufferedBucket {
         self.at = self
             .at
             .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
-            .ok_or_else(|| std::io::Error::other("old bucket logical position overflows"))?;
+            .ok_or_else(|| std::io::Error::other(OLD_BUCKET_LOGICAL_POSITION_OVERFLOWS))?;
         Ok(read)
     }
 }
@@ -117,7 +124,7 @@ impl std::io::Seek for BufferedBucket {
             .start
             .0
             .checked_add(self.span.length.0)
-            .ok_or_else(|| std::io::Error::other("old bucket end overflows"))?;
+            .ok_or_else(|| std::io::Error::other(OLD_BUCKET_END_OVERFLOWS))?;
         let target = match from {
             SeekFrom::Start(at) => i128::from(at),
             SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
@@ -125,7 +132,7 @@ impl std::io::Seek for BufferedBucket {
         };
         let at = u64::try_from(target).map_err(std::io::Error::other)?;
         if at < self.span.start.0 || at > end {
-            return Err(std::io::Error::other("old bucket seek exceeds its section"));
+            return Err(std::io::Error::other(OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION));
         }
         let delta = i128::from(at) - i128::from(self.at);
         if let Ok(delta) = i64::try_from(delta) {
@@ -159,7 +166,7 @@ impl OldRowBatch for PostcardOldRowBatch {
             .binary_search_by_key(&words.bucket, |row| row.bucket)
             .map_err(|_| LintStoreError::Unreadable {
                 directory: self.directory.clone(),
-                reason: "old row bucket is absent".into(),
+                reason: OLD_ROW_BUCKET_IS_ABSENT.into(),
             })?;
         let bucket = &mut self.buckets[place];
         let span = bucket.span;
@@ -209,13 +216,17 @@ impl LintStorePostcardAdapter {
             for row in super::types::frames::value::old_word_rows(file, each.span)
                 .map_err(|error| self.unreadable(&error))?
             {
-                let proof = handed
+                let Ok(at) = handed
                     .proofs
                     .binary_search_by_key(&(row.file.0, each.bucket.0), |entry| {
                         (entry.file.0, entry.bucket.0)
                     })
-                    .ok()
-                    .and_then(|at| handed.proofs.get(at))
+                else {
+                    return Err(self.unreadable(&UNDECODED));
+                };
+                let proof = handed
+                    .proofs
+                    .get(at)
                     .ok_or_else(|| self.unreadable(&UNDECODED))?
                     .proof
                     .clone();
@@ -430,7 +441,7 @@ static WRITERS: AtomicU64 = AtomicU64::new(0);
 fn unique() -> std::io::Result<u64> {
     WRITERS
         .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
-        .map_err(|_| std::io::Error::other("store snapshot identities exhausted"))
+        .map_err(|_| std::io::Error::other(STORE_SNAPSHOT_IDENTITIES_EXHAUSTED))
 }
 
 impl LintStorePort for LintStorePostcardAdapter {
@@ -501,9 +512,7 @@ impl ReadStore for PostcardRead {
         into: &mut ryo_values::domain::stored_facts::types::PackedWords,
     ) -> Result<(), LintStoreError> {
         if words.snapshot != StoreSnapshot(self.session.0) {
-            return Err(self
-                .adapter
-                .unreadable(&"old row belongs to another store snapshot"));
+            return Err(self.adapter.unreadable(&OLD_ROW_BELONGS_TO_ANOTHER_STORE));
         }
         let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
         #[cfg(unix)]
@@ -529,7 +538,7 @@ impl ReadStore for PostcardRead {
                                 .is_some_and(|after| after <= end)
                         })
             })
-            .ok_or_else(|| self.adapter.unreadable(&"old row bucket or span is absent"))?;
+            .ok_or_else(|| self.adapter.unreadable(&OLD_ROW_BUCKET_OR_SPAN_IS))?;
         let held = opened.length.0;
         #[cfg(unix)]
         let read = super::types::frames::value::read_old_file_in(
@@ -578,7 +587,7 @@ impl ReadStore for PostcardRead {
                     .start
                     .0
                     .checked_add(entry.span.length.0)
-                    .ok_or_else(|| self.adapter.unreadable(&"old bucket end overflows"))?;
+                    .ok_or_else(|| self.adapter.unreadable(&OLD_BUCKET_END_OVERFLOWS))?;
                 let reader = PositionalBucket {
                     file: Arc::clone(&file),
                     start: entry.span.start.0,
@@ -663,7 +672,7 @@ impl ReadStore for PostcardRead {
         for row in &kept.staged {
             let held = spool
                 .as_ref()
-                .ok_or_else(|| unwritable(&"no staging session was read"))?;
+                .ok_or_else(|| unwritable(&NO_STAGING_SESSION_WAS_READ))?;
             super::types::spool::value::validate(held.session, held.length, &row.words)
                 .map_err(|error| unwritable(&error))?;
         }
@@ -685,17 +694,16 @@ impl ReadStore for PostcardRead {
             .windows(2)
             .any(|pair| (pair[0].file.0, pair[0].bucket.0) >= (pair[1].file.0, pair[1].bucket.0))
         {
-            return Err(unwritable(
-                &"frontier proofs have duplicate or unordered source keys",
-            ));
+            return Err(unwritable(&FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED));
         }
         let proof_for = |file: ryo_values::domain::stored_findings::types::StoredFileNumber,
                          bucket: Bucket| {
-            proofs
-                .binary_search_by_key(&(file.0, bucket.0), |row| (row.file.0, row.bucket.0))
-                .ok()
-                .and_then(|at| proofs.get(at))
-                .map(|row| &row.proof)
+            let Ok(at) =
+                proofs.binary_search_by_key(&(file.0, bucket.0), |row| (row.file.0, row.bucket.0))
+            else {
+                return None;
+            };
+            proofs.get(at).map(|row| &row.proof)
         };
         if stored
             .handed
@@ -707,7 +715,7 @@ impl ReadStore for PostcardRead {
                 .iter()
                 .any(|row| proof_for(row.file, row.bucket).is_none())
         {
-            return Err(unwritable(&"frontier payload lacks its exact source proof"));
+            return Err(unwritable(&FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE));
         }
         let by_bucket = super::types::frames::value::fresh(&stored.handed.frontier, &kept.staged)
             .map_err(|error| unwritable(&error))?;

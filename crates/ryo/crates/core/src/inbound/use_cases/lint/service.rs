@@ -3,6 +3,10 @@
 use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
 use crate::domain::reading::service::buckets_of;
+use crate::inbound::use_cases::lint::constants::{
+    CROSS_RULE_MEMORY, CROSS_SYMBOLS, FRESH_RECORDS, LIFECYCLE_MEMORY_DIAGNOSTIC, STORE_HANDED,
+    STORE_STAGED_DESCRIPTORS, WORKER_ARENAS, WORKER_NOTES,
+};
 use crate::outbound::lint_store::interface::ReadStore;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::Record;
@@ -78,7 +82,7 @@ pub(super) fn handed_of(
 
 /// One explicit opt-in gate; no capacity traversal or diagnostic span construction when disabled.
 pub(super) fn memory_enabled() -> bool {
-    tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE)
+    tracing::enabled!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, tracing::Level::TRACE)
 }
 
 /// Component capacities are distinct from RSS, allocator retention and unmeasured provider storage.
@@ -87,7 +91,7 @@ pub(super) fn observed_memory(
     owner: &'static str,
     bytes: ryo_values::domain::stores::types::retention::value::RetainedBytes,
 ) {
-    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner,
+    tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase, owner,
         objects = bytes.objects.0, metadata_capacity_bytes = bytes.metadata.0,
         packed_live_bytes = bytes.packed_live.0, packed_capacity_bytes = bytes.packed_capacity.0,
         staged_objects = bytes.staged_objects.0, staged_payload_bytes = bytes.staged_payload_bytes.0,
@@ -103,7 +107,7 @@ pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
     if memory_enabled() {
         observed_memory(
             phase,
-            "fresh_records",
+            FRESH_RECORDS,
             ryo_values::domain::stores::types::retention::value::RetainedBytes::records(records),
         );
     }
@@ -117,7 +121,7 @@ pub(super) fn observed_arenas(
     if memory_enabled() {
         observed_memory(
             phase,
-            "worker_arenas",
+            WORKER_ARENAS,
             ryo_values::domain::stores::types::retention::value::RetainedBytes::arenas(arenas),
         );
     }
@@ -139,7 +143,7 @@ pub(super) fn observed_cross_symbols(
         let text = ryo_language::domain::symbols::service::derived_of(symbols);
         bytes.text_live.0 = text.0.len();
         bytes.text_capacity.0 = text.0.capacity();
-        observed_memory(phase, "cross_symbols", bytes);
+        observed_memory(phase, CROSS_SYMBOLS, bytes);
     }
 }
 
@@ -151,7 +155,7 @@ pub(super) fn observed_notes(
     if memory_enabled() {
         observed_memory(
             phase,
-            "worker_notes",
+            WORKER_NOTES,
             ryo_values::domain::stores::types::retention::value::RetainedBytes::worker_notes(
                 &notes.0,
                 |entry| &entry.notes,
@@ -165,7 +169,7 @@ pub(super) fn memory_rule(
     id: &ryo_values::domain::runs::types::RuleId,
     index: usize,
 ) -> Option<tracing::span::EnteredSpan> {
-    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_rule_memory", rule = %id.0, rule_index = index).entered())
+    memory_enabled().then(|| tracing::trace_span!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, CROSS_RULE_MEMORY, rule = %id.0, rule_index = index).entered())
 }
 
 /// Do not walk stored payload metadata on ordinary lints.
@@ -173,7 +177,7 @@ pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
     if memory_enabled() {
         observed_memory(
             phase,
-            "store_handed",
+            STORE_HANDED,
             ryo_values::domain::stores::types::retention::value::RetainedBytes::stored(handed),
         );
     }
@@ -187,7 +191,7 @@ pub(super) fn observed_staged(
     if memory_enabled() {
         observed_memory(
             phase,
-            "store_staged_descriptors",
+            STORE_STAGED_DESCRIPTORS,
             ryo_values::domain::stores::types::retention::value::RetainedBytes::staged(kept),
         );
     }

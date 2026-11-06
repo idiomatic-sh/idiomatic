@@ -1,4 +1,5 @@
 //! The `file_analysis` application operation.
+pub mod constants;
 pub mod errors;
 pub mod semantic;
 pub mod service;

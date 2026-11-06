@@ -1,5 +1,11 @@
 //! Temporary-file ownership stays in the adapter; descriptors contain only a session and checked span.
 
+use crate::outbound::lint_store::adapters::postcard::constants::{
+    COPIED_PAYLOAD_IS_TRUNCATED, COPY_SIZE_OVERFLOWS, FOREIGN_OR_STALE_STAGING_SESSION,
+    MISSING_SPOOL_READER, MISSING_SPOOL_WRITER, STAGED_OFFSET_OVERFLOWS,
+    STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY, STAGED_PAYLOAD_LENGTH_OVERFLOWS,
+    STAGED_SPAN_IS_OUTSIDE_THIS_SNAPSHOT,
+};
 use ryo_values::domain::records::types::{StagedWords, StagingSession};
 use ryo_values::domain::stored_facts::types::PackedWords;
 use std::io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -47,11 +53,11 @@ impl StagingSpool {
         words: PackedWords,
     ) -> std::io::Result<StagedWords> {
         let length =
-            u64::try_from(words.0.len()).map_err(|_| invalid("staged payload length overflows"))?;
+            u64::try_from(words.0.len()).map_err(|_| invalid(STAGED_PAYLOAD_LENGTH_OVERFLOWS))?;
         let end = self
             .length
             .checked_add(length)
-            .ok_or_else(|| invalid("staged offset overflows"))?;
+            .ok_or_else(|| invalid(STAGED_OFFSET_OVERFLOWS))?;
         if self.writer.is_none() {
             self.reader = None;
             let mut writer =
@@ -62,7 +68,7 @@ impl StagingSpool {
         if let Err(error) = self
             .writer
             .as_mut()
-            .ok_or_else(|| invalid("missing spool writer"))?
+            .ok_or_else(|| invalid(MISSING_SPOOL_WRITER))?
             .write_all(&words.0)
         {
             self.writer = None;
@@ -85,7 +91,7 @@ impl StagingSpool {
     ) -> std::io::Result<()> {
         validate(self.session, self.length, span)?;
         let length = usize::try_from(span.length.0)
-            .map_err(|_| invalid("staged payload exceeds addressable memory"))?;
+            .map_err(|_| invalid(STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY))?;
         self.position(span.offset.0)?;
         into.0.clear();
         into.0
@@ -95,7 +101,7 @@ impl StagingSpool {
         if let Err(error) = self
             .reader
             .as_mut()
-            .ok_or_else(|| invalid("missing spool reader"))?
+            .ok_or_else(|| invalid(MISSING_SPOOL_READER))?
             .read_exact(&mut into.0)
         {
             self.reader = None;
@@ -116,7 +122,7 @@ impl StagingSpool {
         if let Err(error) = copy_buffered(
             self.reader
                 .as_mut()
-                .ok_or_else(|| invalid("missing spool reader"))?,
+                .ok_or_else(|| invalid(MISSING_SPOOL_READER))?,
             into,
             span.length.0,
         ) {
@@ -151,7 +157,7 @@ impl StagingSpool {
             let reader = self
                 .reader
                 .as_mut()
-                .ok_or_else(|| invalid("missing spool reader"))?;
+                .ok_or_else(|| invalid(MISSING_SPOOL_READER))?;
             seek_buffered(reader, self.read_at, offset)?;
             self.read_at = offset;
         }
@@ -181,7 +187,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn validate(
     span: &StagedWords,
 ) -> std::io::Result<()> {
     if span.session != session {
-        return Err(invalid("foreign or stale staging session"));
+        return Err(invalid(FOREIGN_OR_STALE_STAGING_SESSION));
     }
     if span
         .offset
@@ -189,7 +195,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn validate(
         .checked_add(span.length.0)
         .is_none_or(|end| end > held)
     {
-        return Err(invalid("staged span is outside this snapshot"));
+        return Err(invalid(STAGED_SPAN_IS_OUTSIDE_THIS_SNAPSHOT));
     }
     Ok(())
 }
@@ -203,10 +209,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn append<F: Write + See
     words: &PackedWords,
 ) -> std::io::Result<StagedWords> {
     let length =
-        u64::try_from(words.0.len()).map_err(|_| invalid("staged payload length overflows"))?;
+        u64::try_from(words.0.len()).map_err(|_| invalid(STAGED_PAYLOAD_LENGTH_OVERFLOWS))?;
     let end = held
         .checked_add(length)
-        .ok_or_else(|| invalid("staged offset overflows"))?;
+        .ok_or_else(|| invalid(STAGED_OFFSET_OVERFLOWS))?;
     let _position = file.seek(SeekFrom::Start(*held))?;
     file.write_all(&words.0)?;
     // Commit logical length only after every append/flush operation succeeds.
@@ -231,7 +237,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read<F: Read + Write 
 ) -> std::io::Result<()> {
     validate(session, held, span)?;
     let length = usize::try_from(span.length.0)
-        .map_err(|_| invalid("staged payload exceeds addressable memory"))?;
+        .map_err(|_| invalid(STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY))?;
     file.flush()?;
     let _position = file.seek(SeekFrom::Start(span.offset.0))?;
     into.0.clear();
@@ -268,14 +274,14 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn copy_buffered(
     while length != 0 {
         let bytes = reader.fill_buf()?;
         if bytes.is_empty() {
-            return Err(invalid("copied payload is truncated"));
+            return Err(invalid(COPIED_PAYLOAD_IS_TRUNCATED));
         }
         let count = bytes
             .len()
             .min(usize::try_from(length).unwrap_or(usize::MAX));
         into.write_all(&bytes[..count])?;
         reader.consume(count);
-        length -= u64::try_from(count).map_err(|_| invalid("copy size overflows"))?;
+        length -= u64::try_from(count).map_err(|_| invalid(COPY_SIZE_OVERFLOWS))?;
     }
     Ok(())
 }
