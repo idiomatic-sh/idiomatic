@@ -1,6 +1,6 @@
 //! What every `matching` adapter must pass.
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use ryo_values::domain::files::types::Glob;
@@ -31,7 +31,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_glob_that_is_not_one_is_refused"),
         word: Word::Refuses,
         input: || (&["["], "a.rs"),
-        expect: Expect::Refusal(|error| selects(matches!(error, MatchingError::BadGlob { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, MatchingError::BadGlob { .. })))),
     },
 ];
 

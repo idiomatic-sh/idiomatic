@@ -27,7 +27,7 @@ fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<
         ryo::linter::ProjectDependency {
             path: ryo::linter::RelativePath("__init__.py".into()),
             state: ryo::linter::ProjectDependencyState::Present(
-                ryo::linter::dependency_fingerprint(b""),
+                ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(b"")),
             ),
         },
         ryo::linter::ProjectDependency {

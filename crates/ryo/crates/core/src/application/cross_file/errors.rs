@@ -1,6 +1,6 @@
-//! Cross publication orchestration failures, preserving port errors at the use-case edge.
+//! The `cross_file` operation's failures: cross publication orchestration, preserving port errors at the use-case edge.
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum CrossError {
+pub(crate) enum CrossFileError {
     #[error(transparent)]
     Preparation(#[from] super::preparation::errors::BatchPreparationError),
     #[error(transparent)]

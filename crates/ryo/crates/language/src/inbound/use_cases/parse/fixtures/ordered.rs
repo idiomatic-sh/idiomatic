@@ -8,7 +8,8 @@ use std::sync::Mutex;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answers::service::{absent, reads};
 use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
-use crate::domain::elements::service::{end_of, enter_node, leave_node, table_builder, token};
+use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use crate::domain::elements::service::end_of;
 use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
 use crate::domain::files::types::SourcePath;
 use crate::domain::reasons::types::ToolMessage;
@@ -43,6 +44,33 @@ macro_rules! forward {
 }
 impl ParseUseCase for Ordered {
     type FileModel = Seen;
+
+    fn begin_semantics(
+        &self,
+        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &crate::domain::elements::types::Elements,
+        _slot: &mut crate::domain::semantics::types::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
+        crate::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &crate::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut Seen,
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> crate::inbound::use_cases::parse::types::Recognition {
+        crate::inbound::use_cases::parse::types::Recognition::Declines
+    }
     fn capabilities(
         &self,
     ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {

@@ -2,7 +2,7 @@
 
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::kind_names;
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;

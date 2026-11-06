@@ -42,7 +42,7 @@ pub use validate::schemas::RyoQlQuerySchemaError;
 pub use crate::domain::query::types::RyoQlQuery;
 
 pub use crate::domain::query::errors::{QueryOrigin, QueryTraceSite};
-pub use crate::domain::query::types::{QueryModuleCatalog, QueryModuleSource};
+pub use crate::domain::query::types::{CatalogContent, QueryModuleCatalog, QueryModuleSource};
 
 pub use crate::domain::query::errors::QueryBundleError;
 

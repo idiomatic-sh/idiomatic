@@ -1,4 +1,5 @@
 //! One application authority for project context identity and warm observation reuse.
+use super::constants::{DISK_REPOSITORY, GIVEN_REPOSITORY, IDENTITY_TAG};
 use crate::domain::storing::service::as_kept;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::PathStat;
@@ -33,11 +34,11 @@ pub(crate) fn identity(
         }
     }
     let repository = match session.repository {
-        ryo_language::inbound::use_cases::project::types::Repository::Disk => b"disk".as_slice(),
-        ryo_language::inbound::use_cases::project::types::Repository::Given => b"given".as_slice(),
+        ryo_language::inbound::use_cases::project::types::Repository::Disk => DISK_REPOSITORY,
+        ryo_language::inbound::use_cases::project::types::Repository::Given => GIVEN_REPOSITORY,
     };
     let mut parts = vec![
-        digest.digest(DigestBytes(b"project-context-v2")),
+        digest.digest(DigestBytes(IDENTITY_TAG)),
         digest.digest(DigestBytes(normalized.as_os_str().as_encoded_bytes())),
         digest.digest(DigestBytes(repository)),
     ];
@@ -77,11 +78,11 @@ pub(crate) fn identity(
         );
         search_identity.extend_from_slice(entry.path.0.as_bytes());
         search_identity.push(match entry.state {
-            ryo_language::domain::project_context::types::EntryState::File => 0,
-            ryo_language::domain::project_context::types::EntryState::Directory => 1,
-            ryo_language::domain::project_context::types::EntryState::Other => 2,
-            ryo_language::domain::project_context::types::EntryState::Missing => 3,
-            ryo_language::domain::project_context::types::EntryState::Unknown => 4,
+            ryo_language::domain::project_context::types::ObservedEntryState::File => 0,
+            ryo_language::domain::project_context::types::ObservedEntryState::Directory => 1,
+            ryo_language::domain::project_context::types::ObservedEntryState::Other => 2,
+            ryo_language::domain::project_context::types::ObservedEntryState::Missing => 3,
+            ryo_language::domain::project_context::types::ObservedEntryState::Unknown => 4,
         });
     }
     parts.push(digest.digest(DigestBytes(&search_identity)));
@@ -103,7 +104,7 @@ pub(crate) fn as_it_was(
     entries: &[EntryObservation],
 ) -> Freshness {
     if entries.iter().any(|entry| {
-        entry.state == ryo_language::domain::project_context::types::EntryState::Unknown
+        entry.state == ryo_language::domain::project_context::types::ObservedEntryState::Unknown
             || corpus.observe_entry(&entry.path) != *entry
     }) {
         return Freshness::Changed;
@@ -132,7 +133,3 @@ pub(crate) fn as_it_was(
     }
     Freshness::AsItWas
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

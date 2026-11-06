@@ -1,11 +1,12 @@
 //! The `reading` service: free functions named by verb over the visit of one file, with no IO and no ports.
 
-use super::types::{EngineAsked, EngineRows};
+use super::types::{
+    EngineAsked, EngineRows, FailureDetail, ObservedFile, ReadFailureDemand, RunRuleCount,
+};
 use crate::domain::ordering::service::sort_findings;
 use crate::domain::render::types::Answering;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
-use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
@@ -73,22 +74,27 @@ pub(crate) fn read_failure_demanded(
     wanted: &[Relation],
     mask: &Mask,
     needs: &[Needs],
-    rule_count: usize,
-) -> bool {
+    rule_count: RunRuleCount,
+) -> ReadFailureDemand {
     if !wanted.contains(&Relation::FilesystemReadFailure) {
-        return false;
+        return ReadFailureDemand::NotDemanded;
     }
-    if rule_count == 0 || needs.len() != rule_count {
-        return true;
+    if rule_count.0 == 0 || needs.len() != rule_count.0 {
+        return ReadFailureDemand::Demanded;
     }
-    needs.iter().enumerate().any(|(place, rule)| {
+    let reads = needs.iter().enumerate().any(|(place, rule)| {
         MetadataUseCaseImpl.governs(mask, RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)))
             == Governing::Governs
             && rule
                 .reads
                 .iter()
                 .any(|read| read.relation == Relation::FilesystemReadFailure)
-    })
+    });
+    if reads {
+        ReadFailureDemand::Demanded
+    } else {
+        ReadFailureDemand::NotDemanded
+    }
 }
 
 /// Readiness after a primary input could not be admitted: source-derived facts are unknown,
@@ -96,8 +102,8 @@ pub(crate) fn read_failure_demanded(
 pub(crate) fn failure_partials(
     wanted: &[Relation],
     file: FileId,
-    detail: &str,
-    observed_file: bool,
+    detail: FailureDetail<'_>,
+    observed_file: ObservedFile,
 ) -> Vec<ryo_values::domain::stored_facts::types::ReadInPart> {
     use ryo_values::domain::stored_facts::types::{
         PartialAt, PartialCause, PartialScope, ReadInPart,
@@ -108,11 +114,11 @@ pub(crate) fn failure_partials(
             !matches!(
                 relation,
                 Relation::FilesystemReadFailure | Relation::FilesystemExecutable
-            ) && (!observed_file || **relation != Relation::FilesystemFile)
+            ) && (observed_file == ObservedFile::Unobserved || **relation != Relation::FilesystemFile)
         })
         .map(|relation| ReadInPart {
             relation: *relation,
-            cause: PartialCause(detail.into()),
+            cause: PartialCause(detail.0.into()),
             lacking: ryo_relations::domain::relations::types::Missing::Any,
             at: PartialScope::OneFile(PartialAt(file.0)),
         })

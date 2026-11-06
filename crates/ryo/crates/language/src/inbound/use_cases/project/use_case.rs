@@ -3,7 +3,8 @@
 
 use super::errors::ProjectError;
 use super::interface::ProjectUseCase;
-use super::types::{ManifestName, ProjectRequest, Resolved};
+use super::types::{ProjectRequest, Resolved};
+use crate::domain::files::types::ManifestName;
 
 /// A language without manifest relations.
 #[derive(Clone, Copy, Debug)]
@@ -22,7 +23,7 @@ impl ProjectUseCase for ProjectUseCaseImpl {
     ) -> crate::domain::files::types::PrimaryFileRole {
         crate::domain::files::service::primary_role_from_manifests(
             _path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 

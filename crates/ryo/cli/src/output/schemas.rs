@@ -11,7 +11,7 @@ use std::sync::{Mutex, PoisonError};
 
 use ryo_core::outbound::row_sink::errors::RowSinkError;
 use ryo_core::outbound::row_sink::interface::RowSinkPort;
-use ryo_core::outbound::row_sink::types::{LentCell, Summary};
+use ryo_core::outbound::row_sink::types::{LentCell, AnswerCounts};
 use ryo_relations::domain::relations::constants::UNLOCATED;
 use ryo_relations::domain::relations::service::location;
 use ryo_relations::domain::relations::types::Locatedness;
@@ -241,7 +241,7 @@ impl RowSinkPort for RowsSchema {
         });
     }
 
-    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowSinkError> {
+    fn end(&self, summary: AnswerCounts, unread: &[Unread]) -> Result<(), RowSinkError> {
         let lines: Vec<String> = unread.iter().map(unread_line).collect();
         self.put(|out| {
             if self.json {

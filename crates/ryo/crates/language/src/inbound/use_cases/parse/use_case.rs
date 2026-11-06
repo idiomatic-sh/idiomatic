@@ -8,12 +8,12 @@ use super::service::{absence_in, baseline_in, build_in, kinds_read_in, read_in, 
 use super::types::ParseEngine;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use crate::domain::elements::types::Elements;
-use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use crate::domain::semantics::interface::SemanticSession;
+use crate::domain::elements::types::{Completion, CompletionRequirement, TableBuilder, Tree};
+use crate::domain::semantics::types::SemanticSlot;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::parse::types::Recognition;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::{Count, Position};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
 use ryo_relations::domain::terms::types::UnknownName;
 
@@ -35,6 +35,24 @@ impl ParseUseCase for ParseUseCaseImpl {
     }
 
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
+
+    fn begin_semantics(
+        &self,
+        _request: &ParseRequest<'_>,
+        _tree: &Elements,
+        _slot: &mut SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> CompletionRequirement {
+        CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(&self, _tree: &Tree<'_>, _from: Position, _model: &mut ()) {}
+
+    fn recognizes_explicit(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
+    }
 
     fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
         Recognition::Declines
@@ -85,8 +103,9 @@ impl<P: ParseUseCase> ParseEngine for P {
         &self,
         request: &ParseRequest<'_>,
         tree: &Elements,
-    ) -> Option<Box<dyn SemanticSession>> {
-        ParseUseCase::begin_semantics(self, request, tree)
+        slot: &mut SemanticSlot,
+    ) {
+        ParseUseCase::begin_semantics(self, request, tree, slot);
     }
 
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition {

@@ -1,9 +1,11 @@
 //! The `expansions` service's cases, on values alone.
 
 use super::service::{adopt, embedded_expressions, mark_expansion, release, write_embedded};
+use crate::domain::builders::service::{
+    discarding_builder, enter_node, leave_node, table_builder, token,
+};
 use crate::domain::elements::service::{
-    clear_elements, discarding_builder, end_at, end_of, enter_node, leave_node, origin_at,
-    real_count, source_order, start_at, table_builder, text_at, token,
+    clear_elements, end_at, end_of, origin_at, real_count, source_order, start_at, text_at,
 };
 use crate::domain::elements::types::{Elements, SourceOrder};
 use crate::domain::symbols::service::text_of;

@@ -9,10 +9,10 @@ use super::errors::ParseError;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use crate::domain::answers::types::{Reader, Support};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use ryo_relations::domain::relations::types::Count;
-use crate::domain::semantics::interface::SemanticSession;
-use ryo_relations::domain::terms::types::UnknownName;
+use crate::domain::semantics::types::SemanticSlot;
 use crate::inbound::use_cases::parse::types::Recognition;
+use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::terms::types::UnknownName;
 
 /// What the methods of a trait are made of, one for each syntax relation of the catalog.
 macro_rules! syntax_methods {
@@ -33,20 +33,21 @@ macro_rules! syntax_methods {
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
     /// Optional semantic capabilities this provider promises to answer, including proven language absence.
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
 
     /// Canonical immutable parser settings that can change the tree or diagnostics.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 
     /// Begin an owned semantic session for this file after its element table has been built.
-    /// The default explicitly leaves semantic rendering unsupported.
+    /// It fills the caller's `slot` with the language's session, and leaves it empty when semantic rendering is unsupported.
     fn begin_semantics(
         &self,
-        _request: &ParseRequest<'_>,
-        _tree: &crate::domain::elements::types::Elements,
-    ) -> Option<Box<dyn SemanticSession>> {
-        None
-    }
+        request: &ParseRequest<'_>,
+        tree: &crate::domain::elements::types::Elements,
+        slot: &mut SemanticSlot,
+    );
 
     /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
     /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each
@@ -60,27 +61,22 @@ pub trait ParseUseCase: Send + Sync {
 
     /// The semantic model input needed while completing this provider's syntax.
     /// The common engine owns initialization and readiness; providers only declare this input.
-    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
-        crate::domain::elements::types::CompletionRequirement::Independent
-    }
+    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement;
 
     /// Extend only model entries for newly appended expressions; native resolution stays valid.
     fn extend_file_model(
         &self,
-        _tree: &Tree<'_>,
-        _from: ryo_relations::domain::relations::types::Position,
-        _model: &mut Self::FileModel,
-    ) {
-    }
+        tree: &Tree<'_>,
+        from: ryo_relations::domain::relations::types::Position,
+        model: &mut Self::FileModel,
+    );
 
     /// Whether the language reads the file the request names, by its path.
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition;
 
     /// Whether this provider accepts a file explicitly assigned to it by the host.
-    /// The conservative default never bypasses path recognition.
-    fn recognizes_explicit(&self, _request: &ParseRequest<'_>) -> Recognition {
-        Recognition::Declines
-    }
+    /// A language that does not accept explicit selection answers `Declines`, which never bypasses path recognition.
+    fn recognizes_explicit(&self, request: &ParseRequest<'_>) -> Recognition;
 
     /// The names of the directories the language never reads, at any depth: the dependency, environment and build directories of its
     /// ecosystem (`node_modules`, `target`), which both ryo's walk of a repository and Tastemaker's do not enter. A language whose

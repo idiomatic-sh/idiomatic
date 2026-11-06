@@ -1,35 +1,29 @@
-//! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
+//! The `parse` contract: the language's implementation of `ryo::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, gives each element its role, the field of `go/ast` that holds it, when
 //! the run asks for the roles, notes the packages the file imports when the run asks for its notes,
 //! and answers, for every syntax relation of ryo's catalog, how the language reads it or that it is not in the language yet.
 
 use std::sync::Arc;
 
-use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
+use ryo::languages::{
+    self, AbsenceCause, CompletionRequirement, Elements, Parse, ParseRequest, Position, Reader,
+    Recognition, SemanticSlot, Support, Tree, UnknownName,
+};
 
 use crate::domain::fact_notes::service::noted;
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::{file_of, reads};
 use crate::domain::language::types::GoFile;
 use crate::domain::modfile::service as modfile;
-use crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
-use crate::domain::relations::collections::relations::assigns::item::AssignsItem;
-use crate::domain::relations::collections::relations::comment::item::CommentItem;
-use crate::domain::relations::collections::relations::defines::item::DefinesItem;
-use crate::domain::relations::collections::relations::directive::item::DirectiveItem;
-use crate::domain::relations::collections::relations::entry::item::EntryItem;
-use crate::domain::relations::collections::relations::function::item::FunctionItem;
-use crate::domain::relations::collections::relations::inherits::item::InheritsItem;
-use crate::domain::relations::collections::relations::mapping::item::MappingItem;
-use crate::domain::relations::collections::relations::parameter::item::ParameterItem;
-use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
-use crate::domain::relations::collections::relations::scope::item::ScopeItem;
-use crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
-use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
-use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
-use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
-use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::relations::collections::relations::{
+    annotates::item::AnnotatesItem, assigns::item::AssignsItem, comment::item::CommentItem,
+    defines::item::DefinesItem, directive::item::DirectiveItem, entry::item::EntryItem,
+    function::item::FunctionItem, inherits::item::InheritsItem, mapping::item::MappingItem,
+    parameter::item::ParameterItem, reference::item::ReferenceItem, scope::item::ScopeItem,
+    static_call::item::StaticCallItem, static_import::item::StaticImportItem,
+    string_literal::item::StringLiteralItem, syntax_child::item::SyntaxChildItem,
+    syntax_error::item::SyntaxErrorItem, syntax_tree::item::SyntaxTreeItem,
+};
 use crate::domain::roles::service::{field_bits, field_name, fields, role_of};
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
@@ -37,7 +31,7 @@ use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
-/// `parse`, implementing `ryo::languages::Parse`.
+/// `parse`, implementing `ryo::Parse`.
 pub(crate) struct ParseContract {
     /// The syntax port the contract reads each go source's tree through.
     syntax: Arc<dyn SyntaxPort>,
@@ -56,6 +50,18 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
+
+    fn completion_requirement(&self) -> CompletionRequirement {
+        CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
+
+    fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
+    }
+
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
@@ -64,13 +70,13 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         UNKNOWN_REASONS
     }
 
-    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
+    fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
         reads(request.path)
     }
 
@@ -88,7 +94,7 @@ impl Parse for ParseContract {
 
     fn read_tree(
         &self,
-        request: &languages::ParseRequest<'_>,
+        request: &ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
         // A `go.mod` is no go source: the language reads it itself, as `golang.org/x/mod/modfile` does.
@@ -101,11 +107,7 @@ impl Parse for ParseContract {
         Ok(())
     }
 
-    fn complete(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
+    fn complete(&self, request: &ParseRequest<'_>, completion: &mut languages::Completion<'_>) {
         for kind in kinds() {
             languages::name_kind(completion, kind_bits(kind), kind_name(kind));
         }

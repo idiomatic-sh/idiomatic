@@ -1,6 +1,6 @@
 //! Every publication adapter preserves complete rows and refuses reserved arenas.
 use super::super::interface::PublicationPort;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CROSS_FILE, CellKind, Integer, Value as Cell, WorkerNumber,
@@ -12,14 +12,14 @@ use ryo_values::domain::{
 };
 
 #[derive(Clone, Copy)]
-enum Scenario {
+pub enum Scenario {
     Numeric,
     Reserved,
 }
 type Input = Scenario;
 type Value = ();
 type Failure = ObservationReason;
-const CASES: &[Case<Input, Value, Failure>] = &[
+pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(numeric_row_remains_complete)),
         word: Word::Succeeds,
@@ -30,7 +30,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName(stringify!(reserved_arena_refuses_without_mutation)),
         word: Word::Refuses,
         input: || Scenario::Reserved,
-        expect: Expect::Refusal(|reason| selects(!reason.0.is_empty())),
+        expect: Expect::Refusal(|reason| selects(Matched(!reason.0.is_empty()))),
     },
 ];
 

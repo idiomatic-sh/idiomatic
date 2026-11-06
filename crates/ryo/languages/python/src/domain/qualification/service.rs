@@ -41,7 +41,7 @@ pub(crate) fn complete<'a>(
     tree: &Tree<'_>,
     model: &'a Declarations,
 ) -> Option<Ref<'a, QualificationIndex>> {
-    if languages::has_incomplete_syntax(tree.elements) {
+    if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
         return None;
     }
     Some(prepare(tree, model))

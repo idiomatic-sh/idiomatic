@@ -17,7 +17,7 @@ use crate::domain::{
     table_model::types::Verdict,
 };
 use ryo_derived::domain::contract::types::RawOrder;
-use ryo_language::domain::symbols::service::name_count;
+use ryo_language::domain::names::service::name_count;
 use ryo_values::domain::{
     plan_parts::types::{Input, RepeatedRows},
     plans::types::Operation,

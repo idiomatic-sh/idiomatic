@@ -357,7 +357,7 @@ fn build(tree: &Tree<'_>, retained: &mut ExpressionTypeIndex) {
         return;
     }
     retained.entries.resize(length, None);
-    retained.state = if languages::has_incomplete_syntax(tree.elements) {
+    retained.state = if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
         ExpressionTypeState::Partial
     } else {
         ExpressionTypeState::Complete

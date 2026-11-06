@@ -22,6 +22,8 @@ enum Scenario {
     /// `with_consulted` when the files the lookup read are as they were, whatever is made again, then when one changed, with
     /// nothing, some or every rule made again.
     WithConsulted,
+    /// `unread_manifest_partials` over three relations, of which one is read from the manifests: it is marked unknown, with its cause and no place.
+    UnreadManifest,
 }
 
 /// What a row of the cases does.
@@ -81,6 +83,26 @@ fn subject(scenario: Input) -> Value {
                     &ryo_values::domain::run_metadata::service::from_plans(&[files(), files()]),
                 ))
         }
+        Scenario::UnreadManifest => {
+            let partials = super::service::unread_manifest_partials(
+                &[
+                    Relation::PackageDependency,
+                    Relation::Function,
+                    Relation::FilesystemReadFailure,
+                ],
+                &ryo_language::domain::files::types::FilePath("pkg/Cargo.toml".into()),
+                &ryo_values::domain::files::types::InputReadFailure("read denied".into()),
+            );
+            assert_eq!(partials.len(), 1);
+            assert_eq!(partials[0].relation, Relation::PackageDependency);
+            assert_eq!(
+                partials[0].at, None,
+                "project incompleteness is not an error on an unrelated primary source"
+            );
+            assert!(partials[0].cause.0.contains("pkg/Cargo.toml"));
+            assert!(partials[0].cause.0.contains("read denied"));
+            1
+        }
         Scenario::WithConsulted => {
             let project = [PlacedRule(1), PlacedRule(3)];
             let same = |made: MadeAgain, expected: &MadeAgain| {
@@ -125,30 +147,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::WithConsulted,
         expect: Expect::Value(11_111),
     },
+    Case {
+        name: CaseName(
+            "a_primary_manifest_failure_marks_only_project_facts_unknown_and_keeps_its_context",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::UnreadManifest,
+        expect: Expect::Value(1),
+    },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
-}
-
-#[test]
-fn primary_manifest_failure_marks_only_project_facts_unknown_and_keeps_its_context() {
-    let partials = super::service::unread_manifest_partials(
-        &[
-            Relation::PackageDependency,
-            Relation::Function,
-            Relation::FilesystemReadFailure,
-        ],
-        &ryo_language::domain::files::types::FilePath("pkg/Cargo.toml".into()),
-        "read denied",
-    );
-    assert_eq!(partials.len(), 1);
-    assert_eq!(partials[0].relation, Relation::PackageDependency);
-    assert_eq!(
-        partials[0].at, None,
-        "project incompleteness is not an error on an unrelated primary source"
-    );
-    assert!(partials[0].cause.0.contains("pkg/Cargo.toml"));
-    assert!(partials[0].cause.0.contains("read denied"));
 }

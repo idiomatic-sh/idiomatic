@@ -95,8 +95,8 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
             .collect();
         (
             impacts,
-            languages::has_incomplete_syntax(&elements),
-            languages::has_incomplete_lexical_stream(&elements),
+            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete,
+            languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete,
             languages::syntax_acceptance(&elements),
         )
     };
@@ -158,14 +158,14 @@ fn parser_refusal_with_complete_tokens_keeps_lexical_facts_available() {
     assert!(
         diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.code.as_str() == "else-without-except")
+            .any(|diagnostic| diagnostic.code.0 == "else-without-except")
     );
     assert!(diagnostics.iter().all(|diagnostic| {
         diagnostic.phase == languages::DiagnosticPhase::Parse
             && diagnostic.impact == TreeImpact::LexicallyComplete
     }));
-    assert!(languages::has_incomplete_syntax(&elements));
-    assert!(!languages::has_incomplete_lexical_stream(&elements));
+    assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete);
+    assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Complete);
 }
 
 fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
@@ -178,8 +178,8 @@ fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
         &PythonParserSettings::default(),
         &mut builder,
     );
-    assert!(languages::has_incomplete_syntax(&elements));
-    assert!(languages::has_incomplete_lexical_stream(&elements));
+    assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete);
+    assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete);
 }
 
 fn invalid_syntax_keeps_actual_comment_tokens() {

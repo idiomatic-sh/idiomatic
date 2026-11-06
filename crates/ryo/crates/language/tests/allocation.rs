@@ -9,14 +9,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ryo_language::domain::answers::service::{absent, reads};
 use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
-use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_language::domain::elements::service::{enter_node, leave_node, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, token};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_language::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
-use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
@@ -25,6 +20,11 @@ use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::service::baseline;
 use ryo_language::inbound::use_cases::parse::types::Recognition;
 use ryo_language::inbound::use_cases::parse::types::{ParseRequest, SourceFile};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
 
 /// Counts every allocation the test makes, so a run's allocations are read back.
 #[global_allocator]
@@ -146,6 +146,35 @@ struct Language {
 
 impl ParseUseCase for Language {
     type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &ryo_language::domain::elements::types::Elements,
+        _slot: &mut ryo_language::domain::semantics::types::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(
+        &self,
+    ) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &ryo_language::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+        ryo_language::inbound::use_cases::parse::types::Recognition::Declines
+    }
 
     fn capabilities(
         &self,

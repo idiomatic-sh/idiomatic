@@ -1,7 +1,7 @@
 error[E0046]: not all trait items implemented, missing: `package_dependency`
-  --> tests/ui/fail_project_missing_a_manifest_relation.rs:32:1
+  --> tests/ui/fail_project_missing_a_manifest_relation.rs:31:1
    |
-32 | impl ProjectUseCase for Missing {
+31 | impl ProjectUseCase for Missing {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `package_dependency` in implementation
    |
    = help: implement the missing item: `fn package_dependency(&self) -> Support<ManifestReader<ryo_relations::domain::relations::collections::relations::package_dependency::item::PackageDependency, <Self as ProjectUseCase>::Derived>> { todo!() }`

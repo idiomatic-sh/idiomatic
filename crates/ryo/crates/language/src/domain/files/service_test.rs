@@ -1,11 +1,11 @@
 //! The `files` service's cases, on values alone.
 
 use super::service::primary_role_from_manifests;
-use super::types::{PrimaryFileRole, SourcePath};
+use super::types::{ManifestName, PrimaryFileRole, SourcePath};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// A path and the names of the manifests the language reads.
-type Input = (&'static str, &'static [&'static str]);
+type Input = (&'static str, &'static [ManifestName]);
 /// The role the path has.
 type Value = PrimaryFileRole;
 type Failure = ();
@@ -15,13 +15,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_file_named_for_a_manifest_in_a_directory_is_configuration"),
         word: Word::Succeeds,
-        input: || ("pkg/member/manifest.toml", &["manifest.toml"]),
+        input: || ("pkg/member/manifest.toml", &[ManifestName("manifest.toml")]),
         expect: Expect::Value(PrimaryFileRole::Configuration),
     },
     Case {
         name: CaseName("a_file_named_for_no_manifest_is_source"),
         word: Word::Succeeds,
-        input: || ("pkg/member/code.src", &["manifest.toml"]),
+        input: || ("pkg/member/code.src", &[ManifestName("manifest.toml")]),
         expect: Expect::Value(PrimaryFileRole::Source),
     },
     Case {

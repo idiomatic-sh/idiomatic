@@ -5,9 +5,9 @@ use super::super::service::{absence, build, read as read_file};
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
-use super::validators::{embedded_roots_valid, shape_representatives_valid, 
-    filtered_projection_valid, identifier_valid, projection_preserves_native, qualified_name_valid,
-    semantic_spans_valid, well_formed,
+use super::validators::{
+    embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_preserves_native,
+    qualified_name_valid, semantic_spans_valid, shape_representatives_valid, well_formed,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};

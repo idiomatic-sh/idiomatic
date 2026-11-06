@@ -93,7 +93,7 @@ impl OperatorsItem for RenderSyntaxItem {
             let after = lease.views.phase;
             for (position, answer) in answers.into_iter().enumerate() {
                 let text = match answer {
-                    RenderOutcome::Known(text) => text,
+                    RenderOutcome::Known(text) => text.0,
                     RenderOutcome::NotApplicable => continue,
                     RenderOutcome::Unsupported(_) => unreachable!("checked before publication"),
                 };

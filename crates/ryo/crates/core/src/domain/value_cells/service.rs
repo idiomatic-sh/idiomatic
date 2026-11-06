@@ -3,7 +3,8 @@
 
 use std::fmt::Write as _;
 
-use ryo_language::domain::symbols::service::{file_in, place_of, places_of, text_of};
+use ryo_language::domain::symbols::service::{file_in, place_of, text_of};
+use ryo_language::domain::names::service::places_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::{node_file, node_position};
 use ryo_relations::domain::relations::types::{Name, Origin, Value};

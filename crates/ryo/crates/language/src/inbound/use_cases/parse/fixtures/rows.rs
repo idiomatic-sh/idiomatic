@@ -3,22 +3,23 @@
 use super::super::service::read;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition};
-use super::configuration::Selection;
 use super::collect::Collect;
+use super::configuration::Selection;
 use super::expected::{Cell, Point};
 use super::findings::Findings;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
+use crate::domain::names::service::{derived_of, places_of};
+use crate::domain::symbols::service::{place_of, text_of};
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::Symbols;
+use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 use ryo_relations::domain::relations::constants::NO_FILE;
 use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::service::{all, kinds, node_position};
 use ryo_relations::domain::relations::types::{Bits, FileId, Flag, Name, Origin, Relation, Value};
-use crate::domain::symbols::service::{derived_of, place_of, places_of, text_of};
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::service::unknown_reason;
 use ryo_relations::domain::terms::types::UnknownName;
-use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 use std::path::PathBuf;
 
 /// What reading one fixture gave: the rows, the names they hold and the bytes the names are in.

@@ -23,9 +23,9 @@ fn named_expression_annotation_validity_does_not_depend_on_filename() {
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
             .map(|diagnostic| {
                 (
-                    diagnostic.phase.name().to_owned(),
-                    diagnostic.impact.name().to_owned(),
-                    diagnostic.code.as_str().to_owned(),
+                    languages::phase_name(diagnostic.phase).0.to_owned(),
+                    languages::impact_name(diagnostic.impact).0.to_owned(),
+                    diagnostic.code.0.to_owned(),
                     diagnostic.start.0,
                     diagnostic.end.0,
                 )
@@ -33,7 +33,7 @@ fn named_expression_annotation_validity_does_not_depend_on_filename() {
             .collect();
         (
             languages::syntax_acceptance(&elements),
-            languages::has_incomplete_syntax(&elements),
+            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete,
             diagnostics,
         )
     };

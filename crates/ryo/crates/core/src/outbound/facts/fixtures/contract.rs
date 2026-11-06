@@ -1,6 +1,7 @@
 //! What every `facts` adapter must pass.
 
 use super::fake::one_function;
+use super::words::{FRONTIER_PROOF, test_words};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 
@@ -12,21 +13,6 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::table_words::service::{pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
-
-static FRONTIER_PROOF: std::sync::LazyLock<ryo_values::domain::records::types::FrontierProof> =
-    std::sync::LazyLock::new(|| ryo_values::domain::records::types::FrontierProof {
-        rule: ryo_values::domain::records::types::ProducerRule(0),
-        input: ryo_values::domain::records::types::FrontierOrdinal(0),
-        rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
-        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
-    });
-pub(crate) fn test_words(words: &PackedWords) -> WordsToKeep<'_> {
-    WordsToKeep {
-        words,
-        file: FileId(0),
-        proof: &FRONTIER_PROOF,
-    }
-}
 
 /// What a row of the contract is given: which scenario to run against the adapter.
 type Input = fn(&dyn FactsPort) -> Result<Value, FactsError>;

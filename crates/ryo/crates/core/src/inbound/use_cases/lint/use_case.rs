@@ -14,7 +14,7 @@ use super::types::{
     Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
     StepFed, Streaming, Wanting,
 };
-use crate::application::file_analysis::types::{FileVisit, Worker};
+use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting, Worker};
 use crate::inbound::use_cases::lint::constants::{
     AFTER_FILES, AFTER_STORE_BUILD, AFTER_STORE_WRITE, BEFORE_CROSS_CLEANUP, BEFORE_STORE_BUILD,
     BEFORE_STORE_WRITE, LIFECYCLE_MEMORY_DIAGNOSTIC, MISSING_FRONTIER_BUCKET,
@@ -34,7 +34,7 @@ use crate::domain::answering::types::Todo;
 use crate::domain::answering::types::{Answered, CrossSteps};
 use crate::domain::budget::service::{fit, repository_size, within};
 
-use crate::application::run_coordination::settings::CrossingInput;
+use crate::application::cross_file::types::ProjectCrossing;
 use crate::domain::choosing::service::chosen;
 use crate::domain::keeping::service::{rendered_of, rows_of};
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
@@ -73,19 +73,18 @@ use {
     ryo_values::domain::stores::types::Reuse,
 };
 
-use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::workers::service::{absorb, gathering, note_slots, order, size_at, tables_for};
 use crate::domain::workers::types::{
     CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Visited, WorkersMet,
 };
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::language::types::{ManifestReading, ProjectInput, ProjectNotes};
+use crate::outbound::language::types::{ManifestReading, ProjectToRead, ProjectNotes};
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::memory::interface::MemoryPort;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use crate::outbound::row_sink::types::{LentCell, Summary};
+use crate::outbound::row_sink::types::{LentCell, AnswerCounts};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
@@ -427,7 +426,7 @@ impl LintUseCaseImpl {
     /// could not decide in those, and the files whose stored rows are theirs no more, in the order of their paths.
     fn reused(
         &self,
-        setting: &VisitSetting<'_>,
+        setting: &RequestVisitSetting<'_>,
         listing: &RepositoryListing,
         manifests: &[ManifestFile],
         stored_rules: &[StoredRule],
@@ -549,12 +548,12 @@ impl LintUseCaseImpl {
     /// rules that read across files stand on or fall with.
     fn read_alone(
         &self,
-        setting: &VisitSetting<'_>,
+        setting: &RequestVisitSetting<'_>,
         files: &[CorpusInput],
         store: Option<&dyn crate::outbound::lint_store::interface::ReadStore>,
     ) -> Result<ReadAlone, LintError> {
         let paths = paths_of(files);
-        let setting = VisitSetting {
+        let setting = RequestVisitSetting {
             domain: crate::domain::workers::types::VisitSetting {
                 paths: &paths,
                 records: &[],
@@ -623,13 +622,13 @@ impl LintUseCaseImpl {
 
     /// Writes the rows of the cross-file steps after those the files streamed, `files`, and answers what the answer has and shows:
     /// every finding, in the order findings leave in; or every row, of which those the limit leaves room for are written.
-    fn write_later(&self, run: &LintRun<'_>, later: &mut Rendered, files: RowCounts) -> Summary {
+    fn write_later(&self, run: &LintRun<'_>, later: &mut Rendered, files: RowCounts) -> AnswerCounts {
         match run.answering {
             Answering::Findings => {
                 sort_findings(later);
                 let findings =
                     RowTotal(files.shown.0 + self.write_findings(later, &run.request.files).0);
-                Summary {
+                AnswerCounts {
                     total: findings,
                     shown: findings,
                 }
@@ -641,7 +640,7 @@ impl LintUseCaseImpl {
                     RowLimit(usize::try_from(room.0).unwrap_or(usize::MAX)),
                 );
                 let RowCounts { total, shown } = totals(files, later.total, room);
-                Summary { total, shown }
+                AnswerCounts { total, shown }
             }
         }
     }
@@ -845,7 +844,7 @@ impl LintUseCaseImpl {
         let listing = run.listing;
         // What the languages wrote of each file this run read, in the order of the files: every file is read when the project is made.
         let notes = ProjectNotes(note_slots(notes, FileTotal(listing.files.len())));
-        let input = ProjectInput {
+        let input = ProjectToRead {
             root: &run.request.session.root,
             repository: run.request.session.repository,
             search_scope: &run.request.session.search_scope,
@@ -943,7 +942,7 @@ impl LintUseCaseImpl {
                 )
                 .map_err(Into::into);
         }
-        let crossing = CrossingInput {
+        let crossing = ProjectCrossing {
             program: std::sync::Arc::clone(&run.program),
             arenas: &*handed.arenas,
             domain,
@@ -961,7 +960,7 @@ impl LintUseCaseImpl {
         // All ordinary project rules use the same interpreter and symbol generation.
         let mut cross = Symbols::default();
         use crate::application::cross_file::{
-            errors::CrossError,
+            errors::CrossFileError,
             preparation::{service::Preparation, types::PreparedProject},
         };
         let inapplicable = crate::domain::crossing::service::inapplicable_files(&crossing.domain);
@@ -973,7 +972,7 @@ impl LintUseCaseImpl {
             }
             let _memory_rule = memory_rule(&each.id, each.rule.0);
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
-                CrossError::from(ryo_values::domain::rule_requests::service::failed(
+                CrossFileError::from(ryo_values::domain::rule_requests::service::failed(
                     &each.id,
                     &MISSING_FRONTIER_BUCKET,
                 ))
@@ -1004,9 +1003,9 @@ impl LintUseCaseImpl {
                     &mut cross,
                 )
                 .map_err(|error| match error {
-                    PreparationError::Facts(error) => CrossError::from(error),
+                    PreparationError::Facts(error) => CrossFileError::from(error),
                     PreparationError::Metadata(error) => {
-                        CrossError::from(ryo_values::domain::rule_requests::service::failed(&each.id, &error))
+                        CrossFileError::from(ryo_values::domain::rule_requests::service::failed(&each.id, &error))
                     }
                 })?;
             Ok(PreparedProject {
@@ -1016,7 +1015,7 @@ impl LintUseCaseImpl {
                 slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot::Unused,
             })
         });
-        let batch = prepared.seal().map_err(CrossError::from)?;
+        let batch = prepared.seal().map_err(CrossFileError::from)?;
         use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
         let guarded =
             self.cross_file
@@ -1167,7 +1166,7 @@ impl LintUseCaseImpl {
                 CorpusInput::ReadFailed { reason, .. } | CorpusInput::Unreadable { reason, .. }
                     if self.language.reads_manifest(input_path(input)) == ManifestReading::Read =>
                 {
-                    &reason.0
+                    reason
                 }
                 _ => continue,
             };
@@ -1397,10 +1396,14 @@ impl LintUseCase for LintUseCaseImpl {
         };
         let first_bucket = first_buckets(&plans);
         let applicability: Vec<_> = rules.iter().map(|rule| rule.applicability).collect();
-        let applicability_can_gate = applicability.len() != plans.len()
+        let applicability_can_gate = if applicability.len() != plans.len()
             || applicability.iter().any(|policy| {
                 *policy != ryo_values::domain::runs::types::RuleApplicability::Always
-            });
+            }) {
+            crate::domain::workers::types::Gating::MayGate
+        } else {
+            crate::domain::workers::types::Gating::NeverGates
+        };
         let needs: Vec<Needs> = plans
             .iter()
             .map(|plan| MetadataUseCaseImpl.scoped_needs(plan))
@@ -1444,7 +1447,7 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let services = execution.begin(&program, &listing.files);
         let metadata = program.metadata();
-        let mut setting = VisitSetting {
+        let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),
             source_language: request.source_language.as_ref(),
             services: &services,

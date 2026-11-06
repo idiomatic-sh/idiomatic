@@ -1,5 +1,5 @@
 //! Exact-path lookup in one immutable engine-observed entry batch.
-use super::types::{EntryObservation, EntryState, ObservedEntries};
+use super::types::{EntryObservation, ObservedEntries, ObservedEntryState, ProjectSearchScope};
 use crate::domain::files::types::FilePath;
 
 /// Sort an observation batch once; retain duplicates as uncertainty rather than choosing a winner.
@@ -12,15 +12,7 @@ pub fn observed(mut entries: Vec<EntryObservation>) -> ObservedEntries {
 /// Recover the exact ordered receipt without rebuilding the observation index.
 #[must_use]
 pub fn receipt(entries: &ObservedEntries) -> Vec<EntryObservation> {
-    entries.receipt()
-}
-
-impl ObservedEntries {
-    /// Materialize the existing owned project answer receipt at its output boundary.
-    #[must_use]
-    pub fn receipt(&self) -> Vec<EntryObservation> {
-        self.0.to_vec()
-    }
+    entries.0.to_vec()
 }
 
 /// Borrow the exact ordered observations for receipt comparison.
@@ -31,7 +23,7 @@ pub fn entries(entries: &ObservedEntries) -> &[EntryObservation] {
 
 /// The observed entry state; duplicates or an unobserved path remain unknown.
 #[must_use]
-pub fn state(entries: &ObservedEntries, path: &FilePath) -> Option<EntryState> {
+pub fn state(entries: &ObservedEntries, path: &FilePath) -> Option<ObservedEntryState> {
     let Ok(index) = entries.0.binary_search_by(|entry| entry.path.cmp(path)) else {
         return None;
     };
@@ -41,7 +33,16 @@ pub fn state(entries: &ObservedEntries, path: &FilePath) -> Option<EntryState> {
         return None;
     }
     match entries.0[index].state {
-        EntryState::Unknown => None,
+        ObservedEntryState::Unknown => None,
         state => Some(state),
+    }
+}
+
+/// Ordered search roots, or none when the host declared no search scope.
+#[must_use]
+pub fn search_roots(scope: &ProjectSearchScope) -> Option<&[FilePath]> {
+    match scope {
+        ProjectSearchScope::Undeclared => None,
+        ProjectSearchScope::Declared(roots) => Some(roots),
     }
 }

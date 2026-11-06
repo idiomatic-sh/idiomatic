@@ -1,6 +1,6 @@
 //! The declared-slot owner refuses omissions, substitutions and repeated accounting.
 use super::{errors::BatchPreparationError, service::Preparation, types::Occurrence};
-use crate::application::cross_file::errors::CrossError;
+use crate::application::cross_file::errors::CrossFileError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answering::types::Todo;
 use ryo_execution::inbound::use_cases::execution::types::{OperatingError, RuleIndex};
@@ -116,7 +116,7 @@ fn todos() -> [Todo; 2] {
         },
     ]
 }
-fn failure() -> CrossError {
+fn failure() -> CrossFileError {
     OperatingError::NotRead.into()
 }
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -211,7 +211,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(entries.len(), 2);
             assert!(entries.iter().all(|entry| matches!(
                 &entry.result,
-                Err(CrossError::Operating(OperatingError::NotRead))
+                Err(CrossFileError::Operating(OperatingError::NotRead))
             )));
             Ok(())
         }

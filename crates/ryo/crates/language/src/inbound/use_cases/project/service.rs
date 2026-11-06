@@ -5,10 +5,10 @@
 use super::errors::ProjectError;
 use super::interface::ProjectUseCase;
 use super::types::{
-    ManifestInput, ManifestItem, ManifestName, ManifestReader, ProjectEngine, ProjectRequest,
-    Resolved,
+    ManifestInput, ManifestItem, ManifestReader, ProjectEngine, ProjectRequest, Resolved,
 };
 use crate::domain::answers::types::{Answer, Support};
+use crate::domain::files::types::ManifestName;
 use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Relation, RowWriter};

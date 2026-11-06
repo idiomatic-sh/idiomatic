@@ -1,9 +1,10 @@
 //! Warm project-entry observation controls over the shared corpus port.
-use super::as_it_was;
+use super::service::as_it_was;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
+use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_values::domain::files::types::{CorpusFile, FileBytes};
 use ryo_values::domain::records::types::Freshness;
 
@@ -14,17 +15,28 @@ fn file(path: &str) -> CorpusFile {
         bytes: FileBytes(b"pass\n".to_vec()),
     }
 }
-fn observation(path: &str, state: EntryState) -> EntryObservation {
+fn observation(path: &str, state: ObservedEntryState) -> EntryObservation {
     EntryObservation {
         path: FilePath(path.into()),
         state,
     }
 }
-#[test]
-fn warm_context_reobserves_add_remove_and_uncertainty() {
-    let absent = observation("local.py", EntryState::Missing);
-    let present = observation("local.py", EntryState::File);
-    let unknown = observation("local.py", EntryState::Unknown);
+/// What a row of the cases asks of the service.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// A warm context reobserves an added entry, a removed entry and an uncertain one.
+    WarmReobserves,
+    /// The identity binds the ordered roots and the given inventory.
+    IdentityBinds,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+
+fn warm_context_reobserves_add_remove_and_uncertainty() -> Result<Value, Failure> {
+    let absent = observation("local.py", ObservedEntryState::Missing);
+    let present = observation("local.py", ObservedEntryState::File);
+    let unknown = observation("local.py", ObservedEntryState::Unknown);
     let empty = CorpusFake::default();
     let populated = CorpusFake {
         files: vec![file("local.py")],
@@ -38,11 +50,11 @@ fn warm_context_reobserves_add_remove_and_uncertainty() {
     assert_eq!(check(&populated, &present), Freshness::AsItWas);
     assert_eq!(check(&empty, &present), Freshness::Changed);
     assert_eq!(check(&empty, &unknown), Freshness::Changed);
+    Ok(())
 }
 
-#[test]
-fn context_identity_binds_ordered_roots_and_given_inventory() {
-    use super::identity;
+fn context_identity_binds_ordered_roots_and_given_inventory() -> Result<Value, Failure> {
+    use super::service::identity;
     use ryo_language::domain::project_context::types::{
         GivenProjectInventory, ProjectInventoryCompleteness, ProjectSearchScope,
     };
@@ -72,9 +84,37 @@ fn context_identity_binds_ordered_roots_and_given_inventory() {
     session
         .given_inventory
         .entries
-        .push(observation("pkg", EntryState::Directory));
+        .push(observation("pkg", ObservedEntryState::Directory));
     assert_ne!(
         complete,
         identity(&[], &session, &DigestFake).expect("changed entry")
     );
+    Ok(())
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::WarmReobserves => warm_context_reobserves_add_remove_and_uncertainty(),
+        Scenario::IdentityBinds => context_identity_binds_ordered_roots_and_given_inventory(),
+    }
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_warm_context_reobserves_an_added_a_removed_and_an_uncertain_entry"),
+        word: Word::Succeeds,
+        input: || Scenario::WarmReobserves,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("the_identity_binds_the_ordered_roots_and_the_given_inventory"),
+        word: Word::Succeeds,
+        input: || Scenario::IdentityBinds,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
+use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::ColumnName;
@@ -61,19 +61,19 @@ enum EntryStateSchema {
     Unknown,
 }
 
-impl From<EntryState> for EntryStateSchema {
-    fn from(state: EntryState) -> Self {
+impl From<ObservedEntryState> for EntryStateSchema {
+    fn from(state: ObservedEntryState) -> Self {
         match state {
-            EntryState::File => Self::File,
-            EntryState::Directory => Self::Directory,
-            EntryState::Other => Self::Other,
-            EntryState::Missing => Self::Missing,
-            EntryState::Unknown => Self::Unknown,
+            ObservedEntryState::File => Self::File,
+            ObservedEntryState::Directory => Self::Directory,
+            ObservedEntryState::Other => Self::Other,
+            ObservedEntryState::Missing => Self::Missing,
+            ObservedEntryState::Unknown => Self::Unknown,
         }
     }
 }
 
-impl From<EntryStateSchema> for EntryState {
+impl From<EntryStateSchema> for ObservedEntryState {
     fn from(state: EntryStateSchema) -> Self {
         match state {
             EntryStateSchema::File => Self::File,

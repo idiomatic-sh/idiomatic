@@ -117,7 +117,7 @@ impl<'a> CrossPublications<'a> {
         let words =
             std::sync::Arc::try_unwrap(backing).map_err(|_| OperatingError::WrongOperation)?;
         let mut arenas = Vec::new();
-        for place in ryo_language::domain::symbols::service::places_of(&symbols) {
+        for place in ryo_language::domain::names::service::places_of(&symbols) {
             if let ryo_relations::domain::relations::types::Origin::Derived(worker) = place.origin {
                 if worker == CROSS_FILE || worker.0 as usize >= self.inherited {
                     return Err(incomplete());

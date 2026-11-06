@@ -140,7 +140,7 @@ pub(super) fn observed_cross_symbols(
             places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
         bytes.places_capacity.0 =
             places.capacity() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
-        let text = ryo_language::domain::symbols::service::derived_of(symbols);
+        let text = ryo_language::domain::names::service::derived_of(symbols);
         bytes.text_live.0 = text.0.len();
         bytes.text_capacity.0 = text.0.capacity();
         observed_memory(phase, CROSS_SYMBOLS, bytes);

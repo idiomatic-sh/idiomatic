@@ -3,6 +3,7 @@
 use super::adapter::MatchingGlobsetAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::matching::fixtures::contract::{CASES as CONTRACT, answer};
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 
 type Input = (&'static [&'static str], &'static str);
 type Value = usize;
@@ -18,7 +19,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 
 /// Calls the adapter on one input, for the contract's rows and for its own.
 fn subject((globs, path): Input) -> Result<Value, Failure> {
-    answer(&MatchingGlobsetAdapter, globs, path)
+    answer(
+        &MatchingGlobsetAdapter::new(MatchingUseCaseImpl::new()),
+        globs,
+        path,
+    )
 }
 
 #[test]

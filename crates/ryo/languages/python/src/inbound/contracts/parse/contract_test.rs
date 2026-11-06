@@ -294,7 +294,7 @@ fn explicit_source_selection_preserves_paths_and_default_recognition() {
             )
             .expect("explicitly selected Python source");
         assert_eq!(out.count(languages::Relation::Comment), 1);
-        assert!(!languages::has_incomplete_lexical_stream(&elements));
+        assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Complete);
         assert_eq!(request.path.0, path);
     }
     let request = languages::ParseRequest {
@@ -317,7 +317,7 @@ fn explicit_source_selection_preserves_paths_and_default_recognition() {
             &mut languages::contract::Collect::default(),
         )
         .expect("invalid bytes are diagnosed");
-    assert!(languages::has_incomplete_lexical_stream(&elements));
+    assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete);
 }
 
 fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness() {
@@ -353,12 +353,12 @@ fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readines
         )
         .expect("recovered original bytes remain readable with honest diagnostic metadata");
         assert_eq!(
-            languages::has_incomplete_syntax(&elements),
+            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete,
             incomplete,
             "{bytes:?}"
         );
         assert_eq!(
-            languages::has_incomplete_lexical_stream(&elements),
+            languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete,
             incomplete,
             "{bytes:?}"
         );

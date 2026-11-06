@@ -1,6 +1,6 @@
 //! The `span_index` item's cases: the elements that cover a stretch.
 
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::node_id;
@@ -75,7 +75,7 @@ fn reordered_starts_keep_exact_span_matches() -> Result<[u32; 4], OperatingError
     enter_node(&mut builder, KindBits(1), Offset(0));
     enter_node(&mut builder, KindBits(2), Offset(2));
     leave_node(&mut builder, Offset(4));
-    ryo_language::domain::elements::service::enter_implied_node(&mut builder, KindBits(3));
+    ryo_language::domain::builders::service::enter_implied_node(&mut builder, KindBits(3));
     leave_node(&mut builder, Offset(0));
     token(&mut builder, KindBits(4), Offset(0), Offset(2));
     leave_node(&mut builder, Offset(4));

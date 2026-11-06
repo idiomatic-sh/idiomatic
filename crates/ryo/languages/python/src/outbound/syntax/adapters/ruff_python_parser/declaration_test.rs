@@ -59,8 +59,8 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
             .map(|diagnostic| {
                 (
-                    diagnostic.phase.name().to_owned(),
-                    diagnostic.code.as_str().to_owned(),
+                    languages::phase_name(diagnostic.phase).0.to_owned(),
+                    diagnostic.code.0.to_owned(),
                 )
             })
             .collect();
@@ -124,12 +124,12 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
             languages::SyntaxAcceptance::Accepted,
             "{source}"
         );
-        assert!(!languages::has_incomplete_syntax(&elements), "{source}");
+        assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete, "{source}");
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
             .map(|diagnostic| {
-                assert_eq!(diagnostic.phase.name(), "validation", "{source}");
-                assert_eq!(diagnostic.impact.name(), "preserved", "{source}");
-                assert_eq!(diagnostic.code.as_str(), "comprehension-rebind", "{source}");
+                assert_eq!(languages::phase_name(diagnostic.phase).0, "validation", "{source}");
+                assert_eq!(languages::impact_name(diagnostic.impact).0, "preserved", "{source}");
+                assert_eq!(diagnostic.code.0, "comprehension-rebind", "{source}");
                 (diagnostic.start.0, diagnostic.end.0)
             })
             .collect();

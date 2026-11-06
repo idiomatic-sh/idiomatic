@@ -1,12 +1,15 @@
 //! The `symbols` service's cases for the storage a name keeps across interleaved sources, derived names and pools.
 
-use crate::domain::symbols::service::{
-    bytes_of, derived_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived,
-    name_count, name_made_across, name_of, place_of, query_intern_derived, text_of,
-};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::names::service::{derived_of, name_count, name_of};
+use crate::domain::symbols::service::{
+    bytes_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived, name_made_across,
+    place_of, query_intern_derived, text_of,
+};
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{QuerySymbols, SymbolStorage, Symbols, SymbolsEngine};
+use crate::domain::symbols::types::{
+    Generation, QuerySymbols, SymbolStorage, Symbols, SymbolsEngine,
+};
 use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
@@ -18,7 +21,6 @@ type Input = fn() -> usize;
 /// What a scenario answers: a count.
 type Value = usize;
 type Failure = ();
-
 
 /// Late source admission must not reinterpret an existing derived symbol's offsets.
 fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
@@ -105,7 +107,8 @@ fn a_source_alias_does_not_reclassify_existing_derived_storage() -> usize {
 
 /// Composed names and reused pools obey the same storage identity as ordinary lookup.
 fn interleaved_names_compose_and_clear_without_changing_storage() -> usize {
-    use crate::domain::symbols::service::{begin_name, clear_symbols, end_name, push_name};
+    use crate::domain::names::service::{begin_name, end_name, push_name};
+    use crate::domain::symbols::service::clear_symbols;
     let source = ByteSlice(b"x.Z");
     let mut symbols = Symbols::default();
     let derived = intern_derived(&mut symbols, source, NameText("x.A"));
@@ -168,12 +171,18 @@ fn transported_places_require_the_same_live_symbol_generation() -> usize {
     let key = transport_permit(&mut first);
     {
         let mut query = QuerySymbols::from(&mut second);
-        assert!(!query_has_transport_generation(&query, &key));
-        drop(query_places_mut(&mut query, &key).expect_err("a pool of another generation"));
+        assert_eq!(
+            query_has_transport_generation(&query, &key),
+            Generation::Different
+        );
+        assert!(query_places_mut(&mut query, &key).is_none());
     }
     {
         let mut query = QuerySymbols::from(&mut first);
-        assert!(query_has_transport_generation(&query, &key));
+        assert_eq!(
+            query_has_transport_generation(&query, &key),
+            Generation::Same
+        );
         let places = query_places_mut(&mut query, &key).expect("exact live pool");
         places.push(NamePlace {
             origin: Origin::Derived(WorkerNumber(0)),
@@ -185,11 +194,13 @@ fn transported_places_require_the_same_live_symbol_generation() -> usize {
     }
     clear_symbols(&mut first);
     let mut query = QuerySymbols::from(&mut first);
-    assert!(!query_has_transport_generation(&query, &key));
-    drop(query_places_mut(&mut query, &key).expect_err("a cleared pool"));
+    assert_eq!(
+        query_has_transport_generation(&query, &key),
+        Generation::Different
+    );
+    assert!(query_places_mut(&mut query, &key).is_none());
     1
 }
-
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[

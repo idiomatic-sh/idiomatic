@@ -1,24 +1,20 @@
 //! The `elements` service: free functions named by verb over a file's element table, with no IO
 //! and no ports. An element is a node or a token, a row of the table.
 
-use crate::domain::symbols::types::ByteSlice;
-
 use super::constants::FOREIGN_POSITION;
-use super::types::Diagnostic;
-use crate::domain::elements::types::{
-    BuilderEngine, Children, DecodedProperty, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase,
-    ElementPlacement, Elements, ElementsEngine, KindSum, ModelReadiness, Numbers, OpenNode, Parent,
-    SourceOrder, TableBuilder, TableWriting, TreeImpact,
+use super::types::{
+    Children, Elements, ElementsEngine, KindSum, ModelReadiness, Numbers, SourceOrder,
+    SyntaxAcceptance,
 };
-use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
-use crate::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
-use ryo_relations::domain::relations::types::ReportText;
+use crate::domain::diagnostics::service::{
+    clear, count, incomplete_lexical_stream, incomplete_syntax, listed,
+};
+use crate::domain::diagnostics::types::{Diagnostic, SyntaxCompleteness};
+use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SYMBOL, TOKEN};
 use ryo_relations::domain::relations::types::{
-    Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position, PropertyId,
+    Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position,
 };
 use ryo_relations::domain::terms::types::ChildOrdinal;
-use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
 
 /// Empties an element table, keeping its room for the next file.
@@ -56,7 +52,7 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.decoded.clear();
     #[cfg(test)]
     {
-        engine.decoded_intern_visits = 0;
+        engine.decoded_intern_visits = Count(0);
     }
     engine.decoded_text.0.clear();
     engine.names.clear();
@@ -65,33 +61,14 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.kind_order.clear();
     engine.open.clear();
     engine.notes.0.clear();
-    engine.diagnostics.text.0.clear();
-    engine.diagnostics.from.clear();
-    engine.diagnostics.to.clear();
-    engine.diagnostics.start.clear();
-    engine.diagnostics.end.clear();
-    engine.diagnostics.code.clear();
-    engine.diagnostics.phase.clear();
-    engine.diagnostics.impact.clear();
+    clear(&mut engine.diagnostics);
     engine.expanded_from = None;
-    engine.syntax_acceptance = super::types::SyntaxAcceptance::Undetermined;
-}
-
-/// Record whether the language parser accepted the current source.
-pub fn set_syntax_acceptance(
-    builder: &mut TableBuilder<'_>,
-    acceptance: super::types::SyntaxAcceptance,
-) {
-    builder_engine(builder)
-        .elements
-        .state
-        .as_mut()
-        .syntax_acceptance = acceptance;
+    engine.syntax_acceptance = SyntaxAcceptance::Undetermined;
 }
 
 /// The parser's acceptance decision, conservative for providers that did not supply one.
 #[must_use]
-pub fn syntax_acceptance(elements: &Elements) -> super::types::SyntaxAcceptance {
+pub fn syntax_acceptance(elements: &Elements) -> SyntaxAcceptance {
     engine(elements).syntax_acceptance
 }
 
@@ -103,19 +80,6 @@ pub(crate) fn engine(elements: &Elements) -> &ElementsEngine {
 /// What the engine keeps of `elements` beside its columns, to write.
 pub(crate) fn engine_mut(elements: &mut Elements) -> &mut ElementsEngine {
     elements.state.as_mut()
-}
-
-/// What `builder` writes through: the table, the names, the file's bytes and whether it writes.
-pub(crate) fn builder_engine<'b, 'a>(
-    builder: &'b mut TableBuilder<'a>,
-) -> &'b mut BuilderEngine<'a> {
-    builder.as_mut()
-}
-
-/// The identity of the next element the builder will append.
-#[must_use]
-pub fn builder_position(builder: &mut TableBuilder<'_>) -> Position {
-    end_of(builder_engine(builder).elements)
 }
 
 /// The position the next element takes: the table holds this many elements, those the language added for reading included.
@@ -224,284 +188,6 @@ pub fn end_at(elements: &Elements, position: Position) -> Offset {
     number(&elements.end, position)
 }
 
-/// Where the next element goes: its parent and its place among the parent's children.
-fn place(elements: &mut Elements) -> ElementPlacement {
-    match engine_mut(elements).open.last_mut() {
-        Some(top) => {
-            let ordinal = top.next;
-            top.next = ChildOrdinal(ordinal.0 + 1);
-            ElementPlacement {
-                parent: Parent::Of(top.position),
-                ordinal,
-            }
-        }
-        None => ElementPlacement {
-            parent: Parent::Root,
-            ordinal: ChildOrdinal(0),
-        },
-    }
-}
-
-/// Appends an element below the innermost open node, and answers its position: for the callers that open it or mark it.
-fn pushed(
-    elements: &mut Elements,
-    kind: KindBits,
-    flags: Flags,
-    start: Offset,
-    end: Offset,
-    text: Symbol,
-) -> Position {
-    let position = end_of(elements);
-    push(elements, kind, flags, start, end, text);
-    position
-}
-
-/// Appends an element below the innermost open node.
-fn push(
-    elements: &mut Elements,
-    kind: KindBits,
-    flags: Flags,
-    start: Offset,
-    end: Offset,
-    text: Symbol,
-) {
-    let position = end_of(elements);
-    let placement = place(elements);
-    elements.kind.as_mut().values.push(kind);
-    elements.flags.as_mut().values.push(flags);
-    // Adopted expansion rows are hidden from the native tree's searchable columns.
-    if engine(elements).expanded_from.is_none()
-        && elements
-            .start
-            .as_ref()
-            .values
-            .last()
-            .is_some_and(|previous| *previous > start)
-    {
-        engine_mut(elements).source_order = SourceOrder::Reordered;
-    }
-    elements.start.as_mut().values.push(start);
-    elements.end.as_mut().values.push(end);
-    elements.size.as_mut().values.push(Extent(0));
-    let parent = match placement.parent {
-        Parent::Of(parent) => parent,
-        Parent::Root => position,
-    };
-    elements.parent.as_mut().values.push(parent);
-    elements.ordinal.as_mut().values.push(placement.ordinal);
-    elements.text.as_mut().values.push(text);
-}
-
-/// A builder that builds nothing, over the file whose bytes are `source`: what the engine reads a file through to know what the
-/// library alone costs. The table and the names it is given are not touched.
-pub fn discarding_builder<'a>(
-    elements: &'a mut Elements,
-    symbols: &'a mut Symbols,
-    source: ByteSlice<'a>,
-) -> TableBuilder<'a> {
-    TableBuilder::from(BuilderEngine {
-        elements,
-        symbols,
-        source,
-        logical_source: None,
-        writing: TableWriting::Discards,
-    })
-}
-
-/// Opens a node of `kind` that starts at `start`; its children follow until [`leave_node`].
-pub fn enter_node(builder: &mut TableBuilder<'_>, kind: KindBits, start: Offset) {
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return;
-    }
-    let position = pushed(builder.elements, kind, Flags(0), start, start, NO_SYMBOL);
-    engine_mut(builder.elements).open.push(OpenNode {
-        position,
-        next: ChildOrdinal(0),
-    });
-}
-
-/// Closes the innermost open node, which ends at `end`, and records how many elements are below it.
-pub fn leave_node(builder: &mut TableBuilder<'_>, end: Offset) {
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return;
-    }
-    let elements = &mut *builder.elements;
-    if let Some(open) = engine_mut(elements).open.pop() {
-        let below = Extent(end_of(elements).0 - open.position.0 - 1);
-        *number_mut(&mut elements.size, open.position) = below;
-        if flags_at(elements, open.position).0 & IMPLIED.0 == 0 {
-            *number_mut(&mut elements.end, open.position) = end;
-        }
-    }
-}
-
-/// Appends a token of `kind` between `start` and `end` of the file's bytes, and interns its text.
-pub fn token(builder: &mut TableBuilder<'_>, kind: KindBits, start: Offset, end: Offset) {
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return;
-    }
-    let text = token_name(builder, start, end);
-    push(builder.elements, kind, TOKEN, start, end, text);
-}
-
-/// Appends a token of `kind` between `start` and `end` of the file's bytes, and interns its text and the text `decoded` it stands for
-/// that the language's library read from it: what readers of the token read instead of decoding it again.
-pub fn decoded_token(
-    builder: &mut TableBuilder<'_>,
-    kind: KindBits,
-    start: Offset,
-    end: Offset,
-    decoded: NameText<'_>,
-) {
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return;
-    }
-    let text = token_name(builder, start, end);
-    let element = pushed(builder.elements, kind, TOKEN, start, end, text);
-    let table = engine_mut(builder.elements);
-    let texts = &mut table.decoded_text;
-    let from = Offset(u32::try_from(texts.0.len()).unwrap_or(u32::MAX));
-    texts.0.extend_from_slice(decoded.0.as_bytes());
-    let to = Offset(u32::try_from(texts.0.len()).unwrap_or(u32::MAX));
-    table.decoded.push(DecodedProperty {
-        element,
-        property: PropertyId(0),
-        from,
-        to,
-    });
-}
-
-/// Logical embedded text must outlive the temporary parser buffer as a derived name.
-fn token_name(builder: &mut BuilderEngine<'_>, start: Offset, end: Offset) -> Symbol {
-    if let Some(source) = builder.logical_source {
-        let bytes = source
-            .0
-            .get(
-                usize::try_from(start.0).unwrap_or(usize::MAX)
-                    ..usize::try_from(end.0).unwrap_or(usize::MAX),
-            )
-            .unwrap_or_default();
-        let text = std::str::from_utf8(bytes).unwrap_or_default();
-        intern_derived(builder.symbols, builder.source, NameText(text))
-    } else {
-        intern(builder.symbols, builder.source, start, end)
-    }
-}
-
-/// The text the token at `at` stands for, when the language's library decoded it.
-#[must_use]
-pub fn decoded_at(elements: &Elements, at: Position) -> Option<NameText<'_>> {
-    property_at(elements, at, PropertyId(0))
-}
-
-/// A scalar parser property stored on this node, without claiming a source location.
-#[must_use]
-pub fn property_at(
-    elements: &Elements,
-    at: Position,
-    property: PropertyId,
-) -> Option<NameText<'_>> {
-    let table = engine(elements);
-    let Ok(found) = table
-        .decoded
-        .binary_search_by_key(&(at, property), |each| (each.element, each.property))
-    else {
-        return None; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
-    };
-    let each = table.decoded.get(found)?;
-    table
-        .decoded_text
-        .0
-        .get(
-            usize::try_from(each.from.0).unwrap_or(usize::MAX)
-                ..usize::try_from(each.to.0).unwrap_or(usize::MAX),
-        )
-        // The bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value.
-        .and_then(|bytes| match std::str::from_utf8(bytes) {
-            Ok(text) => Some(text),
-            Err(_) => None,
-        })
-        .map(NameText)
-}
-
-/// Records an untyped parser diagnostic with conservative incomplete-tree defaults.
-pub fn diagnose(
-    builder: &mut TableBuilder<'_>,
-    message: ReportText<'_>,
-    start: Offset,
-    end: Offset,
-) {
-    diagnose_with_metadata(
-        builder,
-        DiagnosticMetadata::new(
-            DiagnosticPhase::Parse,
-            TreeImpact::Incomplete,
-            DiagnosticCode::UNSPECIFIED,
-        ),
-        message,
-        start,
-        end,
-    );
-}
-
-/// Records a diagnostic with its producer stage, stable provider code, and semantic tree impact.
-pub fn diagnose_with_metadata(
-    builder: &mut TableBuilder<'_>,
-    metadata: DiagnosticMetadata,
-    message: ReportText<'_>,
-    start: Offset,
-    end: Offset,
-) {
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return;
-    }
-    let diagnostics = &mut engine_mut(builder.elements).diagnostics;
-    diagnostics.from.push(Offset(
-        u32::try_from(diagnostics.text.0.len()).unwrap_or(u32::MAX),
-    ));
-    diagnostics.text.0.extend_from_slice(message.0.as_bytes());
-    diagnostics.to.push(Offset(
-        u32::try_from(diagnostics.text.0.len()).unwrap_or(u32::MAX),
-    ));
-    diagnostics.start.push(start);
-    diagnostics.end.push(end);
-    diagnostics.code.push(metadata.code);
-    diagnostics.phase.push(metadata.phase);
-    diagnostics.impact.push(metadata.impact);
-}
-
-/// The builder of the table of the file whose bytes are `source`; the table is cleared first.
-pub fn table_builder<'a>(
-    elements: &'a mut Elements,
-    symbols: &'a mut Symbols,
-    source: ByteSlice<'a>,
-) -> TableBuilder<'a> {
-    clear_elements(elements);
-    clear_symbols(symbols);
-    // A file has about two elements for five bytes: room for them is made once, not by doubling as they come.
-    let expected = source.0.len() / 2;
-    elements.start.as_mut().values.reserve(expected);
-    elements.end.as_mut().values.reserve(expected);
-    elements.size.as_mut().values.reserve(expected);
-    elements.parent.as_mut().values.reserve(expected);
-    elements.ordinal.as_mut().values.reserve(expected);
-    elements.kind.as_mut().values.reserve(expected);
-    elements.flags.as_mut().values.reserve(expected);
-    elements.text.as_mut().values.reserve(expected);
-    TableBuilder::from(BuilderEngine {
-        elements,
-        symbols,
-        source,
-        logical_source: None,
-        writing: TableWriting::Writes,
-    })
-}
-
 /// The children of the element at `parent`, in order.
 #[must_use]
 pub fn children(elements: &Elements, parent: Position) -> Children<'_> {
@@ -552,76 +238,6 @@ pub fn first_token_text(elements: &Elements, of: Position) -> Option<Symbol> {
     children(elements, of)
         .find(|each| flags_at(elements, *each).0 & TOKEN.0 != 0)
         .map(|each| text_at(elements, each))
-}
-
-/// Everything the parser reported about the file, in the order it reported it.
-pub fn diagnostics(elements: &Elements) -> impl Iterator<Item = Diagnostic<'_>> {
-    let found = &engine(elements).diagnostics;
-    found
-        .from
-        .iter()
-        .zip(&found.to)
-        .enumerate()
-        .map(|(number, (from, to))| Diagnostic {
-            message: ByteSlice(
-                found
-                    .text
-                    .0
-                    .get(
-                        usize::try_from(from.0).unwrap_or(usize::MAX)
-                            ..usize::try_from(to.0).unwrap_or(usize::MAX),
-                    )
-                    .unwrap_or(&[]),
-            ),
-            start: found.start.get(number).copied().unwrap_or_default(),
-            end: found.end.get(number).copied().unwrap_or_default(),
-            code: found
-                .code
-                .get(number)
-                .copied()
-                .unwrap_or(DiagnosticCode::UNSPECIFIED),
-            phase: found
-                .phase
-                .get(number)
-                .copied()
-                .unwrap_or(DiagnosticPhase::Parse),
-            impact: found
-                .impact
-                .get(number)
-                .copied()
-                .unwrap_or(TreeImpact::Incomplete),
-        })
-}
-
-/// Whether any diagnostic indicates missing or recovered syntax.
-#[must_use]
-pub fn has_incomplete_syntax(elements: &Elements) -> bool {
-    let diagnostics = &engine(elements).diagnostics;
-    diagnostics.from.iter().enumerate().any(|(index, _)| {
-        diagnostics
-            .impact
-            .get(index)
-            .is_none_or(|impact| *impact != TreeImpact::Preserved)
-    })
-}
-
-/// Whether lexical facts may be incomplete because tokenization failed or stopped early.
-/// Missing impact metadata remains conservative: older providers do not certify lexical completeness.
-#[must_use]
-pub fn has_incomplete_lexical_stream(elements: &Elements) -> bool {
-    let diagnostics = &engine(elements).diagnostics;
-    diagnostics.from.iter().enumerate().any(|(index, _)| {
-        diagnostics
-            .impact
-            .get(index)
-            .is_none_or(|impact| *impact == TreeImpact::Incomplete)
-    })
-}
-
-/// How many parse and validation diagnostics the provider reported about the file.
-#[must_use]
-pub fn diagnostic_count(elements: &Elements) -> Count {
-    Count(engine(elements).diagnostics.from.len())
 }
 
 /// The place of the element at `at` among its parent's children.
@@ -725,83 +341,32 @@ pub fn embedded_source_at(
         .copied()
 }
 
-/// Opens a node the parser created without a source location.
-pub fn enter_implied_node(builder: &mut TableBuilder<'_>, kind: KindBits) {
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return;
-    }
-    let position = pushed(
-        builder.elements,
-        kind,
-        IMPLIED,
-        NO_SPAN.start,
-        NO_SPAN.end,
-        NO_SYMBOL,
-    );
-    engine_mut(builder.elements).open.push(OpenNode {
-        position,
-        next: ChildOrdinal(0),
-    });
-}
-
-/// Records a scalar parser property on the open node. Key zero is its published decoded value.
-/// Replacing a key replaces its value; properties do not add elements or source ranges.
-pub fn node_property(builder: &mut TableBuilder<'_>, property: PropertyId, value: NameText<'_>) {
-    // Formatting a borrowed string into retained memory cannot fail.
-    let written = node_property_fmt(builder, property, format_args!("{}", value.0));
-    debug_assert!(
-        written.is_ok(),
-        "a borrowed string formats into retained storage without failure"
-    );
-}
-
-/// Format scalar parser metadata directly into retained storage, without a temporary string.
-/// A formatter failure leaves both the property and its stored bytes unchanged.
-///
-/// # Errors
-/// Returns the error of a supplied formatter; the storage writer itself is infallible.
-pub fn node_property_fmt(
-    builder: &mut TableBuilder<'_>,
-    property: PropertyId,
-    value: std::fmt::Arguments<'_>,
-) -> std::fmt::Result {
-    use std::fmt::Write as _;
-    let builder = builder_engine(builder);
-    if builder.writing == TableWriting::Discards {
-        return Ok(());
-    }
-    let table = engine_mut(builder.elements);
-    let Some(open) = table.open.last() else {
-        return Ok(());
-    };
-    let element = open.position;
-    let texts = &mut table.decoded_text.0;
-    let checkpoint = texts.len();
-    if let Err(error) = super::types::PropertyText(texts).write_fmt(value) {
-        texts.truncate(checkpoint);
-        return Err(error);
-    }
-    let record = DecodedProperty {
-        element,
-        property,
-        from: Offset(u32::try_from(checkpoint).unwrap_or(u32::MAX)),
-        to: Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX)),
-    };
-    let records = &mut table.decoded;
-    match records.binary_search_by_key(&(element, property), |each| (each.element, each.property)) {
-        Ok(at) => {
-            if let Some(slot) = records.get_mut(at) {
-                *slot = record;
-            }
-        }
-        Err(at) => records.insert(at, record),
-    }
-    Ok(())
-}
-
 /// Whether tree preorder can be searched by monotonically increasing source starts.
 #[must_use]
 pub fn source_order(elements: &Elements) -> SourceOrder {
     engine(elements).source_order
+}
+
+/// Everything the parser reported about the file, in the order it reported it.
+pub fn diagnostics(elements: &Elements) -> impl Iterator<Item = Diagnostic<'_>> {
+    listed(&engine(elements).diagnostics)
+}
+
+/// Whether any diagnostic indicates missing or recovered syntax.
+#[must_use]
+pub fn has_incomplete_syntax(elements: &Elements) -> SyntaxCompleteness {
+    incomplete_syntax(&engine(elements).diagnostics)
+}
+
+/// Whether lexical facts may be incomplete because tokenization failed or stopped early.
+/// Missing impact metadata remains conservative: older providers do not certify lexical completeness.
+#[must_use]
+pub fn has_incomplete_lexical_stream(elements: &Elements) -> SyntaxCompleteness {
+    incomplete_lexical_stream(&engine(elements).diagnostics)
+}
+
+/// How many parse and validation diagnostics the provider reported about the file.
+#[must_use]
+pub fn diagnostic_count(elements: &Elements) -> Count {
+    count(&engine(elements).diagnostics)
 }

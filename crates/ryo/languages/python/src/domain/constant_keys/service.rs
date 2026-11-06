@@ -337,7 +337,7 @@ pub(crate) fn prepare<'a>(
             return held.borrow();
         }
         index.classes.resize(count, None);
-        if languages::has_incomplete_syntax(tree.elements) {
+        if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
             index.state = KeyState::Partial;
         }
         for raw in (0..count).rev() {

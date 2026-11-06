@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::{QueryLanguageFake, REFUSED};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort as _;
 use ryo_values::domain::plan_parts::types::QueryText;
@@ -26,7 +26,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || QueryText(REFUSED.into()),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, QueryLanguageError::Refused { .. }))
+            selects(Matched(matches!(error, QueryLanguageError::Refused { .. })))
         }),
     },
 ];

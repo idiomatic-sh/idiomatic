@@ -9,36 +9,30 @@ use crate::outbound::syntax::types::SourceText;
 use ryo::languages::UnknownName;
 use std::sync::Arc;
 
-use ryo::languages::{self, AbsenceCause, Parse, Reader, Support};
+use ryo::languages::{
+    self, AbsenceCause, CompletionRequirement, Elements, Parse, ParseRequest, Position, Reader,
+    Recognition, SemanticSlot, Support, Tree,
+};
 
 use crate::domain::fact_extraction::service::note_of;
 use crate::domain::language::service::reads;
-use crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
-use crate::domain::relations::collections::relations::assigns::item::AssignsItem;
-use crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
-use crate::domain::relations::collections::relations::comment::item::CommentItem;
-use crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
-use crate::domain::relations::collections::relations::defines::item::DefinesItem;
-use crate::domain::relations::collections::relations::function::item::FunctionItem;
-use crate::domain::relations::collections::relations::inherits::item::InheritsItem;
-use crate::domain::relations::collections::relations::mention::item::MentionItem;
-use crate::domain::relations::collections::relations::parameter::item::ParameterItem;
-use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
-use crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
-use crate::domain::relations::collections::relations::scope::item::ScopeItem;
-use crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
-use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
-use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
-use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
-use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
-use crate::domain::relations::collections::relations::visibility::item::VisibilityItem;
+use crate::domain::relations::collections::relations::{
+    annotates::item::AnnotatesItem, assigns::item::AssignsItem,
+    call_argument::item::CallArgumentItem, comment::item::CommentItem,
+    decorates::item::DecoratesItem, defines::item::DefinesItem, function::item::FunctionItem,
+    inherits::item::InheritsItem, mention::item::MentionItem, parameter::item::ParameterItem,
+    reference::item::ReferenceItem, resolves::item::ResolvesItem, scope::item::ScopeItem,
+    static_call::item::StaticCallItem, static_import::item::StaticImportItem,
+    string_literal::item::StringLiteralItem, syntax_child::item::SyntaxChildItem,
+    syntax_error::item::SyntaxErrorItem, syntax_tree::item::SyntaxTreeItem,
+    visibility::item::VisibilityItem,
+};
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
 
-/// `parse`, implementing `ryo::languages::Parse`.
+/// `parse`, implementing `ryo::Parse`.
 pub(crate) struct ParseContract {
     /// The parser that turns a file's text into its tree.
     syntax: Arc<dyn SyntaxPort>,
@@ -57,6 +51,18 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
+
+    fn completion_requirement(&self) -> CompletionRequirement {
+        CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
+
+    fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
+    }
+
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
@@ -65,9 +71,9 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
-    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
+    fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
         reads(request.path)
     }
 
@@ -89,7 +95,7 @@ impl Parse for ParseContract {
 
     fn read_tree(
         &self,
-        request: &languages::ParseRequest<'_>,
+        request: &ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
         // Bytes that are not text are read, not refused: the adapter reads each byte that is not part of a character as one the lexer
@@ -98,11 +104,7 @@ impl Parse for ParseContract {
         Ok(())
     }
 
-    fn complete(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
+    fn complete(&self, request: &ParseRequest<'_>, completion: &mut languages::Completion<'_>) {
         for kind in kinds() {
             languages::name_kind(completion, kind_bits(kind), kind_name(kind));
         }

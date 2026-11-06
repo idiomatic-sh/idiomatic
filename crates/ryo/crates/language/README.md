@@ -8,9 +8,21 @@ The `Parse` and `Project` language contracts answer the portable relation catalo
 
 The language domain's `answers` concept: how a language answers a relation of the catalog: the reader it gives, or why it gives none.
 
+### builders
+
+The language domain's `builders` concept: how a builder writes the element table of a file, one node or token at a time.
+
 ### completion
 
 The language domain's `completion` concept: the finishing of the table of a file once it is built.
+
+### decoded
+
+The language domain's `decoded` concept: the text a token or a node stands for, as the language's library decoded it.
+
+### diagnostics
+
+The language domain's `diagnostics` concept: what a parser reported about a file, with stable metadata and source ranges.
 
 ### elements
 
@@ -32,6 +44,14 @@ The language domain's `kind_index` concept: the positions of a table grouped by 
 
 Indexed source byte offsets, physical lines, and columns shared by every language provider.
 
+### names
+
+The language domain's `names` concept: a name made of pieces, and a name that leaves its file as a place.
+
+### notes
+
+The language domain's `notes` concept: what readers note about the names of a file while reading it.
+
 ### `project_context`
 
 The language domain's `project_context` concept: the host's search authority for resolving names within a project, and the candidate entries it observed.
@@ -39,6 +59,10 @@ The language domain's `project_context` concept: the host's search authority for
 ### reasons
 
 The language domain's `reasons` concept: what a language's tool or library said when a use case failed.
+
+### `relation_masks`
+
+The language domain's `relation_masks` concept: a set of relations, a bit for each, by the relation's number.
 
 ### semantics
 

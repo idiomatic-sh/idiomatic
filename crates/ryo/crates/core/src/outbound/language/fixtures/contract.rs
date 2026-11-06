@@ -8,13 +8,15 @@ use ryo_relations::domain::relations::types::{FileId, Relation};
 use super::super::errors::LanguageError;
 use super::super::interface::LanguagePort;
 use super::super::types::{
-    FileReading, FileToRead, ManifestReading, NoteWriting, ProjectInput, ProjectNotes,
+    FileReading, FileToRead, ManifestReading, NoteWriting, ProjectNotes, ProjectToRead,
+    SourceSelection,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::language::types::RoleWriting;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::types::FileBytes;
+use ryo_values::domain::stored_facts::types::LanguageNumber;
 
 /// What a row of the contract is given: which scenario to run against the adapter.
 type Input = fn(&dyn LanguagePort) -> Result<Value, LanguageError>;
@@ -33,7 +35,7 @@ fn a_file_no_language_reads_is_unsupported(language: &dyn LanguagePort) -> Value
     let path = FilePath("contract.not-a-language".into());
     let bytes = FileBytes(b"anything".to_vec());
     let file = FileToRead {
-        source_language: None,
+        source_language: SourceSelection::Recognized,
         path: &path,
         file: FileId(0),
         bytes: &bytes,
@@ -89,7 +91,7 @@ fn a_file_that_is_no_manifest_is_not_read_as_one(language: &dyn LanguagePort) ->
 fn reading_no_manifest_refuses_none(language: &dyn LanguagePort) -> Result<Value, LanguageError> {
     let root = RootPath("contract".into());
     let notes = ProjectNotes::default();
-    let input = ProjectInput {
+    let input = ProjectToRead {
         search_scope: &Default::default(),
         given_inventory: &Default::default(),
         observed_entries: &Default::default(),
@@ -103,6 +105,46 @@ fn reading_no_manifest_refuses_none(language: &dyn LanguagePort) -> Result<Value
     language
         .project(&input, &mut Symbols::default(), &mut Discard)
         .map(|answer| answer.refused.is_empty())
+}
+
+/// Whether asking for a semantic session of a language past the ones linked, over a tree nothing was read into, begins none.
+fn a_language_not_linked_begins_no_semantic_session(language: &dyn LanguagePort) -> Value {
+    let path = FilePath("contract.not-a-language".into());
+    let bytes = FileBytes(b"anything".to_vec());
+    let file = FileToRead {
+        source_language: SourceSelection::Recognized,
+        path: &path,
+        file: FileId(0),
+        bytes: &bytes,
+        wanted: &[],
+        notes: NoteWriting::Unwanted,
+        roles: RoleWriting::Unwanted,
+    };
+    let not_linked = LanguageNumber(language.linked().0.len());
+    language
+        .begin_semantics(not_linked, file, &Elements::default())
+        .is_none()
+}
+
+/// Whether the entries a project of no manifests and no files asks for are each named once, in order.
+fn the_entries_a_project_asks_for_are_named_once_in_order(language: &dyn LanguagePort) -> Value {
+    let root = RootPath("contract".into());
+    let notes = ProjectNotes::default();
+    let input = ProjectToRead {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &Default::default(),
+        repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
+        root: &root,
+        manifests: &[],
+        files: &[],
+        notes: &notes,
+        wanted: &[],
+    };
+    language
+        .project_entries(&input)
+        .windows(2)
+        .all(|pair| pair[0] < pair[1])
 }
 
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
@@ -157,6 +199,24 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             |language: &dyn LanguagePort| {
                 Ok(a_file_that_is_no_manifest_is_not_read_as_one(language))
+            }
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_language_not_linked_begins_no_semantic_session"),
+        word: Word::Succeeds,
+        input: || {
+            |language: &dyn LanguagePort| Ok(a_language_not_linked_begins_no_semantic_session(language))
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("the_entries_a_project_asks_for_are_named_once_in_order"),
+        word: Word::Succeeds,
+        input: || {
+            |language: &dyn LanguagePort| {
+                Ok(the_entries_a_project_asks_for_are_named_once_in_order(language))
             }
         },
         expect: Expect::Value(true),

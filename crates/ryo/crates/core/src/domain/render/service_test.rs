@@ -1,6 +1,6 @@
 //! The `render` service's cases, on values alone.
 
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;

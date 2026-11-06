@@ -3,6 +3,7 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
+use super::constants::ROLE_COLUMN_NAME;
 use super::errors::VisitError;
 use super::types::{
     BorrowedBytes, EdgeInput, LineCount, Noting, RoleCompared, RoleNamed, RoleRead, Wants,
@@ -70,7 +71,7 @@ fn role_column() -> ColumnIndex {
             columns
                 .iter()
                 .position(|column| {
-                    ryo_relations::domain::relations::service::column_name(*column).0 == "field"
+                    ryo_relations::domain::relations::service::column_name(*column).0 == ROLE_COLUMN_NAME
                 })
                 .unwrap_or(usize::MAX),
         )

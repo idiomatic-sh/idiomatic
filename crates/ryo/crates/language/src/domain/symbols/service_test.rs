@@ -1,10 +1,11 @@
 //! The `symbols` service's cases, on values alone.
 
 use super::service::{
-    bytes_of, derived_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived,
-    name_count, name_made_across, name_of, place_of, query_intern_derived, text_of,
+    bytes_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived, name_made_across,
+    place_of, query_intern_derived, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::names::service::{derived_of, name_count, name_of};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::{QuerySymbols, SymbolStorage, Symbols, SymbolsEngine};
 use ryo_relations::domain::relations::types::{

@@ -2,4 +2,4 @@
 
 /// What a refusal of the adapter says.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct RefusalText<'a>(pub &'a str);
+pub(crate) struct FactsRefusalText<'a>(pub &'a str);

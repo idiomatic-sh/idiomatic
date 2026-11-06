@@ -62,15 +62,15 @@ pub(crate) fn diagnostics_at(
         languages::SyntaxAcceptance::Accepted
     );
     assert!(
-        !languages::has_incomplete_syntax(&elements),
+        languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete,
         "declaration error must preserve complete AST facts"
     );
     languages::diagnostics(&elements)
         .map(|diagnostic| {
             (
-                diagnostic.phase.name().to_owned(),
-                diagnostic.impact.name().to_owned(),
-                diagnostic.code.as_str().to_owned(),
+                languages::phase_name(diagnostic.phase).0.to_owned(),
+                languages::impact_name(diagnostic.impact).0.to_owned(),
+                diagnostic.code.0.to_owned(),
                 diagnostic.start.0,
                 diagnostic.end.0,
             )

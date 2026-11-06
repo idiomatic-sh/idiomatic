@@ -1,14 +1,14 @@
 //! The language port, implemented by the `ParseUseCase` and `ProjectUseCase` of each language the
 //! edge linked, and the catalog of the `language` crate.
 
-use super::constants::TWO_LANGUAGES_UNLISTED;
+use super::constants::{OBSERVATION_RECEIPT_DIFFERS, TWO_LANGUAGES_UNLISTED};
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::semantics::interface::SemanticSession;
+use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
@@ -24,13 +24,13 @@ use crate::outbound::language::types::LanguageHandles;
 use crate::outbound::language::types::RoleWriting;
 use crate::outbound::language::types::{
     Absence, FileReading, FileToRead, LinkedName, ManifestReading, NoteWriting, ProjectAnswer,
-    ProjectInput, RefusedManifest, RelationAnswer,
+    ProjectToRead, RefusedManifest, RelationAnswer, SourceSelection,
 };
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
 /// Give one language only the notes it wrote, with the same host scope and engine observations.
-fn project_request(input: &ProjectInput<'_>, number: usize) -> ProjectRequest {
+fn project_request(input: &ProjectToRead<'_>, number: LanguageNumber) -> ProjectRequest {
     ProjectRequest {
         root: input.root.clone(),
         repository: input.repository,
@@ -51,7 +51,7 @@ fn project_request(input: &ProjectInput<'_>, number: usize) -> ProjectRequest {
                 Some(FileNotes {
                     language: written_by,
                     notes,
-                }) if written_by.0 == number => Bytes(notes.0.clone()),
+                }) if written_by.0 == number.0 => Bytes(notes.0.clone()),
                 Some(_) | None => Bytes::default(),
             })
             .collect(),
@@ -192,7 +192,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         out: &mut dyn RowWriter,
     ) -> FileReading {
         let request = parse_request(file);
-        if let Some(selected) = file.source_language {
+        if let SourceSelection::Named(selected) = file.source_language {
             let mut matches = self
                 .languages
                 .iter()
@@ -267,17 +267,24 @@ impl LanguagePort for LanguageUseCaseAdapter {
         file: FileToRead<'_>,
         tree: &Elements,
     ) -> Option<Box<dyn SemanticSession>> {
-        self.languages
-            .get(language.0)
-            .and_then(|handle| handle.parse.begin_semantics(&parse_request(file), tree))
+        let mut slot = SemanticSlot::default();
+        if let Some(handle) = self.languages.get(language.0) {
+            handle
+                .parse
+                .begin_semantics(&parse_request(file), tree, &mut slot);
+        }
+        match slot {
+            SemanticSlot::Begun(session) => Some(session),
+            SemanticSlot::Empty => None,
+        }
     }
 
-    fn project_entries(&self, input: &ProjectInput<'_>) -> Vec<FilePath> {
+    fn project_entries(&self, input: &ProjectToRead<'_>) -> Vec<FilePath> {
         let mut entries = Vec::new();
         for (number, language) in self.languages.iter().enumerate() {
             language
                 .project
-                .project_entries(&project_request(input, number), &mut entries);
+                .project_entries(&project_request(input, LanguageNumber(number)), &mut entries);
         }
         entries.sort();
         entries.dedup();
@@ -286,7 +293,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
 
     fn project(
         &self,
-        input: &ProjectInput<'_>,
+        input: &ProjectToRead<'_>,
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
     ) -> Result<ProjectAnswer, LanguageError> {
@@ -294,7 +301,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         let mut unlisted = Vec::new();
         let mut consulted = Vec::new();
         for (number, language) in self.languages.iter().enumerate() {
-            let request = project_request(input, number);
+            let request = project_request(input, LanguageNumber(number));
             let bytes = language
                 .project
                 .project(&request, symbols, out)
@@ -307,8 +314,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 )
             {
                 return Err(LanguageError::Manifest {
-                    reason: "project observation receipt differs from the engine's batch"
-                        .to_owned(),
+                    reason: OBSERVATION_RECEIPT_DIFFERS.to_owned(),
                 });
             }
             consulted.extend(bytes.consulted);

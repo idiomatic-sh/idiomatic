@@ -1,44 +1,27 @@
 // the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
-//! The `crossing` service's cases, on values alone.
+//! The `cross_file` service's cases, on values alone.
 
-use super::service::CrossFile;
-use crate::application::run_coordination::settings::CrossingInput;
+use super::fixtures::{counting_plan, crossing, frontier_rows, prepared, todo, world};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::answering::types::Todo;
-use crate::domain::crossing::service::{partials_for, placeable};
-use crate::domain::crossing::types::Placeability;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution, ProjectStage},
-    types::{
-        FrontierDemand, FrontierRequest, ObservationIdentity, PreparedFrontiers, PreparedRequest,
-        ProjectBatch, ProjectPhase, ProjectScope, PublicationSlot,
-    },
-    use_case::ExecutionUseCaseImpl,
-};
-use ryo_execution::inbound::use_cases::metadata::interface::{
-    Covered, FilePartial, Lacking, Partial, RuleIndex,
-};
-use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
-use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{
-    CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
-    Value as Cell, Words, WorkerNumber,
-};
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
-use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
-};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
-use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
-use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_values::domain::table_words::service::{encode_table, pack};
-use ryo_values::domain::table_words::types::WordSlice;
-use std::sync::Arc;
+
+#[cfg(test)]
+mod batch_test;
+#[cfg(test)]
+mod budget_test;
+#[cfg(test)]
+mod generation_test;
+#[cfg(test)]
+mod partials_test;
+#[cfg(test)]
+mod population_test;
+#[cfg(test)]
+mod rendering_test;
+#[cfg(test)]
+mod root_set_test;
+#[cfg(test)]
+mod single_rule_test;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
@@ -57,6 +40,28 @@ enum Scenario {
     CrossNoRule,
     /// A cross-file step that reads what nobody handed over.
     CrossNothingHanded,
+    /// The roots of the current project keep the original two-group, four-cell result.
+    CurrentRoots,
+    /// Rejected syntax blocks the cross-file complements without inventing a partial diagnostic.
+    RejectedSyntax,
+    /// A project evaluation rejects frontiers admitted by another request.
+    ForeignFrontiers,
+    /// Ordinary project rules share one preparation and reject another generation.
+    SharedPreparation,
+    /// An ordinary phase keeps the populations and the partiality of its rules separate.
+    SeparatePopulations,
+    /// Equal policies do not alias distinct admitted frontier payloads.
+    DistinctPayloads,
+    /// Many distinct project populations allocate only the state of the region they reach.
+    ReachedRegions,
+    /// A project root set prepares shared publications once, before the ordered delivery.
+    SharedPublications,
+    /// A project root set keeps the distinct actual population policy in both orders.
+    DistinctPolicies,
+    /// The budget stops a later population after actual work and releases the phase.
+    LaterPopulation,
+    /// A refused frontier ordinal keeps its compiled source in each cohort.
+    RefusedOrdinal,
 }
 
 /// What a row of the cases asks of the service.
@@ -65,395 +70,25 @@ type Input = Scenario;
 type Value = [usize; 3];
 type Failure = RuleRequestsError;
 
-/// What the cross-file steps of every rule read, owned.
-pub(super) struct World {
-    placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
-    program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram>,
-    pub(super) request: ryo_execution::inbound::use_cases::execution::types::RequestExecution,
-    metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
-    ids: Vec<RuleId>,
-    paths: Vec<ryo_language::domain::files::types::FilePath>,
-    files: Vec<ryo_values::domain::files::types::CorpusInput>,
-    needs: Vec<Needs>,
-    arenas: Vec<ArenaBytes>,
-    pub(super) covered: Vec<Covered>,
-    skipped: Vec<ryo_values::domain::runs::types::Skipped>,
-    project: Vec<Partial>,
-}
-
-/// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
-pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
-    Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters: Vec::new(),
-        steps: vec![
-            PlanStep {
-                operation: Operation::Project {
-                    from: PlanInput::Relation(Relation::Function),
-                    columns: vec![ColumnIndex(0)],
-                    distinct: RepeatedRows::Dropped,
-                },
-                scope: StepScope::PerFile,
-            },
-            PlanStep {
-                operation: Operation::GroupCount {
-                    from: PlanInput::Step(StepId(0)),
-                    keys: vec![ColumnIndex(0)],
-                    distinct: None,
-                },
-                scope: StepScope::CrossFile,
-            },
-        ],
-        emit: Emit {
-            step: StepId(1),
-            subject: ColumnIndex(subject),
-            key,
-            headings: Vec::new(),
-        },
-        frontier: vec![PlanInput::Step(StepId(0))],
-        comparison_origins: Vec::new(),
-    }
-}
-
-fn world(plan: Plan) -> World {
-    world_with(
-        vec![plan],
-        Arc::new(crate::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        )),
-    )
-}
-pub(super) fn world_with(
-    plans: Vec<Plan>,
-    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
-) -> World {
-    let applicability =
-        vec![ryo_values::domain::runs::types::RuleApplicability::Always; plans.len()];
-    world_with_applicability(plans, operators, &applicability)
-}
-fn world_with_applicability(
-    plans: Vec<Plan>,
-    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
-    applicability: &[ryo_values::domain::runs::types::RuleApplicability],
-) -> World {
-    use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
-    use ryo_values::domain::{
-        files::types::{CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-        rule_requests::types::{RuleParameters, RuleSpec},
-        stored_facts::types::Digest,
-    };
-    let placement = MetadataUseCaseImpl.decide(
-        &plans
-            .iter()
-            .map(
-                |_| ryo_execution::inbound::use_cases::metadata::interface::RuleScope {
-                    include: Vec::new(),
-                    exclude: Vec::new(),
-                },
-            )
-            .collect::<Vec<_>>(),
-    );
-    let matcher = crate::outbound::matching::fixtures::fake::MatchingFake
-        .compile(&placement.globs)
-        .expect("matcher");
-    let ids = (0..plans.len())
-        .map(|rule| {
-            RuleId(if rule == 0 {
-                "rule".into()
-            } else {
-                format!("rule-{rule}").into()
-            })
-        })
-        .collect::<Vec<_>>();
-    let paths = vec![FilePath("first.py".into()), FilePath("second.py".into())];
-    let files = paths
-        .iter()
-        .cloned()
-        .map(|path| {
-            CorpusInput::Available(CorpusEntry {
-                executable: ExecutablePermission::Unknown,
-                path,
-                size: FileSize(0),
-                modified: Nanoseconds(0),
-            })
-        })
-        .collect::<Vec<_>>();
-    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
-    let engine = ExecutionUseCaseImpl::new(
-        operators,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
-    let program = Arc::new(
-        engine
-            .prepare(PreparedRequest {
-                bindings: vec![Vec::new(); plans.len()],
-                rules: ids
-                    .iter()
-                    .enumerate()
-                    .map(|(rule, id)| RuleSpec {
-                        id: id.clone(),
-                        query: QueryBundle {
-                            root: QueryDocumentSource {
-                                id: QuerySourceId(id.0.clone()),
-                                text: "".into(),
-                            },
-                            modules: Default::default(),
-                        },
-                        applicability: applicability[rule],
-                        given: Vec::new(),
-                        observations: Vec::new(),
-                        spelled: RuleParameters("".into()),
-                        include: Vec::new(),
-                        exclude: Vec::new(),
-                    })
-                    .collect(),
-                digests: vec![Digest([0; 16]); plans.len()],
-                plans,
-                hosted: Vec::new(),
-                observations: ObservationIdentity::Independent,
-            })
-            .expect("prepared cross rule"),
-    );
-    let request = engine.begin(&program, &files);
-    World {
-        placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
-            placement,
-            matcher,
-        },
-        program,
-        request,
-        metadata,
-        needs: vec![Needs::default(); ids.len()],
-        ids,
-        paths,
-        files,
-        arenas: Vec::new(),
-        covered: Vec::new(),
-        skipped: Vec::new(),
-        project: Vec::new(),
-    }
-}
-
-pub(super) fn crossing(world: &World) -> CrossingInput<'_> {
-    CrossingInput {
-        program: Arc::clone(&world.program),
-        arenas: &world.arenas,
-        domain: crate::domain::crossing::types::CrossingInput {
-            placed: &world.placed,
-            observations: &[],
-            metadata: &world.metadata,
-            ids: &world.ids,
-            needs: &world.needs,
-            paths: &world.paths,
-            files: &world.files,
-            covered: &world.covered,
-            skipped: &world.skipped,
-            unread: &[],
-            project: &world.project,
-            answering: &crate::domain::render::types::Answering::Findings,
-            unknown: &[],
-        },
-    }
-}
-
-fn prepared<'a>(
-    world: &'a World,
-    rows: &[(FileId, ryo_values::domain::rows::types::Table)],
-    symbols: &mut Symbols,
-) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RuleRequestsError> {
-    let phase = world.request.project_phase().expect("one project phase");
-    let (scope, frontiers) =
-        prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
-    Ok((phase, scope, frontiers))
-}
-pub(super) fn prepared_in(
-    world: &World,
-    phase: &ProjectPhase<'_>,
-    rule: RuleIndex,
-    covered: &[Covered],
-    rows: &[(FileId, Table)],
-    symbols: &mut Symbols,
-) -> Result<(ProjectScope, PreparedFrontiers), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
-    use ryo_values::domain::{
-        records::types::{FrontierCoverage, FrontierProof},
-        stored_facts::types::Bucket,
-    };
-    let facts_port = crate::outbound::facts::fixtures::fake::FactsFake::default();
-    let mut workers = Vec::new();
-    let proof = FrontierProof {
-        rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
-        input: ryo_values::domain::records::types::FrontierOrdinal(0),
-        rule_digest: world.program.rule_digest(rule).expect("rule digest"),
-        coverage: FrontierCoverage::Complete,
-    };
-    for (file, table) in rows {
-        let worker = facts_port.worker().expect("facts worker");
-        let mut words = Words::default();
-        encode_table(table, &[], &mut words);
-        let packed = pack(WordSlice(&words.0));
-        worker
-            .keep(
-                Bucket(0),
-                WordsToKeep {
-                    words: &packed,
-                    file: *file,
-                    proof: &proof,
-                },
-            )
-            .expect("source frame");
-        workers.push(worker);
-    }
-    let facts = facts_port
-        .finish(&mut workers.into_iter())
-        .expect("facts finish");
-    let project = facts_port.worker().expect("project facts");
-    let scope = phase
-        .project_scope(
-            rule,
-            &world.files,
-            covered,
-            &world.skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
-        )
-        .expect("project scope");
-    let frontiers = world
-        .request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule,
-                first: Bucket(0),
-                facts: facts.as_ref(),
-                project: project.as_ref(),
-                project_symbols: &Symbols::default(),
-            },
-            symbols,
-        )
-        .map_err(|error| {
-            ryo_values::domain::rule_requests::service::failed(&world.ids[rule.0], &error)
-        })?;
-    Ok((scope, frontiers))
-}
-
-pub(super) fn todo(rule: usize) -> Todo {
-    Todo {
-        rule: RuleIndex(rule),
-        id: RuleId("rule".into()),
-    }
-}
-
-fn partial(relation: Relation) -> Partial {
-    Partial {
-        relation,
-        cause: PartialCause("a construct the reader cannot represent".into()),
-        lacking: Lacking::Any,
-        at: None,
-    }
-}
-
-fn name(hash: u64, place: u32) -> Cell {
-    Cell::Name(Name {
-        hash: TextHash(hash),
-        place: PlaceNumber(place),
-    })
-}
-
-/// Two source files contribute three actual Function-node rows to one project count.
-pub(super) fn frontier_rows() -> Vec<(FileId, Table)> {
-    use ryo_relations::domain::relations::{service::node_id, types::Position};
-    use ryo_values::domain::rows::types::RowCount;
-    let row = |file, positions: &[u32]| {
-        (
-            FileId(file),
-            Table {
-                kinds: vec![CellKind::Node],
-                count: RowCount(positions.len()),
-                cells: positions
-                    .iter()
-                    .map(|position| Cell::Node(node_id(FileId(file), Position(*position))))
-                    .collect(),
-            },
-        )
-    };
-    vec![row(0, &[1, 1]), row(1, &[2])]
-}
-
-/// The file of `partial`, as a number: the repository as a whole is the number past every file, as the store writes it; 0
-/// when there is no such partial.
-fn file_number(partial: Option<&FilePartial>) -> usize {
-    partial.map_or(0, |each| {
-        usize::try_from(each.file.map_or(u32::MAX, |file| file.0)).unwrap_or(0)
-    })
-}
-
-/// The partials of a rule that reads what the project wrote: the files that cover it, in order.
-fn partials_found() -> Value {
-    let mut rules = world(counting_plan(1, Vec::new()));
-    rules.needs = vec![Needs {
-        cross: vec![RelationRead {
-            relation: Relation::Function,
-            kinds: Vec::new(),
-        }],
-        ..Needs::default()
-    }];
-    rules.project = vec![
-        partial(Relation::Function),
-        partial(Relation::PackageDependency),
-    ];
-    rules.covered = vec![
-        Covered {
-            file: FileId(2),
-            rules: vec![RuleIndex(0)],
-            partial: vec![partial(Relation::Function)],
-        },
-        Covered {
-            file: FileId(3),
-            rules: vec![RuleIndex(1)],
-            partial: vec![partial(Relation::Function)],
-        },
-    ];
-    let found = partials_for(&crossing(&rules), RuleIndex(0)).entries;
-    [
-        found.len(),
-        file_number(found.first()),
-        file_number(found.get(1)),
-    ]
-}
-
-fn placing_outcomes() -> Value {
-    let table = Table {
-        kinds: vec![CellKind::Symbol, CellKind::Number],
-        ..Table::default()
-    };
-    let says = |emitted, key| {
-        usize::from(placeable(&counting_plan(emitted, key).emit, &table) == Placeability::Placeable)
-    };
-    [
-        says(0, Vec::new()),
-        says(1, Vec::new()),
-        says(1, vec![ColumnIndex(0)]),
-    ]
-}
-
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    Ok(match scenario {
-        Scenario::Substitution => [
-            usize::from(source_text(b"one", false) == "one"),
-            usize::from(source_text(b"two", false) == "two"),
+    match scenario {
+        Scenario::Substitution => Ok([
+            usize::from(rendering_test::source_text(b"one", false) == "one"),
+            usize::from(rendering_test::source_text(b"two", false) == "two"),
             0,
-        ],
-        Scenario::Unreadable => [usize::from(source_text(b"one", true).is_empty()), 0, 0],
-        Scenario::Placeable => placing_outcomes(),
-        Scenario::Partials => partials_found(),
+        ]),
+        Scenario::Unreadable => Ok([
+            usize::from(rendering_test::source_text(b"one", true).is_empty()),
+            0,
+            0,
+        ]),
+        Scenario::Placeable => Ok(partials_test::placing_outcomes()),
+        Scenario::Partials => Ok(partials_test::partials_found()),
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done = evaluate_fixture(
+            let done = batch_test::evaluate_fixture(
                 &crossing(&rules),
                 &todo(0),
                 frontier,
@@ -461,7 +96,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 scope,
                 &_phase,
             )?;
-            [
+            Ok([
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
@@ -469,13 +104,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.cells.len()),
-            ]
+            ])
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done = evaluate_fixture(
+            let done = batch_test::evaluate_fixture(
                 &crossing(&rules),
                 &todo(3),
                 frontier,
@@ -483,19 +118,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 scope,
                 &_phase,
             )?;
-            [
+            Ok([
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
                 done.fed.len(),
                 0,
-            ]
+            ])
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let (_phase, scope, frontier) = prepared(&rules, &[], &mut cross)?;
-            let done = evaluate_fixture(
+            let done = batch_test::evaluate_fixture(
                 &crossing(&rules),
                 &todo(0),
                 frontier,
@@ -503,15 +138,26 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 scope,
                 &_phase,
             )?;
-            [
+            Ok([
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
                 0,
                 0,
-            ]
+            ])
         }
-    })
+        Scenario::CurrentRoots => single_rule_test::current_project_roots_keep_the_original_two_group_four_cell_result().map(|()| [0; 3]),
+        Scenario::RejectedSyntax => single_rule_test::rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics().map(|()| [0; 3]),
+        Scenario::ForeignFrontiers => single_rule_test::project_evaluation_rejects_frontiers_from_another_request().map(|()| [0; 3]),
+        Scenario::SharedPreparation => generation_test::ordinary_project_rules_share_one_preparation_and_reject_another_generation().map(|()| [0; 3]),
+        Scenario::SeparatePopulations => population_test::ordinary_phase_keeps_valid_rule_populations_and_partiality_separate().map(|()| [0; 3]),
+        Scenario::DistinctPayloads => population_test::equal_policies_do_not_alias_distinct_admitted_frontier_payloads().map(|()| [0; 3]),
+        Scenario::ReachedRegions => population_test::many_distinct_project_populations_allocate_only_reached_region_state().map(|()| [0; 3]),
+        Scenario::SharedPublications => root_set_test::project_root_set_prepares_shared_publications_once_before_ordered_delivery().map(|()| [0; 3]),
+        Scenario::DistinctPolicies => root_set_test::project_root_set_preserves_distinct_actual_population_policy_in_both_orders().map(|()| [0; 3]),
+        Scenario::LaterPopulation => budget_test::project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase().map(|()| [0; 3]),
+        Scenario::RefusedOrdinal => budget_test::refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort().map(|()| [0; 3]),
+    }
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -573,6 +219,82 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         }),
     },
+    Case {
+        name: CaseName("current_project_roots_keep_the_original_two_group_four_cell_result"),
+        word: Word::Succeeds,
+        input: || Scenario::CurrentRoots,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::RejectedSyntax,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("project_evaluation_rejects_frontiers_from_another_request"),
+        word: Word::Succeeds,
+        input: || Scenario::ForeignFrontiers,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "ordinary_project_rules_share_one_preparation_and_reject_another_generation",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::SharedPreparation,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("ordinary_phase_keeps_valid_rule_populations_and_partiality_separate"),
+        word: Word::Succeeds,
+        input: || Scenario::SeparatePopulations,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("equal_policies_do_not_alias_distinct_admitted_frontier_payloads"),
+        word: Word::Succeeds,
+        input: || Scenario::DistinctPayloads,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("many_distinct_project_populations_allocate_only_reached_region_state"),
+        word: Word::Succeeds,
+        input: || Scenario::ReachedRegions,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "project_root_set_prepares_shared_publications_once_before_ordered_delivery",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::SharedPublications,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "project_root_set_preserves_distinct_actual_population_policy_in_both_orders",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::DistinctPolicies,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::LaterPopulation,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort"),
+        word: Word::Succeeds,
+        input: || Scenario::RefusedOrdinal,
+        expect: Expect::Value([0, 0, 0]),
+    },
 ];
 
 #[test]
@@ -583,1220 +305,4 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-
-pub(super) fn service() -> CrossFile {
-    CrossFile::new(std::sync::Arc::new(
-        crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))))
-}
-fn source_text(bytes: &[u8], fails: bool) -> String {
-    use crate::outbound::corpus::fixtures::fake::CorpusFake;
-    use ryo_values::domain::files::types::CorpusFile;
-    use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-    let corpus = CorpusFake {
-        files: if fails {
-            Vec::new()
-        } else {
-            vec![CorpusFile {
-                executable: Default::default(),
-                path: FilePath("source".into()),
-                bytes: FileBytes(bytes.to_vec()),
-            }]
-        },
-        fails,
-        reads: std::sync::Arc::default(),
-        outside: Vec::new(),
-    };
-    let service = CrossFile::new(std::sync::Arc::new(corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))));
-    let files = [CorpusEntry {
-        executable: Default::default(),
-        path: FilePath("source".into()),
-        size: FileSize(3),
-        modified: Nanoseconds(0),
-    }]
-    .map(ryo_values::domain::files::types::CorpusInput::Available);
-    let mut symbols = Symbols::default();
-    places_mut(&mut symbols).push(NamePlace {
-        origin: Origin::Source,
-        file: FileId(0),
-        start: Offset(0),
-        end: Offset(3),
-    });
-    let resolving = crate::domain::finish::types::Resolving {
-        unknown: &[],
-        paths: &[],
-        arenas: crate::domain::finish::types::Arenas(&[]),
-        cross: &symbols,
-    };
-    let mut text = ryo_values::domain::row_texts::types::RenderedText::default();
-    let shown = service.show_value(
-        &mut text,
-        name(1, 0),
-        &files,
-        &resolving,
-        &mut crate::domain::finish::types::Loaded::default(),
-    );
-    match shown.map(|kept| {
-        ryo_values::domain::records::service::lent(
-            ryo_values::domain::row_texts::types::RowsTextView(&text),
-            kept,
-        )
-    }) {
-        Some(ryo_values::domain::row_texts::types::Cell::Text(piece)) => piece.0.to_owned(),
-        Some(
-            ryo_values::domain::row_texts::types::Cell::File(_)
-            | ryo_values::domain::row_texts::types::Cell::Number(_)
-            | ryo_values::domain::row_texts::types::Cell::Span(_),
-        )
-        | None => String::new(),
-    }
-}
-
-use ryo_values::domain::rows::types::Table;
-
-use ryo_execution::inbound::use_cases::metadata::{
-    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
-};
-
-#[test]
-fn current_project_roots_keep_the_original_two_group_four_cell_result() {
-    use ryo_execution::inbound::use_cases::execution::{
-        interface::ProjectRootExecution,
-        types::{
-            EmitDemand, ObservationDemand, Partials, ProjectBatch, ProjectInput, ProjectTask,
-            RootOutcome, RuleDemand,
-        },
-    };
-    let world = world(counting_plan(1, Vec::new()));
-    let mut symbols = Symbols::default();
-    let (phase, scope, ordinary) =
-        prepared(&world, &frontier_rows(), &mut symbols).expect("actual source-bound frontier");
-    let partials = Partials::default();
-    let ProjectBatch::Complete(mut done) = phase.evaluate(
-        vec![ProjectTask {
-            rule: RuleIndex(0),
-            demand: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::Required,
-            },
-            input: ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &world.arenas,
-            },
-        }],
-        &mut symbols,
-        |_| Ok::<(), ryo_execution::inbound::use_cases::execution::types::OperatingError>(()),
-    ) else {
-        panic!("the guard admits the declared root")
-    };
-    let done = done.remove(0).expect("rule");
-    let RootOutcome::Complete(table) = done.emit else {
-        panic!("complete group root")
-    };
-    assert_eq!(
-        [table.count.0, done.counts.fed.len(), table.cells.len()],
-        [2, 2, 4]
-    );
-}
-
-#[test]
-fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics() {
-    use ryo_values::domain::runs::types::{SkipReason, Skipped};
-    let mut world = world(counting_plan(0, Vec::new()));
-    let path = ryo_language::domain::files::types::FilePath("rejected.py".into());
-    world.paths = vec![path.clone()];
-    world.needs[0].cross.push(RelationRead {
-        relation: Relation::Function,
-        kinds: vec![],
-    });
-    let skipped = [Skipped {
-        rule: world.ids[0].clone(),
-        path,
-        reason: SkipReason::SyntaxRejected,
-    }];
-    let mut input = crossing(&world);
-    input.domain.skipped = &skipped;
-    let partials = partials_for(&input, RuleIndex(0));
-    assert!(partials.entries.is_empty(), "no provider partial invented");
-    assert_eq!(
-        partials.unavailable_files,
-        [FileId(0)],
-        "skipped source remains unavailable for absence checks"
-    );
-}
-
-#[test]
-fn project_evaluation_rejects_frontiers_from_another_request() {
-    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
-    let rules = world(counting_plan(1, Vec::new()));
-    let mut symbols = Symbols::default();
-    let (_phase, _scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
-        .expect("frontiers admitted by the original request");
-    let engine = ExecutionUseCaseImpl::new(
-        Arc::new(crate::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        )),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
-    let next = engine.begin(&rules.program, &rules.files);
-    let next_phase = next.project_phase().expect("independent project phase");
-    let foreign = next_phase
-        .project_scope(
-            RuleIndex(0),
-            &rules.files,
-            &rules.covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
-        )
-        .expect("independent request over the same program and corpus");
-    let result = evaluate_fixture(
-        &crossing(&rules),
-        &todo(0),
-        frontier,
-        &mut symbols,
-        foreign,
-        &next_phase,
-    );
-    match result {
-        Err(error) => assert_eq!(
-            error,
-            ryo_values::domain::rule_requests::service::failed(
-                &rules.ids[0],
-                &OperatingError::NotRead
-            )
-        ),
-        Ok(_) => panic!("an unrelated request scope cannot admit the original frontiers"),
-    }
-}
-
-#[derive(Debug, Default)]
-pub(super) struct ProjectCalls {
-    pub(super) reductions: std::sync::atomic::AtomicUsize,
-    pub(super) aggregates: std::sync::atomic::AtomicUsize,
-}
-impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
-    fn operators(
-        &self,
-        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
-    > {
-        use ryo_operators::inbound::use_cases::operators::interface::{
-            OperatorCall, OperatorsUseCase,
-        };
-        use std::sync::atomic::Ordering;
-        match &call {
-            OperatorCall::ReduceCount { .. } => {
-                self.reductions.fetch_add(1, Ordering::SeqCst);
-            }
-            OperatorCall::Aggregate { .. } => {
-                self.aggregates.fetch_add(1, Ordering::SeqCst);
-            }
-            _ => {}
-        }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
-            .operators(call)
-    }
-}
-
-#[test]
-fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() {
-    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
-    use std::sync::atomic::Ordering;
-    for order in [[0, 1], [1, 0]] {
-        let calls = Arc::new(ProjectCalls::default());
-        let plan = counting_plan(1, Vec::new());
-        let mut rules = world_with(vec![plan.clone(), plan], calls.clone());
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let mut first_rendered = None;
-        let mut first_payload = None;
-        for rule in order {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                &frontier_rows(),
-                &mut symbols,
-            )
-            .unwrap();
-            let result = evaluate_fixture(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
-                },
-                frontier,
-                &mut symbols,
-                scope,
-                &phase,
-            )
-            .unwrap();
-            let rendered = result.rendered.expect("actual core project rendering");
-            assert_eq!(result.fed.len(), 2);
-            let payload = assert_count_findings(
-                &rendered,
-                RuleIndex(rule),
-                &rules.ids[rule],
-                &[2, 1],
-                &[1, 0],
-            );
-            if let Some(first) = &first_payload {
-                assert_eq!(&payload, first);
-            } else {
-                first_payload = Some(payload);
-            }
-            // Rendering carries the actual logical rule id even when its physical
-            // publication is shared. Keep rule 0's full snapshot for its fresh request.
-            if rule == 0 {
-                first_rendered = Some(rendered);
-            }
-            assert_eq!(
-                calls.reductions.load(Ordering::SeqCst),
-                1,
-                "one real grouping setup across both logical roots"
-            );
-            assert_eq!(
-                calls.aggregates.load(Ordering::SeqCst),
-                2,
-                "the two authored node groups aggregate once each"
-            );
-        }
-        // A changed physical coverage declaration cannot consume a cached publication.
-        let changed = [Covered {
-            file: FileId(0),
-            rules: vec![RuleIndex(0)],
-            partial: vec![],
-        }];
-        let different = phase
-            .project_scope(
-                RuleIndex(1),
-                &rules.files,
-                &changed,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
-            )
-            .unwrap();
-        let (_, old_frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(1),
-            &rules.covered,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &Todo {
-                rule: RuleIndex(1),
-                id: rules.ids[1].clone(),
-            },
-            old_frontier,
-            &mut symbols,
-            different,
-            &phase,
-        );
-        assert!(
-            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[1], &OperatingError::NotRead))
-        );
-        let (changed_scope, changed_frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(1),
-            &changed,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &Todo {
-                rule: RuleIndex(1),
-                id: rules.ids[1].clone(),
-            },
-            changed_frontier,
-            &mut symbols,
-            changed_scope,
-            &phase,
-        );
-        assert!(
-            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
-                &rules.ids[1], &OperatingError::WrongOperation,
-            )),
-            "one interpreter cannot replay a different declared physical partition"
-        );
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
-        let (_, foreign) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(0),
-            &rules.covered,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        phase.finish().unwrap();
-
-        let engine = ExecutionUseCaseImpl::new(
-            calls.clone(),
-            Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-        );
-        rules.request = engine.begin(&rules.program, &rules.files);
-        let phase = rules.request.project_phase().unwrap();
-        let scope = phase
-            .project_scope(
-                RuleIndex(0),
-                &rules.files,
-                &rules.covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
-            )
-            .unwrap();
-        let failed = evaluate_fixture(
-            &crossing(&rules),
-            &todo(0),
-            foreign,
-            &mut symbols,
-            scope,
-            &phase,
-        );
-        assert!(
-            matches!(failed, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[0], &OperatingError::NotRead))
-        );
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        let (scope, frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(0),
-            &rules.covered,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &todo(0),
-            frontier,
-            &mut symbols,
-            scope,
-            &phase,
-        )
-        .unwrap();
-        assert_eq!(result.rendered, first_rendered);
-        assert_eq!(
-            calls.reductions.load(Ordering::SeqCst),
-            2,
-            "a new request requires its own grouping payload"
-        );
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 4);
-        phase.finish().unwrap();
-    }
-}
-
-#[test]
-fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate() {
-    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
-    use std::sync::atomic::Ordering;
-    for order in [[0, 1, 0, 1], [1, 0, 1, 0]] {
-        let calls = Arc::new(ProjectCalls::default());
-        let plan = counting_plan(1, vec![]);
-        let mut rules = world_with_applicability(
-            vec![plan.clone(), plan],
-            calls.clone(),
-            &[RuleApplicability::AcceptedSyntax, RuleApplicability::Always],
-        );
-        rules.skipped.push(Skipped {
-            rule: rules.ids[0].clone(),
-            path: rules.paths[1].clone(),
-            reason: SkipReason::SyntaxRejected,
-        });
-        rules.covered = vec![
-            Covered {
-                file: FileId(0),
-                rules: vec![RuleIndex(0), RuleIndex(1)],
-                partial: vec![],
-            },
-            Covered {
-                file: FileId(1),
-                rules: vec![RuleIndex(1)],
-                partial: vec![],
-            },
-        ];
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let rows = frontier_rows();
-        let mut results = vec![None, None];
-        for (at, rule) in order.into_iter().enumerate() {
-            // Both scopes receive the same complete request table. Only A has
-            // positive skip provenance; B must retain the second file's rows.
-            let source = if rule == 0 { &rows[..1] } else { &rows[..] };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            let done = evaluate_fixture(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
-                },
-                frontier,
-                &mut symbols,
-                scope,
-                &phase,
-            )
-            .unwrap();
-            let rendered = done
-                .rendered
-                .expect("valid population renders through the actual core route");
-            assert_count_findings(
-                &rendered,
-                RuleIndex(rule),
-                &rules.ids[rule],
-                if rule == 0 { &[2] } else { &[2, 1] },
-                if rule == 0 { &[0] } else { &[1, 0] },
-            );
-            assert_eq!(done.unknowns.len(), usize::from(rule == 0));
-            if let Some(previous) = &results[rule] {
-                assert_eq!(&rendered, previous);
-            } else {
-                results[rule] = Some(rendered);
-            }
-            if at >= 1 {
-                assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
-                assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
-            }
-        }
-        phase.finish().unwrap();
-    }
-}
-
-#[test]
-fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
-    use ryo_relations::domain::relations::{service::node_id, types::Position};
-    use std::sync::atomic::Ordering;
-    for order in [[0, 1, 0], [1, 0, 1]] {
-        let calls = Arc::new(ProjectCalls::default());
-        let plan = counting_plan(1, vec![]);
-        let rules = world_with(vec![plan.clone(), plan], calls.clone());
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let original = frontier_rows();
-        let mut changed = original.clone();
-        for cell in &mut changed[0].1.cells {
-            *cell = Cell::Node(node_id(FileId(0), Position(9)));
-        }
-        let mut results = vec![None, None];
-        for (at, rule) in order.into_iter().enumerate() {
-            let source = if rule == 0 { &original } else { &changed };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            use ryo_execution::inbound::use_cases::execution::{
-                interface::ProjectRootExecution,
-                types::{
-                    EmitDemand, ObservationDemand, OperatingError, ProjectInput, ProjectTask,
-                    RootOutcome, RuleDemand,
-                },
-            };
-            let evaluation = partials_for(&crossing(&rules).domain, RuleIndex(rule));
-            let reads = rules.program.observation_reads(RuleIndex(rule)).unwrap();
-            let publication = crate::domain::crossing::service::partials_for_reads(
-                &crossing(&rules).domain,
-                RuleIndex(rule),
-                &reads,
-            );
-            let ProjectBatch::Complete(mut outcomes) = phase.evaluate(
-                vec![ProjectTask {
-                    rule: RuleIndex(rule),
-                    demand: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::Required,
-                    },
-                    input: ProjectInput {
-                        scope: &scope,
-                        evaluation: &evaluation,
-                        publication: &publication,
-                        ordinary: frontier,
-                        bound: &[],
-                        arenas: &rules.arenas,
-                    },
-                }],
-                &mut symbols,
-                |_| Ok::<(), std::convert::Infallible>(()),
-            ) else {
-                unreachable!()
-            };
-            assert_eq!(outcomes.len(), 1);
-            let table = match outcomes.pop().unwrap().unwrap().emit {
-                RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => table,
-                RootOutcome::Failed(error) | RootOutcome::Unknown(error) => {
-                    panic!("actual prepared population refused: {error}")
-                }
-                _ => panic!(
-                    "actual prepared population absent: {}",
-                    OperatingError::NotRun
-                ),
-            };
-            let first = if rule == 0 { 1 } else { 9 };
-            assert_eq!(
-                table.cells,
-                [
-                    Cell::Node(node_id(FileId(0), Position(first))),
-                    Cell::Number(ryo_relations::domain::relations::types::Integer(2)),
-                    Cell::Node(node_id(FileId(1), Position(2))),
-                    Cell::Number(ryo_relations::domain::relations::types::Integer(1)),
-                ]
-            );
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            let done = evaluate_fixture(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
-                },
-                frontier,
-                &mut symbols,
-                scope,
-                &phase,
-            )
-            .unwrap();
-            assert!(done.unknowns.is_empty());
-            let rendered = done.rendered.unwrap();
-            assert_count_findings(
-                &rendered,
-                RuleIndex(rule),
-                &rules.ids[rule],
-                &[2, 1],
-                &[1, 0],
-            );
-            if let Some(previous) = &results[rule] {
-                assert_eq!(&rendered, previous);
-            } else {
-                results[rule] = Some(rendered);
-            }
-            if at >= 1 {
-                assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
-                assert_eq!(calls.aggregates.load(Ordering::SeqCst), 4);
-            }
-        }
-        phase.finish().unwrap();
-    }
-}
-
-#[test]
-fn many_distinct_project_populations_allocate_only_reached_region_state() {
-    use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
-    use std::sync::atomic::Ordering;
-    const POPULATIONS: usize = 8;
-    let calls = Arc::new(ProjectCalls::default());
-    let mut plans = Vec::new();
-    for seed in 0..96 {
-        let mut plan = counting_plan(1, vec![]);
-        if seed != 0 {
-            // Separate dormant regions, with a semantically valid literal predicate.
-            plan.steps.push(PlanStep {
-                scope: StepScope::CrossFile,
-                operation: Operation::Select {
-                    from: PlanInput::Step(StepId(1)),
-                    comparisons: vec![PlanComparison {
-                        test: Test::Equal,
-                        left: Operand::Column(ColumnIndex(1)),
-                        right: Operand::Literal(QueryLiteral::Number(
-                            ryo_relations::domain::relations::types::Integer(seed),
-                        )),
-                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-                    }],
-                    kept: vec![],
-                },
-            });
-            plan.emit.step = StepId(2);
-        }
-        plans.push(plan);
-    }
-    let rules = world_with(plans, calls.clone());
-    let phase = rules.request.project_phase().unwrap();
-    assert_eq!(phase.state_counts(), Default::default());
-    let mut symbols = Symbols::default();
-    for population in 0..POPULATIONS {
-        let mut rows = frontier_rows();
-        // Distinct legitimate transport payloads force distinct input populations.
-        let repeated = rows[0].1.cells[0];
-        rows[0].1.cells.push(repeated);
-        rows[0].1.count.0 += 1;
-        for _ in 0..population {
-            rows[0].1.cells.push(repeated);
-            rows[0].1.count.0 += 1;
-        }
-        let (scope, frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(0),
-            &rules.covered,
-            &rows,
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &todo(0),
-            frontier,
-            &mut symbols,
-            scope,
-            &phase,
-        )
-        .unwrap();
-        assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
-        let state = phase.state_counts();
-        assert_eq!(state.populations.0, population + 1);
-        assert_eq!(
-            state.slots.0,
-            population + 1,
-            "only the demanded GroupCount region owns mutable state"
-        );
-        assert_eq!(
-            state.instruction_counters.0,
-            population + 1,
-            "dormant authored selectors allocate no counter arrays"
-        );
-        assert!(state.dormant_obligations.0 <= population + 1);
-    }
-    assert_eq!(calls.reductions.load(Ordering::SeqCst), POPULATIONS);
-    assert_eq!(calls.aggregates.load(Ordering::SeqCst), POPULATIONS * 2);
-    phase.finish().unwrap();
-}
-
-#[test]
-fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() {
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-    use std::sync::atomic::Ordering;
-    for order in [[0, 1, 0], [1, 0, 1]] {
-        let calls = Arc::new(ProjectCalls::default());
-        let plan = counting_plan(1, vec![]);
-        let rules = world_with(vec![plan.clone(), plan], calls.clone());
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let mut scopes = Vec::new();
-        let mut frontiers = Vec::new();
-        let mut todos = Vec::new();
-        for rule in order {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                &frontier_rows(),
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            todos.push(Todo {
-                rule: RuleIndex(rule),
-                id: rules.ids[rule].clone(),
-            });
-        }
-        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
-        let results = completed_batch(service().evaluate_batch(
-            &crossing(&rules),
-            tasks,
-            &phase,
-            &mut symbols,
-            |_| Ok(()),
-        ));
-        assert_eq!(results.len(), todos.len());
-        let mut previous = Vec::new();
-        for (todo, result) in todos.iter().zip(results) {
-            let result = result.unwrap().crossed;
-            assert!(result.unknowns.is_empty());
-            let rendered = result.rendered.unwrap();
-            assert_count_findings(&rendered, todo.rule, &todo.id, &[2, 1], &[1, 0]);
-            previous.push(rendered);
-        }
-        let counts = phase.readiness_counts();
-        assert_eq!(
-            counts.preparations.0, 1,
-            "one canonical root, including duplicate logical roots"
-        );
-        assert_eq!(counts.evaluations.0, 1);
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
-        assert_eq!(phase.state_counts().slots.0, 1);
-        let before_replay = phase.readiness_counts();
-        let mut again_scopes = Vec::new();
-        let mut again_frontiers = Vec::new();
-        for todo in &todos {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                todo.rule,
-                &rules.covered,
-                &frontier_rows(),
-                &mut symbols,
-            )
-            .unwrap();
-            again_scopes.push(scope);
-            again_frontiers.push(frontier);
-        }
-        let again = sealed_fixture_batch(&todos, again_scopes, again_frontiers);
-        let repeated = completed_batch(service().evaluate_batch(
-            &crossing(&rules),
-            again,
-            &phase,
-            &mut symbols,
-            |_| Ok(()),
-        ));
-        assert_eq!(repeated.len(), previous.len());
-        for (result, previous) in repeated.into_iter().zip(&previous) {
-            assert_eq!(result.unwrap().crossed.rendered.as_ref(), Some(previous));
-        }
-        assert_eq!(
-            phase.readiness_counts(),
-            before_replay,
-            "delivery adds no hidden fallback polls"
-        );
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
-        phase.finish().unwrap();
-    }
-}
-
-#[test]
-fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders() {
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
-    use std::sync::atomic::Ordering;
-    for order in [[0, 1], [1, 0]] {
-        let calls = Arc::new(ProjectCalls::default());
-        let plan = counting_plan(1, vec![]);
-        let mut rules = world_with_applicability(
-            vec![plan.clone(), plan],
-            calls.clone(),
-            &[RuleApplicability::AcceptedSyntax, RuleApplicability::Always],
-        );
-        rules.skipped.push(Skipped {
-            rule: rules.ids[0].clone(),
-            path: rules.paths[1].clone(),
-            reason: SkipReason::SyntaxRejected,
-        });
-        rules.covered = vec![
-            Covered {
-                file: FileId(0),
-                rules: vec![RuleIndex(0), RuleIndex(1)],
-                partial: vec![],
-            },
-            Covered {
-                file: FileId(1),
-                rules: vec![RuleIndex(1)],
-                partial: vec![],
-            },
-        ];
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let rows = frontier_rows();
-        let mut scopes = Vec::new();
-        let mut frontiers = Vec::new();
-        let mut todos = Vec::new();
-        for rule in order {
-            let source = if rule == 0 { &rows[..1] } else { &rows[..] };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            todos.push(Todo {
-                rule: RuleIndex(rule),
-                id: rules.ids[rule].clone(),
-            });
-        }
-        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
-        let results = completed_batch(service().evaluate_batch(
-            &crossing(&rules),
-            tasks,
-            &phase,
-            &mut symbols,
-            |_| Ok(()),
-        ));
-        assert_eq!(results.len(), order.len());
-        for (rule, result) in order.into_iter().zip(results) {
-            let result = result.unwrap().crossed;
-            assert_eq!(result.unknowns.len(), usize::from(rule == 0));
-            let rendered = result.rendered.unwrap();
-            assert_count_findings(
-                &rendered,
-                RuleIndex(rule),
-                &rules.ids[rule],
-                if rule == 0 { &[2] } else { &[2, 1] },
-                if rule == 0 { &[0] } else { &[1, 0] },
-            );
-        }
-        assert_eq!(phase.readiness_counts().evaluations.0, 2);
-        assert_eq!(phase.state_counts().populations.0, 2);
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
-        phase.finish().unwrap();
-    }
-}
-
-fn completed_batch(
-    batch: ProjectBatch<super::types::ProjectOutcome, super::errors::CrossError>,
-) -> Vec<Result<super::types::CrossedWithPublications, super::errors::CrossError>> {
-    match batch {
-        ProjectBatch::Complete(completed) => completed
-            .into_iter()
-            .map(|outcome| outcome.result)
-            .collect(),
-        ProjectBatch::Refused { error, .. } => {
-            panic!("the fixture declares no memory limit: {error}")
-        }
-    }
-}
-
-#[test]
-fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_phase() {
-    use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
-    use ryo_operators::inbound::use_cases::operators::interface::{
-        OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-    };
-    use ryo_relations::domain::relations::{service::node_id, types::Position};
-    use ryo_values::domain::runs::types::MemoryBytes;
-    use std::sync::atomic::{AtomicU64, Ordering};
-    #[derive(Debug, Default)]
-    struct GrowingMemory {
-        actual: ProjectCalls,
-        resident: AtomicU64,
-    }
-    impl OperatorsUseCase for GrowingMemory {
-        fn operators(
-            &self,
-            call: OperatorCall<'_>,
-        ) -> Result<OperatorAnswer, PortableOperatorFault> {
-            let answer = self.actual.operators(call);
-            self.resident.store(200, Ordering::SeqCst);
-            answer
-        }
-    }
-    impl MemoryPort for GrowingMemory {
-        fn budget(&self) -> Result<MemoryBytes, MemoryError> {
-            Ok(MemoryBytes(100))
-        }
-        fn resident_bytes(&self) -> Result<MemoryBytes, MemoryError> {
-            Ok(MemoryBytes(self.resident.load(Ordering::SeqCst)))
-        }
-    }
-    for order in [[0, 1], [1, 0]] {
-        let memory = Arc::new(GrowingMemory::default());
-        let plan = counting_plan(1, vec![]);
-        let rules = world_with(vec![plan.clone(), plan], memory.clone());
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let original = frontier_rows();
-        let mut different = original.clone();
-        for cell in &mut different[0].1.cells {
-            *cell = Cell::Node(node_id(FileId(0), Position(9)));
-        }
-        let mut scopes = Vec::new();
-        let mut frontiers = Vec::new();
-        let mut todos = Vec::new();
-        for rule in order {
-            let source = if rule == 0 { &original } else { &different };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            todos.push(Todo {
-                rule: RuleIndex(rule),
-                id: rules.ids[rule].clone(),
-            });
-        }
-        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
-        let guarded =
-            service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols, |rule| {
-                Ok(crate::domain::budget::service::within(
-                    memory.resident_bytes()?,
-                    memory.budget()?,
-                    || vec![rules.ids[rule.0].clone()],
-                )?)
-            });
-        let ProjectBatch::Refused { completed, error } = guarded else {
-            panic!("later cohort must be refused")
-        };
-        assert_eq!(completed.len(), 1);
-        assert!(
-            completed
-                .into_iter()
-                .next()
-                .unwrap()
-                .result
-                .unwrap()
-                .crossed
-                .rendered
-                .is_some()
-        );
-        assert!(
-            matches!(error, super::errors::CrossError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])
-        );
-        assert_eq!(memory.actual.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(memory.actual.aggregates.load(Ordering::SeqCst), 2);
-        assert_eq!(
-            phase.state_counts().slots.0,
-            1,
-            "refused population never starts source admission or semantic work"
-        );
-        phase
-            .finish()
-            .expect("all scopes settle after budget refusal");
-    }
-}
-
-#[test]
-fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort() {
-    use ryo_execution::inbound::use_cases::execution::{
-        interface::ProjectRootExecution,
-        types::{
-            EmitDemand, ObservationDemand, OperatingError, ProjectInput, ProjectTask, RootOutcome,
-            RuleDemand,
-        },
-    };
-    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
-    use std::sync::atomic::Ordering;
-    for order in [[0, 1], [1, 0]] {
-        let calls = Arc::new(ProjectCalls::default());
-        let first = counting_plan(1, vec![]);
-        let mut second = first.clone();
-        let Operation::Project { distinct, .. } = &mut second.steps[0].operation else {
-            unreachable!()
-        };
-        *distinct = RepeatedRows::Kept;
-        let mut rules = world_with_applicability(
-            vec![first, second],
-            calls.clone(),
-            &[RuleApplicability::AcceptedSyntax; 2],
-        );
-        for rule in [0, 1] {
-            for path in &rules.paths {
-                rules.skipped.push(Skipped {
-                    rule: rules.ids[rule].clone(),
-                    path: path.clone(),
-                    reason: SkipReason::SyntaxRejected,
-                });
-            }
-        }
-        rules.covered.clear();
-        let phase = rules.request.project_phase().unwrap();
-        let mut symbols = Symbols::default();
-        let mut scopes = vec![];
-        let mut frontiers = vec![];
-        let mut policies = vec![];
-        for rule in order {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                &[],
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            policies.push(partials_for(&crossing(&rules).domain, RuleIndex(rule)));
-        }
-        let tasks = order
-            .into_iter()
-            .zip(&scopes)
-            .zip(frontiers)
-            .zip(&policies)
-            .map(|(((rule, scope), ordinary), policy)| ProjectTask {
-                rule: RuleIndex(rule),
-                demand: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
-                input: ProjectInput {
-                    scope,
-                    evaluation: policy,
-                    publication: policy,
-                    ordinary,
-                    bound: &[],
-                    arenas: &rules.arenas,
-                },
-            })
-            .collect();
-        let ProjectBatch::Complete(results) = phase.evaluate(tasks, &mut symbols, |_| {
-            Ok::<(), std::convert::Infallible>(())
-        }) else {
-            unreachable!()
-        };
-        assert_eq!(results.len(), 2);
-        for result in results {
-            assert!(
-                matches!(result.unwrap().emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")
-            );
-        }
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 0);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 0);
-        assert_eq!(
-            phase.state_counts().populations.0,
-            2,
-            "same local #1 refusal belongs to different compiled frontier roots"
-        );
-        drop(scopes);
-        phase.finish().unwrap();
-    }
-}
-
-/// Test resources enter through the actual immutable declaration owner.
-fn sealed_fixture_batch(
-    todo: &[Todo],
-    scopes: Vec<ProjectScope>,
-    frontiers: Vec<PreparedFrontiers>,
-) -> super::preparation::service::SealedBatch {
-    use super::preparation::{service::Preparation, types::PreparedProject};
-    let mut resources = scopes.into_iter().zip(frontiers);
-    let prepared = Preparation::ordinary(todo).prepare_all(|_, _| {
-        let (scope, frontier) = resources
-            .next()
-            .expect("fixture prepares every declared occurrence");
-        Ok(PreparedProject {
-            scope,
-            frontier,
-            bound: Vec::new(),
-            slot: PublicationSlot::Unused,
-        })
-    });
-    assert!(
-        resources.next().is_none(),
-        "fixture has no undeclared resources"
-    );
-    prepared.seal().unwrap()
-}
-
-/// Fixture assembly only: the sole application batch operation owns admission/evaluation.
-fn evaluate_fixture(
-    crossing: &CrossingInput<'_>,
-    todo: &Todo,
-    frontier: PreparedFrontiers,
-    symbols: &mut Symbols,
-    scope: ProjectScope,
-    phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
-) -> Result<crate::domain::answering::types::Crossed, RuleRequestsError> {
-    let batch = sealed_fixture_batch(std::slice::from_ref(todo), vec![scope], vec![frontier]);
-    let ProjectBatch::Complete(mut results) =
-        service().evaluate_batch(crossing, batch, phase, symbols, |_| Ok(()))
-    else {
-        panic!("fixture host declares no memory limit")
-    };
-    assert_eq!(results.len(), 1, "one authored task has one result");
-    results
-        .pop()
-        .expect("the exact result count was checked")
-        .result
-        .map(|result| result.crossed)
-        .map_err(|error| match error {
-            super::errors::CrossError::Rules(error) => error,
-            error => ryo_values::domain::rule_requests::service::failed(&todo.id, &error),
-        })
-}
-
-/// Independent Findings-layout oracle for the authored count emit (no keys or headings).
-/// The grouping input arrives as count 2 then count 1; the rendered presentation
-/// orders subjects numerically, retaining each rule's own header and row identity.
-fn assert_count_findings(
-    rendered: &crate::domain::render::types::Rendered,
-    rule: RuleIndex,
-    id: &RuleId,
-    counts: &[i64],
-    presentation: &[u32],
-) -> Vec<i64> {
-    use ryo_relations::domain::relations::types::Integer;
-    use ryo_values::domain::records::service::lent;
-    use ryo_values::domain::row_texts::types::{Cell as RecordCell, CellText, RowsTextView};
-    let observed = rendered
-        .cells
-        .iter()
-        .map(|cell| cell.map(|cell| lent(RowsTextView(&rendered.text.0), cell)))
-        .collect::<Vec<_>>();
-    let expected = counts
-        .iter()
-        .flat_map(|&count| {
-            [
-                Some(RecordCell::Text(CellText(&id.0))),
-                Some(RecordCell::Number(Integer(count))),
-                Some(RecordCell::Number(Integer(0))),
-                None,
-                None,
-            ]
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        observed, expected,
-        "rule, count subject, empty key, and unplaced line/column"
-    );
-    assert_eq!(rendered.text.0, id.0.repeat(counts.len()));
-    assert_eq!(
-        rendered.ends.0,
-        (1..=counts.len())
-            .map(|row| u32::try_from(row * 5).unwrap())
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(
-        rendered
-            .order
-            .iter()
-            .map(|row| [row.rule.0, row.line.0, row.column.0, row.row.0])
-            .collect::<Vec<_>>(),
-        presentation
-            .iter()
-            .map(|&row| [u32::try_from(rule.0).unwrap(), 0, 0, row])
-            .collect::<Vec<_>>()
-    );
-    observed
-        .chunks_exact(5)
-        .map(|row| match row[1] {
-            Some(RecordCell::Number(Integer(count))) => count,
-            _ => panic!("count subject must remain a typed number"),
-        })
-        .collect()
 }

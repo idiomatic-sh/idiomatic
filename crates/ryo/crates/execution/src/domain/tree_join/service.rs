@@ -1,7 +1,7 @@
 //! The `tree_join` service: how a join finds the elements of a tree for each row of its left input, with no IO and no ports.
 
 use ryo_language::domain::elements::service::kind_names;
-use ryo_language::domain::symbols::service::name_count;
+use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{Flag, Value};
 
 use super::types::{ColumnLack, TreeState};

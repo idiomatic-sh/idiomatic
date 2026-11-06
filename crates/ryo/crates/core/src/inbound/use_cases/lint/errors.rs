@@ -319,21 +319,21 @@ impl From<ryo_execution::inbound::use_cases::execution::types::RuleCompilationEr
     }
 }
 
-impl From<crate::application::cross_file::errors::CrossError> for LintError {
-    fn from(error: crate::application::cross_file::errors::CrossError) -> Self {
-        use crate::application::cross_file::errors::CrossError;
+impl From<crate::application::cross_file::errors::CrossFileError> for LintError {
+    fn from(error: crate::application::cross_file::errors::CrossFileError) -> Self {
+        use crate::application::cross_file::errors::CrossFileError;
         match error {
-            CrossError::Preparation(error) => Self::ObservationExecution {
+            CrossFileError::Preparation(error) => Self::ObservationExecution {
                 reason: error.to_string(),
             },
-            CrossError::Operating(error) => Self::ObservationExecution {
+            CrossFileError::Operating(error) => Self::ObservationExecution {
                 reason: error.to_string(),
             },
-            CrossError::Rules(error) => error.into(),
-            CrossError::Facts(error) => error.into(),
-            CrossError::Scheduler(error) => error.into(),
-            CrossError::Budget(error) => error.into(),
-            CrossError::Memory(error) => error.into(),
+            CrossFileError::Rules(error) => error.into(),
+            CrossFileError::Facts(error) => error.into(),
+            CrossFileError::Scheduler(error) => error.into(),
+            CrossFileError::Budget(error) => error.into(),
+            CrossFileError::Memory(error) => error.into(),
         }
     }
 }

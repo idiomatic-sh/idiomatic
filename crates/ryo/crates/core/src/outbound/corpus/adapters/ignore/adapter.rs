@@ -1,7 +1,7 @@
 //! The corpus port, implemented with the `ignore` crate: the files on disk that `.gitignore` does
 //! not exclude, found by a parallel walk.
 
-use crate::outbound::corpus::types::{Inventory, PathStat, SkippedDirectories};
+use crate::outbound::corpus::types::{CorpusInventory, PathStat, SkippedDirectories};
 use std::io::Read as _;
 use std::sync::mpsc;
 
@@ -11,7 +11,7 @@ use super::constants::{exact_skip, file_root, git_directory};
 use super::types::{BytesRead, Stability, Stamp};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
+use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::service::{input_path, with_separator};
 use ryo_values::domain::files::types::{
@@ -191,14 +191,14 @@ fn unreadable_file(entry: &CorpusEntry, reason: &dyn std::fmt::Display) -> Corpu
 
 /// When the file was last written, in nanoseconds since 1970; zero when the system does not say.
 fn modified(meta: &std::fs::Metadata) -> Nanoseconds {
-    Nanoseconds(
-        meta.modified()
-            .ok() // a system that keeps no modification time says nothing, which the record keeps as zero
-            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // a time before 1970 has no count since it, which the record keeps as zero
-            .map_or(0, |since| {
-                u64::try_from(since.as_nanos()).unwrap_or(u64::MAX)
-            }),
-    )
+    // A system that keeps no modification time says nothing, and a time before 1970 has no count since it: the record keeps both as zero.
+    let Ok(written) = meta.modified() else {
+        return Nanoseconds(0);
+    };
+    let Ok(since) = written.duration_since(std::time::UNIX_EPOCH) else {
+        return Nanoseconds(0);
+    };
+    Nanoseconds(u64::try_from(since.as_nanos()).unwrap_or(u64::MAX))
 }
 
 /// What the system says of the open file.
@@ -239,7 +239,7 @@ pub(super) fn agree(before: &Stamp, after: &Stamp, read: BytesRead) -> Stability
 }
 
 impl CorpusPort for CorpusIgnoreAdapter {
-    fn inventory(&self) -> Result<Inventory, CorpusError> {
+    fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
         let root = &self.root;
         let mut entries = match &self.listing {
             CorpusListing::Walked => walked(root, &self.skipped)?
@@ -263,7 +263,7 @@ impl CorpusPort for CorpusIgnoreAdapter {
                 })
             }));
         }
-        Ok(Inventory(entries))
+        Ok(CorpusInventory(entries))
     }
 
     fn read(&self, entry: &CorpusEntry, into: &mut FileBytes) -> Result<(), CorpusError> {
@@ -334,14 +334,14 @@ impl CorpusPort for CorpusIgnoreAdapter {
         path: &ryo_language::domain::files::types::FilePath,
     ) -> EntryObservation {
         let state = if self.beside_paths.contains(path) {
-            EntryState::File
+            ObservedEntryState::File
         } else {
             match std::fs::metadata(std::path::Path::new(&*self.root.0).join(&*path.0)) {
-                Ok(metadata) if metadata.is_file() => EntryState::File,
-                Ok(metadata) if metadata.is_dir() => EntryState::Directory,
-                Ok(_) => EntryState::Other,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => EntryState::Missing,
-                Err(_) => EntryState::Unknown,
+                Ok(metadata) if metadata.is_file() => ObservedEntryState::File,
+                Ok(metadata) if metadata.is_dir() => ObservedEntryState::Directory,
+                Ok(_) => ObservedEntryState::Other,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => ObservedEntryState::Missing,
+                Err(_) => ObservedEntryState::Unknown,
             }
         };
         EntryObservation {

@@ -3,13 +3,13 @@
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::semantics::interface::SemanticSession;
+use ryo_language::domain::semantics::types::SemanticSession;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::RowWriter;
 
 use super::errors::LanguageError;
-use super::types::{FileReading, FileToRead, ManifestReading, ProjectAnswer, ProjectInput};
+use super::types::{FileReading, FileToRead, ManifestReading, ProjectAnswer, ProjectToRead};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::descriptions::types::KindVocabularies;
 use ryo_values::domain::stored_facts::types::LanguageNumber;
@@ -63,7 +63,7 @@ pub trait LanguagePort: Send + Sync {
     /// Candidate project entries the linked languages need for the requested relations; no IO is performed.
     fn project_entries(
         &self,
-        input: &ProjectInput<'_>,
+        input: &ProjectToRead<'_>,
     ) -> Vec<ryo_language::domain::files::types::FilePath>;
 
     /// Reads the manifests with every linked language, writing into `out`.
@@ -77,7 +77,7 @@ pub trait LanguagePort: Send + Sync {
     /// them, a manifest or what a file notes for the project changed.
     fn project(
         &self,
-        input: &ProjectInput<'_>,
+        input: &ProjectToRead<'_>,
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
     ) -> Result<ProjectAnswer, LanguageError>;

@@ -1,7 +1,8 @@
 //! The `table_texts` service's cases, on values alone.
 
 use ryo_language::domain::symbols::service::intern;
-use ryo_language::domain::symbols::service::{name_count, places_mut};
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::names::service::name_count;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};

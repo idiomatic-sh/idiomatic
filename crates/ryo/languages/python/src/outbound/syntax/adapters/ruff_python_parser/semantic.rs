@@ -8,7 +8,7 @@ use ruff_python_ast::visitor::{Visitor, walk_expr};
 use ruff_python_ast::{AnyNodeRef, Expr, ExprContext};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    self, Flag, RenderContext, RenderError, RenderOutcome, RenderRequest, SemanticSession,
+    self, Flag, RenderContext, SemanticsError, RenderOutcome, RenderRequest, SemanticSession,
 };
 
 use super::schemas::concrete_node_kind;
@@ -192,7 +192,7 @@ impl<'a> Visitor<'a> for Requested<'_> {
                     RenderOutcome::NotApplicable
                 } else {
                     render(expr, context, self.source)
-                        .map(|text| RenderOutcome::Known(Arc::from(text.0)))
+                        .map(|text| RenderOutcome::Known(languages::RenderedNode(Arc::from(text.0))))
                         .unwrap_or(RenderOutcome::Unsupported(UNSUPPORTED))
                 };
                 self.answers[index] = Some(match self.answers[index].take() {
@@ -210,7 +210,7 @@ impl SemanticSession for PythonSemanticSession {
         &mut self,
         source: languages::ByteSlice<'_>,
         requests: &[RenderRequest],
-    ) -> Result<Vec<RenderOutcome>, RenderError> {
+    ) -> Result<Vec<RenderOutcome>, SemanticsError> {
         let Ok(source) = std::str::from_utf8(source.0) else {
             return Ok(vec![
                 RenderOutcome::Unsupported(UNSUPPORTED);

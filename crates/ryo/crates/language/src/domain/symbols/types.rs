@@ -49,10 +49,6 @@ pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
 #[derive(Debug)]
 pub struct TransportPermit(pub(super) std::sync::Arc<()>);
 
-/// A frame belongs to another symbol pool or a generation already cleared.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TransportRefusal;
-
 impl<'a> From<&'a mut Symbols> for QuerySymbols<'a> {
     fn from(symbols: &'a mut Symbols) -> Self {
         Self(symbols)
@@ -123,17 +119,13 @@ impl From<SymbolsEngine> for Symbols {
     }
 }
 
-/// Where a name being made begins in the derived text.
+/// Whether two frame permits, or a permit and a pool, name the same live symbol generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct NameStart(pub usize);
-
-/// Whether a reader has noted any word while reading a file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Noted {
-    /// It has.
-    Words,
-    /// It has not.
-    Nothing,
+pub enum Generation {
+    /// They name the same live generation.
+    Same,
+    /// They name different generations: one is stale or foreign.
+    Different,
 }
 
 /// A borrowed run of bytes: the bytes of a file, the text of a name, a message.

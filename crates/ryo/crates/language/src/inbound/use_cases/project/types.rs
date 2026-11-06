@@ -2,7 +2,7 @@
 //! constructor and no inherent impl.
 
 use super::errors::ProjectError;
-use crate::domain::files::types::FilePath;
+use crate::domain::files::types::{FilePath, ManifestName};
 use crate::domain::project_context::types::{
     EntryObservation, GivenProjectInventory, ObservedEntries, ProjectSearchScope,
 };
@@ -35,44 +35,6 @@ pub struct ProjectRequest {
     pub notes: Vec<Bytes>,
     /// The relations the run asks for, so that a language links the files to one another only when a relation of that asks for it.
     pub wanted: Vec<Relation>,
-}
-
-impl ProjectRequest {
-    /// Ordered search roots, or none when the host declared no search scope.
-    #[must_use]
-    pub fn search_roots(&self) -> Option<&[FilePath]> {
-        match &self.search_scope {
-            ProjectSearchScope::Undeclared => None,
-            ProjectSearchScope::Declared(roots) => Some(roots),
-        }
-    }
-
-    /// Whether an exact candidate is a file. None means no complete observation exists.
-    #[must_use]
-    pub fn candidate_file(&self, path: &FilePath) -> Option<bool> {
-        self.candidate_kind(
-            path,
-            crate::domain::project_context::types::EntryState::File,
-        )
-    }
-
-    /// Whether an exact candidate is a directory. None means no complete observation exists.
-    #[must_use]
-    pub fn candidate_directory(&self, path: &FilePath) -> Option<bool> {
-        self.candidate_kind(
-            path,
-            crate::domain::project_context::types::EntryState::Directory,
-        )
-    }
-
-    fn candidate_kind(
-        &self,
-        path: &FilePath,
-        expected: crate::domain::project_context::types::EntryState,
-    ) -> Option<bool> {
-        crate::domain::project_context::service::state(&self.observed_entries, path)
-            .map(|state| state == expected)
-    }
 }
 
 /// Where the files of a repository are.
@@ -121,10 +83,6 @@ pub struct ManifestFile {
     /// Its text.
     pub text: ManifestText,
 }
-
-/// The name of a file the language reads as a manifest: the last part of its path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ManifestName(pub &'static str);
 
 /// What a manifest reader reads its rows from: the request, and what the language's `resolve` worked out for it. Nothing
 /// of it is kept for another run.

@@ -8,7 +8,7 @@ use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImp
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 
 use super::adapter::QueryLanguageUseCaseAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::query_language::fixtures::contract::CASES as CONTRACT;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort as _;
@@ -29,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             QueryText(r#"let rows = select * from "comment" where matches(text, "["); emit rows subject file key(span);"#.into())
         },
         expect: Expect::Refusal(|error| {
-            selects(error.to_string().contains("invalid regular expression"))
+            selects(Matched(error.to_string().contains("invalid regular expression")))
         }),
     },
     Case {
@@ -39,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             QueryText(r#"let rows = select * from "comment" where text = "never-present" and matches(text, "["); emit rows subject file key(span);"#.into())
         },
         expect: Expect::Refusal(|error| {
-            selects(error.to_string().contains("invalid regular expression"))
+            selects(Matched(error.to_string().contains("invalid regular expression")))
         }),
     },
     Case {
@@ -58,7 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || QueryText("".into()),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, QueryLanguageError::Refused { .. }))
+            selects(Matched(matches!(error, QueryLanguageError::Refused { .. })))
         }),
     },
 ];

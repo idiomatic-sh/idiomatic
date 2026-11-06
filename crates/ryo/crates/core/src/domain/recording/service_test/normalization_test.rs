@@ -129,7 +129,7 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
     for (index, (prepared, (bucket, words))) in moved.iter().zip(&expected_words).enumerate() {
         assert_eq!(prepared.bucket, *bucket);
         assert_eq!(prepared.proof, worker.captured[index].proof);
-        assert_eq!(prepared.word_count, words.0.len());
+        assert_eq!(prepared.word_count.0, words.0.len());
         assert_eq!(prepared.words, pack(WordSlice(&words.0)));
         assert_eq!(prepared.words.0.capacity(), prepared.words.0.len());
     }
@@ -226,7 +226,7 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
             normalized_words(&worker, FileId(3), ArenaBase(0)).expect("complete normalized prefix");
         let actual = moved_words(&worker, FileId(3), ArenaBase(0)).expect("new valid prefix");
         assert_eq!(actual[0].proof, worker.captured[0].proof);
-        assert_eq!(actual[0].word_count, expected[0].1.0.len());
+        assert_eq!(actual[0].word_count.0, expected[0].1.0.len());
         assert_eq!(
             actual[0].words,
             pack(WordSlice(&expected[0].1.0)),

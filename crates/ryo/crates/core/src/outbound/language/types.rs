@@ -47,11 +47,20 @@ pub struct UnknownReasons(pub Vec<UnknownName>);
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LanguageBuild(pub Box<str>);
 
+/// Which linked language reads a file: the one that recognises it, or the one the request names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceSelection<'a> {
+    /// The languages decide by the file's path, in the order they were linked.
+    Recognized,
+    /// The linked provider the request names reads it, whatever the path.
+    Named(&'a LanguageName),
+}
+
 /// One file to read, and the relations wanted of it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileToRead<'a> {
-    /// A linked provider explicitly selected by the request edge.
-    pub source_language: Option<&'a LanguageName>,
+    /// Which linked language reads the file.
+    pub source_language: SourceSelection<'a>,
     /// The path, relative to the root: text that came from disk.
     pub path: &'a FilePath,
     /// The number the run gave the file.
@@ -102,7 +111,7 @@ pub struct RelationAnswer {
 
 /// What the languages are given to write the rows the project gives: the manifests, and the files of the repository.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ProjectInput<'a> {
+pub struct ProjectToRead<'a> {
     /// The repository's root directory.
     pub root: &'a RootPath,
     /// Where its files are: on the disk below the root, or only those given.

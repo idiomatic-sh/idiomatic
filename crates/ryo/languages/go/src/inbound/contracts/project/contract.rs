@@ -104,7 +104,7 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
@@ -140,7 +140,7 @@ impl Project for ProjectContract {
             }
         };
         Ok(Resolved {
-            observed_entries: request.observed_entries.receipt(),
+            observed_entries: request.observed_entries.0.to_vec(),
             refused,
             unlisted: Vec::new(),
             consulted: Vec::new(),

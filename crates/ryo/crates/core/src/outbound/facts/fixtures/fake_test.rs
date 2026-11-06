@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::FactsFake;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 
@@ -32,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_with_its_store_when_told_to"),
         word: Word::Fails,
         input: || Scenario::Failing,
-        expect: Expect::Refusal(|error| selects(matches!(error, FactsError::Store { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, FactsError::Store { .. })))),
     },
 ];
 

@@ -346,7 +346,9 @@ pub(crate) fn receipt(
                     )));
                 }
                 let bytes = std::fs::read(manifest.boundary.join(&declared))?;
-                if ryo::linter::dependency_fingerprint(&bytes) != fingerprint {
+                if ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(&bytes))
+                    != fingerprint
+                {
                     return Err(Error::Invalid(
                         constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES.into(),
                     ));

@@ -1,6 +1,7 @@
 //! The `spelling` service's cases, on values alone.
 
-use ryo_language::domain::symbols::service::{places_mut, places_of};
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::names::service::places_of;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value as Cell,

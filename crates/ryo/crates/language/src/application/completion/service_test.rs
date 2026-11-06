@@ -2,7 +2,9 @@
 use super::service::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
+    builders::service::*,
     completion::service::completion,
+    decoded::service::*,
     elements::{service::*, types::*},
     expansions::service::{append_embedded, write_embedded},
     symbols::{
@@ -61,7 +63,7 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
     );
     complete::<Model>(
         completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(7)),
-        "target=v1",
+        ByteSlice(b"target=v1"),
         crate::domain::elements::types::CompletionRequirement::PreparedModel,
         |_, model| model.preparations += 1,
         |c| {
@@ -98,7 +100,7 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
         &mut elements,
         ByteSlice(b"a"),
         FileId(7),
-        "target=v1",
+        ByteSlice(b"target=v1"),
         &mut *model,
         |_, _| panic!("append must not rerun native resolution"),
     );
@@ -108,7 +110,7 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
     assert_eq!(engine(&elements).decoded.len(), 1);
     assert_eq!(
         engine(&elements).decoded_intern_visits,
-        1,
+        Count(1),
         "new decoded tail is visited once; empty append cannot revisit it"
     );
     assert_eq!(text_at(&elements, Position(2)), interned);
@@ -119,12 +121,12 @@ fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() -> 
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     native(&mut elements, &mut symbols);
     let mut model = Model::default();
-    for (configuration, expected) in [("v1", 1), ("v1", 1), ("v2", 2)] {
+    for (configuration, expected) in [(b"v1", 1), (b"v1", 1), (b"v2", 2)] {
         prepare(
             &mut elements,
             ByteSlice(b"a"),
             FileId(0),
-            configuration,
+            ByteSlice(configuration),
             &mut model,
             |_, m| m.preparations += 1,
         );
@@ -140,7 +142,7 @@ fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() -> 
         &mut elements,
         ByteSlice(b"a"),
         FileId(0),
-        "v2",
+        ByteSlice(b"v2"),
         &mut model,
         |_, m| m.preparations += 1,
     );
@@ -155,7 +157,7 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
         let result = catch_unwind(AssertUnwindSafe(|| {
             complete::<Model>(
                 completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(0)),
-                "v1",
+                ByteSlice(b"v1"),
                 crate::domain::elements::types::CompletionRequirement::PreparedModel,
                 |_, m| {
                     assert_ne!(failing_phase, 0, "initialization failure");

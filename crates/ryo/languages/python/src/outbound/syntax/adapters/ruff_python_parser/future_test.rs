@@ -156,7 +156,7 @@ fn future_annotations_use_only_valid_compiler_directives() {
                 .collect::<Vec<_>>();
             actual.sort_unstable();
             assert_eq!(actual, expected, "{source_kind:?}: {source}");
-            assert!(!languages::has_incomplete_syntax(&elements), "{source}");
+            assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete, "{source}");
         }
     }
 }

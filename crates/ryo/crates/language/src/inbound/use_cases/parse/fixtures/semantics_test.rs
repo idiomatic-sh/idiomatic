@@ -2,11 +2,14 @@
 
 use super::judge;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::elements::service::{enter_node, leave_node, table_builder};
+use crate::domain::builders::service::{enter_node, leave_node, table_builder};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::semantics::interface::SemanticSession;
-use crate::domain::semantics::types::{RenderContext, RenderError, RenderOutcome, RenderRequest};
+use crate::domain::semantics::errors::SemanticsError;
+use crate::domain::semantics::types::SemanticSession;
+use crate::domain::semantics::types::{
+    RenderContext, RenderOutcome, RenderRequest, RenderedNode, SemanticSlot,
+};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::parse::errors::ParseError;
 use crate::inbound::use_cases::parse::fixtures::expected::SemanticExpected;
@@ -42,7 +45,7 @@ impl SemanticSession for FixtureSession {
         &mut self,
         _source: ByteSlice<'_>,
         requests: &[RenderRequest],
-    ) -> Result<Vec<RenderOutcome>, RenderError> {
+    ) -> Result<Vec<RenderOutcome>, SemanticsError> {
         let reason = match self.0 {
             Scenario::UndeclaredReason => UnknownReason(2),
             Scenario::WrongOutcome | Scenario::NoSession => UnknownReason(1),
@@ -64,11 +67,12 @@ impl ParseEngine for FixtureParse {
         &self,
         _request: &ParseRequest<'_>,
         _tree: &Elements,
-    ) -> Option<Box<dyn SemanticSession>> {
+        slot: &mut SemanticSlot,
+    ) {
         match self.0 {
-            Scenario::NoSession => None,
+            Scenario::NoSession => {}
             Scenario::WrongOutcome | Scenario::UndeclaredReason => {
-                Some(Box::new(FixtureSession(self.0)))
+                *slot = SemanticSlot::Begun(Box::new(FixtureSession(self.0)));
             }
         }
     }
@@ -114,6 +118,16 @@ impl ParseEngine for FixtureParse {
     ) -> Result<(), ParseError> {
         Err(ParseError::Unsupported)
     }
+    fn read_file_explicit(
+        &self,
+        _request: ParseRequest<'_>,
+        _table: &mut Elements,
+        _symbols: &mut Symbols,
+        _wanted: &[Relation],
+        _out: &mut dyn RowWriter,
+    ) -> Result<(), ParseError> {
+        Err(ParseError::Unsupported)
+    }
     fn walk_file(
         &self,
         _elements: &mut Elements,
@@ -132,7 +146,7 @@ impl ParseEngine for FixtureParse {
 /// The actual source-backed request shared by all three refusal controls.
 fn outcome_for(scenario: Scenario) -> (usize, usize) {
     let outcome = match scenario {
-        Scenario::WrongOutcome => RenderOutcome::Known(Arc::from("left")),
+        Scenario::WrongOutcome => RenderOutcome::Known(RenderedNode(Arc::from("left"))),
         Scenario::NoSession => RenderOutcome::Unsupported(UnknownReason(1)),
         Scenario::UndeclaredReason => RenderOutcome::Unsupported(UnknownReason(2)),
     };

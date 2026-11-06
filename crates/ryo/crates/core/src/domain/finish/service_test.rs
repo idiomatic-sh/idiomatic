@@ -14,7 +14,7 @@ use ryo_values::domain::files::types::SourceView;
 use super::errors::FinishError;
 use super::service::{founds, place_all, shown_cell};
 use super::types::{Arenas, ColumnNumber, FileLine, Loaded, Point, Resolving};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::Emit;
@@ -228,13 +228,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_subject_column_the_rows_lack_is_refused"),
         word: Word::Fails,
         input: || Scenario::Findings(7),
-        expect: Expect::Refusal(|error| selects(matches!(error, FinishError::Table(..)))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, FinishError::Table(..))))),
     },
     Case {
         name: CaseName("a_complete_observation_without_rows_is_refused"),
         word: Word::Refuses,
         input: || Scenario::MissingPublicationTable,
-        expect: Expect::Refusal(|error| selects(matches!(error, FinishError::Publication { .. }))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, FinishError::Publication { .. })))),
     },
 ];
 

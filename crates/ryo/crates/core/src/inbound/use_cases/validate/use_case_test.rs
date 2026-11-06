@@ -18,7 +18,7 @@ use super::errors::ValidateError;
 use super::interface::ValidateUseCase as _;
 use super::types::ValidateRequest;
 use super::use_case::ValidateUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::interface::LanguagePort;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
@@ -219,10 +219,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || plain(Text::Written(MISSPELLED)),
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects(Matched(matches!(
                 error,
                 ValidateError::Refused { error: refused } if refused.kind == RefusedKind::Syntax
-            ))
+            )))
         }),
     },
     Case {
@@ -230,11 +230,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || plain(Text::Written(HOSTED)),
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects(Matched(matches!(
                 error,
                 ValidateError::Refused { error: refused }
                     if refused.kind == RefusedKind::UnknownRelation
-            ))
+            )))
         }),
     },
     Case {
@@ -242,7 +242,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || plain(Text::Written(MISTYPED_KIND)),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidateError::UnknownKind { .. }))
+            selects(Matched(matches!(error, ValidateError::UnknownKind { .. })))
         }),
     },
     Case {
@@ -257,7 +257,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidateError::Uncompilable { .. }))
+            selects(Matched(matches!(error, ValidateError::Uncompilable { .. })))
         }),
     },
 ];

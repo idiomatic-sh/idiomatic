@@ -9,7 +9,7 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_language::domain::symbols::types::Symbols;
 
 use crate::domain::operating::errors::OperatingError;
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Integer;

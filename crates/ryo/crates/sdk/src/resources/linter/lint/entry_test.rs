@@ -488,7 +488,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
     let request = LintRequest {
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
-        source_language: None,
+        source_language: crate::domain::language::types::SourceLanguage::Recognized,
         root: match given.root {
             Root::Directory => root.path().to_path_buf(),
             Root::Missing => root.path().join("not-there"),

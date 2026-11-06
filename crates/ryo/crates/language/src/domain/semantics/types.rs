@@ -1,8 +1,34 @@
 //! The syntax roles and outcomes shared by language providers and their consumers.
 
-use ryo_relations::domain::relations::types::{FileId, NodeId};
+use super::errors::SemanticsError;
+use crate::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::types::NodeId;
 use ryo_relations::domain::terms::types::UnknownReason;
 use std::sync::Arc;
+
+/// A language's private rendering state. The common application owns its lifetime and cache.
+pub trait SemanticSession: Send {
+    /// Answer a batch in request order, atomically. A successful answer has exactly one result per request.
+    ///
+    /// # Errors
+    ///
+    /// A stale or foreign node refuses the file; a partial vector is never returned.
+    fn render_batch(
+        &mut self,
+        source: ByteSlice<'_>,
+        requests: &[RenderRequest],
+    ) -> Result<Vec<RenderOutcome>, SemanticsError>;
+}
+
+/// The place the engine keeps the session a language begins for a file: empty until the language fills it.
+#[derive(Default)]
+pub enum SemanticSlot {
+    /// No language has begun a session for the file.
+    #[default]
+    Empty,
+    /// The session the language begun.
+    Begun(Box<dyn SemanticSession>),
+}
 
 /// The role in which a rendered syntax node will be embedded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -24,32 +50,17 @@ pub struct RenderRequest {
     pub context: RenderContext,
 }
 
+/// The exact text of a node rendered in a requested context.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RenderedNode(pub Arc<str>);
+
 /// What the language can prove about rendering one requested node.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RenderOutcome {
     /// Exact text in the requested context; the empty string remains a known answer.
-    Known(Arc<str>),
+    Known(RenderedNode),
     /// This node cannot occur in the requested syntax role.
     NotApplicable,
     /// Valid syntax for which the provider cannot prove exact rendered text.
     Unsupported(UnknownReason),
-}
-
-/// A rendering request that does not belong to the current file's tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum RenderError {
-    /// The node was not produced by the current file generation.
-    #[error("semantic rendering received stale node {node:?}")]
-    StaleNode {
-        /// The stale node.
-        node: NodeId,
-    },
-    /// The node belongs to a different file.
-    #[error("semantic rendering received node {node:?} from file {file:?}")]
-    ForeignFile {
-        /// The foreign node.
-        node: NodeId,
-        /// The file encoded in that node.
-        file: FileId,
-    },
 }

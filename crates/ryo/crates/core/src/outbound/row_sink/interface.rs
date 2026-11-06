@@ -2,7 +2,7 @@
 //! nothing the core holds grows with the number of rows.
 
 use super::errors::RowSinkError;
-use super::types::{LentCell, Summary};
+use super::types::{LentCell, AnswerCounts};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::Unread;
 
@@ -19,5 +19,5 @@ pub trait RowSinkPort: Send + Sync {
     /// # Errors
     ///
     /// `Closed` when whoever reads the rows stopped; `Failed` when they could not be written.
-    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowSinkError>;
+    fn end(&self, summary: AnswerCounts, unread: &[Unread]) -> Result<(), RowSinkError>;
 }

@@ -420,7 +420,7 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
             _: &[u8],
         ) -> Result<Vec<RenderOutcome>, OperatingError> {
             Ok(vec![
-                RenderOutcome::Known(Arc::from("a")),
+                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))),
                 RenderOutcome::Unsupported(ryo_relations::domain::terms::types::UnknownReason(24)),
             ])
         }

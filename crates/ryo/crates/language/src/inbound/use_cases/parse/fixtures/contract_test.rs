@@ -225,11 +225,9 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
         Operation::EmbeddedRoot(leading_token) => {
+            use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
             use crate::domain::{
-                elements::{
-                    service::{enter_node, leave_node, table_builder, token},
-                    types::Elements,
-                },
+                elements::types::Elements,
                 expansions::service::write_embedded,
                 symbols::types::{ByteSlice, Symbols},
             };

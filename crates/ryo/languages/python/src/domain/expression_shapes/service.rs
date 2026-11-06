@@ -303,7 +303,7 @@ pub(crate) fn prepare<'a>(
     let held = &model.expression_shapes;
     if held.borrow().state == ShapeState::Fresh {
         let mut index = held.borrow_mut();
-        if languages::has_incomplete_syntax(tree.elements) {
+        if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
             index.state = ShapeState::Partial;
             return None;
         }

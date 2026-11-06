@@ -4,7 +4,7 @@ use super::service::{entries, observed, receipt, state};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     files::types::FilePath,
-    project_context::types::{EntryObservation, EntryState},
+    project_context::types::{EntryObservation, ObservedEntryState},
 };
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ type Input = fn() -> bool;
 type Value = bool;
 type Failure = ();
 
-fn entry(path: &str, state: EntryState) -> EntryObservation {
+fn entry(path: &str, state: ObservedEntryState) -> EntryObservation {
     EntryObservation {
         path: FilePath(path.into()),
         state,
@@ -23,10 +23,10 @@ fn entry(path: &str, state: EntryState) -> EntryObservation {
 
 fn sorted_lookup_shares_one_batch_and_refuses_duplicate_or_unknown_paths() -> bool {
     let batch = observed(vec![
-        entry("b.py", EntryState::File),
-        entry("a", EntryState::Directory),
-        entry("c", EntryState::Unknown),
-        entry("a", EntryState::File),
+        entry("b.py", ObservedEntryState::File),
+        entry("a", ObservedEntryState::Directory),
+        entry("c", ObservedEntryState::Unknown),
+        entry("a", ObservedEntryState::File),
     ]);
     let shared = batch.clone();
     Arc::ptr_eq(&batch.0, &shared.0)
@@ -37,7 +37,7 @@ fn sorted_lookup_shares_one_batch_and_refuses_duplicate_or_unknown_paths() -> bo
             == ["a", "a", "b.py", "c"]
         && receipt(&batch) == receipt(&shared)
         && state(&batch, &FilePath("a".into())).is_none()
-        && state(&batch, &FilePath("b.py".into())) == Some(EntryState::File)
+        && state(&batch, &FilePath("b.py".into())) == Some(ObservedEntryState::File)
         && state(&batch, &FilePath("c".into())).is_none()
         && state(&batch, &FilePath("missing".into())).is_none()
 }

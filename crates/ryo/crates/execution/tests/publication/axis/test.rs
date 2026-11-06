@@ -2,7 +2,8 @@
 use super::super::*;
 use ryo_language::domain::{
     completion::service as completion,
-    elements::{service as elements, types::Elements},
+    builders::service as builders,
+    elements::types::Elements,
     symbols::types::ByteSlice,
 };
 use ryo_relations::{domain::relations::types::KindBits, domain::terms::types::NameText};
@@ -15,19 +16,19 @@ fn native_tree(bytes: &[u8]) -> (Elements, Symbols, Position, [Position; 2]) {
     let mut symbols = Symbols::default();
     let (root, first, second);
     {
-        let mut builder = elements::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-        root = elements::builder_position(&mut builder);
-        elements::enter_node(&mut builder, KindBits(0), Offset(0));
-        first = elements::builder_position(&mut builder);
-        elements::token(&mut builder, KindBits(1), Offset(0), Offset(1));
-        second = elements::builder_position(&mut builder);
-        elements::token(
+        let mut builder = builders::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
+        root = builders::builder_position(&mut builder);
+        builders::enter_node(&mut builder, KindBits(0), Offset(0));
+        first = builders::builder_position(&mut builder);
+        builders::token(&mut builder, KindBits(1), Offset(0), Offset(1));
+        second = builders::builder_position(&mut builder);
+        builders::token(
             &mut builder,
             KindBits(1),
             Offset(2),
             Offset(u32::try_from(bytes.len() - 1).unwrap()),
         );
-        elements::leave_node(&mut builder, Offset(u32::try_from(bytes.len()).unwrap()));
+        builders::leave_node(&mut builder, Offset(u32::try_from(bytes.len()).unwrap()));
     }
     let mut completion =
         completion::completion(&mut elements, &mut symbols, ByteSlice(bytes), FileId(0));

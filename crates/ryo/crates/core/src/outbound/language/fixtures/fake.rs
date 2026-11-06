@@ -7,7 +7,7 @@ use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
@@ -18,7 +18,7 @@ use ryo_relations::domain::relations::types::{KindBits, Offset, Position, Relati
 use super::super::errors::LanguageError;
 use super::super::interface::LanguagePort;
 use super::super::types::{
-    Absence, FileReading, FileToRead, LinkedName, ManifestReading, ProjectAnswer, ProjectInput,
+    Absence, FileReading, FileToRead, LinkedName, ManifestReading, ProjectAnswer, ProjectToRead,
     RelationAnswer,
 };
 use ryo_language::domain::files::types::FilePath;
@@ -81,7 +81,7 @@ pub const BROKEN: &str = "broken";
 const NODE_KIND: &str = "node";
 
 /// Refuses the manifests when the path of one of them contains the text the fake fails on.
-fn refuse_broken(input: &ProjectInput<'_>) -> Result<(), LanguageError> {
+fn refuse_broken(input: &ProjectToRead<'_>) -> Result<(), LanguageError> {
     if input
         .manifests
         .iter()
@@ -167,7 +167,7 @@ impl LanguagePort for LanguageFake {
             } else {
                 ryo_language::domain::elements::types::SyntaxAcceptance::Accepted
             };
-            ryo_language::domain::elements::service::set_syntax_acceptance(
+            ryo_language::domain::builders::service::set_syntax_acceptance(
                 &mut builder,
                 acceptance,
             );
@@ -209,13 +209,13 @@ impl LanguagePort for LanguageFake {
         FileReading::Read(LanguageNumber(0))
     }
 
-    fn project_entries(&self, _input: &ProjectInput<'_>) -> Vec<FilePath> {
+    fn project_entries(&self, _input: &ProjectToRead<'_>) -> Vec<FilePath> {
         self.project_entry_paths.clone()
     }
 
     fn project(
         &self,
-        input: &ProjectInput<'_>,
+        input: &ProjectToRead<'_>,
         _symbols: &mut Symbols,
         _out: &mut dyn RowWriter,
     ) -> Result<ProjectAnswer, LanguageError> {
