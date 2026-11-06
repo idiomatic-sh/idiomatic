@@ -1,49 +1,49 @@
 //! What the `compile` use case promises, against the fakes of the ports it calls.
 
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
-use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
-};
-use ryo_values::domain::plan_parts::types::StepScope;
+use crate::cases::Case;
+use crate::cases::CaseName;
+use crate::cases::Expect;
+use crate::cases::Word;
+use crate::cases::run;
+use crate::outbound::catalog::fixtures::fake::CatalogFake;
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::selects;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::hosted::types::HostedRelation;
+use ryo_values::domain::observations::types::BoundObservationInput;
+use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::program::types::Alias;
+use ryo_values::domain::program::types::ByteOffset;
+use ryo_values::domain::program::types::ColumnReference;
+use ryo_values::domain::program::types::Columns;
+use ryo_values::domain::program::types::Condition;
+use ryo_values::domain::program::types::Expression;
+use ryo_values::domain::program::types::Filter;
+use ryo_values::domain::program::types::Joining;
+use ryo_values::domain::program::types::LetStep;
+use ryo_values::domain::program::types::Program;
+use ryo_values::domain::program::types::QuerySource;
+use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::program::types::Select;
+use ryo_values::domain::program::types::SourceReference;
+use ryo_values::domain::program::types::StepName;
+use ryo_values::domain::program::types::WrittenEmit;
+use ryo_values::domain::program::types::WrittenLiteral;
+use ryo_values::domain::program::types::WrittenOperand;
+use ryo_values::domain::program::types::WrittenRelation;
+use ryo_values::domain::program::types::WrittenTest;
 use std::sync::Arc;
-
 use super::errors::CompileError;
 use super::interface::CompileUseCase as _;
 use super::types::CompileRequest;
 use super::use_case::CompileUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
-use crate::outbound::catalog::fixtures::fake::CatalogFake;
-use crate::outbound::syntax::fixtures::fake::SyntaxFake;
-use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::{Alias, ByteOffset, ColumnReference, Columns, Condition, Expression, Filter, Joining, LetStep, Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest};
-use ryo_values::domain::descriptions::types::ColumnName;
-
-/// What a row asks of the use case.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// Compile what the ports a row gives hold, twice, and count the steps.
-    Compile(fn() -> Given),
-    /// A check that drives the use case itself and asserts what it answers.
-    Check(fn()),
-}
-
-/// What a row answers.
-#[derive(Debug, PartialEq, Eq)]
-enum Answer {
-    /// The compiled plan has this many steps.
-    Steps(usize),
-    /// The check ran and held every assertion it makes.
-    Checked,
-}
 
 /// What a row gives the use case.
-type Input = Scenario;
+type Input = fn() -> Given;
 /// What a row answers.
-type Value = Answer;
+type Value = usize;
 type Failure = CompileError;
 
 const NOWHERE: QuerySpan = QuerySpan {
@@ -207,415 +207,26 @@ fn same_text_twice() -> Given {
     text_the_fake_reads()
 }
 
-fn fragment_contract_compiles_against_real_relation_columns() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-    let root = ryo_values::domain::program::service::query_bundle(
-        ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
-            "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);",
-        ),
-        [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("query/identity").unwrap(),
-            "input source: relation<id: node>;\noutput relation<id: node>;\nlet selected = select id from source;\nreturn selected;",
-        )],
-    )
-    .unwrap();
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
-    let report = use_case
-        .compile(CompileRequest {
-            observations: Vec::new(),
-            text: root,
-            hosted: Vec::new(),
-        })
-        .expect("the fragment input and output contracts match syntax-tree.id");
-    assert_eq!(report.plan.emit.headings.len(), 1);
-}
-
-fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
-    let root_text = "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);";
-    for module_text in [
-        "input source: relation<id: file>;\noutput relation<id: node>;\nlet selected = select id from source;\nreturn selected;",
-        "input source: relation<id: node>;\noutput relation<id: file>;\nlet selected = select id from source;\nreturn selected;",
-    ] {
-        let bundle = ryo_values::domain::program::service::query_bundle(
-            ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("root").unwrap(),
-                root_text,
-            ),
-            [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query/identity").unwrap(),
-                module_text,
-            )],
-        )
-        .unwrap();
-        let error = use_case
-            .compile(CompileRequest {
-                observations: Vec::new(),
-                text: bundle,
-                hosted: Vec::new(),
-            })
-            .expect_err("a mismatched relation signature is refused");
-        assert!(
-            matches!(error, CompileError::Located { origin, .. } if origin.source_id.0.as_ref() == "query/identity")
-        );
-    }
-    let invalid_body = ryo_values::domain::program::service::query_bundle(
-        ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
-            root_text,
-        ),
-        [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("query/identity").unwrap(),
-            "input source: relation<id: node>;\noutput relation<id: node>;\nlet selected = select missing from source;\nreturn selected;",
-        )],
-    )
-    .unwrap();
-    let error = use_case
-        .compile(CompileRequest {
-            observations: Vec::new(),
-            text: invalid_body,
-            hosted: Vec::new(),
-        })
-        .expect_err("module body name errors retain their source location");
-    assert!(
-        matches!(error, CompileError::Located { origin, .. } if origin.source_id.0.as_ref() == "query/identity" && !origin.trace.is_empty())
-    );
-}
-
-fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-
-    let bundle = ryo_values::domain::program::service::query_bundle(
-        ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
-            "import outer from \"query/outer\";\nlet nodes = select id from \"syntax-tree\";\nlet result = outer(source=nodes);\nemit result subject id key(id);",
-        ),
-        [
-            ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query/outer").unwrap(),
-                "import inner from \"query/inner\";\ninput source: relation<id: node>;\noutput relation<id: node>;\nlet result = inner(source=source);\nreturn result;",
-            ),
-            ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query/inner").unwrap(),
-                "input source: relation<id: node>;\noutput relation<id: node>;\nlet result = select missing from source;\nreturn result;",
-            ),
-        ],
-    )
-    .unwrap();
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
-    let error = use_case
-        .compile(CompileRequest {
-            observations: Vec::new(),
-            text: bundle,
-            hosted: Vec::new(),
-        })
-        .expect_err("the inner fragment reads an unknown column");
-    assert!(matches!(
-        error,
-        CompileError::Located { origin, .. }
-            if origin.source_id.0.as_ref() == "query/inner" && origin.trace.len() >= 4
-    ));
-}
-
-fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-
-    let root_with_caller = "import query from \"query\";\nlet secret = select id from \"syntax-tree\";\nlet result = query();\nemit result subject id key(id);";
-    let caller_capture = "output relation<id: node, n: number>;\nlet counted = group-count(from=secret, keys=[\"id\"], count=\"n\");\nreturn counted;";
-    let root_with_nested =
-        "import outer from \"outer\";\nlet result = outer();\nemit result subject id key(id);";
-    let outer = "import inner from \"inner\";\noutput relation<id: node>;\nlet result = inner();\nlet counted = group-count(from=hidden, keys=[\"id\"], count=\"n\");\nreturn result;";
-    let inner =
-        "output relation<id: node>;\nlet hidden = select id from \"syntax-tree\";\nreturn hidden;";
-    let bundles = [
-        (
-            ryo_values::domain::program::service::query_bundle(
-                ryo_values::domain::program::service::document_source(
-                    ryo_values::domain::program::service::source_id("root").unwrap(),
-                    root_with_caller,
-                ),
-                [ryo_values::domain::program::service::document_source(
-                    ryo_values::domain::program::service::source_id("query").unwrap(),
-                    caller_capture,
-                )],
-            )
-            .unwrap(),
-            "query",
-        ),
-        (
-            ryo_values::domain::program::service::query_bundle(
-                ryo_values::domain::program::service::document_source(
-                    ryo_values::domain::program::service::source_id("root").unwrap(),
-                    root_with_nested,
-                ),
-                [
-                    ryo_values::domain::program::service::document_source(
-                        ryo_values::domain::program::service::source_id("outer").unwrap(),
-                        outer,
-                    ),
-                    ryo_values::domain::program::service::document_source(
-                        ryo_values::domain::program::service::source_id("inner").unwrap(),
-                        inner,
-                    ),
-                ],
-            )
-            .unwrap(),
-            "outer",
-        ),
-    ];
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
-    for (bundle, source) in bundles {
-        let error = use_case
-            .compile(CompileRequest {
-                observations: Vec::new(),
-                text: bundle,
-                hosted: Vec::new(),
-            })
-            .expect_err("caller and nested private step spellings are not visible");
-        assert!(
-            matches!(error, CompileError::Located { origin, .. } if origin.source_id.0.as_ref() == source)
-        );
-    }
-}
-
-fn a_fused_fragment_comparison_keeps_its_original_source_span() {
-    use crate::outbound::syntax::fixtures::winnow::winnow;
-    use ryo_values::domain::plans::types::Operation;
-
-    let module = "input nodes: relation<id: node, kind: symbol>;\noutput relation<id: node, kind: symbol>;\nlet selected = select id, kind from nodes where kind = \"totally-unknown\";\nlet projected = select id, kind from selected;\nreturn projected;";
-    let bundle = ryo_values::domain::program::service::query_bundle(
-        ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
-            "import filter from \"filter\";\nlet nodes = select id, kind from \"syntax-tree\";\nlet result = filter(nodes=nodes);\nemit result subject id key(id);",
-        ),
-        [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("filter").unwrap(),
-            module,
-        )],
-    )
-    .unwrap();
-    let use_case = CompileUseCaseImpl::new(
-        Arc::new(winnow()),
-        Arc::new(CatalogFake {
-            relations: vec![Relation::SyntaxTree],
-            fails: false,
-        }),
-    );
-    let plan = use_case
-        .compile(CompileRequest {
-            observations: Vec::new(),
-            text: bundle,
-            hosted: Vec::new(),
-        })
-        .expect("the filter lowers to a plan")
-        .plan;
-    let source = plan.steps.iter().find_map(|step| match &step.operation {
-        Operation::Select { comparisons, .. }
-        | Operation::Join {
-            filter: comparisons,
-            ..
-        } => comparisons.iter().find_map(|comparison| comparison.origin),
-        Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SpanBounds { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::Hosted { .. } => None,
-    });
-    let origin = source
-        .and_then(|id| plan.comparison_origins.get(usize::try_from(id.0).ok()?))
-        .expect("the optimized comparison points into its owning plan table");
-    assert_eq!(origin.source_id.0.as_ref(), "filter");
-    assert!(!origin.trace.is_empty());
-    assert_eq!(
-        module.get(origin.span.start.0..origin.span.end.0),
-        Some("kind = \"totally-unknown\"")
-    );
-}
-
 /// An external schema supplied at the real inbound API, without supplying any facts.
-fn observed(name: &str, columns: &[&str]) -> BoundObservationInput {
-    BoundObservationInput {
-        name: ObservationBindingName(name.into()),
-        columns: columns
-            .iter()
-            .map(|name| ObservationColumn {
-                name: ObservationColumnName((*name).into()),
-                kind: CellKind::File,
-            })
-            .collect(),
-        scope: StepScope::PerFile,
-    }
-}
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_distinct_observation_schema_is_admitted"),
-        word: Word::Succeeds,
-        input: || {
-            || Given {
-                observations: vec![observed("external", &["file"])],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Value(Answer::Steps(1)),
-    },
-    Case {
-        name: CaseName("blank_observation_name_is_refused"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![observed(" ", &["file"])],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("observation_cannot_shadow_catalog_relation"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![observed("function", &["file"])],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("duplicate_observation_sources_are_refused"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![
-                    observed("external", &["file"]),
-                    observed("external", &["file"]),
-                ],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("blank_observation_column_is_refused"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![observed("external", &[" "])],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("duplicate_observation_columns_are_refused"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![observed("external", &["file", "file"])],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("observation_cannot_shadow_hosted_relation"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![observed("external", &["file"])],
-                hosted: vec![HostedRelation {
-                    name: HostedName("external".into()),
-                    columns: vec![HostedColumn {
-                        name: ColumnLabel("file".into()),
-                        kind: CellKind::File,
-                    }],
-                }],
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
-    },
-    Case {
         name: CaseName("compiles_valid_text_to_a_plan"),
         word: Word::Succeeds,
-        input: || Scenario::Compile(text_the_fake_reads),
-        expect: Expect::Value(Answer::Steps(1)),
+        input: || text_the_fake_reads,
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("same_text_gives_the_same_plan"),
         word: Word::Succeeds,
-        input: || Scenario::Compile(same_text_twice),
-        expect: Expect::Value(Answer::Steps(1)),
+        input: || same_text_twice,
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("invalid_text_is_refused"),
         word: Word::Refuses,
-        input: || Scenario::Compile(text_the_fake_refuses),
+        input: || text_the_fake_refuses,
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, CompileError::Located { origin, error }
                 if !origin.source_id.0.is_empty()
@@ -626,7 +237,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unknown_relation_is_refused"),
         word: Word::Refuses,
-        input: || Scenario::Compile(catalog_without_relations),
+        input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, CompileError::UnknownRelation { .. })
@@ -637,7 +248,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("type_mismatch_is_refused"),
         word: Word::Refuses,
-        input: || Scenario::Compile(comparing_text_with_a_number),
+        input: || comparing_text_with_a_number,
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, CompileError::Type { .. })
@@ -648,7 +259,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_word_that_is_no_kind_of_the_column_it_is_compared_with_is_refused"),
         word: Word::Refuses,
-        input: || Scenario::Compile(a_kind_of_defines_that_is_misspelled),
+        input: || a_kind_of_defines_that_is_misspelled,
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(
@@ -664,13 +275,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_word_that_is_a_kind_of_the_column_compiles"),
         word: Word::Succeeds,
-        input: || Scenario::Compile(a_kind_of_defines_that_exists),
-        expect: Expect::Value(Answer::Steps(1)),
+        input: || a_kind_of_defines_that_exists,
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("a_step_nobody_defined_is_refused_as_invalid"),
         word: Word::Refuses,
-        input: || Scenario::Compile(emitting_a_step_nobody_defined),
+        input: || emitting_a_step_nobody_defined,
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, CompileError::Invalid { .. })
@@ -681,67 +292,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("fails_when_catalog_port_fails"),
         word: Word::Fails,
-        input: || Scenario::Compile(failing_catalog),
+        input: || failing_catalog,
         expect: Expect::Refusal(|error| selects!(matches!(error, CompileError::Catalog { .. }))),
-    },
-    Case {
-        name: CaseName("fragment_contract_compiles_against_real_relation_columns"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(fragment_contract_compiles_against_real_relation_columns),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("fragment_relation_contracts_reject_input_and_output_shape_mismatches"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(fragment_relation_contracts_reject_input_and_output_shape_mismatches),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("nested_fragment_validation_error_keeps_the_inner_source_and_import_trace"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(nested_fragment_validation_error_keeps_the_inner_source_and_import_trace),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("fragment_calls_cannot_capture_caller_or_nested_private_steps"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(fragment_calls_cannot_capture_caller_or_nested_private_steps),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("a_fused_fragment_comparison_keeps_its_original_source_span"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(a_fused_fragment_comparison_keeps_its_original_source_span),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("authored_observation_keeps_independent_root_through_optimization"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(authored_observation_keeps_independent_root_through_optimization),
-        expect: Expect::Value(Answer::Checked),
-    },
-    Case {
-        name: CaseName("bound_observation_preserves_declared_schema_and_phase"),
-        word: Word::Succeeds,
-        input: || Scenario::Check(bound_observation_preserves_declared_schema_and_phase),
-        expect: Expect::Value(Answer::Checked),
     },
 ];
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let given = match scenario {
-        Scenario::Compile(given) => given(),
-        Scenario::Check(check) => {
-            check();
-            return Ok(Answer::Checked);
-        }
-    };
+fn subject(given: fn() -> Given) -> Result<Value, Failure> {
+    let given = given();
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
         observations: given.observations,
@@ -751,7 +308,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let first = use_case.compile(request.clone())?;
     let second = use_case.compile(request)?;
     assert_eq!(first, second, "compilation is deterministic");
-    Ok(Answer::Steps(first.plan.steps.len()))
+    Ok(first.plan.steps.len())
 }
 
 #[test]
@@ -770,146 +327,12 @@ fn fails() {
 }
 
 /// A file-key join uses the generic executor, which needs a separate predicate step.
-fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
-    use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
-    use ryo_values::domain::plans::types::Operation;
-    use ryo_values::domain::program::types::QueryBundle;
-
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
-        Arc::new(crate::outbound::catalog::factory::language()),
-    );
-    for predicate in [
-        "r.text = \":\"",
-        "r.text = \":\" and r.text != \"!\"",
-        "r.text = \"!\" or r.text = \"=\" or r.text = \":\"",
-    ] {
-        for prefiltered in [false, true] {
-            let (prefix, right, after) = if prefiltered {
-                let condition = predicate.replace("r.", "");
-                (
-                    format!("let tokens = select * from \"syntax-tree\" where {condition};"),
-                    "tokens",
-                    String::new(),
-                )
-            } else {
-                (
-                    String::new(),
-                    "\"syntax-tree\"",
-                    format!(" where {predicate}"),
-                )
-            };
-            let text = format!(
-                "{prefix} let inputs = select id, file, span from \"function\"; \
-                 let result = select r.id as id, l.file as file, r.span as span \
-                 from inputs as l join {right} as r on l.file = r.file{after}; \
-                 emit result subject file key(id);"
-            );
-            let report = compiler
-                .compile(CompileRequest {
-                    observations: Vec::new(),
-                    text: QueryBundle::from(QueryText(text.into())),
-                    hosted: Vec::new(),
-                })
-                .expect("both equivalent predicate spellings compile");
-            let mut joins = 0_usize;
-            for step in &report.plan.steps {
-                if matches!(step.operation, Operation::Join { .. }) {
-                    joins += 1;
-                }
-                if let Operation::Join {
-                    right: Input::Relation(Relation::SyntaxTree),
-                    right_on,
-                    filter,
-                    view,
-                    ..
-                } = &step.operation
-                    && right_on == &[ColumnIndex(3)]
-                {
-                    assert!(filter.is_empty() && view.is_empty(), "{predicate}");
-                }
-            }
-            assert!(joins > 0, "the regression must retain its file-key join");
-        }
-    }
-}
-
-fn authored_observation_keeps_independent_root_through_optimization() {
-    use ryo_values::domain::plan_parts::types::Input;
-    use ryo_values::domain::program::types::QueryBundle;
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
-        Arc::new(crate::outbound::catalog::factory::language()),
-    );
-    let report = compiler
-        .compile(CompileRequest {
-            observations: Vec::new(),
-            hosted: Vec::new(),
-            text: QueryBundle::from(QueryText(
-                "let diagnostic = select file, span from \"function\"; \
-             let usage = select file, id from \"function\"; \
-             observe usage as used; emit diagnostic subject file key(span);"
-                    .into(),
-            )),
-        })
-        .expect("independent named and diagnostic roots compile");
-    assert_eq!(report.plan.observations.len(), 1);
-    let observed = &report.plan.observations[0];
-    assert_eq!(&*observed.name.0, "used");
-    assert_eq!(
-        observed
-            .columns
-            .iter()
-            .map(|column| &*column.name.0)
-            .collect::<Vec<_>>(),
-        ["file", "id"]
-    );
-    let Input::Step(root) = observed.source else {
-        panic!("export has a real producer step");
-    };
-    assert!(usize::try_from(root.0).expect("step fits usize") < report.plan.steps.len());
-    assert_ne!(
-        root, report.plan.emit.step,
-        "different output schemas retain separate roots"
-    );
-}
-
-fn bound_observation_preserves_declared_schema_and_phase() {
-    use ryo_relations::domain::relations::types::CellKind;
-    use ryo_values::domain::observations::types::{
-        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
-    };
-    use ryo_values::domain::plan_parts::types::Input;
-    use ryo_values::domain::plan_parts::types::StepScope;
-    use ryo_values::domain::program::types::QueryBundle;
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),
-        Arc::new(crate::outbound::catalog::factory::language()),
-    );
-    let report = compiler.compile(CompileRequest {
-        hosted: Vec::new(),
-        observations: vec![BoundObservationInput {
-            name: ObservationBindingName("published".into()),
-            columns: vec![ObservationColumn { name: ObservationColumnName("file".into()), kind: CellKind::File }, ObservationColumn { name: ObservationColumnName("span".into()), kind: CellKind::Span }],
-            scope: StepScope::CrossFile,
-        }],
-        text: QueryBundle::from(QueryText("let result = select file, span from published; emit result subject file key(span);".into())),
-    }).expect("typed bound input compiles independently of the closed catalog");
-    assert!(
-        report
-            .plan
-            .steps
-            .iter()
-            .all(|step| step.scope == StepScope::CrossFile)
-    );
-    assert!(
-        report
-            .plan
-            .frontier
-            .iter()
-            .any(|input| matches!(input, Input::BoundObservation(_)))
-    );
-}
+#[cfg(test)]
+mod fragment_contracts;
+#[cfg(test)]
+mod observation_plans;
+#[cfg(test)]
+mod observations;
 
 #[cfg(test)]
 mod fragment_hygiene;
