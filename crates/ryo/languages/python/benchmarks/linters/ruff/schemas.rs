@@ -235,33 +235,36 @@ pub(super) fn configuration_arguments(
     root: &Path,
 ) -> Result<Vec<std::ffi::OsString>, Error> {
     let strings = |values: Vec<String>| {
-        toml::Value::Array(values.into_iter().map(toml::Value::String).collect()).to_string()
+        toml::Value::Array(values.into_iter().map(toml::Value::String).collect())
+    };
+    let section = |key: &str, value: toml::Value| -> Result<std::ffi::OsString, Error> {
+        let lint = toml::Table::from_iter([(key.to_owned(), value)]);
+        let document = toml::Table::from_iter([("lint".to_owned(), toml::Value::Table(lint))]);
+        toml::to_string(&document)
+            .map(Into::into)
+            .map_err(|error| Error::Invalid(error.to_string()))
     };
     let mut arguments = Vec::new();
     if !configuration.external_prefixes.is_empty() {
         arguments.push("--config".into());
-        arguments.push(
-            format!(
-                "lint.external = {}",
-                strings(configuration.external_prefixes.clone())
-            )
-            .into(),
-        );
+        arguments.push(section(
+            "external",
+            strings(configuration.external_prefixes.clone()),
+        )?);
     }
     if !configuration.disabled_rules.is_empty() {
-        let mut entries = Vec::new();
+        let mut entries = toml::Table::new();
         for (file, rules) in &configuration.disabled_rules {
             let absolute = root.join(file.0.as_ref());
             let text = absolute
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 configuration path".into()))?;
             let literal = ryo_benchmark::domain::suite::rule_context::literal_glob(text);
-            let key = toml::Value::String(literal).to_string();
             let rules: Vec<_> = rules.iter().map(ToString::to_string).collect();
-            entries.push(format!("{key} = {}", strings(rules)));
+            entries.insert(literal, strings(rules));
         }
         arguments.push("--config".into());
-        arguments.push(format!("lint.per-file-ignores = {{ {} }}", entries.join(", ")).into());
+        arguments.push(section("per-file-ignores", toml::Value::Table(entries))?);
     }
     Ok(arguments)
 }
