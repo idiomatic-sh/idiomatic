@@ -186,6 +186,7 @@ impl PreparedWalk {
         program: &crate::domain::executable_program::types::ExecutableProgram,
     ) -> Result<(), OperatingError> {
         let mut retained = Vec::with_capacity(self.classes.classes.len());
+        let mut dropped = Vec::new();
         for (at, class) in self.classes.classes.iter().enumerate() {
             let mut members = Vec::new();
             for &member in &class.members {
@@ -199,6 +200,7 @@ impl PreparedWalk {
                 // An errored origin leaves its whole rule out of sharing; only that rule is
                 // refused, by its own roots in metadata.
                 let Ok(origin) = origin else {
+                    dropped.push(member);
                     continue;
                 };
                 let Some(region) = program
@@ -217,9 +219,21 @@ impl PreparedWalk {
                 };
                 if self.resolve_class(program, head) == Some(ClassPlace(at)) {
                     members.push(member);
+                } else {
+                    dropped.push(member);
                 }
             }
             retained.push(members);
+        }
+        for member in dropped {
+            if let Some(place) = self
+                .classes
+                .class_of
+                .get_mut(member.rule.0)
+                .and_then(|rule| rule.get_mut(member.step.0))
+            {
+                *place = None;
+            }
         }
         let mut remap = vec![None; self.classes.classes.len()];
         let mut compact = Vec::new();
