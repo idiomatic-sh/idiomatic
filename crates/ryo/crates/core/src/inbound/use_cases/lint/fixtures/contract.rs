@@ -58,7 +58,7 @@ use crate::outbound::{facts, matching, query_language, row_sink};
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// What a row of the contract is given: the request to lint.
 type Input = LintRequest;

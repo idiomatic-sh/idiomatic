@@ -9,8 +9,8 @@ use ryo_values::{
             HostedNumber, Input as Source, LiteralText, Operand, ParameterId, ParameterName,
             QueryLiteral, StepId, WholeNumber,
         },
-        plans::types::{Operation, ParameterType, PlanParameter},
-        query_bindings::types::ParameterBinding,
+        plans::types::Operation,
+        query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     },
 };
 #[derive(Clone, Copy)]

@@ -4,7 +4,8 @@ use super::super::conformance::test::{compare_delivery, repeated, same_rows};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
-    plans::types::{Operation, OperationKind},
+    plans::types::Operation,
+    query_operators::types::OperationKind,
 };
 #[test]
 fn select_join_and_union_keep_independent_ordered_bags() {

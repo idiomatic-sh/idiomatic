@@ -8,10 +8,11 @@ use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
 use ryo_values::domain::descriptions::types::{StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::plans::types::{Plan, QueryOperator};
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::program::types::RefusalMessage;
 use ryo_values::domain::program::types::RefusedKind;
 use ryo_values::domain::program::types::RefusedQuery;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 use super::errors::ValidateError;
 use super::interface::ValidateUseCase as _;

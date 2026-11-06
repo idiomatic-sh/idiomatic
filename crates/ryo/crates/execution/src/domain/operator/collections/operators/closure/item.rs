@@ -7,7 +7,8 @@ use crate::domain::operator::contract::types::{
 use crate::domain::table_reach::service::reach_all;
 use crate::domain::table_reach::types::Edges;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 pub(crate) struct ClosureItem;
 impl OperatorsItem for ClosureItem {

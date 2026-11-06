@@ -183,7 +183,7 @@ pub struct RuleWork {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StepFed {
     /// What the step does.
-    pub operation: ryo_values::domain::plans::types::OperationKind,
+    pub operation: ryo_values::domain::query_operators::types::OperationKind,
     /// The rows of its inputs.
     pub rows: RowTotal,
 }
@@ -192,7 +192,7 @@ pub struct StepFed {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FeatureFed {
     /// The feature.
-    pub feature: ryo_values::domain::plans::types::Feature,
+    pub feature: ryo_values::domain::run_metadata::types::Feature,
     /// The rows its steps were fed: the rows of their inputs, over the files and the cross-file finish.
     pub rows: RowTotal,
 }

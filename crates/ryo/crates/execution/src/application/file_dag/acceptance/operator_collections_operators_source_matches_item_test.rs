@@ -10,7 +10,8 @@ use ryo_values::domain::{
     plan_parts::types::{
         ColumnIndex, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId,
     },
-    plans::types::{Operation, QueryOperator},
+    plans::types::Operation,
+    query_operators::types::QueryOperator,
 };
 pub(super) fn span(start: u32, end: u32) -> Span {
     Span {
@@ -41,8 +42,8 @@ fn evaluate(
             base_line: None,
             pattern: LiteralText(pattern.into()),
             capture: None,
-            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
-            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
     let (collected, _) = compiled::run(
@@ -134,8 +135,8 @@ fn evaluate_lines(
             base_line: Some(ColumnIndex(1)),
             pattern: LiteralText(pattern.into()),
             capture: None,
-            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
-            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
     let (result, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), false);
@@ -206,8 +207,8 @@ fn captured(
             base_line: None,
             pattern: LiteralText(pattern.into()),
             capture: Some(LiteralText("piece".into())),
-            capture_text: ryo_values::domain::plans::types::TextOutput::Appended,
-            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Appended,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
     let mut symbols = Symbols::default();

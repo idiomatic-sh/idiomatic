@@ -1,6 +1,7 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{Operation, OperationKind, Plan};
+use super::types::{Operation, Plan};
+use crate::domain::query_operators::types::OperationKind;
 use crate::domain::plan_parts::service::step_in;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::PlanComparison;

@@ -1,6 +1,6 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
-use ryo_values::domain::plans::types::OperationKind;
+use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
 pub(crate) fn semantics(kind: OperationKind) -> (SemanticContract, ResourceNeeds, Effects, u8) {
@@ -197,10 +197,13 @@ pub(crate) fn prepare_for(
             capture_text,
             capture_line,
             ..
-        } if ((*capture_text == ryo_values::domain::plans::types::TextOutput::Appended
-            || *capture_line == ryo_values::domain::plans::types::LineOutput::Appended)
+        } if ((*capture_text
+            == ryo_values::domain::query_operators::types::TextOutput::Appended
+            || *capture_line
+                == ryo_values::domain::query_operators::types::LineOutput::Appended)
             && capture.is_none())
-            || (*capture_line == ryo_values::domain::plans::types::LineOutput::Appended
+            || (*capture_line
+                == ryo_values::domain::query_operators::types::LineOutput::Appended
                 && base_line.is_none()) =>
         {
             Some(crate::domain::operating::errors::OperatingError::WrongOperation)

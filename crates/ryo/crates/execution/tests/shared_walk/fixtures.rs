@@ -27,11 +27,11 @@ use ryo_relations::domain::{
 };
 use ryo_values::domain::{
     plan_parts::types::{
-        ColumnIndex, PlanComparison, Input, LiteralText, Operand, ParameterId, ParameterName,
+        ColumnIndex, Input, LiteralText, Operand, ParameterId, ParameterName, PlanComparison,
         QueryLiteral, Test,
     },
-    plans::types::{Operation, ParameterType, PlanParameter},
-    query_bindings::types::ParameterBinding,
+    plans::types::Operation,
+    query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
 use std::sync::{

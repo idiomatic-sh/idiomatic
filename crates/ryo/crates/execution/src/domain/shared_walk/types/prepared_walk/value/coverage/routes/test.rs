@@ -15,9 +15,10 @@ use ryo_values::domain::{
     plan_parts::types::{Input as Source, RepeatedRows, StepId, ObservationBindingId},
     plans::{
         service::kind_of,
-        types::{Operation, OperationKind},
+        types::{Operation},
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 use std::collections::HashSet;
 
 fn engine(route: Option<WalkRoute>) -> Option<Route> {

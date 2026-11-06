@@ -40,6 +40,10 @@ The values domain's `program` concept: the shape of RyoQL text once it is read.
 
 The values domain's `query_bindings` concept: The immutable bindings a host hands a query.
 
+### `query_operators`
+
+The values domain's `query_operators` concept: the operators of the engine, the kinds of operation a plan holds and the output choices of their steps.
+
 ### records
 
 The values domain's `records` concept: what a run kept of each file, and of the repository, and the typed `Cell` a row of the answer holds: a file, a text, a number or a span, never turned into text before the command line prints it.

@@ -37,8 +37,7 @@ fn baseline_with_symbols(
     };
     use ryo_values::domain::{
         plan_parts::types::{ParameterName, StepId},
-        plans::types::{ParameterType, PlanParameter},
-        query_bindings::types::ParameterBinding,
+        query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     };
     let mut logical = Table::default();
     materialize(&Rows::Stored(source), &mut logical, &mut Vec::new());
@@ -256,7 +255,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
 
 fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     use ryo_values::domain::{
-        plan_parts::types::{PlanComparison, LiteralText, Operand, QueryLiteral, Test},
+        plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
         query_bindings::types::ParameterBinding,
     };
     Selector {

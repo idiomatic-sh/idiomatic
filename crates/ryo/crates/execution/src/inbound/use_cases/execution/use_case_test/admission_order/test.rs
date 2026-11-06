@@ -26,13 +26,14 @@ use ryo_values::{
         plan_parts::types::{
             ColumnIndex, Input as PlanInput, JoinColumn, RepeatedRows, Side, StepId,
         },
-        plans::types::{Operation, OperationKind, Plan},
+        plans::types::{Operation,  Plan},
         rows::{
             errors::RowsError,
             types::{RowCount, Table},
         },
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 use std::cell::Cell;
 
 type Input = fn();

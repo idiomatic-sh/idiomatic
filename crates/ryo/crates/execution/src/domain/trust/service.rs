@@ -16,14 +16,14 @@ use crate::domain::rules::service::id_at;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::runs::types::RuleId;
 
 /// The place of the `kind` column of a relation, when it has one.
@@ -187,10 +187,14 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
                 }
                 if capture.is_some() {
                     provenance.push(None);
-                    if *capture_text == ryo_values::domain::plans::types::TextOutput::Appended {
+                    if *capture_text
+                        == ryo_values::domain::query_operators::types::TextOutput::Appended
+                    {
                         provenance.push(None);
                     }
-                    if *capture_line == ryo_values::domain::plans::types::LineOutput::Appended {
+                    if *capture_line
+                        == ryo_values::domain::query_operators::types::LineOutput::Appended
+                    {
                         provenance.push(None);
                     }
                 }
@@ -355,7 +359,10 @@ pub(crate) fn blocked(needs: &[RelationRead], partial: &[Partial]) -> Blocking {
 /// The files in which any of the reads `needs` is of a relation read in part, once each, in order; none for the repository as a whole.
 /// A file skipped for the rule is not among them: see [`skipped_files`].
 #[must_use]
-pub(crate) fn partial_files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Option<FileId>> {
+pub(crate) fn partial_files_for(
+    partials: &Partials,
+    needs: &[RelationRead],
+) -> Vec<Option<FileId>> {
     let mut files: Vec<Option<FileId>> = partials
         .entries
         .iter()

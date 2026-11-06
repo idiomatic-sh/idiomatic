@@ -1,6 +1,7 @@
 //! Compact rule facts for coverage, frontier retention and work accounting.
 use crate::domain::plan_parts::types::StepScope;
-use crate::domain::plans::types::{Feature, OperationKind};
+use crate::domain::plan_parts::types::{Direction, Test};
+use crate::domain::query_operators::types::OperationKind;
 
 /// The rows counted for a feature come from every input or one source position.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,4 +64,17 @@ pub struct RuleRunMetadata {
     /// A `CrossFile` slot is a cross-file observation input, never a per-file captured frontier.
     pub frontier_capture: Box<[FrontierFeed]>,
     pub steps: Box<[StepMetadata]>,
+}
+
+/// Something of the language a query uses, which a run must be shown to exercise.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Feature {
+    /// An operation.
+    Operation(OperationKind),
+    /// A way of comparing, in a comparison of a `select`, a `join` filter or a domain filter.
+    Family(Test),
+    /// A direction of an `axis`.
+    Direction(Direction),
+    /// A relation a step reads.
+    Relation(ryo_relations::domain::relations::types::Relation),
 }

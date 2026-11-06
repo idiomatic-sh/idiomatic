@@ -11,14 +11,15 @@ use ryo_values::domain::hosted::types::{
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, PlanComparison, Direction, HostedNumber, Input, JoinColumn,
-    LiteralText, Operand, ParameterId, ParameterName, QueryLiteral, RepeatedRows, Side, StepId,
-    TableKey, Test,
+    CapturePattern, ColumnIndex, Direction, HostedNumber, Input, JoinColumn, LiteralText, Operand,
+    ParameterId, ParameterName, PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, TableKey,
+    Test,
 };
 use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::{
-    Operation, OperationKind, ParameterType, Plan, PlanParameter,
-};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 
 use super::plan;
@@ -233,8 +234,8 @@ pub(in super::super) fn operations() -> Vec<Operation> {
             base_line: None,
             pattern: LiteralText(TEXT_A.into()),
             capture: None,
-            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
-            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         },
         Operation::RenderSyntax {
             from: f,
@@ -249,8 +250,8 @@ pub(in super::super) fn operations() -> Vec<Operation> {
                 LiteralText(TEXT_EMPTY.into()),
             ],
             span: ColumnIndex(3),
-            max_line: ryo_values::domain::plans::types::MaxLine(88),
-            tab_width: ryo_values::domain::plans::types::TabWidth(4),
+            max_line: ryo_values::domain::query_operators::types::MaxLine(88),
+            tab_width: ryo_values::domain::query_operators::types::TabWidth(4),
         },
         Operation::SpanBounds {
             from: f,

@@ -322,8 +322,8 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
                     base_line: None,
                     pattern: LiteralText("(".into()),
                     capture: None,
-                    capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
-                    capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
+                    capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+                    capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
                 },
             },
             PlanStep {

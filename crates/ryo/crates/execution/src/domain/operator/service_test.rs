@@ -6,9 +6,10 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{ColumnIndex, Input as Source, Operand, RepeatedRows},
-        plans::types::{Operation, OperationKind},
+        plans::types::{Operation},
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 #[derive(Clone, Copy)]
 enum Scenario {
     Valid,

@@ -5,7 +5,8 @@ use crate::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
     types::LogicalInstruction,
 };
-use ryo_values::domain::plans::{service::kind_of, types::OperationKind};
+use ryo_values::domain::plans::service::kind_of;
+use ryo_values::domain::query_operators::types::OperationKind;
 use std::collections::HashSet;
 
 /// The independent oracle: why each kind is never a continuation, chosen with no wildcard.

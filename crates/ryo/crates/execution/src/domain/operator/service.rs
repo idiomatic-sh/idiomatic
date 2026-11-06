@@ -3,7 +3,8 @@ use crate::domain::{
     operating::errors::OperatingError, operation_schema::types::InputShape,
     operator::contract::types::OperatorContract,
 };
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Read-only contract preparation. This surface cannot evaluate an operation.
 pub(crate) struct PreparationRoute(OperationKind);

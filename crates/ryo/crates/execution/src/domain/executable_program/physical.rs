@@ -4,7 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use ryo_operators::inbound::use_cases::operators::interface::{
     JoinInput, OperatorCall, PartitionExtremum, SetInput, SetKind,
 };
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 
 pub(crate) enum PhysicalRoute<'a> {
     Registered,
@@ -127,7 +128,7 @@ pub(crate) fn authorize(
         ),
         OperatorCall::SourceMatches { input, .. } => (
             SOURCE_MATCHES,
-            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && (input.capture_text == (*capture_text == ryo_values::domain::plans::types::TextOutput::Appended)) && (input.capture_line == (*capture_line == ryo_values::domain::plans::types::LineOutput::Appended)))
+            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && (input.capture_text == (*capture_text == ryo_values::domain::query_operators::types::TextOutput::Appended)) && (input.capture_line == (*capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended)))
                 && binding.regex_identity == Some(input.regex as *const _ as usize),
         ),
         OperatorCall::ReduceCount { keys, distinct, .. } => (

@@ -26,12 +26,12 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, PlanComparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId,
-        StepScope, Test, WholeNumber,
+        ColumnIndex, Input, Operand, ParameterId, ParameterName, PlanComparison, RepeatedRows,
+        StepId, StepScope, Test, WholeNumber,
     },
-    plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    query_bindings::types::ParameterBinding,
+    query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::Table,
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},

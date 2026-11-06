@@ -15,10 +15,11 @@ use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     plans::{
         service::kind_of,
-        types::{Operation, OperationKind},
+        types::{Operation},
     },
     rows::types::Table,
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

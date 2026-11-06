@@ -8,7 +8,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, StepId},
-    plans::types::{Operation, QueryOperator},
+    plans::types::Operation,
+    query_operators::types::QueryOperator,
 };
 fn span(start: u32, end: u32) -> Span {
     Span {

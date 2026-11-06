@@ -12,9 +12,11 @@ use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostedRelation,
 };
 use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumber};
-use ryo_values::domain::plans::types::{ParameterType, Plan, PlanParameter};
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use std::sync::{Arc, PoisonError, atomic::Ordering};

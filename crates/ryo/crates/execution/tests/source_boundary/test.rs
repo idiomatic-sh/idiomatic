@@ -330,7 +330,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         },
         Probe { compilation: Compilation::Library,
             owner: PROGRAM,
-            source: "mod retarget_registered_operator { use crate::domain::operator::contract::registration::RegisteredOperator; use ryo_values::domain::plans::types::OperationKind; fn bypass(route: &mut RegisteredOperator) { route.kind = OperationKind::Project; } const _: fn(&mut RegisteredOperator) = bypass; }".into(),
+            source: "mod retarget_registered_operator { use crate::domain::operator::contract::registration::RegisteredOperator; use ryo_values::domain::query_operators::types::OperationKind; fn bypass(route: &mut RegisteredOperator) { route.kind = OperationKind::Project; } const _: fn(&mut RegisteredOperator) = bypass; }".into(),
             expected: Expectation::Refuse { code: "E0616", first: "kind", second: "private" },
         },
         Probe { compilation: Compilation::Library,

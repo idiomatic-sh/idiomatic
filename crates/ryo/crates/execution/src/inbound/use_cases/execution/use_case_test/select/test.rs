@@ -6,10 +6,11 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{
-        Applied, ColumnIndex, PlanComparison, Function, HostedNumber, Input as Source, LiteralText,
-        Operand, ParameterId, ParameterName, QueryLiteral, StepId, Test,
+        Applied, ColumnIndex, Function, HostedNumber, Input as Source, LiteralText, Operand,
+        ParameterId, ParameterName, PlanComparison, QueryLiteral, StepId, Test,
     },
-    plans::types::{Operation, ParameterType, PlanParameter},
+    plans::types::Operation,
+    query_bindings::types::{ParameterType, PlanParameter},
     records::types::Cell,
 };
 #[derive(Clone, Copy)]

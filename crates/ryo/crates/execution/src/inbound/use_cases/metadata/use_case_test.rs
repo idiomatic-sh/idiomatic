@@ -16,9 +16,12 @@ use ryo_values::domain::descriptions::types::{
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, Input as PlanInput, LiteralText, Operand, PlanComparison, QueryLiteral, StepId,
+    Test,
 };
-use ryo_values::domain::plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::PartialCause;
 use std::sync::Arc;
@@ -39,7 +42,7 @@ enum Scenario {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Expected {
-    Catalog(std::borrow::Cow<'static, [ryo_values::domain::plans::types::QueryOperator]>),
+    Catalog(std::borrow::Cow<'static, [ryo_values::domain::query_operators::types::QueryOperator]>),
     KnownKind(usize),
     Placement {
         before: usize,
@@ -73,31 +76,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Catalog,
         expect: Expect::Value(Expected::Catalog(std::borrow::Cow::Borrowed(&[
-            ryo_values::domain::plans::types::QueryOperator::SpanBetween,
-            ryo_values::domain::plans::types::QueryOperator::SpanBounds,
-            ryo_values::domain::plans::types::QueryOperator::SourceMatches,
-            ryo_values::domain::plans::types::QueryOperator::RenderSyntax,
-            ryo_values::domain::plans::types::QueryOperator::FitsRendered,
-            ryo_values::domain::plans::types::QueryOperator::Replace,
-            ryo_values::domain::plans::types::QueryOperator::OrderedMatch,
-            ryo_values::domain::plans::types::QueryOperator::OrderedDfs,
-            ryo_values::domain::plans::types::QueryOperator::Select,
-            ryo_values::domain::plans::types::QueryOperator::Project,
-            ryo_values::domain::plans::types::QueryOperator::Extend,
-            ryo_values::domain::plans::types::QueryOperator::Join,
-            ryo_values::domain::plans::types::QueryOperator::Union,
-            ryo_values::domain::plans::types::QueryOperator::Intersection,
-            ryo_values::domain::plans::types::QueryOperator::Difference,
-            ryo_values::domain::plans::types::QueryOperator::Antijoin,
-            ryo_values::domain::plans::types::QueryOperator::GroupCount,
-            ryo_values::domain::plans::types::QueryOperator::GroupDigest,
-            ryo_values::domain::plans::types::QueryOperator::Capture,
-            ryo_values::domain::plans::types::QueryOperator::Words,
-            ryo_values::domain::plans::types::QueryOperator::Rank,
-            ryo_values::domain::plans::types::QueryOperator::Axis,
-            ryo_values::domain::plans::types::QueryOperator::Rows,
-            ryo_values::domain::plans::types::QueryOperator::Closure,
-            ryo_values::domain::plans::types::QueryOperator::Cycles,
+            ryo_values::domain::query_operators::types::QueryOperator::SpanBetween,
+            ryo_values::domain::query_operators::types::QueryOperator::SpanBounds,
+            ryo_values::domain::query_operators::types::QueryOperator::SourceMatches,
+            ryo_values::domain::query_operators::types::QueryOperator::RenderSyntax,
+            ryo_values::domain::query_operators::types::QueryOperator::FitsRendered,
+            ryo_values::domain::query_operators::types::QueryOperator::Replace,
+            ryo_values::domain::query_operators::types::QueryOperator::OrderedMatch,
+            ryo_values::domain::query_operators::types::QueryOperator::OrderedDfs,
+            ryo_values::domain::query_operators::types::QueryOperator::Select,
+            ryo_values::domain::query_operators::types::QueryOperator::Project,
+            ryo_values::domain::query_operators::types::QueryOperator::Extend,
+            ryo_values::domain::query_operators::types::QueryOperator::Join,
+            ryo_values::domain::query_operators::types::QueryOperator::Union,
+            ryo_values::domain::query_operators::types::QueryOperator::Intersection,
+            ryo_values::domain::query_operators::types::QueryOperator::Difference,
+            ryo_values::domain::query_operators::types::QueryOperator::Antijoin,
+            ryo_values::domain::query_operators::types::QueryOperator::GroupCount,
+            ryo_values::domain::query_operators::types::QueryOperator::GroupDigest,
+            ryo_values::domain::query_operators::types::QueryOperator::Capture,
+            ryo_values::domain::query_operators::types::QueryOperator::Words,
+            ryo_values::domain::query_operators::types::QueryOperator::Rank,
+            ryo_values::domain::query_operators::types::QueryOperator::Axis,
+            ryo_values::domain::query_operators::types::QueryOperator::Rows,
+            ryo_values::domain::query_operators::types::QueryOperator::Closure,
+            ryo_values::domain::query_operators::types::QueryOperator::Cycles,
         ]))),
     },
     Case {

@@ -13,17 +13,23 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::{
     hosted::types::HostName,
-    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationName, PlanObservation},
+    observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationName,
+        PlanObservation,
+    },
     plan_parts::types::{ColumnIndex, ParameterName, StepId, WholeNumber},
-    plans::types::{Emit, Operation, ParameterType, PlanParameter, PlanStep},
+    plans::types::{Emit, Operation, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    runs::types::{RuleApplicability, RuleId},
+    query_bindings::types::{ParameterType, PlanParameter},
     records::types::ObservationIndex,
+    runs::types::{RuleApplicability, RuleId},
 };
 use ryo_values::domain::{
     hosted::types::HostRelation,
     observations::types::ObservationProducer,
-    plan_parts::types::{HostedNumber, Input as PlanInput, ParameterId, ObservationBindingId, StepScope},
+    plan_parts::types::{
+        HostedNumber, Input as PlanInput, ObservationBindingId, ParameterId, StepScope,
+    },
     plans::types::Plan,
     query_bindings::types::ParameterBinding,
     rule_requests::types::RuleSpec,

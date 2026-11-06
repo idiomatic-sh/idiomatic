@@ -274,10 +274,10 @@ pub(crate) fn source_matches_schema(
     }
     if capture.is_some() {
         output.push(CellKind::Span);
-        if *capture_text == ryo_values::domain::plans::types::TextOutput::Appended {
+        if *capture_text == ryo_values::domain::query_operators::types::TextOutput::Appended {
             output.push(CellKind::Symbol);
         }
-        if *capture_line == ryo_values::domain::plans::types::LineOutput::Appended {
+        if *capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended {
             output.push(CellKind::Number);
         }
     }

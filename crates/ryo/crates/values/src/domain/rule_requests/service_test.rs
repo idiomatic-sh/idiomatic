@@ -8,8 +8,10 @@ use crate::domain::files::types::Glob;
 use crate::domain::plan_parts::types::{
     ColumnIndex, ParameterName, QueryText, StepId, WholeNumber,
 };
-use crate::domain::plans::types::{Emit, ParameterType, Plan, PlanParameter};
+use crate::domain::plans::types::{Emit, Plan};
 use crate::domain::query_bindings::types::ParameterBinding;
+use crate::domain::query_bindings::types::ParameterType;
+use crate::domain::query_bindings::types::PlanParameter;
 use crate::domain::runs::types::RuleId;
 
 /// What a row of the cases does with the rules of a run.

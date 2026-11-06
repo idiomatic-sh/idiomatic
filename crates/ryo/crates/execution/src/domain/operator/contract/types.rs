@@ -6,7 +6,8 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Inputs;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The finite existing semantic input shapes; dependency acquisition is engine work.

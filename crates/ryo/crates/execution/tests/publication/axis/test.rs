@@ -6,7 +6,9 @@ use ryo_language::domain::{
     symbols::types::ByteSlice,
 };
 use ryo_relations::{domain::relations::types::KindBits, domain::terms::types::NameText};
-use ryo_values::domain::plan_parts::types::{PlanComparison, Direction, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{
+    Direction, Operand, PlanComparison, QueryLiteral, Test,
+};
 
 fn native_tree(bytes: &[u8]) -> (Elements, Symbols, Position, [Position; 2]) {
     let mut elements = Elements::default();

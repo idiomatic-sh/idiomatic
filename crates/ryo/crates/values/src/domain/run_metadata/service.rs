@@ -5,11 +5,12 @@ use super::types::{
 };
 use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plans::service::{comparisons_of, kind_of};
+use crate::domain::run_metadata::types::Feature;
 use crate::domain::{
     plan_parts::types::Input,
     plans::{
         service::{inputs_of, named},
-        types::{Feature, Operation, Plan},
+        types::{Operation, Plan},
     },
 };
 use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};

@@ -6,8 +6,9 @@ use super::types::{FeatureRows, StepWork};
 use crate::domain::operator::types::RowsFed;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Test;
-use ryo_values::domain::plans::types::{Feature, OperationKind};
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::run_metadata::types::{FeatureSource, RuleRunMetadata, StepMetadata};
 
 /// Every feature the language has: each operation, each way of comparing, each direction of an axis, each relation.

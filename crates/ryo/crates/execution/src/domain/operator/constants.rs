@@ -5,7 +5,7 @@ use crate::domain::describing::constants::{described, field};
 use ryo_relations::domain::relations::constants::SOURCE;
 use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST};
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// Every operator, in the order the documentation lists them.
 pub(crate) const OPERATORS: [QueryOperator; 25] = [

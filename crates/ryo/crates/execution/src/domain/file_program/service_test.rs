@@ -8,6 +8,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
 use std::sync::Arc;
 
 #[derive(Clone, Copy)]

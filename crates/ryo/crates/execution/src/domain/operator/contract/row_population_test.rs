@@ -1,7 +1,7 @@
 //! The `row_population` service's cases, on values alone.
 use super::service::semantics;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plans::types::OperationKind;
+use ryo_values::domain::query_operators::types::OperationKind;
 type Input = OperationKind;
 type Value = u8;
 type Failure = ();

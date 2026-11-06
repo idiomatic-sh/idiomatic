@@ -591,9 +591,9 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         arena: ArenaBytes::default(),
         roots: vec![PackedObservedRoot {
             output,
-            words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(WordSlice(
-                &words.0,
-            )))),
+            words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(
+                WordSlice(&words.0),
+            ))),
             readiness,
             arenas: vec![],
         }],

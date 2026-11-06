@@ -185,7 +185,7 @@ fn aggregation_resources_are_engine_owned_and_released() {
     use crate::application::file_dag::acceptance::operator_contract_test::fixtures::{
         assert_expected, fixture,
     };
-    use ryo_values::domain::plans::types::OperationKind;
+    use ryo_values::domain::query_operators::types::OperationKind;
     for kind in [OperationKind::GroupCount, OperationKind::GroupDigest] {
         let mut case = fixture(kind);
         let input = &case.inputs[0];

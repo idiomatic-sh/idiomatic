@@ -16,6 +16,7 @@ pub mod stores;
 pub mod rows;
 
 pub mod query_bindings;
+pub mod query_operators;
 pub mod rule_requests;
 
 pub mod run_metadata;

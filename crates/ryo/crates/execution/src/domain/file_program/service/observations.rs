@@ -293,7 +293,7 @@ pub(crate) fn graph_outputs(
                     crate::domain::file_program::types::GraphObservationBinding {
                         input: input.clone(),
                         union: crate::domain::operator::contract::service::prepare_for(
-                            ryo_values::domain::plans::types::OperationKind::Union,
+                            ryo_values::domain::query_operators::types::OperationKind::Union,
                             &union,
                             &[schema, schema],
                             &[],

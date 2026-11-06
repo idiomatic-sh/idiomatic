@@ -6,7 +6,8 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::types::Verdict;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 pub(crate) struct SelectItem;
 impl OperatorsItem for SelectItem {
     fn prepare(

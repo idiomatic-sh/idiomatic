@@ -10,10 +10,9 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{HostedNumber, ParameterName},
-    plans::{
-        service::{each_input, inputs_of, named},
-        types::{OperationKind, ParameterType, PlanParameter},
-    },
+    plans::service::{each_input, inputs_of, named},
+    query_operators::types::OperationKind,
+    query_bindings::types::{ParameterType, PlanParameter},
     records::types::Cell as HostedCell,
 };
 

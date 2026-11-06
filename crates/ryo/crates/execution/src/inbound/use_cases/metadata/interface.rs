@@ -5,8 +5,10 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord, OperatorDescription};
 use ryo_values::domain::files::types::Hits;
-use ryo_values::domain::plans::types::{Feature, Plan, QueryOperator};
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::ReadInPart;
 

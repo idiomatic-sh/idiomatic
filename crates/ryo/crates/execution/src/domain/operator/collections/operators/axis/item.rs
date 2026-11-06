@@ -17,7 +17,8 @@ use ryo_relations::domain::relations::{
     types::{Position, Value},
 };
 use ryo_values::domain::plan_parts::types::{Direction, Side};
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use {crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell};
 pub(crate) struct AxisItem;

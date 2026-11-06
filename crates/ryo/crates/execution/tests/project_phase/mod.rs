@@ -554,7 +554,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
 fn named_function_selection_replays_without_running_project_steps_or_hiding_absence() {
     use ryo_relations::domain::relations::{service::node_id, types::Position};
     use ryo_values::domain::plan_parts::types::{
-        PlanComparison, LiteralText, Operand, QueryLiteral, Test,
+        LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
     for absent in [false, true] {
         let engine = engine();
@@ -1029,9 +1029,9 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 arena,
                 roots: vec![PackedObservedRoot {
                     output,
-                    words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(WordSlice(
-                &words.0,
-            )))),
+                    words: ryo_values::domain::records::types::RootWords::Published(KeptWords(
+                        pack(WordSlice(&words.0)),
+                    )),
                     readiness: ProducerReadiness::Complete,
                     arenas: if selected_text.is_some() {
                         vec![worker]
@@ -1218,7 +1218,8 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     use ryo_values::domain::plan_parts::types::{
                         ParameterId, ParameterName, TableKey,
                     };
-                    use ryo_values::domain::plans::types::{ParameterType, PlanParameter};
+                    use ryo_values::domain::query_bindings::types::ParameterType;
+                    use ryo_values::domain::query_bindings::types::PlanParameter;
                     use ryo_values::domain::query_bindings::types::{
                         BindingCell, BindingTable, ParameterBinding,
                     };

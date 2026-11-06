@@ -15,7 +15,7 @@ use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{HostedNumber, ParameterId, ParameterName, TableKey},
-    plans::types::{ParameterType, PlanParameter},
+    query_bindings::types::{ParameterType, PlanParameter},
     stored_facts::types::PartialCause,
 };
 use std::{cell::Cell as Counter, rc::Rc};

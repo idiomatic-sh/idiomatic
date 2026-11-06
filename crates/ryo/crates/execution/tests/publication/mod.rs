@@ -11,8 +11,8 @@ fn program(engine: &ExecutionUseCaseImpl) -> PreparedExecutionProgram {
             texts: vec![],
             literals: vec![LiteralText("x".into())],
             span: ColumnIndex(3),
-            max_line: ryo_values::domain::plans::types::MaxLine(80),
-            tab_width: ryo_values::domain::plans::types::TabWidth(4),
+            max_line: ryo_values::domain::query_operators::types::MaxLine(80),
+            tab_width: ryo_values::domain::query_operators::types::TabWidth(4),
         },
     }];
     input.plans[0].emit.step = StepId(0);
