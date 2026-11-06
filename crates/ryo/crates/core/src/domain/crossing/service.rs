@@ -96,3 +96,41 @@ pub(crate) fn partials_for_reads(
 }
 
 use ryo_values::domain::rows::types::Table;
+
+/// For each rule, the files of the run it has no frame for: those its scopes do not place it on, and those no language read.
+#[must_use]
+pub(crate) fn inapplicable_files(
+    crossing: &CrossingInput<'_>,
+) -> Vec<ryo_execution::inbound::use_cases::execution::types::InapplicableFiles> {
+    use ryo_execution::inbound::use_cases::execution::types::InapplicableFiles;
+    use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
+    use ryo_values::domain::files::types::Hits;
+    use ryo_values::domain::records::types::Unreadable;
+    use ryo_values::domain::runs::types::RuleNumber;
+    let no_language: std::collections::BTreeSet<&ryo_language::domain::files::types::FilePath> =
+        crossing
+            .unread
+            .iter()
+            .filter(|each| each.reason == Unreadable::NoLanguage)
+            .map(|each| &each.path)
+            .collect();
+    let mut inapplicable = vec![InapplicableFiles::default(); crossing.ids.len()];
+    let (mut mask, mut hits) = (Mask::default(), Hits::default());
+    for (index, path) in crossing.paths.iter().take(crossing.files.len()).enumerate() {
+        let Ok(number) = u32::try_from(index) else {
+            break;
+        };
+        MetadataUseCaseImpl.place(crossing.placed, path, &mut mask, &mut hits);
+        for (rule, files) in inapplicable.iter_mut().enumerate() {
+            let governs = MetadataUseCaseImpl
+                .governs(&mask, RuleNumber(u32::try_from(rule).unwrap_or(u32::MAX)))
+                == Governing::Governs;
+            if !governs || no_language.contains(path) {
+                files
+                    .0
+                    .push(ryo_relations::domain::relations::types::FileId(number));
+            }
+        }
+    }
+    inapplicable
+}

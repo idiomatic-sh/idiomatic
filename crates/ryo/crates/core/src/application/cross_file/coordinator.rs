@@ -47,11 +47,13 @@ impl CrossFile {
                 }
             })
             .collect::<Vec<_>>();
+        let inapplicable = crate::domain::crossing::service::inapplicable_files(&run.domain);
         stage.restore_frontiers(
             run.facts,
             run.domain.files,
             run.domain.covered,
             run.domain.skipped,
+            &inapplicable,
             &readiness,
             run.first_bucket,
             &selected,
@@ -83,6 +85,9 @@ impl CrossFile {
                     run.domain.files,
                     run.domain.covered,
                     run.domain.skipped,
+                    inapplicable
+                        .get(todo.rule.0)
+                        .ok_or(OperatingError::NotRun)?,
                 )?;
                 let frontier =
                     prepare_frontiers(&run, todo, &scope, &frontier_ready, &mut symbols)?;

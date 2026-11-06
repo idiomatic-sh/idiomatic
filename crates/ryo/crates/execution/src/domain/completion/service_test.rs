@@ -257,7 +257,11 @@ fn a_grouped_answer_withholds_only_the_partitions_of_the_affected_files() {
         );
         let mut repository = answer();
         drop_uncertain(&operation, probed, &mut repository, &[None]);
-        assert_eq!(repository.count, RowCount(0), "an unlocated cause withholds all");
+        assert_eq!(
+            repository.count,
+            RowCount(0),
+            "an unlocated cause withholds all"
+        );
     }
 }
 
@@ -287,7 +291,8 @@ fn ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_unc
 /// A file no language reads, or whose syntax a rule skipped, is out of scope for a group not keyed by file and costs a group keyed
 /// by file only its own rows; it is never reported complete for the rows keyed to it.
 #[test]
-fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its_own_rows_from_a_file_keyed_one() {
+fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its_own_rows_from_a_file_keyed_one()
+ {
     use super::service::{filter_contributor_rows, output_coverage};
     use super::types::InputCoverage;
     use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
@@ -324,7 +329,11 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
         }],
         &mut kept,
     );
-    assert_eq!(kept.count, RowCount(3), "a symbol-keyed group withholds nothing");
+    assert_eq!(
+        kept.count,
+        RowCount(3),
+        "a symbol-keyed group withholds nothing"
+    );
     assert_eq!(
         output_coverage(
             &group(0),
@@ -357,7 +366,11 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
         }],
         &mut kept,
     );
-    assert_eq!(kept.count, RowCount(2), "a file-keyed group withholds its own rows");
+    assert_eq!(
+        kept.count,
+        RowCount(2),
+        "a file-keyed group withholds its own rows"
+    );
     assert!(!kept.cells.contains(&Cell::File(FileId(1))));
     assert_eq!(
         output_coverage(
@@ -372,5 +385,27 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
         .unwrap(),
         coverage(),
         "the rows keyed to the file stay inapplicable, never complete"
+    );
+    let absence = Operation::Antijoin {
+        left: Input::Step(StepId(0)),
+        right: Input::Step(StepId(1)),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+    };
+    let mut checked = by_symbol.clone();
+    filter_contributor_rows(
+        &absence,
+        2,
+        &[InputCoverage {
+            ordinal: 1,
+            kinds: &operand,
+            coverage: coverage(),
+        }],
+        &mut checked,
+    );
+    assert_eq!(
+        checked.count,
+        RowCount(0),
+        "a skipped file is still unavailable for an absence check"
     );
 }

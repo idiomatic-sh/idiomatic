@@ -76,7 +76,13 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
     }];
     let phase = request.project_phase().unwrap();
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &crate::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let facts = UnavailableFacts::default();
     let mut symbols = Symbols::default();

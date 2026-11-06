@@ -133,7 +133,13 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
     );
     let bound = stage.bindings(RuleIndex(0)).unwrap();
     let scope = stage
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let project_symbols = Symbols::default();
     let ordinary = request
@@ -217,7 +223,13 @@ fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
     );
     let bound = stage.bindings(RuleIndex(0)).unwrap();
     let scope = stage
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();

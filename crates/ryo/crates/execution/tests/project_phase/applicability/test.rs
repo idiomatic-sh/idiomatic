@@ -190,7 +190,13 @@ fn exercise(case: Case) {
     }
     let phase = request.project_phase().unwrap();
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &[], &skipped)
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &[],
+            &skipped,
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
@@ -292,7 +298,13 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     }];
     let phase = request.project_phase().unwrap();
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &[], &skipped)
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &[],
+            &skipped,
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let stored = CapturedFacts {
         captures: vec![],

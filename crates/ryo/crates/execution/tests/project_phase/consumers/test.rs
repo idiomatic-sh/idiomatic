@@ -89,7 +89,13 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut symbols = Symbols::default();
         let partials = Partials::default();
         let producer_scope = stage
-            .project_scope(RuleIndex(0), &corpus, &covered, &[])
+            .project_scope(
+                RuleIndex(0),
+                &corpus,
+                &covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            )
             .unwrap();
         let slot = stage.reserve(RuleIndex(0)).unwrap();
         let ordinary = request
@@ -182,7 +188,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut bindings = vec![];
         for rule in order {
             let scope = stage
-                .project_scope(RuleIndex(rule), &corpus, &covered, &[])
+                .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default())
                 .unwrap();
             let ordinary = request
                 .prepare_frontiers(

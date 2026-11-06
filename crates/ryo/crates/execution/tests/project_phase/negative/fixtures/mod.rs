@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName, ObservationColumn,
-        ObservationColumnName, ObservationReadinessLayout,
+        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
+        ObservationColumn, ObservationColumnName, ObservationReadinessLayout,
     },
     plan_parts::types::Input,
     plans::types::{Operation, PlanStep, StepScope},
@@ -67,8 +67,20 @@ enum Held<'a> {
 impl Held<'_> {
     fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> ProjectScope {
         let scope = match self {
-            Held::Phase(phase) => phase.project_scope(rule, corpus, covered, &[]),
-            Held::Stage(stage) => stage.project_scope(rule, corpus, covered, &[]),
+            Held::Phase(phase) => phase.project_scope(
+                rule,
+                corpus,
+                covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            ),
+            Held::Stage(stage) => stage.project_scope(
+                rule,
+                corpus,
+                covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            ),
         };
         scope.unwrap()
     }
@@ -140,7 +152,8 @@ pub(crate) fn submit(
             },
         }];
         authored.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
-        authored.observations = ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
+        authored.observations =
+            ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }
     let prepared = engine.prepare(authored).expect("valid public request");
     let corpus = corpus();

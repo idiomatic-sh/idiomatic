@@ -162,8 +162,9 @@ pub(crate) fn drop_uncertain(
     out.count = ryo_values::domain::rows::types::RowCount(rows);
 }
 
-/// Drops from `out` the rows keyed to the inapplicable `files` (sorted, once each). A file no language reads, or whose syntax a rule
-/// skipped, is out of scope for an answer not keyed by file, so such an answer withholds nothing on its account.
+/// Drops from `out` the rows that missing rows of the inapplicable `files` (sorted, once each) could change. A file no language
+/// reads, or whose syntax a rule skipped, is out of scope for a count not keyed by file, so such a count withholds nothing on its
+/// account; an absence check (an antijoin, a difference) still treats the file as unavailable.
 pub(crate) fn drop_inapplicable(
     operation: &Operation,
     probed: &[CellKind],
@@ -171,7 +172,11 @@ pub(crate) fn drop_inapplicable(
     files: &[FileId],
 ) {
     let width = out.kinds.len();
-    if file_key(operation, probed, out).is_none_or(|column| column >= width) {
+    let counts = matches!(
+        operation,
+        Operation::GroupCount { .. } | Operation::GroupDigest { .. }
+    );
+    if counts && file_key(operation, probed, out).is_none_or(|column| column >= width) {
         return;
     }
     let keyed: Vec<Option<FileId>> = files.iter().copied().map(Some).collect();

@@ -30,8 +30,9 @@ pub(crate) fn required_partitions(
     files: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[Covered],
     skipped: &[Skipped],
+    inapplicable: &[ryo_relations::domain::relations::types::FileId],
     services: &ProgramServices,
 ) -> Result<RequiredPartitions, OperatingError> {
     program.rule_metadata(rule)?;
-    RequiredPartitions::from_request(&services.request, files, covered, skipped)
+    RequiredPartitions::from_request(&services.request, files, covered, skipped, inapplicable)
 }

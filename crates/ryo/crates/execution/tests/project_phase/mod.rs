@@ -239,7 +239,13 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
         }];
         let phase = request.project_phase().unwrap();
         let scope = phase
-            .project_scope(RuleIndex(0), &corpus, &covered, &[])
+            .project_scope(
+                RuleIndex(0),
+                &corpus,
+                &covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            )
             .unwrap();
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
@@ -446,7 +452,13 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     });
     let phase = request.project_phase().unwrap();
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let project_symbols = Symbols::default();
     let mut symbols = Symbols::default();
@@ -888,7 +900,13 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let mut stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     let producer_scope = stage
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let slot = stage.reserve(RuleIndex(0)).unwrap();
     let ordinary = request
@@ -1000,7 +1018,13 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         .unwrap();
     stage.finish(RuleIndex(0)).unwrap();
     let consumer_scope = stage
-        .project_scope(RuleIndex(1), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(1),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let bound = stage.bindings(RuleIndex(1)).unwrap();
     assert_eq!(
@@ -1199,7 +1223,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 }];
                 let phase = request.project_phase().unwrap();
                 let scope = phase
-                    .project_scope(RuleIndex(0), &corpus, &covered, &[])
+                    .project_scope(RuleIndex(0), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default())
                     .unwrap();
                 let stored = CapturedFacts {
                     captures: vec![],

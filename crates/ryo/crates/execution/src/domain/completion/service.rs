@@ -99,14 +99,24 @@ pub(crate) fn output_coverage(
     let mut affected = Vec::new();
     let mut inapplicable = Vec::new();
     for input in inputs {
+        let counted = matches!(
+            operation,
+            Operation::GroupCount { .. } | Operation::GroupDigest { .. }
+        );
+        let mapped: Vec<Option<FileId>>;
         let files = match &input.coverage {
             super::types::CoverageState::Complete => continue,
-            // A file out of scope matters only to an answer that has a file or a node to be keyed by.
-            super::types::CoverageState::Inapplicable { files } => {
+            // A file out of scope matters to a count only through the file or node the count is keyed by; any other operator
+            // treats it as a partial input.
+            super::types::CoverageState::Inapplicable { files } if counted => {
                 if output_kinds.iter().copied().any(file_kind) {
                     inapplicable.extend_from_slice(files);
                 }
                 continue;
+            }
+            super::types::CoverageState::Inapplicable { files } => {
+                mapped = files.iter().copied().map(Some).collect();
+                &mapped
             }
             super::types::CoverageState::Partial { files } => files,
         };
@@ -216,7 +226,9 @@ pub(crate) fn output_coverage(
     } else if inapplicable.is_empty() {
         super::types::CoverageState::Complete
     } else {
-        super::types::CoverageState::Inapplicable { files: inapplicable }
+        super::types::CoverageState::Inapplicable {
+            files: inapplicable,
+        }
     })
 }
 
@@ -230,12 +242,7 @@ pub(crate) fn ordered_output_coverage(
 ) -> super::types::CoverageState {
     use ryo_relations::domain::relations::types::CellKind;
     let file_kind = |kind| matches!(kind, CellKind::File | CellKind::Node);
-    if matches!(source.coverage, super::types::CoverageState::Inapplicable { .. })
-        && !output_kinds.iter().copied().any(file_kind)
-    {
-        super::types::CoverageState::Complete
-    } else if !output_kinds.iter().copied().any(file_kind)
-        || matches!(source.coverage, super::types::CoverageState::Inapplicable { .. })
+    if !output_kinds.iter().copied().any(file_kind)
         || partition.iter().any(|column| {
             source
                 .kinds

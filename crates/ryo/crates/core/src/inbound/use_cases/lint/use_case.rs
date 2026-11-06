@@ -908,6 +908,7 @@ impl LintUseCaseImpl {
             files: &listing.files,
             covered: handed.covered,
             skipped: handed.skipped,
+            unread: handed.unread,
             project: &now.partials,
             answering: run.answering,
             unknown: &unknown.0,
@@ -960,6 +961,7 @@ impl LintUseCaseImpl {
             errors::CrossError,
             preparation::{service::Preparation, types::PreparedProject},
         };
+        let inapplicable = crate::domain::crossing::service::inapplicable_files(&crossing.domain);
         let prepared = Preparation::ordinary(todo).prepare_all(|occurrence, each| {
             if occurrence.0 != 0 {
                 within(self.memory.resident_bytes()?, listing.budget, || {
@@ -979,6 +981,9 @@ impl LintUseCaseImpl {
                     crossing.domain.files,
                     crossing.domain.covered,
                     crossing.domain.skipped,
+                    inapplicable.get(each.rule.0).ok_or(
+                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                    ).map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?,
                 )
                 .map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?;
             let frontier = run
@@ -1284,6 +1289,7 @@ impl LintUseCaseImpl {
             arenas: &mut arenas,
             covered: &covered,
             skipped: &skipped,
+            unread: &unread,
             workers,
         };
         let now = if let Reuse::Cross(MadeAgain::These(rules)) = &run.again {

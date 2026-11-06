@@ -80,9 +80,14 @@ pub(crate) struct Ready<'a> {
     /// The relations of it read in part.
     pub partials: &'a [ryo_values::domain::stored_facts::types::StoredPartial],
     /// The readiness of its named frontiers.
-    pub observations: Option<&'a std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+    pub observations:
+        Option<&'a std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
     /// Each bucket it hands, with the proof of its words and where they are.
-    pub buckets: Vec<(Bucket, &'a ryo_values::domain::records::types::FrontierProof, Held<'a>)>,
+    pub buckets: Vec<(
+        Bucket,
+        &'a ryo_values::domain::records::types::FrontierProof,
+        Held<'a>,
+    )>,
 }
 
 /// Whether a visit reads the memory the process holds.
@@ -268,6 +273,8 @@ pub(crate) struct CrossReading<'a, W> {
     pub covered: &'a [Covered],
     /// Files explicitly skipped because syntax was rejected.
     pub skipped: &'a [Skipped],
+    /// The files no language read, and why.
+    pub unread: &'a [ryo_values::domain::records::types::Unread],
     /// The store's handle of each worker.
     pub workers: Vec<W>,
 }

@@ -225,7 +225,7 @@ pub(crate) fn validate_bucket(
     }
     let mut at = 0;
     let mut seen_files = std::collections::BTreeSet::new();
-    let mut affected = skipped.iter().copied().map(Some).collect::<Vec<_>>();
+    let mut affected = Vec::new();
     for source in &payload.sources {
         if source.start != at
             || source.length == 0
@@ -261,15 +261,31 @@ pub(crate) fn validate_bucket(
     // Account for known unavailable partitions without inventing encoded empty
     // frames. Their identities remain attached to the admitted partial input.
     seen_files.extend(skipped.iter().map(|file| file.0));
+    // A required source with no frame is discharged only when the edge named the file inapplicable to this rule.
+    seen_files.extend(
+        required
+            .inapplicable()
+            .iter()
+            .filter(|file| required.files().contains(file))
+            .map(|file| file.0),
+    );
     if at != payload.words.0.0.len() || !exact_required_files(required.files(), &seen_files) {
         return Err(refuse());
     }
     affected.sort_unstable();
     affected.dedup();
-    Ok(if affected.is_empty() {
+    // A skipped file stays unavailable: it lacks input without making an answer not keyed by it partial.
+    Ok(if !affected.is_empty() {
+        affected.extend(skipped.iter().copied().map(Some));
+        affected.sort_unstable();
+        affected.dedup();
+        crate::domain::completion::types::CoverageState::Partial { files: affected }
+    } else if skipped.is_empty() {
         crate::domain::completion::types::CoverageState::Complete
     } else {
-        crate::domain::completion::types::CoverageState::Partial { files: affected }
+        crate::domain::completion::types::CoverageState::Inapplicable {
+            files: skipped.into_iter().collect(),
+        }
     })
 }
 
