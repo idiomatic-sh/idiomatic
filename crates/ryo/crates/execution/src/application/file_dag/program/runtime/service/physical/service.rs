@@ -26,7 +26,7 @@ impl<'scope> SemanticPermit<'scope> {
         self.validate_live()?;
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
         let route = match self.strategy {
-            RouteKind::Generic | RouteKind::Selection => PhysicalRoute::Registered,
+            RouteKind::Generic => PhysicalRoute::Registered,
             RouteKind::NativePositions => PhysicalRoute::Positions(
                 crate::domain::executable_program::service::native_positions(&self.program.regions()[self.region.0].route)
                     .ok_or(OperatingError::WrongOperation)?,
