@@ -440,6 +440,7 @@ impl NativeBatch {
             .get(&place)
             .map(|(result, visits)| (std::sync::Arc::clone(result), *visits))
     }
+    #[cfg(test)]
     pub(crate) fn visits(&self, place: ClassPlace) -> RowsVisited {
         self.classes
             .get(&place)
