@@ -112,6 +112,8 @@ fn one_capture_plan() -> Plan {
     }
 }
 
+use ryo_values::domain::stores::types::BucketsWanted;
+
 /// Replays one handed bucket, kept under `proof`, into a worker of the program of `one_capture_plan`, when the run wants `wanted`.
 fn replay_under(
     proof: ryo_values::domain::records::types::FrontierProof,
