@@ -125,7 +125,8 @@ pub fn text_of<'a>(
     symbol: Symbol,
 ) -> Option<NameText<'a>> {
     std::str::from_utf8(bytes_of(symbols.as_ref(), source, symbol)?.0)
-        .ok() // a name's bytes that are not text have no text, which the caller reads as no name text: the rows keep the name's place either way
+        // ignore: idiomatic.arch/no-ok-on-result - a name's bytes that are not text have no text, which the caller reads as no name text: the rows keep the name's place either way
+        .ok()
         .map(NameText)
 }
 
@@ -422,7 +423,10 @@ pub fn name_of(
     let symbols: &SymbolsEngine = symbols.as_ref();
     let bytes = bytes_of(symbols, source, symbol)?;
     let hash = hash_of_symbol(symbols, symbol)?;
-    let place = PlaceNumber(u32::try_from(places.len()).ok()?); // a file of more than 2^32 names has no number for the next one: it is not placed
+    let Ok(number) = u32::try_from(places.len()) else {
+        return None; // a file of more than 2^32 names has no number for the next one: it is not placed
+    };
+    let place = PlaceNumber(number);
     if symbols
         .storage
         .get(usize::try_from(symbol.0).unwrap_or(usize::MAX))
@@ -480,7 +484,8 @@ pub fn name_count(symbols: &Symbols) -> Count {
 #[must_use]
 pub fn note_of(symbols: &Symbols, name: Symbol) -> NameNote {
     let symbols: &SymbolsEngine = symbols.as_ref();
-    symbols // the notes hold only the names a reader noted: a name noted nothing of is `0`, as the doc says
+    // ignore: idiomatic.arch/no-unwrap-or-on-lookup - the notes hold only the names a reader noted: a name noted nothing of is `0`, as the doc says
+    symbols
         .notes
         .indexed
         .get(usize::try_from(name.0).unwrap_or(usize::MAX))

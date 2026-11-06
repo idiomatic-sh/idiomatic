@@ -123,7 +123,7 @@ fn configuration_and_equal_sized_new_population_cannot_reuse_old_readiness() {
         assert_eq!(model.preparations, expected);
     }
     clear_elements(&mut elements);
-    assert!(!engine(&elements).model_preparation.ready);
+    assert_eq!(engine(&elements).model_preparation.ready, ModelReadiness::Stale);
     native(&mut elements, &mut symbols);
     prepare(
         &mut elements,
@@ -159,7 +159,7 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
             )
         }));
         assert!(result.is_err());
-        assert!(!engine(&elements).model_preparation.ready);
+        assert_eq!(engine(&elements).model_preparation.ready, ModelReadiness::Stale);
         assert!(
             with_file_model::<Model, _>(
                 &mut completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(0)),

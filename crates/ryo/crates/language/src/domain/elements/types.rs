@@ -1,7 +1,10 @@
 // Numbers, Elements, TableBuilder and Completion are the engine's element table and the builders that write it, handed to every language: what only the engine may write is a private field holding a crate-private engine part (WrittenColumn in Numbers, ElementsEngine in TableState, BuilderEngine, CompletionEngine), reached by the crate through `AsRef`/`AsMut`, so a language builds a tree only through the SDK's functions and cannot corrupt the table. A public field would hand a language the table's invariants; Rust's privacy is the compiler's enforcement.
 //! The types of the `elements` concept: the element table of a file and what builds and reads it.
 
-use super::constants::SCRATCH;
+use super::constants::{
+    INCOMPLETE_IMPACT, LEXICALLY_COMPLETE_IMPACT, PARSE_PHASE, PRESERVED_IMPACT, SCRATCH,
+    UNSPECIFIED_CODE, VALIDATION_PHASE,
+};
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::Expanded;
 use ryo_relations::domain::relations::types::{
@@ -59,7 +62,7 @@ pub struct DiagnosticCode(&'static str);
 
 impl DiagnosticCode {
     /// Used by existing providers that report messages without a narrower stable code.
-    pub const UNSPECIFIED: Self = Self::provider_owned("unspecified");
+    pub const UNSPECIFIED: Self = Self::provider_owned(UNSPECIFIED_CODE);
 
     /// Construct a stable diagnostic code owned by a language provider.
     #[must_use]
@@ -88,8 +91,8 @@ impl DiagnosticPhase {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Parse => "parse",
-            Self::Validation => "validation",
+            Self::Parse => PARSE_PHASE,
+            Self::Validation => VALIDATION_PHASE,
         }
     }
 }
@@ -136,9 +139,9 @@ impl TreeImpact {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Preserved => "preserved",
-            Self::LexicallyComplete => "lexically-complete",
-            Self::Incomplete => "incomplete",
+            Self::Preserved => PRESERVED_IMPACT,
+            Self::LexicallyComplete => LEXICALLY_COMPLETE_IMPACT,
+            Self::Incomplete => INCOMPLETE_IMPACT,
         }
     }
 }
@@ -342,8 +345,18 @@ pub(crate) struct ModelPreparation {
     pub configuration: String,
     /// Only native elements participate; appended expressions do not require a second resolver.
     pub native_count: Count,
-    /// Set only by the common preparation boundary after provider initialization returns.
-    pub ready: bool,
+    /// Set to `Ready` only by the common preparation boundary after provider initialization returns.
+    pub ready: ModelReadiness,
+}
+
+/// Whether the worker's model was initialized for the table it now holds.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ModelReadiness {
+    /// The model is not initialized, or the table changed under it.
+    #[default]
+    Stale,
+    /// The model was initialized by the common preparation boundary.
+    Ready,
 }
 
 /// What a language's syntax adapter builds a file's table through: the table, and the file's bytes

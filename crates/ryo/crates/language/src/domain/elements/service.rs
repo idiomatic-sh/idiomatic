@@ -8,8 +8,8 @@ use super::constants::FOREIGN_POSITION;
 use super::types::Diagnostic;
 use crate::domain::elements::types::{
     BuilderEngine, Children, DecodedProperty, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase,
-    ElementPlacement, Elements, ElementsEngine, KindSum, Numbers, OpenNode, Parent, SourceOrder,
-    TableBuilder, TableWriting, TreeImpact,
+    ElementPlacement, Elements, ElementsEngine, KindSum, ModelReadiness, Numbers, OpenNode, Parent,
+    SourceOrder, TableBuilder, TableWriting, TreeImpact,
 };
 use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
 use crate::domain::symbols::types::Symbols;
@@ -25,7 +25,7 @@ use ryo_relations::domain::terms::types::Symbol;
 /// Empties an element table, keeping its room for the next file.
 pub fn clear_elements(elements: &mut Elements) {
     // Invalidate before touching the old population; stale models never survive a refill.
-    engine_mut(elements).model_preparation.ready = false;
+    engine_mut(elements).model_preparation.ready = ModelReadiness::Stale;
     elements.kind.as_mut().values.clear();
     elements.flags.as_mut().values.clear();
     elements.start.as_mut().values.clear();
@@ -407,10 +407,12 @@ pub fn property_at(
     property: PropertyId,
 ) -> Option<NameText<'_>> {
     let table = engine(elements);
-    let found = table
+    let Ok(found) = table
         .decoded
         .binary_search_by_key(&(at, property), |each| (each.element, each.property))
-        .ok()?; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
+    else {
+        return None; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
+    };
     let each = table.decoded.get(found)?;
     table
         .decoded_text
@@ -419,7 +421,8 @@ pub fn property_at(
             usize::try_from(each.from.0).unwrap_or(usize::MAX)
                 ..usize::try_from(each.to.0).unwrap_or(usize::MAX),
         )
-        .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
+        // ignore: idiomatic.arch/no-ok-on-result - the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
         .map(NameText)
 }
 
@@ -673,7 +676,8 @@ pub fn field_at(elements: &Elements, at: Position) -> FieldId {
 /// The name of the role of the element at `at`, as the name the language gave the role in this file; no symbol for a role it did not name.
 #[must_use]
 pub fn field_name_at(elements: &Elements, at: Position) -> Symbol {
-    engine(elements) // a file names only the roles it writes: a role it did not name has no symbol, as the doc says
+    // ignore: idiomatic.arch/no-unwrap-or-on-lookup - a file names only the roles it writes: a role it did not name has no symbol, as the doc says
+    engine(elements)
         .field_names
         .get(usize::from(field_at(elements, at).0))
         .copied()
@@ -694,7 +698,8 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
     let expanded = &engine(elements).expanded;
     expanded
         .binary_search_by(|each| each.element.cmp(&at))
-        .ok() // a binary search answers where an element it does not find would go: that is the element's absence, not a failure
+        // ignore: idiomatic.arch/no-ok-on-result - a binary search answers where an element it does not find would go: that is the element's absence, not a failure
+        .ok()
         .and_then(|found| expanded.get(found))
         .map_or(ElementOrigin::File, |mark| ElementOrigin::Expansion {
             call_site: mark.call_site,

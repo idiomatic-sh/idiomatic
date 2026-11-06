@@ -1,8 +1,11 @@
 //! Common preparation owns a model's generation, configuration and lifetime.
-use crate::domain::{elements::{
+use crate::domain::{
+    elements::{
         service::{end_of, engine, engine_mut, real_count},
-        types::{Completion, Elements, Tree},
-    }, symbols::types::{ByteSlice, Symbols}};
+        types::{Completion, Elements, ModelReadiness, Tree},
+    },
+    symbols::types::{ByteSlice, Symbols},
+};
 use ryo_relations::domain::relations::types::{FileId, Position};
 
 /// Take the existing worker room, invalidating readiness when its concrete model differs.
@@ -14,10 +17,10 @@ pub(crate) fn take_model<M: Default + Send + 'static>(elements: &mut Elements) -
     if let Some(kept) = engine_mut(elements).scratch.0.take() {
         match kept.downcast::<M>() {
             Ok(model) => return model,
-            Err(_) => engine_mut(elements).model_preparation.ready = false,
+            Err(_) => engine_mut(elements).model_preparation.ready = ModelReadiness::Stale,
         }
     } else {
-        engine_mut(elements).model_preparation.ready = false;
+        engine_mut(elements).model_preparation.ready = ModelReadiness::Stale;
     }
     Box::default()
 }
@@ -35,7 +38,7 @@ pub(crate) fn initialize<M>(
     model: &mut M,
     initialize: impl FnOnce(&Tree<'_>, &mut M),
 ) {
-    engine_mut(elements).model_preparation.ready = false;
+    engine_mut(elements).model_preparation.ready = ModelReadiness::Stale;
     initialize(
         &Tree {
             elements,
@@ -57,7 +60,10 @@ pub(crate) fn prepare<M>(
 ) {
     let native_count = real_count(elements);
     let state = &engine(elements).model_preparation;
-    if state.ready && state.native_count == native_count && state.configuration == configuration {
+    if state.ready == ModelReadiness::Ready
+        && state.native_count == native_count
+        && state.configuration == configuration
+    {
         return;
     }
     self::initialize(elements, source, file, model, initialize);
@@ -65,19 +71,28 @@ pub(crate) fn prepare<M>(
     state.configuration.clear();
     state.configuration.push_str(configuration);
     state.native_count = native_count;
-    state.ready = true;
+    state.ready = ModelReadiness::Ready;
+}
+
+/// Whether a completion phase reached its end.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Commit {
+    /// The phase has not ended: a drop now is an unwind.
+    Pending,
+    /// The phase ended.
+    Done,
 }
 
 struct Phase<'a> {
     completion: Completion<'a>,
-    committed: bool,
+    committed: Commit,
 }
 impl Drop for Phase<'_> {
     fn drop(&mut self) {
-        if !self.committed {
+        if self.committed == Commit::Pending {
             engine_mut(self.completion.as_mut().elements)
                 .model_preparation
-                .ready = false;
+                .ready = ModelReadiness::Stale;
         }
     }
 }
@@ -95,7 +110,7 @@ pub(crate) fn complete<M: Default + Send + 'static>(
         requirement == crate::domain::elements::types::CompletionRequirement::PreparedModel;
     let mut phase = Phase {
         completion,
-        committed: false,
+        committed: Commit::Pending,
     };
     if requires_model {
         let input = phase.completion.as_mut();
@@ -115,7 +130,7 @@ pub(crate) fn complete<M: Default + Send + 'static>(
     if requires_model && end_of(phase.completion.as_mut().elements) > from {
         let input = phase.completion.as_mut();
         let mut model = take_model::<M>(input.elements);
-        engine_mut(input.elements).model_preparation.ready = false;
+        engine_mut(input.elements).model_preparation.ready = ModelReadiness::Stale;
         extend(
             &Tree {
                 elements: input.elements,
@@ -126,9 +141,9 @@ pub(crate) fn complete<M: Default + Send + 'static>(
             &mut *model,
         );
         keep_model(input.elements, model);
-        engine_mut(input.elements).model_preparation.ready = true;
+        engine_mut(input.elements).model_preparation.ready = ModelReadiness::Ready;
     }
-    phase.committed = true;
+    phase.committed = Commit::Done;
 }
 
 /// Lend initialized model data without giving the provider readiness or initialization capabilities.
@@ -139,7 +154,7 @@ pub fn with_file_model<M: Send + 'static, R>(
 ) -> Option<R> {
     let input = completion.as_mut();
     let table = engine(input.elements);
-    if !table.model_preparation.ready
+    if table.model_preparation.ready == ModelReadiness::Stale
         || table.model_preparation.native_count != real_count(input.elements)
     {
         return None;
