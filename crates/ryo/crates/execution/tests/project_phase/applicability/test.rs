@@ -353,9 +353,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         },
         &mut symbols,
     );
-    assert!(
-        matches!(outcome.unwrap().emit,
+    assert!(matches!(outcome.unwrap().emit,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { reason })
-        if reason == "every source partition was explicitly skipped")
-    );
+        if reason == "every source partition was explicitly skipped"));
 }

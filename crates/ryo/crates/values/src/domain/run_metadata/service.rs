@@ -3,6 +3,7 @@ use super::types::{
     CrossSteps, FeatureSlot, FeatureSource, FrontierCapture, ProjectRead, RuleRunMetadata,
     StepMetadata,
 };
+use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plans::service::{comparisons_of, kind_of};
 use crate::domain::{
     plan_parts::types::Input,
@@ -11,7 +12,6 @@ use crate::domain::{
         types::{Feature, Operation, Plan},
     },
 };
-use crate::domain::plan_parts::types::StepScope;
 use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
 
 #[must_use]

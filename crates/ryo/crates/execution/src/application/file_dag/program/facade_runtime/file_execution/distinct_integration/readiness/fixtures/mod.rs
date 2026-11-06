@@ -106,7 +106,9 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     > {
         self.actual.positions(permit, context, scratch)
@@ -118,7 +120,9 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     > {
         self.actual.selected(shape, permit, context, scratch)
@@ -308,7 +312,8 @@ pub(super) fn observe(omit: bool) -> Coverage {
                             test: Test::Equal,
                             left: Operand::Literal(QueryLiteral::Number(Integer(index))),
                             right: Operand::Literal(QueryLiteral::Number(Integer(index))),
-                            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+                            origin:
+                                ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                         }]
                     } else {
                         vec![]

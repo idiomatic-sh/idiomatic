@@ -5,8 +5,8 @@ use crate::application::file_dag::program::preparation::types::OutputRoot;
 use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
-    stored_facts::types::ArenaBytes,
     records::types::{ObservationIndex, ProducerReadiness},
+    stored_facts::types::ArenaBytes,
 };
 use std::rc::Rc;
 use {
@@ -103,7 +103,9 @@ impl<'a> CrossPublications<'a> {
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
         let backing = std::sync::Arc::new(token.words().clone());
-        let ryo_values::domain::table_words::types::Admitted { table: metadata, .. } = ryo_values::domain::table_words::service::admit_compact(
+        let ryo_values::domain::table_words::types::Admitted {
+            table: metadata, ..
+        } = ryo_values::domain::table_words::service::admit_compact(
             std::sync::Arc::clone(&backing),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
             ryo_values::domain::table_words::types::DecodeMode::Complete,
@@ -272,7 +274,7 @@ impl<'a> CrossPublications<'a> {
             != transfer
                 .roots
                 .iter()
-                .filter(|root| root.words.is_some())
+                .filter(|root| matches!(root.words, ryo_values::domain::records::types::RootWords::Published(_)))
                 .count()
         {
             return Err(incomplete());
@@ -311,7 +313,9 @@ impl<'a> CrossPublications<'a> {
             } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }
-            if root.words.is_some() != admitted.contains_key(&root.output.0) {
+            if matches!(root.words, ryo_values::domain::records::types::RootWords::Published(_))
+                != admitted.contains_key(&root.output.0)
+            {
                 return Err(incomplete());
             }
             for arena in &root.arenas {
@@ -327,7 +331,7 @@ impl<'a> CrossPublications<'a> {
         let mut prepared = Vec::with_capacity(transfer.roots.len());
         for root in transfer.roots {
             let output = root.output.0 as usize;
-            if let Some(words) = root.words {
+            if let ryo_values::domain::records::types::RootWords::Published(words) = root.words {
                 // The pack boundary listed each referenced arena once. Validate uniqueness
                 // rather than silently over-counting a malformed transfer's lease.
                 let mut referenced = Vec::with_capacity(root.arenas.len());

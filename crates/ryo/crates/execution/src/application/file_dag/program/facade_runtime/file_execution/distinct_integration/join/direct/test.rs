@@ -22,7 +22,10 @@ pub(in super::super) fn encoded(
     let compact = if representation == RepresentationKind::Compact {
         let mut words = ryo_relations::domain::relations::types::Words::default();
         encode_table(&table, &[], &mut words);
-        let (compact, names) = admit_compact(
+        let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = admit_compact(
             Arc::new(KeptWords(pack(WordSlice(&words.0)))),
             &mut vec![],
             DecodeMode::Complete,

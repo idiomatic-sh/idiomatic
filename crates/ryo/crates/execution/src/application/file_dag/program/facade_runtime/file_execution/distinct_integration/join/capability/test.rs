@@ -121,7 +121,10 @@ fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability
     }
     let mut words = ryo_relations::domain::relations::types::Words::default();
     encode_table(&right, &[], &mut words);
-    let (compact, names) = admit_compact(
+    let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = admit_compact(
         Arc::new(KeptWords(pack(WordSlice(&words.0)))),
         &mut Vec::new(),
         DecodeMode::Complete,

@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Relation;
 use super::errors::VisitError;
 use super::service::{lines_in, roles_of, walked, wanted, wants};
 use super::types::{BorrowedBytes, Noting, RoleRead};
-use crate::cases::{run, Case, CaseName, Expect, Word};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;

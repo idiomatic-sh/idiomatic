@@ -2,8 +2,8 @@
 //! and correct. Only the findings a run shows and the digests that decide what the next can use again are kept; nothing a run can
 //! make again cheaply is. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::files::types::{FileSize, Nanoseconds};
 use crate::domain::descriptions::types::ColumnName;
+use crate::domain::files::types::{FileSize, Nanoseconds};
 use crate::domain::records::types::{
     Cell, GoverningRules, PlacedColumn, PlacedLine, PlacedRule, Unreadable,
 };

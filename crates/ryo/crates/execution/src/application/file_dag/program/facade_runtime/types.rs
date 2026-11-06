@@ -44,8 +44,10 @@ pub(super) struct PreparedNamed {
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DeclaredIntent {
-    pub(super) diagnostic: crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
-    pub(super) observations: crate::application::file_dag::program::protocol::types::ObservationDemand,
+    pub(super) diagnostic:
+        crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
+    pub(super) observations:
+        crate::application::file_dag::program::protocol::types::ObservationDemand,
     pub(super) capture: crate::application::file_dag::program::protocol::types::CaptureIntent,
 }
 /// The slot of a bound observation among the observation regions of a program.
@@ -96,7 +98,9 @@ impl ProgramServices {
     pub(in crate::application::file_dag::program) fn kernels(&self) -> &dyn PrimitiveExecutor {
         self.kernels.as_ref()
     }
-    pub(in crate::application::file_dag::program) fn derived(&self) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
+    pub(in crate::application::file_dag::program) fn derived(
+        &self,
+    ) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
         &self.derived
     }
 }

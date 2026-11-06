@@ -16,8 +16,8 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, InputNumber, StepId, StepScope},
     plans::types::{Operation, PlanStep},
-    stored_facts::types::Bucket,
     rows::errors::TableModelError,
+    stored_facts::types::Bucket,
 };
 use std::sync::atomic::Ordering;
 

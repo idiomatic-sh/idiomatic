@@ -1,5 +1,7 @@
 //! Exercise the owning Values codec directly, including compact backing and refusal rollback.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::plan_parts::types::ColumnIndex;
+use crate::domain::rows::types::RowIndex;
 use crate::domain::table_words::{service, types};
 use crate::domain::{
     rows::types::{RowCount, Table},
@@ -10,8 +12,6 @@ use ryo_relations::domain::relations::types::{
     Value as Cell, Words, WorkerNumber,
 };
 use std::sync::Arc;
-use crate::domain::plan_parts::types::ColumnIndex;
-use crate::domain::rows::types::RowIndex;
 use types::{Admitted, CellCount, DecodeMode, WordSlice};
 fn place(at: u32) -> NamePlace {
     NamePlace {
@@ -51,7 +51,10 @@ fn packed(frames: &[Table]) -> Arc<KeptWords> {
 fn same(actual: &types::CompactTable, expected: &Table) {
     assert_eq!(service::compact_kinds(actual), expected.kinds);
     assert_eq!(service::compact_rows(actual), expected.count);
-    assert_eq!(service::compact_cells(actual), CellCount(expected.cells.len()));
+    assert_eq!(
+        service::compact_cells(actual),
+        CellCount(expected.cells.len())
+    );
     let width = expected.kinds.len();
     let mut scratch = vec![Cell::Number(Integer(0)); width];
     for row in 0..expected.count.0 {
@@ -92,7 +95,8 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
             .checked_mul(old.kinds.len())
             .is_some_and(|cells| cells == old.cells.len());
         assert_eq!(
-            service::compact_rectangular(&meta) == crate::domain::table_words::types::Shape::Rectangular,
+            service::compact_rectangular(&meta)
+                == crate::domain::table_words::types::Shape::Rectangular,
             expected_rectangular
         );
         if expected_rectangular {
@@ -104,7 +108,9 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
                     Some(expected)
                 );
                 for (column, value) in expected.iter().enumerate() {
-                    let actual = service::compact_cell(&meta, RowIndex(row), ColumnIndex(column as u32)).unwrap();
+                    let actual =
+                        service::compact_cell(&meta, RowIndex(row), ColumnIndex(column as u32))
+                            .unwrap();
                     assert_eq!(actual, *value);
                     if let (Cell::Name(a), Cell::Name(b)) = (actual, value) {
                         assert_eq!(a.place, b.place);
@@ -112,7 +118,10 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
                 }
             }
             assert!(service::compact_read(&meta, RowIndex(old.count.0), &mut scratch).is_none());
-            assert!(service::compact_cell(&meta, RowIndex(0), ColumnIndex(old.kinds.len() as u32)).is_none());
+            assert!(
+                service::compact_cell(&meta, RowIndex(0), ColumnIndex(old.kinds.len() as u32))
+                    .is_none()
+            );
         }
         let before = new_places.clone();
         same(&meta, &old);
@@ -125,10 +134,8 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
         differential(packed(&frames), mode);
     }
     let mut places = vec![];
-    let Admitted {
-        table: meta,
-        names,
-    } = service::admit_compact(packed(&frames), &mut places, DecodeMode::Complete).unwrap();
+    let Admitted { table: meta, names } =
+        service::admit_compact(packed(&frames), &mut places, DecodeMode::Complete).unwrap();
     assert_eq!(service::compact_rows(&meta), RowCount(4));
     assert_eq!(service::compact_cells(&meta), CellCount(12));
     assert_eq!(
@@ -374,8 +381,9 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         let mut compact_rows = Vec::new();
         let mut row_scratch = [Cell::Number(Integer(0)); 2];
         for row in 0..2 {
-            compact_rows
-                .extend_from_slice(service::compact_read(&compact, RowIndex(row), &mut row_scratch).unwrap());
+            compact_rows.extend_from_slice(
+                service::compact_read(&compact, RowIndex(row), &mut row_scratch).unwrap(),
+            );
         }
         let identities = |cells: &[Cell]| {
             cells

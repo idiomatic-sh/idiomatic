@@ -1,5 +1,7 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners.
-use super::super::super::{fixtures, types::PreparedExecutionProgram, use_case::ExecutionUseCaseImpl};
+use super::super::super::{
+    fixtures, types::PreparedExecutionProgram, use_case::ExecutionUseCaseImpl,
+};
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
     elements::types::Elements,
@@ -52,7 +54,15 @@ fn prepare(
     subject: Option<&str>,
     bindings: &[ParameterBinding],
     shadow: &Operation,
-) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram, Symbols, Table), Failure> {
+) -> Result<
+    (
+        ExecutionUseCaseImpl,
+        PreparedExecutionProgram,
+        Symbols,
+        Table,
+    ),
+    Failure,
+> {
     let mut symbols = Symbols::default();
     let mut input = Table {
         kinds: vec![CellKind::Symbol],

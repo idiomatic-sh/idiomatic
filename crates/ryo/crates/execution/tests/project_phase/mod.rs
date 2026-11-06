@@ -272,7 +272,12 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         // Negative control: a different population (observed demand) is a separate acquisition.
-        let _other = prepare(&mut symbols, FrontierDemand::Observations { ready: &[true, true] });
+        let _other = prepare(
+            &mut symbols,
+            FrontierDemand::Observations {
+                ready: &[true, true],
+            },
+        );
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
             2,
@@ -738,11 +743,14 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     use ryo_execution::inbound::use_cases::execution::interface::{
         ObservationExecution, ObservationPublication, PreparedExecution,
     };
-    use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
-    use ryo_values::domain::records::types::ProducerReadiness;
+    use ryo_values::domain::observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+    };
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
     use ryo_values::domain::records::types::ObservationIndex;
     use ryo_values::domain::records::types::ObservationReadinessLayout;
-    use ryo_values::domain::plan_parts::types::ObservationBindingId;
+    use ryo_values::domain::records::types::ProducerReadiness;
     use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
     use ryo_values::domain::table_words::{
@@ -1021,7 +1029,9 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 arena,
                 roots: vec![PackedObservedRoot {
                     output,
-                    words: Some(KeptWords(pack(WordSlice(&words.0)))),
+                    words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(WordSlice(
+                &words.0,
+            )))),
                     readiness: ProducerReadiness::Complete,
                     arenas: if selected_text.is_some() {
                         vec![worker]

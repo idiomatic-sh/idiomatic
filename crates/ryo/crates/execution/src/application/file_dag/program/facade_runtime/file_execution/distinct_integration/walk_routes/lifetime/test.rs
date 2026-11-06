@@ -154,7 +154,11 @@ fn an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still
         failed,
         RootOutcome::Failed(OperatingError::WrongOperation)
     ));
-    assert_eq!(file.walk.retained(), RetainedBatches(1), "rule 3 still owes");
+    assert_eq!(
+        file.walk.retained(),
+        RetainedBatches(1),
+        "rule 3 still owes"
+    );
     assert!(matches!(
         deliver(&mut file, &program, RuleIndex(3), &mut symbols),
         RootOutcome::Complete(_)

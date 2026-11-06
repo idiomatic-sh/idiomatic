@@ -173,7 +173,8 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         Some(&lookup),
-        None)?;
+        None,
+    )?;
     let owner = Rc::clone(&file.owner);
     let outer_root = file
         .program

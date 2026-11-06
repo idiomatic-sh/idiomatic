@@ -111,9 +111,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Origins => {
             let mut second = first.clone();
             if let Operation::Select { comparisons, .. } = &mut second.steps[0].operation {
-                comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
-            ryo_values::domain::plan_parts::types::ComparisonOriginId(7),
-        );
+                comparisons[0].origin =
+                    ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+                        ryo_values::domain::plan_parts::types::ComparisonOriginId(7),
+                    );
             }
             let graph = graph(&[first, second], &[vec![], vec![]])?;
             let first = graph.program_nodes[0][0]

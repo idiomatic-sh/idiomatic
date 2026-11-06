@@ -17,10 +17,13 @@ use crate::domain::coverage::types::Partials;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
-use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
-use ryo_values::domain::records::types::ObservationReadinessLayout;
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+    ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+};
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::plan_parts::types::{HostedNumber, InputNumber};
+use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 
 #[derive(Clone, Copy, Debug)]
@@ -308,7 +311,10 @@ impl CapturedProject {
         )?;
         assert!(matches!(produced.emit, RootOutcome::NoQuery));
         assert_eq!(produced.observations.len(), 1);
-        let crate::application::file_dag::program::protocol::types::ProjectOutputOutcome { outcome: observed, .. } = produced.observations.pop().unwrap();
+        let crate::application::file_dag::program::protocol::types::ProjectOutputOutcome {
+            outcome: observed,
+            ..
+        } = produced.observations.pop().unwrap();
         let ProjectObservation::Complete { table, publication } = observed else {
             panic!("real empty project member must publish successfully")
         };

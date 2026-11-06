@@ -3,7 +3,7 @@
 
 use super::service::CrossFile;
 use crate::application::run_coordination::settings::CrossingInput;
-use crate::cases::{run, Case, CaseName, Expect, Selection, Word};
+use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
@@ -1558,15 +1558,17 @@ fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_
             panic!("later cohort must be refused")
         };
         assert_eq!(completed.len(), 1);
-        assert!(completed
-            .into_iter()
-            .next()
-            .unwrap()
-            .result
-            .unwrap()
-            .crossed
-            .rendered
-            .is_some());
+        assert!(
+            completed
+                .into_iter()
+                .next()
+                .unwrap()
+                .result
+                .unwrap()
+                .crossed
+                .rendered
+                .is_some()
+        );
         assert!(
             matches!(error, super::errors::CrossError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])
         );

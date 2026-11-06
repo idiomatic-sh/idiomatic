@@ -9,14 +9,16 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     CapturePattern, ColumnIndex, Comparison, Direction, HostedNumber, Input, JoinColumn,
     LiteralText, Operand, ParameterId, ParameterName, QueryLiteral, RepeatedRows, Side, StepId,
     TableKey, Test,
 };
 use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::{Operation, OperationKind, ParameterType, Plan, PlanParameter};
-use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{
+    Operation, OperationKind, ParameterType, Plan, PlanParameter,
+};
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 
 use super::plan;

@@ -6,8 +6,13 @@ use crate::domain::executable_program::{
 };
 use ryo_relations::domain::relations::{service::kinds, types::Integer};
 use ryo_values::domain::{
-    observations::types::{ObservationColumn, ObservationColumnName, ObservationName, PlanObservation},
-    plan_parts::types::{ColumnIndex, Comparison, Input, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side, StepId, Test, StepScope},
+    observations::types::{
+        ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
+    },
+    plan_parts::types::{
+        ColumnIndex, Comparison, Input, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side,
+        StepId, StepScope, Test,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
 };
 use std::collections::HashSet;

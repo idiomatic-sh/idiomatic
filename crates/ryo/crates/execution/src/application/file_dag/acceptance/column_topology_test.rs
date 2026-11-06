@@ -13,8 +13,13 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    observations::types::{ObservationColumn, ObservationColumnName, ObservationName, PlanObservation},
-    plan_parts::types::{ColumnIndex, Comparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, Test, StepScope},
+    observations::types::{
+        ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
+    },
+    plan_parts::types::{
+        ColumnIndex, Comparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
+        Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
 };
 
@@ -193,10 +198,8 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let compiled = program(&single, &operators, request);
     assert_eq!(column_count(&compiled), 1);
     assert!(
-        service::column(
-            &compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route
-        )
-        .is_some()
+        service::column(&compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route)
+            .is_some()
     );
 
     let duplicate = vec![ordinary_plan(), ordinary_plan()];

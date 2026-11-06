@@ -281,8 +281,13 @@ fn execute(
         .logical;
     let region = program.logical_regions()[logical.0];
     let instructions = program.regions()[region.0].instructions.len();
-    let native_prepared = crate::domain::executable_program::service::native_positions(&program.regions()[region.0].route).is_some();
-    let column_prepared = crate::domain::executable_program::service::column(&program.regions()[region.0].route).is_some();
+    let native_prepared = crate::domain::executable_program::service::native_positions(
+        &program.regions()[region.0].route,
+    )
+    .is_some();
+    let column_prepared =
+        crate::domain::executable_program::service::column(&program.regions()[region.0].route)
+            .is_some();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),
         derived,
@@ -336,9 +341,12 @@ fn execute(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         symbols,
         None,
-        None)?;
+        None,
+    )?;
     if let Some(limit) = faults.optional_limit {
-        file.owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(limit))?;
+        file.owner.derived.set_optional_limit(
+            crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
+        )?;
     }
     let mut prefix = Vec::new();
     let mut affected = vec![];
@@ -409,12 +417,13 @@ fn execute(
                     return None;
                 }
             };
-            let ryo_values::domain::table_words::types::Admitted { table: compact, .. } = admit_compact(
-                Arc::new(KeptWords(capture.words)),
-                &mut vec![],
-                DecodeMode::Complete,
-            )
-            .expect("actual captured words decode");
+            let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
+                admit_compact(
+                    Arc::new(KeptWords(capture.words)),
+                    &mut vec![],
+                    DecodeMode::Complete,
+                )
+                .expect("actual captured words decode");
             let mut table = Table::default();
             materialize(&Rows::Compact(&compact), &mut table, &mut vec![]);
             Some(table)

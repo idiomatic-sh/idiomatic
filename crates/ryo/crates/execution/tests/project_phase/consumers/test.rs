@@ -179,7 +179,9 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                     arena,
                     roots: vec![PackedObservedRoot {
                         output,
-                        words: Some(KeptWords(pack(WordSlice(&words.0)))),
+                        words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(WordSlice(
+                &words.0,
+            )))),
                         readiness: ProducerReadiness::Complete,
                         arenas: vec![],
                     }],

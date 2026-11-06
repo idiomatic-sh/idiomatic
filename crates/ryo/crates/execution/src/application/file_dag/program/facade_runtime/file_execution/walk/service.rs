@@ -270,7 +270,9 @@ impl FileRun<'_> {
                 })
             };
             let result = result.and_then(|input| {
-                if input.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Ready {
+                if input.observation_ready()?
+                    == crate::application::file_dag::program::admission::ObservationReadiness::Ready
+                {
                     Ok(input)
                 } else {
                     Err(OperatingError::ObservationIncomplete {

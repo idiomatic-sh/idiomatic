@@ -23,7 +23,7 @@ impl RepresentationsItem for CompactItem {
             input,
             kind: RepresentationKind::Compact,
             kinds: ryo_values::domain::table_words::service::compact_kinds(table),
-            rows: ryo_values::domain::table_words::service::compact_rows(table),
+            rows: ryo_values::domain::table_words::service::compact_rows(table).0,
             metadata: Ok(()),
         })
     }

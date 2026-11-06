@@ -86,7 +86,10 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
     };
     let mut words = ryo_relations::domain::relations::types::Words::default();
     ryo_values::domain::table_words::service::encode_table(&computed, &[], &mut words);
-    let (compact, names) = ryo_values::domain::table_words::service::admit_compact(
+    let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = ryo_values::domain::table_words::service::admit_compact(
         Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
             ryo_values::domain::table_words::service::pack(
                 ryo_values::domain::table_words::types::WordSlice(&words.0),
@@ -267,7 +270,10 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         if refused {
             codec::encode_table(&short, &[], &mut words);
         }
-        let (compact, names) = codec::admit_compact(
+        let ryo_values::domain::table_words::types::Admitted {
+            table: compact,
+            names,
+        } = codec::admit_compact(
             Arc::new(KeptWords(codec::pack(WordSlice(&words.0)))),
             &mut Vec::new(),
             if refused {
@@ -279,7 +285,8 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         .unwrap();
         assert!(names.is_empty());
         assert_eq!(
-            codec::compact_rectangular(&compact) == ryo_values::domain::table_words::types::Shape::Rectangular,
+            codec::compact_rectangular(&compact)
+                == ryo_values::domain::table_words::types::Shape::Rectangular,
             !refused
         );
         let scope = crate::application::file_dag::testing::FileScope::new(

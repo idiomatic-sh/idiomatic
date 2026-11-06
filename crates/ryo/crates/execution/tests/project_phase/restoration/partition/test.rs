@@ -9,9 +9,15 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::{
     files::types::CorpusInput,
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation},
-    plan_parts::types::{HostedNumber, RepeatedRows, ObservationBindingId},
-    records::types::{Cell as HostCell, CrossPublicationTransfer, PackedObservedRoot, ObservationReadinessLayout, ObservationIndex, ProducerReadiness},
+    observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+    },
+    plan_parts::types::{HostedNumber, ObservationBindingId, RepeatedRows},
+    records::types::{
+        Cell as HostCell, CrossPublicationTransfer, ObservationIndex, ObservationReadinessLayout,
+        PackedObservedRoot, ProducerReadiness,
+    },
     runs::types::{RuleApplicability, SkipReason, Skipped},
     stored_facts::types::{ArenaBytes, Digest, KeptWords},
     table_words::{
@@ -564,11 +570,9 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             (
                 table,
                 publication,
-                ProducerReadiness::Unknown(
-                    ryo_values::domain::records::types::ObservationReason(
-                        "physical source facts are incomplete".into(),
-                    ),
-                ),
+                ProducerReadiness::Unknown(ryo_values::domain::records::types::ObservationReason(
+                    "physical source facts are incomplete".into(),
+                )),
             )
         }
         (_, ProjectObservation::Complete { table, publication }) => {
@@ -587,7 +591,9 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         arena: ArenaBytes::default(),
         roots: vec![PackedObservedRoot {
             output,
-            words: Some(KeptWords(pack(WordSlice(&words.0)))),
+            words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(WordSlice(
+                &words.0,
+            )))),
             readiness,
             arenas: vec![],
         }],
@@ -655,7 +661,13 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             arenas: stage.arenas(),
         })
         .collect();
-    let outcomes = crate::boundary_fixture::project_roots(&stage, RuleIndex(2), demand(), inputs, &mut symbols);
+    let outcomes = crate::boundary_fixture::project_roots(
+        &stage,
+        RuleIndex(2),
+        demand(),
+        inputs,
+        &mut symbols,
+    );
     for outcome in outcomes {
         let RootOutcome::Partial { table, affected } = outcome.unwrap().emit else {
             panic!("only the bad physical partition must remain explicitly unknown")

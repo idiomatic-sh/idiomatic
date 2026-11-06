@@ -8,8 +8,8 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::outcome_of;
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
 use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
+use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
 use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
 use crate::application::file_dag::program::protocol::types::EmitDemand;
 use crate::application::file_dag::program::protocol::types::ObservationDemand;
@@ -183,9 +183,13 @@ impl FileRun<'_> {
             self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[index].publication =
                 Some(input);
         }
-        for crate::application::file_dag::program::protocol::types::OutputOutcome { output, outcome } in &observations {
-            self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize]
-                .readiness = readiness_of(outcome);
+        for crate::application::file_dag::program::protocol::types::OutputOutcome {
+            output,
+            outcome,
+        } in &observations
+        {
+            self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize].readiness =
+                readiness_of(outcome);
         }
         Ok(RuleOutcome {
             emit,

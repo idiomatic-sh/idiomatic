@@ -181,7 +181,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let mut rows = vec![];
     assert!(matches!(

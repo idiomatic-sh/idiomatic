@@ -84,7 +84,8 @@ fn run(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let stored = providers
         .iter()

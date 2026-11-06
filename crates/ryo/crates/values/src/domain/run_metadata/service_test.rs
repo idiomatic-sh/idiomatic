@@ -4,7 +4,10 @@ use super::types::{CrossSteps, FeatureSource, FrontierCapture, ProjectRead};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     observations::types::{BoundObservationInput, ObservationBindingName},
-    plan_parts::types::{ColumnIndex, Comparison, Direction, Input as PlanInput, LiteralText, Operand, QueryLiteral, RepeatedRows, StepId, Test, ObservationBindingId, StepScope},
+    plan_parts::types::{
+        ColumnIndex, Comparison, Direction, Input as PlanInput, LiteralText, ObservationBindingId,
+        Operand, QueryLiteral, RepeatedRows, StepId, StepScope, Test,
+    },
     plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep},
 };
 use ryo_relations::domain::relations::types::Relation;
@@ -356,16 +359,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
             reads_project: rule.reads_project == ProjectRead::Reads,
             has_cross_steps: rule.has_cross_steps == CrossSteps::Present,
         });
-        output.extend(
-            rule.frontier_capture
-                .iter()
-                .copied()
-                .enumerate()
-                .map(|(input, retained)| Metadata::Capture {
-                    input,
-                    retained: retained == FrontierCapture::Captured,
-                }),
-        );
+        output.extend(rule.frontier_capture.iter().copied().enumerate().map(
+            |(input, retained)| Metadata::Capture {
+                input,
+                retained: retained == FrontierCapture::Captured,
+            },
+        ));
         for step in rule.steps {
             output.push(Metadata::Step {
                 operation: step.operation,

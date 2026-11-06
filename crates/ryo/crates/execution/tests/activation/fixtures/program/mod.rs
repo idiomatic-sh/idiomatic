@@ -8,7 +8,10 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{ColumnIndex, Comparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral, Side, StepId, Test, StepScope},
+    plan_parts::types::{
+        ColumnIndex, Comparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
+        Side, StepId, StepScope, Test,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rule_requests::types::{RuleParameters, RuleSpec},
@@ -78,7 +81,6 @@ fn plan(index: usize) -> Plan {
     }
 }
 
-
 pub(in crate::fixtures) fn engine() -> ExecutionUseCaseImpl {
     ExecutionUseCaseImpl::new(
         Arc::new(
@@ -95,7 +97,10 @@ pub(in crate::fixtures) fn corpus() -> [CorpusInput; 1] {
         modified: Nanoseconds(0),
     })]
 }
-pub(in crate::fixtures) fn prepared(engine: &ExecutionUseCaseImpl, total: usize) -> PreparedExecutionProgram {
+pub(in crate::fixtures) fn prepared(
+    engine: &ExecutionUseCaseImpl,
+    total: usize,
+) -> PreparedExecutionProgram {
     engine
         .prepare(PreparedRequest {
             plans: (0..total).map(plan).collect(),

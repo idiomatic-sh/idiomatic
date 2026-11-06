@@ -198,7 +198,8 @@ fn execute_request(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         symbols,
         None,
-        None)?;
+        None,
+    )?;
     let read = |relation| {
         providers
             .iter()
@@ -962,7 +963,8 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let mut outputs = Vec::new();

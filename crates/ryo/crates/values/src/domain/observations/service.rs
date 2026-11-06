@@ -180,9 +180,9 @@ pub fn frontier_state(
     map: super::types::ValidatedFrontiers<'_>,
     slot: crate::domain::records::types::ObservationReadinessSlot,
 ) -> Result<crate::domain::records::types::ProducerReadiness, ObservationsError> {
-    use crate::domain::records::types::ProducerReadiness;
-use crate::domain::records::types::ObservationReason;
     use crate::domain::records::types::FrontierRefusalReason;
+    use crate::domain::records::types::ObservationReason;
+    use crate::domain::records::types::ProducerReadiness;
     let map = map.0;
     if slot.0 >= map.slots.0 {
         return Err(ObservationsError::Invalid);
@@ -232,8 +232,8 @@ pub fn frontier_identity(
     validated: super::types::ValidatedFrontiers<'_>,
     range: super::types::ObservationReadinessRange,
 ) -> Result<ObservationIdentityBytes, ObservationsError> {
+    use crate::domain::records::types::ObservationReadinessSlot;
     use crate::domain::records::types::ProducerReadiness;
-use crate::domain::records::types::ObservationReadinessSlot;
     let map = validated.0;
     let end = range
         .start

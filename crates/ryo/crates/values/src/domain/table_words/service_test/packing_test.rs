@@ -1,10 +1,10 @@
 //! Packing writes the minimal varints with no spare capacity, and a table is one frame only when its bytes are exactly that frame.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::rows::types::Table;
 use crate::domain::table_words::service::{
     encode_table, encoded_size, pack, single_table_frame, unpacked, with_encoded_word,
 };
 use crate::domain::table_words::types::{EncodedSize, PackedSlice, WordSlice};
-use crate::domain::rows::types::Table;
 use ryo_relations::domain::relations::types::{Bits, Words};
 
 #[derive(Clone, Copy)]
@@ -162,7 +162,11 @@ fn packing(words: &[u64]) -> Outcome {
         packed.0.len(),
         "no guessed allocation ratio or shrink-copy"
     );
-    assert!(unpacked(&packed).map(|word| word.0).eq(words.iter().copied()));
+    assert!(
+        unpacked(&packed)
+            .map(|word| word.0)
+            .eq(words.iter().copied())
+    );
     Outcome::Packed
 }
 
@@ -200,9 +204,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::ThreeByteStart => packing(&vec![16384]),
         Scenario::Largest => packing(&vec![u64::MAX]),
         Scenario::Mixed => packing(&vec![0, 127, 128, 16383, 16384, u64::MAX]),
-        Scenario::Twice => {
-            packing(&super::twice().0)
-        }
+        Scenario::Twice => packing(&super::twice().0),
         Scenario::NoRoomForAnyWord => room(usize::MAX, 0),
         Scenario::NoRoomForTheLargest => room(usize::MAX - 9, u64::MAX),
         Scenario::RoomForTheLargest => {

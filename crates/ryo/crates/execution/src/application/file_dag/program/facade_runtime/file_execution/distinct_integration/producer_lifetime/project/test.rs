@@ -105,7 +105,8 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                                 table: std::sync::Arc::new(table),
                             },
                             coverage: CoverageState::Complete,
-                        }].into(),
+                        }]
+                        .into(),
                         program: Arc::clone(prepared.program()),
                         required: required.clone(),
                         refused: vec![].into(),

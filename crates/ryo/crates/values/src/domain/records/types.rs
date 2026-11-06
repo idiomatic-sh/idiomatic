@@ -392,12 +392,21 @@ pub enum FrontierRefusalReason {
     NoQuery,
 }
 
+/// Whether a published root carries the words of its table.
+#[derive(Clone, Debug)]
+pub enum RootWords {
+    /// The packed words of the root's table.
+    Published(crate::domain::stored_facts::types::KeptWords),
+    /// The root carries no words: its readiness says why.
+    Withheld,
+}
+
 /// A portable named output. Complete words, or partial words whose readiness
 /// remains Unknown, require a matching engine-issued publication at admission.
 #[derive(Clone, Debug)]
 pub struct PackedObservedRoot {
     pub output: ObservationIndex,
-    pub words: Option<crate::domain::stored_facts::types::KeptWords>,
+    pub words: RootWords,
     pub readiness: crate::domain::records::types::ProducerReadiness,
     /// Every arena actually referenced by encoded places, including inherited re-exports.
     pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,

@@ -6,12 +6,12 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, Function, LiteralText, Operand, ParameterId, QueryLiteral,
     StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// What a row gives the check: how the kind is compared, with what, and the texts bound to the parameters.
@@ -119,8 +119,8 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
         panic!("the test plan uses a select");
     };
     comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
-            ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
-        );
+        ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+    );
 
     let mut other_origin = origin.clone();
     other_origin.source_id = QuerySourceId("other/filter".into());
@@ -139,8 +139,8 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
         panic!("the test plan uses a select");
     };
     other_comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
-            ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
-        );
+        ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+    );
 
     assert_eq!(
         refusal(&plan, &KindVocabularies(Vec::new())).unwrap().1,

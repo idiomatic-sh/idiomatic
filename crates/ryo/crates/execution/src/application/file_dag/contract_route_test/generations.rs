@@ -25,7 +25,10 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{ColumnIndex, Comparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId, Test, WholeNumber, StepScope},
+    plan_parts::types::{
+        ColumnIndex, Comparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId,
+        StepScope, Test, WholeNumber,
+    },
     plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     query_bindings::types::ParameterBinding,
@@ -226,7 +229,8 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let storage = language_columns(7, 3);
     let (first, first_reads) = run(&mut file, 0, &storage, &mut symbols);
@@ -266,7 +270,8 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut first_symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let (left, first_reads) = run(&mut first, 0, &language_columns(1, 3), &mut first_symbols);
     let mut second_symbols = Symbols::default();
@@ -287,7 +292,8 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut second_symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let (right, second_reads) = run(&mut second, 0, &language_columns(9, 3), &mut second_symbols);
     assert!(first_reads > 0);

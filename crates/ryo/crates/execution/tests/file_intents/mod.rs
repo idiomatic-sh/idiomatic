@@ -165,9 +165,12 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
 }
 
 pub(crate) fn named_request() -> PreparedRequest {
-    use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
-    use ryo_values::domain::records::types::ObservationReadinessLayout;
+    use ryo_values::domain::observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+    };
     use ryo_values::domain::plan_parts::types::ObservationBindingId;
+    use ryo_values::domain::records::types::ObservationReadinessLayout;
     let mut authored = authored_request(2);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),
@@ -318,9 +321,9 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
 fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
     use ryo_values::domain::observations::{
         service::{frontier_state, validate_frontiers},
-        types::{ ProducerReadiness},
+        types::ProducerReadiness,
     };
-use ryo_values::domain::records::types::ObservationReadinessSlot;
+    use ryo_values::domain::records::types::ObservationReadinessSlot;
     let engine = engine();
     let program = engine.prepare(named_request()).unwrap();
     let corpus = corpus();

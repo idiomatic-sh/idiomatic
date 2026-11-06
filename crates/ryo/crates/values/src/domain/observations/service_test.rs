@@ -253,7 +253,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         } else {
             Answer::Same
         }),
-        Scenario::TabAcrossBoundary => Ok(verdict(identity(&[declaration("input", "a\tb", "c")]), identity(&[declaration("input", "a", "b\tc")]))),
+        Scenario::TabAcrossBoundary => Ok(verdict(
+            identity(&[declaration("input", "a\tb", "c")]),
+            identity(&[declaration("input", "a", "b\tc")]),
+        )),
         Scenario::ColumnKind => {
             let left = declaration("input", "a\tb", "c");
             let mut typed = left.clone();
@@ -277,11 +280,17 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::MissingSlot => state_of(3),
         Scenario::RuleOrder => {
             let (first, second) = (rule("producer-a", 1), rule("producer-b", 2));
-            Ok(verdict(layout_identity(&[first.clone(), second.clone()]), layout_identity(&[second, first])))
+            Ok(verdict(
+                layout_identity(&[first.clone(), second.clone()]),
+                layout_identity(&[second, first]),
+            ))
         }
         Scenario::ProducerConfiguration => {
             let first = rule("producer-a", 1);
-            Ok(verdict(layout_identity(&[first.clone(), rule("producer-b", 2)]), layout_identity(&[first, rule("producer-b", 3)])))
+            Ok(verdict(
+                layout_identity(&[first.clone(), rule("producer-b", 2)]),
+                layout_identity(&[first, rule("producer-b", 3)]),
+            ))
         }
         Scenario::DroppedRule => {
             let (first, second) = (rule("producer-a", 1), rule("producer-b", 2));

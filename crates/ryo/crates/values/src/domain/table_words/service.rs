@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::types::{
 
 use super::types::{
     Admitted, CellCount, ColumnCount, CompactCursor, CompactFrame, CompactStorage, CompactTable,
-    Completeness, Decoded, DecodeMode, EncodedSize, Framing, PackedOffset, PackedSlice, Shape,
+    Completeness, DecodeMode, Decoded, EncodedSize, Framing, PackedOffset, PackedSlice, Shape,
     Spelling, StorageAddress, StorageLength, StoragePart, WordSlice,
 };
 use crate::domain::plan_parts::types::ColumnIndex;
@@ -62,7 +62,8 @@ fn decode_combined_status(
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
 ) -> Decoded {
-    let mut complete = mode == DecodeMode::Permissive || canonical_words(packed) == Spelling::Canonical;
+    let mut complete =
+        mode == DecodeMode::Permissive || canonical_words(packed) == Spelling::Canonical;
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
     observed_decode(super::constants::BEFORE_RESERVE, packed, &combined, places);
@@ -186,12 +187,9 @@ pub fn pack(words: WordSlice<'_>) -> PackedWords {
 /// Exact encoded payload size, checked before any allocation.
 #[must_use]
 pub fn encoded_size(words: WordSlice<'_>) -> Option<EncodedSize> {
-    words
-        .0
-        .iter()
-        .try_fold(EncodedSize(0), |total, word| {
-            with_encoded_word(total, Bits(*word))
-        })
+    words.0.iter().try_fold(EncodedSize(0), |total, word| {
+        with_encoded_word(total, Bits(*word))
+    })
 }
 
 /// Add one varint's exact width without permitting the total to wrap.
@@ -307,7 +305,8 @@ pub fn admit_compact(
     mode: DecodeMode,
 ) -> Result<Admitted, super::errors::TableWordsError> {
     let before = places.len();
-    let mut complete = mode == DecodeMode::Permissive || canonical_words(&backing.0) == Spelling::Canonical;
+    let mut complete =
+        mode == DecodeMode::Permissive || canonical_words(&backing.0) == Spelling::Canonical;
     let mut cursor = CompactCursor {
         bytes: PackedSlice(&backing.0.0),
         offset: PackedOffset(0),
@@ -500,9 +499,12 @@ pub fn compact_read<'a>(
     if scratch.len() < input.kinds.len() {
         return None;
     }
-    compact_values(input, row, ColumnCount(input.kinds.len()), |column, value| {
-        scratch[column.0 as usize] = value
-    })?;
+    compact_values(
+        input,
+        row,
+        ColumnCount(input.kinds.len()),
+        |column, value| scratch[column.0 as usize] = value,
+    )?;
     Some(&scratch[..input.kinds.len()])
 }
 pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) -> Option<Value> {
@@ -510,9 +512,12 @@ pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) ->
         return None;
     }
     let mut found = None;
-    compact_values(input, row, ColumnCount(column.0 as usize + 1), |_, value| {
-        found = Some(value)
-    })?;
+    compact_values(
+        input,
+        row,
+        ColumnCount(column.0 as usize + 1),
+        |_, value| found = Some(value),
+    )?;
     found
 }
 /// Admission validated every encoded cell once; this is a metadata-only shape check.

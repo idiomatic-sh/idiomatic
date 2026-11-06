@@ -198,20 +198,26 @@ pub(crate) fn admit(
         mode,
         coverage,
     } = packed;
-    let refuse = |error: ryo_values::domain::table_words::errors::TableWordsError| RefusedFrontier {
-        input,
-        error: OperatingError::ObservationIncomplete {
-            reason: error.to_string(),
-        },
-    };
+    let refuse =
+        |error: ryo_values::domain::table_words::errors::TableWordsError| RefusedFrontier {
+            input,
+            error: OperatingError::ObservationIncomplete {
+                reason: error.to_string(),
+            },
+        };
     if matches!(input, Input::Step(_)) {
         return admit_compact(words, places_mut(symbols), mode)
-            .map(|ryo_values::domain::table_words::types::Admitted { table, names: spelling }| FrontierInput::Compact {
-                input,
-                table: std::sync::Arc::new(table),
-                spelling,
-                coverage,
-            })
+            .map(
+                |ryo_values::domain::table_words::types::Admitted {
+                     table,
+                     names: spelling,
+                 }| FrontierInput::Compact {
+                    input,
+                    table: std::sync::Arc::new(table),
+                    spelling,
+                    coverage,
+                },
+            )
             .map_err(refuse);
     }
     // Non-Step borrowed relation/binding sources keep their existing representation.
@@ -278,8 +284,7 @@ pub(crate) fn validate_bucket(
         let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
         if ryo_values::domain::table_words::service::single_table_frame(
             ryo_values::domain::table_words::types::PackedSlice(frame),
-        )
-            != ryo_values::domain::table_words::types::Framing::Whole
+        ) != ryo_values::domain::table_words::types::Framing::Whole
         {
             return Err(refuse());
         }

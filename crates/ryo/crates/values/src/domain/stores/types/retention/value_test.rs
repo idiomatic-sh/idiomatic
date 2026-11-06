@@ -14,8 +14,8 @@ use crate::domain::{
         StoredPartial,
     },
     stores::types::{
-        HandedRows, KeptRows, StagedRow, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes,
-        StoredText, StoredWords,
+        HandedRows, KeptRows, StagedRow, StoredCovered, StoredFileNumber, StoredHanded,
+        StoredNotes, StoredText, StoredWords,
     },
 };
 use ryo_language::domain::files::types::FilePath;

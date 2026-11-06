@@ -1,5 +1,7 @@
 //! The selection entry: predicate, candidate and distinct selectors acquired through the owner.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
+    Exit, released,
+};
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::domain::{
     operating::{
@@ -35,7 +37,11 @@ use ryo_values::domain::{
 use std::sync::Arc;
 
 /// A fixed set of integer rows for the distinct and predicate selectors.
-const DISTINCT: [&[u64]; 3] = [&[7, 7, 7, 7, 7, 8], &[1, 2, 0, 7, 0, 1], &[10, 10, 20, 11, 20, 10]];
+const DISTINCT: [&[u64]; 3] = [
+    &[7, 7, 7, 7, 7, 8],
+    &[1, 2, 0, 7, 0, 1],
+    &[10, 10, 20, 11, 20, 10],
+];
 pub(super) fn selection(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
     if kind == DerivedKind::CandidatePostings {
         return fanout(exit);
@@ -208,9 +214,7 @@ fn run_with(
                 }
                 Ok(kind)
             }
-            Exit::Errors => fixture
-                .select(&error, source, &mut context)
-                .map(|_| kind),
+            Exit::Errors => fixture.select(&error, source, &mut context).map(|_| kind),
         }
     };
     fixture.owner().release_population();
@@ -221,4 +225,3 @@ fn run_with(
     );
     result
 }
-

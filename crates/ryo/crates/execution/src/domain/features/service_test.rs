@@ -12,10 +12,10 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 
 /// What a row of the cases asks.
 #[derive(Clone, Copy)]

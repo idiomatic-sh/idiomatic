@@ -26,7 +26,10 @@ use ryo_relations::domain::relations::{
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows, Side, StepId, Test, StepScope},
+    plan_parts::types::{
+        ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
+        QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
@@ -340,13 +343,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     );
     if expects_native {
         assert!(
-            crate::domain::executable_program::service::native_positions(&prepared.program().regions()[target_region.0].route).is_some(),
+            crate::domain::executable_program::service::native_positions(
+                &prepared.program().regions()[target_region.0].route
+            )
+            .is_some(),
             "this case requires the compiled native-position strategy to be installed"
         );
     }
     if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
         assert!(
-            crate::domain::executable_program::service::native_positions(&prepared.program().regions()[target_region.0].route).is_none(),
+            crate::domain::executable_program::service::native_positions(
+                &prepared.program().regions()[target_region.0].route
+            )
+            .is_none(),
             "the non-tree RHS must decline native-position installation"
         );
     }
@@ -380,7 +389,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)?;
+        None,
+    )?;
     let function = Table {
         kinds: kinds(Relation::Function).to_vec(),
         cells: kinds(Relation::Function)

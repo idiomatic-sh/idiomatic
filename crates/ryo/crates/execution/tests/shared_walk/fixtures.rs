@@ -97,7 +97,10 @@ pub(super) fn selection(selector: Selector) -> Vec<Comparison> {
         Selector::AbsentKindBeforeRegex => vec![kind("absent-kind"), regex],
     }
 }
-pub(super) fn prepared(engine: &ExecutionUseCaseImpl, selectors: &[Selector]) -> PreparedExecutionProgram {
+pub(super) fn prepared(
+    engine: &ExecutionUseCaseImpl,
+    selectors: &[Selector],
+) -> PreparedExecutionProgram {
     let mut input = authored_request(selectors.len());
     for (index, selector) in selectors.iter().copied().enumerate() {
         input.plans[index].steps[0].operation = Operation::Select {

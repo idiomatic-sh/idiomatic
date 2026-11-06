@@ -2,13 +2,13 @@
 
 use super::service::{inputs_of, named, step_scope};
 use super::types::{Emit, Operation, Plan, PlanStep};
-use crate::domain::plan_parts::types::StepScope;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::types::ColumnIndex;
 use crate::domain::plan_parts::types::HostedNumber;
 use crate::domain::plan_parts::types::Input as PlanInput;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
+use crate::domain::plan_parts::types::StepScope;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the service.

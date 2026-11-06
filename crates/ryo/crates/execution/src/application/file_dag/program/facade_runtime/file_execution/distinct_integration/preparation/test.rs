@@ -1,8 +1,11 @@
 //! Real request compilation and file opening must not allocate dormant siblings.
 use super::super::*;
 use ryo_values::domain::{
-    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation},
-    plan_parts::types::{Operand, QueryLiteral, ObservationBindingId},
+    observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+    },
+    plan_parts::types::{ObservationBindingId, Operand, QueryLiteral},
     records::types::ObservationReadinessLayout,
 };
 
@@ -176,7 +179,8 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     assert_eq!(
         file.roots.len(),

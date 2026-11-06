@@ -316,7 +316,8 @@ impl CrossFile {
                 packed
                     .roots
                     .iter()
-                    .any(|root| root.output == *output && root.words.is_some())
+                    .any(|root| root.output == *output
+                        && matches!(root.words, ryo_values::domain::records::types::RootWords::Published(_)))
             });
         } else {
             publications.clear();

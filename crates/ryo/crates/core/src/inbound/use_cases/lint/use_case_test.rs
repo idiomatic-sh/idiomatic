@@ -2,15 +2,15 @@
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
 use crate::outbound::rows;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use super::errors::LintError;
 use super::fixtures::contract::check;
 use super::interface::LintUseCase as _;
 use super::types::{LintRequest, Rule};
 use super::use_case::LintUseCaseImpl;
-use crate::cases::{run, selects, Case, CaseName, Expect, Word};
+use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
@@ -1308,13 +1308,15 @@ fn deleted() -> Result<Value, Failure> {
         cold.rows.len() - 1,
         "and the one removed reports nothing"
     );
-    assert!(fewer
-        .rows
-        .iter()
-        .all(|row| row.0.iter().any(|cell| matches!(
-            cell,
-            Some(Typed::File(text) | Typed::Text(text)) if text.contains("a.rs")
-        ))));
+    assert!(
+        fewer
+            .rows
+            .iter()
+            .all(|row| row.0.iter().any(|cell| matches!(
+                cell,
+                Some(Typed::File(text) | Typed::Text(text)) if text.contains("a.rs")
+            )))
+    );
     read_and_unread(fewer)
 }
 
@@ -1355,7 +1357,14 @@ fn placed() -> Result<Value, Failure> {
     let made = lint(violations());
     let first = made.rows.first().map(|row| &*row.0).unwrap_or_default();
     let (line, column) = match first {
-        [Some(Typed::Text(_)), _, Some(Typed::Number(_)), .., line, column] => (line, column),
+        [
+            Some(Typed::Text(_)),
+            _,
+            Some(Typed::Number(_)),
+            ..,
+            line,
+            column,
+        ] => (line, column),
         _ => (&None, &None),
     };
     assert!(
@@ -1555,8 +1564,8 @@ fn changed_nested_module() -> Result<Value, Failure> {
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
     use crate::outbound::query_language::factory;
-    use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
     use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
+    use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {
         let module = format!(

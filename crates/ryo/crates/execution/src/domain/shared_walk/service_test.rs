@@ -13,7 +13,10 @@ use ryo_relations::domain::{
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, ParameterId, QueryLiteral, StepId, Test, StepScope},
+    plan_parts::types::{
+        ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, ParameterId,
+        QueryLiteral, StepId, StepScope, Test,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
 };
 use {
@@ -455,7 +458,10 @@ fn numbered(column: u32, value: i64) -> Comparison {
     }
 }
 
-pub(crate) fn with_context<T>(symbols: &mut Symbols, run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
+pub(crate) fn with_context<T>(
+    symbols: &mut Symbols,
+    run: impl FnOnce(&mut OperatorContext<'_>) -> T,
+) -> T {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     run(&mut OperatorContext {

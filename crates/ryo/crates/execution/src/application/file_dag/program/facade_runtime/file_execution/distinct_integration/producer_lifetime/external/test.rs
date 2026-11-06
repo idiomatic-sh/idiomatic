@@ -53,7 +53,9 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         None,
         None,
     )?;
-    file.owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(0))?;
+    file.owner.derived.set_optional_limit(
+        crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
+    )?;
     assert_eq!(
         file.prepared_roots
             .iter()
