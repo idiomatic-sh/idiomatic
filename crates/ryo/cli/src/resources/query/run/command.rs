@@ -3,7 +3,7 @@
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use ryo_core::inbound::use_cases::lint::types::LintRequest;
 
-use crate::outcome::Outcome;
+use crate::outcome::CommandOutcome;
 use ryo_core::inbound::use_cases::lint::errors::LintError;
 
 /// The arguments of `query run`.
@@ -68,22 +68,22 @@ pub(super) fn answered(
 /// Runs `query run`: checks its arguments through its schemas, connects and composes its
 /// service, calls it once, and prints the answer in the format `--format` chose: row by row as
 /// the rows are produced, except as JSON, which is one whole document written when the run ends well.
-pub fn run(arguments: RunArguments, edge: &crate::edge::Edge) -> Outcome {
+pub fn run(arguments: RunArguments, edge: &crate::edge::Edge) -> CommandOutcome {
     let format = edge.format;
     let budget = super::schemas::budget(arguments.memory_budget);
     let request =
         match super::schemas::request(edge.start.0.to_string(), arguments.text, arguments.limit) {
             Ok(request) => request,
-            Err(error) => return crate::output::fail(&error, Outcome::Failure),
+            Err(error) => return crate::output::fail(&error, CommandOutcome::Failure),
         };
     let rules = request.rules.clone();
     let mut ended = Ok(());
-    let outcome = crate::output::stream(format, Outcome::Success, |out| {
+    let outcome = crate::output::stream(format, CommandOutcome::Success, |out| {
         ended = answered(request, budget, edge, out)
             .map_err(|error| super::schemas::failure(error, &rules));
     });
     match super::schemas::delivered(ended) {
         Ok(()) => outcome,
-        Err(error) => crate::output::fail(&error, Outcome::Error),
+        Err(error) => crate::output::fail(&error, CommandOutcome::Error),
     }
 }

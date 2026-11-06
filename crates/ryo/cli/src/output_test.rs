@@ -1,7 +1,7 @@
 //! Proves how a command's answer is printed in each format, and each error with its next step.
 
 use super::{Format, FormatSwitch, markdown, print, unwritten, written};
-use crate::outcome::Outcome;
+use crate::outcome::CommandOutcome;
 
 /// An answer of one line of text, as a command's `schemas.rs` would write it.
 struct Line(&'static str);
@@ -73,7 +73,7 @@ fn markdown_succeeds_without_styles() {
 fn unwritten_refuses_as_an_error() {
     assert_eq!(
         unwritten(&std::io::Error::other("the disk is full")),
-        Outcome::Error
+        CommandOutcome::Error
     );
 }
 

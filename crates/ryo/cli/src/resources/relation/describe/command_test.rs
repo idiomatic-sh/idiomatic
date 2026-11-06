@@ -2,14 +2,14 @@
 
 use super::command::{DescribeArguments, answer};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outcome::Outcome;
+use crate::outcome::CommandOutcome;
 
 /// What a row gives the command: the command line, one argument at a time.
 type Input = Vec<&'static str>;
 /// How many lines the command prints when it succeeds.
 type Value = usize;
 /// How the command ends when it does not succeed.
-type Failure = Outcome;
+type Failure = CommandOutcome;
 
 /// Reads a command line into this command's arguments.
 #[derive(clap::Parser)]
@@ -42,20 +42,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_relation_is_refused"),
         word: Word::Refuses,
         input: || vec!["nothing"],
-        expect: Expect::Error(Outcome::Error),
+        expect: Expect::Error(CommandOutcome::Error),
     },
     Case {
         name: CaseName("a_blank_name_is_refused"),
         word: Word::Refuses,
         input: || vec![" "],
-        expect: Expect::Error(Outcome::Failure),
+        expect: Expect::Error(CommandOutcome::Failure),
     },
 ];
 
 /// Runs `relation describe` on one command line and returns what it printed or the outcome it ended with.
 fn subject(line: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("ryo").chain(line))
-        .map_err(|_refused| Outcome::Error)?;
+        .map_err(|_refused| CommandOutcome::Error)?;
     answer(parsed.arguments).map(|answer| answer.to_string().lines().count())
 }
 

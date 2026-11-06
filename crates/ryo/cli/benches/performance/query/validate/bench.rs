@@ -20,7 +20,7 @@ pub(crate) fn workload() -> crate::measure::Measured {
             );
             assert_eq!(
                 outcome,
-                ryo_cli::outcome::Outcome::Success,
+                ryo_cli::outcome::CommandOutcome::Success,
                 "`query validate` did not succeed"
             );
         },
