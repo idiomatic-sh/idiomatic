@@ -56,14 +56,15 @@ its rightful owner, and the enforcement that would prevent recurrence.
 
 Start with [the matrix](../README.md), [execution plan](../execution-plan.md),
 [paired review](../audits/2026-11-06-ownership/review.json), and
-[reviewer instructions](../../../../../../.agents/agents/contract-review.md).
+[reviewer instructions](../../../../../.agents/agents/contract-review.md).
 Source hotspots: `execution/src/application/file_dag/program/`,
 `execution/src/application/file_dag/derived/owner/acquisition/`,
 `execution/src/domain/shared_walk/`, and `derived/src/inbound/use_cases/derived/`
 (relative to `crates/ryo/crates`). The production sharing proof is
 `languages/python/benchmarks/linters/ruff/sharing/` under `crates/ryo`.
 
-First checkpoint: one combined `cargo build --manifest-path crates/ryo/Cargo.toml
---workspace --all-features --tests --keep-going`, then repair diagnostics in
-batches. Run production boundary/lifecycle and `ruff_sharing` targets after it
-builds. Do not suppress failures or start benchmarks to make this snapshot look done.
+First checkpoint: build execution, derived, operators, matching, values,
+query_language, core, SDK and Python together (`--all-features --tests
+--keep-going -j4`), then repair diagnostics in batches. Preserve the existing
+build cache and serialize heavy commands. Run production boundary/lifecycle
+and `ruff_sharing` tests after compilation; no performance run or suppression.
