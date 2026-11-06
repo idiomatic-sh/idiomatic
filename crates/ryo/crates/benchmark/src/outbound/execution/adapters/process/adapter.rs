@@ -57,15 +57,28 @@ impl ExecutionPort for ExecutionProcessAdapter {
                     timed_out = true;
                     #[cfg(unix)]
                     {
-                        let _result = Command::new(crate::outbound::execution::adapters::process::constants::KILL)
-                            .args([crate::outbound::execution::adapters::process::constants::KILL_2, crate::outbound::execution::adapters::process::constants::TEXT, &format!("-{}", child.id())])
-                            .status();
+                        let _result = Command::new(
+                            crate::outbound::execution::adapters::process::constants::KILL,
+                        )
+                        .args([
+                            crate::outbound::execution::adapters::process::constants::KILL_2,
+                            crate::outbound::execution::adapters::process::constants::TEXT,
+                            &format!("-{}", child.id()),
+                        ])
+                        .status();
                     }
                     #[cfg(windows)]
                     {
-                        let _result = Command::new(crate::outbound::execution::adapters::process::constants::TASKKILL)
-                            .args([crate::outbound::execution::adapters::process::constants::PID, &child.id().to_string(), crate::outbound::execution::adapters::process::constants::T, crate::outbound::execution::adapters::process::constants::F])
-                            .status();
+                        let _result = Command::new(
+                            crate::outbound::execution::adapters::process::constants::TASKKILL,
+                        )
+                        .args([
+                            crate::outbound::execution::adapters::process::constants::PID,
+                            &child.id().to_string(),
+                            crate::outbound::execution::adapters::process::constants::T,
+                            crate::outbound::execution::adapters::process::constants::F,
+                        ])
+                        .status();
                     }
                     let _result = child.kill();
                     break child.wait()?;

@@ -130,7 +130,8 @@ pub(super) fn write(
         crate::application::run::constants::COMPLETE: true,
     });
     if let Some(context) = &case.request.rule_context {
-        record[crate::application::run::constants::RULE_CONTEXT] = crate::outbound::worker::schemas::prepared_value(context);
+        record[crate::application::run::constants::RULE_CONTEXT] =
+            crate::outbound::worker::schemas::prepared_value(context);
     }
     if let Some(declarations) = &case.request.rule_observations {
         record[crate::application::run::constants::RULE_OBSERVATIONS] =
@@ -141,13 +142,16 @@ pub(super) fn write(
             serde_json::json!(selected.iter().map(ToString::to_string).collect::<Vec<_>>());
     }
     if let Some(digest) = &metadata_sha256 {
-        record[crate::application::run::constants::FILE_METADATA_SHA256] = serde_json::json!(digest);
+        record[crate::application::run::constants::FILE_METADATA_SHA256] =
+            serde_json::json!(digest);
     }
     let mut raw_invocation = capture.map(|capture| capture.invocation.clone());
     if let Some(invocation) = &mut raw_invocation {
-        invocation[crate::application::run::constants::SOURCE_SHA256] = serde_json::json!(source_sha256);
+        invocation[crate::application::run::constants::SOURCE_SHA256] =
+            serde_json::json!(source_sha256);
         if let Some(digest) = &metadata_sha256 {
-            invocation[crate::application::run::constants::FILE_METADATA_SHA256] = serde_json::json!(digest);
+            invocation[crate::application::run::constants::FILE_METADATA_SHA256] =
+                serde_json::json!(digest);
         }
         record[crate::application::run::constants::PROCESS_OBSERVATION] = serde_json::json!({
             crate::application::run::constants::KIND:crate::application::run::constants::PROCESS_FAILURE, crate::application::run::constants::EXIT:invocation[crate::application::run::constants::EXIT], crate::application::run::constants::SIGNAL:invocation[crate::application::run::constants::SIGNAL],
@@ -156,7 +160,8 @@ pub(super) fn write(
             crate::application::run::constants::METADATA_ERROR:invocation.get(crate::application::run::constants::METADATA_ERROR),
             crate::application::run::constants::TEMPLATE_SHA256:super::process_discrepancy::expected(case).map(|process| super::process_discrepancy::output_digest(process).0),
         });
-        record[crate::application::run::constants::RAW_PARITY_MATCHES_INTENDED] = serde_json::json!(false);
+        record[crate::application::run::constants::RAW_PARITY_MATCHES_INTENDED] =
+            serde_json::json!(false);
     }
     let key = crate::domain::suite::process::service::observation_key(
         case.rule.as_ref(),

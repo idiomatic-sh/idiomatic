@@ -9,9 +9,9 @@ pub(super) fn admit(
     rules: &Path,
     cases: &[PreparedCase],
 ) -> Result<(), Error> {
-    let root = rules
-        .parent()
-        .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_CASE_PROFILE_BOUNDARY.into()))?;
+    let root = rules.parent().ok_or_else(|| {
+        Error::Invalid(crate::application::run::constants::MISSING_CASE_PROFILE_BOUNDARY.into())
+    })?;
     let profile = suite.profile(ArtifactPath(root))?;
     for case in cases {
         crate::domain::suite::input_metadata::require(

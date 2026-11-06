@@ -13,7 +13,8 @@ fn observed(path: &Path) -> Result<bool, Error> {
     let metadata = std::fs::metadata(path)?;
     if !metadata.is_file() {
         return Err(Error::Invalid(
-            crate::outbound::suite::adapters::local::constants::METADATA_SOURCE_IS_NOT_A_REGULAR.into(),
+            crate::outbound::suite::adapters::local::constants::METADATA_SOURCE_IS_NOT_A_REGULAR
+                .into(),
         ));
     }
     Ok(metadata.permissions().mode() & 0o111 != 0)
@@ -40,7 +41,10 @@ pub(super) fn stage(path: &Path, executable: bool) -> Result<(), Error> {
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
     }
     if observed(path)? != executable {
-        return Err(Error::Invalid(crate::outbound::suite::adapters::local::constants::STAGED_EXECUTABLE_METADATA_DIFFERS.into()));
+        return Err(Error::Invalid(
+            crate::outbound::suite::adapters::local::constants::STAGED_EXECUTABLE_METADATA_DIFFERS
+                .into(),
+        ));
     }
     Ok(())
 }
@@ -100,7 +104,12 @@ pub(super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result
         })
     }))?
     .map(|digest| digest.0)
-    .ok_or_else(|| Error::Invalid(crate::outbound::suite::adapters::local::constants::MISSING_PHYSICAL_METADATA_DIGEST.into()))
+    .ok_or_else(|| {
+        Error::Invalid(
+            crate::outbound::suite::adapters::local::constants::MISSING_PHYSICAL_METADATA_DIGEST
+                .into(),
+        )
+    })
 }
 
 /// Write only selected source facts; semantic preparation and expected reports stay above this port.

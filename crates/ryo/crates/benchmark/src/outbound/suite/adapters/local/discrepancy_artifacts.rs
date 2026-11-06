@@ -7,9 +7,11 @@ use std::path::{Component, Path};
 
 /// Refuse platform-specific escape spellings before touching artifact paths.
 fn relative(path: &Path) -> Result<(), ArtifactError> {
-    let text = path
-        .to_str()
-        .ok_or_else(|| ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::NON_UTF8_ARTIFACT_PATH.into()))?;
+    let text = path.to_str().ok_or_else(|| {
+        ArtifactError::Invalid(
+            crate::outbound::suite::adapters::local::constants::NON_UTF8_ARTIFACT_PATH.into(),
+        )
+    })?;
     if text.is_empty()
         || text.contains(['\\', ':'])
         || !path
@@ -17,7 +19,8 @@ fn relative(path: &Path) -> Result<(), ArtifactError> {
             .all(|item| matches!(item, Component::Normal(_)))
     {
         return Err(ArtifactError::Invalid(
-            crate::outbound::suite::adapters::local::constants::UNSAFE_ARTIFACT_RELATIVE_PATH.into(),
+            crate::outbound::suite::adapters::local::constants::UNSAFE_ARTIFACT_RELATIVE_PATH
+                .into(),
         ));
     }
     Ok(())
@@ -29,21 +32,32 @@ pub(super) fn case_reference_wires(
     owners: &[ryo::linter::RuleId],
 ) -> Result<Vec<CaseReferenceWire>, ArtifactError> {
     let mut result = Vec::new();
-    for entry in std::fs::read_dir(profile.join(crate::outbound::suite::adapters::local::constants::RULES))? {
+    for entry in
+        std::fs::read_dir(profile.join(crate::outbound::suite::adapters::local::constants::RULES))?
+    {
         let entry = entry?;
-        if !entry.path().join(crate::outbound::suite::adapters::local::constants::QUERY).is_file() {
+        if !entry
+            .path()
+            .join(crate::outbound::suite::adapters::local::constants::QUERY)
+            .is_file()
+        {
             continue;
         }
-        let rule = entry
-            .file_name()
-            .into_string()
-            .map_err(|_bytes| ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::NON_UTF8_RULE_DIRECTORY.into()))?;
+        let rule = entry.file_name().into_string().map_err(|_bytes| {
+            ArtifactError::Invalid(
+                crate::outbound::suite::adapters::local::constants::NON_UTF8_RULE_DIRECTORY.into(),
+            )
+        })?;
         let rule = super::schemas::rule(&rule)
             .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if !owners.contains(&rule) {
             continue;
         }
-        let text = std::fs::read_to_string(entry.path().join(crate::outbound::suite::adapters::local::constants::CASES))?;
+        let text = std::fs::read_to_string(
+            entry
+                .path()
+                .join(crate::outbound::suite::adapters::local::constants::CASES),
+        )?;
         for (name, discrepancy, basis) in super::schemas::case_reference_wires(&text)? {
             result.push(CaseReferenceWire {
                 rule: rule.to_string(),
@@ -125,17 +139,22 @@ pub(super) fn verify_requirement(
             source_revision,
             source_path,
         } => {
-            if field(crate::outbound::suite::adapters::local::constants::SCHEMA)? != crate::outbound::suite::adapters::local::constants::PUBLIC_TOOL_CONTRACT_V1
-                || field(crate::outbound::suite::adapters::local::constants::SOURCE_REVISION)? != source_revision
-                || field(crate::outbound::suite::adapters::local::constants::SOURCE_PATH)? != source_path
+            if field(crate::outbound::suite::adapters::local::constants::SCHEMA)?
+                != crate::outbound::suite::adapters::local::constants::PUBLIC_TOOL_CONTRACT_V1
+                || field(crate::outbound::suite::adapters::local::constants::SOURCE_REVISION)?
+                    != source_revision
+                || field(crate::outbound::suite::adapters::local::constants::SOURCE_PATH)?
+                    != source_path
             {
                 return Err(fail());
             }
             let source = field(crate::outbound::suite::adapters::local::constants::SOURCE_TEXT)?;
-            let assertion = field(crate::outbound::suite::adapters::local::constants::CONTRACT_ASSERTION)?;
+            let assertion =
+                field(crate::outbound::suite::adapters::local::constants::CONTRACT_ASSERTION)?;
             if assertion.is_empty()
                 || !source.contains(assertion)
-                || field(crate::outbound::suite::adapters::local::constants::SOURCE_SHA256)? != format!("{:x}", Sha256::digest(source.as_bytes()))
+                || field(crate::outbound::suite::adapters::local::constants::SOURCE_SHA256)?
+                    != format!("{:x}", Sha256::digest(source.as_bytes()))
             {
                 return Err(fail());
             }
@@ -148,17 +167,25 @@ pub(super) fn verify_requirement(
             control_profile_sha256,
             witness_case,
         } => {
-            if field(crate::outbound::suite::adapters::local::constants::SCHEMA)? != crate::outbound::suite::adapters::local::constants::PRIOR_WORKER_CONTROL_V1
-                || field(crate::outbound::suite::adapters::local::constants::WORKER_SHA256)? != worker_sha256
-                || field(crate::outbound::suite::adapters::local::constants::CONTROL_SOURCE_SHA256)? != control_source_sha256
-                || field(crate::outbound::suite::adapters::local::constants::CONTROL_QUERY_SHA256)? != control_query_sha256
-                || field(crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE_SHA256)? != control_profile_sha256
-                || field(crate::outbound::suite::adapters::local::constants::WITNESS_CASE)? != witness_case
+            if field(crate::outbound::suite::adapters::local::constants::SCHEMA)?
+                != crate::outbound::suite::adapters::local::constants::PRIOR_WORKER_CONTROL_V1
+                || field(crate::outbound::suite::adapters::local::constants::WORKER_SHA256)?
+                    != worker_sha256
+                || field(crate::outbound::suite::adapters::local::constants::CONTROL_SOURCE_SHA256)?
+                    != control_source_sha256
+                || field(crate::outbound::suite::adapters::local::constants::CONTROL_QUERY_SHA256)?
+                    != control_query_sha256
+                || field(
+                    crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE_SHA256,
+                )? != control_profile_sha256
+                || field(crate::outbound::suite::adapters::local::constants::WITNESS_CASE)?
+                    != witness_case
             {
                 return Err(fail());
             }
             let query = field(crate::outbound::suite::adapters::local::constants::CONTROL_QUERY)?;
-            let profile = field(crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE)?;
+            let profile =
+                field(crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE)?;
             if format!("{:x}", Sha256::digest(query.as_bytes())) != *control_query_sha256
                 || format!("{:x}", Sha256::digest(profile.as_bytes())) != *control_profile_sha256
             {
@@ -181,31 +208,48 @@ pub(super) fn verify_requirement(
                 return Err(fail());
             }
             let receipt = field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT)?;
-            if field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256)? != format!("{:x}", Sha256::digest(receipt.as_bytes())) {
+            if field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256)?
+                != format!("{:x}", Sha256::digest(receipt.as_bytes()))
+            {
                 return Err(fail());
             }
             // The control receipt alone does not name the executable or staged query.
             // Require the captured execution manifest from that run to bind all inputs.
-            let execution = field(crate::outbound::suite::adapters::local::constants::EXECUTION_MANIFEST)?;
+            let execution =
+                field(crate::outbound::suite::adapters::local::constants::EXECUTION_MANIFEST)?;
             if field(crate::outbound::suite::adapters::local::constants::EXECUTION_MANIFEST_SHA256)?
                 != format!("{:x}", Sha256::digest(execution.as_bytes()))
             {
                 return Err(fail());
             }
             let run: Value = serde_json::from_str(execution).map_err(|_| fail())?;
-            if run[crate::outbound::suite::adapters::local::constants::SCHEMA] != crate::outbound::suite::adapters::local::constants::PRIOR_WORKER_EXECUTION_V1
-                || run[crate::outbound::suite::adapters::local::constants::WORKER_SHA256] != *worker_sha256
-                || run[crate::outbound::suite::adapters::local::constants::CONTROL_SOURCE_SHA256] != *control_source_sha256
-                || run[crate::outbound::suite::adapters::local::constants::CONTROL_QUERY_SHA256] != *control_query_sha256
-                || run[crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE_SHA256] != *control_profile_sha256
-                || run[crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256] != field(crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256)?
-                || run[crate::outbound::suite::adapters::local::constants::WITNESS_CASE] != *witness_case
-                || !matches!(run[crate::outbound::suite::adapters::local::constants::STATUS].as_i64(), Some(0 | 1))
-                || run[crate::outbound::suite::adapters::local::constants::COMMAND][1] != crate::outbound::suite::adapters::local::constants::VERIFY_CASES
+            if run[crate::outbound::suite::adapters::local::constants::SCHEMA]
+                != crate::outbound::suite::adapters::local::constants::PRIOR_WORKER_EXECUTION_V1
+                || run[crate::outbound::suite::adapters::local::constants::WORKER_SHA256]
+                    != *worker_sha256
+                || run[crate::outbound::suite::adapters::local::constants::CONTROL_SOURCE_SHA256]
+                    != *control_source_sha256
+                || run[crate::outbound::suite::adapters::local::constants::CONTROL_QUERY_SHA256]
+                    != *control_query_sha256
+                || run[crate::outbound::suite::adapters::local::constants::CONTROL_PROFILE_SHA256]
+                    != *control_profile_sha256
+                || run[crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256]
+                    != field(
+                        crate::outbound::suite::adapters::local::constants::RAW_RECEIPT_SHA256,
+                    )?
+                || run[crate::outbound::suite::adapters::local::constants::WITNESS_CASE]
+                    != *witness_case
+                || !matches!(
+                    run[crate::outbound::suite::adapters::local::constants::STATUS].as_i64(),
+                    Some(0 | 1)
+                )
+                || run[crate::outbound::suite::adapters::local::constants::COMMAND][1]
+                    != crate::outbound::suite::adapters::local::constants::VERIFY_CASES
                 || run[crate::outbound::suite::adapters::local::constants::COMMAND]
                     .as_array()
                     .is_none_or(|parts| parts.len() != 4)
-                || run[crate::outbound::suite::adapters::local::constants::COMMAND][3] != run[crate::outbound::suite::adapters::local::constants::STAGE_ROOT]
+                || run[crate::outbound::suite::adapters::local::constants::COMMAND][3]
+                    != run[crate::outbound::suite::adapters::local::constants::STAGE_ROOT]
                 || run[crate::outbound::suite::adapters::local::constants::COMMAND][0]
                     .as_str()
                     .is_none_or(|path| !path.ends_with(worker_sha256))
@@ -215,7 +259,11 @@ pub(super) fn verify_requirement(
             let mut witnessed = false;
             for line in receipt.lines() {
                 let row: Value = serde_json::from_str(line).map_err(|_| fail())?;
-                if row[crate::outbound::suite::adapters::local::constants::SIDE] == crate::outbound::suite::adapters::local::constants::CANDIDATE && row[crate::outbound::suite::adapters::local::constants::NAME] == *witness_case {
+                if row[crate::outbound::suite::adapters::local::constants::SIDE]
+                    == crate::outbound::suite::adapters::local::constants::CANDIDATE
+                    && row[crate::outbound::suite::adapters::local::constants::NAME]
+                        == *witness_case
+                {
                     if witnessed
                         || row[crate::outbound::suite::adapters::local::constants::COMPLETE] != true
                         || row[crate::outbound::suite::adapters::local::constants::ERROR_2] != Value::Null
@@ -345,7 +393,10 @@ pub(super) fn read(
             ));
         }
         if result.insert(artifact.path.clone(), bytes).is_some() {
-            return Err(ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::DUPLICATE_RAW_ARTIFACT_PATH.into()));
+            return Err(ArtifactError::Invalid(
+                crate::outbound::suite::adapters::local::constants::DUPLICATE_RAW_ARTIFACT_PATH
+                    .into(),
+            ));
         }
     }
     Ok(result)
@@ -370,7 +421,12 @@ pub(super) fn source_digest(
         }
         source.update(
             file.to_str()
-                .ok_or_else(|| ArtifactError::Invalid(crate::outbound::suite::adapters::local::constants::NONUTF8_SOURCE_PATH.into()))?
+                .ok_or_else(|| {
+                    ArtifactError::Invalid(
+                        crate::outbound::suite::adapters::local::constants::NONUTF8_SOURCE_PATH
+                            .into(),
+                    )
+                })?
                 .as_bytes(),
         );
         source.update([0]);

@@ -110,7 +110,8 @@ pub fn configure<'a>(
     let request = session.request();
     if !std::ptr::eq(expected, request) {
         return Err(Error::Invalid(
-            crate::application::worker_request::constants::LOADED_ENGINE_SESSION_BELONGS_TO_ANOTHER.into(),
+            crate::application::worker_request::constants::LOADED_ENGINE_SESSION_BELONGS_TO_ANOTHER
+                .into(),
         ));
     }
     let missing = classify(request)?;

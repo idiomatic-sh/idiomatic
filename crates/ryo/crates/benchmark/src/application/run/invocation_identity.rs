@@ -21,12 +21,18 @@ pub(super) fn normalized_invocation(
     profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
 ) -> Result<serde_json::Value, Error> {
     let normalize = |value: &std::ffi::OsStr| -> Result<String, Error> {
-        let value = value
-            .to_str()
-            .ok_or_else(|| Error::Invalid(crate::application::run::constants::NON_UTF8_REFERENCE_INVOCATION.into()))?;
+        let value = value.to_str().ok_or_else(|| {
+            Error::Invalid(crate::application::run::constants::NON_UTF8_REFERENCE_INVOCATION.into())
+        })?;
         Ok(value
-            .replace(&case.request.state.to_string_lossy().to_string(), crate::application::run::constants::STATE_2)
-            .replace(&case.request.root.to_string_lossy().to_string(), crate::application::run::constants::ROOT)
+            .replace(
+                &case.request.state.to_string_lossy().to_string(),
+                crate::application::run::constants::STATE_2,
+            )
+            .replace(
+                &case.request.root.to_string_lossy().to_string(),
+                crate::application::run::constants::ROOT,
+            )
             .replace('\\', crate::application::run::constants::SLASH))
     };
     let arguments = invocation
@@ -54,7 +60,8 @@ pub(super) fn normalized_invocation(
             crate::outbound::worker::schemas::declaration_value(declaration);
     }
     if let Some(context) = &case.request.rule_context {
-        settings[crate::application::run::constants::RULE_CONTEXT] = crate::outbound::worker::schemas::prepared_value(context);
+        settings[crate::application::run::constants::RULE_CONTEXT] =
+            crate::outbound::worker::schemas::prepared_value(context);
     }
     if !profile.rule_observations.is_empty() {
         let declarations = crate::domain::suite::observations::project_profile(
@@ -109,18 +116,30 @@ pub(super) fn reconstruct(invocation: &serde_json::Value) -> Result<serde_json::
     let root = invocation[crate::application::run::constants::ACTUAL_REQUEST_ROOT]
         .as_str()
         .filter(|root| !root.is_empty())
-        .ok_or_else(|| Error::Invalid(crate::application::run::constants::RAW_INVOCATION_ROOT_IS_MISSING.into()))?;
+        .ok_or_else(|| {
+            Error::Invalid(
+                crate::application::run::constants::RAW_INVOCATION_ROOT_IS_MISSING.into(),
+            )
+        })?;
     if !std::path::Path::new(root).is_absolute() {
-        return Err(Error::Invalid(crate::application::run::constants::RAW_INVOCATION_ROOT_IS_NOT_ABSOLUTE.into()));
+        return Err(Error::Invalid(
+            crate::application::run::constants::RAW_INVOCATION_ROOT_IS_NOT_ABSOLUTE.into(),
+        ));
     }
     let state = invocation[crate::application::run::constants::STATE]
         .as_str()
         .filter(|state| !state.is_empty())
-        .ok_or_else(|| Error::Invalid(crate::application::run::constants::RAW_INVOCATION_STATE_IS_MISSING.into()))?;
+        .ok_or_else(|| {
+            Error::Invalid(
+                crate::application::run::constants::RAW_INVOCATION_STATE_IS_MISSING.into(),
+            )
+        })?;
     let normalize = |value: &Value| -> Result<String, Error> {
         Ok(value
             .as_str()
-            .ok_or_else(|| Error::Invalid(crate::application::run::constants::NONUTF8_INVOCATION_VALUE.into()))?
+            .ok_or_else(|| {
+                Error::Invalid(crate::application::run::constants::NONUTF8_INVOCATION_VALUE.into())
+            })?
             .replace(state, crate::application::run::constants::STATE_2)
             .replace(root, crate::application::run::constants::ROOT)
             .replace('\\', crate::application::run::constants::SLASH))
@@ -128,7 +147,9 @@ pub(super) fn reconstruct(invocation: &serde_json::Value) -> Result<serde_json::
     settings[crate::application::run::constants::ARGUMENTS] = Value::Array(
         invocation[crate::application::run::constants::ARGUMENTS]
             .as_array()
-            .ok_or_else(|| Error::Invalid(crate::application::run::constants::RAW_ARGV_IS_MISSING.into()))?
+            .ok_or_else(|| {
+                Error::Invalid(crate::application::run::constants::RAW_ARGV_IS_MISSING.into())
+            })?
             .iter()
             .map(|arg| normalize(arg).map(Value::String))
             .collect::<Result<_, _>>()?,
@@ -136,7 +157,11 @@ pub(super) fn reconstruct(invocation: &serde_json::Value) -> Result<serde_json::
     settings[crate::application::run::constants::ENVIRONMENT] = Value::Object(
         invocation[crate::application::run::constants::ENVIRONMENT]
             .as_object()
-            .ok_or_else(|| Error::Invalid(crate::application::run::constants::RAW_ENVIRONMENT_IS_MISSING.into()))?
+            .ok_or_else(|| {
+                Error::Invalid(
+                    crate::application::run::constants::RAW_ENVIRONMENT_IS_MISSING.into(),
+                )
+            })?
             .iter()
             .map(|(key, value)| {
                 Ok((
@@ -146,6 +171,8 @@ pub(super) fn reconstruct(invocation: &serde_json::Value) -> Result<serde_json::
             })
             .collect::<Result<_, Error>>()?,
     );
-    settings[crate::application::run::constants::DIRECTORY] = Value::String(normalize(&invocation[crate::application::run::constants::DIRECTORY])?);
+    settings[crate::application::run::constants::DIRECTORY] = Value::String(normalize(
+        &invocation[crate::application::run::constants::DIRECTORY],
+    )?);
     Ok(settings)
 }

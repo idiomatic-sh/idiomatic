@@ -19,9 +19,9 @@ pub(super) fn attach(
     rules: &Path,
     cases: &mut [PreparedCase],
 ) -> Result<(), Error> {
-    let profile = rules
-        .parent()
-        .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_CASE_PROFILE_BOUNDARY.into()))?;
+    let profile = rules.parent().ok_or_else(|| {
+        Error::Invalid(crate::application::run::constants::MISSING_CASE_PROFILE_BOUNDARY.into())
+    })?;
     let tool = suite
         .profile(ArtifactPath(profile))
         .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -43,7 +43,8 @@ pub(super) fn attach(
             })?;
         if case.reference_discrepancy.is_some() {
             return Err(Error::Invalid(
-                crate::application::run::constants::DUPLICATE_CANONICAL_REFERENCE_EXPECTATION.into(),
+                crate::application::run::constants::DUPLICATE_CANONICAL_REFERENCE_EXPECTATION
+                    .into(),
             ));
         }
         case.reference_discrepancy = Some(convert(wire.discrepancy, wire.basis, case)?);
@@ -97,7 +98,8 @@ fn convert(
             let file = ryo::linter::RelativePath(row.file.into_boxed_str());
             if !case.request.files.contains(&file) || row.start > row.end {
                 return Err(Error::Invalid(
-                    crate::application::run::constants::INVALID_REFERENCE_EXPECTATION_SOURCE_RANGE.into(),
+                    crate::application::run::constants::INVALID_REFERENCE_EXPECTATION_SOURCE_RANGE
+                        .into(),
                 ));
             }
             Ok(
@@ -158,7 +160,9 @@ fn convert(
                 .count()
                 != 1)
     {
-        return Err(Error::Invalid(crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE_REQUIRES_ONE_PUBLIC.into()));
+        return Err(Error::Invalid(
+            crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE_REQUIRES_ONE_PUBLIC.into(),
+        ));
     }
     Ok(PreparedReferenceDiscrepancy {
         basis,
@@ -246,7 +250,8 @@ pub(super) fn complete(
         return Ok(());
     }
     if (candidate
-        && ryo_benchmark_contracts::domain::reports::service::require_complete_execution(report).is_err())
+        && ryo_benchmark_contracts::domain::reports::service::require_complete_execution(report)
+            .is_err())
         || !report.skipped.is_empty()
         || report.coverage.is_some_and(|coverage| {
             coverage.selected == 0
@@ -292,13 +297,12 @@ pub(super) fn validate(
         || item.evidence.is_empty()
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::REFERENCE_DISCREPANCY_REQUIRES_DISTINCT_FULL
-                .into(),
+            crate::application::run::constants::REFERENCE_DISCREPANCY_REQUIRES_DISTINCT_FULL.into(),
         ));
     }
-    let profile_root = rules
-        .parent()
-        .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_PROFILE_ROOT.into()))?;
+    let profile_root = rules.parent().ok_or_else(|| {
+        Error::Invalid(crate::application::run::constants::MISSING_PROFILE_ROOT.into())
+    })?;
     let profile = suite.profile(ArtifactPath(profile_root))?;
     let identity = &item.identity;
     let invocation = reference.prepare(&case.request)?;
@@ -308,7 +312,9 @@ pub(super) fn validate(
         identity,
         &profile,
         &actual_executable,
-        &suite.digest(ArtifactPath(&profile_root.join(crate::application::run::constants::BENCHMARK_TOML)))?,
+        &suite.digest(ArtifactPath(
+            &profile_root.join(crate::application::run::constants::BENCHMARK_TOML),
+        ))?,
     )?;
     let settings = super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
     let files = crate::domain::suite::service::materialized_sources(&case.request);
@@ -443,7 +449,8 @@ pub(super) fn validate(
         crate::application::run::constants::INTENDED_OUTPUT_SHA256: identity.intended_output_sha256.0,
     });
     if let Some(digest) = &identity.file_metadata_sha256 {
-        validation[crate::application::run::constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
+        validation[crate::application::run::constants::FILE_METADATA_SHA256] =
+            serde_json::json!(digest.0);
     }
     Ok(Some(validation))
 }

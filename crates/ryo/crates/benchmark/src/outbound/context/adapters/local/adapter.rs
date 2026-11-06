@@ -34,7 +34,10 @@ fn relative(path: &Path, root: bool) -> Result<(), Error> {
 /// Resolve a root-relative dependency lexically, without allowing it to escape its snapshot.
 fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
     if path.is_absolute() {
-        return Err(Error::Invalid(crate::outbound::context::adapters::local::constants::ABSOLUTE_CONTEXT_DEPENDENCY.into()));
+        return Err(Error::Invalid(
+            crate::outbound::context::adapters::local::constants::ABSOLUTE_CONTEXT_DEPENDENCY
+                .into(),
+        ));
     }
     let mut resolved = PathBuf::new();
     for part in manifest.logical_root.components() {
@@ -127,14 +130,23 @@ fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error> {
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    frame(&mut hash, crate::outbound::context::adapters::local::constants::LISTED_DISK_CONTEXT_V1);
+    frame(
+        &mut hash,
+        crate::outbound::context::adapters::local::constants::LISTED_DISK_CONTEXT_V1,
+    );
     frame(
         &mut hash,
         manifest.logical_root.as_os_str().as_encoded_bytes(),
     );
     for (kind, files) in [
-        (crate::outbound::context::adapters::local::constants::SOURCE.as_slice(), &manifest.source_files),
-        (crate::outbound::context::adapters::local::constants::AUXILIARY.as_slice(), &manifest.auxiliary_files),
+        (
+            crate::outbound::context::adapters::local::constants::SOURCE.as_slice(),
+            &manifest.source_files,
+        ),
+        (
+            crate::outbound::context::adapters::local::constants::AUXILIARY.as_slice(),
+            &manifest.auxiliary_files,
+        ),
     ] {
         frame(&mut hash, kind);
         for (path, digest) in files {
@@ -145,7 +157,10 @@ pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut missing = manifest.missing.clone();
     missing.sort();
     for path in missing {
-        frame(&mut hash, crate::outbound::context::adapters::local::constants::MISSING);
+        frame(
+            &mut hash,
+            crate::outbound::context::adapters::local::constants::MISSING,
+        );
         frame(&mut hash, path.as_os_str().as_encoded_bytes());
     }
     ArtifactDigest(format!("{:x}", hash.finalize()))
@@ -167,7 +182,10 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
         .windows(2)
         .any(|pair| matches!(pair, [first, second] if first == second))
     {
-        return Err(Error::Invalid(crate::outbound::context::adapters::local::constants::DUPLICATE_MISSING_CONTEXT_PATH.into()));
+        return Err(Error::Invalid(
+            crate::outbound::context::adapters::local::constants::DUPLICATE_MISSING_CONTEXT_PATH
+                .into(),
+        ));
     }
     for (path, expected) in manifest
         .source_files
@@ -276,11 +294,11 @@ pub(crate) fn materialize(
     for (path, bytes) in &context.auxiliary_files {
         relative(path, false)?;
         let actual = manifest.boundary.join(path);
-        std::fs::create_dir_all(
-            actual
-                .parent()
-                .ok_or_else(|| Error::Invalid(crate::outbound::context::adapters::local::constants::MISSING_CONTEXT_PARENT.into()))?,
-        )?;
+        std::fs::create_dir_all(actual.parent().ok_or_else(|| {
+            Error::Invalid(
+                crate::outbound::context::adapters::local::constants::MISSING_CONTEXT_PARENT.into(),
+            )
+        })?)?;
         std::fs::write(actual, bytes)?;
         let _previous = manifest
             .auxiliary_files
@@ -294,11 +312,11 @@ pub(crate) fn materialize(
             ));
         }
         let actual = manifest.boundary.join(&path);
-        std::fs::create_dir_all(
-            actual
-                .parent()
-                .ok_or_else(|| Error::Invalid(crate::outbound::context::adapters::local::constants::MISSING_SOURCE_PARENT.into()))?,
-        )?;
+        std::fs::create_dir_all(actual.parent().ok_or_else(|| {
+            Error::Invalid(
+                crate::outbound::context::adapters::local::constants::MISSING_SOURCE_PARENT.into(),
+            )
+        })?)?;
         std::fs::write(actual, source.0.as_bytes())?;
         let _previous = manifest
             .source_files

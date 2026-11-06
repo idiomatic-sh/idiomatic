@@ -53,7 +53,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             result["file_metadata_verified_cases"] = serde_json::json!(audit.metadata_verified.iter().map(|(rule,name,digest)|serde_json::json!({"rule":rule,"name":name,"sha256":digest.0})).collect::<Vec<_>>());
         }
         if !audit.tool_contract_differences.is_empty() {
-            result["tool_contract_difference_case_ids"] = serde_json::json!(audit.tool_contract_differences.iter().map(|(rule,name)|serde_json::json!({"rule":rule,"name":name})).collect::<Vec<_>>());
+            result["tool_contract_difference_case_ids"] = serde_json::json!(
+                audit
+                    .tool_contract_differences
+                    .iter()
+                    .map(|(rule, name)| serde_json::json!({"rule":rule,"name":name}))
+                    .collect::<Vec<_>>()
+            );
         }
         serde_json::to_writer(std::io::stdout(), &result)?;
         std::io::stdout().write_all(b"\n")?;

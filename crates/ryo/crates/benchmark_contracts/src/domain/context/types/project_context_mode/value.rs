@@ -14,8 +14,12 @@ impl ProjectContextMode {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Isolated => crate::domain::context::types::project_context_mode::constants::ISOLATED,
-            Self::ListedDisk => crate::domain::context::types::project_context_mode::constants::LISTED_DISK,
+            Self::Isolated => {
+                crate::domain::context::types::project_context_mode::constants::ISOLATED
+            }
+            Self::ListedDisk => {
+                crate::domain::context::types::project_context_mode::constants::LISTED_DISK
+            }
         }
     }
 }

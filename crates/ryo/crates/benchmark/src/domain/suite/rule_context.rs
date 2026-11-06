@@ -28,7 +28,8 @@ pub fn resolve(
                     != names.len()
             {
                 return Err(Error::Invalid(
-                    crate::domain::suite::constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT.into(),
+                    crate::domain::suite::constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT
+                        .into(),
                 ));
             }
             Ok(Some(PreparedRuleContext {
@@ -88,7 +89,9 @@ pub fn check_selection(
     selected: Option<&[ryo::linter::RuleId]>,
 ) -> Result<(), Error> {
     let selected = selected.ok_or_else(|| {
-        Error::Invalid(crate::domain::suite::constants::RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED.into())
+        Error::Invalid(
+            crate::domain::suite::constants::RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED.into(),
+        )
     })?;
     if prepared
         .configuration
@@ -119,20 +122,24 @@ pub fn selected_pairs(
 ) -> Result<usize, Error> {
     check(prepared, files)?;
     check_selection(prepared, Some(selected))?;
-    let all = selected
-        .len()
-        .checked_mul(files.len())
-        .ok_or_else(|| Error::Invalid(crate::domain::suite::constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into()))?;
+    let all = selected.len().checked_mul(files.len()).ok_or_else(|| {
+        Error::Invalid(crate::domain::suite::constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into())
+    })?;
     let disabled =
         prepared
             .configuration
             .disabled_rules
             .values()
             .try_fold(0_usize, |count, rules| {
-                count
-                    .checked_add(rules.len())
-                    .ok_or_else(|| Error::Invalid(crate::domain::suite::constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into()))
+                count.checked_add(rules.len()).ok_or_else(|| {
+                    Error::Invalid(
+                        crate::domain::suite::constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into(),
+                    )
+                })
             })?;
-    all.checked_sub(disabled)
-        .ok_or_else(|| Error::Invalid(crate::domain::suite::constants::DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT.into()))
+    all.checked_sub(disabled).ok_or_else(|| {
+        Error::Invalid(
+            crate::domain::suite::constants::DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT.into(),
+        )
+    })
 }

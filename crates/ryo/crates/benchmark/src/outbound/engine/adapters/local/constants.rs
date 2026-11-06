@@ -20,19 +20,24 @@ pub(super) const ALWAYS: &str = "always";
 /// Text of the accepted syntax in this part.
 pub(super) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
 /// Text of the applicability map does not exactly match in this part.
-pub(super) const APPLICABILITY_MAP_DOES_NOT_EXACTLY_MATCH: &str = "applicability map does not exactly match selected candidate rules";
+pub(super) const APPLICABILITY_MAP_DOES_NOT_EXACTLY_MATCH: &str =
+    "applicability map does not exactly match selected candidate rules";
 /// Text of the applicability skips require frontend diagnos in this part.
-pub(super) const APPLICABILITY_SKIPS_REQUIRE_FRONTEND_DIAGNOS: &str = "applicability skips require frontend diagnostic projection";
+pub(super) const APPLICABILITY_SKIPS_REQUIRE_FRONTEND_DIAGNOS: &str =
+    "applicability skips require frontend diagnostic projection";
 /// Text of the skipped rule pairs exceed the configured in this part.
-pub(super) const SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED: &str = "skipped rule pairs exceed the configured selection";
+pub(super) const SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED: &str =
+    "skipped rule pairs exceed the configured selection";
 /// Text of the rules directory has no profile root in this part.
 pub(super) const RULES_DIRECTORY_HAS_NO_PROFILE_ROOT: &str = "rules directory has no profile root";
 /// Text of the module source in this part.
 pub(super) const MODULE_SOURCE: &str = "module source";
 /// Text of the worker context mode requires a matching in this part.
-pub(super) const WORKER_CONTEXT_MODE_REQUIRES_A_MATCHING: &str = "worker context mode requires a matching explicit manifest";
+pub(super) const WORKER_CONTEXT_MODE_REQUIRES_A_MATCHING: &str =
+    "worker context mode requires a matching explicit manifest";
 /// Text of the explicit primary role provider is missing in this part.
-pub(super) const EXPLICIT_PRIMARY_ROLE_PROVIDER_IS_MISSING: &str = "explicit primary-role provider is missing or ambiguous";
+pub(super) const EXPLICIT_PRIMARY_ROLE_PROVIDER_IS_MISSING: &str =
+    "explicit primary-role provider is missing or ambiguous";
 /// Text of the ryo diagnostic rule file in this part.
 pub(super) const RYO_DIAGNOSTIC_RULE_FILE: &str = "ryo::diagnostic::rule_file";
 /// Text of the ryo diagnostic compiled prefix in this part.
@@ -76,7 +81,8 @@ pub(super) const RULE_DIRECTORY: &str = "rule directory";
 /// Text of the f401 query ryoql in this part.
 pub(super) const F401_QUERY_RYOQL: &str = "F401/query.ryoql";
 /// Text of the import shared from python ruff suppress in this part.
-pub(super) const IMPORT_SHARED_FROM_PYTHON_RUFF_SUPPRESS: &str = "import shared from \"python/ruff/suppress\";";
+pub(super) const IMPORT_SHARED_FROM_PYTHON_RUFF_SUPPRESS: &str =
+    "import shared from \"python/ruff/suppress\";";
 /// Text of the query source in this part.
 pub(super) const QUERY_SOURCE: &str = "query source";
 /// Text of the fragments suppress ryoql in this part.
@@ -98,7 +104,8 @@ pub(super) const COMPLETE_APPLICABILITY_MAP_LOADS: &str = "complete applicabilit
 /// Text of the f402 in this part.
 pub(super) const F402: &str = "F402";
 /// Text of the extra applicability entry is refused in this part.
-pub(super) const EXTRA_APPLICABILITY_ENTRY_IS_REFUSED: &str = "extra applicability entry is refused";
+pub(super) const EXTRA_APPLICABILITY_ENTRY_IS_REFUSED: &str =
+    "extra applicability entry is refused";
 /// Text of the does not exactly match in this part.
 pub(super) const DOES_NOT_EXACTLY_MATCH: &str = "does not exactly match";
 /// Text of the parse only in this part.

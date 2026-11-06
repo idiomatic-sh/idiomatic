@@ -12,7 +12,9 @@ pub(crate) fn verify(entry: &RegisteredRule, store: &dyn InventoryPort) -> Resul
         .ok_or(crate::application::run::constants::MISSING_VERIFICATION_COMMAND)?;
     let actual = store.inspect_context(context, &entry.artifacts)?;
     if !actual.modules.keys().eq(entry.modules.keys()) {
-        return Err(crate::application::run::constants::REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN.into());
+        return Err(
+            crate::application::run::constants::REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN.into(),
+        );
     }
     for (name, relative) in actual.modules {
         let pin = entry

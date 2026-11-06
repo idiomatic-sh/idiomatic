@@ -20,14 +20,19 @@ pub fn validate(
         if !registration.defaults.contains(&rule.rule_id) || !registered_rules.insert(&rule.rule_id)
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU.into(),
+                crate::application::run::constants::UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU
+                    .into(),
             ));
         }
         for case in &rule.cases {
             let name = case[crate::application::run::constants::NAME]
                 .as_str()
                 .filter(|name| !name.is_empty())
-                .ok_or_else(|| Error::Invalid(crate::application::run::constants::REGISTERED_CASE_NAME_IS_MISSING.into()))?;
+                .ok_or_else(|| {
+                    Error::Invalid(
+                        crate::application::run::constants::REGISTERED_CASE_NAME_IS_MISSING.into(),
+                    )
+                })?;
             if case[crate::application::run::constants::RULE] != rule.rule_id
                 || cases
                     .insert((rule.rule_id.clone(), name.to_owned()), case)
@@ -49,17 +54,29 @@ pub fn validate(
         let key = (
             row[crate::application::run::constants::RULE]
                 .as_str()
-                .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_RULE.into()))?
+                .ok_or_else(|| {
+                    Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_RULE.into())
+                })?
                 .to_owned(),
             row[crate::application::run::constants::NAME]
                 .as_str()
-                .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_CASE.into()))?
+                .ok_or_else(|| {
+                    Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_CASE.into())
+                })?
                 .to_owned(),
         );
         if !cases.contains_key(&key)
-            || !matches!(row[crate::application::run::constants::SIDE].as_str(), Some(crate::application::run::constants::REFERENCE | crate::application::run::constants::CANDIDATE))
+            || !matches!(
+                row[crate::application::run::constants::SIDE].as_str(),
+                Some(
+                    crate::application::run::constants::REFERENCE
+                        | crate::application::run::constants::CANDIDATE
+                )
+            )
         {
-            return Err(Error::Invalid(crate::application::run::constants::UNREGISTERED_RECEIPT_IDENTITY.into()));
+            return Err(Error::Invalid(
+                crate::application::run::constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
+            ));
         }
         grouped.entry(key).or_default().push(row.clone());
     }
@@ -87,7 +104,9 @@ pub fn validate(
                     ));
                 }
                 if documented > 0
-                    && case[crate::application::run::constants::REFERENCE_DISCREPANCY][crate::application::run::constants::BASIS] == crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE
+                    && case[crate::application::run::constants::REFERENCE_DISCREPANCY]
+                        [crate::application::run::constants::BASIS]
+                        == crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE
                 {
                     audit.tool_contract_differences.push(key.clone());
                 }

@@ -8,7 +8,9 @@ pub(crate) fn publish(
     samples: &[BenchmarkSample],
 ) -> Result<(), Error> {
     if samples.is_empty() {
-        return Err(Error::Invalid(crate::application::run::constants::NO_MEASURED_EVIDENCE.into()));
+        return Err(Error::Invalid(
+            crate::application::run::constants::NO_MEASURED_EVIDENCE.into(),
+        ));
     }
     if samples
         .iter()

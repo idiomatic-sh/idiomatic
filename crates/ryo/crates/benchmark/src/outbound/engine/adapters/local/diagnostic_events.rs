@@ -6,34 +6,49 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tracing_subscriber::fmt::writer::MakeWriter;
 
 /// Events describing one selected rule's work on a source file.
-const RULE_FILE_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_RULE_FILE;
+const RULE_FILE_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_RULE_FILE;
 /// Compile-time source and normalized prefix evidence for explicit attribution.
-const COMPILED_PREFIX_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_COMPILED_PREFIX;
+const COMPILED_PREFIX_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_COMPILED_PREFIX;
 /// Complete compiled operations and file-specific physical layouts for an offline census.
-const COMPILED_SUBPLAN_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_COMPILED_SUBPLAN;
+const COMPILED_SUBPLAN_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_COMPILED_SUBPLAN;
 /// Completed kept-cut sizes and partial state for the same explicitly scoped census.
-const SUBPLAN_CUT_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_SUBPLAN_CUT;
+const SUBPLAN_CUT_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_SUBPLAN_CUT;
 /// Aggregate counters for an explicitly diagnosed generic stored join.
-const STORED_JOIN_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_STORED_JOIN;
+const STORED_JOIN_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_STORED_JOIN;
 /// Events describing one operator step within a selected rule.
-const RULE_STEP_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_RULE_STEP;
+const RULE_STEP_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_RULE_STEP;
 /// Aggregate phase timings for the explicitly requested execution profile.
-const EXECUTION_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_EXECUTION;
+const EXECUTION_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_EXECUTION;
 /// Aggregate stored selection and materialization work.
-const SELECTION_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_SELECTION;
+const SELECTION_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_SELECTION;
 /// Per-prepared-selector counts, enabled only by an explicit diagnostic opt-in.
-const SELECTION_DETAIL_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_SELECTION_DETAIL;
+const SELECTION_DETAIL_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_SELECTION_DETAIL;
 /// Logical release and retained-capacity accounting.
-const WORKING_SET_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_WORKING_SET;
+const WORKING_SET_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_WORKING_SET;
 /// Metadata-only layout accounting.
-const LAYOUT_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_LAYOUT;
+const LAYOUT_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_LAYOUT;
 /// Demand-reach and shared graph work in explicit diagnostic runs.
-const GRAPH_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_GRAPH;
+const GRAPH_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_GRAPH;
 /// Request-wide file-program sharing and retained cells in explicit diagnostic runs.
-const FILE_PROGRAM_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_FILE_PROGRAM;
+const FILE_PROGRAM_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_FILE_PROGRAM;
 /// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
-const RESOURCE_ROUTES_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_RESOURCE_ROUTES;
-const LIFECYCLE_TARGET: &str = crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_LIFECYCLE_MEMORY;
+const RESOURCE_ROUTES_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_RESOURCE_ROUTES;
+const LIFECYCLE_TARGET: &str =
+    crate::outbound::engine::adapters::local::constants::RYO_DIAGNOSTIC_LIFECYCLE_MEMORY;
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
 #[derive(Clone)]

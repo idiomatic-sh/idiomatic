@@ -51,7 +51,9 @@ pub(super) fn prepare(
         ));
     };
     if suite
-        .digest(ArtifactPath(&measured_profile.join(crate::inbound::use_cases::certify::constants::FIXTURE_PROFILE_FILE)))?
+        .digest(ArtifactPath(&measured_profile.join(
+            crate::inbound::use_cases::certify::constants::FIXTURE_PROFILE_FILE,
+        )))?
         .0
         != *profile_sha256
     {
@@ -59,9 +61,14 @@ pub(super) fn prepare(
             crate::inbound::use_cases::certify::constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
         ));
     }
-    if rules != measured_profile.join(crate::inbound::use_cases::certify::constants::FIXTURE_RULE_DIRECTORY_NAME).as_path() {
+    if rules
+        != measured_profile
+            .join(crate::inbound::use_cases::certify::constants::FIXTURE_RULE_DIRECTORY_NAME)
+            .as_path()
+    {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED.into(),
+            crate::inbound::use_cases::certify::constants::SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED
+                .into(),
         ));
     }
     if suite.digest(ArtifactPath(reference))?.0 != reference_pin.sha256
@@ -84,10 +91,13 @@ pub(super) fn prepare(
                 entry.rule_id
             )));
         }
-        let crate::outbound::inventory::types::Command::CaseVerification { context } = entry
-            .command
-            .as_ref()
-            .ok_or_else(|| Error::Invalid(crate::inbound::use_cases::certify::constants::MISSING_VERIFICATION_COMMAND.into()))?;
+        let crate::outbound::inventory::types::Command::CaseVerification { context } =
+            entry.command.as_ref().ok_or_else(|| {
+                Error::Invalid(
+                    crate::inbound::use_cases::certify::constants::MISSING_VERIFICATION_COMMAND
+                        .into(),
+                )
+            })?;
         crate::application::run::registered_context::verify(entry, store)
             .map_err(Error::Invalid)?;
         let pin = entry
@@ -101,9 +111,9 @@ pub(super) fn prepare(
                 .join(crate::inbound::use_cases::certify::constants::QUERY_RYOQL)
             || entry.artifacts.get(&pin.path) != Some(&pin.sha256)
             || suite
-                .digest(ArtifactPath(
-                    &rules.join(&entry.rule_id).join(crate::inbound::use_cases::certify::constants::QUERY_RYOQL),
-                ))?
+                .digest(ArtifactPath(&rules.join(&entry.rule_id).join(
+                    crate::inbound::use_cases::certify::constants::QUERY_RYOQL,
+                )))?
                 .0
                 != pin.sha256
         {

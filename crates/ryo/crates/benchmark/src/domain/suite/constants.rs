@@ -25,11 +25,14 @@ pub(super) const MISSING_DIAGNOSTIC_IDENTITY: &str =
 /// Text of the metadata names an undeclared source in this part.
 pub(super) const METADATA_NAMES_AN_UNDECLARED_SOURCE: &str = "metadata names an undeclared source";
 /// Text of the required file observations are missing in this part.
-pub(super) const REQUIRED_FILE_OBSERVATIONS_ARE_MISSING: &str = "required file observations are missing";
+pub(super) const REQUIRED_FILE_OBSERVATIONS_ARE_MISSING: &str =
+    "required file observations are missing";
 /// Text of the process observation requires an absolute utf in this part.
-pub(super) const PROCESS_OBSERVATION_REQUIRES_AN_ABSOLUTE_UTF: &str = "process observation requires an absolute UTF8 request root";
+pub(super) const PROCESS_OBSERVATION_REQUIRES_AN_ABSOLUTE_UTF: &str =
+    "process observation requires an absolute UTF8 request root";
 /// Text of the process output slot is not a in this part.
-pub(super) const PROCESS_OUTPUT_SLOT_IS_NOT_A: &str = "process output slot is not a declared safe input";
+pub(super) const PROCESS_OUTPUT_SLOT_IS_NOT_A: &str =
+    "process output slot is not a declared safe input";
 /// Text of the process input path is not utf8 in this part.
 pub(super) const PROCESS_INPUT_PATH_IS_NOT_UTF8: &str = "process input path is not UTF8";
 /// Text of the ryo case process v1 in this part.
@@ -71,7 +74,8 @@ pub(super) const VENDOR_PKG_PY: &str = "vendor/pkg.py";
 /// Text of the digest in this part.
 pub(super) const DIGEST: &str = "digest";
 /// Text of the ff9b78535b775babaadae518c198876aa1c27ef21d0a in this part.
-pub(super) const FF9B78535B775BABAADAE518C198876AA1C27EF21D0A: &str = "ff9b78535b775babaadae518c198876aa1c27ef21d0abb75e04588c25638df7d";
+pub(super) const FF9B78535B775BABAADAE518C198876AA1C27EF21D0A: &str =
+    "ff9b78535b775babaadae518c198876aa1c27ef21d0abb75e04588c25638df7d";
 /// Text of the legacy in this part.
 pub(super) const LEGACY: &str = "legacy";
 /// Text of the original in this part.
@@ -79,40 +83,57 @@ pub(super) const ORIGINAL: &str = "original";
 /// Text of the changed root authority in this part.
 pub(super) const CHANGED_ROOT_AUTHORITY: &str = "changed root authority";
 /// Text of the case rule configuration requires the profile in this part.
-pub(super) const CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE: &str = "case rule configuration requires the profile's explicit context declaration";
+pub(super) const CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE: &str =
+    "case rule configuration requires the profile's explicit context declaration";
 /// Text of the rule configuration tables must be distinct in this part.
-pub(super) const RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT: &str = "rule configuration tables must be distinct nonblank declared names";
+pub(super) const RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT: &str =
+    "rule configuration tables must be distinct nonblank declared names";
 /// Text of the disabled rule lists contain each rule in this part.
-pub(super) const DISABLED_RULE_LISTS_CONTAIN_EACH_RULE: &str = "disabled-rule lists contain each rule once";
+pub(super) const DISABLED_RULE_LISTS_CONTAIN_EACH_RULE: &str =
+    "disabled-rule lists contain each rule once";
 /// Text of the rule context requires an explicit selected in this part.
-pub(super) const RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED: &str = "rule context requires an explicit selected-rule cohort";
+pub(super) const RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED: &str =
+    "rule context requires an explicit selected-rule cohort";
 /// Text of the disabled rules must belong to the in this part.
-pub(super) const DISABLED_RULES_MUST_BELONG_TO_THE: &str = "disabled rules must belong to the configured selected cohort";
+pub(super) const DISABLED_RULES_MUST_BELONG_TO_THE: &str =
+    "disabled rules must belong to the configured selected cohort";
 /// Text of the configured pair count overflows in this part.
 pub(super) const CONFIGURED_PAIR_COUNT_OVERFLOWS: &str = "configured pair count overflows";
 /// Text of the disabled pairs exceed the selected cohort in this part.
-pub(super) const DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT: &str = "disabled pairs exceed the selected cohort";
+pub(super) const DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT: &str =
+    "disabled pairs exceed the selected cohort";
 /// Text of the explicit source inventory must name each in this part.
-pub(super) const EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH: &str = "explicit source inventory must name each selected source exactly once";
+pub(super) const EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH: &str =
+    "explicit source inventory must name each selected source exactly once";
 /// Text of the sealed disk context must select every in this part.
-pub(super) const SEALED_DISK_CONTEXT_MUST_SELECT_EVERY: &str = "sealed disk context must select every staged readable source";
+pub(super) const SEALED_DISK_CONTEXT_MUST_SELECT_EVERY: &str =
+    "sealed disk context must select every staged readable source";
 /// Text of the requested unavailable source lacks a context in this part.
-pub(super) const REQUESTED_UNAVAILABLE_SOURCE_LACKS_A_CONTEXT: &str = "requested unavailable source lacks a context absence seal";
+pub(super) const REQUESTED_UNAVAILABLE_SOURCE_LACKS_A_CONTEXT: &str =
+    "requested unavailable source lacks a context absence seal";
 /// Text of the given source selection lacks a staged in this part.
-pub(super) const GIVEN_SOURCE_SELECTION_LACKS_A_STAGED: &str = "Given source selection lacks a staged file";
+pub(super) const GIVEN_SOURCE_SELECTION_LACKS_A_STAGED: &str =
+    "Given source selection lacks a staged file";
 /// Text of the unselected given source requires an explicit in this part.
-pub(super) const UNSELECTED_GIVEN_SOURCE_REQUIRES_AN_EXPLICIT: &str = "unselected Given source requires an explicit project inventory";
+pub(super) const UNSELECTED_GIVEN_SOURCE_REQUIRES_AN_EXPLICIT: &str =
+    "unselected Given source requires an explicit project inventory";
 /// Text of the unselected given source lacks a matching in this part.
-pub(super) const UNSELECTED_GIVEN_SOURCE_LACKS_A_MATCHING: &str = "unselected Given source lacks a matching file observation";
+pub(super) const UNSELECTED_GIVEN_SOURCE_LACKS_A_MATCHING: &str =
+    "unselected Given source lacks a matching file observation";
 /// Text of the file metadata names an undeclared source in this part.
-pub(super) const FILE_METADATA_NAMES_AN_UNDECLARED_SOURCE: &str = "file metadata names an undeclared source";
+pub(super) const FILE_METADATA_NAMES_AN_UNDECLARED_SOURCE: &str =
+    "file metadata names an undeclared source";
 /// Text of the reference discrepancies require full compari in this part.
-pub(super) const REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI: &str = "reference discrepancies require full comparison";
+pub(super) const REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI: &str =
+    "reference discrepancies require full comparison";
 /// Text of the selected rules must be nonempty and in this part.
-pub(super) const SELECTED_RULES_MUST_BE_NONEMPTY_AND: &str = "selected-rules must be nonempty and contain each rule once";
+pub(super) const SELECTED_RULES_MUST_BE_NONEMPTY_AND: &str =
+    "selected-rules must be nonempty and contain each rule once";
 /// Text of the artifact observations do not partition the in this part.
-pub(super) const ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE: &str = "artifact observations do not partition the declared default inventory";
+pub(super) const ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE: &str =
+    "artifact observations do not partition the declared default inventory";
 /// Text of the inventory must contain unique nonempty rule in this part.
-pub(super) const INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE: &str = "inventory must contain unique nonempty rule IDs";
+pub(super) const INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE: &str =
+    "inventory must contain unique nonempty rule IDs";
 /// Text of the not run in this part.
 pub(super) const NOT_RUN: &str = "not run";

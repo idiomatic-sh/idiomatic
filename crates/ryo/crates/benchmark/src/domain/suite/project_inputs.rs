@@ -59,7 +59,10 @@ pub fn digest(
 #[cfg(test)]
 #[test]
 fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
-    let roots = [RelativePath(crate::domain::suite::constants::SRC.into()), RelativePath(crate::domain::suite::constants::VENDOR.into())];
+    let roots = [
+        RelativePath(crate::domain::suite::constants::SRC.into()),
+        RelativePath(crate::domain::suite::constants::VENDOR.into()),
+    ];
     let inventory = GivenProjectInventory {
         entries: vec![
             ryo::linter::ProjectEntryObservation {
@@ -80,11 +83,13 @@ fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
         Some(crate::domain::suite::constants::FF9B78535B775BABAADAE518C198876AA1C27EF21D0A.into())
     );
     assert_eq!(
-        digest(None, &GivenProjectInventory::default()).expect(crate::domain::suite::constants::LEGACY),
+        digest(None, &GivenProjectInventory::default())
+            .expect(crate::domain::suite::constants::LEGACY),
         None
     );
     assert_ne!(
         digest(Some(&roots), &inventory).expect(crate::domain::suite::constants::ORIGINAL),
-        digest(Some(&roots[..1]), &inventory).expect(crate::domain::suite::constants::CHANGED_ROOT_AUTHORITY)
+        digest(Some(&roots[..1]), &inventory)
+            .expect(crate::domain::suite::constants::CHANGED_ROOT_AUTHORITY)
     );
 }

@@ -135,13 +135,15 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             let selected: std::collections::BTreeSet<_> = requested.iter().collect();
             if requested.is_empty() || selected.len() != requested.len() {
                 return Err(Error::Invalid(
-                    crate::domain::suite::constants::EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH.into(),
+                    crate::domain::suite::constants::EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH
+                        .into(),
                 ));
             }
             if let Some(context) = &case.context {
                 if case.files.keys().any(|path| !selected.contains(path)) {
                     return Err(Error::Invalid(
-                        crate::domain::suite::constants::SEALED_DISK_CONTEXT_MUST_SELECT_EVERY.into(),
+                        crate::domain::suite::constants::SEALED_DISK_CONTEXT_MUST_SELECT_EVERY
+                            .into(),
                     ));
                 }
                 for path in requested {
@@ -157,7 +159,8 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             } else {
                 if requested.iter().any(|path| !case.files.contains_key(path)) {
                     return Err(Error::Invalid(
-                        crate::domain::suite::constants::GIVEN_SOURCE_SELECTION_LACKS_A_STAGED.into(),
+                        crate::domain::suite::constants::GIVEN_SOURCE_SELECTION_LACKS_A_STAGED
+                            .into(),
                     ));
                 }
                 for path in case.files.keys().filter(|path| !selected.contains(path)) {
@@ -181,7 +184,8 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
                 if !case.files.contains_key(name) {
                     return Err(Error::Invalid(
-                        crate::domain::suite::constants::FILE_METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
+                        crate::domain::suite::constants::FILE_METADATA_NAMES_AN_UNDECLARED_SOURCE
+                            .into(),
                     ));
                 }
             }
@@ -191,7 +195,8 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 != ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
         {
             return Err(Error::Invalid(
-                crate::domain::suite::constants::REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI.into(),
+                crate::domain::suite::constants::REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI
+                    .into(),
             ));
         }
         for expected in case.expected.iter().chain(

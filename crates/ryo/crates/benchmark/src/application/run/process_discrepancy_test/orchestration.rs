@@ -18,7 +18,11 @@ impl ExecutionPort for PairExecution {
         &self,
         invocation: Invocation,
     ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-        let status = if invocation.arguments.iter().any(|arg| arg == crate::application::run::constants::CANDIDATE) {
+        let status = if invocation
+            .arguments
+            .iter()
+            .any(|arg| arg == crate::application::run::constants::CANDIDATE)
+        {
             0
         } else {
             2
@@ -48,7 +52,9 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
             kind: DiscrepancyEvidenceKind::LanguageSpec,
             language_version: crate::application::run::constants::TOY_V1.into(),
             target_configuration: crate::application::run::constants::PYTHON3_10.into(),
-            version_rationale: crate::application::run::constants::TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS.into(),
+            version_rationale:
+                crate::application::run::constants::TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS
+                    .into(),
         });
     suite.prepared = vec![prepared];
     let reference = crate::outbound::linter::fixtures::fake::LinterFake::default();

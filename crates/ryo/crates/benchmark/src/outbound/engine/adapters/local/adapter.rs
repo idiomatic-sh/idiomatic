@@ -82,8 +82,12 @@ impl EngineLocalAdapter {
                 .map_err(|_name| Error::Invalid(constants::NON_UTF8_RULE.into()))?;
             let query = std::fs::read_to_string(entry.path().join(constants::QUERY_FILE))?;
             let applicability = match applicability_by_rule.get(&id).map(String::as_str) {
-                Some(crate::outbound::engine::adapters::local::constants::ALWAYS) => RuleApplicability::Always,
-                Some(crate::outbound::engine::adapters::local::constants::ACCEPTED_SYNTAX) => RuleApplicability::AcceptedSyntax,
+                Some(crate::outbound::engine::adapters::local::constants::ALWAYS) => {
+                    RuleApplicability::Always
+                }
+                Some(crate::outbound::engine::adapters::local::constants::ACCEPTED_SYNTAX) => {
+                    RuleApplicability::AcceptedSyntax
+                }
                 Some(value) => {
                     return Err(Error::Invalid(format!(
                         "unsupported applicability for {id}: {value}"
@@ -379,8 +383,11 @@ fn query_modules(
     let root = profile.canonicalize()?;
     let mut modules = Vec::with_capacity(registry.len());
     for (id, relative) in registry {
-        let _module = ryo::query::QueryModuleSource::try_new(id, crate::outbound::engine::adapters::local::constants::MODULE_SOURCE)
-            .map_err(|error| Error::Invalid(error.to_string()))?;
+        let _module = ryo::query::QueryModuleSource::try_new(
+            id,
+            crate::outbound::engine::adapters::local::constants::MODULE_SOURCE,
+        )
+        .map_err(|error| Error::Invalid(error.to_string()))?;
         RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
         for component in relative.components() {

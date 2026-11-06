@@ -123,17 +123,22 @@ pub(super) const UNSAFE_ARTIFACT_RELATIVE_PATH: &str = "unsafe artifact-relative
 /// Text of the non utf8 rule directory in this part.
 pub(super) const NON_UTF8_RULE_DIRECTORY: &str = "non-UTF8 rule directory";
 /// Text of the stale reference discrepancy source identity in this part.
-pub(super) const STALE_REFERENCE_DISCREPANCY_SOURCE_IDENTITY: &str = "stale reference discrepancy source identity";
+pub(super) const STALE_REFERENCE_DISCREPANCY_SOURCE_IDENTITY: &str =
+    "stale reference discrepancy source identity";
 /// Text of the undeclared reference discrepancy observation in this part.
-pub(super) const UNDECLARED_REFERENCE_DISCREPANCY_OBSERVATION: &str = "undeclared reference discrepancy observation scope";
+pub(super) const UNDECLARED_REFERENCE_DISCREPANCY_OBSERVATION: &str =
+    "undeclared reference discrepancy observation scope";
 /// Text of the stale reference discrepancy file metadata id in this part.
-pub(super) const STALE_REFERENCE_DISCREPANCY_FILE_METADATA_ID: &str = "stale reference discrepancy file metadata identity";
+pub(super) const STALE_REFERENCE_DISCREPANCY_FILE_METADATA_ID: &str =
+    "stale reference discrepancy file metadata identity";
 /// Text of the stale or external discrepancy evidence in this part.
-pub(super) const STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE: &str = "stale or external discrepancy evidence";
+pub(super) const STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE: &str =
+    "stale or external discrepancy evidence";
 /// Text of the stale discrepancy evidence bytes in this part.
 pub(super) const STALE_DISCREPANCY_EVIDENCE_BYTES: &str = "stale discrepancy evidence bytes";
 /// Text of the tool contract evidence does not establish in this part.
-pub(super) const TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH: &str = "tool-contract evidence does not establish its declared authority";
+pub(super) const TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH: &str =
+    "tool-contract evidence does not establish its declared authority";
 /// Text of the schema in this part.
 pub(super) const SCHEMA: &str = "schema";
 /// Text of the public tool contract v1 in this part.
@@ -215,13 +220,15 @@ pub(super) const RAW_ARTIFACT_BYTE_IDENTITY_DIFFERS: &str = "raw artifact byte i
 /// Text of the duplicate raw artifact path in this part.
 pub(super) const DUPLICATE_RAW_ARTIFACT_PATH: &str = "duplicate raw artifact path";
 /// Text of the source artifact escapes its boundary in this part.
-pub(super) const SOURCE_ARTIFACT_ESCAPES_ITS_BOUNDARY: &str = "source artifact escapes its boundary";
+pub(super) const SOURCE_ARTIFACT_ESCAPES_ITS_BOUNDARY: &str =
+    "source artifact escapes its boundary";
 /// Text of the nonutf8 source path in this part.
 pub(super) const NONUTF8_SOURCE_PATH: &str = "nonUTF8 source path";
 /// Text of the metadata source is not a regular in this part.
 pub(super) const METADATA_SOURCE_IS_NOT_A_REGULAR: &str = "metadata source is not a regular file";
 /// Text of the posix executable observations are unsupporte in this part.
-pub(super) const POSIX_EXECUTABLE_OBSERVATIONS_ARE_UNSUPPORTE: &str = "POSIX executable observations are unsupported on this host";
+pub(super) const POSIX_EXECUTABLE_OBSERVATIONS_ARE_UNSUPPORTE: &str =
+    "POSIX executable observations are unsupported on this host";
 /// Text of the staged executable metadata differs in this part.
 pub(super) const STAGED_EXECUTABLE_METADATA_DIFFERS: &str = "staged executable metadata differs";
 /// Text of the metadata names an undeclared source in this part.
@@ -229,7 +236,8 @@ pub(super) const METADATA_NAMES_AN_UNDECLARED_SOURCE: &str = "metadata names an 
 /// Text of the metadata source escapes input root in this part.
 pub(super) const METADATA_SOURCE_ESCAPES_INPUT_ROOT: &str = "metadata source escapes input root";
 /// Text of the declared executable metadata drifted before in this part.
-pub(super) const DECLARED_EXECUTABLE_METADATA_DRIFTED_BEFORE: &str = "declared executable metadata drifted before prepare";
+pub(super) const DECLARED_EXECUTABLE_METADATA_DRIFTED_BEFORE: &str =
+    "declared executable metadata drifted before prepare";
 /// Text of the metadata source name is not utf8 in this part.
 pub(super) const METADATA_SOURCE_NAME_IS_NOT_UTF8: &str = "metadata source name is not UTF8";
 /// Text of the duplicate physical metadata source in this part.
@@ -237,10 +245,14 @@ pub(super) const DUPLICATE_PHYSICAL_METADATA_SOURCE: &str = "duplicate physical 
 /// Text of the missing physical metadata digest in this part.
 pub(super) const MISSING_PHYSICAL_METADATA_DIGEST: &str = "missing physical metadata digest";
 /// Text of the given project file entry lacks staged in this part.
-pub(super) const GIVEN_PROJECT_FILE_ENTRY_LACKS_STAGED: &str = "Given project file entry lacks staged source bytes";
+pub(super) const GIVEN_PROJECT_FILE_ENTRY_LACKS_STAGED: &str =
+    "Given project file entry lacks staged source bytes";
 /// Text of the given project directory collides with a in this part.
-pub(super) const GIVEN_PROJECT_DIRECTORY_COLLIDES_WITH_A: &str = "Given project directory collides with a source file";
+pub(super) const GIVEN_PROJECT_DIRECTORY_COLLIDES_WITH_A: &str =
+    "Given project directory collides with a source file";
 /// Text of the given project missing entry collides with in this part.
-pub(super) const GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH: &str = "Given project missing entry collides with staged context";
+pub(super) const GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH: &str =
+    "Given project missing entry collides with staged context";
 /// Text of the given project non file entry requires in this part.
-pub(super) const GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES: &str = "Given project non-file entry requires a materialization contract";
+pub(super) const GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES: &str =
+    "Given project non-file entry requires a materialization contract";

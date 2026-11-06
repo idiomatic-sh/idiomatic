@@ -82,19 +82,21 @@ pub(super) fn run(
         },
         Err(error) => {
             let metadata = || {
-                let request_root = case
-                    .request
-                    .root
-                    .to_str()
-                    .ok_or_else(|| Error::Invalid(crate::application::run::constants::PROCESS_ROOT_IS_NOT_UTF8.into()))?;
-                let state = case
-                    .request
-                    .state
-                    .to_str()
-                    .ok_or_else(|| Error::Invalid(crate::application::run::constants::PROCESS_STATE_IS_NOT_UTF8.into()))?;
-                let profile_root = rules
-                    .parent()
-                    .ok_or_else(|| Error::Invalid(crate::application::run::constants::MISSING_PROFILE_BOUNDARY.into()))?;
+                let request_root = case.request.root.to_str().ok_or_else(|| {
+                    Error::Invalid(
+                        crate::application::run::constants::PROCESS_ROOT_IS_NOT_UTF8.into(),
+                    )
+                })?;
+                let state = case.request.state.to_str().ok_or_else(|| {
+                    Error::Invalid(
+                        crate::application::run::constants::PROCESS_STATE_IS_NOT_UTF8.into(),
+                    )
+                })?;
+                let profile_root = rules.parent().ok_or_else(|| {
+                    Error::Invalid(
+                        crate::application::run::constants::MISSING_PROFILE_BOUNDARY.into(),
+                    )
+                })?;
                 let profile = suite.profile(ArtifactPath(profile_root))?;
                 let executable = suite.digest(ArtifactPath(&invocation.executable))?;
                 let settings =
@@ -166,7 +168,8 @@ pub(super) fn configuration(
             != ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED.into(),
+                crate::application::run::constants::CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED
+                    .into(),
             ));
         }
     }

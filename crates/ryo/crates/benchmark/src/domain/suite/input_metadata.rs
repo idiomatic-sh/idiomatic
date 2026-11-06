@@ -13,7 +13,9 @@ pub fn require(
         for path in values.keys() {
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(path.0.as_ref()))?;
             if !files.contains(path) {
-                return Err(Error::Invalid(crate::domain::suite::constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into()));
+                return Err(Error::Invalid(
+                    crate::domain::suite::constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
+                ));
             }
         }
     }

@@ -55,7 +55,8 @@ pub(super) const FILE_METADATA_SHA256: &str = "file_metadata_sha256";
 /// Text of the metadata error in this part.
 pub(super) const METADATA_ERROR: &str = "metadata_error";
 /// Text of the contestant does not implement the declared in this part.
-pub(super) const CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED: &str = "contestant does not implement the declared rule configuration contract";
+pub(super) const CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED: &str =
+    "contestant does not implement the declared rule configuration contract";
 /// Text of the rule in this part.
 pub(super) const RULE: &str = "rule";
 /// Text of the path in this part.
@@ -145,31 +146,44 @@ pub(super) const TEMPLATE_SHA256: &str = "template_sha256";
 /// Text of the missing case profile boundary in this part.
 pub(super) const MISSING_CASE_PROFILE_BOUNDARY: &str = "missing case profile boundary";
 /// Text of the duplicate reference expectation identity in this part.
-pub(super) const DUPLICATE_REFERENCE_EXPECTATION_IDENTITY: &str = "duplicate reference expectation identity";
+pub(super) const DUPLICATE_REFERENCE_EXPECTATION_IDENTITY: &str =
+    "duplicate reference expectation identity";
 /// Text of the reference expectation outside executable cas in this part.
-pub(super) const REFERENCE_EXPECTATION_OUTSIDE_EXECUTABLE_CAS: &str = "reference expectation outside executable case inventory";
+pub(super) const REFERENCE_EXPECTATION_OUTSIDE_EXECUTABLE_CAS: &str =
+    "reference expectation outside executable case inventory";
 /// Text of the duplicate canonical reference expectation in this part.
-pub(super) const DUPLICATE_CANONICAL_REFERENCE_EXPECTATION: &str = "duplicate canonical reference expectation";
+pub(super) const DUPLICATE_CANONICAL_REFERENCE_EXPECTATION: &str =
+    "duplicate canonical reference expectation";
 /// Text of the discrepancy requires lowercase sha256 identi in this part.
-pub(super) const DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTI: &str = "discrepancy requires lowercase SHA256 identities";
+pub(super) const DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTI: &str =
+    "discrepancy requires lowercase SHA256 identities";
 /// Text of the process expectation cannot also declare refe in this part.
-pub(super) const PROCESS_EXPECTATION_CANNOT_ALSO_DECLARE_REFE: &str = "process expectation cannot also declare reference diagnostics";
+pub(super) const PROCESS_EXPECTATION_CANNOT_ALSO_DECLARE_REFE: &str =
+    "process expectation cannot also declare reference diagnostics";
 /// Text of the invalid reference expectation source range in this part.
-pub(super) const INVALID_REFERENCE_EXPECTATION_SOURCE_RANGE: &str = "invalid reference expectation source/range";
+pub(super) const INVALID_REFERENCE_EXPECTATION_SOURCE_RANGE: &str =
+    "invalid reference expectation source/range";
 /// Text of the tool contract differences require complete d in this part.
-pub(super) const TOOL_CONTRACT_DIFFERENCES_REQUIRE_COMPLETE_D: &str = "tool-contract differences require complete diagnostic outputs";
+pub(super) const TOOL_CONTRACT_DIFFERENCES_REQUIRE_COMPLETE_D: &str =
+    "tool-contract differences require complete diagnostic outputs";
 /// Text of the independent evidence requires explicit langu in this part.
-pub(super) const INDEPENDENT_EVIDENCE_REQUIRES_EXPLICIT_LANGU: &str = "independent evidence requires explicit language contract and version rationale";
+pub(super) const INDEPENDENT_EVIDENCE_REQUIRES_EXPLICIT_LANGU: &str =
+    "independent evidence requires explicit language contract and version rationale";
 /// Text of the tool contract evidence needs a pinned in this part.
-pub(super) const TOOL_CONTRACT_EVIDENCE_NEEDS_A_PINNED: &str = "tool contract evidence needs a pinned public source revision and policy reason";
+pub(super) const TOOL_CONTRACT_EVIDENCE_NEEDS_A_PINNED: &str =
+    "tool contract evidence needs a pinned public source revision and policy reason";
 /// Text of the prior worker evidence needs a named in this part.
-pub(super) const PRIOR_WORKER_EVIDENCE_NEEDS_A_NAMED: &str = "prior worker evidence needs a named control and policy reason";
+pub(super) const PRIOR_WORKER_EVIDENCE_NEEDS_A_NAMED: &str =
+    "prior worker evidence needs a named control and policy reason";
 /// Text of the discrepancy evidence does not match its in this part.
-pub(super) const DISCREPANCY_EVIDENCE_DOES_NOT_MATCH_ITS: &str = "discrepancy evidence does not match its declared authority";
+pub(super) const DISCREPANCY_EVIDENCE_DOES_NOT_MATCH_ITS: &str =
+    "discrepancy evidence does not match its declared authority";
 /// Text of the tool contract difference requires one public in this part.
-pub(super) const TOOL_CONTRACT_DIFFERENCE_REQUIRES_ONE_PUBLIC: &str = "tool-contract difference requires one public contract and one prior worker observation";
+pub(super) const TOOL_CONTRACT_DIFFERENCE_REQUIRES_ONE_PUBLIC: &str =
+    "tool-contract difference requires one public contract and one prior worker observation";
 /// Text of the process expectation is not a diagnostic in this part.
-pub(super) const PROCESS_EXPECTATION_IS_NOT_A_DIAGNOSTIC: &str = "process expectation is not a diagnostic report";
+pub(super) const PROCESS_EXPECTATION_IS_NOT_A_DIAGNOSTIC: &str =
+    "process expectation is not a diagnostic report";
 /// Text of the file in this part.
 pub(super) const FILE: &str = "file";
 /// Text of the start in this part.
@@ -177,17 +191,22 @@ pub(super) const START: &str = "start";
 /// Text of the end in this part.
 pub(super) const END: &str = "end";
 /// Text of the reference discrepancy requires complete know in this part.
-pub(super) const REFERENCE_DISCREPANCY_REQUIRES_COMPLETE_KNOW: &str = "reference discrepancy requires complete, known execution coverage";
+pub(super) const REFERENCE_DISCREPANCY_REQUIRES_COMPLETE_KNOW: &str =
+    "reference discrepancy requires complete, known execution coverage";
 /// Text of the reference discrepancy requires distinct full in this part.
-pub(super) const REFERENCE_DISCREPANCY_REQUIRES_DISTINCT_FULL: &str = "reference discrepancy requires distinct full expectations and independent evidence";
+pub(super) const REFERENCE_DISCREPANCY_REQUIRES_DISTINCT_FULL: &str =
+    "reference discrepancy requires distinct full expectations and independent evidence";
 /// Text of the missing profile root in this part.
 pub(super) const MISSING_PROFILE_ROOT: &str = "missing profile root";
 /// Text of the independent evidence does not support config in this part.
-pub(super) const INDEPENDENT_EVIDENCE_DOES_NOT_SUPPORT_CONFIG: &str = "independent evidence does not support configured language contract";
+pub(super) const INDEPENDENT_EVIDENCE_DOES_NOT_SUPPORT_CONFIG: &str =
+    "independent evidence does not support configured language contract";
 /// Text of the discrepancy authority and evidence differ in this part.
-pub(super) const DISCREPANCY_AUTHORITY_AND_EVIDENCE_DIFFER: &str = "discrepancy authority and evidence differ";
+pub(super) const DISCREPANCY_AUTHORITY_AND_EVIDENCE_DIFFER: &str =
+    "discrepancy authority and evidence differ";
 /// Text of the stale reference discrepancy settings source in this part.
-pub(super) const STALE_REFERENCE_DISCREPANCY_SETTINGS_SOURCE: &str = "stale reference discrepancy settings/source/expectation identity";
+pub(super) const STALE_REFERENCE_DISCREPANCY_SETTINGS_SOURCE: &str =
+    "stale reference discrepancy settings/source/expectation identity";
 /// Text of the discrepancy basis in this part.
 pub(super) const DISCREPANCY_BASIS: &str = "discrepancy_basis";
 /// Text of the language defect in this part.
@@ -205,7 +224,8 @@ pub(super) const REFERENCE_OUTPUT_SHA256: &str = "reference_output_sha256";
 /// Text of the intended output sha256 in this part.
 pub(super) const INTENDED_OUTPUT_SHA256: &str = "intended_output_sha256";
 /// Text of the stale reference discrepancy tool profile or in this part.
-pub(super) const STALE_REFERENCE_DISCREPANCY_TOOL_PROFILE_OR: &str = "stale reference discrepancy tool/profile or unapproved executable";
+pub(super) const STALE_REFERENCE_DISCREPANCY_TOOL_PROFILE_OR: &str =
+    "stale reference discrepancy tool/profile or unapproved executable";
 /// Text of the pass in this part.
 pub(super) const PASS: &str = "PASS";
 /// Text of the fail in this part.
@@ -215,7 +235,8 @@ pub(super) const BENCHMARK_INVENTORY_V1: &str = "benchmark-inventory/v1";
 /// Text of the running in this part.
 pub(super) const RUNNING: &str = "running";
 /// Text of the unknown or duplicate registered rule in this part.
-pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_RULE: &str = "unknown or duplicate registered rule";
+pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_RULE: &str =
+    "unknown or duplicate registered rule";
 /// Text of the failed in this part.
 pub(super) const FAILED: &str = "failed";
 /// Text of the profiles in this part.
@@ -225,15 +246,19 @@ pub(super) const MISSING_IMPLEMENTATION_REGISTRATION: &str = "missing implementa
 /// Text of the missing implementation invocation in this part.
 pub(super) const MISSING_IMPLEMENTATION_INVOCATION: &str = "missing implementation invocation";
 /// Text of the executable rule has no tested definition in this part.
-pub(super) const EXECUTABLE_RULE_HAS_NO_TESTED_DEFINITION: &str = "executable rule has no tested definition pin";
+pub(super) const EXECUTABLE_RULE_HAS_NO_TESTED_DEFINITION: &str =
+    "executable rule has no tested definition pin";
 /// Text of the query module pins are outside the in this part.
-pub(super) const QUERY_MODULE_PINS_ARE_OUTSIDE_THE: &str = "query/module pins are outside the registered case context";
+pub(super) const QUERY_MODULE_PINS_ARE_OUTSIDE_THE: &str =
+    "query/module pins are outside the registered case context";
 /// Text of the missing independent cases in this part.
 pub(super) const MISSING_INDEPENDENT_CASES: &str = "missing independent cases";
 /// Text of the case identity belongs to another registered in this part.
-pub(super) const CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED: &str = "case identity belongs to another registered rule";
+pub(super) const CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED: &str =
+    "case identity belongs to another registered rule";
 /// Text of the case verification requires execution authori in this part.
-pub(super) const CASE_VERIFICATION_REQUIRES_EXECUTION_AUTHORI: &str = "case verification requires execution authority";
+pub(super) const CASE_VERIFICATION_REQUIRES_EXECUTION_AUTHORI: &str =
+    "case verification requires execution authority";
 /// Text of the cases jsonl in this part.
 pub(super) const CASES_JSONL: &str = "cases.jsonl";
 /// Text of the verify cases in this part.
@@ -241,17 +266,22 @@ pub(super) const VERIFY_CASES: &str = "verify-cases";
 /// Text of the native receipt digest is missing in this part.
 pub(super) const NATIVE_RECEIPT_DIGEST_IS_MISSING: &str = "native receipt digest is missing";
 /// Text of the receipt only inventory cannot authorize exec in this part.
-pub(super) const RECEIPT_ONLY_INVENTORY_CANNOT_AUTHORIZE_EXEC: &str = "receipt-only inventory cannot authorize execution";
+pub(super) const RECEIPT_ONLY_INVENTORY_CANNOT_AUTHORIZE_EXEC: &str =
+    "receipt-only inventory cannot authorize execution";
 /// Text of the canonical inventory profile executable ident in this part.
-pub(super) const CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT: &str = "canonical inventory/profile/executable identity differs";
+pub(super) const CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT: &str =
+    "canonical inventory/profile/executable identity differs";
 /// Text of the complete report in this part.
 pub(super) const COMPLETE_REPORT: &str = "complete-report";
 /// Text of the missing or invalid expectation contract in this part.
-pub(super) const MISSING_OR_INVALID_EXPECTATION_CONTRACT: &str = "missing or invalid expectation contract";
+pub(super) const MISSING_OR_INVALID_EXPECTATION_CONTRACT: &str =
+    "missing or invalid expectation contract";
 /// Text of the missing or malformed execution capability in this part.
-pub(super) const MISSING_OR_MALFORMED_EXECUTION_CAPABILITY: &str = "missing or malformed execution capability";
+pub(super) const MISSING_OR_MALFORMED_EXECUTION_CAPABILITY: &str =
+    "missing or malformed execution capability";
 /// Text of the execution capability is not explicitly decla in this part.
-pub(super) const EXECUTION_CAPABILITY_IS_NOT_EXPLICITLY_DECLA: &str = "execution capability is not explicitly declared";
+pub(super) const EXECUTION_CAPABILITY_IS_NOT_EXPLICITLY_DECLA: &str =
+    "execution capability is not explicitly declared";
 /// Text of the missing execution files in this part.
 pub(super) const MISSING_EXECUTION_FILES: &str = "missing execution files";
 /// Text of the invalid execution file in this part.
@@ -269,11 +299,14 @@ pub(super) const MISSING_SKIPPED_PATH: &str = "missing skipped path";
 /// Text of the malformed execution coverage in this part.
 pub(super) const MALFORMED_EXECUTION_COVERAGE: &str = "malformed execution coverage";
 /// Text of the unavailable execution capability contains as in this part.
-pub(super) const UNAVAILABLE_EXECUTION_CAPABILITY_CONTAINS_AS: &str = "unavailable execution capability contains asserted accounting";
+pub(super) const UNAVAILABLE_EXECUTION_CAPABILITY_CONTAINS_AS: &str =
+    "unavailable execution capability contains asserted accounting";
 /// Text of the process failure has no complete report in this part.
-pub(super) const PROCESS_FAILURE_HAS_NO_COMPLETE_REPORT: &str = "process failure has no complete-report execution accounting";
+pub(super) const PROCESS_FAILURE_HAS_NO_COMPLETE_REPORT: &str =
+    "process failure has no complete-report execution accounting";
 /// Text of the execution evidence does not satisfy the in this part.
-pub(super) const EXECUTION_EVIDENCE_DOES_NOT_SATISFY_THE: &str = "execution evidence does not satisfy the declared contract";
+pub(super) const EXECUTION_EVIDENCE_DOES_NOT_SATISFY_THE: &str =
+    "execution evidence does not satisfy the declared contract";
 /// Text of the diagnostics must be an array in this part.
 pub(super) const DIAGNOSTICS_MUST_BE_AN_ARRAY: &str = "diagnostics must be an array";
 /// Text of the diagnostic rule is missing in this part.
@@ -285,7 +318,8 @@ pub(super) const DIAGNOSTIC_START_IS_INVALID: &str = "diagnostic start is invali
 /// Text of the diagnostic end is invalid in this part.
 pub(super) const DIAGNOSTIC_END_IS_INVALID: &str = "diagnostic end is invalid";
 /// Text of the diagnostic span or identity is invalid in this part.
-pub(super) const DIAGNOSTIC_SPAN_OR_IDENTITY_IS_INVALID: &str = "diagnostic span or identity is invalid";
+pub(super) const DIAGNOSTIC_SPAN_OR_IDENTITY_IS_INVALID: &str =
+    "diagnostic span or identity is invalid";
 /// Text of the registered files are missing in this part.
 pub(super) const REGISTERED_FILES_ARE_MISSING: &str = "registered files are missing";
 /// Text of the file observation in this part.
@@ -293,7 +327,8 @@ pub(super) const FILE_OBSERVATION: &str = "file_observation";
 /// Text of the posix executable in this part.
 pub(super) const POSIX_EXECUTABLE: &str = "posix-executable";
 /// Text of the unsupported registered file observation in this part.
-pub(super) const UNSUPPORTED_REGISTERED_FILE_OBSERVATION: &str = "unsupported registered file observation";
+pub(super) const UNSUPPORTED_REGISTERED_FILE_OBSERVATION: &str =
+    "unsupported registered file observation";
 /// Text of the file metadata in this part.
 pub(super) const FILE_METADATA: &str = "file_metadata";
 /// Text of the file metadata must be an object in this part.
@@ -301,19 +336,23 @@ pub(super) const FILE_METADATA_MUST_BE_AN_OBJECT: &str = "file metadata must be 
 /// Text of the metadata names an undeclared source in this part.
 pub(super) const METADATA_NAMES_AN_UNDECLARED_SOURCE: &str = "metadata names an undeclared source";
 /// Text of the executable observation must be boolean in this part.
-pub(super) const EXECUTABLE_OBSERVATION_MUST_BE_BOOLEAN: &str = "executable observation must be boolean";
+pub(super) const EXECUTABLE_OBSERVATION_MUST_BE_BOOLEAN: &str =
+    "executable observation must be boolean";
 /// Text of the required input observations are missing in this part.
-pub(super) const REQUIRED_INPUT_OBSERVATIONS_ARE_MISSING: &str = "required input observations are missing";
+pub(super) const REQUIRED_INPUT_OBSERVATIONS_ARE_MISSING: &str =
+    "required input observations are missing";
 /// Text of the project search roots in this part.
 pub(super) const PROJECT_SEARCH_ROOTS: &str = "project_search_roots";
 /// Text of the project search roots must be an in this part.
-pub(super) const PROJECT_SEARCH_ROOTS_MUST_BE_AN: &str = "project search roots must be an ordered array";
+pub(super) const PROJECT_SEARCH_ROOTS_MUST_BE_AN: &str =
+    "project search roots must be an ordered array";
 /// Text of the project search root is not text in this part.
 pub(super) const PROJECT_SEARCH_ROOT_IS_NOT_TEXT: &str = "project search root is not text";
 /// Text of the given project inventory in this part.
 pub(super) const GIVEN_PROJECT_INVENTORY: &str = "given_project_inventory";
 /// Text of the missing or extra native case receipts in this part.
-pub(super) const MISSING_OR_EXTRA_NATIVE_CASE_RECEIPTS: &str = "missing or extra native case receipts";
+pub(super) const MISSING_OR_EXTRA_NATIVE_CASE_RECEIPTS: &str =
+    "missing or extra native case receipts";
 /// Text of the registered rule identity is missing in this part.
 pub(super) const REGISTERED_RULE_IDENTITY_IS_MISSING: &str = "registered rule identity is missing";
 /// Text of the registered case identity is missing in this part.
@@ -327,13 +366,16 @@ pub(super) const NATIVE_CASE_IDENTITY_IS_MISSING: &str = "native case identity i
 /// Text of the native side identity is missing in this part.
 pub(super) const NATIVE_SIDE_IDENTITY_IS_MISSING: &str = "native side identity is missing";
 /// Text of the unregistered native case observation in this part.
-pub(super) const UNREGISTERED_NATIVE_CASE_OBSERVATION: &str = "unregistered native case observation";
+pub(super) const UNREGISTERED_NATIVE_CASE_OBSERVATION: &str =
+    "unregistered native case observation";
 /// Text of the duplicate native case observation in this part.
 pub(super) const DUPLICATE_NATIVE_CASE_OBSERVATION: &str = "duplicate native case observation";
 /// Text of the registered file metadata digest differs in this part.
-pub(super) const REGISTERED_FILE_METADATA_DIGEST_DIFFERS: &str = "registered file metadata digest differs";
+pub(super) const REGISTERED_FILE_METADATA_DIGEST_DIFFERS: &str =
+    "registered file metadata digest differs";
 /// Text of the registered project inputs digest differs in this part.
-pub(super) const REGISTERED_PROJECT_INPUTS_DIGEST_DIFFERS: &str = "registered project inputs digest differs";
+pub(super) const REGISTERED_PROJECT_INPUTS_DIGEST_DIFFERS: &str =
+    "registered project inputs digest differs";
 /// Text of the reference discrepancy in this part.
 pub(super) const REFERENCE_DISCREPANCY: &str = "reference_discrepancy";
 /// Text of the none in this part.
@@ -345,33 +387,45 @@ pub(super) const UNKNOWN_DISCREPANCY_AUTHORITY: &str = "unknown discrepancy auth
 /// Text of the process in this part.
 pub(super) const PROCESS: &str = "process";
 /// Text of the process expectation cannot satisfy complete in this part.
-pub(super) const PROCESS_EXPECTATION_CANNOT_SATISFY_COMPLETE: &str = "process expectation cannot satisfy complete-report accounting";
+pub(super) const PROCESS_EXPECTATION_CANNOT_SATISFY_COMPLETE: &str =
+    "process expectation cannot satisfy complete-report accounting";
 /// Text of the intended expected in this part.
 pub(super) const INTENDED_EXPECTED: &str = "intended_expected";
 /// Text of the discrepancy intention differs from registere in this part.
-pub(super) const DISCREPANCY_INTENTION_DIFFERS_FROM_REGISTERE: &str = "discrepancy intention differs from registered case";
+pub(super) const DISCREPANCY_INTENTION_DIFFERS_FROM_REGISTERE: &str =
+    "discrepancy intention differs from registered case";
 /// Text of the missing or duplicate native side receipt in this part.
-pub(super) const MISSING_OR_DUPLICATE_NATIVE_SIDE_RECEIPT: &str = "missing or duplicate native side receipt";
+pub(super) const MISSING_OR_DUPLICATE_NATIVE_SIDE_RECEIPT: &str =
+    "missing or duplicate native side receipt";
 /// Text of the native configured rule context differs from in this part.
-pub(super) const NATIVE_CONFIGURED_RULE_CONTEXT_DIFFERS_FROM: &str = "native configured rule context differs from registration";
+pub(super) const NATIVE_CONFIGURED_RULE_CONTEXT_DIFFERS_FROM: &str =
+    "native configured rule context differs from registration";
 /// Text of the native observation declarations differ from in this part.
-pub(super) const NATIVE_OBSERVATION_DECLARATIONS_DIFFER_FROM: &str = "native observation declarations differ from registration";
+pub(super) const NATIVE_OBSERVATION_DECLARATIONS_DIFFER_FROM: &str =
+    "native observation declarations differ from registration";
 /// Text of the native selected rule cohort differs from in this part.
-pub(super) const NATIVE_SELECTED_RULE_COHORT_DIFFERS_FROM: &str = "native selected-rule cohort differs from registration";
+pub(super) const NATIVE_SELECTED_RULE_COHORT_DIFFERS_FROM: &str =
+    "native selected-rule cohort differs from registration";
 /// Text of the native expectation contract differs from reg in this part.
-pub(super) const NATIVE_EXPECTATION_CONTRACT_DIFFERS_FROM_REG: &str = "native expectation contract differs from registration";
+pub(super) const NATIVE_EXPECTATION_CONTRACT_DIFFERS_FROM_REG: &str =
+    "native expectation contract differs from registration";
 /// Text of the failed incomplete or stale native observatio in this part.
-pub(super) const FAILED_INCOMPLETE_OR_STALE_NATIVE_OBSERVATIO: &str = "failed, incomplete, or stale native observation";
+pub(super) const FAILED_INCOMPLETE_OR_STALE_NATIVE_OBSERVATIO: &str =
+    "failed, incomplete, or stale native observation";
 /// Text of the native discrepancy authority differs from re in this part.
-pub(super) const NATIVE_DISCREPANCY_AUTHORITY_DIFFERS_FROM_RE: &str = "native discrepancy authority differs from registration";
+pub(super) const NATIVE_DISCREPANCY_AUTHORITY_DIFFERS_FROM_RE: &str =
+    "native discrepancy authority differs from registration";
 /// Text of the diagnostic report unexpectedly contains a pr in this part.
-pub(super) const DIAGNOSTIC_REPORT_UNEXPECTEDLY_CONTAINS_A_PR: &str = "diagnostic report unexpectedly contains a process failure";
+pub(super) const DIAGNOSTIC_REPORT_UNEXPECTEDLY_CONTAINS_A_PR: &str =
+    "diagnostic report unexpectedly contains a process failure";
 /// Text of the native diagnostics differ from registered ex in this part.
-pub(super) const NATIVE_DIAGNOSTICS_DIFFER_FROM_REGISTERED_EX: &str = "native diagnostics differ from registered expectations";
+pub(super) const NATIVE_DIAGNOSTICS_DIFFER_FROM_REGISTERED_EX: &str =
+    "native diagnostics differ from registered expectations";
 /// Text of the availability in this part.
 pub(super) const AVAILABILITY: &str = "availability";
 /// Text of the candidate execution is not completely accoun in this part.
-pub(super) const CANDIDATE_EXECUTION_IS_NOT_COMPLETELY_ACCOUN: &str = "candidate execution is not completely accounted";
+pub(super) const CANDIDATE_EXECUTION_IS_NOT_COMPLETELY_ACCOUN: &str =
+    "candidate execution is not completely accounted";
 /// Text of the project context mode in this part.
 pub(super) const PROJECT_CONTEXT_MODE: &str = "project_context_mode";
 /// Text of the isolated in this part.
@@ -387,11 +441,14 @@ pub(super) const IDENTITY: &str = "identity";
 /// Text of the file metadata sha256 2 in this part.
 pub(super) const FILE_METADATA_SHA256_2: &str = "file-metadata-sha256";
 /// Text of the discrepancy file metadata identity differs in this part.
-pub(super) const DISCREPANCY_FILE_METADATA_IDENTITY_DIFFERS: &str = "discrepancy file metadata identity differs";
+pub(super) const DISCREPANCY_FILE_METADATA_IDENTITY_DIFFERS: &str =
+    "discrepancy file metadata identity differs";
 /// Text of the missing independent discrepancy validation in this part.
-pub(super) const MISSING_INDEPENDENT_DISCREPANCY_VALIDATION: &str = "missing independent discrepancy validation";
+pub(super) const MISSING_INDEPENDENT_DISCREPANCY_VALIDATION: &str =
+    "missing independent discrepancy validation";
 /// Text of the discrepancy authority was not verified in this part.
-pub(super) const DISCREPANCY_AUTHORITY_WAS_NOT_VERIFIED: &str = "discrepancy authority was not verified";
+pub(super) const DISCREPANCY_AUTHORITY_WAS_NOT_VERIFIED: &str =
+    "discrepancy authority was not verified";
 /// Text of the settings sha256 2 in this part.
 pub(super) const SETTINGS_SHA256_2: &str = "settings-sha256";
 /// Text of the profile sha256 2 in this part.
@@ -405,11 +462,13 @@ pub(super) const INTENDED_OUTPUT_SHA256_2: &str = "intended-output-sha256";
 /// Text of the stale discrepancy evidence identity in this part.
 pub(super) const STALE_DISCREPANCY_EVIDENCE_IDENTITY: &str = "stale discrepancy evidence identity";
 /// Text of the discrepancy tool identity is missing in this part.
-pub(super) const DISCREPANCY_TOOL_IDENTITY_IS_MISSING: &str = "discrepancy tool identity is missing";
+pub(super) const DISCREPANCY_TOOL_IDENTITY_IS_MISSING: &str =
+    "discrepancy tool identity is missing";
 /// Text of the approved executable sha256 in this part.
 pub(super) const APPROVED_EXECUTABLE_SHA256: &str = "approved_executable_sha256";
 /// Text of the discrepancy tool is not independently pinned in this part.
-pub(super) const DISCREPANCY_TOOL_IS_NOT_INDEPENDENTLY_PINNED: &str = "discrepancy tool is not independently pinned";
+pub(super) const DISCREPANCY_TOOL_IS_NOT_INDEPENDENTLY_PINNED: &str =
+    "discrepancy tool is not independently pinned";
 /// Text of the a001 in this part.
 pub(super) const A001: &str = "A001";
 /// Text of the case in this part.
@@ -457,7 +516,8 @@ pub(super) const RULE_CONTEXT_DECLARATION: &str = "rule_context_declaration";
 /// Text of the source language in this part.
 pub(super) const SOURCE_LANGUAGE: &str = "source_language";
 /// Text of the missing normalized invocation configuration in this part.
-pub(super) const MISSING_NORMALIZED_INVOCATION_CONFIGURATION: &str = "missing normalized invocation configuration";
+pub(super) const MISSING_NORMALIZED_INVOCATION_CONFIGURATION: &str =
+    "missing normalized invocation configuration";
 /// Text of the raw invocation root is missing in this part.
 pub(super) const RAW_INVOCATION_ROOT_IS_MISSING: &str = "raw invocation root is missing";
 /// Text of the raw invocation root is not absolute in this part.
@@ -471,7 +531,8 @@ pub(super) const RAW_ARGV_IS_MISSING: &str = "raw argv is missing";
 /// Text of the raw environment is missing in this part.
 pub(super) const RAW_ENVIRONMENT_IS_MISSING: &str = "raw environment is missing";
 /// Text of the process failure requires a positive numeric in this part.
-pub(super) const PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC: &str = "process failure requires a positive numeric exit";
+pub(super) const PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC: &str =
+    "process failure requires a positive numeric exit";
 /// Text of the literal in this part.
 pub(super) const LITERAL: &str = "literal";
 /// Text of the value in this part.
@@ -491,11 +552,14 @@ pub(super) const STDERR: &str = "stderr";
 /// Text of the no process expectation in this part.
 pub(super) const NO_PROCESS_EXPECTATION: &str = "no process expectation";
 /// Text of the actual process identity is not the in this part.
-pub(super) const ACTUAL_PROCESS_IDENTITY_IS_NOT_THE: &str = "actual process identity is not the validated exact observation group";
+pub(super) const ACTUAL_PROCESS_IDENTITY_IS_NOT_THE: &str =
+    "actual process identity is not the validated exact observation group";
 /// Text of the reference termination differs from declared in this part.
-pub(super) const REFERENCE_TERMINATION_DIFFERS_FROM_DECLARED: &str = "reference termination differs from declared completed failure";
+pub(super) const REFERENCE_TERMINATION_DIFFERS_FROM_DECLARED: &str =
+    "reference termination differs from declared completed failure";
 /// Text of the reference process bytes differ from declared in this part.
-pub(super) const REFERENCE_PROCESS_BYTES_DIFFER_FROM_DECLARED: &str = "reference process bytes differ from declared expectation";
+pub(super) const REFERENCE_PROCESS_BYTES_DIFFER_FROM_DECLARED: &str =
+    "reference process bytes differ from declared expectation";
 /// Text of the missing process profile boundary in this part.
 pub(super) const MISSING_PROCESS_PROFILE_BOUNDARY: &str = "missing process profile boundary";
 /// Text of the missing validated source identity in this part.
@@ -503,27 +567,35 @@ pub(super) const MISSING_VALIDATED_SOURCE_IDENTITY: &str = "missing validated so
 /// Text of the missing process contract in this part.
 pub(super) const MISSING_PROCESS_CONTRACT: &str = "missing process contract";
 /// Text of the process evidence has an unapproved exact in this part.
-pub(super) const PROCESS_EVIDENCE_HAS_AN_UNAPPROVED_EXACT: &str = "process evidence has an unapproved exact binary";
+pub(super) const PROCESS_EVIDENCE_HAS_AN_UNAPPROVED_EXACT: &str =
+    "process evidence has an unapproved exact binary";
 /// Text of the process observations must retain separate ra in this part.
-pub(super) const PROCESS_OBSERVATIONS_MUST_RETAIN_SEPARATE_RA: &str = "process observations must retain separate raw artifacts";
+pub(super) const PROCESS_OBSERVATIONS_MUST_RETAIN_SEPARATE_RA: &str =
+    "process observations must retain separate raw artifacts";
 /// Text of the process expectation needs two captures for in this part.
-pub(super) const PROCESS_EXPECTATION_NEEDS_TWO_CAPTURES_FOR: &str = "process expectation needs two captures for the actual exact executable";
+pub(super) const PROCESS_EXPECTATION_NEEDS_TWO_CAPTURES_FOR: &str =
+    "process expectation needs two captures for the actual exact executable";
 /// Text of the missing raw invocation in this part.
 pub(super) const MISSING_RAW_INVOCATION: &str = "missing raw invocation";
 /// Text of the archived request root is missing in this part.
 pub(super) const ARCHIVED_REQUEST_ROOT_IS_MISSING: &str = "archived request root is missing";
 /// Text of the archived process bytes termination or immuta in this part.
-pub(super) const ARCHIVED_PROCESS_BYTES_TERMINATION_OR_IMMUTA: &str = "archived process bytes, termination or immutable identity differ";
+pub(super) const ARCHIVED_PROCESS_BYTES_TERMINATION_OR_IMMUTA: &str =
+    "archived process bytes, termination or immutable identity differ";
 /// Text of the archived state boundary is missing in this part.
 pub(super) const ARCHIVED_STATE_BOUNDARY_IS_MISSING: &str = "archived state boundary is missing";
 /// Text of the archived invocation directory is missing in this part.
-pub(super) const ARCHIVED_INVOCATION_DIRECTORY_IS_MISSING: &str = "archived invocation directory is missing";
+pub(super) const ARCHIVED_INVOCATION_DIRECTORY_IS_MISSING: &str =
+    "archived invocation directory is missing";
 /// Text of the archived argv environment do not establish in this part.
-pub(super) const ARCHIVED_ARGV_ENVIRONMENT_DO_NOT_ESTABLISH: &str = "archived argv/environment do not establish the pinned harness settings";
+pub(super) const ARCHIVED_ARGV_ENVIRONMENT_DO_NOT_ESTABLISH: &str =
+    "archived argv/environment do not establish the pinned harness settings";
 /// Text of the process observation groups must retain disti in this part.
-pub(super) const PROCESS_OBSERVATION_GROUPS_MUST_RETAIN_DISTI: &str = "process observation groups must retain distinct raw captures";
+pub(super) const PROCESS_OBSERVATION_GROUPS_MUST_RETAIN_DISTI: &str =
+    "process observation groups must retain distinct raw captures";
 /// Text of the missing reproducible exact binary observatio in this part.
-pub(super) const MISSING_REPRODUCIBLE_EXACT_BINARY_OBSERVATIO: &str = "missing reproducible exact-binary observation group";
+pub(super) const MISSING_REPRODUCIBLE_EXACT_BINARY_OBSERVATIO: &str =
+    "missing reproducible exact-binary observation group";
 /// Text of the invocation in this part.
 pub(super) const INVOCATION: &str = "invocation";
 /// Text of the sha256 in this part.
@@ -539,7 +611,8 @@ pub(super) const TOY_V1: &str = "toy-v1";
 /// Text of the python3 10 in this part.
 pub(super) const PYTHON3_10: &str = "python3.10";
 /// Text of the toy fixture contract independent of process in this part.
-pub(super) const TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS: &str = "toy fixture contract independent of process output";
+pub(super) const TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS: &str =
+    "toy fixture contract independent of process output";
 /// Text of the no deadline in this part.
 pub(super) const NO_DEADLINE: &str = "no-deadline";
 /// Text of the process artifact path is missing in this part.
@@ -547,7 +620,8 @@ pub(super) const PROCESS_ARTIFACT_PATH_IS_MISSING: &str = "process artifact path
 /// Text of the missing captured process bytes in this part.
 pub(super) const MISSING_CAPTURED_PROCESS_BYTES: &str = "missing captured process bytes";
 /// Text of the captured process byte digest differs in this part.
-pub(super) const CAPTURED_PROCESS_BYTE_DIGEST_DIFFERS: &str = "captured process byte digest differs";
+pub(super) const CAPTURED_PROCESS_BYTE_DIGEST_DIFFERS: &str =
+    "captured process byte digest differs";
 /// Text of the missing actual process executable in this part.
 pub(super) const MISSING_ACTUAL_PROCESS_EXECUTABLE: &str = "missing actual process executable";
 /// Text of the comparison in this part.
@@ -555,15 +629,20 @@ pub(super) const COMPARISON: &str = "comparison";
 /// Text of the full in this part.
 pub(super) const FULL: &str = "full";
 /// Text of the reference process variant or exact terminati in this part.
-pub(super) const REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI: &str = "reference process variant or exact termination identity differs";
+pub(super) const REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI: &str =
+    "reference process variant or exact termination identity differs";
 /// Text of the process certificate file metadata identity d in this part.
-pub(super) const PROCESS_CERTIFICATE_FILE_METADATA_IDENTITY_D: &str = "process certificate file metadata identity differs";
+pub(super) const PROCESS_CERTIFICATE_FILE_METADATA_IDENTITY_D: &str =
+    "process certificate file metadata identity differs";
 /// Text of the process receipt request root is missing in this part.
-pub(super) const PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING: &str = "process receipt request root is missing";
+pub(super) const PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING: &str =
+    "process receipt request root is missing";
 /// Text of the process observation root differs from receip in this part.
-pub(super) const PROCESS_OBSERVATION_ROOT_DIFFERS_FROM_RECEIP: &str = "process observation root differs from receipt";
+pub(super) const PROCESS_OBSERVATION_ROOT_DIFFERS_FROM_RECEIP: &str =
+    "process observation root differs from receipt";
 /// Text of the registered process files are missing in this part.
-pub(super) const REGISTERED_PROCESS_FILES_ARE_MISSING: &str = "registered process files are missing";
+pub(super) const REGISTERED_PROCESS_FILES_ARE_MISSING: &str =
+    "registered process files are missing";
 /// Text of the invalid process source filename in this part.
 pub(super) const INVALID_PROCESS_SOURCE_FILENAME: &str = "invalid process source filename";
 /// Text of the missing registered rule in this part.
@@ -575,29 +654,38 @@ pub(super) const ARTIFACTS: &str = "artifacts";
 /// Text of the missing raw process path in this part.
 pub(super) const MISSING_RAW_PROCESS_PATH: &str = "missing raw process path";
 /// Text of the raw process artifact belongs to another in this part.
-pub(super) const RAW_PROCESS_ARTIFACT_BELONGS_TO_ANOTHER: &str = "raw process artifact belongs to another case identity";
+pub(super) const RAW_PROCESS_ARTIFACT_BELONGS_TO_ANOTHER: &str =
+    "raw process artifact belongs to another case identity";
 /// Text of the captured process bytes differ from registere in this part.
-pub(super) const CAPTURED_PROCESS_BYTES_DIFFER_FROM_REGISTERE: &str = "captured process bytes differ from registered templates";
+pub(super) const CAPTURED_PROCESS_BYTES_DIFFER_FROM_REGISTERE: &str =
+    "captured process bytes differ from registered templates";
 /// Text of the process metadata capture failed in this part.
 pub(super) const PROCESS_METADATA_CAPTURE_FAILED: &str = "process metadata capture failed";
 /// Text of the raw process invocation differs at file in this part.
-pub(super) const RAW_PROCESS_INVOCATION_DIFFERS_AT_FILE: &str = "raw process invocation differs at file_metadata_sha256";
+pub(super) const RAW_PROCESS_INVOCATION_DIFFERS_AT_FILE: &str =
+    "raw process invocation differs at file_metadata_sha256";
 /// Text of the missing pinned normalized invocation in this part.
-pub(super) const MISSING_PINNED_NORMALIZED_INVOCATION: &str = "missing pinned normalized invocation";
+pub(super) const MISSING_PINNED_NORMALIZED_INVOCATION: &str =
+    "missing pinned normalized invocation";
 /// Text of the raw argv environment do not establish in this part.
-pub(super) const RAW_ARGV_ENVIRONMENT_DO_NOT_ESTABLISH: &str = "raw argv/environment do not establish pinned settings";
+pub(super) const RAW_ARGV_ENVIRONMENT_DO_NOT_ESTABLISH: &str =
+    "raw argv/environment do not establish pinned settings";
 /// Text of the no measured evidence in this part.
 pub(super) const NO_MEASURED_EVIDENCE: &str = "no measured evidence";
 /// Text of the diagnostic observations cannot publish bench in this part.
-pub(super) const DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH_BENCH: &str = "diagnostic observations cannot publish benchmark metrics";
+pub(super) const DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH_BENCH: &str =
+    "diagnostic observations cannot publish benchmark metrics";
 /// Text of the unknown or duplicate receipt registration ru in this part.
-pub(super) const UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU: &str = "unknown or duplicate receipt registration rule";
+pub(super) const UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU: &str =
+    "unknown or duplicate receipt registration rule";
 /// Text of the registered case name is missing in this part.
 pub(super) const REGISTERED_CASE_NAME_IS_MISSING: &str = "registered case name is missing";
 /// Text of the unknown or duplicate registered case in this part.
-pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_CASE: &str = "unknown or duplicate registered case";
+pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_CASE: &str =
+    "unknown or duplicate registered case";
 /// Text of the receipt validation requires registered cases in this part.
-pub(super) const RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES: &str = "receipt validation requires registered cases";
+pub(super) const RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES: &str =
+    "receipt validation requires registered cases";
 /// Text of the missing observed rule in this part.
 pub(super) const MISSING_OBSERVED_RULE: &str = "missing observed rule";
 /// Text of the missing observed case in this part.
@@ -607,14 +695,19 @@ pub(super) const UNREGISTERED_RECEIPT_IDENTITY: &str = "unregistered receipt ide
 /// Text of the missing verification command in this part.
 pub(super) const MISSING_VERIFICATION_COMMAND: &str = "missing verification command";
 /// Text of the registered module inventory differs from pin in this part.
-pub(super) const REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN: &str = "registered module inventory differs from pinned context profile";
+pub(super) const REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN: &str =
+    "registered module inventory differs from pinned context profile";
 /// Text of the missing declared module pin in this part.
 pub(super) const MISSING_DECLARED_MODULE_PIN: &str = "missing declared module pin";
 /// Text of the declared file observations require verificat in this part.
-pub(super) const DECLARED_FILE_OBSERVATIONS_REQUIRE_VERIFICAT: &str = "declared file observations require verification preparation";
+pub(super) const DECLARED_FILE_OBSERVATIONS_REQUIRE_VERIFICAT: &str =
+    "declared file observations require verification preparation";
 /// Text of the case selection is empty or outside in this part.
-pub(super) const CASE_SELECTION_IS_EMPTY_OR_OUTSIDE: &str = "case selection is empty or outside this shard";
+pub(super) const CASE_SELECTION_IS_EMPTY_OR_OUTSIDE: &str =
+    "case selection is empty or outside this shard";
 /// Text of the process failure verification requires a dire in this part.
-pub(super) const PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE: &str = "process-failure verification requires a direct no-deadline observer";
+pub(super) const PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE: &str =
+    "process-failure verification requires a direct no-deadline observer";
 /// Text of the reference returned a decoded report instead in this part.
-pub(super) const REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD: &str = "reference returned a decoded report instead of the declared process failure";
+pub(super) const REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD: &str =
+    "reference returned a decoded report instead of the declared process failure";
