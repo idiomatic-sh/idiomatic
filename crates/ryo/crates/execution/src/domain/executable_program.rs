@@ -21,4 +21,4 @@ mod service_test;
 pub(crate) mod file_demand;
 
 #[cfg(test)]
-mod observations;
+pub(in crate::domain) mod observations;

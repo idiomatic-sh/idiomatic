@@ -355,4 +355,6 @@ struct PreparedPredicate {
 }
 
 #[cfg(test)]
+mod census;
+#[cfg(test)]
 mod coverage;
