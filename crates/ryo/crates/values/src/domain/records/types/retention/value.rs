@@ -146,7 +146,7 @@ impl RetainedBytes {
     }
 
     /// Original worker notes lend their actual owner and the note field of each entry.
-    /// Metadata is derived from the owner's reserved allocation, including unused capacity.
+    /// Metadata is derived from the reserved allocation of the vector that holds them, including unused capacity.
     ///
     /// ```compile_fail
     /// use ryo_values::domain::records::types::retention::value::RetainedBytes;
