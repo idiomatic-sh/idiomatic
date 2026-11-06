@@ -3,7 +3,7 @@ use super::errors::TableModelError;
 use super::service::cell;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::types::ColumnIndex;
-use ryo_relations::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -11,13 +11,14 @@ enum Scenario {
     PastTheLastColumn,
 }
 type Input = Scenario;
+type Value = Cell;
 type Failure = TableModelError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_cell_at_a_column_is_the_value_there"),
         word: Word::Succeeds,
         input: || Scenario::SecondColumn,
-        expect: Expect::Value(Value::Number(Integer(8))),
+        expect: Expect::Value(Cell::Number(Integer(8))),
     },
     Case {
         name: CaseName("a_column_past_the_row_is_refused"),
@@ -27,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    let row = [Value::Number(Integer(7)), Value::Number(Integer(8))];
+    let row = [Cell::Number(Integer(7)), Cell::Number(Integer(8))];
     match input {
         Scenario::SecondColumn => cell(&row, ColumnIndex(1)),
         Scenario::PastTheLastColumn => cell(&row, ColumnIndex(2)),
