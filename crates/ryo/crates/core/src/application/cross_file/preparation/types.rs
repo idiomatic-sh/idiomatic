@@ -12,3 +12,6 @@ pub(crate) struct PreparedProject {
     pub bound: Vec<BoundInput>,
     pub slot: PublicationSlot,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ProjectOccurrenceCount(pub usize);

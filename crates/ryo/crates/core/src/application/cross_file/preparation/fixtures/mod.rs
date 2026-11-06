@@ -55,7 +55,7 @@ pub(in crate::application::cross_file::preparation) enum BatchControl {
 /// an invalid seal must refuse before that stage receives a submission.
 pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
     control: BatchControl,
-) -> Result<(), super::super::errors::PreparationError> {
+) -> Result<(), super::super::errors::BatchPreparationError> {
     use super::super::super::errors::CrossError;
     use super::super::{
         service::Preparation,

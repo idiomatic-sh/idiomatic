@@ -1,5 +1,5 @@
 //! The declared-slot owner refuses omissions, substitutions and repeated accounting.
-use super::{errors::PreparationError, service::Preparation, types::Occurrence};
+use super::{errors::BatchPreparationError, service::Preparation, types::Occurrence};
 use crate::application::cross_file::errors::CrossError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answering::types::Todo;
@@ -23,7 +23,7 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = ();
-type Failure = PreparationError;
+type Failure = BatchPreparationError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("production_service_retains_legitimate_singleton"),
@@ -59,13 +59,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordinary_omission_refused_before_real_stage_submission"),
         word: Word::Refuses,
         input: || Scenario::OmitEngineOrdinary,
-        expect: Expect::Error(PreparationError::Missing(Occurrence(1))),
+        expect: Expect::Error(BatchPreparationError::Missing(Occurrence(1))),
     },
     Case {
         name: CaseName("named_omission_refused_before_real_stage_submission"),
         word: Word::Refuses,
         input: || Scenario::OmitEngineNamed,
-        expect: Expect::Error(PreparationError::Missing(Occurrence(1))),
+        expect: Expect::Error(BatchPreparationError::Missing(Occurrence(1))),
     },
     Case {
         name: CaseName("ordinary_all_declared_failures_are_explicit"),
@@ -89,19 +89,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("omitted_occurrence_refuses_sealing"),
         word: Word::Refuses,
         input: || Scenario::Omitted,
-        expect: Expect::Error(PreparationError::Missing(Occurrence(1))),
+        expect: Expect::Error(BatchPreparationError::Missing(Occurrence(1))),
     },
     Case {
         name: CaseName("repeated_slot_cannot_hide_an_omission"),
         word: Word::Refuses,
         input: || Scenario::Repeated,
-        expect: Expect::Error(PreparationError::Repeated(Occurrence(0))),
+        expect: Expect::Error(BatchPreparationError::Repeated(Occurrence(0))),
     },
     Case {
         name: CaseName("another_batch_cannot_supply_a_slot"),
         word: Word::Refuses,
         input: || Scenario::Foreign,
-        expect: Expect::Error(PreparationError::Foreign),
+        expect: Expect::Error(BatchPreparationError::Foreign),
     },
 ];
 fn todos() -> [Todo; 2] {
@@ -144,18 +144,36 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut pending = Preparation::ordinary(&todo);
             let slots = pending.slots();
             pending.account(slots[0].clone(), Err(failure()))?;
-            pending.seal().map(|_| ())
+            {
+                let sealed = pending.seal();
+                assert!(matches!(
+                    sealed,
+                    Err(BatchPreparationError::Missing(Occurrence(1)))
+                ));
+                sealed.map(|_| ())
+            }
         }
         Scenario::Repeated => {
             let mut pending = Preparation::ordinary(&todo);
             let slots = pending.slots();
             pending.account(slots[0].clone(), Err(failure()))?;
-            pending.account(slots[0].clone(), Err(failure()))
+            {
+                let result = pending.account(slots[0].clone(), Err(failure()));
+                assert!(matches!(
+                    result,
+                    Err(BatchPreparationError::Repeated(Occurrence(0)))
+                ));
+                result
+            }
         }
         Scenario::Foreign => {
             let mut pending = Preparation::ordinary(&todo);
             let foreign = Preparation::ordinary(&todo).slots().remove(0);
-            pending.account(foreign, Err(failure()))
+            {
+                let result = pending.account(foreign, Err(failure()));
+                assert!(matches!(result, Err(BatchPreparationError::Foreign)));
+                result
+            }
         }
         Scenario::Ordinary | Scenario::Named | Scenario::Duplicate => {
             let pending = match scenario {
@@ -191,8 +209,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             );
             let entries = sealed.into_entries();
             assert_eq!(entries.len(), 2);
-            assert!(entries.iter().all(|(_, result)| matches!(
-                result,
+            assert!(entries.iter().all(|entry| matches!(
+                &entry.result,
                 Err(CrossError::Operating(OperatingError::NotRead))
             )));
             Ok(())

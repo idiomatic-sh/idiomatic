@@ -1,7 +1,7 @@
 //! The application owns the declared inventory, preparation state and sealing.
 use super::{
-    errors::PreparationError,
-    types::{Occurrence, PreparedProject},
+    errors::BatchPreparationError,
+    types::{Occurrence, PreparedProject, ProjectOccurrenceCount},
 };
 use crate::{application::cross_file::errors::CrossError, domain::answering::types::Todo};
 use ryo_execution::inbound::use_cases::execution::types::RuleIndex;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 /// A stable occurrence, including when several declarations name the same rule.
 #[cfg(test)]
 #[derive(Clone)]
-pub(crate) struct Slot {
+pub(crate) struct BatchOccurrenceSlot {
     owner: Arc<()>,
     occurrence: Occurrence,
 }
@@ -30,9 +30,16 @@ pub(crate) struct Preparation {
     entries: Box<[Entry]>,
 }
 /// Only this owner can issue a batch: every immutable declaration is accounted.
+pub(in crate::application::cross_file) struct DeclaredProjectPreparation {
+    pub(in crate::application::cross_file) todo: crate::domain::answering::types::Todo,
+    pub(in crate::application::cross_file) result:
+        Result<PreparedProject, crate::application::cross_file::errors::CrossError>,
+}
+
+/// A complete immutable set of accounted project occurrences.
 pub(crate) struct SealedBatch {
     declared: Arc<[Todo]>,
-    entries: Box<[(Todo, Result<PreparedProject, CrossError>)]>,
+    entries: Box<[DeclaredProjectPreparation]>,
 }
 impl Preparation {
     pub(crate) fn ordinary(todo: &[Todo]) -> Self {
@@ -59,13 +66,13 @@ impl Preparation {
                 .collect(),
         }
     }
-    pub(crate) fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+    pub(crate) fn declaration_count(&self) -> ProjectOccurrenceCount {
+        ProjectOccurrenceCount(self.entries.len())
     }
     #[cfg(test)]
-    pub(crate) fn slots(&self) -> Vec<Slot> {
+    pub(crate) fn slots(&self) -> Vec<BatchOccurrenceSlot> {
         (0..self.entries.len())
-            .map(|at| Slot {
+            .map(|at| BatchOccurrenceSlot {
                 owner: Arc::clone(&self.owner),
                 occurrence: Occurrence(at),
             })
@@ -74,18 +81,18 @@ impl Preparation {
     #[cfg(test)]
     pub(crate) fn account(
         &mut self,
-        slot: Slot,
+        slot: BatchOccurrenceSlot,
         result: Result<PreparedProject, CrossError>,
-    ) -> Result<(), PreparationError> {
+    ) -> Result<(), BatchPreparationError> {
         if !Arc::ptr_eq(&self.owner, &slot.owner) {
-            return Err(PreparationError::Foreign);
+            return Err(BatchPreparationError::Foreign);
         }
         let entry = self
             .entries
             .get_mut(slot.occurrence.0)
-            .ok_or(PreparationError::Foreign)?;
+            .ok_or(BatchPreparationError::Foreign)?;
         if !matches!(entry.state, State::Pending) {
-            return Err(PreparationError::Repeated(slot.occurrence));
+            return Err(BatchPreparationError::Repeated(slot.occurrence));
         }
         entry.state = match result {
             Ok(ready) => State::Ready(ready),
@@ -109,13 +116,13 @@ impl Preparation {
         }
         self
     }
-    pub(crate) fn seal(self) -> Result<SealedBatch, PreparationError> {
+    pub(crate) fn seal(self) -> Result<SealedBatch, BatchPreparationError> {
         if let Some(at) = self
             .entries
             .iter()
             .position(|entry| matches!(entry.state, State::Pending))
         {
-            return Err(PreparationError::Missing(Occurrence(at)));
+            return Err(BatchPreparationError::Missing(Occurrence(at)));
         }
         let declared = self
             .entries
@@ -134,7 +141,10 @@ impl Preparation {
                         unreachable!("pending slots were refused before issuing the batch")
                     }
                 };
-                (entry.todo, result)
+                DeclaredProjectPreparation {
+                    todo: entry.todo,
+                    result,
+                }
             })
             .collect();
         Ok(SealedBatch { declared, entries })
@@ -147,7 +157,7 @@ impl SealedBatch {
     }
     pub(in crate::application::cross_file) fn into_entries(
         self,
-    ) -> Box<[(Todo, Result<PreparedProject, CrossError>)]> {
+    ) -> Box<[DeclaredProjectPreparation]> {
         self.entries
     }
 }

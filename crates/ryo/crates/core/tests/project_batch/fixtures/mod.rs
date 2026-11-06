@@ -11,12 +11,12 @@ pub(super) const PROBES: &[Probe] = &[
         expected: None,
         client: r#"
 mod authorized_seal {
- use crate::application::cross_file::{preparation::{service::{Preparation, SealedBatch}, errors::PreparationError}, errors::CrossError};
+ use crate::application::cross_file::{preparation::{service::{Preparation, SealedBatch}, errors::BatchPreparationError}, errors::CrossError};
  use crate::domain::answering::types::Todo;
- fn authorized(todo: &[Todo]) -> Result<SealedBatch, PreparationError> {
+ fn authorized(todo: &[Todo]) -> Result<SealedBatch, BatchPreparationError> {
   Preparation::ordinary(todo).prepare_all(|_, _| Err(CrossError::from(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRead))).seal()
  }
- const _: fn(&[Todo]) -> Result<SealedBatch, PreparationError> = authorized;
+ const _: fn(&[Todo]) -> Result<SealedBatch, BatchPreparationError> = authorized;
 }
 "#,
     },

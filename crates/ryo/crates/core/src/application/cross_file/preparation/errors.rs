@@ -1,7 +1,7 @@
 //! Invalid project preparation cannot be submitted to the engine.
 use super::types::Occurrence;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum PreparationError {
+pub(crate) enum BatchPreparationError {
     #[error("project occurrence {0:?} was not prepared")]
     Missing(Occurrence),
     #[cfg(test)]

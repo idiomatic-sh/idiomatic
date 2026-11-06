@@ -2,7 +2,7 @@
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum CrossError {
     #[error(transparent)]
-    Preparation(#[from] super::preparation::errors::PreparationError),
+    Preparation(#[from] super::preparation::errors::BatchPreparationError),
     #[error(transparent)]
     Budget(#[from] crate::domain::budget::errors::BudgetError),
     #[error(transparent)]

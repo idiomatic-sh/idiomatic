@@ -78,7 +78,9 @@ impl CrossFile {
         super::errors::CrossError,
     > {
         use super::{
-            errors::CrossError, preparation::types::PreparedProject, types::ProjectOutcome,
+            errors::CrossError,
+            preparation::{service::DeclaredProjectPreparation, types::PreparedProject},
+            types::ProjectOutcome,
         };
         use ryo_execution::inbound::use_cases::execution::types::{
             EmitDemand, ObservationDemand, ProjectBatch, ProjectInput, ProjectTask, RuleDemand,
@@ -96,7 +98,7 @@ impl CrossFile {
             .into_entries()
             .into_vec()
             .into_iter()
-            .map(|(todo, task)| {
+            .map(|DeclaredProjectPreparation { todo, result: task }| {
                 let prepared = task.and_then(
                     |PreparedProject {
                          scope,
@@ -136,7 +138,9 @@ impl CrossFile {
         let inputs = entries
             .iter_mut()
             .filter_map(|(todo, prepared)| {
-                let ready = prepared.as_mut().ok()?;
+                let Ok(ready) = prepared else {
+                    return None;
+                };
                 Some(ProjectTask {
                     rule: todo.rule,
                     demand: RuleDemand {
@@ -147,10 +151,7 @@ impl CrossFile {
                         scope: &ready.scope,
                         evaluation: &ready.evaluation,
                         publication: &ready.publication,
-                        ordinary: ready
-                            .frontier
-                            .take()
-                            .expect("each sealed ready occurrence is submitted once"),
+                        ordinary: ready.frontier.take().expect(std::any::type_name::<Ready>()),
                         bound: &ready.bound,
                         arenas: crossing.arenas,
                     },

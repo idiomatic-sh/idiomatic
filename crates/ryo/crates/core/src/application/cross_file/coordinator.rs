@@ -62,7 +62,7 @@ impl CrossFile {
         for batch in batches {
             use super::preparation::{service::Preparation, types::PreparedProject};
             let inventory = Preparation::named(batch, run.todo);
-            if inventory.is_empty() {
+            if inventory.declaration_count().0 == 0 {
                 continue;
             }
             let prepared = inventory.prepare_all(|_, todo| {

@@ -2,7 +2,7 @@
 pub(crate) mod errors;
 pub(crate) mod service;
 #[cfg(test)]
-mod test;
+mod service_test;
 pub(crate) mod types;
 
 #[cfg(any(test, feature = "fixtures"))]
