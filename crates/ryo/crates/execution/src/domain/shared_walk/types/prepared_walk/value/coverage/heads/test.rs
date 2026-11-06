@@ -190,7 +190,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     verify(&program, &walk).unwrap();
     let logical = *eligible.iter().next().unwrap();
     match scenario {
-        Scenario::Catalog => {}
+        Scenario::Catalog | Scenario::ErroredOrigin => {}
         Scenario::Misclassified => {
             walk.physical[logical.0] = Some(WalkRoute::Barrier(WalkBarrier::Representation))
         }
