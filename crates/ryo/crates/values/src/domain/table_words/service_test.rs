@@ -132,4 +132,7 @@ use crate::domain::rows::types::Table;
 mod compact_test;
 
 #[cfg(test)]
+mod compact_access_test;
+
+#[cfg(test)]
 mod packing_test;

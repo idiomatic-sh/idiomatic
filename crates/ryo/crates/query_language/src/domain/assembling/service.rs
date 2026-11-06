@@ -8,9 +8,10 @@ use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
 use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
-use crate::domain::inlining::service::{
-    cut_relations, cut_relations_roots, inline_views, reduced_frontier, reduced_frontier_roots,
+use crate::domain::cutting::service::{
+    cut_relations, cut_relations_roots, reduced_frontier, reduced_frontier_roots,
 };
+use crate::domain::inlining::service::inline_views;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
 use crate::domain::planning::service::{frontier_of, pushed};

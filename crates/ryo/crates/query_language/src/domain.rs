@@ -5,6 +5,7 @@ pub(crate) mod calling;
 pub(crate) mod capture_pushing;
 pub(crate) mod combining;
 pub(crate) mod comparing;
+pub(crate) mod cutting;
 pub(crate) mod fusing;
 pub(crate) mod idioms;
 pub(crate) mod inlining;

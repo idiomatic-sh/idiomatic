@@ -24,6 +24,10 @@ The `query_language` domain's `combining` concept: the set calls (`union`, `inte
 
 The `query_language` domain's `comparing` concept: the sides of a comparison, resolved, and the test checked against their types.
 
+### cutting
+
+The `query_language` domain's `cutting` concept: the rows a file hands over, cut to the columns the steps after the files ask.
+
 ### fusing
 
 The `query_language` domain's `fusing` concept: the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
