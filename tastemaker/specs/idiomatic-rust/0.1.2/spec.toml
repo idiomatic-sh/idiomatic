@@ -1,9 +1,9 @@
 description = "The Rust policy rules every product that writes Rust places once: how code is written, whatever its shape."
 why = "One set of rules for every product that writes Rust, placed by one entry over the product's code, so two products cannot drift apart. It has no template, so it owns nothing: its rules reach every file beneath its place, the files of the parts placed inside it too."
 closed = false
-params = { test-contracts = { type = "list<table>", description = "Exact canonical public contract paths integration tests may name beyond the standard types/errors/factories; [] declares none." }, apart = { type = "identifier", description = "The name of the directory (relative to the placement) whose subdirectories place their own `client-at-adapter`, or a name no directory has: the directories that place their own `client-at-adapter` in a local tastemaker.toml, with their own libraries (a language's parser crates): the rule's general placement leaves them out, since two placements of one rule with different params may not reach a file. A product with none passes a glob that matches nothing." }, allowed-paths = { type = "set<string>", description = "The paths where text, bare numbers, tuples, bool parameters and string-keyed maps may be written: the files that map an enum to its outside text, the errors, the edges and the tests." }, libraries = { type = "set<string>", description = "The client and store libraries (`name::*`) that only an adapter, a factory or a composition names." } }
+params = { test-contracts = { type = "list<table>", description = "Exact canonical public contract paths integration tests may name beyond the standard types/errors/factories; [] declares none." }, apart = { type = "identifier", description = "The name of the directory (relative to the placement) whose subdirectories place their own `client-at-adapter`, or a name no directory has: the directories that place their own `client-at-adapter` in a local tastemaker.toml, with their own libraries (a language's parser crates): the rule's general placement leaves them out, since two placements of one rule with different params may not reach a file. A product with none passes a glob that matches nothing." }, allowed-paths = { type = "set<string>", description = "The paths where text, bare numbers, tuples, bool parameters and string-keyed maps may be written: the files that map an enum to its outside text, the errors, the edges and the tests." }, heap-accounting-owners = { type = "set<string>", description = "The globs of the one path that owns retained-byte accounting, a ledger file and its parts; [] declares no owner." }, libraries = { type = "set<string>", description = "The client and store libraries (`name::*`) that only an adapter, a factory or a composition names." } }
 rules = [
-  { rule = "idiomatic.arch/no-heap-accounting@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Custom allocation accounting signals an ownership or lifetime design problem; use scoped owners instead of heap estimators and reclamation ledgers." },
+  { rule = "idiomatic.arch/no-heap-accounting@0.2.0", params = { owners = { param = "heap-accounting-owners" } }, include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Custom allocation accounting signals an ownership or lifetime design problem; use scoped owners instead of heap estimators and reclamation ledgers." },
   { rule = "idiomatic.arch/allow-attributes-per-file@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-allows = 3 }, description = "No file carries more than three `#[allow(..)]` attributes: a lint allowed that often is a lint to fix or to configure once." },
   { rule = "idiomatic.arch/deep-function-nesting@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-depth = 1 }, description = "A function declares functions one level deep at most." },
   { rule = "idiomatic.arch/nested-function-count@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-nested = 2 }, description = "A function encloses at most two functions." },
@@ -126,7 +126,7 @@ files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
 closed = false
 specs = [
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 files.'demo/src/lib.rs' = '''
@@ -261,7 +261,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -334,7 +334,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -405,7 +405,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -475,7 +475,7 @@ workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", pa
 closed = false
 specs = [
   { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 then.only = ['idiomatic.arch/import-directions']
@@ -550,7 +550,7 @@ given.files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
 closed = false
 specs = [
-  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/test.rs", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**"], libraries = ["rayon::*"] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/test.rs", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
 ]
 '''
 given.files.'demo/src/lib.rs' = '''
