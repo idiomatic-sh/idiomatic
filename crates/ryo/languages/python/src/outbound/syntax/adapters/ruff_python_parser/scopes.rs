@@ -5,7 +5,7 @@ use super::constants::{
     DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER, DUPLICATE_TYPE_PARAMETER_MESSAGE,
     TYPE_PARAMETER_DEFAULT_ORDER,
 };
-use super::types::SemanticSyntaxDiagnostic;
+use super::types::{BoundName, SemanticSyntaxDiagnostic};
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Parameters, Stmt, TypeParams};
 use ruff_text_size::Ranged as _;
@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default)]
 pub(super) struct VisitorState {
     pub scopes: Vec<ScopeState>,
-    pub comprehensions: Vec<HashSet<String>>,
+    pub comprehensions: Vec<HashSet<BoundName>>,
     pub errors: Vec<SemanticSyntaxDiagnostic>,
 }
 
@@ -32,13 +32,13 @@ pub(super) enum ScopeKind {
 
 pub(super) struct ScopeState {
     pub kind: ScopeKind,
-    pub parameters: HashSet<String>,
-    pub globals: HashMap<String, TextSize>,
+    pub parameters: HashSet<BoundName>,
+    pub globals: HashMap<BoundName, TextSize>,
 }
 
 #[derive(Default)]
 struct GlobalDeclarationIndexer {
-    pub globals: HashMap<String, TextSize>,
+    pub globals: HashMap<BoundName, TextSize>,
 }
 
 impl<'a> Visitor<'a> for GlobalDeclarationIndexer {
@@ -48,7 +48,7 @@ impl<'a> Visitor<'a> for GlobalDeclarationIndexer {
                 for name in &global.names {
                     let _previous_global = self
                         .globals
-                        .insert(name.as_str().to_owned(), name.range().start());
+                        .insert(BoundName(name.as_str().to_owned()), name.range().start());
                 }
             }
             Stmt::FunctionDef(_) | Stmt::ClassDef(_) => {}
@@ -83,7 +83,7 @@ impl ScopeState {
         let parameters = parameters.map_or_else(HashSet::new, |parameters| {
             parameters
                 .iter()
-                .map(|parameter| parameter.name().as_str().to_owned())
+                .map(|parameter| BoundName(parameter.name().as_str().to_owned()))
                 .collect()
         });
         let mut indexer = GlobalDeclarationIndexer::default();

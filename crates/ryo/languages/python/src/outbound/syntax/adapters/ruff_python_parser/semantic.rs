@@ -8,7 +8,7 @@ use ruff_python_ast::visitor::{Visitor, walk_expr};
 use ruff_python_ast::{AnyNodeRef, Expr, ExprContext};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    self, RenderContext, RenderError, RenderOutcome, RenderRequest, SemanticSession,
+    self, Flag, RenderContext, RenderError, RenderOutcome, RenderRequest, SemanticSession,
 };
 
 use super::schemas::concrete_node_kind;
@@ -21,7 +21,7 @@ const UNSUPPORTED: languages::UnknownReason = languages::UnknownReason(24);
 
 /// Native element identity retained only for a file's demanded semantic session.
 pub(super) struct PythonSemanticSession {
-    elements: Vec<(u32, u32, languages::KindBits)>,
+    elements: Vec<ElementKey>,
     source_kind: PythonSourceKind,
     settings: PythonParserSettings,
     parsed: Option<ruff_python_parser::Parsed<ruff_python_ast::Mod>>,
@@ -38,7 +38,11 @@ impl PythonSemanticSession {
             .iter()
             .zip(tree.end.iter())
             .zip(tree.kind.iter())
-            .map(|((start, end), kind)| (start.0, end.0, *kind))
+            .map(|((start, end), kind)| ElementKey {
+                start: *start,
+                end: *end,
+                kind: *kind,
+            })
             .collect();
         Self {
             elements,
@@ -60,8 +64,8 @@ fn source_slice<'a>(expr: &Expr, source: &'a str) -> Option<&'a str> {
     source.get(start..end)
 }
 
-fn target(expr: &Expr) -> bool {
-    match expr {
+fn target(expr: &Expr) -> Flag {
+    let stored = match expr {
         Expr::Name(name) => name.ctx == ExprContext::Store,
         Expr::Attribute(attribute) => attribute.ctx == ExprContext::Store,
         Expr::Subscript(subscript) => subscript.ctx == ExprContext::Store,
@@ -69,7 +73,8 @@ fn target(expr: &Expr) -> bool {
         Expr::List(list) => list.ctx == ExprContext::Store,
         Expr::Starred(starred) => starred.ctx == ExprContext::Store,
         _ => false,
-    }
+    };
+    if stored { Flag::Raised } else { Flag::Lowered }
 }
 
 /// Render only the syntax forms whose embedding can be proven from the AST.
@@ -132,10 +137,27 @@ fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
     }
 }
 
-type Key = (u32, u32, languages::KindBits);
+/// The extent and kind that identify one element of the table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ElementKey {
+    start: languages::Offset,
+    end: languages::Offset,
+    kind: languages::KindBits,
+}
+
+/// One requested rendering: which answer slot it fills and in what context.
+#[derive(Clone, Copy)]
+struct Wanted {
+    slot: Slot,
+    context: RenderContext,
+}
+
+/// The index of an answer in the batch.
+#[derive(Clone, Copy)]
+struct Slot(usize);
 
 struct Requested<'a> {
-    wanted: HashMap<Key, Vec<(usize, RenderContext)>>,
+    wanted: HashMap<ElementKey, Vec<Wanted>>,
     answers: Vec<Option<RenderOutcome>>,
     source: &'a str,
 }
@@ -143,17 +165,17 @@ struct Requested<'a> {
 impl<'a> Visitor<'a> for Requested<'_> {
     fn visit_expr(&mut self, expr: &'a Expr) {
         let range = expr.range();
-        let key = (
-            range.start().to_u32(),
-            range.end().to_u32(),
-            kind_bits(concrete_node_kind(
+        let key = ElementKey {
+            start: languages::Offset(range.start().to_u32()),
+            end: languages::Offset(range.end().to_u32()),
+            kind: kind_bits(concrete_node_kind(
                 AnyNodeRef::from(expr),
                 Strings::Formatted,
             )),
-        );
+        };
         if let Some(indices) = self.wanted.get(&key) {
-            for &(index, context) in indices {
-                let answer = if context == RenderContext::AssignmentTarget && !target(expr) {
+            for &Wanted { slot: Slot(index), context } in indices {
+                let answer = if context == RenderContext::AssignmentTarget && target(expr) == Flag::Lowered {
                     RenderOutcome::NotApplicable
                 } else {
                     render(expr, context, self.source)
@@ -194,7 +216,7 @@ impl SemanticSession for PythonSemanticSession {
             source,
         };
         for (index, request) in requests.iter().enumerate() {
-            let Some(&(start, end, kind)) = self.elements.get(
+            let Some(&key) = self.elements.get(
                 usize::try_from(languages::node_position(request.node).0).unwrap_or(usize::MAX),
             ) else {
                 asked.answers[index] = Some(RenderOutcome::Unsupported(UNSUPPORTED));
@@ -202,9 +224,12 @@ impl SemanticSession for PythonSemanticSession {
             };
             asked
                 .wanted
-                .entry((start, end, kind))
+                .entry(key)
                 .or_default()
-                .push((index, request.context));
+                .push(Wanted {
+                    slot: Slot(index),
+                    context: request.context,
+                });
         }
         if let Some(module) = parsed.syntax().as_module() {
             asked.visit_body(&module.body);

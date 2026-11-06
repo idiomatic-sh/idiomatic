@@ -174,3 +174,13 @@ pub(super) struct FutureValidity(pub bool);
 /// Whether a token stream ends inside an open delimiter.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct UnclosedDelimiter(pub bool);
+
+/// A name bound in a scope; it hashes and compares as its text, so lookups by `&str` work.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub(super) struct BoundName(pub String);
+
+impl std::borrow::Borrow<str> for BoundName {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}

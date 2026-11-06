@@ -7,14 +7,15 @@ use super::constants::{
     NONLOCAL_GLOBAL_CONFLICT, NONLOCAL_PARAMETER, PATTERN_BINDINGS_MISMATCH,
 };
 use super::scopes::{ScopeKind, ScopeState, VisitorState};
-use super::types::{FutureAnnotations, SemanticSyntaxDiagnostic};
+use super::types::{BoundName, FutureAnnotations, SemanticSyntaxDiagnostic};
+use ryo::languages::NameText;
 use ruff_python_ast::visitor::{Visitor, walk_expr, walk_pattern, walk_stmt};
 use ruff_python_ast::{Expr, Mod, Pattern, PythonVersion, Stmt};
 use ruff_text_size::Ranged as _;
 use std::collections::HashSet;
 
 /// Compiler pattern validation compares names, independent of their order or nesting.
-fn pattern_bindings<'a>(pattern: &'a Pattern) -> HashSet<&'a str> {
+fn pattern_bindings<'a>(pattern: &'a Pattern) -> HashSet<NameText<'a>> {
     let mut names = HashSet::new();
     match pattern {
         Pattern::MatchValue(_) | Pattern::MatchSingleton(_) => {}
@@ -28,7 +29,7 @@ fn pattern_bindings<'a>(pattern: &'a Pattern) -> HashSet<&'a str> {
                 names.extend(pattern_bindings(child));
             }
             if let Some(rest) = &mapping.rest {
-                let _new = names.insert(rest.as_str());
+                let _new = names.insert(NameText(rest.as_str()));
             }
         }
         Pattern::MatchClass(class) => {
@@ -41,7 +42,7 @@ fn pattern_bindings<'a>(pattern: &'a Pattern) -> HashSet<&'a str> {
         }
         Pattern::MatchStar(star) => {
             if let Some(name) = &star.name {
-                let _new = names.insert(name.as_str());
+                let _new = names.insert(NameText(name.as_str()));
             }
         }
         Pattern::MatchAs(capture) => {
@@ -49,7 +50,7 @@ fn pattern_bindings<'a>(pattern: &'a Pattern) -> HashSet<&'a str> {
                 names.extend(pattern_bindings(child));
             }
             if let Some(name) = &capture.name {
-                let _new = names.insert(name.as_str());
+                let _new = names.insert(NameText(name.as_str()));
             }
         }
         Pattern::MatchOr(alternatives) => {
@@ -328,7 +329,7 @@ impl<'a> Visitor<'a> for VisitorState {
 #[derive(Default)]
 struct ComprehensionTargets {
     /// Names introduced by store-context target expressions.
-    names: HashSet<String>,
+    names: HashSet<BoundName>,
 }
 
 impl<'a> Visitor<'a> for ComprehensionTargets {
@@ -336,7 +337,7 @@ impl<'a> Visitor<'a> for ComprehensionTargets {
         if let Expr::Name(name) = expr
             && name.ctx == ruff_python_ast::ExprContext::Store
         {
-            let _new_target = self.names.insert(name.id.as_str().to_owned());
+            let _new_target = self.names.insert(BoundName(name.id.as_str().to_owned()));
         }
         walk_expr(self, expr);
     }

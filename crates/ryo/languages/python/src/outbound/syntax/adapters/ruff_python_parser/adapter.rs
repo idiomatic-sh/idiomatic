@@ -129,7 +129,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             Vec::new()
         };
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
-            diagnose_invalid_utf8(writer.tree.builder, text.0);
+            diagnose_invalid_utf8(writer.tree.builder, languages::ByteSlice(text.0));
         }
         diagnose_parser_errors(writer.tree.builder, &parsed, lexical_complete);
         semantic_errors.extend(future_errors);
@@ -224,9 +224,12 @@ fn diagnose_semantic_errors(
 }
 
 /// Report each invalid original byte interval after the parser received replacement text.
-fn diagnose_invalid_utf8(builder: &mut languages::TableBuilder<'_>, source: &[u8]) {
+fn diagnose_invalid_utf8(
+    builder: &mut languages::TableBuilder<'_>,
+    source: languages::ByteSlice<'_>,
+) {
     let mut at = 0_usize;
-    for chunk in source.utf8_chunks() {
+    for chunk in source.0.utf8_chunks() {
         at += chunk.valid().len();
         let bad = chunk.invalid().len();
         if bad > 0 {
