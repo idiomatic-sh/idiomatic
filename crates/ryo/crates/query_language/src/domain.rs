@@ -2,6 +2,7 @@
 
 pub(crate) mod assembling;
 pub(crate) mod calling;
+pub(crate) mod capture_pushing;
 pub(crate) mod combining;
 pub(crate) mod comparing;
 pub(crate) mod fusing;

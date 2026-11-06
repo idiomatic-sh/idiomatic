@@ -15,8 +15,9 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
 use crate::domain::planning::service::{frontier_of, pushed};
 use crate::domain::pruning::service::{without_unused, without_unused_roots};
+use crate::domain::capture_pushing::service::{push_below_captures, push_below_captures_roots};
 use crate::domain::pushing::service::{
-    push_below_captures, push_below_captures_roots, push_lookups, push_lookups_roots,
+    push_lookups, push_lookups_roots,
 };
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;

@@ -12,6 +12,10 @@ The `query_language` domain's `assembling` concept: a validated program lowered 
 
 The `query_language` domain's `calling` concept: the calls that shape rows lowered to steps: `project`, `extend`, `join` and `antijoin`, and the dispatch of every call.
 
+### capture_pushing
+
+The `query_language` domain's `capture_pushing` concept: the filters made before the capture they follow, so the capture matches only the rows they let through.
+
 ### combining
 
 The `query_language` domain's `combining` concept: the set calls (`union`, `intersection` and `difference`) of two inputs with the same columns, lowered to steps.
