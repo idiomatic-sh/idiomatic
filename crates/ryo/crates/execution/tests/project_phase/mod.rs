@@ -81,7 +81,7 @@ fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedE
 }
 
 #[test]
-fn two_declared_roots_of_one_population_read_the_provider_once_and_join_real_captured_rows() {
+fn two_declared_roots_of_one_population_read_the_provider_once() {
     for relation in [
         Relation::ProjectNamespaceMembership,
         Relation::ModuleIdentity,
@@ -243,24 +243,36 @@ fn two_declared_roots_of_one_population_read_the_provider_once_and_join_real_cap
             .unwrap();
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
-        // One acquisition of the frontier sources serves both declared roots of the one population.
-        let prepared = request
-            .prepare_frontiers(
-                FrontierRequest {
-                    demand: FrontierDemand::Diagnostic,
-                    scope: &scope,
-                    rule: RuleIndex(0),
-                    first: Bucket(0),
-                    facts: &stored,
-                    project: &project,
-                    project_symbols: &project_symbols,
-                },
-                &mut symbols,
-            )
-            .expect("admit real file frontier and project facts");
-        let (first, second) = (prepared.clone(), prepared);
+        // The production sequence: one prepare call per declared root, as core issues one per rule.
+        // The engine, not the caller, makes the second call reuse the first acquisition.
+        let prepare = |symbols: &mut Symbols, want: FrontierDemand<'_>| {
+            request
+                .prepare_frontiers(
+                    FrontierRequest {
+                        demand: want,
+                        scope: &scope,
+                        rule: RuleIndex(0),
+                        first: Bucket(0),
+                        facts: &stored,
+                        project: &project,
+                        project_symbols: &project_symbols,
+                    },
+                    symbols,
+                )
+                .expect("admit real file frontier and project facts")
+        };
+        let first = prepare(&mut symbols, FrontierDemand::Diagnostic);
+        let second = prepare(&mut symbols, FrontierDemand::Diagnostic);
         assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
+        // Negative control: a different population (observed demand) is a separate acquisition.
+        let _other = prepare(&mut symbols, FrontierDemand::Observations { ready: &[true, true] });
+        assert_eq!(
+            stored.reads.load(Ordering::SeqCst),
+            2,
+            "another population reads the provider again"
+        );
+        assert_eq!(project.reads.load(Ordering::SeqCst), 2);
         let partials = Partials::default();
         let input = |ordinary| ProjectInput {
             scope: &scope,
@@ -308,8 +320,8 @@ fn two_declared_roots_of_one_population_read_the_provider_once_and_join_real_cap
         phase.finish().expect("release project publications");
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
-            1,
-            "two declared roots of one population read the provider once"
+            2,
+            "the two roots added no read beyond the two populations' acquisitions"
         );
         request.finish();
         assert_eq!(

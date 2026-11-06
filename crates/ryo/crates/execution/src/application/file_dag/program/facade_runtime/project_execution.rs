@@ -32,7 +32,7 @@ pub(crate) struct ProjectRun<'a> {
     owner: Rc<RelationOwner>,
     partials: ScopePartials<'a>,
     frontier_producer: RuleIndex,
-    frontier_sources: Box<[crate::application::file_dag::frontiers::types::FrontierSource]>,
+    frontier_sources: Arc<[crate::application::file_dag::frontiers::types::FrontierSource]>,
     ordinary: Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
@@ -45,7 +45,7 @@ pub(crate) fn open_project<'a>(
     program: &'a Arc<PreparedProgram>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
-    mut frontiers: ProjectFrontiers<'a>,
+    frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     services: Arc<ProgramServices>,
@@ -64,15 +64,6 @@ pub(crate) fn open_project<'a>(
             }
         }), symbols, arenas,
     )?;
-    for input in &mut frontiers.ordinary.rows {
-        if let crate::application::file_dag::frontiers::types::FrontierInput::Compact {
-            spelling,
-            ..
-        } = input
-        {
-            spelling.clear();
-        }
-    }
     let scope = frontiers.publication;
     scope.validate_request(&services, &required)?;
     let transport = scope.claim_symbols(symbols)?;
@@ -91,7 +82,7 @@ pub(crate) fn open_project<'a>(
             .map_err(|_| OperatingError::WrongOperation)?;
     }
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
-    let ordinary = scope.sources(&owner, &frontiers.ordinary.sources, frontiers.ordinary.rows)?;
+    let ordinary = scope.sources(&owner, &frontiers.ordinary.sources, &frontiers.ordinary.rows)?;
     Ok(ProjectRun {
         program,
         services: Arc::clone(&services),
@@ -101,7 +92,7 @@ pub(crate) fn open_project<'a>(
         frontier_producer: frontiers.ordinary.producer,
         frontier_sources: frontiers.ordinary.sources,
         ordinary,
-        refused: frontiers.ordinary.refused,
+        refused: frontiers.ordinary.refused.to_vec(),
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
         context: super::super::context::RunContext::project(

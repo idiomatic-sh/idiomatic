@@ -102,7 +102,7 @@ pub(crate) struct Frontier {
     /// What the rows are of.
     pub input: Input,
     /// The rows, with every name as the place of its text.
-    pub table: Table,
+    pub table: std::sync::Arc<Table>,
 }
 
 /// The number a value is for hashing: what it is stored as, apart from which kind of value it is.

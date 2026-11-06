@@ -64,22 +64,16 @@ pub(crate) fn prepare(
             })
         })
         .collect::<Result<Vec<_>, OperatingError>>()?
-        .into_boxed_slice();
-    let mut prepared = PreparedFrontiers {
-        producer: rule,
-        sources,
-        rows: Vec::new(),
-        program: std::sync::Arc::clone(program.program()),
-        required: required.clone(),
-        refused: Vec::new(),
-    };
+        .into();
+    let mut admitted = Vec::new();
+    let mut refused = Vec::new();
     let memory =
         tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE);
     for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
         let _input = memory.then(|| tracing::trace_span!(target:"ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index=place, input=?input).entered());
         if let PreparationPolicy::Observations { ready } = policy {
             if !ready.get(place).copied().ok_or(OperatingError::NotRun)? {
-                prepared.refused.push(RefusedFrontier {
+                refused.push(RefusedFrontier {
                     input,
                     error: OperatingError::ObservationIncomplete {
                         reason: "a producer feeding this retained frontier is unavailable".into(),
@@ -99,7 +93,7 @@ pub(crate) fn prepare(
         }
         if let Some(relation) = project_relation(input) {
             let rows = project.rows(relation)?;
-            prepared.rows.push(FrontierInput::Decoded {
+            admitted.push(FrontierInput::Decoded {
                 frontier: project_input(rows, input, project_symbols, symbols),
                 coverage: crate::domain::completion::types::CoverageState::Complete,
             });
@@ -112,7 +106,7 @@ pub(crate) fn prepare(
         let words = facts.kept(bucket)?;
         let coverage = validate_bucket(program, rule, place, first, bucket, required, &words)?;
         if words.sources.is_empty() && !required.files().is_empty() {
-            prepared.refused.push(RefusedFrontier {
+            refused.push(RefusedFrontier {
                 input,
                 error: OperatingError::ObservationIncomplete {
                     reason: "every source partition was explicitly skipped".into(),
@@ -132,13 +126,13 @@ pub(crate) fn prepare(
         };
         if matches!(input, Input::Step(_)) {
             match admit_compact(std::sync::Arc::new(words.words), places_mut(symbols), mode) {
-                Ok((table, spelling)) => prepared.rows.push(FrontierInput::Compact {
+                Ok((table, spelling)) => admitted.push(FrontierInput::Compact {
                     input,
-                    table,
+                    table: std::sync::Arc::new(table),
                     spelling,
                     coverage,
                 }),
-                Err(error) => prepared.refused.push(RefusedFrontier {
+                Err(error) => refused.push(RefusedFrontier {
                     input,
                     error: OperatingError::ObservationIncomplete {
                         reason: error.to_string(),
@@ -149,20 +143,23 @@ pub(crate) fn prepare(
             // Non-Step borrowed relation/binding sources keep their existing
             // representation in the bounded POC; no second evaluator exists.
             match mode {
-                DecodeMode::Permissive => prepared.rows.push(FrontierInput::Decoded {
+                DecodeMode::Permissive => admitted.push(FrontierInput::Decoded {
                     frontier: Frontier {
                         input,
-                        table: decode_input(&words.words, symbols),
+                        table: std::sync::Arc::new(decode_input(&words.words, symbols)),
                     },
                     coverage,
                 }),
                 DecodeMode::Complete => {
                     match decode_complete(&words.words.0, places_mut(symbols)) {
-                        Ok(table) => prepared.rows.push(FrontierInput::Decoded {
-                            frontier: Frontier { input, table },
+                        Ok(table) => admitted.push(FrontierInput::Decoded {
+                            frontier: Frontier {
+                                input,
+                                table: std::sync::Arc::new(table),
+                            },
                             coverage,
                         }),
-                        Err(error) => prepared.refused.push(RefusedFrontier {
+                        Err(error) => refused.push(RefusedFrontier {
                             input,
                             error: OperatingError::ObservationIncomplete {
                                 reason: error.to_string(),
@@ -174,8 +171,7 @@ pub(crate) fn prepare(
         }
     }
     if memory {
-        let compact_rows = prepared
-            .rows
+        let compact_rows = admitted
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { table, .. } => {
@@ -184,8 +180,7 @@ pub(crate) fn prepare(
                 FrontierInput::Decoded { .. } => 0,
             })
             .sum::<usize>();
-        let spelling_capacity = prepared
-            .rows
+        let spelling_capacity = admitted
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { spelling, .. } => {
@@ -194,9 +189,16 @@ pub(crate) fn prepare(
                 FrontierInput::Decoded { .. } => 0,
             })
             .sum::<usize>();
-        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=prepared.rows.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
+        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=admitted.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
     }
-    Ok(prepared)
+    Ok(PreparedFrontiers {
+        producer: rule,
+        sources,
+        rows: admitted.into(),
+        program: std::sync::Arc::clone(program.program()),
+        required: required.clone(),
+        refused: refused.into(),
+    })
 }
 
 /// Check every range and root before a packed source is made visible to the

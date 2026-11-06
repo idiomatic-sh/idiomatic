@@ -58,6 +58,7 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
                 Arc::clone(&program.derived),
                 corpus,
             )),
+            frontiers: Default::default(),
         }
     }
 }
@@ -87,17 +88,30 @@ impl ExecutionRequest for RequestExecution {
         input: FrontierRequest<'_>,
         symbols: &mut Symbols,
     ) -> Result<PreparedFrontiers, PreparationError> {
-        crate::application::file_dag::frontiers::service::prepare(
-            &self.program,
-            input.rule,
-            input.first,
-            input.facts,
-            input.project,
-            input.project_symbols,
-            symbols,
-            &input.scope.required,
-            match input.demand { FrontierDemand::Diagnostic => crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic, FrontierDemand::Observations { ready } => crate::application::file_dag::frontiers::service::PreparationPolicy::Observations { ready } },
-        )
+        let ready = match input.demand {
+            FrontierDemand::Diagnostic => None,
+            FrontierDemand::Observations { ready } => Some(ready),
+        };
+        let providers = (
+            std::ptr::from_ref(input.facts).cast::<()>().addr(),
+            std::ptr::from_ref(input.project).cast::<()>().addr(),
+        );
+        self.frontiers.shared(input.rule, input.first, ready, &input.scope.required, providers, || {
+            crate::application::file_dag::frontiers::service::prepare(
+                &self.program,
+                input.rule,
+                input.first,
+                input.facts,
+                input.project,
+                input.project_symbols,
+                symbols,
+                &input.scope.required,
+                match input.demand {
+                    FrontierDemand::Diagnostic => crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic,
+                    FrontierDemand::Observations { ready } => crate::application::file_dag::frontiers::service::PreparationPolicy::Observations { ready },
+                },
+            )
+        })
     }
     fn finish(self) {
         drop(self);

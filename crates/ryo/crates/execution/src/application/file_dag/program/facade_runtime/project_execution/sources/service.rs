@@ -64,15 +64,15 @@ impl PublicationScope {
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
-        rows: Vec<crate::application::file_dag::frontiers::types::FrontierInput>,
+        rows: &[crate::application::file_dag::frontiers::types::FrontierInput],
     ) -> Result<Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>, OperatingError> {
-        rows.into_iter()
+        rows.iter()
             .map(|row| {
                 let (input, coverage, payload) = match row {
                     FrontierInput::Decoded { frontier, coverage } => (
                         frontier.input,
-                        coverage,
-                        ProjectFrontierPayload::Flat(Arc::new(frontier.table)),
+                        coverage.clone(),
+                        ProjectFrontierPayload::Flat(Arc::clone(&frontier.table)),
                     ),
                     FrontierInput::Compact {
                         input,
@@ -80,9 +80,9 @@ impl PublicationScope {
                         coverage,
                         ..
                     } => (
-                        input,
-                        coverage,
-                        ProjectFrontierPayload::Compact(Arc::new(table)),
+                        *input,
+                        coverage.clone(),
+                        ProjectFrontierPayload::Compact(Arc::clone(table)),
                     ),
                 };
                 let source = sources

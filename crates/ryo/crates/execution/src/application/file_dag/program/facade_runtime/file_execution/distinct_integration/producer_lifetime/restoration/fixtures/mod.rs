@@ -163,7 +163,7 @@ impl CapturedProject {
                     kind,
                 })
                 .collect(),
-            rows: vec![],
+            rows: vec![].into(),
         }];
         let compiled = crate::domain::prepared_request::service::assemble(
             plans,
@@ -287,11 +287,11 @@ impl CapturedProject {
                 publication: &phase,
                 ordinary: PreparedFrontiers {
                     producer: RuleIndex(5),
-                    sources: Box::new([]),
-                    rows: vec![],
+                    sources: std::sync::Arc::new([]),
+                    rows: vec![].into(),
                     program: Arc::clone(prepared.program()),
                     required: required.clone(),
-                    refused: vec![],
+                    refused: vec![].into(),
                 },
                 bound_inputs: &[],
             },
@@ -356,11 +356,11 @@ impl CapturedProject {
                 publication: &self.phase,
                 ordinary: PreparedFrontiers {
                     producer: rule,
-                    sources: Box::new([]),
-                    rows: vec![],
+                    sources: std::sync::Arc::new([]),
+                    rows: vec![].into(),
                     program: Arc::clone(self.prepared.program()),
                     required: self.required.clone(),
-                    refused: vec![],
+                    refused: vec![].into(),
                 },
                 bound_inputs: if matches!(supply, BoundSupply::Refused) {
                     &self.refused

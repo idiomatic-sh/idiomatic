@@ -140,9 +140,9 @@ fn subject(case: Input) -> Result<Value, Failure> {
         };
         let handover = crate::application::file_dag::frontiers::types::PreparedFrontiers {
             producer: RuleIndex(0),
-            sources: Box::new([]),
-            rows: vec![],
-            refused: vec![],
+            sources: std::sync::Arc::new([]),
+            rows: vec![].into(),
+            refused: vec![].into(),
             program: Arc::clone(prepared.program()),
             required: actual,
         };

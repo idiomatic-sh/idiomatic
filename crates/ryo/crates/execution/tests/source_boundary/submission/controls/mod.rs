@@ -5,7 +5,7 @@ use super::inventory::{
 };
 use super::routes::{file_route, project_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
-use crate::boundary_fixture::{corpus, engine, prepared_rules};
+use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
 use crate::project_phase::negative::fixtures::{
     Entry, Held, foreign_phase_outcome, prepare_for, with_held,
@@ -40,6 +40,14 @@ pub(super) fn control(method: Method) -> Control {
         | Method::ObservedBindings
         | Method::ObservedBindingReadiness
         | Method::ObservedFinish => Control::Refuses(observed_undeclared_rule),
+        Method::FileEmitRows
+        | Method::FileRule
+        | Method::FileCaptureFrontiers
+        | Method::FileCommitFrontier
+        | Method::FileCounts => Control::Refuses(file_session_undeclared_rule),
+        Method::FileReadinessCounts => Control::AcceptsNoRoot("reads counters"),
+        Method::FileWalkCounts => Control::AcceptsNoRoot("reads counters"),
+        Method::FileFinish => Control::AcceptsNoRoot("releases the file session"),
         Method::RequestFinish => Control::AcceptsNoRoot("drops the request"),
         Method::RootsReadinessCounts => Control::AcceptsNoRoot("reads counters"),
         Method::StageStateCounts => Control::AcceptsNoRoot("reads counters"),
@@ -103,6 +111,66 @@ pub(super) fn scope_of_an_undeclared_rule(entry: Entry) {
         ));
     });
 }
+/// Every file-session method that takes a RuleIndex refuses a rule the session did not declare.
+pub(super) fn file_session_undeclared_rule() {
+    let engine = engine();
+    let program = prepared_rules(&engine, 2);
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let read = |_| Err(OperatingError::NotRead);
+    let intent = every_intent()
+        .into_iter()
+        .find(|intent| matches!(intent, FileRuleIntent::Run { .. }))
+        .expect("a running intent exists");
+    let intents = [intent, intent];
+    let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: facts::ResidentStability::Stable,
+                file: ryo_relations::domain::relations::types::FileId(0),
+                evaluation: &[],
+                publication: &[],
+                intents: &intents,
+                source: b"abc",
+                elements: &elements,
+                read: &read,
+                semantic: None,
+                kinds: None,
+            },
+            &mut symbols,
+        )
+        .expect("a complete declared set opens");
+    let undeclared = RuleIndex(2);
+    assert!(file.counts(RuleIndex(1)).is_ok(), "a declared rule is known");
+    assert!(file.counts(undeclared).is_err());
+    assert!(file.rule(undeclared, demand(), &mut symbols).is_err());
+    assert!(file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(())).is_err());
+    let (mut arena, mut places, mut words) = (vec![], vec![], Default::default());
+    let bucket = ryo_values::domain::stored_facts::types::Bucket(0);
+    assert!(
+        file.capture_frontiers(
+            undeclared,
+            bucket,
+            &mut symbols,
+            CaptureContext {
+                worker: ryo_relations::domain::relations::types::WorkerNumber(0),
+                arena: &mut arena,
+                places: &mut places,
+                words: &mut words,
+            },
+        )
+        .is_err()
+    );
+    assert!(
+        file.commit_frontier(undeclared, ryo_values::domain::plan_parts::types::InputNumber(0))
+            .is_err()
+    );
+    let _ = file.finish();
+    request.finish();
+}
 pub(super) fn observed_undeclared_rule() {
     with_held(&engine(), Entry::Stage, 3, |_, held, _, _| {
         let Held::Stage(stage) = held else {
@@ -132,7 +200,7 @@ pub(super) fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root(
     assert_inventory(root, ADMISSION, "ApplicabilityReason", covered(&REASONS));
     assert_inventory(root, PROTOCOL, "FileRuleIntent", covered(&every_intent()));
     let (mut refused, mut exempt) = (0, 0);
-    for method in ALL {
+    for &method in ALL {
         match control(method) {
             Control::Refuses(refuses) => {
                 refuses();
