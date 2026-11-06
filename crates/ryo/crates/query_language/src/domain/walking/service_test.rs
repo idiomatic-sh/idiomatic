@@ -45,21 +45,21 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             test: Test::Equal,
             left: Operand::Column(column(2)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }
     } else {
         Comparison {
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("fn".into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }
     };
     let tokens = Comparison {
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let left = |at: u32| JoinColumn {
         side: Side::Left,

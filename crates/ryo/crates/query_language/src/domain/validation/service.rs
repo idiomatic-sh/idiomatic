@@ -130,11 +130,13 @@ pub(crate) fn validate_with_observations(
             span: program.emit.span,
         };
         return Err(match program.emit_origin.clone() {
-            Some(origin) => ValidationError::Located {
-                origin,
-                error: Box::new(error),
-            },
-            None => error,
+            ryo_values::domain::program::types::EmitOrigin::Located(origin) => {
+                ValidationError::Located {
+                    origin,
+                    error: Box::new(error),
+                }
+            }
+            ryo_values::domain::program::types::EmitOrigin::Unlocated => error,
         });
     }
     Ok(())

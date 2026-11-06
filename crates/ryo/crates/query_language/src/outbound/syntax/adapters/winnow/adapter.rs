@@ -188,7 +188,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
                 observations,
-                emit_origin: None,
+                emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
                 parameters,
                 steps,
                 emit,

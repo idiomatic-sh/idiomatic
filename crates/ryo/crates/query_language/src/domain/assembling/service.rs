@@ -253,15 +253,15 @@ fn locate_step_error(
 
 /// Attaches an optional source origin to a lowering error.
 fn locate_error(
-    origin: Option<ryo_values::domain::program::types::QueryOrigin>,
+    origin: ryo_values::domain::program::types::EmitOrigin,
     error: LoweringError,
 ) -> LoweringError {
     match origin {
-        Some(origin) => LoweringError::Located {
+        ryo_values::domain::program::types::EmitOrigin::Located(origin) => LoweringError::Located {
             origin,
             error: Box::new(error),
         },
-        None => error,
+        ryo_values::domain::program::types::EmitOrigin::Unlocated => error,
     }
 }
 

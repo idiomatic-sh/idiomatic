@@ -72,7 +72,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         fragment_contracts: Vec::new(),
         step_origins: BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: None,
+        emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
         parameters: Vec::new(),
         steps: Vec::new(),
         emit: WrittenEmit {

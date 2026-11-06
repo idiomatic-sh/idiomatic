@@ -1076,7 +1076,7 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
                 .expect(super::constants::ASSIGNED_ROOT_ORIGIN),
         );
     }
-    program.emit_origin = Some(QueryOrigin {
+    program.emit_origin = ryo_values::domain::program::types::EmitOrigin::Located(QueryOrigin {
         source_id: root.clone(),
         span: program.emit.span,
         trace: Vec::new(),

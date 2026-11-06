@@ -49,7 +49,7 @@ fn program() -> Program {
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: None,
+        emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
         parameters: Vec::new(),
         steps: vec![read_function, project],
         emit: WrittenEmit {

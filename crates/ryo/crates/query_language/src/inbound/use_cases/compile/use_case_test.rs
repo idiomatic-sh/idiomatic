@@ -85,7 +85,7 @@ fn program_with(filters: Vec<Filter>) -> Program {
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: None,
+        emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
@@ -355,6 +355,9 @@ mod combining;
 mod comparing;
 
 #[cfg(test)]
+mod decoded_columns;
+
+#[cfg(test)]
 mod idioms;
 
 #[cfg(test)]
@@ -376,4 +379,10 @@ mod selecting;
 mod substituting;
 
 #[cfg(test)]
+mod spans;
+
+#[cfg(test)]
 mod traversing;
+
+#[cfg(test)]
+mod closures_and_axes;

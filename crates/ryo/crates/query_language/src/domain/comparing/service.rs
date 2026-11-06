@@ -310,9 +310,9 @@ pub(crate) fn comparison_of(
             filter.span,
         )?;
         builder.comparison_origins.push(origin);
-        Some(id)
+        parts::ComparisonOrigin::Recorded(id)
     } else {
-        None
+        parts::ComparisonOrigin::Unrecorded
     };
     Ok(parts::Comparison {
         test,

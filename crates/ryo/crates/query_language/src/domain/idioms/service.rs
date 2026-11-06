@@ -81,7 +81,7 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
         test: parts::Test::Equal,
         left: parts::Operand::Column(left),
         right: parts::Operand::Column(right),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let equal = pushed(
         builder,

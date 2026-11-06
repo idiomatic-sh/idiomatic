@@ -40,7 +40,7 @@ fn typed_comparison_keeps_operands_and_test() {
             right: parts::Operand::Literal(parts::QueryLiteral::Text(parts::LiteralText(
                 "main".into()
             ))),
-            origin: None
+            origin: parts::ComparisonOrigin::Unrecorded
         }
     );
 }

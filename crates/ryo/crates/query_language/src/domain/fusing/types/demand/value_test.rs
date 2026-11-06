@@ -149,7 +149,7 @@ fn distinct_predicate_native_and_cross_file_barriers_are_unchanged() {
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Column(ColumnIndex(0)),
             test: Test::Equal,
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         });
     }
     assert_eq!(DemandClosure::new(&filtered, &[]).rewrite(), filtered);
