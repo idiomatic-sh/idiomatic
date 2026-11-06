@@ -263,7 +263,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
             let input = captured.input;
             let captured = captured.outcome?;
             let decoded = ryo_values::domain::table_words::service::decode_complete(
-                &captured.words.0,
+                &captured.words,
                 &mut vec![],
             )
             .expect("actual captured canonical publication decodes");
