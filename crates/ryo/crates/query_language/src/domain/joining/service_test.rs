@@ -88,6 +88,61 @@ fn unknown_join_key_keeps_name_and_span() {
     );
 }
 
+/// The refusal of a join keyed by `key`, whose select keeps the filters it is given.
+fn refusal_of(key: syntax::JoinKey, filters: Vec<syntax::Condition>) -> LoweringError {
+    let mut builder = lowering_builder();
+    let join = syntax::Join {
+        source: source("right"),
+        on: vec![key],
+    };
+    let select = syntax::Select {
+        columns: syntax::Columns::Listed(vec![syntax::SelectColumn {
+            column: column("left", "file"),
+            rename: syntax::Renaming::Unchanged,
+        }]),
+        from: source("left"),
+        join: syntax::Joining::Joined(join.clone()),
+        filters,
+    };
+    let input = crate::domain::resolving::service::read_source(&mut builder, &select.from)
+        .expect("the source is read");
+    super::service::select_join(
+        &mut builder,
+        &syntax::StepName("result".into(), None),
+        &select,
+        &join,
+        input,
+        crate::domain::lowering::types::LastStep::Join,
+    )
+    .expect_err("the join is refused")
+}
+fn a_key_naming_neither_side_is_refused() {
+    let key = syntax::JoinKey {
+        left: column("elsewhere", "file"),
+        right: column("right", "file"),
+    };
+    assert!(matches!(
+        refusal_of(key, vec![]),
+        LoweringError::UnknownSide { .. }
+    ));
+}
+fn a_where_naming_a_column_its_side_lacks_is_refused() {
+    let key = syntax::JoinKey {
+        left: column("left", "file"),
+        right: column("right", "file"),
+    };
+    let filter = syntax::Filter {
+        left: syntax::WrittenOperand::Column(column("left", "missing")),
+        test: syntax::WrittenTest::Equal,
+        right: syntax::WrittenOperand::Text(syntax::WrittenLiteral("x".into())),
+        span: lowering_builder().span,
+    };
+    assert!(matches!(
+        refusal_of(key, vec![syntax::Condition::Test(filter)]),
+        LoweringError::UnknownSideColumn { .. }
+    ));
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("typed_join_keeps_keys_and_selected_side"),
@@ -99,6 +154,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_join_key_keeps_name_and_span"),
         word: Word::Succeeds,
         input: || unknown_join_key_keeps_name_and_span,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_key_naming_neither_side_is_refused"),
+        word: Word::Succeeds,
+        input: || a_key_naming_neither_side_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_where_naming_a_column_its_side_lacks_is_refused"),
+        word: Word::Succeeds,
+        input: || a_where_naming_a_column_its_side_lacks_is_refused,
         expect: Expect::Value(()),
     },
 ];

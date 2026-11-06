@@ -86,6 +86,53 @@ fn unknown_parameter_kind_keeps_its_location() {
     );
 }
 
+fn origin_of(span: syntax::QuerySpan) -> syntax::QueryOrigin {
+    syntax::QueryOrigin {
+        source_id: syntax::QuerySourceId("module".into()),
+        span,
+        trace: vec![],
+    }
+}
+fn a_refusal_of_an_expanded_fragment_names_its_origin() {
+    let mut program = program();
+    let span = program.emit.span;
+    program.emit.step = syntax::StepName("missing".into(), None);
+    program.emit_origin = Some(origin_of(span));
+    assert!(matches!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::Located { .. })
+    ));
+}
+fn a_fragment_input_that_is_not_a_relation_is_refused() {
+    let mut program = program();
+    let span = program.emit.span;
+    let first = syntax::StepIdentity(1);
+    program.steps[0].name = syntax::StepName("result".into(), Some(first));
+    program.fragment_contracts.push(syntax::FragmentContract {
+        first,
+        result: first,
+        inputs: vec![syntax::FragmentContractInput {
+            name: syntax::WrittenName("rows".into()),
+            value: syntax::ArgumentValue::Number(ryo_relations::domain::relations::types::Integer(1)),
+            relation: syntax::RelationSignature {
+                columns: vec![],
+                span,
+            },
+            span,
+        }],
+        output: syntax::RelationSignature {
+            columns: vec![],
+            span,
+        },
+        output_span: span,
+        origin: origin_of(span),
+    });
+    assert!(matches!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::FragmentContract { .. })
+    ));
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("typed_program_keeps_emitted_projection"),
@@ -97,6 +144,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_parameter_kind_keeps_its_location"),
         word: Word::Succeeds,
         input: || unknown_parameter_kind_keeps_its_location,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_refusal_of_an_expanded_fragment_names_its_origin"),
+        word: Word::Succeeds,
+        input: || a_refusal_of_an_expanded_fragment_names_its_origin,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_fragment_input_that_is_not_a_relation_is_refused"),
+        word: Word::Succeeds,
+        input: || a_fragment_input_that_is_not_a_relation_is_refused,
         expect: Expect::Value(()),
     },
 ];

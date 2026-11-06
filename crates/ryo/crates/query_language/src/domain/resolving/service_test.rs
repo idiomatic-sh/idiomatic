@@ -32,6 +32,26 @@ fn missing_column_preserves_name_and_span() {
     );
 }
 
+fn a_relation_the_catalog_lacks_is_refused() {
+    let builder = lowering_builder();
+    let source = syntax::QuerySource {
+        reference: syntax::SourceReference::Relation(syntax::WrittenRelation("nothing".into())),
+        alias: syntax::Alias::Unwritten,
+        span: builder.span,
+    };
+    assert!(matches!(
+        super::service::read_source(&builder, &source),
+        Err(LoweringError::UnknownRelation { .. })
+    ));
+}
+fn a_step_nobody_defined_is_refused() {
+    let builder = lowering_builder();
+    assert!(matches!(
+        super::service::step_named(&builder, &syntax::StepName("missing".into(), None)),
+        Err(LoweringError::UnknownStep { .. })
+    ));
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("position_preserves_column_order"),
@@ -43,6 +63,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_column_preserves_name_and_span"),
         word: Word::Succeeds,
         input: || missing_column_preserves_name_and_span,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_relation_the_catalog_lacks_is_refused"),
+        word: Word::Succeeds,
+        input: || a_relation_the_catalog_lacks_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_step_nobody_defined_is_refused"),
+        word: Word::Succeeds,
+        input: || a_step_nobody_defined_is_refused,
         expect: Expect::Value(()),
     },
 ];

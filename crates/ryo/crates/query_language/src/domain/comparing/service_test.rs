@@ -67,6 +67,81 @@ fn incompatible_operand_keeps_exact_location() {
     );
 }
 
+/// The refusal a filter meets over the columns of one relation.
+fn refusal_of(relation: Relation, filter: &syntax::Filter) -> LoweringError {
+    let mut builder = lowering_builder();
+    let fields = crate::domain::resolving::service::relation_fields(relation);
+    super::service::comparison_of(
+        &mut builder,
+        filter,
+        crate::domain::lowering::types::Addressable {
+            fields: &fields,
+            sides: &[],
+        },
+    )
+    .expect_err("the filter is refused")
+}
+fn column(name: &str) -> syntax::WrittenOperand {
+    syntax::WrittenOperand::Column(syntax::ColumnReference {
+        alias: syntax::Alias::Unwritten,
+        column: syntax::ColumnName(name.into()),
+    })
+}
+fn written(value: &str) -> syntax::WrittenOperand {
+    syntax::WrittenOperand::Text(syntax::WrittenLiteral(value.into()))
+}
+fn a_function_given_the_wrong_number_of_arguments_is_refused() {
+    let mut filter = comparison();
+    filter.left = syntax::WrittenOperand::Function(syntax::WrittenApplied {
+        function: syntax::WrittenFunction::Pascal,
+        arguments: vec![column("name"), column("name")],
+        span: filter.span,
+    });
+    assert!(matches!(
+        refusal_of(Relation::Function, &filter),
+        LoweringError::FunctionArity { .. }
+    ));
+}
+fn a_function_given_a_column_that_is_not_text_is_refused() {
+    let mut filter = comparison();
+    filter.left = syntax::WrittenOperand::Function(syntax::WrittenApplied {
+        function: syntax::WrittenFunction::Pascal,
+        arguments: vec![column("id")],
+        span: filter.span,
+    });
+    assert!(matches!(
+        refusal_of(Relation::Function, &filter),
+        LoweringError::NotText { .. }
+    ));
+}
+fn an_affix_test_of_a_column_that_is_not_text_is_refused() {
+    let mut filter = comparison();
+    filter.left = column("id");
+    filter.test = syntax::WrittenTest::StartsWith;
+    assert!(matches!(
+        refusal_of(Relation::Function, &filter),
+        LoweringError::NotText { .. }
+    ));
+}
+fn a_literal_pattern_that_is_not_a_regex_is_refused() {
+    let mut filter = comparison();
+    filter.test = syntax::WrittenTest::Matches;
+    filter.right = written("[");
+    assert!(matches!(
+        refusal_of(Relation::Function, &filter),
+        LoweringError::InvalidRegex { .. }
+    ));
+}
+fn a_word_the_column_does_not_hold_is_refused() {
+    let mut filter = comparison();
+    filter.left = column("kind");
+    filter.right = written("headline");
+    assert!(matches!(
+        refusal_of(Relation::Defines, &filter),
+        LoweringError::UnknownWord { .. }
+    ));
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("typed_comparison_keeps_operands_and_test"),
@@ -78,6 +153,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("incompatible_operand_keeps_exact_location"),
         word: Word::Succeeds,
         input: || incompatible_operand_keeps_exact_location,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_function_given_the_wrong_number_of_arguments_is_refused"),
+        word: Word::Succeeds,
+        input: || a_function_given_the_wrong_number_of_arguments_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_function_given_a_column_that_is_not_text_is_refused"),
+        word: Word::Succeeds,
+        input: || a_function_given_a_column_that_is_not_text_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_affix_test_of_a_column_that_is_not_text_is_refused"),
+        word: Word::Succeeds,
+        input: || an_affix_test_of_a_column_that_is_not_text_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_literal_pattern_that_is_not_a_regex_is_refused"),
+        word: Word::Succeeds,
+        input: || a_literal_pattern_that_is_not_a_regex_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_word_the_column_does_not_hold_is_refused"),
+        word: Word::Succeeds,
+        input: || a_word_the_column_does_not_hold_is_refused,
         expect: Expect::Value(()),
     },
 ];
