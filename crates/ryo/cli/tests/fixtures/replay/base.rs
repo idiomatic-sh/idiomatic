@@ -229,10 +229,6 @@ pub(crate) fn lint_over(
     )
 }
 
-/// Whether the lint runs the steps that read only the tree as operators, which the bench and the equivalence test set.
-pub(crate) static UNLOWERED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
 /// Whether the lint counts the rows each step is fed, which the replay of ruff sets for the report of features.
 pub(crate) static COUNTING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
@@ -395,11 +391,6 @@ pub(crate) fn lint_report_with_languages(
             Arc::clone(&analysis_digest),
             lint_store,
         )
-    };
-    let use_case = if UNLOWERED.load(std::sync::atomic::Ordering::Relaxed) {
-        use_case.unlowered()
-    } else {
-        use_case
     };
     let use_case = if COUNTING.load(std::sync::atomic::Ordering::Relaxed) {
         use_case.counting()

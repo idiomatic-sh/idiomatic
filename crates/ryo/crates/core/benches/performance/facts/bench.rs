@@ -9,9 +9,14 @@
 )]
 
 use ryo_core::outbound::facts::factory::{memory, spill, spill_scratch};
-use ryo_core::outbound::facts::interface::{FactsPort, FactsWorker};
-use ryo_core::outbound::facts::types::WordsToKeep;
-use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
+use ryo_execution::inbound::use_cases::execution::types::facts::{
+    FactsPort, FactsWorker, WordsToKeep,
+};
+use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::records::types::{
+    FrontierCoverage, FrontierOrdinal, FrontierProof, ProducerRule,
+};
+use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
 
 /// How many files each worker reads.
 const FILES: u64 = 50;
@@ -54,30 +59,55 @@ fn read_keep_and_finish(bencher: divan::Bencher<'_, '_>, variant: Variant) {
     let directory = tempfile::tempdir().expect("the directory is made");
     let adapter = variant.build(directory.path());
     let words = PackedWords((0..64).collect());
+    let proof = FrontierProof {
+        rule: ProducerRule(0),
+        input: FrontierOrdinal(0),
+        rule_digest: Digest([0; 16]),
+        coverage: FrontierCoverage::Complete,
+    };
     bencher.bench_local(|| {
-        let workers = std::iter::repeat_with(|| {
-            let mut worker = adapter.worker().expect("the worker is opened");
-            for file in 0..FILES {
-                for column in worker
-                    .columns_mut()
-                    .expect("the columns are given")
-                    .function
-                    .iter_mut()
-                {
-                    column.0.push(file);
+        let workers = (0..WORKERS)
+            .map(|at| {
+                let mut worker = adapter.worker().expect("the worker is opened");
+                for file in 0..FILES {
+                    let id = FileId(
+                        u32::try_from(
+                            u64::try_from(at).expect("a small worker number") * FILES + file,
+                        )
+                        .expect("a small file id"),
+                    );
+                    for column in worker
+                        .columns_mut()
+                        .expect("the columns are given")
+                        .function
+                        .iter_mut()
+                    {
+                        column.0.push(file);
+                    }
+                    worker
+                        .keep(
+                            BUCKET,
+                            WordsToKeep {
+                                words: &words,
+                                file: id,
+                                proof: &proof,
+                            },
+                        )
+                        .expect("the words are kept");
+                    worker.release().expect("the rows are released");
                 }
                 worker
-                    .keep(BUCKET, WordsToKeep(&words))
-                    .expect("the words are kept");
-                worker.release().expect("the rows are released");
-            }
-            worker
-        })
-        .take(WORKERS)
-        .collect::<Vec<Box<dyn FactsWorker>>>();
+            })
+            .collect::<Vec<Box<dyn FactsWorker>>>();
         let finished = adapter
             .finish(&mut workers.into_iter())
             .expect("the words are finished");
-        finished.kept(BUCKET).expect("the bucket is read").0.0.len()
+        finished
+            .kept(BUCKET)
+            .expect("the bucket is read")
+            .words
+            .0
+            .0
+            .len()
     });
 }

@@ -12,8 +12,9 @@ use ryo_core::outbound::corpus::factory::{ignore, memory};
 use ryo_core::outbound::corpus::interface::CorpusPort;
 use ryo_core::outbound::corpus::types::SkippedDirectories;
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::project_context::types::GivenProjectInventory;
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_values::domain::files::types::{CorpusFile, CorpusListing, FileBytes};
+use ryo_values::domain::files::types::{CorpusFile, CorpusInput, CorpusListing, FileBytes};
 
 /// How many files the tree holds.
 const FILES: usize = 200;
@@ -40,7 +41,7 @@ impl Variant {
                 Vec::new(),
                 SkippedDirectories::default(),
             )),
-            Self::Memory => Box::new(memory(files.to_vec())),
+            Self::Memory => Box::new(memory(files.to_vec(), GivenProjectInventory::default())),
         }
     }
 }
@@ -74,7 +75,10 @@ fn inventory_and_read(bencher: divan::Bencher<'_, '_>, variant: Variant) {
         inventory
             .0
             .iter()
-            .map(|entry| {
+            .map(|input| {
+                let CorpusInput::Available(entry) = input else {
+                    return 0;
+                };
                 adapter.read(entry, &mut buffer).expect("the file is read");
                 buffer.0.len()
             })

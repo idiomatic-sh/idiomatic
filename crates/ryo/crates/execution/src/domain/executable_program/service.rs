@@ -267,7 +267,7 @@ pub(crate) fn compile(
         let source = logical_regions[resolved.source.0];
         let join = logical_regions[resolved.join.0];
         if select == join || select == source || regions[select.0].instructions.len() != 1 {
-            return Err({ eprintln!("WO {}:{}", file!(), line!()); OperatingError::WrongOperation });
+            return Err(OperatingError::WrongOperation);
         }
         candidates[select.0].ordered = Some(OrderedExistence {
             source,
@@ -326,7 +326,7 @@ pub(crate) fn compile(
         };
         let emit = from(&Input::Step(plan.emit.step)).and_then(|source| match source {
             InputSource::Region(region) => Ok(region),
-            _ => Err({ eprintln!("WO {}:{}", file!(), line!()); OperatingError::WrongOperation }),
+            _ => Err(OperatingError::WrongOperation),
         });
         observed_roots.push(
             plan.observations
