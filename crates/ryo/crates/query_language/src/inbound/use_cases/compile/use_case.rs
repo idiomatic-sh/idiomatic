@@ -52,7 +52,7 @@ impl CompileUseCase for CompileUseCaseImpl {
                     origin,
                 },
             })?;
-        let program = crate::domain::linking::service::link_with_observations(
+        let program = crate::domain::expanding::service::link_with_observations(
             &request.text,
             parsed.root,
             &parsed.fragments,

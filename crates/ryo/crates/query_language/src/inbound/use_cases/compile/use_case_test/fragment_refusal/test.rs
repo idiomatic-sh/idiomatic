@@ -50,7 +50,7 @@ fn parse_and_link(bundle: &QueryBundle) -> Result<WrittenProgram, String> {
     let parsed = winnow()
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
-    crate::domain::linking::service::link(bundle, parsed.root, &parsed.fragments)
+    crate::domain::expanding::service::link(bundle, parsed.root, &parsed.fragments)
         .map_err(|error| error.to_string())
 }
 

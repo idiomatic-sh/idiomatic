@@ -7,9 +7,9 @@ use super::interface::TypecheckUseCase;
 use super::service::{invalid, unresolved};
 use super::types::TypecheckRequest;
 use crate::domain::assembling::service::lower_with_observations;
+use crate::domain::linking::errors::LinkingError;
 use crate::domain::syntax::constants::operator_name;
 use crate::domain::syntax::service::{operators_used, relations_read};
-use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::errors::SyntaxError;
@@ -60,7 +60,7 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
                     origin,
                 },
             })?;
-        let program = crate::domain::linking::service::link_with_observations(
+        let program = crate::domain::expanding::service::link_with_observations(
             &request.text,
             parsed.root,
             &parsed.fragments,

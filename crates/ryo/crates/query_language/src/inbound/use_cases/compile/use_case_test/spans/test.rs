@@ -86,7 +86,7 @@ fn span_plan(
     let parsed = winnow()
         .read_bundle(&bundle)
         .map_err(|error| error.to_string())?;
-    let program = crate::domain::linking::service::link(&bundle, parsed.root, &parsed.fragments)
+    let program = crate::domain::expanding::service::link(&bundle, parsed.root, &parsed.fragments)
         .map_err(|error| error.to_string())?;
     let names = hosted
         .iter()

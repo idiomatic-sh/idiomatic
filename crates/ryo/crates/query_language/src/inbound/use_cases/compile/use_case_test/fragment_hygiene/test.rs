@@ -45,7 +45,7 @@ fn parse_and_link(bundle: &QueryBundle) -> Result<WrittenProgram, String> {
     let parsed = winnow()
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
-    crate::domain::linking::service::link(bundle, parsed.root, &parsed.fragments)
+    crate::domain::expanding::service::link(bundle, parsed.root, &parsed.fragments)
         .map_err(|error| error.to_string())
 }
 
@@ -72,7 +72,7 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
     .unwrap();
     let parsed = winnow().read_bundle(&bundle).unwrap();
     let program =
-        crate::domain::linking::service::link(&bundle, parsed.root, &parsed.fragments).unwrap();
+        crate::domain::expanding::service::link(&bundle, parsed.root, &parsed.fragments).unwrap();
 
     assert_eq!(program.steps.len(), 7);
     let grouped = [&program.steps[1], &program.steps[4]];
@@ -218,7 +218,8 @@ fn nested_fragments_forward_relation_and_scalar_inputs() {
         root: linked_root,
         fragments,
     } = winnow().read_bundle(&bundle).unwrap();
-    let program = crate::domain::linking::service::link(&bundle, linked_root, &fragments).unwrap();
+    let program =
+        crate::domain::expanding::service::link(&bundle, linked_root, &fragments).unwrap();
     assert_eq!(program.steps.len(), 3);
     for (step, pattern) in program.steps[1..].iter().zip(["a", "b"]) {
         let Expression::Call(call) = &step.expression else {
