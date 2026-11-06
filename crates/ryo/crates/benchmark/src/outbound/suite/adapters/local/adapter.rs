@@ -154,6 +154,39 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::discrepancy_artifacts::verify(artifacts)
     }
+    fn scratch(&self, ArtifactPath(parent): ArtifactPath<'_>, prefix: &str) -> Result<std::path::PathBuf, Error> {
+        let mut builder = tempfile::Builder::new();
+        let _prefixed = builder.prefix(prefix);
+        let directory = if parent.as_os_str().is_empty() {
+            builder.tempdir()?
+        } else {
+            builder.tempdir_in(parent)?
+        };
+        Ok(directory.keep())
+    }
+    fn discard(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<(), Error> {
+        std::fs::remove_dir_all(directory).map_err(Into::into)
+    }
+    fn copy_file(&self, ArtifactPath(from): ArtifactPath<'_>, ArtifactPath(to): ArtifactPath<'_>) -> Result<(), Error> {
+        std::fs::copy(from, to).map(|_bytes| ()).map_err(Into::into)
+    }
+    fn ensure_directory(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<std::path::PathBuf, Error> {
+        std::fs::create_dir_all(directory)?;
+        directory.canonicalize().map_err(Into::into)
+    }
+    fn write_text(&self, ArtifactPath(file): ArtifactPath<'_>, text: &str) -> Result<(), Error> {
+        std::fs::write(file, text).map_err(Into::into)
+    }
+    fn selection(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<Vec<String>, Error> {
+        serde_json::from_slice(&std::fs::read(file)?).map_err(|error| Error::Invalid(error.to_string()))
+    }
+    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error> {
+        files
+            .iter()
+            .map(|file| std::fs::metadata(file).map(|metadata| metadata.len()))
+            .sum::<Result<u64, _>>()
+            .map_err(Into::into)
+    }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }

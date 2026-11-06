@@ -127,8 +127,8 @@ pub(super) fn verify_cases(
             if case_selection.is_some() {
                 return Err(Error::Invalid("duplicate case selection argument".into()));
             }
-            let selected: Vec<String> = serde_json::from_slice(&std::fs::read(path)?)
-                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let selected = ryo_benchmark::outbound::suite::factory::local()
+                .selection(ArtifactPath(std::path::Path::new(path)))?;
             let selected_count = selected.len();
             let selected = selected
                 .into_iter()
@@ -166,8 +166,8 @@ pub(super) fn verify_cases(
     let candidate_observations = tool.rule_observations.clone();
     let candidate_observation_selection = tool.rule_observation_selection;
     let reference = Arc::new(reference(executable, tool)?);
-    let scratch = tempfile::tempdir()?;
-    let root = scratch.path().canonicalize()?;
+    let scratch = suite_source.scratch(ArtifactPath(std::path::Path::new("")), "verify-cases-")?;
+    let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
     ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
         suite_source.as_ref(),
@@ -206,8 +206,9 @@ pub(super) fn verify_cases(
                 ids: case_selection.as_ref(),
             },
             ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
-        )?;
-    Ok(count)
+        );
+    suite_source.discard(ArtifactPath(&scratch))?;
+    count
 }
 
 /// Parse explicit zero-based shard coordinates using the validated application type.
@@ -249,12 +250,14 @@ pub(super) fn verify_reference_cases(
     let tool = suite_source.profile(ArtifactPath(&source))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let reference = reference(executable, tool)?;
-    let scratch = tempfile::tempdir()?;
-    let root = scratch.path().canonicalize()?;
-    ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
+    let scratch = suite_source.scratch(ArtifactPath(std::path::Path::new("")), "verify-reference-")?;
+    let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
-    )
+    );
+    suite_source.discard(ArtifactPath(&scratch))?;
+    count
 }
 
 /// Compose the selected reference rule subset with its verified executable.
@@ -296,9 +299,12 @@ pub(super) fn collector(
     workload: &std::path::Path,
 ) -> Result<CollectorIdentity, Error> {
     let executable = workload.join(constants::COLLECTOR_EXECUTABLE);
-    let _bytes = std::fs::copy(source, &executable)?;
+    suite.copy_file(ArtifactPath(source), ArtifactPath(&executable))?;
     let digest = suite.digest(ArtifactPath(&executable))?;
-    std::fs::write(workload.join(constants::COLLECTOR_IDENTITY), &digest.0)?;
+    suite.write_text(
+        ArtifactPath(&workload.join(constants::COLLECTOR_IDENTITY)),
+        &digest.0,
+    )?;
     Ok(CollectorIdentity { executable, digest })
 }
 

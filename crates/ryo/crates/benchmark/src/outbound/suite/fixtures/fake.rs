@@ -101,6 +101,27 @@ impl SuitePort for SuiteFake {
             )
         }
     }
+    fn scratch(&self, parent: ArtifactPath<'_>, prefix: &str) -> Result<std::path::PathBuf, Error> {
+        crate::outbound::suite::factory::local().scratch(parent, prefix)
+    }
+    fn discard(&self, directory: ArtifactPath<'_>) -> Result<(), Error> {
+        crate::outbound::suite::factory::local().discard(directory)
+    }
+    fn copy_file(&self, from: ArtifactPath<'_>, to: ArtifactPath<'_>) -> Result<(), Error> {
+        crate::outbound::suite::factory::local().copy_file(from, to)
+    }
+    fn ensure_directory(&self, directory: ArtifactPath<'_>) -> Result<std::path::PathBuf, Error> {
+        crate::outbound::suite::factory::local().ensure_directory(directory)
+    }
+    fn write_text(&self, file: ArtifactPath<'_>, text: &str) -> Result<(), Error> {
+        crate::outbound::suite::factory::local().write_text(file, text)
+    }
+    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<String>, Error> {
+        crate::outbound::suite::factory::local().selection(file)
+    }
+    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error> {
+        crate::outbound::suite::factory::local().total_size(files)
+    }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         self.artifact_digests
             .get(path)

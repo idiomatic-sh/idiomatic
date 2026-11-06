@@ -89,8 +89,7 @@ pub(crate) fn run(
                     .ok_or_else(|| Error::Invalid(constants::EXPECTED_COLLECTOR.into()))?,
             )
             .canonicalize()?;
-            std::fs::create_dir_all(&cache)?;
-            let cache = cache.canonicalize()?;
+            let cache = suite_source.ensure_directory(ArtifactPath(&cache))?;
             let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
             suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
             let declared_inventory = tool.defaults.clone();
@@ -113,10 +112,8 @@ pub(crate) fn run(
                 let input=selection_or_inventory.as_deref().and_then(|s|s.strip_prefix("--case-inventory=")).filter(|s|!s.is_empty()).ok_or_else(||Error::Invalid("canonical benchmark requires explicit registered --case-inventory=PATH".into()))?;
                 ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
                     registration: std::path::PathBuf::from(input).canonicalize()?,
-                    output: tempfile::Builder::new()
-                        .prefix("registered-case-results-")
-                        .tempdir_in(&cache)?
-                        .keep(),
+                    output: suite_source
+                        .scratch(ArtifactPath(&cache), "registered-case-results-")?,
                 }
             } else {
                 if let Some(selected) = selection_or_inventory {
@@ -164,10 +161,8 @@ pub(crate) fn run(
             let declared_rule_context = tool.rule_context.clone();
             let configured_cohort = Some(tool.defaults.clone());
             let reference = Arc::new(commands::reference(executable.clone(), tool)?);
-            let selected_scratch = tempfile::Builder::new()
-                .prefix(constants::CERTIFICATION_PREFIX)
-                .tempdir_in(&cache)?
-                .keep();
+            let selected_scratch =
+                suite_source.scratch(ArtifactPath(&cache), constants::CERTIFICATION_PREFIX)?;
             let selected_profile = selected_scratch.join(constants::PROFILE_DIRECTORY);
             ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
                 suite_source.as_ref(),
@@ -188,7 +183,10 @@ pub(crate) fn run(
             let execution = commands::timed(collector_settings, observations)?;
             let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
             let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
-            let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
+            suite_source.copy_file(
+                ArtifactPath(&std::env::current_exe()?),
+                ArtifactPath(&candidate_executable),
+            )?;
             let candidate: Arc<dyn ryo_benchmark::outbound::linter::interface::LinterPort> =
                 Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
                     candidate_executable.clone(),
@@ -202,7 +200,8 @@ pub(crate) fn run(
                     candidate_observation_selection,
                     candidate_observations,
                 ));
-            let case_scratch = tempfile::tempdir()?;
+            let case_scratch =
+                suite_source.scratch(ArtifactPath(std::path::Path::new("")), "case-scratch-")?;
             let certificate = CertifyUseCaseImpl::new(
                 Arc::<_>::clone(&suite_source),
                 Arc::<super::adapter::LinterRuffAdapter>::clone(&reference),
@@ -216,10 +215,11 @@ pub(crate) fn run(
                 &executable,
                 &candidate_executable,
                 &selected_rules,
-                case_scratch.path(),
+                &case_scratch,
                 scope,
                 &case_source,
             )?;
+            suite_source.discard(ArtifactPath(&case_scratch))?;
             writeln!(
                 observations,
                 "scope: {}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}",
@@ -341,12 +341,7 @@ pub(crate) fn run(
                         .iter()
                         .map(|file| workspace.root().join(file.0.as_ref()))
                         .collect();
-                    let bytes = paths
-                        .iter()
-                        .map(|path| std::fs::metadata(path).map(|metadata| metadata.len()))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .into_iter()
-                        .sum::<u64>();
+                    let bytes = suite_source.total_size(&paths)?;
                     writeln!(
                         observations,
                         "{}: measured source files={} bytes={bytes} digest={} input-profile={}",
@@ -369,10 +364,8 @@ pub(crate) fn run(
                     {
                         // A new owned directory makes both retained and clean baselines fresh,
                         // even if an earlier trial left caches behind in the caller's root.
-                        let trial = tempfile::Builder::new()
-                            .prefix(constants::TRIAL_PREFIX)
-                            .tempdir_in(&cache)?
-                            .keep();
+                        let trial =
+                            suite_source.scratch(ArtifactPath(&cache), constants::TRIAL_PREFIX)?;
                         let request = RunRequest {
                             performance: Default::default(),
                             selected_rules: configured_cohort.clone(),
