@@ -1,11 +1,13 @@
 //! Authored plans declare expected barriers without consulting the prepared walk.
 use super::super::super::*;
+use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
     ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
     ObservationReadinessLayout, PlanObservation,
 };
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 pub(in super::super) struct Authored {
@@ -13,8 +15,12 @@ pub(in super::super) struct Authored {
     pub(in super::super) rules: Vec<RuleSpec>,
     pub(in super::super) intents: Vec<FileRuleIntent>,
     pub(in super::super) observations: ObservationIdentity,
+    /// Parameter bindings of each rule; empty when no rule binds a parameter.
+    pub(in super::super) bindings: Vec<Vec<ParameterBinding>>,
+    /// Host relations the request declares.
+    pub(in super::super) hosts: Vec<HostRelation>,
 }
-fn rules(plans: &[Plan]) -> Vec<RuleSpec> {
+pub(super) fn rules(plans: &[Plan]) -> Vec<RuleSpec> {
     plans
         .iter()
         .enumerate()
@@ -25,7 +31,7 @@ fn rules(plans: &[Plan]) -> Vec<RuleSpec> {
         })
         .collect()
 }
-fn plan(steps: Vec<PlanStep>) -> Plan {
+pub(super) fn plan(steps: Vec<PlanStep>) -> Plan {
     Plan {
         observation_inputs: vec![],
         observations: vec![],
@@ -41,7 +47,7 @@ fn plan(steps: Vec<PlanStep>) -> Plan {
         comparison_origins: vec![],
     }
 }
-fn comparison(test: Test, number: Integer) -> Comparison {
+pub(super) fn comparison(test: Test, number: Integer) -> Comparison {
     Comparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
@@ -74,7 +80,7 @@ fn extended(kept: ColumnIndex, suffix: Integer) -> Plan {
     plan.emit.step = StepId(1);
     plan
 }
-fn collected() -> FileRuleIntent {
+pub(super) fn collected() -> FileRuleIntent {
     FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
@@ -101,6 +107,8 @@ impl Authored {
             rules: rules(&plans),
             intents: vec![captured(); plans.len()],
             plans,
+            bindings: vec![],
+            hosts: vec![],
             observations: ObservationIdentity::Independent,
         }
     }
@@ -125,6 +133,8 @@ impl Authored {
             rules: rules(&plans),
             intents: vec![collected(); plans.len()],
             plans,
+            bindings: vec![],
+            hosts: vec![],
             observations: ObservationIdentity::Independent,
         }
     }
@@ -149,6 +159,8 @@ impl Authored {
             rules: rules(&plans),
             plans,
             intents,
+            bindings: vec![],
+            hosts: vec![],
             observations: ObservationIdentity::Independent,
         }
     }
@@ -178,6 +190,8 @@ impl Authored {
             rules: rules(&plans),
             intents: vec![collected(); plans.len()],
             plans,
+            bindings: vec![],
+            hosts: vec![],
             observations: ObservationIdentity::Independent,
         }
     }
@@ -251,6 +265,8 @@ impl Authored {
             plans,
             rules,
             intents,
+            bindings: vec![],
+            hosts: vec![],
             observations: ObservationIdentity::Named(ObservationReadinessLayout(Digest([93; 16]))),
         }
     }
@@ -277,6 +293,8 @@ impl Authored {
             rules: rules(&plans),
             plans,
             intents: vec![collected()],
+            bindings: vec![],
+            hosts: vec![],
             observations: ObservationIdentity::Independent,
         }
     }

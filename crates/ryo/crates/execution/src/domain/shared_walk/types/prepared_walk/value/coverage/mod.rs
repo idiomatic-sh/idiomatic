@@ -2,6 +2,10 @@
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
 #[cfg(test)]
+mod fusion;
+#[cfg(test)]
 mod heads;
+#[cfg(test)]
+mod identity;
 #[cfg(test)]
 mod routes;

@@ -41,6 +41,7 @@ fn program() -> ExecutableProgram {
         rules,
         logical_regions: Box::new([]),
         observation_regions: Box::new([]),
+        fusibility: Box::new([]),
     }
 }
 fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {

@@ -37,6 +37,18 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
             "an Extend continuation is never a source-walk class"
         );
     }
+    // Rules 1 and 2 author the same Extend over the same head: one region serves both.
+    let rules = program.prepared.program().rules();
+    assert_eq!(
+        rules[1].emit.as_ref().unwrap(),
+        rules[2].emit.as_ref().unwrap(),
+        "equivalent downstream Extend regions of two rules are one region"
+    );
+    assert_ne!(
+        rules[0].emit.as_ref().unwrap(),
+        rules[1].emit.as_ref().unwrap(),
+        "an Extend of another literal is a different region"
+    );
     let plain = program.prepared.program().rules()[3].emit.as_ref().unwrap();
     assert!(
         crate::domain::executable_program::service::selection(&program.prepared.program().regions()[plain.0].route).is_some(),
@@ -80,8 +92,8 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
     );
     assert_eq!(
         semantic.appended,
-        Calls(4),
-        "each healthy Extend rule appends its two rows once; retries never recompute them"
+        Calls(2),
+        "equivalent healthy delivery obligations compute once"
     );
     let work = file.walk_counts();
     let populations = match residency {
