@@ -15,6 +15,22 @@ use ryo::languages;
 /// Reads the standard format specifications of whole string carriers.
 pub(crate) struct FormatSpecificationItem;
 
+/// Whether the parser decoded every input the specifications are read from.
+enum Completeness {
+    Whole,
+    Partial,
+}
+
+fn completeness(
+    observations: &crate::domain::format_specification::types::Observations,
+) -> Completeness {
+    if observations.partial {
+        Completeness::Partial
+    } else {
+        Completeness::Whole
+    }
+}
+
 ryo::reads! {
     FormatSpecificationItem => languages::FormatSpecification, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
@@ -34,9 +50,9 @@ ryo::reads! {
             given conversion = languages::intern_derived(symbols,tree.source,languages::NameText(&spec.conversion));
             row { id: node(spec.id), ordinal: value(ordinal), parent_ordinal: value(parent_ordinal), origin: node(spec.origin), source_kind: value(source_kind), value: value(value), outcome: value(outcome), invalid_type: value(invalid_type), selector: value(selector), conversion: value(conversion), file: file, span: span(spec.origin), }
         }
-        when observations.partial {
-            true => { partial PARTIAL_CAUSE => languages::Missing::Any; }
-            false => {}
+        when completeness(&observations) {
+            Completeness::Partial => { partial PARTIAL_CAUSE => languages::Missing::Any; }
+            Completeness::Whole => {}
         }
     }
 }
