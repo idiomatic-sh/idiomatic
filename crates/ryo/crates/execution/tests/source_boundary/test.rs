@@ -233,7 +233,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         Probe {
             owner: PROGRAM,
             source: format!(
-                "{SIBLING} use super::native_walk::PermittedWalk; fn requeue(request: PermittedWalk<'_, '_, '_>) {{ let _ = PermittedWalk {{ ready: &[], ..request }}; }} const _: for<'a, 'b, 'c> fn(PermittedWalk<'a, 'b, 'c>) = requeue; }}"
+                "{SIBLING} use super::native_walk::lease::service::PermittedWalk; fn requeue(request: PermittedWalk<'_, '_, '_>) {{ let _ = PermittedWalk {{ ready: &[], ..request }}; }} const _: for<'a, 'b, 'c> fn(PermittedWalk<'a, 'b, 'c>) = requeue; }}"
             ),
             expected: Expectation::Refuse {
                 code: "E0451",

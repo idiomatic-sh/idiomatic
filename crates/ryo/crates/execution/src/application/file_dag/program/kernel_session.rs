@@ -745,7 +745,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                     }
                     if matches!(
                         permit.native_join_eligibility(),
-                        super::native_join::Eligibility::Native
+                        super::runtime::types::NativeJoinEligibility::Native
                     ) && originals.first().is_some_and(|left| count_of(left).0 != 0)
                         && matches!(originals.get(1), Some(Rows::Tree(_)))
                     {
@@ -769,17 +769,18 @@ impl KernelInvocation for KernelSession<'_, '_> {
                             .map_err(InvocationFailure::Semantic)?
                         {
                             let delivery = std::sync::OnceLock::new();
-                            let request = super::native_join::PermittedNativeJoin::new(
-                                permit,
-                                native,
-                                &originals[0],
-                                &self.owner,
-                                context,
-                                &workspace.work,
-                                output,
-                                &delivery,
-                            )
-                            .map_err(InvocationFailure::Semantic)?;
+                            let request =
+                                super::native_join::lease::service::PermittedNativeJoin::new(
+                                    permit,
+                                    native,
+                                    &originals[0],
+                                    &self.owner,
+                                    context,
+                                    &workspace.work,
+                                    output,
+                                    &delivery,
+                                )
+                                .map_err(InvocationFailure::Semantic)?;
                             let result = self.kernels.execute(
                                 crate::application::file_dag::executor::KernelCall::NativeJoin {
                                     request,
