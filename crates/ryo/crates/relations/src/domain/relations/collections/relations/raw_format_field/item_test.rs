@@ -5,15 +5,30 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
 use crate::domain::terms::types::Symbol;
 type Input = ();
+type Value = [Bits; 13];
 type Failure = ();
-const CASES: &[Case<Input, Vec<Bits>, Failure>] = &[Case {
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("raw_field_preserves_both_ordinals"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(vec![]),
+    expect: Expect::Value([
+        Bits(1),
+        Bits(2),
+        Bits(3),
+        Bits(4),
+        Bits(5),
+        Bits(6),
+        Bits(7),
+        Bits(8),
+        Bits(9),
+        Bits(10),
+        Bits(11),
+        Bits((0xc_u64 << 32_u32) | 0xd),
+        Bits(14)
+    ]),
 }];
-fn subject(_: Input) -> Result<Vec<Bits>, Failure> {
-    let words = RawFormatField::words(RawFormatFieldRow {
+fn subject(_: Input) -> Result<Value, Failure> {
+    Ok(RawFormatField::words(RawFormatFieldRow {
         id: NodeId(1),
         segment: NodeId(2),
         segment_ordinal: Integer(3),
@@ -30,26 +45,7 @@ fn subject(_: Input) -> Result<Vec<Bits>, Failure> {
             start: Offset(12),
             end: Offset(13),
         },
-    });
-    assert_eq!(
-        words,
-        [
-            Bits(1),
-            Bits(2),
-            Bits(3),
-            Bits(4),
-            Bits(5),
-            Bits(6),
-            Bits(7),
-            Bits(8),
-            Bits(9),
-            Bits(10),
-            Bits(11),
-            Bits((0xc_u64 << 32_u32) | 0xd),
-            Bits(14)
-        ]
-    );
-    Ok(Vec::new())
+    }))
 }
 #[test]
 fn succeeds() {

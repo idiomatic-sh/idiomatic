@@ -1,6 +1,6 @@
 //! Every absence cause has its own stable displayed name.
 
-use super::reason_name;
+use super::service::reason_name;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answers::types::AbsenceCause;
 
@@ -16,7 +16,7 @@ fn every_reason_has_a_name_of_its_own() -> usize {
         AbsenceCause::NoManifests,
     ]
     .into_iter()
-    .map(reason_name)
+    .map(|reason| reason_name(reason).0)
     .collect();
     names.sort_unstable();
     names.dedup();

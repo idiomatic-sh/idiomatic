@@ -9,7 +9,7 @@ use crate::domain::relation_lookup::errors::RelationLookupError;
 use crate::domain::relation_lookup::service::resolve;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::Absence;
-use ryo_relations::domain::answers::constants::reason_name;
+use ryo_relations::domain::answers::service::reason_name;
 use ryo_relations::domain::relations::service::class_of;
 use ryo_relations::domain::relations::types::Class;
 use ryo_values::domain::descriptions::service::describe;
@@ -74,7 +74,7 @@ impl DescribeRelationUseCase for DescribeRelationUseCaseImpl {
                 },
                 reason: match answer.absence {
                     Absence::Reads => AbsenceReason(Box::default()),
-                    Absence::Because(reason) => AbsenceReason(reason_name(reason).into()),
+                    Absence::Because(reason) => AbsenceReason(reason_name(reason).0.into()),
                 },
                 unknowns: answer.unknowns.to_vec(),
             })
