@@ -11,7 +11,7 @@ use crate::domain::{
     table_texts::types::Texts,
 };
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_values::domain::{
     files::types::SourceView, plan_parts::types::Comparison,
     query_bindings::types::ParameterBinding, stored_facts::types::ArenaBytes,
@@ -29,10 +29,9 @@ pub(in crate::application::file_dag::derived::owner) struct RowBound(pub usize);
 #[derive(Clone, Copy)]
 pub(in crate::application::file_dag::derived::owner) struct Visits(pub u64);
 
-/// The stored relation columns a build reads, when the build is for a stored relation.
-pub(in crate::application::file_dag::derived::owner) struct StoredColumns<'a> {
+/// The stored relation a build reads, when the build is for a stored relation.
+pub(in crate::application::file_dag) struct StoredColumns {
     pub relation: Relation,
-    pub columns: ColumnsView<'a>,
 }
 
 /// Borrowed comparison state that counts actual visits around the mandatory predicate item.

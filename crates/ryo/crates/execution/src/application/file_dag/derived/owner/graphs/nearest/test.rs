@@ -111,7 +111,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         Some(Value::Number(Integer(2)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
-    assert!(fixture.snapshot().memo_bytes <= super::service::MEMO_LIMIT);
+    assert!(fixture.snapshot().memo_bytes <= super::super::service::MEMO_LIMIT);
     assert!(fixture.snapshot().bytes <= LIMIT);
 }
 

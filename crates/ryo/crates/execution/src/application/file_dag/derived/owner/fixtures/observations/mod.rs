@@ -242,7 +242,7 @@ impl DerivedOwner {
             first_retained_rows_address: predicates.first().copied(),
             retained_positions_capacity: capacity,
             fanouts: fanouts.len(),
-            fanout_payload_bytes: fanouts.iter().map(|entry| entry.bytes).sum(),
+            fanout_payload_bytes: fanouts.iter().map(|entry| entry.bytes.0).sum(),
             descriptor_address: cache.selector_descriptor.map(|address| address.0),
             prepared_descriptor_address: descriptor
                 .and_then(|program| {

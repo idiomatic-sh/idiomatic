@@ -246,7 +246,7 @@ impl SelectionSource<'_> {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<StoredColumns<'_>>,
+        stored: Option<StoredColumns>,
     ) -> Result<
         crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,

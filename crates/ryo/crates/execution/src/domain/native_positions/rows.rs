@@ -8,7 +8,7 @@ use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::types::{PrimitiveSemantics, WorkCounters},
     positions::types::{Positions, Slots},
-    table_cells::types::TreeForm,
+    table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
 use ryo_derived::domain::contract::types::RawOrder;

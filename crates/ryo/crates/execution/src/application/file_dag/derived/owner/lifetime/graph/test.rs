@@ -1,5 +1,6 @@
 //! Real owner handles remain valid/accounted across clear and cannot poison refill.
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::types::PopulationCount;
 use crate::application::file_dag::derived::owner::*;
 use crate::domain::{
     stored_graph::types::{GraphWalk, Orientation},
@@ -223,7 +224,7 @@ fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
     let key = Key {
         plan: RequirementIdentity::Graph(Arc::new(GraphViewIdentity::Adjacency(requirement))),
         populations: [PopulationId(7), PopulationId(usize::MAX)],
-        len: 1,
+        len: PopulationCount(1),
         context: ViewContext::default(),
     };
     let mut map = hashbrown::HashMap::new();
@@ -319,7 +320,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
     assert_eq!(first.sharing(), GraphSharing::Local);
     assert_eq!(
         first.graph().vertices(),
-        vec![1, 2, 3].into_iter().map(number).collect::<Vec<_>>()
+        vec![1, 2, 3].into_iter().map(|n| number(Integer(n))).collect::<Vec<_>>()
     );
     let cost = fixture.graph_cost(&first);
     fixture.set_limit(before.bytes + cost - before.retained_view_bytes / 2);

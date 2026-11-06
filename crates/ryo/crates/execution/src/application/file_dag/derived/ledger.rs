@@ -13,9 +13,11 @@ mod snapshot;
 mod test;
 pub(in crate::application::file_dag) mod types;
 
+#[cfg(test)]
+use types::BackingCount;
 use types::{
-    Backing, BackingCount, BackingTag, ByteCount, HoldCount, LeaseClass, Ledger, LedgerEntry,
-    ResourceLease, SlotCount, UnitCount,
+    Backing, BackingTag, ByteCount, HoldCount, LeaseClass, Ledger, LedgerEntry, ResourceLease,
+    SlotCount, UnitCount,
 };
 
 impl Default for Ledger {

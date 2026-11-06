@@ -66,7 +66,7 @@ fn exercise_real_selector(limit: Retention) {
         .unwrap();
     let owner = fixture.owner();
     if matches!(limit, Retention::Refused) {
-        owner.derived.set_optional_limit(0).unwrap();
+        owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(0)).unwrap();
     }
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());

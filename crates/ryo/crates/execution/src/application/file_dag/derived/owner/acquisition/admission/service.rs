@@ -10,6 +10,7 @@ use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
 
+#[cfg(test)]
 use super::types::PartitionCapacity;
 #[cfg(test)]
 use super::types::StorageIdentity;

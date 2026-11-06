@@ -1,6 +1,6 @@
 //! Owner-bound predicate construction over a chosen candidate set.
 use super::super::super::super::*;
-use super::{
+use super::super::{
     service::{SelectionSource, histogram, shared_positions},
     types::{PredicateDecision, RowBound, SelectorGroup, Visits},
 };
@@ -8,11 +8,12 @@ use crate::application::file_dag::derived::owner::selection::types::{
     CandidateChoice, SelectionPath,
 };
 use crate::domain::{
-    operating::types::{NameCount, OperatorContext},
+    operating::types::{Memo, NameCount, OperatorContext},
     operator::contract::views::BorrowedRows,
     stored_selection::types::{PreparedSelectorViews, Selector},
     table_model::service::check_columns,
 };
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use ryo_language::domain::symbols::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -47,9 +48,10 @@ pub(in crate::application::file_dag::derived::owner) fn matches(
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let rows = shared_positions(&acquired, RowBound(population), RowBound(population))?.0;
     if let Some(entry) = histogram(cache, program) {
-        entry.builds += u64::from(acquired.was_built());
-        entry.reuses += u64::from(!acquired.was_built());
-        if acquired.was_built() {
+        let built = acquired.construction() == Construction::Built;
+        entry.builds += u64::from(built);
+        entry.reuses += u64::from(!built);
+        if built {
             entry.matched_rows += rows.len() as u64;
         }
     }

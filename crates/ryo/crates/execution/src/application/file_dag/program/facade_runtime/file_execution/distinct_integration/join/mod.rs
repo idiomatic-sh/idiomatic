@@ -339,7 +339,7 @@ fn execute(
         None,
     )?;
     if let Some(limit) = faults.optional_limit {
-        file.owner.derived.set_optional_limit(limit)?;
+        file.owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(limit))?;
     }
     let mut prefix = Vec::new();
     let mut affected = vec![];
@@ -449,7 +449,7 @@ fn execute(
         reads: reads.map(|n| n.get()),
         attempts: attempts.into_inner(),
         work,
-        counts,
+        counts: (counts.0.0, counts.1.0, counts.2.0),
         derived_builds: faults.derived.builds(),
         fed,
         instructions,

@@ -5,6 +5,7 @@ use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
 };
+use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use std::sync::Arc;
 
 use crate::domain::operator::contract::{
@@ -421,7 +422,9 @@ impl InvocationWorkspace {
             match rows[0] {
                 BorrowedRows::Stored(source) => relations[0]
                     .or(use_.relations[0])
-                    .map(|relation| (relation, source)),
+                    .map(|relation| StoredColumns {
+                        relation,
+                    }),
                 _ => None,
             }
         } else {

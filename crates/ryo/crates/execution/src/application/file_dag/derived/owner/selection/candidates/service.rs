@@ -104,7 +104,6 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             &mut DerivedScratch::default(),
             Some(StoredColumns {
                 relation: program.relation,
-                columns: source,
             }),
         )?;
         if acquired.construction() == Construction::Built {

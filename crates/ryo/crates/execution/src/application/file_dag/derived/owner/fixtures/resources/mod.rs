@@ -90,7 +90,6 @@ impl ResourceFixture {
             &mut DerivedScratch::default(),
             Some(crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns {
                 relation,
-                columns: *source,
             }),
         )
     }

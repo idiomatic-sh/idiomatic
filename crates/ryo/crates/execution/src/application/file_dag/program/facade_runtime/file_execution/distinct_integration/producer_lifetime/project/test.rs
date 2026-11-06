@@ -212,7 +212,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         let result = result.unwrap_or_else(|error| {
             panic!(
                 "{exit:?}: project batch result for rule {at}: {error:?}; \
-                readiness={counts:?}; resources={builds:?}; required={live}"
+                readiness={counts:?}; resources={builds:?}; required={live:?}"
             )
         });
         match result.emit {

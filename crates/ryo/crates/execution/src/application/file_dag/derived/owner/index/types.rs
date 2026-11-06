@@ -2,7 +2,7 @@
 
 /// The bytes a file's retained derived payloads may occupy in all.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag::derived::owner) struct ByteLimit(pub usize);
+pub(in crate::application::file_dag) struct ByteLimit(pub usize);
 
 /// A lower bound on the bytes one index occupies.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

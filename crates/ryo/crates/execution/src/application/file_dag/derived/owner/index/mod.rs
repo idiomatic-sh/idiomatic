@@ -2,4 +2,4 @@
 pub(in crate::application::file_dag::derived::owner) mod service;
 #[cfg(test)]
 mod test;
-pub(in crate::application::file_dag::derived::owner) mod types;
+pub(in crate::application::file_dag) mod types;

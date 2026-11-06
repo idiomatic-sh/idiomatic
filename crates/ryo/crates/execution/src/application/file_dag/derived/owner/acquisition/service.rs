@@ -15,7 +15,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<StoredColumns<'_>>,
+        stored: Option<StoredColumns>,
     ) -> Result<AcquiredView, OperatingError> {
         self.acquire_stored_with_route(
             BuildRoute::OwnerAcquire,
@@ -35,7 +35,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<StoredColumns<'_>>,
+        stored: Option<StoredColumns>,
     ) -> Result<AcquiredView, OperatingError> {
         let mut backend = self.backend.borrow_mut();
         self.acquire_in(
@@ -76,7 +76,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<StoredColumns<'_>>,
+        stored: Option<StoredColumns>,
         cache: Option<&mut CacheBackend>,
     ) -> Result<AcquiredView, OperatingError> {
         self.try_acquire_in(
@@ -92,7 +92,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<StoredColumns<'_>>,
+        stored: Option<StoredColumns>,
         cache: Option<&mut CacheBackend>,
     ) -> Result<Option<AcquiredView>, OperatingError> {
         admitted.validate(self, plan, &inputs)?;

@@ -27,7 +27,7 @@ fn release_drops_only_the_dependent_required_view() {
         ViewContext::default(),
         &mut scratch,
     );
-    assert!(!first.same_storage(&second));
+    assert!(first.storage_identity() != second.storage_identity());
     let one_view_bytes = ByteCount(owner.working_bytes().0 / 2);
     owner.release(first_population);
     assert_eq!(owner.released_entries(), 1);
@@ -39,7 +39,7 @@ fn release_drops_only_the_dependent_required_view() {
         ViewContext::default(),
         &mut scratch,
     );
-    assert!(second.same_storage(&again));
+    assert!(second.storage_identity() == again.storage_identity());
     assert_eq!(
         owner.counts(),
         BuildCounts(BuildCount(2), HitCount(1), RefusalCount(2))
