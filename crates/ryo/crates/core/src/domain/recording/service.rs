@@ -34,6 +34,48 @@ use ryo_values::domain::stored_facts::types::{
 use ryo_values::domain::table_words::service::{pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
 
+/// Whether [`cover`] names a rule that reads as `needs` at a file read in part as `partials`: a relation of the file the rule reads
+/// is read in part there, so the rule's unknown at the file is already given with the relation and why.
+pub(crate) fn names_at_file(
+    partials: &[Partial],
+    needs: Option<&ryo_execution::inbound::use_cases::metadata::interface::Needs>,
+) -> bool {
+    needs.is_some_and(|needs| {
+        partials.iter().any(|partial| {
+            needs
+                .reads
+                .iter()
+                .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
+        })
+    })
+}
+
+/// What a rule could not decide because the engine answered its root in the file `at` only in part, the partitions still uncertain
+/// being `affected`. When they are this file alone and [`cover`] names the rule at the file, a second unknown without the reason
+/// would report the same uncertainty twice; any other partition (another file, the repository) is uncertainty `cover` does not see
+/// from this file, and the rule says so here.
+pub(crate) fn partial_root(
+    unknowns: &mut Vec<Unknown>,
+    partials: &[Partial],
+    setting: &VisitSetting<'_>,
+    rule: RuleIndex,
+    at: FileId,
+    path: &FilePath,
+    affected: &[Option<FileId>],
+) {
+    let own = !affected.is_empty() && affected.iter().all(|file| *file == Some(at));
+    if own && names_at_file(partials, setting.needs.get(rule.0)) {
+        return;
+    }
+    unknowns.push(Unknown {
+        rule: MetadataUseCaseImpl.rule_id(setting.ids, rule),
+        path: path.clone(),
+        message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+            "physical source facts are incomplete".into(),
+        ),
+    });
+}
+
 /// The relations a record says were read in part, as the coverage steps take them.
 #[must_use]
 pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
