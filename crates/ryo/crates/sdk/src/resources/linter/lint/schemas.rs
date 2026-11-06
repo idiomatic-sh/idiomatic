@@ -1,4 +1,3 @@
-// one wire format: the request `linter lint` is given, the report it answers and the errors it fails with are converted together between the caller's types and the core's, and the entry spec places one schemas.rs for them, as it does for an adapter's.
 //! The shape of the data this entry does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
 
 use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
@@ -326,7 +325,7 @@ impl TryFrom<LintReportSchema> for LintReport {
             skipped: report
                 .skipped
                 .into_iter()
-                .map(|each| crate::resources::linter::lint::types::Skipped {
+                .map(|each| super::types::Skipped {
                     rule: RuleId::from_text(each.rule.0),
                     path: RelativePath(each.path.0),
                     reason: match each.reason {
@@ -667,7 +666,7 @@ fn observation_bindings(
         .into_iter()
         .map(|binding| ObservationBinding {
             name: ryo_values::domain::observations::types::ObservationBindingName(binding.name.0),
-            columns: crate::domain::observation::service::columns(binding.columns),
+            columns: binding.columns.into_iter().map(Into::into).collect(),
             producers: binding
                 .producers
                 .into_iter()

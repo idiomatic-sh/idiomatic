@@ -9,7 +9,7 @@ use super::super::errors::ParseError;
 use super::super::service::{baseline, read as read_file};
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, SourceFile};
-use super::contract::Collect;
+use super::collect::Collect;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
 use ryo_relations::domain::relations::service::all;

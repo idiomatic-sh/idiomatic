@@ -229,8 +229,8 @@ pub trait ProjectEngine: Send + Sync {
         path: crate::domain::files::types::SourcePath<'_>,
     ) -> crate::domain::files::types::PrimaryFileRole;
 
-    /// Candidate entry paths needed for requested project relations.
-    fn project_entries(&self, request: &ProjectRequest) -> Vec<FilePath>;
+    /// Appends to `entries` the candidate entry paths needed for requested project relations.
+    fn project_entries(&self, request: &ProjectRequest, entries: &mut Vec<FilePath>);
 
     /// The names of the files the language reads as manifests.
     fn manifest_names(&self) -> &'static [ManifestName];

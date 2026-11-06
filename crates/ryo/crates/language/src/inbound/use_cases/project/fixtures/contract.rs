@@ -6,7 +6,7 @@ use super::super::service::project;
 use super::super::types::{ProjectRequest, RootPath};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::fixtures::contract::Collect;
+use crate::inbound::use_cases::parse::fixtures::collect::Collect;
 use ryo_relations::domain::relations::service::{all, class_of};
 use ryo_relations::domain::relations::types::{Class, Relation};
 

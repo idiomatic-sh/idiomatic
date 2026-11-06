@@ -51,3 +51,50 @@ pub struct BoundObservationInput {
     /// The actual producer phase established by request planning.
     pub scope: ObservationScope,
 }
+
+impl From<ObservationKind> for ryo_relations::domain::relations::types::CellKind {
+    /// The engine's cell kind of a semantic kind the SDK declares.
+    fn from(kind: ObservationKind) -> Self {
+        match kind {
+            ObservationKind::Node => Self::Node,
+            ObservationKind::Symbol => Self::Symbol,
+            ObservationKind::File => Self::File,
+            ObservationKind::Span => Self::Span,
+            ObservationKind::Number => Self::Number,
+            ObservationKind::Flag => Self::Flag,
+        }
+    }
+}
+
+impl From<ObservationColumn> for ryo_values::domain::observations::types::ObservationColumn {
+    /// Preserve every declared semantic kind at the SDK boundary.
+    fn from(column: ObservationColumn) -> Self {
+        Self {
+            name: ryo_values::domain::observations::types::ObservationColumnName(column.name.0),
+            kind: column.kind.into(),
+        }
+    }
+}
+
+impl From<ObservationScope> for ryo_values::domain::plans::types::StepScope {
+    /// The planner's step scope of the phase a declared input is established in.
+    fn from(scope: ObservationScope) -> Self {
+        match scope {
+            ObservationScope::PerFile => Self::PerFile,
+            ObservationScope::CrossFile => Self::CrossFile,
+        }
+    }
+}
+
+impl From<BoundObservationInput>
+    for ryo_values::domain::observations::types::BoundObservationInput
+{
+    /// Carry the same explicit context through validation and compilation.
+    fn from(input: BoundObservationInput) -> Self {
+        Self {
+            name: ryo_values::domain::observations::types::ObservationBindingName(input.name.0),
+            columns: input.columns.into_iter().map(Into::into).collect(),
+            scope: input.scope.into(),
+        }
+    }
+}

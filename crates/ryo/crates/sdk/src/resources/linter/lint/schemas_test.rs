@@ -24,6 +24,10 @@ enum Offered {
     Skipped,
     Id(&'static str),
     Glob(&'static str),
+    /// A request that selects the language its source is read as.
+    SourceLanguage,
+    /// A request whose project paths are written in other forms than the one the core reads.
+    ProjectPaths,
     /// The typed cells of a finding the run wrote: rule, subject, how many key values and each, each column as its heading and its
     /// value, line and character.
     Row(&'static [Option<Cell<CellText<'static>>>]),
@@ -50,6 +54,18 @@ enum Refused {
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("explicit_source_language_is_preserved_at_sdk_request_boundary"),
+        word: Word::Succeeds,
+        input: || Offered::SourceLanguage,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("project_paths_are_normalized_before_observation_or_rejected"),
+        word: Word::Succeeds,
+        input: || Offered::ProjectPaths,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("sdk_always_policy_converts_to_core"),
         word: Word::Succeeds,
@@ -247,6 +263,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Offered::Glob(text) => Glob::try_from(text)
             .map(|glob| glob.to_string().len())
             .map_err(|_refused| Refused::Glob),
+        Offered::SourceLanguage => {
+            Ok(explicit_source_language_is_preserved_at_sdk_request_boundary())
+        }
+        Offered::ProjectPaths => Ok(project_paths_are_normalized_before_observation_or_rejected()),
         Offered::Columns(cells) => {
             let read = written(cells).ok_or(Refused::Columns)?.columns;
             let whole = read.first().is_some_and(|column| {
@@ -293,8 +313,8 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-#[test]
-fn explicit_source_language_is_preserved_at_sdk_request_boundary() {
+/// The explicit source language of a request is the one the core is handed.
+fn explicit_source_language_is_preserved_at_sdk_request_boundary() -> usize {
     let converted = request(LintRequest {
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
@@ -315,10 +335,11 @@ fn explicit_source_language_is_preserved_at_sdk_request_boundary() {
             "selected-provider".into()
         ))
     );
+    1
 }
 
-#[test]
-fn project_paths_are_normalized_before_observation_or_rejected() {
+/// A repository-relative path is normalized before it is observed, and any other is refused.
+fn project_paths_are_normalized_before_observation_or_rejected() -> usize {
     use crate::resources::linter::lint::types::{
         GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, ProjectSearchScope,
     };
@@ -355,4 +376,5 @@ fn project_paths_are_normalized_before_observation_or_rejected() {
             Err(super::LintError::ProjectPath { .. })
         ));
     }
+    1
 }

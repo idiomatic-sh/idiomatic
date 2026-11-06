@@ -3,9 +3,10 @@
 use super::super::service::build;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition};
-use super::contract::Collect;
-use super::expected::{Cell, ManifestExpected, shown};
+use super::collect::Collect;
+use super::expected::{Cell, ManifestExpected};
 use super::findings::{Findings, folders_in};
+use super::rendered::shown;
 use super::rows::{Read, compare, rows_of_relation};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;

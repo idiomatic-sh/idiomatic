@@ -7,7 +7,8 @@ use super::interface::ProjectUseCase;
 use super::types::ProjectEngine;
 use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
@@ -36,8 +37,8 @@ impl ProjectUseCase for Broken {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-    ) -> Vec<crate::domain::files::types::FilePath> {
-        Vec::new()
+        _entries: &mut Vec<crate::domain::files::types::FilePath>,
+    ) {
     }
 
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
@@ -77,8 +78,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Broken,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ProjectError::Manifest { reason }
-                if &*reason.0 == "the tool could not run"))
+            selects!(error, ProjectError::Manifest { reason }
+                if &*reason.0 == "the tool could not run")
         }),
     },
 ];

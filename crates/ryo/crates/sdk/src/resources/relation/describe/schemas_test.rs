@@ -8,7 +8,8 @@ use super::super::entry::describe;
 use super::super::errors::DescribeError;
 use super::super::types::DescribeRequest;
 use super::DescribeRelationErrorSchema;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::language::types::Languages;
 use crate::domain::relation::types::RelationName;
 
@@ -51,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 reason: String::new(),
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, DescribeError::Language { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, DescribeError::Language { .. })),
     },
 ];
 

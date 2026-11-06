@@ -185,12 +185,12 @@ impl Project for ProjectContract {
         crate::domain::language::service::primary_role(path, self.manifests())
     }
 
-    fn project_entries(&self, request: &ProjectRequest) -> Vec<languages::FilePath> {
+    fn project_entries(&self, request: &ProjectRequest, entries: &mut Vec<languages::FilePath>) {
         if !request
             .wanted
             .contains(&languages::Relation::ProjectNamespaceMembership)
         {
-            return Vec::new();
+            return;
         }
         let notes: Vec<Option<Note>> = request
             .notes
@@ -203,7 +203,10 @@ impl Project for ProjectContract {
             })
             .collect();
         let roots = crate::domain::project_namespace::service::imported_roots(&notes);
-        crate::domain::project_namespace::service::candidates(request.search_roots(), &roots)
+        entries.extend(crate::domain::project_namespace::service::candidates(
+            request.search_roots(),
+            &roots,
+        ));
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {

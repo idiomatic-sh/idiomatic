@@ -13,12 +13,10 @@ pub use ryo_language::domain::elements::service::{
     has_incomplete_lexical_stream, has_incomplete_syntax,
 };
 pub use ryo_language::domain::symbols::service::name_count;
-pub use ryo_language::inbound::use_cases::parse::fixtures::contract::{Collect, Discard};
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
     Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point,
-    SemanticExpected, Stretch, Text, Unfilled, Unshown, Want, Wanted, expected_rows, file, kept,
-    name, node, number, span, unknown, unlocated, want_file, want_flag, want_name, want_node,
-    want_number, want_span, want_unknown,
+    SemanticExpected, Stretch, Text, Unfilled, Unshown, expected_rows, file, name, node, number,
+    span, unknown,
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
     Leafness, LibraryWalk, Oracle, OracleRows, ReferenceRefusal, RelationRows, Shape, Walked,
@@ -67,6 +65,11 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
 pub use ryo_language::inbound::use_cases::parse::fixtures::items::check as check_item;
 pub use ryo_language::inbound::use_cases::parse::fixtures::reading::{Reading, written};
 pub use ryo_language::inbound::use_cases::parse::fixtures::rows::point_of;
+pub use ryo_language::inbound::use_cases::parse::fixtures::wanted::{
+    Want, Wanted, kept, unlocated, want_file, want_flag, want_name, want_node, want_number,
+    want_span, want_unknown,
+};
+pub use ryo_language::inbound::use_cases::parse::fixtures::{collect::Collect, contract::Discard};
 pub use ryo_language::inbound::use_cases::parse::service::{build, read, walk};
 pub use ryo_language::inbound::use_cases::parse::types::KindSample;
 pub use ryo_language::inbound::use_cases::project::service::project as read_project;
@@ -149,7 +152,7 @@ pub struct ConfiguredFixture {
 impl std::fmt::Debug for ConfiguredFixture {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("ConfiguredFixture")
+            .debug_struct(stringify!(ConfiguredFixture))
             .finish_non_exhaustive()
     }
 }

@@ -1,20 +1,21 @@
 //! The `parse` use case here is the language that reads nothing: it recognizes no file and answers every
 //! relation as not in it. The contract runs against it, and a real language replaces it with its own.
 
+use super::constants::NO_CONFIGURATION;
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
 use super::service::{absence_in, baseline_in, build_in, kinds_read_in, read_in, walk_in};
 use super::types::ParseEngine;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
-use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::elements::types::Elements;
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use ryo_relations::domain::relations::types::Count;
-use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
 use crate::domain::semantics::interface::SemanticSession;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
+use ryo_relations::domain::terms::types::UnknownName;
 
 /// A language that reads no file.
 #[derive(Clone, Copy, Debug)]
@@ -23,12 +24,14 @@ pub struct ParseUseCaseImpl;
 impl ParseUseCase for ParseUseCaseImpl {
     type FileModel = ();
 
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
 
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
-        ParseConfigurationIdentity("")
+        ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
@@ -68,7 +71,9 @@ impl ParseUseCase for ParseUseCaseImpl {
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         ParseUseCase::capabilities(self)
     }
 

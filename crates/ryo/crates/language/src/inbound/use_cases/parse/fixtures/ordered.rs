@@ -1,10 +1,40 @@
-//! Non-refining providers retain their original completed-tree/per-walk initialization order.
-use super::*;
+//! The language that records the order of completion and model initialization.
+
+use crate::inbound::use_cases::parse::types::Recognition;
+use ryo_relations::domain::terms::types::UnknownName;
+use std::marker::PhantomData;
 use std::sync::Mutex;
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::answers::service::{absent, reads};
+use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
+use crate::domain::elements::service::{end_of, enter_node, leave_node, table_builder, token};
+use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
+use crate::domain::files::types::SourcePath;
+use crate::domain::reasons::types::ToolMessage;
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::Symbols;
+use crate::inbound::use_cases::parse::errors::ParseError;
+use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::inbound::use_cases::parse::fixtures::small::{Seen, Small};
+use crate::inbound::use_cases::parse::interface::ParseUseCase;
+use crate::inbound::use_cases::parse::service::{absence, build, walk};
+use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest, ParseRequest};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::{
+    SyntaxTree, SyntaxTreeRow,
+};
+use ryo_relations::domain::relations::types::{
+    Count, FileId, KindBits, NodeId, Offset, Position, Relation, Rows, Span,
+};
+use ryo_relations::domain::terms::types::Symbol;
+
 #[derive(Default)]
-struct Ordered {
-    events: Mutex<Vec<&'static str>>,
+pub(crate) struct Ordered {
+    pub(crate) events: Mutex<Vec<&'static str>>,
 }
 macro_rules! forward {
     (syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* } manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
@@ -58,45 +88,4 @@ impl ParseUseCase for Ordered {
         self.events.lock().unwrap().push("complete");
     }
     ryo_relations::each_relation!(forward);
-}
-#[test]
-fn default_requirement_preserves_completion_before_each_model_and_real_reader_results() {
-    let provider = Ordered::default();
-    assert_eq!(
-        provider.completion_requirement(),
-        crate::domain::elements::types::CompletionRequirement::Independent
-    );
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    build(
-        &provider,
-        ParseRequest {
-            path: SourcePath("order.small"),
-            file: FileId(0),
-            bytes: ByteSlice(b"x"),
-            notes: NoteRequest::Unwanted,
-            fields: FieldRequest::Unwanted,
-        },
-        &mut elements,
-        &mut symbols,
-    )
-    .unwrap();
-    assert_eq!(*provider.events.lock().unwrap(), ["complete"]);
-    for expected in [2, 4] {
-        let mut out = Collect::default();
-        walk(
-            &provider,
-            &mut elements,
-            &mut symbols,
-            ByteSlice(b"x"),
-            FileId(0),
-            &[Relation::Function],
-            &mut out,
-        );
-        assert_eq!(out.count(Relation::Function), 1);
-        assert_eq!(out.rows()[0].1[0], expected);
-    }
-    assert_eq!(
-        *provider.events.lock().unwrap(),
-        ["complete", "model", "model"]
-    );
 }

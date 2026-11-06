@@ -4,7 +4,7 @@ use super::super::service::read;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition};
 use super::configuration::Selection;
-use super::contract::Collect;
+use super::collect::Collect;
 use super::expected::{Cell, Point};
 use super::findings::Findings;
 use crate::domain::elements::types::Elements;

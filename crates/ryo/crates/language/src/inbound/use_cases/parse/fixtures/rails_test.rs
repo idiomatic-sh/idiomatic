@@ -9,8 +9,8 @@ use super::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{diagnose, enter_node, leave_node, table_builder, token};
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 
 /// What a row of the cases asks.
 #[derive(Clone, Copy)]

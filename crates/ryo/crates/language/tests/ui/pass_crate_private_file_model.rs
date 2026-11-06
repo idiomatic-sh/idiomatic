@@ -187,8 +187,8 @@ impl ProjectUseCase for Language {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-    ) -> Vec<ryo_language::domain::files::types::FilePath> {
-        Vec::new()
+        _entries: &mut Vec<ryo_language::domain::files::types::FilePath>,
+    ) {
     }
 
     fn resolve(

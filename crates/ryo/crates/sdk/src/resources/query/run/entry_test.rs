@@ -5,7 +5,8 @@ use super::errors::RunError;
 use super::types::{RowLimit, RunRequest};
 #[cfg(any(unix, windows))]
 use crate::cases::Selection;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::language::types::Languages;
 use crate::domain::query::types::RyoQlQuery;
@@ -57,7 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_absent_root_is_a_corpus_error"),
         word: Word::Refuses,
         input: || Scenario::MissingRoot,
-        expect: Expect::Refusal(|error| selects(matches!(error, RunError::Corpus { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, RunError::Corpus { .. })),
     },
     Case {
         name: CaseName("a_zero_limit_keeps_the_total_but_shows_no_rows"),
@@ -87,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_wrong_query_is_refused"),
         word: Word::Refuses,
         input: || Scenario::Query(MISSPELLED),
-        expect: Expect::Refusal(|error| selects(matches!(error, RunError::Query { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, RunError::Query { .. })),
     },
     #[cfg(any(unix, windows))]
     Case {

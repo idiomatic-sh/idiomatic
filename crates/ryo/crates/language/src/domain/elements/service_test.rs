@@ -14,8 +14,7 @@ use ryo_relations::domain::terms::types::NameText;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
-#[test]
-fn syntax_acceptance_is_separate_and_resets_conservatively() {
+fn syntax_acceptance_is_separate_and_resets_conservatively() -> usize {
     use super::service::{clear_elements, set_syntax_acceptance, syntax_acceptance};
     use super::types::SyntaxAcceptance;
 
@@ -28,7 +27,7 @@ fn syntax_acceptance_is_separate_and_resets_conservatively() {
     }
     assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Rejected);
     clear_elements(&mut elements);
-    assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);
+    usize::from(syntax_acceptance(&elements) == SyntaxAcceptance::Undetermined)
 }
 
 /// A scenario: what a row asks of the service.
@@ -56,13 +55,14 @@ fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
         format_args!("{}:{}", 17_u8, 23_u8),
     )
     .expect("memory format");
-    assert!(
+    assert_eq!(
         node_property_fmt(
             &mut builder,
             PropertyId(2),
-            format_args!("{RefusingScalar}")
+            format_args!("{RefusingScalar}"),
         )
-        .is_err()
+        .expect_err("the scalar refuses to format"),
+        std::fmt::Error
     );
     node_property_fmt(&mut builder, PropertyId(3), format_args!("{}", 42_u8))
         .expect("next memory format");
@@ -161,6 +161,12 @@ fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("syntax_acceptance_is_separate_and_resets_conservatively"),
+        word: Word::Succeeds,
+        input: || syntax_acceptance_is_separate_and_resets_conservatively,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("failed scalar formatter preserves old property and retained bytes"),
         word: Word::Succeeds,

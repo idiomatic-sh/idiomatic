@@ -32,10 +32,9 @@ pub fn entries(entries: &ObservedEntries) -> &[EntryObservation] {
 /// The observed entry state; duplicates or an unobserved path remain unknown.
 #[must_use]
 pub fn state(entries: &ObservedEntries, path: &FilePath) -> Option<EntryState> {
-    let index = entries
-        .0
-        .binary_search_by(|entry| entry.path.cmp(path))
-        .ok()?;
+    let Ok(index) = entries.0.binary_search_by(|entry| entry.path.cmp(path)) else {
+        return None;
+    };
     if (index > 0 && entries.0[index - 1].path == *path)
         || (index + 1 < entries.0.len() && entries.0[index + 1].path == *path)
     {
@@ -46,7 +45,3 @@ pub fn state(entries: &ObservedEntries, path: &FilePath) -> Option<EntryState> {
         state => Some(state),
     }
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

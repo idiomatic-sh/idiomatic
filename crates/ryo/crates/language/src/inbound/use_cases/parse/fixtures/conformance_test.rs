@@ -2,21 +2,21 @@
 
 use super::super::findings::Findings;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::symbols::service::intern_derived;
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::Symbols;
+use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures};
+use crate::inbound::use_cases::parse::fixtures::expected::{Leafness, Shape, Walked};
+use crate::inbound::use_cases::parse::fixtures::rows::{Read, compare, rows_of_relation};
 use ryo_relations::domain::relations::collections::relations::entry::item::EntryRow;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     FileId, Flag, Integer, KindBits, Offset, Position, Relation, Rows as _, Span,
 };
-use crate::domain::symbols::service::intern_derived;
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::ValueKind;
-use crate::inbound::use_cases::parse::fixtures::contract::Collect;
-use crate::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures};
-use crate::inbound::use_cases::parse::fixtures::expected::{Leafness, Shape, Walked};
-use crate::inbound::use_cases::parse::fixtures::rows::{Read, compare, rows_of_relation};
 
 /// A scenario: what a row asks of the rendering.
 type Input = fn() -> usize;
