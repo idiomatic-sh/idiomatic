@@ -15,6 +15,11 @@ use super::types::{
     StepFed, Streaming, Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, Worker};
+use crate::inbound::use_cases::lint::constants::{
+    AFTER_FILES, AFTER_STORE_BUILD, AFTER_STORE_WRITE, BEFORE_CROSS_CLEANUP, BEFORE_STORE_BUILD,
+    BEFORE_STORE_WRITE, MISSING_FRONTIER_BUCKET, NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY, REQUEST,
+    STORE_HANDED,
+};
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
         ExecutionCompilation, ExecutionRequest, ExecutionUseCase, PreparedExecution,
@@ -430,6 +435,7 @@ impl LintUseCaseImpl {
     ) -> Result<Reused, LintError> {
         let decision = match setting.answering {
             Answering::Findings => reuse_of(&listing.stored, stored_rules, &listing.files),
+            // Rows are not stored: a rows request has no kept answer to replay, so by the store's contract it evaluates every file again and answers the rows a cold run answers.
             Answering::Rows(_) => Decision::Whole,
         };
         let changed: Vec<CorpusInput> = match &decision {
@@ -955,7 +961,7 @@ impl LintUseCaseImpl {
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
                 CrossError::from(ryo_values::domain::rule_requests::service::failed(
                     &each.id,
-                    &"missing frontier bucket",
+                    &MISSING_FRONTIER_BUCKET,
                 ))
             })?;
             let scope = stage
@@ -1014,7 +1020,7 @@ impl LintUseCaseImpl {
             ProjectBatch::Complete(completed) => (completed, None),
             ProjectBatch::Refused { completed, error } => (completed, Some(error)),
         };
-        observed_cross_symbols("before_cross_cleanup", &mut cross);
+        observed_cross_symbols(BEFORE_CROSS_CLEANUP, &mut cross);
         // Always release the shared stage, but preserve an earlier rule/budget
         // failure over a cleanup refusal.
         let finished = stage.finish();
@@ -1029,7 +1035,7 @@ impl LintUseCaseImpl {
             .is_some()
             {
                 return Err(LintError::ObservationBindings {
-                    reason: "named publication was not admitted by the request owner".into(),
+                    reason: NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY.into(),
                 });
             }
         }
@@ -1081,17 +1087,17 @@ impl LintUseCaseImpl {
                 .filter(|bucket| rebuilt.binary_search(bucket).is_err())
                 .collect(),
         };
-        observed_records("before_store_build", &keeping.records);
+        observed_records(BEFORE_STORE_BUILD, &keeping.records);
         let to_store = stored_of(keeping, &listing.stored, last_handed, &rebuilt, unchanged);
-        observed_stored("after_store_build", &to_store.stored.handed);
-        observed_staged("after_store_build", &to_store.kept);
+        observed_stored(AFTER_STORE_BUILD, &to_store.stored.handed);
+        observed_staged(AFTER_STORE_BUILD, &to_store.kept);
         if let Some(read) = &listing.read {
-            observed_stored("before_store_write", &to_store.stored.handed);
-            observed_staged("before_store_write", &to_store.kept);
+            observed_stored(BEFORE_STORE_WRITE, &to_store.stored.handed);
+            observed_staged(BEFORE_STORE_WRITE, &to_store.kept);
             let written = read.keep(to_store.stored, &to_store.kept);
             if memory_enabled() {
                 // Ownership moved into the outbound call; this does not claim it freed allocator pages.
-                tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_store_write", owner = "store_handed", caller_payload_owned = false, success = written.is_ok());
+                tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = AFTER_STORE_WRITE, owner = STORE_HANDED, caller_payload_owned = false, success = written.is_ok());
             }
             written?;
         }
@@ -1239,9 +1245,9 @@ impl LintUseCaseImpl {
             total,
         } = self.visited(run, visit)?;
         let fresh = order(&mut met);
-        observed_records("after_files", &fresh.records);
-        observed_arenas("after_files", &met.arenas);
-        observed_notes("after_files", &met.notes);
+        observed_records(AFTER_FILES, &fresh.records);
+        observed_arenas(AFTER_FILES, &met.arenas);
+        observed_notes(AFTER_FILES, &met.notes);
         let WorkersMet {
             observations,
             mut arenas,
@@ -1417,7 +1423,7 @@ impl LintUseCase for LintUseCaseImpl {
                 )
                 .map_err(|error| {
                     ryo_values::domain::rule_requests::service::failed(
-                        &RuleId("<request>".into()),
+                        &RuleId(REQUEST.into()),
                         &error,
                     )
                 })?,
@@ -1466,7 +1472,7 @@ impl LintUseCase for LintUseCaseImpl {
                 .replay_closure(again, &first_bucket)
                 .map_err(|error| {
                     ryo_values::domain::rule_requests::service::failed(
-                        &RuleId("<request>".into()),
+                        &RuleId(REQUEST.into()),
                         &error,
                     )
                 })?;

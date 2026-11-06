@@ -1,5 +1,21 @@
 //! Compact row-span metadata and bounded copies preserve the existing postcard sequence format.
 
+use crate::outbound::lint_store::adapters::postcard::constants::{
+    BUCKET_SIZE_OVERFLOWS, COPIED_PAYLOAD_EXCEEDS_OLD_SNAPSHOT,
+    FRESH_ROW_COUNT_EXCEEDS_STAGING_WIDTH, FRESH_ROW_COUNT_OVERFLOWS, HEADER_SIZE_OVERFLOWS,
+    INLINE_SIZE_OVERFLOWS, INVALID_FRESH_STAGED_ROW_ORDER, MISSING_INLINE_FRESH_ROW,
+    MISSING_STAGED_ROW, NO_OLD_CACHE_SNAPSHOT_WAS_READ, NO_STAGING_SESSION_WAS_READ,
+    OLD_BUCKET_HAS_TRAILING_BYTES, OLD_BUCKET_HEADER_IS_TRUNCATED, OLD_BUCKET_HEADER_OVERFLOWS,
+    OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION, OLD_BUCKET_SEEK_UNDERFLOWS,
+    OLD_BUCKET_SPAN_IS_TRUNCATED_OR, OLD_BUCKET_VARINT_IS_TOO_LONG, OLD_FILE_NUMBER_OVERFLOWS,
+    OLD_ROW_BELONGS_TO_ANOTHER_STORE, OLD_ROW_COUNT_EXCEEDS_ITS_SECTION,
+    OLD_ROW_DESCRIPTOR_DOES_NOT_MATCH, OLD_ROW_EXCEEDS_ADDRESSABLE_MEMORY,
+    OLD_ROW_HEADER_EXCEEDS_ADDRESSABLE_MEMORY, OLD_ROW_HEADER_EXCEEDS_ITS_ENCODED,
+    OLD_ROW_HEADER_IS_INVERTED, OLD_ROW_HEADER_IS_OUTSIDE_ITS,
+    OLD_ROW_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY, OLD_ROW_PAYLOAD_EXCEEDS_ITS_SECTION,
+    OLD_ROW_PAYLOAD_IS_TRUNCATED_OR, OLD_ROW_POSITION_OVERFLOWS, OLD_ROW_SEEK_UNDERFLOWS,
+    PAYLOAD_EXCEEDS_POSTCARD_LENGTH_WIDTH, STORE_OFFSET_OVERFLOWS,
+};
 use crate::outbound::lint_store::adapters::postcard::types::spool::value::{
     BUFFER_BYTES, copy_buffered, seek_buffered,
 };
@@ -29,7 +45,7 @@ impl Read for PositionalReader<'_> {
         self.at = self
             .at
             .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
-            .ok_or_else(|| invalid("old row position overflows"))?;
+            .ok_or_else(|| invalid(OLD_ROW_POSITION_OVERFLOWS))?;
         Ok(read)
     }
 }
@@ -42,7 +58,7 @@ impl Seek for PositionalReader<'_> {
             SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
             SeekFrom::End(by) => i128::from(self.file.metadata()?.len()) + i128::from(by),
         };
-        self.at = u64::try_from(at).map_err(|_| invalid("old row seek underflows"))?;
+        self.at = u64::try_from(at).map_err(|_| invalid(OLD_ROW_SEEK_UNDERFLOWS))?;
         Ok(self.at)
     }
 }
@@ -104,9 +120,9 @@ impl<R: Seek> Seek for BucketReader<'_, R> {
             SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
             SeekFrom::End(by) => i128::from(self.end) + i128::from(by),
         };
-        let at = u64::try_from(at).map_err(|_| invalid("old bucket seek underflows"))?;
+        let at = u64::try_from(at).map_err(|_| invalid(OLD_BUCKET_SEEK_UNDERFLOWS))?;
         if at < self.start || at > self.end {
-            return Err(invalid("old bucket seek exceeds its section"));
+            return Err(invalid(OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION));
         }
         self.at = self.file.seek(SeekFrom::Start(at))?;
         Ok(self.at)
@@ -121,27 +137,28 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn fresh<'a>(
     let count = inline
         .len()
         .checked_add(staged.len())
-        .ok_or_else(|| invalid("fresh row count overflows"))?;
+        .ok_or_else(|| invalid(FRESH_ROW_COUNT_OVERFLOWS))?;
     let mut spans: Vec<_> = staged.iter().collect();
     spans.sort_by_key(|row| row.ordinal);
     if spans.iter().any(|row| {
         usize::try_from(row.ordinal.0)
+            // ignore: idiomatic.arch/no-ok-on-result - an ordinal that does not fit the address width is out of range, which is the answer
             .ok()
             .is_none_or(|ordinal| ordinal >= count)
     }) || spans
         .windows(2)
         .any(|pair| pair[0].ordinal == pair[1].ordinal)
     {
-        return Err(invalid("invalid fresh staged row order"));
+        return Err(invalid(INVALID_FRESH_STAGED_ROW_ORDER));
     }
     let mut spans = spans.into_iter().peekable();
     let mut inline = inline.iter();
     let mut buckets: BTreeMap<Bucket, Vec<Frame<'a>>> = BTreeMap::new();
     for ordinal in
-        0..u64::try_from(count).map_err(|_| invalid("fresh row count exceeds staging width"))?
+        0..u64::try_from(count).map_err(|_| invalid(FRESH_ROW_COUNT_EXCEEDS_STAGING_WIDTH))?
     {
         if spans.peek().is_some_and(|row| row.ordinal.0 == ordinal) {
-            let row = spans.next().ok_or_else(|| invalid("missing staged row"))?;
+            let row = spans.next().ok_or_else(|| invalid(MISSING_STAGED_ROW))?;
             buckets.entry(row.bucket).or_default().push(Frame {
                 file: row.file,
                 payload: Payload::Staged(row.words),
@@ -149,7 +166,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn fresh<'a>(
         } else {
             let row = inline
                 .next()
-                .ok_or_else(|| invalid("missing inline fresh row"))?;
+                .ok_or_else(|| invalid(MISSING_INLINE_FRESH_ROW))?;
             buckets.entry(row.bucket).or_default().push(Frame {
                 file: row.file,
                 payload: Payload::Inline(&row.words.0),
@@ -202,7 +219,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_word_rows_in(
         .0
         .checked_add(span.length.0)
         .filter(|end| *end <= held)
-        .ok_or_else(|| invalid("old bucket span is truncated or overflows"))?;
+        .ok_or_else(|| invalid(OLD_BUCKET_SPAN_IS_TRUNCATED_OR))?;
     let _position = file.seek(SeekFrom::Start(span.start.0))?;
     let bounded = BucketReader {
         file,
@@ -219,7 +236,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_word_rows_in(
         u64::try_from(usize::MAX).unwrap_or(u64::MAX),
     )?;
     if count > span.length.0 / 2 {
-        return Err(invalid("old row count exceeds its section"));
+        return Err(invalid(OLD_ROW_COUNT_EXCEEDS_ITS_SECTION));
     }
     let mut rows = Vec::new();
     for _ in 0..count {
@@ -234,11 +251,11 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_word_rows_in(
         let after = cursor
             .checked_add(length)
             .filter(|after| *after <= end)
-            .ok_or_else(|| invalid("old row payload exceeds its section"))?;
+            .ok_or_else(|| invalid(OLD_ROW_PAYLOAD_EXCEEDS_ITS_SECTION))?;
         rows.try_reserve(1).map_err(std::io::Error::other)?;
         rows.push(OldFrame {
             file: StoredFileNumber(
-                u32::try_from(number).map_err(|_| invalid("old file number overflows"))?,
+                u32::try_from(number).map_err(|_| invalid(OLD_FILE_NUMBER_OVERFLOWS))?,
             ),
             header,
             span: SectionSpan {
@@ -250,7 +267,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_word_rows_in(
         cursor = after;
     }
     if cursor != end {
-        return Err(invalid("old bucket has trailing bytes"));
+        return Err(invalid(OLD_BUCKET_HAS_TRAILING_BYTES));
     }
     Ok(rows)
 }
@@ -266,28 +283,28 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
     into: &mut PackedWords,
 ) -> std::io::Result<()> {
     if words.snapshot != snapshot {
-        return Err(invalid("old row belongs to another store snapshot"));
+        return Err(invalid(OLD_ROW_BELONGS_TO_ANOTHER_STORE));
     }
     let end = bucket
         .start
         .0
         .checked_add(bucket.length.0)
         .filter(|end| *end <= held)
-        .ok_or_else(|| invalid("old bucket span is truncated or overflows"))?;
+        .ok_or_else(|| invalid(OLD_BUCKET_SPAN_IS_TRUNCATED_OR))?;
     let after = words
         .offset
         .0
         .checked_add(words.length.0)
         .filter(|after| *after <= end)
-        .ok_or_else(|| invalid("old row payload is truncated or overflows"))?;
+        .ok_or_else(|| invalid(OLD_ROW_PAYLOAD_IS_TRUNCATED_OR))?;
     if words.header.0 <= bucket.start.0
         || words.header.0 >= words.offset.0
         || words.offset.0 > after
     {
-        return Err(invalid("old row header is outside its bucket"));
+        return Err(invalid(OLD_ROW_HEADER_IS_OUTSIDE_ITS));
     }
     let length = usize::try_from(words.length.0)
-        .map_err(|_| invalid("old row payload exceeds addressable memory"))?;
+        .map_err(|_| invalid(OLD_ROW_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY))?;
     // Only the two encoded fields belong to this row header. Reading exactly that
     // span avoids byte-at-a-time file reads without prefetching another payload.
     const HEADER_BYTES: usize = 5 + (size_of::<usize>() * 8).div_ceil(7);
@@ -295,15 +312,15 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         .offset
         .0
         .checked_sub(words.header.0)
-        .ok_or_else(|| invalid("old row header is inverted"))?;
+        .ok_or_else(|| invalid(OLD_ROW_HEADER_IS_INVERTED))?;
     let header_length = usize::try_from(header_length)
-        .map_err(|_| invalid("old row header exceeds addressable memory"))?;
+        .map_err(|_| invalid(OLD_ROW_HEADER_EXCEEDS_ADDRESSABLE_MEMORY))?;
     if !(2..=HEADER_BYTES).contains(&header_length) {
-        return Err(invalid("old row header exceeds its encoded field widths"));
+        return Err(invalid(OLD_ROW_HEADER_EXCEEDS_ITS_ENCODED));
     }
     let total = header_length
         .checked_add(length)
-        .ok_or_else(|| invalid("old row exceeds addressable memory"))?;
+        .ok_or_else(|| invalid(OLD_ROW_EXCEEDS_ADDRESSABLE_MEMORY))?;
     into.0.clear();
     into.0
         .try_reserve_exact(total)
@@ -341,7 +358,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         || cursor != words.offset.0
     {
         into.0.clear();
-        return Err(invalid("old row descriptor does not match its framing"));
+        return Err(invalid(OLD_ROW_DESCRIPTOR_DOES_NOT_MATCH));
     }
     into.0.copy_within(header_length.., 0);
     into.0.truncate(length);
@@ -375,7 +392,7 @@ fn integer(file: &mut impl Read, cursor: &mut u64, end: u64, maximum: u64) -> st
     let mut value = 0_u64;
     for digit in 0..digits {
         if *cursor >= end {
-            return Err(invalid("old bucket header is truncated"));
+            return Err(invalid(OLD_BUCKET_HEADER_IS_TRUNCATED));
         }
         let mut byte = [0_u8; 1];
         file.read_exact(&mut byte)?;
@@ -383,14 +400,14 @@ fn integer(file: &mut impl Read, cursor: &mut u64, end: u64, maximum: u64) -> st
         let payload = u64::from(byte[0] & 127);
         let shift = digit * 7;
         if payload > maximum >> shift {
-            return Err(invalid("old bucket header overflows"));
+            return Err(invalid(OLD_BUCKET_HEADER_OVERFLOWS));
         }
         value |= payload << shift;
         if byte[0] & 128 == 0 {
             return Ok(value);
         }
     }
-    Err(invalid("old bucket varint is too long"))
+    Err(invalid(OLD_BUCKET_VARINT_IS_TOO_LONG))
 }
 
 /// Serialize numbers with the SAME codec used by the prior whole-sequence serializer.
@@ -398,7 +415,7 @@ fn header<T: serde::Serialize>(into: &mut impl Write, value: &T) -> std::io::Res
     let mut buffer = [0_u8; 16];
     let bytes = postcard::to_slice(value, &mut buffer).map_err(std::io::Error::other)?;
     into.write_all(bytes)?;
-    u64::try_from(bytes.len()).map_err(|_| invalid("header size overflows"))
+    u64::try_from(bytes.len()).map_err(|_| invalid(HEADER_SIZE_OVERFLOWS))
 }
 
 /// Write one existing-format bucket, streaming every selected payload without a rebuilt Vec.
@@ -428,24 +445,24 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn write_bucket(
     for row in rows {
         let size = match row.payload {
             Payload::Inline(bytes) => {
-                u64::try_from(bytes.len()).map_err(|_| invalid("inline size overflows"))?
+                u64::try_from(bytes.len()).map_err(|_| invalid(INLINE_SIZE_OVERFLOWS))?
             }
             Payload::Staged(span) => span.length.0,
             Payload::Old(span) => span.length.0,
         };
         let addressable =
-            usize::try_from(size).map_err(|_| invalid("payload exceeds postcard length width"))?;
+            usize::try_from(size).map_err(|_| invalid(PAYLOAD_EXCEEDS_POSTCARD_LENGTH_WIDTH))?;
         let file_header = header(into, &row.file.0)?;
         let size_header = header(into, &addressable)?;
         length = length
             .checked_add(file_header)
             .and_then(|length| length.checked_add(size_header))
-            .ok_or_else(|| invalid("bucket size overflows"))?;
+            .ok_or_else(|| invalid(BUCKET_SIZE_OVERFLOWS))?;
         match row.payload {
             Payload::Inline(bytes) => into.write_all(bytes)?,
             Payload::Staged(span) => staged
                 .as_deref_mut()
-                .ok_or_else(|| invalid("no staging session was read"))?
+                .ok_or_else(|| invalid(NO_STAGING_SESSION_WAS_READ))?
                 .copy(&span, into)?,
             Payload::Old(span) => {
                 let end = span
@@ -453,10 +470,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn write_bucket(
                     .0
                     .checked_add(span.length.0)
                     .filter(|end| old_length.is_some_and(|held| *end <= held))
-                    .ok_or_else(|| invalid("copied payload exceeds old snapshot"))?;
+                    .ok_or_else(|| invalid(COPIED_PAYLOAD_EXCEEDS_OLD_SNAPSHOT))?;
                 let reader = old
                     .as_mut()
-                    .ok_or_else(|| invalid("no old cache snapshot was read"))?;
+                    .ok_or_else(|| invalid(NO_OLD_CACHE_SNAPSHOT_WAS_READ))?;
                 if old_position != span.start.0 {
                     seek_buffered(reader, old_position, span.start.0)?;
                 }
@@ -466,11 +483,11 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn write_bucket(
         }
         length = length
             .checked_add(size)
-            .ok_or_else(|| invalid("bucket size overflows"))?;
+            .ok_or_else(|| invalid(BUCKET_SIZE_OVERFLOWS))?;
     }
     at.0 =
         at.0.checked_add(length)
-            .ok_or_else(|| invalid("store offset overflows"))?;
+            .ok_or_else(|| invalid(STORE_OFFSET_OVERFLOWS))?;
     Ok(SectionSpan {
         start,
         length: SectionLength(length),

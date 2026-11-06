@@ -1,5 +1,8 @@
 //! One file generation's semantic demand and provider session.
 
+use crate::application::file_analysis::constants::{
+    FILE, NODES, SEMANTICSTATE, THE_SELECTED_LANGUAGE_DOES_NOT_OFFER,
+};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
@@ -23,9 +26,9 @@ pub(crate) struct SemanticState {
 
 impl std::fmt::Debug for SemanticState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SemanticState")
-            .field("file", &self.file)
-            .field("nodes", &self.nodes)
+        f.debug_struct(SEMANTICSTATE)
+            .field(FILE, &self.file)
+            .field(NODES, &self.nodes)
             .finish_non_exhaustive()
     }
 }
@@ -86,7 +89,7 @@ impl SemanticLookup for SemanticState {
             let mut session = self.session.borrow_mut();
             let Some(session) = session.as_deref_mut() else {
                 return Err(OperatingError::SemanticIncomplete {
-                    reason: "the selected language does not offer semantic rendering".into(),
+                    reason: THE_SELECTED_LANGUAGE_DOES_NOT_OFFER.into(),
                 });
             };
             let answers = session.render_batch(ByteSlice(source), &unique)?;
