@@ -3,6 +3,7 @@ use super::fixtures::{Compilation, Expectation, Probe};
 mod kernel;
 pub(super) const KERNEL: &str = kernel::KERNEL;
 pub(super) const RAW_SCOPE: &str = kernel::RAW_SCOPE;
+pub(super) const INBOUND: &str = "src/inbound/use_cases/execution/use_case.rs";
 pub(super) const CACHE: &str = sealing::CACHE;
 pub(super) const TYPES: &str = sealing::TYPES;
 mod census;

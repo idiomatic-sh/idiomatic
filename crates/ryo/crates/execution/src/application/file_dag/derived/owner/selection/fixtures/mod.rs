@@ -184,6 +184,23 @@ impl SelectionFixture {
         Ok(Some(SelectedFixtureRows { publication, rows }))
     }
 
+    /// Required bytes the owner keeps for the admitted source of `relation` until the generation
+    /// retires: what a demand's exit returns to, since the exit does not retire the source.
+    pub(crate) fn source_floor(
+        &self,
+        relation: Relation,
+        source: ColumnsView<'_>,
+    ) -> Result<usize, OperatingError> {
+        let population = self.owner.source(relation, &Rows::Stored(source))?;
+        let proof = self.owner.admit(
+            population.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::Stored(source),
+        )?;
+        drop(proof);
+        drop(population);
+        Ok(self.owner.derived.publication_ownership_bytes().0)
+    }
+
     pub(crate) fn limit_to_metadata(&self) {
         self.owner.derived.fixture_limit_to_metadata()
     }

@@ -78,7 +78,7 @@ pub struct PreparedRequest {
 /// ```
 pub struct PreparedExecutionProgram {
     pub(super) kernels: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send>,
-    pub(super) derived: Arc<dyn DerivedPort>,
+    pub(super) derived: crate::application::file_dag::derived::owner::types::DerivedAccess,
     pub(super) inner:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
 }

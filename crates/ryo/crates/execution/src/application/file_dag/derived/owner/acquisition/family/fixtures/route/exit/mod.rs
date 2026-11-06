@@ -48,3 +48,12 @@ pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtur
         "{kind:?} {exit:?}: every lease retires with the owner generation"
     );
 }
+/// The exit itself: the handles and results of the production entry are dropped and the generation
+/// is still live, so nothing but the entry's own release can have returned the required bytes to
+/// `floor`, what the owner keeps for its admitted sources until the generation retires.
+pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released_at_exit(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize), floor: usize) {
+    assert_eq!(
+        ledger.0, floor,
+        "{kind:?} {exit:?}: the exit itself releases the required lease, before the generation retires"
+    );
+}

@@ -12,6 +12,18 @@ mod holder;
 mod kind;
 mod scan;
 
+/// The only lines outside the owner tree that name the builder port, by file.
+const PORT_NAMES: &[(&str, &[&str])] = &[
+    ("outbound/derived/interface.rs", &[
+        "pub trait DerivedPort:",
+        "ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase + Send + Sync + std::fmt::Debug",
+        "> DerivedPort for T",
+        "T: ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
+    ]),
+    ("inbound/use_cases/execution/types.rs", &["pub use crate::outbound::derived::interface::DerivedPort;"]),
+    ("inbound/use_cases/execution/use_case.rs", &["pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {"]),
+];
+
 use entry::{Authority, Class, Entry};
 use holder::Holder;
 use ryo_derived::domain::contract::types::DerivedKind;
@@ -134,17 +146,28 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
         assert_eq!(named, expected, "{file}: authorities it names");
     }
 
-    // The builder port is owner-private: no production file in file_dag outside the owner names
-    // the port or its use case; holders receive the owner-issued `DerivedAccess` (SEALED_PORT).
-    for file in production
-        .iter()
-        .filter(|file| file.starts_with("application/file_dag/") && !owned(file))
-    {
+    // The builder port is owner-private across the whole crate: outside the owner tree the
+    // port is named only by its definition, its public re-export, and the one constructor
+    // parameter that hands it to the owner-issued `DerivedAccess` (SEALED_PORT, inbound probes).
+    for file in production.iter().filter(|file| !owned(file)) {
         let text = std::fs::read_to_string(src.join(file)).unwrap();
-        assert!(
-            !text.contains("DerivedPort") && !text.contains("DerivedUseCase"),
-            "{file}: names the derived port; only the owner tree holds the builder"
-        );
+        for word in ["DerivedPort", "DerivedUseCase"] {
+            let lines: Vec<&str> = text
+                .lines()
+                .filter(|line| scan::names_word(line, word))
+                .collect();
+            let allowed = PORT_NAMES
+                .iter()
+                .find(|(path, _)| *path == file.as_str())
+                .map_or(&[][..], |(_, allowed)| *allowed);
+            for line in &lines {
+                assert!(
+                    allowed.iter().any(|permitted| line.trim() == *permitted),
+                    "{file}: names the derived port `{word}` in `{}`; only the owner tree holds the builder",
+                    line.trim()
+                );
+            }
+        }
     }
 
     // Every kind names a route through acquiring entries and existing controls, and every

@@ -1,6 +1,6 @@
 //! The selection entry: predicate, candidate and distinct selectors acquired through the owner.
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
-    Exit, released,
+    Exit, released, released_at_exit,
 };
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::domain::{
@@ -176,6 +176,7 @@ fn run_with(
     let error = refusing(chosen);
     authored.push(Arc::clone(&error));
     let fixture = SelectionFixture::new(&[relation], &[], active.to_vec(), authored, kinds)?;
+    let floor = fixture.source_floor(relation, source)?;
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let result = {
@@ -193,7 +194,12 @@ fn run_with(
             scratch: &mut scratch,
         };
         match exit {
-            Exit::Cancelled => Ok(kind),
+            Exit::Cancelled => {
+                // The demand is acquired, then withdrawn without its rows being read.
+                let withdrawn = fixture.select(chosen, source, &mut context)?;
+                assert!(withdrawn.is_some(), "{kind:?}: the selection is published");
+                Ok(kind)
+            }
             Exit::Succeeds => {
                 let mut every = active.to_vec();
                 if !fanned {
@@ -217,6 +223,15 @@ fn run_with(
             Exit::Errors => fixture.select(&error, source, &mut context).map(|_| kind),
         }
     };
+    // The consumer's own state (the operator scratch and the memo it filled) ends with the exit.
+    drop(scratch);
+    drop(memo);
+    released_at_exit(
+        kind,
+        exit,
+        fixture.owner().derived.publication_ownership_bytes(),
+        floor,
+    );
     fixture.owner().release_population();
     released(
         kind,

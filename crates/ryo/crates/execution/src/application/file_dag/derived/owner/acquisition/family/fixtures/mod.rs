@@ -17,7 +17,8 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
-use crate::application::file_dag::derived::population::types::PopulationId;
+use crate::application::file_dag::relations::publication::types::ProducerScope;
+use crate::domain::executable_program::types::RegionId;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::{
@@ -60,29 +61,69 @@ fn numbers() -> Table {
         count: RowCount(2),
     }
 }
+/// A production exit that returned with its lease still charged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) struct Leaked {
+    /// Required bytes before the view was acquired.
+    pub(in crate::application::file_dag) before: usize,
+    /// Required bytes after the exit ran, before any fixture-side release.
+    pub(in crate::application::file_dag) after: usize,
+}
+/// Who releases the pins at the last consumer's exit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Release {
+    /// The production exit: `RelationOwner::release_derived_producer`, as cancellation runs it.
+    Production,
+    /// A fake exit that releases nothing; the control that proves a leak is detected.
+    Forgetful,
+}
 pub(in crate::application::file_dag) fn exercise(
     kind: DerivedKind,
     scenario: Scenario,
 ) -> Result<DerivedKind, OperatingError> {
+    let (actual, leaked) = drive(kind, scenario, Release::Production);
+    assert_eq!(
+        leaked, None,
+        "{kind:?} {scenario:?}: the production exit itself releases the lease, before the generation retires"
+    );
+    actual
+}
+/// The negative control: the same exit with a release that never happens must be observed as a
+/// leak by the ledger before the fixture retires the generation. `None` means the exit was not
+/// reached (a scenario that retires the generation first) or nothing stayed charged.
+pub(in crate::application::file_dag) fn exercise_forgetful(
+    kind: DerivedKind,
+    scenario: Scenario,
+) -> Option<Leaked> {
+    drive(kind, scenario, Release::Forgetful).1
+}
+fn drive(
+    kind: DerivedKind,
+    scenario: Scenario,
+    release: Release,
+) -> (Result<DerivedKind, OperatingError>, Option<Leaked>) {
     let port = if scenario == Scenario::BuildFails {
         Arc::new(refusing::RefusingBuild) as Arc<dyn crate::outbound::derived::interface::DerivedPort>
     } else {
         program_derived_port()
     };
     let owner = Rc::new(RelationOwner::new(true, port));
-    let actual = acquire(kind, scenario, Rc::clone(&owner));
+    let mut leaked = None;
+    let actual = acquire(kind, scenario, Rc::clone(&owner), release, &mut leaked);
     owner.release_population();
     assert_eq!(
         owner.derived.publication_ownership_bytes(),
         (0, 0, 0),
         "{kind:?} {scenario:?}: every lease retires with the owner generation"
     );
-    actual
+    (actual, leaked)
 }
 fn acquire(
     kind: DerivedKind,
     scenario: Scenario,
     owner: Rc<RelationOwner>,
+    release: Release,
+    leaked: &mut Option<Leaked>,
 ) -> Result<DerivedKind, OperatingError> {
     let SmallTree {
         elements,
@@ -250,11 +291,15 @@ fn acquire(
     } else {
         rows
     };
-    let pins = [first.identity(&owner)?.0, second.identity(&owner)?.0];
+    let producers = [
+        (ProducerScope::File, RegionId(0)),
+        (ProducerScope::File, RegionId(1)),
+    ];
+    owner.bind_producer(producers[0].0, producers[0].1, publication.as_ref())?;
+    owner.bind_producer(producers[1].0, producers[1].1, other.as_ref())?;
     let baseline = owner.derived.publication_ownership_bytes().0;
-    for population in pins {
-        owner.derived.pin(population);
-    }
+    owner.pin_derived(publication.as_ref());
+    owner.pin_derived(other.as_ref());
     // A real lease exists before every exit that is not a success. `RawKeyOrder` is refused
     // on this ordinary route (its admission needs the kernel permit), so it holds none.
     let held = if kind != DerivedKind::RawKeyOrder && matches!(
@@ -272,7 +317,7 @@ fn acquire(
     match scenario {
         Scenario::Cancelled => {
             drop(held);
-            leave(&owner, pins, baseline, kind, scenario);
+            *leaked = leave(&owner, producers, baseline, release).err();
             return Ok(kind);
         }
         Scenario::Stale => owner.release_population(),
@@ -304,25 +349,31 @@ fn acquire(
     .and_then(|view| observed(&view));
     drop(held);
     if scenario != Scenario::Stale {
-        leave(&owner, pins, baseline, kind, scenario);
+        *leaked = leave(&owner, producers, baseline, release).err();
     }
     result
 }
-/// The last consumer's exit: its populations are released while the generation is still live,
-/// and the required bytes return to what they were before the view was acquired.
+/// The last consumer's exit: the producer release of the relation owner runs while the generation is still
+/// live, and nothing here releases a population. The required bytes must be what they were
+/// before the view was acquired; otherwise the exit leaked its lease.
 fn leave(
     owner: &RelationOwner,
-    pins: [PopulationId; 2],
+    producers: [(ProducerScope, RegionId); 2],
     baseline: usize,
-    kind: DerivedKind,
-    scenario: Scenario,
-) {
-    for population in pins {
-        owner.derived.release(population);
+    release: Release,
+) -> Result<(), Leaked> {
+    if release == Release::Production {
+        for (scope, node) in producers {
+            owner.release_derived_producer(scope, node);
+        }
     }
-    assert_eq!(
-        owner.derived.publication_ownership_bytes().0,
-        baseline,
-        "{kind:?} {scenario:?}: the exit itself releases the lease, before the generation retires"
-    );
+    let after = owner.derived.publication_ownership_bytes().0;
+    if after == baseline {
+        Ok(())
+    } else {
+        Err(Leaked {
+            before: baseline,
+            after,
+        })
+    }
 }

@@ -198,6 +198,20 @@ impl GraphFixture {
         );
         self.acquire_prepared(&plan, input, rows)
     }
+    /// A demand whose plan belongs to another family: the production entry must refuse it.
+    pub(in crate::application::file_dag) fn acquire_wrong(
+        &self,
+        input: Input,
+        rows: &Rows<'_>,
+        request: ViewRequest,
+    ) -> Result<Option<GraphHandle>, OperatingError> {
+        let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
+            self.owner.derived.semantic.clone(),
+            request,
+            rows,
+        );
+        self.acquire_prepared(&plan, input, rows)
+    }
     pub(in crate::application::file_dag) fn acquire_prepared(
         &self,
         plan: &Arc<DerivedContract>,
@@ -216,6 +230,26 @@ impl GraphFixture {
         };
         let mut cache = self.owner.derived.graph_cache()?;
         self.owner.derived.acquire_graph(plan, &source, &mut cache)
+    }
+    /// Required bytes the owner keeps for the admitted source of `rows` until the generation
+    /// retires: what a demand's exit returns to, since the exit does not retire the source.
+    pub(in crate::application::file_dag) fn source_floor(
+        &self,
+        input: Input,
+        rows: &Rows<'_>,
+    ) -> Result<usize, OperatingError> {
+        let (workspace, publication) = self.workspace(input, rows)?;
+        let admitted_rows = self
+            .owner
+            .resolve(publication.as_ref(), &|relation| match input {
+                Input::Relation(expected) if expected == relation => Ok(rows.clone()),
+                _ => Err(OperatingError::NotRead),
+            })?;
+        drop(workspace.graph_input(0, &admitted_rows)?);
+        drop(admitted_rows);
+        drop(workspace);
+        drop(publication);
+        Ok(self.owner.derived.publication_ownership_bytes().0)
     }
     pub(in crate::application::file_dag) fn domain(
         &self,

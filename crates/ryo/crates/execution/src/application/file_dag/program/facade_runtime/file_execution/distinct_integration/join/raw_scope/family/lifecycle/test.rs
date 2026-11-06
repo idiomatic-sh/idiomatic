@@ -3,7 +3,7 @@
 //! generation retired and `(required, optional, unique) == (0, 0, 0)` asserted by `exercise`.
 use super::super::super::fixtures::{RawCase, observe};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Scenario, exercise,
+    Scenario, exercise, exercise_forgetful,
     route::{
         exit::{Entry, Exit, entry},
         leave,
@@ -117,5 +117,25 @@ fn every_family_leaves_through_its_production_entry_on_success_cancellation_and_
         }
         let refused = leave(kind, Exit::Errors);
         assert!(refused.is_err(), "{kind:?} error exit: {refused:?}");
+    }
+}
+
+/// The negative control of the release assertion: a production exit that returns with its lease
+/// still charged is observed by the ledger at the exit itself, before the fixture retires the
+/// generation. `ClosureAdjacency` is driven through its cursor (no pins) and `RawKeyOrder`
+/// through the kernel permit, so neither reaches the pinned exit.
+#[test]
+fn an_exit_that_forgets_to_release_its_lease_fails_the_control() {
+    for kind in DerivedKind::ALL.iter().copied() {
+        if matches!(route(kind), Route::Raw) || kind == DerivedKind::ClosureAdjacency {
+            continue;
+        }
+        for scenario in [Scenario::Succeeds, Scenario::Cancelled] {
+            let leaked = exercise_forgetful(kind, scenario);
+            assert!(
+                matches!(leaked, Some(leak) if leak.after > leak.before),
+                "{kind:?} {scenario:?}: a forgotten release must stay charged, got {leaked:?}"
+            );
+        }
     }
 }
