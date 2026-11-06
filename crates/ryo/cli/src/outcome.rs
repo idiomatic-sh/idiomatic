@@ -13,7 +13,7 @@ mod tests;
 /// How a command ended: every command's `run` returns one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[must_use]
-pub enum CommandOutcome {
+pub enum Outcome {
     /// The command did its job: exit 0.
     Success,
     /// The command refused its input or reached a negative verdict: exit 1.
@@ -22,7 +22,7 @@ pub enum CommandOutcome {
     Error,
 }
 
-impl CommandOutcome {
+impl Outcome {
     /// The process exit code.
     #[must_use]
     pub const fn code(self) -> u8 {
@@ -34,8 +34,8 @@ impl CommandOutcome {
     }
 }
 
-impl From<CommandOutcome> for std::process::ExitCode {
-    fn from(outcome: CommandOutcome) -> Self {
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
         Self::from(outcome.code())
     }
 }

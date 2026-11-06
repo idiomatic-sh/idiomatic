@@ -30,16 +30,6 @@ const UNREAD_LINE: &[u8] = b"\nunread ";
 const OBJECT_OPEN: &[u8] = b"{";
 /// Ends the key of a member of the document, before its value.
 const KEY_END: &[u8] = b":";
-/// The key of the headings.
-const COLUMNS_KEY: &str = "columns";
-/// The key of the rows.
-const ROWS_KEY: &str = "rows";
-/// The key of the files nothing read.
-const UNREAD_KEY: &str = "unread";
-/// The key of how many rows the answer has.
-const COUNT_KEY: &str = "count";
-/// The key of how many rows were shown.
-const SHOWN_KEY: &str = "shown";
 /// Between two rows, and between two cells of a row.
 const COMMA: &[u8] = b",";
 /// Opens a row of the document, and the list of rows.
@@ -48,6 +38,22 @@ const ROW_OPEN: &[u8] = b"[";
 const CLOSE: &[u8] = b"]";
 /// Ends the document.
 const DOCUMENT_CLOSE: &[u8] = b"}\n";
+
+/// A key of the JSON document, written as `serde_json` writes its name.
+#[derive(Clone, Copy, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+enum Key {
+    /// The headings.
+    Columns,
+    /// The rows.
+    Rows,
+    /// The files nothing read.
+    Unread,
+    /// How many rows the answer has.
+    Count,
+    /// How many rows were shown.
+    Shown,
+}
 /// Between a path and why it was not read.
 const COLON: &str = ": ";
 /// Why a file was not read when no linked language reads files like it.
@@ -151,7 +157,7 @@ fn refused(error: &std::io::Error) -> StreamHealth {
 }
 
 /// Writes the key of a member of the document and what ends it, the key written as `serde_json` writes a string.
-fn key(out: &mut dyn std::io::Write, name: &str) -> std::io::Result<()> {
+fn key(out: &mut dyn std::io::Write, name: Key) -> std::io::Result<()> {
     serde_json::to_writer(&mut *out, name)?;
     out.write_all(KEY_END)
 }
@@ -198,10 +204,10 @@ impl RowsPort for RowsSchema {
             if self.json {
                 let names: Vec<&str> = columns.iter().map(|heading| &*heading.0).collect();
                 out.write_all(OBJECT_OPEN)?;
-                key(&mut *out, COLUMNS_KEY)?;
+                key(&mut *out, Key::Columns)?;
                 serde_json::to_writer(&mut *out, &names)?;
                 out.write_all(COMMA)?;
-                key(&mut *out, ROWS_KEY)?;
+                key(&mut *out, Key::Rows)?;
                 out.write_all(ROW_OPEN)
             } else {
                 for (place, heading) in columns.iter().enumerate() {
@@ -240,13 +246,13 @@ impl RowsPort for RowsSchema {
             if self.json {
                 out.write_all(CLOSE)?;
                 out.write_all(COMMA)?;
-                key(&mut *out, COUNT_KEY)?;
+                key(&mut *out, Key::Count)?;
                 out.write_all(summary.total.0.to_string().as_bytes())?;
                 out.write_all(COMMA)?;
-                key(&mut *out, SHOWN_KEY)?;
+                key(&mut *out, Key::Shown)?;
                 out.write_all(summary.shown.0.to_string().as_bytes())?;
                 out.write_all(COMMA)?;
-                key(&mut *out, UNREAD_KEY)?;
+                key(&mut *out, Key::Unread)?;
                 serde_json::to_writer(&mut *out, &lines)?;
                 out.write_all(DOCUMENT_CLOSE)
             } else {
