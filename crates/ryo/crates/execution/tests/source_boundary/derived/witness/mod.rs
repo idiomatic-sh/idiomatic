@@ -1,5 +1,5 @@
 //! Opaque backing observations never grant construction or ownership of storage.
-use super::super::fixtures::{Expectation, Probe};
+use super::super::fixtures::{Compilation, Expectation, Probe};
 
 const IMPORT: &str = r#"
 use crate::application::file_dag::derived::owner::witness::service::{BackingWitness as Witness, BackingLiveness, BackingIdentity};
@@ -8,6 +8,7 @@ use crate::application::file_dag::derived::owner::witness::service::{BackingWitn
 pub(super) fn controls(owner: &'static str) -> Vec<Probe> {
     vec![
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"
@@ -23,6 +24,7 @@ mod witness_observation {{
             expected: Expectation::Accept,
         },
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"
@@ -40,6 +42,7 @@ mod witness_private_constructor {{
             },
         },
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"
@@ -57,6 +60,7 @@ mod witness_alias_constructor {{
             },
         },
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"
@@ -76,6 +80,7 @@ mod witness_self_retarget {{
             },
         },
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"
@@ -93,6 +98,7 @@ mod witness_detach_backing {{
             },
         },
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"
@@ -110,6 +116,7 @@ mod witness_upgrade_storage {{
             },
         },
         Probe {
+            compilation: Compilation::LibraryTests,
             owner,
             source: format!(
                 r#"

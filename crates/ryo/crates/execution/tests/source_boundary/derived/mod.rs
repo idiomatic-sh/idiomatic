@@ -1,5 +1,5 @@
 //! Same-crate controls target the actual derived owner and its actual private issuers.
-use super::fixtures::{Expectation, Probe};
+use super::fixtures::{Compilation, Expectation, Probe};
 mod witness;
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
 pub(super) const GRAPH_ISSUER: &str =
@@ -148,6 +148,7 @@ mod domain_raw_getter { use crate::application::file_dag::derived::owner::graphs
 pub(super) fn controls() -> Vec<Probe> {
     let mut probes = vec![
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: GRAPH_SELF_FORGERY.into(),
             expected: Expectation::Refuse {
@@ -157,6 +158,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: DOMAIN_ALIAS_FORGERY.into(),
             expected: Expectation::Refuse {
@@ -166,6 +168,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: GRAPH_RAW_GETTER.into(),
             expected: Expectation::Refuse {
@@ -175,6 +178,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: DOMAIN_RAW_GETTER.into(),
             expected: Expectation::Refuse {
@@ -184,6 +188,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: OWNED_STORAGE_ESCAPE.into(),
             expected: Expectation::Refuse {
@@ -193,6 +198,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: RAW_PAYLOAD_ESCAPE.into(),
             expected: Expectation::Refuse {
@@ -202,6 +208,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: RAW_VIEW_ESCAPE.into(),
             expected: Expectation::Refuse {
@@ -211,6 +218,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: GRAPH_ALLOCATION_ESCAPE.into(),
             expected: Expectation::Refuse {
@@ -220,6 +228,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: DOMAIN_ALLOCATION_ESCAPE.into(),
             expected: Expectation::Refuse {
@@ -229,6 +238,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: GRAPH_RECORD_FORGERY.into(),
             expected: Expectation::Refuse {
@@ -238,6 +248,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: UNADMITTED_GRAPH_DEMAND.into(),
             expected: Expectation::Refuse {
@@ -247,6 +258,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: PRIVATE_RETAINED_STORAGE.into(),
             expected: Expectation::Refuse {
@@ -256,16 +268,19 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: BORROWED_LEASED_READ.into(),
             expected: Expectation::Accept,
         },
         Probe {
+            compilation: Compilation::Library,
             owner: GRAPH_ISSUER,
             source: OWNED_GRAPH_PRIVATE_FIELDS.into(),
             expected: Expectation::Accept,
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ROOT,
             source: RAW_BRIDGE_SIBLING.into(),
             expected: Expectation::Refuse {
@@ -275,6 +290,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: SOURCE_RETARGET.into(),
             expected: Expectation::Refuse {
@@ -284,16 +300,19 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: AUTHORIZED.into(),
             expected: Expectation::Accept,
         },
         Probe {
+            compilation: Compilation::Library,
             owner: ISSUER,
             source: PRIVATE_OWNER.into(),
             expected: Expectation::Accept,
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: ADMISSION_ALIAS.into(),
             expected: Expectation::Refuse {
@@ -303,6 +322,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: ACQUIRED_ALIAS.into(),
             expected: Expectation::Refuse {
@@ -312,6 +332,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: ACQUIRED_SELF.into(),
             expected: Expectation::Refuse {
@@ -321,6 +342,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: STORAGE_CONSTRUCTOR.into(),
             expected: Expectation::Refuse {
@@ -330,6 +352,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: UNPERMITTED_RAW.into(),
             expected: Expectation::Refuse {
@@ -339,6 +362,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: MODULE,
             source: REMOVED_PORT_GETTER.into(),
             expected: Expectation::Refuse {
