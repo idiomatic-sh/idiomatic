@@ -40,13 +40,14 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     );
     let temporary = tempfile::tempdir()?;
     let staged = temporary.path().join("suite");
-    // This request selects every configured diagnostic rule, not the five
-    // supporting definitions. The production linter projects Selected bindings.
+    // Stage the whole declared profile; the production worker resolves which
+    // supporting definitions are needed by the selected diagnostic cohort.
+    let definitions = profile.defaults.iter().chain(&profile.supporting_rules).cloned().collect();
     suite.stage(
         ArtifactPath(&canonical),
         ArtifactPath(&staged),
         &profile.defaults,
-        &profile.defaults.iter().cloned().collect(),
+        &definitions,
         StagePurpose::Execution,
     )?;
     let root = temporary.path().join("input");
