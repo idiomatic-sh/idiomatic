@@ -101,7 +101,6 @@ pub(crate) enum RouteKind {
     Generic,
     OrderedExistence,
     Column,
-    Selection,
     NativePositions,
 }
 /// What the family analysers found eligible for one region, before the one rule keeps a route.

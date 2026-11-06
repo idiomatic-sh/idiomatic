@@ -123,9 +123,7 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
         .logical;
     let right_region = prepared.program().logical_regions()[right_origin.0];
     assert!(
-        prepared.program().regions()[right_region.0]
-            .selection
-            .is_some(),
+        crate::domain::executable_program::service::selection(&prepared.program().regions()[right_region.0].route).is_some(),
         "RHS must use the actual compiled stored selection"
     );
     let semantic_reads = Arc::new(JoinReads::default());

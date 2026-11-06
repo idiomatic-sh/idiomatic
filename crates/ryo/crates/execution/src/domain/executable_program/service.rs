@@ -497,16 +497,6 @@ pub(crate) fn choose(offers: super::types::RouteOffers) -> super::types::Route {
         Route::Generic
     }
 }
-pub(crate) fn kind(route: &super::types::Route) -> super::types::RouteKind {
-    use super::types::{Route, RouteKind};
-    match route {
-        Route::Generic => RouteKind::Generic,
-        Route::OrderedExistence(_) => RouteKind::OrderedExistence,
-        Route::Column(_) => RouteKind::Column,
-        Route::Selection(_) => RouteKind::Selection,
-        Route::NativePositions(_) => RouteKind::NativePositions,
-    }
-}
 pub(crate) fn ordered_existence(route: &super::types::Route) -> Option<&OrderedExistence> {
     match route {
         super::types::Route::OrderedExistence(shape) => Some(shape),

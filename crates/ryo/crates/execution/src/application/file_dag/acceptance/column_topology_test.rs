@@ -4,7 +4,7 @@ use crate::domain::{
     executable_program::{
         column::ColumnCandidates,
         service::{self, compile},
-        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions, RouteKind},
+        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions, Route},
     },
     file_program::types::{NodeId, RequestGraph},
     operating::errors::OperatingError,
@@ -177,7 +177,7 @@ fn assert_one_route(program: &ExecutableProgram) {
         assert!(named.iter().filter(|each| **each).count() <= 1);
         assert_eq!(
             named.iter().any(|each| *each),
-            service::kind(route) != RouteKind::Generic
+            !matches!(route, Route::Generic)
         );
     }
 }
@@ -187,7 +187,7 @@ fn column_count(program: &ExecutableProgram) -> usize {
     program
         .regions()
         .iter()
-        .filter(|region| service::kind(&region.route) == RouteKind::Column)
+        .filter(|region| service::column(&region.route).is_some())
         .count()
 }
 
