@@ -1,4 +1,0 @@
-{
-  "pyproject.toml": "[project]\nname = 'example'\nversion = '1.0'\n",
-  "invalid.py": "def broken(\n"
-}

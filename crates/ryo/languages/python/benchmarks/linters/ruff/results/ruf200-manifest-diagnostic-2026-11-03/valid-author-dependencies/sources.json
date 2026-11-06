@@ -1,3 +1,0 @@
-{
-  "pyproject.toml": "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{name = 'é author', email = 'author@example.org'}]\ndependencies = ['requests>=2; python_version > \"3.8\"']\n"
-}

@@ -1,9 +1,0 @@
-# CI inventory and speed receipts at 6bff0aa5
-
-The [GitHub Actions run](https://github.com/idiomatic-sh/idiomatic/actions/runs/41508226273) executed the shared inventory runner at source commit `6bff0aa50e7fd208af3092dfc2c4a8e549ccbc44`. Its [complete summary](summary.json) records **361 PASS / 52 FAIL / 413 pinned defaults**. Of the 52 failures, 25 registrations had no implementation, 22 verifier children exceeded the 120-second per-rule limit, and five returned fixture failures (N999, PLW0602, PYI020, RUF041, RUF051). The inventory job exited nonzero. The [raw receipt archive](raw-receipts.tar.gz) retains the exact registration, per-rule result and case records, child stdout/stderr, build diagnostics, and executable seals; the source tree at the commit provides the registered query and helper bytes.
-
-This run predates the required-live engine fix, RUF101 and PLE0116 source, and later source-bound supplements. It is a single 6bff execution, not the current combined proof count. In particular, a timeout does not establish a semantic mismatch.
-
-The same run's [speed check](speed-check.json) failed. Its Go baseline file-reading scaling check measured 3.216429867 s against a 278.188487 ms limit. The Rust warm peak was 100,593,664 bytes against the 100,000,000-byte bound. The [speed raw archive](speed-raw.tar.gz) retains the job's commands and stdout/stderr. The Go baseline failure prevents a cross-language candidate comparison, and this job does not measure the later required-live worker. Both limits remain active.
-
-Artifact identities: `summary.json` SHA-256 `d7866b32626767465a715bcbf570de569aff30918f722ce055ffd003a5ca0a5d`; `raw-receipts.tar.gz` SHA-256 `826feef93b6a379712147589e7c432428b8f4826dcf970d3cbfc015787844721`; `speed-check.json` SHA-256 `de5b108cb09ac8fd91918cdf34c6b73161b25f556ef6a6dad547ea5b51dd46bc`; `speed-raw.tar.gz` SHA-256 `f85484070bda1af17660877979af5a90393c362c70f87501efe9aafd1c02d3d0fb0`.

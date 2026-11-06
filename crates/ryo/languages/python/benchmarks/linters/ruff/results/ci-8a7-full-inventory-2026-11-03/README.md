@@ -1,7 +1,0 @@
-# Exact public 8a7 Ruff full inventory
-
-[Run 41722800755](https://github.com/idiomatic-sh/idiomatic/actions/runs/41722800755), [Ruff job 126219687338](https://github.com/idiomatic-sh/idiomatic/actions/runs/41722800755/job/126219687338), completed **410 PASS / 3 FAIL / 413** on source `8a7a563fd1cfad986f21f73903a53fd2481e0c22`. The [summary](summary.json), [registration](registration.json), [raw per-rule receipts](raw-receipts.tar.gz), [worker seal](worker-seal.json), [inventory runner seal](inventory-runner-seal.json), and [artifact identity](metadata.json) preserve the remote result. The original GitHub artifact is `ruff-all-defaults-1` ID `13273358710`. All 410 passing receipt hashes match the summary.
-
-Against the previous [409/4 complete run](../ci-5331-full-inventory-2026-11-03/summary.json), the same 413 rule IDs ran and only E902 changed from FAIL to PASS. E902 ran 8 cases, all raw exact, with zero documented or contract-only discrepancies. The [comparison](comparison.json) found no change to the other 409 per-rule instance records; the [bounded semantic comparison](semantic-comparison.json) found no change in 21,946 previously passing case records after normalizing run-specific temporary paths. This comparison does not cover every source file or a new corpus workload.
-
-The remaining FAIL IDs are I001, RUF100, and RUF200, each for a missing implementation. Other CI checks and performance remain separate gates; this inventory is not full Ruff parity or merge acceptance.

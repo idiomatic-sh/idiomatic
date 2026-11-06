@@ -1,5 +1,0 @@
-38 cases checked; failures:
-UP035/mapping-typing_extensions-typing candidate: candidate failed (-6): 
-thread '<unknown>' (3031825) has overflowed its stack
-fatal runtime error: stack overflow, aborting
-

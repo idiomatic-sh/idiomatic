@@ -1,7 +1,0 @@
-# Stub annotation syntax fixture proof
-
-Sealed worker `fe24023f…` verifies all139 PYI019 cases (138 raw exact, one exact reference discrepancy) and all72 PYI034 cases (71 raw exact, one discrepancy), both sides complete. All original source bytes, full fixtures, rule-specific findings and positive controls remain unchanged. No query/provider/engine source changed.
-
-The exact two discrepancies concern generic invalid-syntax findings on named expressions in .pyi parameter annotations. Actual CPython3.10.19 accepts parsing and compilation of those sources with future annotations disabled. Official typing documentation separately restricts portable type/annotation expressions and supported stub constructs. Intended output does not certify a portable or well-typed stub; it distinguishes Python grammar validity from a type-checker's unsupported-expression policy, and does not waive a selected PYI019/PYI034 diagnostic. Complete pinned reference outputs are retained under narrow source/tool/profile/settings/output-bound certificates.
-
-The existing generic supplement validator checks current source/cases/settings/helpers and actual native attestations. Summaries are derived offline from native verify-cases receipts, not a collector invocation or combined413 replay. The original exact80be full-run summary and raw mismatches remain immutable; this promotes only the two independently reverified rules. Canonical profiles are normalized to the exact executed staged bytes without changing their effective settings.

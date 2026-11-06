@@ -1,8 +1,0 @@
-import pep604 from "python/ruff/pep604-candidates";
-import suppress from "python/ruff/suppress";
-let inputs = select id, file from "semantic-syntax" where kind = "subscript";
-let selected = pep604(source_nodes=inputs);
-let candidates0 = select id, file from selected where operator = "union";
-let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates0 as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])UP007(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:UP007)(?:,|$)");
-emit violations subject file key(id);

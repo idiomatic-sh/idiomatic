@@ -1,2 +1,0 @@
-candidate failed (1): incomplete candidate: selected_rule_file_pairs=2; unknown_count=1; unread_count=1; unknowns=[Unknown { rule: RuleId("invalid-syntax"), path: RelativePath("missing.py"), message: Message("syntax-error is read only in part in missing.py: No such file or directory (os error 2)") }]; unread=[Unread { path: RelativePath("missing.py"), reason: Failed(ReadFailure("No such file or directory (os error 2)")) }]
-
