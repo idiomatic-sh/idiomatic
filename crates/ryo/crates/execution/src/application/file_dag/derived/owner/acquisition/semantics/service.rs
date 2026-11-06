@@ -531,11 +531,10 @@ impl DerivedStorage {
             retention_units: 0,
         });
         if let Some(identity) = &this.graph_identity {
-            let keys = identity
-                .keys
-                .capacity()
-                .checked_mul(size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>())
-                .ok_or(OperatingError::ShapeMismatch)?;
+            let keys = crate::application::file_dag::derived::ledger::capacity::checked::<
+                ryo_values::domain::plan_parts::types::ColumnIndex,
+            >(identity.keys.capacity())
+            .ok_or(OperatingError::ShapeMismatch)?;
             output.push(Backing {
                 key: (34, Arc::as_ptr(identity) as usize),
                 bytes: (size_of::<GraphIdentity>() + 2 * size_of::<usize>())
@@ -544,14 +543,9 @@ impl DerivedStorage {
                 retention_units: 0,
             });
             if let Some(rows) = &identity.population.positions {
-                let capacity_bytes = rows
-                    .capacity()
-                    .checked_mul(size_of::<u32>())
-                    .ok_or(OperatingError::ShapeMismatch)?;
                 output.push(Backing {
                     key: (1, Arc::as_ptr(rows) as usize),
-                    bytes: (size_of::<Vec<u32>>() + 2 * size_of::<usize>())
-                        .checked_add(capacity_bytes)
+                    bytes: crate::application::file_dag::derived::ledger::capacity::positions_checked(rows)
                         .ok_or(OperatingError::ShapeMismatch)?,
                     retention_units: rows.capacity(),
                 });

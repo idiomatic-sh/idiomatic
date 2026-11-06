@@ -28,10 +28,10 @@ use std::sync::Arc;
 
 use crate::application::file_dag::derived::owner::cache::types::ActivePostings;
 fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
-    active
-        .capacity()
-        .checked_mul(size_of::<ActivePostings>())
-        .and_then(|base| {
+    crate::application::file_dag::derived::ledger::capacity::checked::<ActivePostings>(
+        active.capacity(),
+    )
+    .and_then(|base| {
             active.iter().try_fold(base, |total, group| {
                 let strings = group
                     .literals

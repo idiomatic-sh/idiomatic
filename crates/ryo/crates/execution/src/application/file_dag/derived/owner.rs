@@ -150,41 +150,30 @@ impl DerivedOwner {
             .saturating_sub(state.overlap_bytes)
     }
     pub(in crate::application::file_dag) fn metadata_bytes(&self) -> usize {
+        use crate::application::file_dag::derived::ledger::capacity::{saturating, table};
         let state = self.state.borrow();
-        state
+        let plans = state
             .entries
             .keys()
             .map(|key| key.plan.metadata_bytes())
-            .sum::<usize>()
-            + state
-                .entries
-                .capacity()
-                .saturating_mul(size_of::<(Key, Entry)>() + 1)
-                .saturating_mul(2)
-            + state
-                .pins
-                .capacity()
-                .saturating_mul(size_of::<(PopulationId, usize)>() + 1)
-                .saturating_mul(2)
-            + state
-                .dependents
-                .capacity()
-                .saturating_mul(size_of::<(PopulationId, Vec<Key>)>() + 1)
-                .saturating_mul(2)
-            + state
-                .dependents
-                .values()
-                .map(|keys| keys.capacity().saturating_mul(size_of::<Key>()))
-                .sum::<usize>()
-            + state
-                .spare_dependencies
-                .capacity()
-                .saturating_mul(size_of::<Vec<Key>>())
-            + state
-                .spare_dependencies
-                .iter()
-                .map(|keys| keys.capacity().saturating_mul(size_of::<Key>()))
-                .sum::<usize>()
+            .sum::<usize>();
+        let spare = state
+            .spare_dependencies
+            .iter()
+            .map(|keys| saturating::<Key>(keys.capacity()))
+            .sum::<usize>();
+        let dependent_keys = state
+            .dependents
+            .values()
+            .map(|keys| saturating::<Key>(keys.capacity()))
+            .sum::<usize>();
+        plans
+            + table::<(Key, Entry)>(state.entries.capacity()).saturating_mul(2)
+            + table::<(PopulationId, usize)>(state.pins.capacity()).saturating_mul(2)
+            + table::<(PopulationId, Vec<Key>)>(state.dependents.capacity()).saturating_mul(2)
+            + dependent_keys
+            + saturating::<Vec<Key>>(state.spare_dependencies.capacity())
+            + spare
     }
 }
 

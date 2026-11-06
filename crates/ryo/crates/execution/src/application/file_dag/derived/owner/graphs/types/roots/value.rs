@@ -5,12 +5,14 @@ use super::super::{
 };
 use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::{
-    ledger::Backing,
+    ledger::{
+        Backing,
+        capacity::{arc_bytes, vector},
+    },
     owner::DerivedOwner,
     owner::cache::types::CacheBackend,
     owner::graphs::{
         service::{replace, slot},
-        types::footprint::value::{arc_bytes, vector},
     },
 };
 use crate::domain::{

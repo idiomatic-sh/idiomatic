@@ -254,9 +254,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
             &mut backings,
             crate::application::file_dag::derived::ledger::Backing {
                 key: (1, Arc::as_ptr(rows) as usize),
-                bytes: size_of::<Vec<u32>>()
-                    + 2 * size_of::<usize>()
-                    + rows.capacity() * size_of::<u32>(),
+                bytes: crate::application::file_dag::derived::ledger::capacity::positions(rows),
                 retention_units: rows.capacity(),
             },
         )?;

@@ -14,10 +14,9 @@ pub(crate) fn slot<T>(entries: &Vec<T>) -> Option<(Option<Vec<T>>, usize)> {
     replacement
         .try_reserve_exact(entries.len().checked_add(1)?)
         .ok()?;
-    let more = replacement
-        .capacity()
-        .checked_sub(entries.capacity())?
-        .checked_mul(size_of::<T>())?;
+    let more = crate::application::file_dag::derived::ledger::capacity::checked::<T>(
+        replacement.capacity().checked_sub(entries.capacity())?,
+    )?;
     Some((Some(replacement), more))
 }
 

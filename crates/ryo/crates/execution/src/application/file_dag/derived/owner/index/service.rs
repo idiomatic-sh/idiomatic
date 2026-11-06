@@ -36,8 +36,10 @@ pub(in crate::application::file_dag::derived::owner) fn new(
             eligible.push(*relation);
         }
     }
-    let bytes = size_of::<CacheBackend>()
-        .checked_add(eligible.capacity().checked_mul(size_of::<Relation>())?)?;
+    let bytes = crate::application::file_dag::derived::ledger::capacity::headed::<
+        CacheBackend,
+        Relation,
+    >(eligible.capacity())?;
     (bytes <= limit).then_some(CacheBackend {
         #[cfg(test)]
         selector_descriptor: None,
@@ -106,10 +108,10 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
         }
     }
     let columns: Vec<_> = columns.into_values().collect();
-    if let Some(bytes) = columns
-        .capacity()
-        .checked_mul(size_of::<CandidateColumn>())
-        .and_then(|bytes| cache.bytes.checked_add(bytes))
+    if let Some(bytes) = crate::application::file_dag::derived::ledger::capacity::checked::<
+        CandidateColumn,
+    >(columns.capacity())
+    .and_then(|bytes| cache.bytes.checked_add(bytes))
         .filter(|bytes| *bytes <= non_graph_limit(cache))
     {
         cache.bytes = bytes;

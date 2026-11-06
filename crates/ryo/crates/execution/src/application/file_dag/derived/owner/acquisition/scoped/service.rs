@@ -38,11 +38,10 @@ impl DerivedOwner {
             .semantic
             .working_bytes()
             .map_err(crate::domain::operator::contract::derived::portable_fault)?;
-        let scratch_bytes = scratch
-            .row
-            .capacity()
-            .checked_mul(size_of::<ryo_relations::domain::relations::types::Value>())
-            .and_then(|bytes| bytes.checked_add(semantic_bytes))
+        let scratch_bytes = crate::application::file_dag::derived::ledger::capacity::checked::<
+            ryo_relations::domain::relations::types::Value,
+        >(scratch.row.capacity())
+        .and_then(|bytes| bytes.checked_add(semantic_bytes))
             .ok_or(OperatingError::ShapeMismatch)?;
         backings.push(Backing {
             key: (16, id),

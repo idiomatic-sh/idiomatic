@@ -179,10 +179,10 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
             selectors.push(Arc::clone(&use_.selector));
         }
     }
-    if let Some(bytes) = selectors
-        .capacity()
-        .checked_mul(size_of::<Arc<Selector>>())
-        .and_then(|bytes| cache.bytes.checked_add(bytes))
+    if let Some(bytes) = crate::application::file_dag::derived::ledger::capacity::checked::<
+        Arc<Selector>,
+    >(selectors.capacity())
+    .and_then(|bytes| cache.bytes.checked_add(bytes))
         .filter(|bytes| {
             *bytes
                 <= crate::application::file_dag::derived::owner::index::service::non_graph_limit(

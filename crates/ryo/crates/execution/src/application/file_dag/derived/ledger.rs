@@ -7,6 +7,7 @@ use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
 #[path = "ledger_test.rs"]
 mod tests;
 
+pub(in crate::application::file_dag) mod capacity;
 mod credit;
 
 type Key = (u8, usize);

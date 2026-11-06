@@ -1,6 +1,6 @@
 //! Capacity accounting must include reserved room, not merely logical lengths.
 
-use super::value::{arc_bytes, vector};
+use super::{arc_bytes, vector};
 
 #[test]
 fn vector_accounting_charges_unused_capacity_and_arc_header() {
