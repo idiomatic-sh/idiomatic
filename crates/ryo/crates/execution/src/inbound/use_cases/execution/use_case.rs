@@ -19,7 +19,10 @@ impl ExecutionUseCaseImpl {
     }
 }
 impl ExecutionUseCase for ExecutionUseCaseImpl {
-    fn prepare(&self, request: PreparedRequest) -> Result<PreparedExecutionProgram, OperatingError> {
+    fn prepare(
+        &self,
+        request: PreparedRequest,
+    ) -> Result<PreparedExecutionProgram, OperatingError> {
         let compiled = crate::domain::prepared_request::service::assemble(
             request.plans,
             request.bindings,
@@ -43,7 +46,11 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
     ) -> Result<PreparedExecutionProgram, OperatingError> {
         self.finish_preparation(queries.inner, rules, digests, hosted, observations)
     }
-    fn begin(&self, program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution {
+    fn begin(
+        &self,
+        program: &PreparedExecutionProgram,
+        corpus: &[CorpusInput],
+    ) -> RequestExecution {
         RequestExecution {
             program: Arc::clone(&program.inner),
             services: Arc::new(ProgramServices::new(
@@ -210,7 +217,7 @@ impl FileExecution for FileSession<'_, '_> {
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        let bound = crate::application::file_dag::program::protocol::types::CaptureContext {
+        let bound = crate::application::file_dag::program::protocol::types::CaptureScope {
             file: self.file,
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,
