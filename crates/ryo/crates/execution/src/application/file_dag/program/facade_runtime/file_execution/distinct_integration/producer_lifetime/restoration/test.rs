@@ -12,6 +12,20 @@ use ryo_values::domain::rows::errors::TableModelError;
 fn exercise(exit: Exit) -> Result<(), OperatingError> {
     let mut symbols = Symbols::default();
     let captured = CapturedProject::new(exit, &mut symbols)?;
+    let named = captured
+        .prepared
+        .observation_metadata()
+        .expect("actual named program");
+    for (slot, _) in named.slots.iter().enumerate() {
+        let union = *captured.prepared.program().observation_regions()[slot]
+            .as_ref()
+            .expect("valid compiled named union");
+        assert_eq!(
+            captured.prepared.program().regions()[union.0].phase,
+            StepScope::CrossFile,
+            "restored project fixture must demand project-scoped unions, not unresolved file frontiers"
+        );
+    }
     let partials = Partials::default();
     let owner = Rc::clone(captured.phase.owner());
     assert!(!owner.derived.index_observation().available);
@@ -67,24 +81,6 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
             completed
         }
     };
-    let counts = captured.phase.readiness_counts();
-    let builds = owner.derived.counts();
-    let working = owner.derived.working_bytes();
-    assert!(counts.evaluations.0 > 0);
-    assert!(
-        builds.0 > 0,
-        "the actual restored population acquires required equality backing"
-    );
-    assert!(
-        working > 0,
-        "external obligations retain the required restored producer lease"
-    );
-    assert_eq!(owner.derived.retained_bytes(), 0);
-    let backing = owner
-        .derived
-        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
-        .expect("actual project equality backing");
-    assert!(backing.liveness() == BackingLiveness::Alive);
     let mut transferred = vec![];
     for (at, outcome) in outcomes.into_iter().enumerate() {
         let outcome = outcome?;
@@ -108,6 +104,24 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         "duplicate named obligations deliver the same canonical rows"
     );
     assert_eq!(transferred[0].count, RowCount(2));
+    let counts = captured.phase.readiness_counts();
+    let builds = owner.derived.counts();
+    let working = owner.derived.working_bytes();
+    assert!(counts.evaluations.0 > 0);
+    assert!(
+        builds.0 > 0,
+        "the actual restored population acquires required equality backing"
+    );
+    assert!(
+        working > 0,
+        "external obligations retain the required restored producer lease"
+    );
+    assert_eq!(owner.derived.retained_bytes(), 0);
+    let backing = owner
+        .derived
+        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
+        .expect("actual project equality backing");
+    assert!(backing.liveness() == BackingLiveness::Alive);
     for at in [1, 2, 4] {
         if at == 4 && matches!(exit, Exit::CancelledDelivery) {
             continue;
