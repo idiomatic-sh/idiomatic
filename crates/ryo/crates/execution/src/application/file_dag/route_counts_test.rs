@@ -46,11 +46,8 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
     assert_eq!(
         physical[0].0.origin,
         Origin {
-            namespace: if cfg!(feature = "diagnostic-row-progress") {
-                "dag"
-            } else {
-                ""
-            },
+            #[cfg(feature = "diagnostic-row-progress")]
+            namespace: "dag",
             rule: Some(3),
             node: Some(19),
             owner: true,
