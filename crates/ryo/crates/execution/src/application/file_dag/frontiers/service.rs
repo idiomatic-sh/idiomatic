@@ -34,7 +34,7 @@ pub enum PreparationError {
     Metadata(#[from] OperatingError),
 }
 
-pub(crate) fn prepare(
+pub(super) fn prepare(
     program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     rule: crate::domain::coverage::types::RuleIndex,
     first: Bucket,
