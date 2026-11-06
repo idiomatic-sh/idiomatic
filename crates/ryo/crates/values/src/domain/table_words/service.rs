@@ -514,22 +514,3 @@ pub fn compact_storage(input: &CompactTable) -> [(usize, usize); 2] {
         (input.row_offsets.as_ptr() as usize, input.row_offsets.len()),
     ]
 }
-
-#[cfg(test)]
-mod frame_boundary_test {
-    use super::*;
-
-    #[test]
-    fn a_source_range_is_one_complete_frame_even_when_adjacent_ranges_still_decode() {
-        let mut words = Words::default();
-        encode_table(&Table::default(), &[], &mut words);
-        let frame = pack(WordSlice(&words.0));
-        assert!(single_table_frame(&frame.0));
-        let mut joined = frame.0.clone();
-        joined.extend_from_slice(&frame.0);
-        let shifted = frame.0.len() - 1;
-        assert!(!single_table_frame(&joined[..shifted]));
-        assert!(!single_table_frame(&joined[shifted..]));
-        assert!(!single_table_frame(&joined));
-    }
-}

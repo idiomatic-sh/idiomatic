@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, Offset, Span, Value as Cell, Words,
 };
 
-use super::service::{decode_combined, encode_table, pack, unpacked};
+use super::service::{decode_combined, decode_complete, encode_table, pack, unpacked};
 use super::types::WordSlice;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::rows::service::push_row;
@@ -16,13 +16,15 @@ enum Scenario {
     Words,
     /// Reads words that stop short of the end of the second table.
     Cut,
+    /// Asks for a complete read of words that stop short.
+    Required,
 }
 
 /// What a row of the cases does.
 type Input = Scenario;
 /// How many rows were read back, or whether the check held.
 type Value = usize;
-type Failure = ();
+type Failure = super::errors::TableWordsError;
 
 fn rows() -> Table {
     let mut table = Table {
@@ -52,10 +54,10 @@ fn twice() -> Words {
     table_words
 }
 
-fn subject(scenario: Input) -> Value {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     let table = rows();
     let table_words = twice();
-    match scenario {
+    Ok(match scenario {
         Scenario::Words => {
             // The tables read as one are the rows of each, one after the other.
             let mut whole = rows();
@@ -82,7 +84,14 @@ fn subject(scenario: Input) -> Value {
             );
             cut.count.0
         }
-    }
+        Scenario::Required => {
+            return decode_complete(
+                &pack(WordSlice(&table_words.0[..table_words.0.len() - 1])),
+                &mut Vec::new(),
+            )
+            .map(|table| table.count.0);
+        }
+    })
 }
 
 /// The rows of this part's cases.
@@ -99,58 +108,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Cut,
         expect: Expect::Value(2),
     },
+    Case {
+        name: CaseName("a_required_read_of_words_that_stop_short_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::Required,
+        expect: Expect::Error(super::errors::TableWordsError::Incomplete),
+    },
 ];
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[test]
-fn exact_size_packing_matches_legacy_varints_and_retains_no_capacity_slack() {
-    use super::service::{encoded_size, with_encoded_word};
-    fn legacy(words: &[u64]) -> Vec<u8> {
-        let mut bytes = Vec::new();
-        for word in words {
-            let mut value = *word;
-            while value >= 128 {
-                bytes.push((value & 127) as u8 | 128);
-                value >>= 7;
-            }
-            bytes.push(value as u8);
-        }
-        bytes
-    }
-    for words in [
-        vec![],
-        vec![0],
-        vec![127],
-        vec![128],
-        vec![16383],
-        vec![16384],
-        vec![u64::MAX],
-        vec![0, 127, 128, 16383, 16384, u64::MAX],
-        twice().0,
-    ] {
-        let packed = pack(WordSlice(&words));
-        assert_eq!(packed.0, legacy(&words));
-        assert_eq!(encoded_size(WordSlice(&words)), Some(packed.0.len()));
-        assert_eq!(
-            packed.0.capacity(),
-            packed.0.len(),
-            "no guessed allocation ratio or shrink-copy"
-        );
-        assert!(unpacked(&packed).map(|word| word.0).eq(words));
-    }
-    assert_eq!(with_encoded_word(usize::MAX, 0), None);
-    assert_eq!(with_encoded_word(usize::MAX - 9, u64::MAX), None);
-    assert_eq!(
-        with_encoded_word(usize::MAX - 10, u64::MAX),
-        Some(usize::MAX)
-    );
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 
 use crate::domain::rows::types::Table;
 
 #[cfg(test)]
 mod compact_test;
+
+#[cfg(test)]
+mod packing_test;
