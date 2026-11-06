@@ -14,7 +14,7 @@
 | 6 | QUEUED | Cold/warm/edit reuse and invalidation |
 | 7 | QUEUED | Final enforcement, review and acceptance |
 
-The bounded 2/3/4 checkpoint is `34dbb52484`, tree `e8fcca120e3e`; no phase is VERIFIED. Beads `ryo-7tkn.19` retains process handles and raw evidence.
+Latest reviewed source is `b665d2dbcd`, tree `feffd158ae7b`; its build and boundary review fail. The last runnable bounded checkpoint remains `34dbb52484`; no phase is VERIFIED. Beads `ryo-7tkn.19` retains process handles and raw evidence.
 
 - [413-rule CI fixtures](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/job/127558257740): 413 PASS / 0 FAIL on older public `3cd3249a2`, 11,185 cases. This is not proof of the current unmerged engine or Django.
 - Latest full Django256: **failed**, 2,986.06 seconds / 6.009 GB / 2,880 unknowns. Configured full Rust-workload guards remain unverified.
@@ -26,7 +26,19 @@ The bounded 2/3/4 checkpoint is `34dbb52484`, tree `e8fcca120e3e`; no phase is V
 - [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
 - [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
-### Current work by phase — source `34dbb52484`, validation301
+### Current ownership batch — source `b665d2dbcd`
+
+The [Astra/Opus review](audits/2026-11-06-derived/ownership/review.json) records all three axes **FAIL**, with dispositions for 60 affected rows. Validation302 fails compilation with 14 distinct diagnostics; the 83 execution probes, 8 core probes and five extended lifecycle families have not run on this source. Validation303 passes the TM query unit; its CLI fixture fails setup before any of the eight cases run.
+
+- [ ] Repair the combined compiler diagnostics and rerun the affected production suites. Repairs are integrated in `bcaca60115` and `1bb5d93dec`, uncompiled.
+- [ ] REG-1: require actual selected operator/physical registration. Eight new TM negatives reproduce incidental references incorrectly counting as registration. Rows B4d.14/D1 remain open.
+- [ ] PUB-RAW: prevent non-owner callers retaining a raw publication after dropping its required lease. Add forbidden-access and retained-lease controls; publication/lifetime rows remain open.
+- [ ] Fix CLI fixture setup and execute all eight visibility/import/type/call cases.
+- [ ] Bind actual structural checks and independent review to the repaired combined source. The resolved targeted owner cycle is source progress; ten other SCCs remain outside that scope.
+
+No historical checkbox below certifies this changed source. The current review separates retained source fixes from unexecuted controls; no category or phase is accepted.
+
+### Last runnable checkpoint — source `34dbb52484`, validation301
 
 **Build PASS; execution 452/452 PASS.** Core: 177 passed / 6 deferred output/store failures; its boundary suite passes 1/1 with all 8 real-source probes. Reused unchanged production postimages from300: execution boundaries 90/90 with 70 probes (14 positive, 56 negative), benchmark 191/191, SDK 43/43 and five other libraries 155/155; actual configured413 sharing passes on one file.
 
@@ -65,7 +77,7 @@ Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [in
 
 Inventory audit: `bf525425c7`; current [paired source review](audits/2026-11-06-shared-walk/review.json) binds narrow row proofs to `c5abcc1da4` and validation280. All 83 rows require evidence for their entire scope; the overall verdict remains blocking.
 
-Current reviewed checkpoint: `34dbb52484`, validation301 and demonstrated unchanged300 postimages. Historical checked rows retain their bounded evidence; only the checkpoint's fixed bounded rows are restored below, and broader obligations remain open.
+Historical runnable checkpoint: `34dbb52484`, validation301 and demonstrated unchanged300 postimages. The current b665 review above blocks successor acceptance. Historical checked rows retain their bounded evidence; only the checkpoint's fixed bounded rows are restored below, and broader obligations remain open.
 
 - Validation280: eight-crate all-features build **PASS**; execution **431/431**, SDK **43/43**, five other libraries **155/155**, public boundaries **90/90**. Core **175 passed / 6 failed**; output/store-proof failures remain deferred to phases 1/6.
 - Six actual inbound budget scenarios **PASS**, using distinct file frontiers. Eight real-source Rust probes **PASS**, including forbidden ready-list construction and the removed permit walk factory. Inner source probes compile default features; broader claims remain open.
