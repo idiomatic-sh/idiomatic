@@ -1,7 +1,9 @@
 //! Compiler declaration validity: the constraints on names, parameters, patterns and scopes that hold for a complete parsed tree.
 
 use super::constants::{
-    ANNOTATED_GLOBAL, COMPREHENSION_REBIND, GLOBAL_PARAMETER, NONLOCAL_AT_MODULE,
+    ALTERNATIVE_PATTERNS_BIND_DIFFERENT_NAMES, ANNOTATED_GLOBAL,
+    ASSIGNMENT_EXPRESSION_CANNOT_REBIND_COMPREHENSION_VARIABLE, COMPREHENSION_REBIND,
+    GLOBAL_PARAMETER, NONLOCAL_AT_MODULE, NONLOCAL_DECLARATION_NOT_ALLOWED_AT_MODULE_LEVEL,
     NONLOCAL_GLOBAL_CONFLICT, NONLOCAL_PARAMETER, PATTERN_BINDINGS_MISMATCH,
 };
 use super::scopes::{ScopeKind, ScopeState, VisitorState};
@@ -73,7 +75,7 @@ impl<'a> Visitor<'a> for VisitorState {
             {
                 self.report(
                     PATTERN_BINDINGS_MISMATCH,
-                    "alternative patterns bind different names",
+                    ALTERNATIVE_PATTERNS_BIND_DIFFERENT_NAMES,
                     alternatives.range(),
                 );
             }
@@ -94,7 +96,7 @@ impl<'a> Visitor<'a> for VisitorState {
                 {
                     self.report(
                         NONLOCAL_AT_MODULE,
-                        "nonlocal declaration not allowed at module level",
+                        NONLOCAL_DECLARATION_NOT_ALLOWED_AT_MODULE_LEVEL,
                         nonlocal.range,
                     );
                 } else {
@@ -281,7 +283,7 @@ impl<'a> Visitor<'a> for VisitorState {
                 {
                     self.report(
                         COMPREHENSION_REBIND,
-                        "assignment expression cannot rebind comprehension variable",
+                        ASSIGNMENT_EXPRESSION_CANNOT_REBIND_COMPREHENSION_VARIABLE,
                         target.range(),
                     );
                 }

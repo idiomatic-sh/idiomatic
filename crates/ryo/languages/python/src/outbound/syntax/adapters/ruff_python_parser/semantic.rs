@@ -1,5 +1,6 @@
 //! Lazy, file-scoped Python syntax rendering for demanded AST nodes.
 
+use super::constants::LIST_SEPARATOR;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -88,7 +89,7 @@ fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
             for item in &tuple.elts {
                 items.push(render(item, RenderContext::PositionalArgument, source)?);
             }
-            let mut text = items.join(", ");
+            let mut text = items.join(LIST_SEPARATOR);
             if items.len() == 1 {
                 text.push(',');
             }
@@ -105,7 +106,7 @@ fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
             for item in &list.elts {
                 items.push(render(item, RenderContext::PositionalArgument, source)?);
             }
-            Some(format!("[{}]", items.join(", ")))
+            Some(format!("[{}]", items.join(LIST_SEPARATOR)))
         }
         Expr::Starred(starred) if context == RenderContext::AssignmentTarget => {
             Some(format!("*{}", render(&starred.value, context, source)?))

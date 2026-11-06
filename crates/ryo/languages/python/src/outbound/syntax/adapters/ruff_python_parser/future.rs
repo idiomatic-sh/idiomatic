@@ -1,7 +1,8 @@
 //! Compiler directives: `from __future__` imports are valid only in a module prefix, and only known features enable a mode.
 
 use super::constants::{
-    BRACES, FUTURE, FUTURE_FEATURE_NOT_DEFINED, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED,
+    ANNOTATIONS, BRACES, FUTURE, FUTURE_FEATURE_NOT_DEFINED, FUTURE_FEATURES,
+    FUTURE_IMPORT_NOT_FIRST_MESSAGE, LAZY_FUTURE_IMPORT_MESSAGE, NOT_A_CHANCE, NOT_DEFINED,
     UNKNOWN_FEATURE,
 };
 use super::types::{ParserRefusal, Said, SemanticSyntaxDiagnostic};
@@ -39,21 +40,21 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
     fn visit_stmt(&mut self, stmt: &'a Stmt) {
         if let Stmt::ImportFrom(import) = stmt
             && import.level == 0
-            && import.module.as_deref() == Some("__future__")
+            && import.module.as_deref() == Some(FUTURE)
         {
             let valid_position = self.permitted.contains(&import.range());
             if !valid_position {
                 self.report(
                     super::constants::FUTURE_DIRECTIVE_INVALID,
                     import.range(),
-                    "from __future__ imports must occur at the beginning of the file".into(),
+                    FUTURE_IMPORT_NOT_FIRST_MESSAGE.into(),
                 );
             }
             if import.is_lazy {
                 self.report(
                     super::constants::FUTURE_LAZY_INVALID,
                     import.range(),
-                    "future statements cannot be lazy imports".into(),
+                    LAZY_FUTURE_IMPORT_MESSAGE.into(),
                 );
             }
             let known = import
@@ -67,7 +68,7 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
                 && import
                     .names
                     .iter()
-                    .any(|alias| alias.name.as_str() == "annotations");
+                    .any(|alias| alias.name.as_str() == ANNOTATIONS);
         }
         walk_stmt(self, stmt);
     }
@@ -88,7 +89,7 @@ pub(super) fn module_future_annotations(
         }
         if let Stmt::ImportFrom(import) = statement
             && import.level == 0
-            && import.module.as_deref() == Some("__future__")
+            && import.module.as_deref() == Some(FUTURE)
         {
             let _was_new = permitted.insert(import.range());
         } else {

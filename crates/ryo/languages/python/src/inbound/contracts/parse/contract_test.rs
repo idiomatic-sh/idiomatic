@@ -205,7 +205,7 @@ impl SyntaxPort for CapturingSyntax {
         self.0
             .lock()
             .expect("capture lock")
-            .push((source_kind, settings.identity().to_owned()));
+            .push((source_kind, settings.identity().0.to_owned()));
     }
 }
 

@@ -1,6 +1,6 @@
 //! Annotation scopes: named expressions are restricted in deferred and generic annotations.
 
-use super::constants::PARSER_ERROR;
+use super::constants::{NAMED_EXPRESSION_IN_ANNOTATION_MESSAGE, PARSER_ERROR};
 use super::types::SemanticSyntaxDiagnostic;
 use ruff_python_ast::visitor::{Visitor, walk_expr, walk_stmt};
 use ruff_python_ast::{Expr, PythonVersion, Stmt};
@@ -138,7 +138,7 @@ impl<'a> Visitor<'a> for AnnotationVisitor {
             && let Expr::Named(named) = expr
         {
             self.errors.push(SemanticSyntaxDiagnostic {
-                message: "named expression cannot be used within a type annotation".into(),
+                message: NAMED_EXPRESSION_IN_ANNOTATION_MESSAGE.into(),
                 range: named.range(),
                 code: PARSER_ERROR,
                 phase: DiagnosticPhase::Parse,

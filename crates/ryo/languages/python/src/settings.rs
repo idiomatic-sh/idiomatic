@@ -1,5 +1,13 @@
 //! Immutable settings that affect how the Python parser reads a source file.
 
+mod constants;
+
+use constants::{
+    IDENTITY_LATEST, IDENTITY_PY37, IDENTITY_PY38, IDENTITY_PY39, IDENTITY_PY310, IDENTITY_PY311,
+    IDENTITY_PY312, IDENTITY_PY313, IDENTITY_PY314, IDENTITY_PY315,
+};
+use ryo::languages::ParseConfigurationIdentity;
+
 /// A Python version Ruff may use to decide whether syntax is supported.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PythonTargetVersion {
@@ -66,18 +74,18 @@ impl PythonParserSettings {
 
     /// Canonical identity of the effective parser setting.
     #[must_use]
-    pub(crate) const fn identity(self) -> &'static str {
+    pub(crate) const fn identity(self) -> ParseConfigurationIdentity<'static> {
         match self.target_version {
-            PythonTargetVersion::Py37 => "python-target=3.7",
-            PythonTargetVersion::Py38 => "python-target=3.8",
-            PythonTargetVersion::Py39 => "python-target=3.9",
-            PythonTargetVersion::Py310 => "python-target=3.10",
-            PythonTargetVersion::Py311 => "python-target=3.11",
-            PythonTargetVersion::Py312 => "python-target=3.12",
-            PythonTargetVersion::Py313 => "python-target=3.13",
-            PythonTargetVersion::Py314 => "python-target=3.14",
-            PythonTargetVersion::Py315 => "python-target=3.15",
-            PythonTargetVersion::Latest => "python-target=latest",
+            PythonTargetVersion::Py37 => IDENTITY_PY37,
+            PythonTargetVersion::Py38 => IDENTITY_PY38,
+            PythonTargetVersion::Py39 => IDENTITY_PY39,
+            PythonTargetVersion::Py310 => IDENTITY_PY310,
+            PythonTargetVersion::Py311 => IDENTITY_PY311,
+            PythonTargetVersion::Py312 => IDENTITY_PY312,
+            PythonTargetVersion::Py313 => IDENTITY_PY313,
+            PythonTargetVersion::Py314 => IDENTITY_PY314,
+            PythonTargetVersion::Py315 => IDENTITY_PY315,
+            PythonTargetVersion::Latest => IDENTITY_LATEST,
         }
     }
 }

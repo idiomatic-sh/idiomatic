@@ -135,7 +135,7 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity(self.settings.identity())
+        self.settings.identity()
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {

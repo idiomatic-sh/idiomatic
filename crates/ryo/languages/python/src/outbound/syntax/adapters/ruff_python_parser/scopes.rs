@@ -1,7 +1,8 @@
 //! The scopes the declaration checks walk: what each scope declares, and the state one walk keeps.
 
 use super::constants::{
-    BARE_STARRED_TARGET, DUPLICATE_KEYWORD_ARGUMENT, DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER,
+    BARE_STARRED_TARGET, BARE_STARRED_TARGET_MESSAGE, DUPLICATE_KEYWORD_ARGUMENT,
+    DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER, DUPLICATE_TYPE_PARAMETER_MESSAGE,
     TYPE_PARAMETER_DEFAULT_ORDER,
 };
 use super::types::SemanticSyntaxDiagnostic;
@@ -122,7 +123,7 @@ impl VisitorState {
         if let Expr::Starred(starred) = target {
             self.report(
                 BARE_STARRED_TARGET,
-                "starred assignment target must be in a list or tuple",
+                BARE_STARRED_TARGET_MESSAGE,
                 starred.range(),
             );
         }
@@ -155,7 +156,7 @@ impl VisitorState {
             if !names.insert(name) {
                 self.report(
                     DUPLICATE_TYPE_PARAMETER,
-                    "duplicate type parameter",
+                    DUPLICATE_TYPE_PARAMETER_MESSAGE,
                     parameter.range(),
                 );
             }

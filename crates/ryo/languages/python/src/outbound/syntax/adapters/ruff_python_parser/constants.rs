@@ -100,3 +100,39 @@ pub(super) const COMPREHENSION_REBIND: ryo::languages::DiagnosticCode =
 /// A starred target has no enclosing tuple or list unpacking target.
 pub(super) const BARE_STARRED_TARGET: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("starred-assignment-target");
+
+/// The text `named expression cannot be used within a type annotation`.
+pub(super) const NAMED_EXPRESSION_IN_ANNOTATION_MESSAGE: &str =
+    "named expression cannot be used within a type annotation";
+
+/// The text `alternative patterns bind different names`.
+pub(super) const ALTERNATIVE_PATTERNS_BIND_DIFFERENT_NAMES: &str =
+    "alternative patterns bind different names";
+
+/// The text `nonlocal declaration not allowed at module level`.
+pub(super) const NONLOCAL_DECLARATION_NOT_ALLOWED_AT_MODULE_LEVEL: &str =
+    "nonlocal declaration not allowed at module level";
+
+/// The text `assignment expression cannot rebind comprehension variable`.
+pub(super) const ASSIGNMENT_EXPRESSION_CANNOT_REBIND_COMPREHENSION_VARIABLE: &str =
+    "assignment expression cannot rebind comprehension variable";
+
+/// The text `from __future__ imports must occur at the beginning of the f`.
+pub(super) const FUTURE_IMPORT_NOT_FIRST_MESSAGE: &str =
+    "from __future__ imports must occur at the beginning of the file";
+
+/// The text `future statements cannot be lazy imports`.
+pub(super) const LAZY_FUTURE_IMPORT_MESSAGE: &str = "future statements cannot be lazy imports";
+
+/// The text `annotations`.
+pub(super) const ANNOTATIONS: &str = "annotations";
+
+/// The text `starred assignment target must be in a list or tuple`.
+pub(super) const BARE_STARRED_TARGET_MESSAGE: &str =
+    "starred assignment target must be in a list or tuple";
+
+/// The text `duplicate type parameter`.
+pub(super) const DUPLICATE_TYPE_PARAMETER_MESSAGE: &str = "duplicate type parameter";
+
+/// The text `, `.
+pub(super) const LIST_SEPARATOR: &str = ", ";
