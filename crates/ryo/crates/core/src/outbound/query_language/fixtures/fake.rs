@@ -106,7 +106,7 @@ impl QueryLanguageFake {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("no-such-kind".into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         let mut step = select(vec![comparison]);
         if let Operation::Select { from, .. } = &mut step.operation {
@@ -125,7 +125,7 @@ impl QueryLanguageFake {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(9)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         Self {
             plan: plan_of(vec![select(vec![comparison])], 0),

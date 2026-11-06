@@ -23,7 +23,7 @@ fn subject((): Input) -> Result<Value, Failure> {
         test: Test::NotEqual,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let tokens = Operation::Select {
         from: PlanInput::Relation(Relation::SyntaxTree),

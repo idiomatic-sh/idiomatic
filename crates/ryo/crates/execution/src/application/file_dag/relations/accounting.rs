@@ -84,7 +84,7 @@ impl RelationOwner {
                     },
                     retention_units: UnitCount(0),
                     bytes: ByteCount(
-                        ryo_values::domain::table_words::service::compact_metadata_bytes(table),
+                        ryo_values::domain::table_words::service::compact_metadata_bytes(table).0,
                     ),
                 });
             }

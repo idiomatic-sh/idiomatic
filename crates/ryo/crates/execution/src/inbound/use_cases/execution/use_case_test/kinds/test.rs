@@ -42,7 +42,7 @@ fn compared(test: Test, place: u32, literal: &str) -> Comparison {
         test,
         left: Operand::Column(column(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -165,7 +165,7 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
         kept: vec![column(0)],
     };

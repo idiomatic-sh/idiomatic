@@ -135,14 +135,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }))
         .is_empty(),
         Scenario::OriginIgnored => {
-            use super::types::{Comparison, ComparisonOriginId, Test};
+            use super::types::{Comparison, ComparisonOrigin, ComparisonOriginId, Test};
             let comparison = |origin| Comparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Column(ColumnIndex(2)),
                 origin,
             };
-            comparison(None) == comparison(Some(ComparisonOriginId(9)))
+            comparison(ComparisonOrigin::Unrecorded)
+                == comparison(ComparisonOrigin::Recorded(ComparisonOriginId(9)))
         }
         Scenario::FunctionRemapped => {
             let moved = remapped(&nested(), &|column| Some(ColumnIndex(column.0 + 1)));

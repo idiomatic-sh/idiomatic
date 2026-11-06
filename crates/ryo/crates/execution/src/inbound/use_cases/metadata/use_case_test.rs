@@ -181,7 +181,7 @@ fn plan(relation: Relation, word: Option<&str>) -> Plan {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         })
         .into_iter()
         .collect();

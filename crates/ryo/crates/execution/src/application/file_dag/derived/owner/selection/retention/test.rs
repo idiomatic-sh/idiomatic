@@ -280,7 +280,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(column)),
                 right: Operand::Literal(QueryLiteral::Number(Integer(2))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             })
             .collect(),
         bindings: vec![],

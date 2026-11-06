@@ -258,7 +258,7 @@ fn comparison(test: Test) -> Comparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("name".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 fn subject(input: Input) -> Result<Value, Failure> {

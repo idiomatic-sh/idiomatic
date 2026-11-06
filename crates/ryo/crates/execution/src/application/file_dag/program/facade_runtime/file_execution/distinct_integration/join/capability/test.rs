@@ -453,7 +453,7 @@ fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("absent-kind".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
             },
         }];
@@ -547,7 +547,7 @@ fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
                         right: Operand::Literal(QueryLiteral::Text(LiteralText(
                             "absent-kind".into(),
                         ))),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                 },
             },
@@ -652,7 +652,7 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Column(ColumnIndex(1)),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }]
                 } else {
                     vec![]
@@ -717,7 +717,7 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Column(ColumnIndex(0)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 &[],
             );

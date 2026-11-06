@@ -179,7 +179,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(
                     if empty { "absent" } else { "root" }.into(),
                 ))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
         };
         match &mut operation {

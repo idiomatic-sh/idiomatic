@@ -13,7 +13,7 @@ use crate::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, ComparisonOriginId, Input, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, Comparison, Input, Operand, ParameterId, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -85,11 +85,12 @@ fn asked_in(
             .map(|made| made.0)
             .chain(many.iter().map(|text| text.0.to_string()))
             .collect();
-        let origin = comparison.origin.and_then(|id: ComparisonOriginId| {
-            origins
+        let origin = match comparison.origin {
+            ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(id) => origins
                 .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                .cloned()
-        });
+                .cloned(),
+            ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded => None,
+        };
         asked.extend(words.into_iter().map(|word| AskedKind {
             test,
             word: KindWord(word.into()),

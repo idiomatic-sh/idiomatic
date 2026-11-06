@@ -17,7 +17,7 @@ fn equal(column: ColumnIndex) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(column),
         right: Operand::Column(column),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 fn plan_of(steps: Vec<Operation>, emit: u32) -> Plan {

@@ -17,9 +17,8 @@ use ryo_values::{
     domain::{
         plan_parts::types::{
             Applied, ColumnIndex, Comparison, Function, Input as Source, LiteralText, Operand,
-            ParameterId, QueryLiteral, StepId, Test,
+            ParameterId, QueryLiteral, StepId, StepScope, Test,
         },
-        plan_parts::types::StepScope,
         plans::types::{Operation, PlanStep},
         query_bindings::types::ParameterBinding,
         rows::{service::push_row, types::Table},
@@ -44,7 +43,7 @@ fn select(test: Test, pattern: &str) -> Operation {
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(pattern.into()))),
             test,
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
     }
 }

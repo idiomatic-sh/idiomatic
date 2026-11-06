@@ -40,7 +40,7 @@ fn select(test: Test, pattern: &str) -> Operation {
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(pattern.into()))),
             test,
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
     }
 }

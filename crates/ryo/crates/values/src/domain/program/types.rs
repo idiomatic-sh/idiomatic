@@ -1,8 +1,9 @@
 //! The types of the `program` concept: the shape of RyoQL text once it is read. Plain data, public
 //! fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::Integer;
+use crate::domain::descriptions::types::ColumnName;
 use crate::domain::plan_parts::types::QueryText;
+use ryo_relations::domain::relations::types::{Integer, Span};
 use std::collections::BTreeMap;
 
 /// A place in the query text, counted in bytes from its start.
@@ -60,10 +61,6 @@ pub struct StepIdentity(pub u64);
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct StepName(pub Box<str>, pub Option<StepIdentity>);
 
-/// The name of a column, as the query writes it or keeps it.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ColumnName(pub Box<str>);
-
 /// The alias a source is given after `as`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AliasName(pub Box<str>);
@@ -101,6 +98,15 @@ pub struct BareWord<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QuerySpelling<'a>(pub &'a str);
 
+/// Whether the root emit statement has source attribution.
+#[derive(Clone, Debug, PartialEq)]
+pub enum EmitOrigin {
+    /// Where the root emit statement came from.
+    Located(QueryOrigin),
+    /// No attribution was recorded.
+    Unlocated,
+}
+
 /// Whether a program's identities and imports have been linked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Linking {
@@ -124,7 +130,7 @@ pub struct Program {
     /// Original source and call trace for each linked step definition.
     pub step_origins: BTreeMap<StepIdentity, QueryOrigin>,
     /// Original source for the root emit statement.
-    pub emit_origin: Option<QueryOrigin>,
+    pub emit_origin: EmitOrigin,
     /// The `param` lines.
     pub parameters: Vec<ParameterDeclaration>,
     /// The `let` lines, in order.
@@ -581,6 +587,50 @@ impl From<QueryText> for QueryBundle {
         Self {
             root,
             modules: Arc::new(BTreeMap::new()),
+        }
+    }
+}
+
+/// Which fault a query text was refused for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RefusedKind {
+    /// The text is not RyoQL.
+    Syntax,
+    /// The query reads a relation ryo does not own.
+    UnknownRelation,
+    /// A comparison puts unlike types side by side.
+    Type,
+    /// The query is wrong in another way.
+    Invalid,
+    /// The catalog of relations could not be read.
+    Catalog,
+}
+
+/// What a refusal says: the relation a query named that is not one, or the reason, as the compiler worded it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RefusalMessage(pub String);
+
+/// A query text that was refused: which fault, what it says, and where in the text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RefusedQuery {
+    /// Which fault.
+    pub kind: RefusedKind,
+    /// What it says.
+    pub message: RefusalMessage,
+    /// Where in the text; empty for a fault that is not in the text.
+    pub span: Span,
+    /// The original query-module source and import/call path, when the refusal came from a fragment.
+    pub origin: Option<QueryOrigin>,
+}
+
+impl std::fmt::Display for RefusedQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = &self.message.0;
+        match self.kind {
+            RefusedKind::Syntax => write!(f, "{message} at byte {}", self.span.start.0),
+            RefusedKind::UnknownRelation => write!(f, "no relation named `{message}`"),
+            RefusedKind::Type | RefusedKind::Invalid => write!(f, "{message}"),
+            RefusedKind::Catalog => write!(f, "the relation catalog failed: {message}"),
         }
     }
 }

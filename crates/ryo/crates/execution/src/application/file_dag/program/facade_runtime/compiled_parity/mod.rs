@@ -67,14 +67,14 @@ fn plan(scenario: Scenario) -> Plan {
                     test: Test::NotEqual,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             } else {
                 vec![Comparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             },
             kept: if matches!(scenario, Scenario::DistinctKinds | Scenario::KeptKinds) {
@@ -93,7 +93,7 @@ fn plan(scenario: Scenario) -> Plan {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![ColumnIndex(0)],
             },
@@ -183,7 +183,7 @@ fn plan(scenario: Scenario) -> Plan {
             test,
             left: Operand::Column(ColumnIndex(column)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         steps = match scenario {
             Scenario::NativeAntijoin | Scenario::NativeUnion => vec![

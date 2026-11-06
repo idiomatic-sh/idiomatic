@@ -436,3 +436,6 @@ pub enum Reuse {
     /// the others' findings are as the store kept them.
     Cross(MadeAgain),
 }
+
+/// Canonical read-only retention measurements over portable payloads.
+pub mod retention;

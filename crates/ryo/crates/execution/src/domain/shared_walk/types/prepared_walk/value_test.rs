@@ -100,13 +100,13 @@ fn predicate_prefixes_share_only_the_referenced_bound_values_in_authored_order()
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let second = Comparison {
         test: Test::NotEqual,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("other".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     for (at, plan) in authored.iter_mut().enumerate() {
         plan.steps[0].operation = Operation::Select {

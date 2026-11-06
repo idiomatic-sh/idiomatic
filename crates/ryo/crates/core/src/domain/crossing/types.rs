@@ -58,7 +58,7 @@ pub(crate) struct ObservedRoot {
     /// Present only for an admitted complete or partial output; unavailable never means empty.
     pub table: Option<ryo_values::domain::rows::types::Table>,
     /// Actual producer readiness independent of diagnostic Emit.
-    pub readiness: ryo_values::domain::observations::types::ProducerReadiness,
+    pub readiness: ryo_values::domain::records::types::ProducerReadiness,
 }
 /// The outputs of one cross-file execution, with no fabricated cross-phase Emit.
 #[derive(Debug, Default)]

@@ -1,6 +1,7 @@
 //! Portable named-output contracts. Application execution owns readiness, publication and lifetime.
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::StepScope;
+use crate::domain::records::types::{ObservationReadinessCount, ObservationReadinessSlot};
 use crate::domain::runs::types::RuleId;
 use ryo_relations::domain::relations::types::CellKind;
 
@@ -10,12 +11,6 @@ pub struct ObservationName(pub Box<str>);
 /// A local bound input name written by the consumer author.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObservationBindingName(pub Box<str>);
-/// A bound input's stable local position within one compiled consumer plan.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ObservationBindingId(pub u32);
-/// A declared output's local position within one producer plan.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ObservationIndex(pub u32);
 /// A semantic column name in a named-output contract.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObservationColumnName(pub Box<str>);
@@ -77,29 +72,10 @@ pub struct ObservationBinding {
     /// Explicit outputs; an empty list is not secretly populated from unrelated diagnostics.
     pub producers: Vec<ObservationProducer>,
 }
-/// Why a declared producer cannot supply an observed result.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ObservationReason(pub Box<str>);
-/// Readiness belongs to an actually admitted output, distinct from selected-rule inventory.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ProducerReadiness {
-    /// The producer root completed, including a real zero-row result.
-    Complete,
-    /// A dependency, mapping or retention refusal prevents a complete result.
-    Unknown(ObservationReason),
-    /// The producer is not applicable in this file/scope.
-    Skipped,
-    /// The configured producer has no executable query; it is never treated as complete-empty.
-    NoQuery,
-}
 
 /// Canonical bytes of one named-input declaration set, distinct from any presentation string.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ObservationIdentityBytes(pub Vec<u8>);
-
-/// Version of persisted root-readiness evidence, independent of row content.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ObservationReadinessVersion(pub u32);
 
 /// Number of existing frontier buckets assigned to one selected rule.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -115,15 +91,6 @@ pub struct ObservationRuleLayout {
     pub outputs: ObservationOutputLayout,
 }
 
-/// Semantic identity of ordered producer/output definitions plus query/config/schema identity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ObservationReadinessLayout(pub crate::domain::stored_facts::types::Digest);
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-/// Position within one validated semantic layout; not an independently stable identity.
-pub struct ObservationReadinessSlot(pub u32);
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// Number of logical status slots in the current semantic layout.
-pub struct ObservationReadinessCount(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Contiguous status range belonging to one prepared producer rule.
 pub struct ObservationReadinessRange {
@@ -148,4 +115,13 @@ pub enum ObservationOutputLayout {
         /// Semantic names, ordered schema and phase; transient step IDs are not encoded as identity.
         outputs: Vec<PlanObservation>,
     },
+}
+
+/// What one slot of a readiness bit set holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReadinessBit {
+    /// The slot is marked.
+    Set,
+    /// The slot is not marked.
+    Clear,
 }

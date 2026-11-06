@@ -161,7 +161,7 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
                     test: Test::Matches,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Column(ColumnIndex(0)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![ColumnIndex(0)],
             },

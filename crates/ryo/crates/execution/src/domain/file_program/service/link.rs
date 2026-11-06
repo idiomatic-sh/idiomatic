@@ -8,9 +8,10 @@ use ryo_values::domain::{
     records::types::ObservationIndex,
     plans::{
         service::{each_input, inputs_of, named},
-        types::{Plan, StepScope},
+        types::{Plan},
     },
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
 pub(crate) struct LinkedObservationPlans {

@@ -105,7 +105,7 @@ pub(in super::super) fn compiled() -> CompiledCorpus {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Column(ColumnIndex(0)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             });
         }
         continuation.steps.push(PlanStep {
@@ -137,7 +137,7 @@ pub(in super::super) fn compiled() -> CompiledCorpus {
                     test: Test::Equal,
                     left: Operand::Column(invalid),
                     right: Operand::Column(ColumnIndex(0)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![],
             },

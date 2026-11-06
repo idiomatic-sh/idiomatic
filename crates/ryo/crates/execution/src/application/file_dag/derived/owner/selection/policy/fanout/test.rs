@@ -64,7 +64,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Text(text)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 bindings: Vec::new(),
             }),
@@ -79,7 +79,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut error_selector = (*selectors[0]).clone();
     error_selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {

@@ -216,8 +216,10 @@ impl FileRun<'_> {
     ) -> Option<Arc<ryo_values::domain::records::types::FrontierReadiness>> {
         use ryo_values::domain::observations::{
             service::{new_frontiers, set_frontier},
-            types::{ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness},
+            types::{  ProducerReadiness},
         };
+use ryo_values::domain::records::types::ObservationReadinessSlot;
+use ryo_values::domain::records::types::ObservationReadinessCount;
         let metadata = self.program.observation_metadata()?;
         if metadata.frontiers.is_empty() {
             return None;
@@ -255,8 +257,8 @@ impl FileRun<'_> {
 
 fn readiness_of(
     outcome: &RootOutcome,
-) -> Option<ryo_values::domain::observations::types::ProducerReadiness> {
-    use ryo_values::domain::observations::types::ProducerReadiness;
+) -> Option<ryo_values::domain::records::types::ProducerReadiness> {
+    use ryo_values::domain::records::types::ProducerReadiness;
     use ryo_values::domain::records::types::ObservationReason;
     Some(match outcome {
         RootOutcome::Complete(_) => ProducerReadiness::Complete,

@@ -8,7 +8,14 @@ use ryo_relations::domain::relations::types::{
     Bits, CROSS_PLACE, Integer, Name, NamePlace, PlaceNumber, Value, Words,
 };
 
-use super::types::{CompactCursor, CompactFrame, CompactTable, DecodeMode, WordSlice};
+use super::types::{
+    Admitted, CellCount, ColumnCount, CompactCursor, CompactFrame, CompactStorage, CompactTable,
+    Completeness, Decoded, DecodeMode, EncodedSize, Framing, PackedOffset, PackedSlice, Shape,
+    Spelling, StorageAddress, StorageLength, StoragePart, WordSlice,
+};
+use crate::domain::plan_parts::types::ColumnIndex;
+use crate::domain::records::types::OwnedBytes;
+use crate::domain::rows::types::RowIndex;
 
 use crate::domain::stored_facts::types::PackedWords;
 
@@ -33,7 +40,7 @@ pub fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words) {
 /// that cannot be read to its end is left out, and so are those after it.
 #[must_use]
 pub fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>) -> Table {
-    decode_combined_status(packed, places, DecodeMode::Permissive).0
+    decode_combined_status(packed, places, DecodeMode::Permissive).table
 }
 /// The same decoder with an explicit completion proof for required named publications.
 /// Refusal rolls back this call's name-place additions; legacy permissive callers are unchanged.
@@ -42,9 +49,9 @@ pub fn decode_complete(
     places: &mut Vec<NamePlace>,
 ) -> Result<Table, super::errors::TableWordsError> {
     let before = places.len();
-    let (table, complete) = decode_combined_status(packed, places, DecodeMode::Complete);
-    if complete {
-        Ok(table)
+    let decoded = decode_combined_status(packed, places, DecodeMode::Complete);
+    if decoded.completeness == Completeness::Complete {
+        Ok(decoded.table)
     } else {
         places.truncate(before);
         Err(super::errors::TableWordsError::Incomplete)
@@ -54,8 +61,8 @@ fn decode_combined_status(
     packed: &PackedWords,
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
-) -> (Table, bool) {
-    let mut complete = mode == DecodeMode::Permissive || canonical_words(packed);
+) -> Decoded {
+    let mut complete = mode == DecodeMode::Permissive || canonical_words(packed) == Spelling::Canonical;
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
     observed_decode(super::constants::BEFORE_RESERVE, packed, &combined, places);
@@ -120,7 +127,14 @@ fn decode_combined_status(
     observed_decode(super::constants::BEFORE_SHRINK, packed, &combined, places);
     combined.cells.shrink_to_fit();
     observed_decode(super::constants::AFTER_SHRINK, packed, &combined, places);
-    (combined, complete)
+    Decoded {
+        table: combined,
+        completeness: if complete {
+            Completeness::Complete
+        } else {
+            Completeness::Incomplete
+        },
+    }
 }
 
 /// Report only this decoder's caller-owned buffers, never process/allocator residency.
@@ -131,7 +145,7 @@ fn observed_decode(
     places: &Vec<NamePlace>,
 ) {
     if tracing::enabled!(target: super::constants::LIFECYCLE_TARGET, tracing::Level::TRACE) {
-        let bytes = crate::domain::records::types::retention::value::RetainedBytes::table(table);
+        let bytes = crate::domain::stores::types::retention::value::RetainedBytes::table(table);
         let place_width = size_of::<NamePlace>();
         tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase, owner = super::constants::DECODING_OWNER,
             packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),
@@ -163,7 +177,7 @@ fn rebased(value: Value, base: PlaceNumber) -> Value {
 pub fn pack(words: WordSlice<'_>) -> PackedWords {
     // Capacity overflow uses the same standard Vec refusal as an unrepresentable allocation;
     // never wrap a size or silently truncate encoded data.
-    let exact = encoded_size(words).unwrap_or(usize::MAX);
+    let exact = encoded_size(words).map_or(usize::MAX, |size| size.0);
     let mut packed = PackedWords(Vec::with_capacity(exact));
     pack_onto(words, &mut packed);
     packed
@@ -171,22 +185,24 @@ pub fn pack(words: WordSlice<'_>) -> PackedWords {
 
 /// Exact encoded payload size, checked before any allocation.
 #[must_use]
-pub fn encoded_size(words: WordSlice<'_>) -> Option<usize> {
+pub fn encoded_size(words: WordSlice<'_>) -> Option<EncodedSize> {
     words
         .0
         .iter()
-        .try_fold(0_usize, |total, word| with_encoded_word(total, *word))
+        .try_fold(EncodedSize(0), |total, word| {
+            with_encoded_word(total, Bits(*word))
+        })
 }
 
 /// Add one varint's exact width without permitting the total to wrap.
 #[must_use]
-pub fn with_encoded_word(total: usize, mut word: u64) -> Option<usize> {
+pub fn with_encoded_word(total: EncodedSize, Bits(mut word): Bits) -> Option<EncodedSize> {
     let mut width = 1_usize;
     while word >= 0x80 {
         width += 1;
         word >>= 7;
     }
-    total.checked_add(width)
+    total.0.checked_add(width).map(EncodedSize)
 }
 
 /// The words packed as `pack` packs them, written after what `packed` holds: packed words run together are the words of each.
@@ -205,69 +221,80 @@ pub fn pack_onto(words: WordSlice<'_>, packed: &mut PackedWords) {
 /// The words `packed` holds, read one at a time; nothing for a last word cut short.
 pub fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ {
     CompactCursor {
-        bytes: &packed.0,
-        offset: 0,
+        bytes: PackedSlice(&packed.0),
+        offset: PackedOffset(0),
     }
 }
 
 use crate::domain::rows::types::{RowCount, Table};
 /// Existing pack() emits minimal u64 varints. A required frame refuses a cut word,
 /// overflow or alternate spelling rather than letting unpacked() silently shorten it.
-fn canonical_words(packed: &PackedWords) -> bool {
-    canonical_bytes(&packed.0)
+fn canonical_words(packed: &PackedWords) -> Spelling {
+    canonical_bytes(PackedSlice(&packed.0))
 }
 
-fn canonical_bytes(bytes: &[u8]) -> bool {
+fn canonical_bytes(bytes: PackedSlice<'_>) -> Spelling {
     let mut shift = 0_u32;
-    for &byte in bytes {
+    for &byte in bytes.0 {
         let payload = byte & 0x7f;
         if shift > 63 || (shift == 63 && payload > 1) {
-            return false;
+            return Spelling::Altered;
         }
         if byte & 0x80 == 0 {
             if shift != 0 && payload == 0 {
-                return false;
+                return Spelling::Altered;
             }
             shift = 0;
         } else {
             if shift >= 63 {
-                return false;
+                return Spelling::Altered;
             }
             shift += 7;
         }
     }
-    shift == 0
+    if shift == 0 {
+        Spelling::Canonical
+    } else {
+        Spelling::Altered
+    }
 }
 
 /// A worker's source range must contain one whole table frame. This walks the
 /// same value codec without retaining decoded cells or row offsets, so moving
 /// a byte across adjacent source ranges cannot reassign another file's rows.
-pub fn single_table_frame(bytes: &[u8]) -> bool {
-    if !canonical_bytes(bytes) {
-        return false;
+pub fn single_table_frame(bytes: PackedSlice<'_>) -> Framing {
+    if canonical_bytes(bytes) != Spelling::Canonical {
+        return Framing::Broken;
     }
-    let mut cursor = CompactCursor { bytes, offset: 0 };
+    let mut cursor = CompactCursor {
+        bytes,
+        offset: PackedOffset(0),
+    };
     let (Some(Bits(columns)), Some(Bits(rows))) = (cursor.next(), cursor.next()) else {
-        return false;
+        return Framing::Broken;
     };
     for _ in 0..columns {
         if decode_kind(&mut cursor).is_none() {
-            return false;
+            return Framing::Broken;
         }
     }
     let mut places = Vec::new();
     if decode_places(&mut cursor, &mut places).is_none() {
-        return false;
+        return Framing::Broken;
     }
     let Some(cells) = columns.checked_mul(rows) else {
-        return false;
+        return Framing::Broken;
     };
     for _ in 0..cells {
         if decode_value(&mut cursor).is_none() {
-            return false;
+            return Framing::Broken;
         }
     }
-    cursor.offset == bytes.len() && cursor.next().is_none()
+    if cursor.offset.0 == bytes.0.len() && cursor.next().is_none() {
+        Framing::Whole
+    } else {
+        Framing::Broken
+    }
 }
 
 /// Admit frame boundaries, kinds and names without retaining decoded row cells.
@@ -278,12 +305,12 @@ pub fn admit_compact(
     backing: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
-) -> Result<(CompactTable, Vec<Name>), super::errors::TableWordsError> {
+) -> Result<Admitted, super::errors::TableWordsError> {
     let before = places.len();
-    let mut complete = mode == DecodeMode::Permissive || canonical_words(&backing.0);
+    let mut complete = mode == DecodeMode::Permissive || canonical_words(&backing.0) == Spelling::Canonical;
     let mut cursor = CompactCursor {
-        bytes: &backing.0.0,
-        offset: 0,
+        bytes: PackedSlice(&backing.0.0),
+        offset: PackedOffset(0),
     };
     let mut kinds = Vec::new();
     let mut frames = Vec::new();
@@ -376,8 +403,9 @@ pub fn admit_compact(
         count = next_rows.unwrap_or(count);
         total_cells = next_cells.unwrap_or(total_cells);
         frames.push(CompactFrame {
-            bytes: start..cursor.offset,
-            cells: cells.unwrap_or(0),
+            start,
+            end: cursor.offset,
+            cells: CellCount(cells.unwrap_or(0)),
             base,
         });
     }
@@ -386,26 +414,26 @@ pub fn admit_compact(
         return Err(super::errors::TableWordsError::Incomplete);
     }
     tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase=super::constants::COMPACT_ADMISSION, packed_bytes=backing.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
-    Ok((
-        CompactTable {
+    Ok(Admitted {
+        table: CompactTable {
             words: backing,
             kinds,
             frames,
-            rows: count,
-            cells: total_cells,
+            rows: RowCount(count),
+            cells: CellCount(total_cells),
             row_offsets,
         },
         names,
-    ))
+    })
 }
 
 pub fn compact_kinds(input: &CompactTable) -> &[ryo_relations::domain::relations::types::CellKind] {
     &input.kinds
 }
-pub fn compact_rows(input: &CompactTable) -> usize {
+pub fn compact_rows(input: &CompactTable) -> RowCount {
     input.rows
 }
-pub fn compact_cells(input: &CompactTable) -> usize {
+pub fn compact_cells(input: &CompactTable) -> CellCount {
     input.cells
 }
 
@@ -415,7 +443,7 @@ pub fn shape_compact(
     kinds: &[ryo_relations::domain::relations::types::CellKind],
 ) -> Result<(), super::errors::TableWordsError> {
     if input.kinds.is_empty() {
-        if input.cells != 0 {
+        if input.cells.0 != 0 {
             return Err(super::errors::TableWordsError::Incomplete);
         }
         input.kinds.extend_from_slice(kinds);
@@ -428,89 +456,109 @@ pub fn shape_compact(
 /// frames with different widths. Preserve that exact flat-row interpretation.
 fn compact_values(
     input: &CompactTable,
-    row: usize,
-    count: usize,
-    mut emit: impl FnMut(usize, Value),
+    row: RowIndex,
+    count: ColumnCount,
+    mut emit: impl FnMut(ColumnIndex, Value),
 ) -> Option<()> {
-    if row >= input.rows || count > input.kinds.len() {
+    if row.0 >= input.rows.0 || count.0 > input.kinds.len() {
         return None;
     }
-    if count == 0 {
+    if count.0 == 0 {
         return Some(());
     }
-    let offset = *input.row_offsets.get(row)?;
+    let offset = *input.row_offsets.get(row.0)?;
     let mut frame_at = input
         .frames
-        .partition_point(|frame| frame.bytes.start <= offset)
+        .partition_point(|frame| frame.start <= offset)
         .checked_sub(1)?;
     let mut cursor = CompactCursor {
-        bytes: &input.words.0.0,
+        bytes: PackedSlice(&input.words.0.0),
         offset,
     };
-    for column in 0..count {
-        while cursor.offset == input.frames.get(frame_at)?.bytes.end {
+    for column in 0..count.0 {
+        while cursor.offset == input.frames.get(frame_at)?.end {
             frame_at += 1;
-            cursor.offset = input.frames.get(frame_at)?.bytes.start;
+            cursor.offset = input.frames.get(frame_at)?.start;
         }
         let frame = input.frames.get(frame_at)?;
         let value = decode_value(&mut cursor)?;
-        if cursor.offset > frame.bytes.end {
+        if cursor.offset > frame.end {
             return None;
         }
-        emit(column, rebased(value, frame.base));
+        let Ok(column) = u32::try_from(column) else {
+            return None;
+        };
+        emit(ColumnIndex(column), rebased(value, frame.base));
     }
     Some(())
 }
 pub fn compact_read<'a>(
     input: &CompactTable,
-    row: usize,
+    row: RowIndex,
     scratch: &'a mut [Value],
 ) -> Option<&'a [Value]> {
     if scratch.len() < input.kinds.len() {
         return None;
     }
-    compact_values(input, row, input.kinds.len(), |column, value| {
-        scratch[column] = value
+    compact_values(input, row, ColumnCount(input.kinds.len()), |column, value| {
+        scratch[column.0 as usize] = value
     })?;
     Some(&scratch[..input.kinds.len()])
 }
-pub fn compact_cell(input: &CompactTable, row: usize, column: usize) -> Option<Value> {
-    if column >= input.kinds.len() {
+pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+    if column.0 as usize >= input.kinds.len() {
         return None;
     }
     let mut found = None;
-    compact_values(input, row, column + 1, |_, value| found = Some(value))?;
+    compact_values(input, row, ColumnCount(column.0 as usize + 1), |_, value| {
+        found = Some(value)
+    })?;
     found
 }
 /// Admission validated every encoded cell once; this is a metadata-only shape check.
-pub fn compact_rectangular(input: &CompactTable) -> bool {
-    input.rows.checked_mul(input.kinds.len()) == Some(input.cells)
-        && input.frames.iter().all(|frame| {
-            frame.bytes.start <= frame.bytes.end && frame.bytes.end <= input.words.0.0.len()
-        })
+pub fn compact_rectangular(input: &CompactTable) -> Shape {
+    if input.rows.0.checked_mul(input.kinds.len()) == Some(input.cells.0)
         && input
             .frames
             .iter()
-            .try_fold(0usize, |sum, frame| sum.checked_add(frame.cells))
-            == Some(input.cells)
-        && (input.kinds.is_empty() || input.row_offsets.len() == input.rows)
+            .all(|frame| frame.start <= frame.end && frame.end.0 <= input.words.0.0.len())
+        && input
+            .frames
+            .iter()
+            .try_fold(0usize, |sum, frame| sum.checked_add(frame.cells.0))
+            == Some(input.cells.0)
+        && (input.kinds.is_empty() || input.row_offsets.len() == input.rows.0)
+    {
+        Shape::Rectangular
+    } else {
+        Shape::Ragged
+    }
 }
 pub fn compact_backing(
     input: &CompactTable,
 ) -> &std::sync::Arc<crate::domain::stored_facts::types::KeptWords> {
     &input.words
 }
-pub fn compact_metadata_bytes(input: &CompactTable) -> usize {
-    size_of::<CompactTable>()
-        + 2 * size_of::<usize>()
-        + input.frames.capacity() * size_of::<CompactFrame>()
-        + input.kinds.capacity() * size_of::<ryo_relations::domain::relations::types::CellKind>()
-        + input.row_offsets.capacity() * size_of::<usize>()
+pub fn compact_metadata_bytes(input: &CompactTable) -> OwnedBytes {
+    OwnedBytes(
+        size_of::<CompactTable>()
+            + 2 * size_of::<usize>()
+            + input.frames.capacity() * size_of::<CompactFrame>()
+            + input.kinds.capacity()
+                * size_of::<ryo_relations::domain::relations::types::CellKind>()
+            + input.row_offsets.capacity() * size_of::<PackedOffset>(),
+    )
 }
 
-pub fn compact_storage(input: &CompactTable) -> [(usize, usize); 2] {
-    [
-        (input.words.0.0.as_ptr() as usize, input.words.0.0.len()),
-        (input.row_offsets.as_ptr() as usize, input.row_offsets.len()),
-    ]
+pub fn compact_storage(input: &CompactTable) -> CompactStorage {
+    CompactStorage {
+        words: StoragePart {
+            address: StorageAddress(input.words.0.0.as_ptr() as usize),
+            length: StorageLength(input.words.0.0.len()),
+        },
+        offsets: StoragePart {
+            address: StorageAddress(input.row_offsets.as_ptr() as usize),
+            length: StorageLength(input.row_offsets.len()),
+        },
+    }
 }

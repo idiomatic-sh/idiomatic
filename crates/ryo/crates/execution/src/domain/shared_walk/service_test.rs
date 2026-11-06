@@ -42,7 +42,7 @@ fn plan(name: &str) -> Plan {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(if name.is_empty() { 2 } else { 1 })),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: Vec::new(),
             },
@@ -163,7 +163,7 @@ fn predicate_order_preserves_errors_and_short_circuits() {
         test: Test::Matches,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     comparisons.insert(0, invalid.clone());
     let mut second = plan("absent-kind");
@@ -193,7 +193,7 @@ pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
             test: Test::Matches,
             left: Operand::Column(ColumnIndex(2)),
             right: Operand::Parameter(ParameterId(parameter)),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         });
     }
 }
@@ -246,13 +246,13 @@ fn different_kind_errors_keep_the_first_source_row() {
                 test: Test::NotEqual,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
             Comparison {
                 test: Test::Matches,
                 left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
                 right: Operand::Column(ColumnIndex(2)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
         ];
     }
@@ -451,7 +451,7 @@ fn numbered(column: u32, value: i64) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Number(Integer(value))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -617,7 +617,7 @@ fn an_unready_class_of_a_demanded_rule_performs_no_semantic_work() {
                 test: Test::Matches,
                 left: Operand::Column(ColumnIndex(2)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: Vec::new(),
         },

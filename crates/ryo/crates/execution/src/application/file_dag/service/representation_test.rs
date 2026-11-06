@@ -97,7 +97,10 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
     )
     .unwrap();
     assert!(names.is_empty());
-    assert!(ryo_values::domain::table_words::service::compact_rectangular(&compact));
+    assert_eq!(
+        ryo_values::domain::table_words::service::compact_rectangular(&compact),
+        ryo_values::domain::table_words::types::Shape::Rectangular
+    );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"ab"));
     enter_node(&mut builder, KindBits(0), Offset(0));
@@ -275,7 +278,10 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         )
         .unwrap();
         assert!(names.is_empty());
-        assert_eq!(codec::compact_rectangular(&compact), !refused);
+        assert_eq!(
+            codec::compact_rectangular(&compact) == ryo_values::domain::table_words::types::Shape::Rectangular,
+            !refused
+        );
         let scope = crate::application::file_dag::testing::FileScope::new(
             Arc::clone(&graph),
             crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),

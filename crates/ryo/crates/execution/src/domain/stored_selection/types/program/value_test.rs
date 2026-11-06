@@ -79,7 +79,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     },
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Parameter(ParameterId(1)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
             },
         });

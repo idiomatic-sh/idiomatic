@@ -54,7 +54,7 @@ fn plan(index: usize) -> Plan {
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(
                     format!("{index:08}").into(),
                 ))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![node],
         }

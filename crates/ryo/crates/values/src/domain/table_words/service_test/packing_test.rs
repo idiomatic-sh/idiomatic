@@ -3,9 +3,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_words::service::{
     encode_table, encoded_size, pack, single_table_frame, unpacked, with_encoded_word,
 };
-use crate::domain::table_words::types::WordSlice;
+use crate::domain::table_words::types::{EncodedSize, PackedSlice, WordSlice};
 use crate::domain::rows::types::Table;
-use ryo_relations::domain::relations::types::Words;
+use ryo_relations::domain::relations::types::{Bits, Words};
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -153,7 +153,10 @@ fn legacy(words: &[u64]) -> Vec<u8> {
 fn packing(words: &[u64]) -> Outcome {
     let packed = pack(WordSlice(words));
     assert_eq!(packed.0, legacy(words));
-    assert_eq!(encoded_size(WordSlice(words)), Some(packed.0.len()));
+    assert_eq!(
+        encoded_size(WordSlice(words)),
+        Some(EncodedSize(packed.0.len()))
+    );
     assert_eq!(
         packed.0.capacity(),
         packed.0.len(),
@@ -164,7 +167,7 @@ fn packing(words: &[u64]) -> Outcome {
 }
 
 fn room(total: usize, word: u64) -> Outcome {
-    match with_encoded_word(total, word) {
+    match with_encoded_word(EncodedSize(total), Bits(word)) {
         Some(_) => Outcome::Room,
         None => Outcome::NoRoom,
     }
@@ -177,7 +180,7 @@ fn frames() -> Vec<u8> {
 }
 
 fn framing(bytes: &[u8]) -> Outcome {
-    if single_table_frame(bytes) {
+    if single_table_frame(PackedSlice(bytes)) == crate::domain::table_words::types::Framing::Whole {
         Outcome::Whole
     } else {
         Outcome::Split
@@ -204,8 +207,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::NoRoomForTheLargest => room(usize::MAX - 9, u64::MAX),
         Scenario::RoomForTheLargest => {
             assert_eq!(
-                with_encoded_word(usize::MAX - 10, u64::MAX),
-                Some(usize::MAX)
+                with_encoded_word(EncodedSize(usize::MAX - 10), Bits(u64::MAX)),
+                Some(EncodedSize(usize::MAX))
             );
             room(usize::MAX - 10, u64::MAX)
         }

@@ -6,10 +6,9 @@ use crate::{
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, NamePlace, Value, WorkerNumber};
 use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
+    cases::{run, Case, CaseName, Expect, Word},
     domain::{
-        observations::types::ProducerReadiness,
-        records::types::{ObservationIndex, ObservationReason},
+        records::types::{ObservationIndex, ObservationReason, ProducerReadiness},
         rows::types::{RowCount, Table},
         stored_facts::types::ArenaBytes,
     },

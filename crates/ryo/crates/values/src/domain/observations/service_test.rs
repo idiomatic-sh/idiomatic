@@ -5,7 +5,11 @@ use super::service::{
 };
 use super::types::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::records::types::{FrontierReadiness, FrontierRefusal, FrontierRefusalReason};
+use crate::domain::records::types::{
+    FrontierReadiness, FrontierRefusal, FrontierRefusalReason, ObservationReadinessCount,
+    ObservationReadinessLayout, ObservationReadinessSlot, ObservationReadinessVersion,
+    ObservationReason, ProducerReadiness,
+};
 use crate::domain::runs::types::RuleId;
 use crate::domain::stored_facts::types::Digest;
 use ryo_relations::domain::relations::types::CellKind;

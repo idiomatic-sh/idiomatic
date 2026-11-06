@@ -562,7 +562,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![
                     ColumnIndex(0),
@@ -738,7 +738,8 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     use ryo_execution::inbound::use_cases::execution::interface::{
         ObservationExecution, ObservationPublication, PreparedExecution,
     };
-    use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation, ProducerReadiness};
+    use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
+    use ryo_values::domain::records::types::ProducerReadiness;
     use ryo_values::domain::records::types::ObservationIndex;
     use ryo_values::domain::records::types::ObservationReadinessLayout;
     use ryo_values::domain::plan_parts::types::ObservationBindingId;

@@ -387,21 +387,18 @@ pub struct FrontierRefusal {
 /// A typed unavailable state, never an empty successful population.
 pub enum FrontierRefusalReason {
     /// A real provider, dependency or retention refusal.
-    Unknown(crate::domain::records::types::ObservationReason),
+    Unknown(ObservationReason),
     /// The selected producer has no executable query.
     NoQuery,
 }
-
-/// Canonical read-only retention measurements over portable payloads.
-pub mod retention;
 
 /// A portable named output. Complete words, or partial words whose readiness
 /// remains Unknown, require a matching engine-issued publication at admission.
 #[derive(Clone, Debug)]
 pub struct PackedObservedRoot {
-    pub output: crate::domain::records::types::ObservationIndex,
+    pub output: ObservationIndex,
     pub words: Option<crate::domain::stored_facts::types::KeptWords>,
-    pub readiness: crate::domain::observations::types::ProducerReadiness,
+    pub readiness: crate::domain::records::types::ProducerReadiness,
     /// Every arena actually referenced by encoded places, including inherited re-exports.
     pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,
 }
@@ -412,3 +409,44 @@ pub struct CrossPublicationTransfer {
     pub arena: ArenaBytes,
     pub roots: Vec<PackedObservedRoot>,
 }
+
+/// Version of persisted root-readiness evidence, independent of row content.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ObservationReadinessVersion(pub u32);
+
+/// Semantic identity of ordered producer/output definitions plus query/config/schema identity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ObservationReadinessLayout(pub crate::domain::stored_facts::types::Digest);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Number of logical status slots in the current semantic layout.
+pub struct ObservationReadinessCount(pub u32);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Position within one validated semantic layout; not an independently stable identity.
+pub struct ObservationReadinessSlot(pub u32);
+
+/// Why a declared producer cannot supply an observed result.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObservationReason(pub Box<str>);
+
+/// A declared output's local position within one producer plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ObservationIndex(pub u32);
+
+/// Readiness belongs to an actually admitted output, distinct from selected-rule inventory.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProducerReadiness {
+    /// The producer root completed, including a real zero-row result.
+    Complete,
+    /// A dependency, mapping or retention refusal prevents a complete result.
+    Unknown(ObservationReason),
+    /// The producer is not applicable in this file/scope.
+    Skipped,
+    /// The configured producer has no executable query; it is never treated as complete-empty.
+    NoQuery,
+}
+
+/// Bytes owned by a value, counted for a diagnostic.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct OwnedBytes(pub usize);

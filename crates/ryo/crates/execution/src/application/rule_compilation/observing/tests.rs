@@ -2,7 +2,7 @@
 use super::prefix;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, Comparison, ComparisonOriginId, Function, Input, LiteralText, Operand,
+    Applied, ColumnIndex, Comparison, ComparisonOrigin, ComparisonOriginId, Function, Input, LiteralText, Operand,
     ParameterId, QueryLiteral, RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
@@ -13,7 +13,7 @@ fn comparison(column: u32, origin: u32) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("call".into()))),
-        origin: Some(ComparisonOriginId(origin)),
+        origin: ComparisonOrigin::Recorded(ComparisonOriginId(origin)),
     }
 }
 
@@ -71,8 +71,8 @@ fn observer_composes_reordered_and_repeated_projections_without_erasing_origins(
     .expect("composed prefix");
     assert_eq!(result.0, Relation::SemanticSyntax);
     assert_eq!(result.2, [ColumnIndex(2), ColumnIndex(0)]);
-    assert_eq!(result.1[0].origin, Some(ComparisonOriginId(7)));
-    assert_eq!(result.1[1].origin, Some(ComparisonOriginId(99)));
+    assert_eq!(result.1[0].origin, ComparisonOrigin::Recorded(ComparisonOriginId(7)));
+    assert_eq!(result.1[1].origin, ComparisonOrigin::Recorded(ComparisonOriginId(99)));
     assert_eq!(result.1[1].right, Operand::Parameter(ParameterId(0)));
     assert_eq!(
         result.1[1].left,

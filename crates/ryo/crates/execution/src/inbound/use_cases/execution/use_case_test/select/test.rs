@@ -67,7 +67,7 @@ fn services(test: Test, left: Operand, right: Operand) -> Result<usize, Failure>
                 test,
                 left,
                 right,
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![],
         },
@@ -120,7 +120,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                                 1
                             })))
                         },
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: if kept { vec![column(0)] } else { vec![] },
                 },

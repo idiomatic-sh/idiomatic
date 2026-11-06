@@ -3,7 +3,7 @@
 
 use super::service::CrossFile;
 use crate::application::run_coordination::settings::CrossingInput;
-use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
+use crate::cases::{run, Case, CaseName, Expect, Selection, Word};
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
@@ -27,11 +27,11 @@ use ryo_relations::domain::relations::types::{
     Value as Cell, Words, WorkerNumber,
 };
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -1228,7 +1228,7 @@ fn many_distinct_project_populations_allocate_only_reached_region_state() {
                         right: Operand::Literal(QueryLiteral::Number(
                             ryo_relations::domain::relations::types::Integer(seed),
                         )),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: vec![],
                 },
@@ -1558,17 +1558,15 @@ fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_
             panic!("later cohort must be refused")
         };
         assert_eq!(completed.len(), 1);
-        assert!(
-            completed
-                .into_iter()
-                .next()
-                .unwrap()
-                .result
-                .unwrap()
-                .crossed
-                .rendered
-                .is_some()
-        );
+        assert!(completed
+            .into_iter()
+            .next()
+            .unwrap()
+            .result
+            .unwrap()
+            .crossed
+            .rendered
+            .is_some());
         assert!(
             matches!(error, super::errors::CrossError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])
         );

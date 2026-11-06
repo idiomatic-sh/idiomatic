@@ -338,7 +338,7 @@ pub(in super::super) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
             test: Test::LessThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Column(ColumnIndex(1)),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
         kept: vec![],
     };

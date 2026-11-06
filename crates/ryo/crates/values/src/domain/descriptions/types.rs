@@ -1,6 +1,5 @@
 //! The types of the `descriptions` concept: what ryo says of the relations and the operators it owns. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::descriptions::types::ColumnName;
 use ryo_relations::domain::relations::types::Holds;
 use ryo_relations::domain::terms::types::UnknownName;
 
@@ -184,3 +183,7 @@ pub struct ValidateReport {
     /// How many steps it compiles to.
     pub steps: StepCount,
 }
+
+/// The name of a column, as the query writes it or keeps it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ColumnName(pub Box<str>);

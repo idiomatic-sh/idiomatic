@@ -13,6 +13,7 @@ use crate::domain::plan_parts::types::ParameterId;
 use crate::domain::plan_parts::types::ParameterName;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
+use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::TableKey;
 use crate::domain::plan_parts::types::Test;
 use crate::domain::program::types::QueryOrigin;
@@ -72,16 +73,6 @@ pub struct PlanStep {
     pub operation: Operation,
     /// Where it runs.
     pub scope: StepScope,
-}
-
-/// Where a step runs: in the worker that has the file, or once after the workers on the rows they
-/// handed over.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StepScope {
-    /// On one file's rows, in the worker.
-    PerFile,
-    /// On the frontier rows of every file.
-    CrossFile,
 }
 
 /// Whether the source-matches step appends the captured physical text as a Symbol.

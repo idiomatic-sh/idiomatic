@@ -14,6 +14,42 @@ pub enum DecodeMode {
     Complete,
 }
 
+/// Whether a decode read every word of its input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Completeness {
+    /// Every table was read to its end.
+    Complete,
+    /// A table was cut, malformed or refused.
+    Incomplete,
+}
+
+/// Whether the words are spelled as `pack()` writes them: minimal varints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spelling {
+    /// Each word is minimal and the last is whole.
+    Canonical,
+    /// A word is cut, overflows or is spelled another way.
+    Altered,
+}
+
+/// Whether a byte range holds exactly one whole table frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Framing {
+    /// One whole table frame, nothing more.
+    Whole,
+    /// Anything else.
+    Broken,
+}
+
+/// Whether the shape metadata of a compact table is consistent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Shape {
+    /// Cells, frames and row offsets agree.
+    Rectangular,
+    /// Some of them disagree.
+    Ragged,
+}
+
 /// Admitted offsets into immutable compact backing. Source-name mappings were
 /// bound before any query borrow; materialization never mutates symbols.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,28 +57,93 @@ pub struct CompactTable {
     pub words: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
     pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
     pub frames: Vec<CompactFrame>,
-    pub rows: usize,
-    pub cells: usize,
-    pub row_offsets: Vec<usize>,
+    pub rows: crate::domain::rows::types::RowCount,
+    pub cells: CellCount,
+    pub row_offsets: Vec<PackedOffset>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompactFrame {
-    pub bytes: std::ops::Range<usize>,
-    pub cells: usize,
+    pub start: PackedOffset,
+    pub end: PackedOffset,
+    pub cells: CellCount,
     pub base: ryo_relations::domain::relations::types::PlaceNumber,
 }
 
 /// One byte cursor supplies exact immutable frame offsets; no second packed copy.
 pub struct CompactCursor<'a> {
-    pub bytes: &'a [u8],
-    pub offset: usize,
+    pub bytes: PackedSlice<'a>,
+    pub offset: PackedOffset,
+}
+
+/// Packed bytes, borrowed.
+#[derive(Clone, Copy, Debug)]
+pub struct PackedSlice<'a>(pub &'a [u8]);
+
+/// A byte position in packed words.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PackedOffset(pub usize);
+
+/// Cells in a compact table or one of its frames.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CellCount(pub usize);
+
+/// Columns a compact row read asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ColumnCount(pub usize);
+
+/// Exact packed size of words, in bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EncodedSize(pub usize);
+
+/// The tables read from packed words, and whether every table was read to its end.
+#[derive(Clone, Debug)]
+pub struct Decoded {
+    /// The rows of every table read.
+    pub table: crate::domain::rows::types::Table,
+    /// Whether the input was read to its end.
+    pub completeness: Completeness,
+}
+
+/// A compact table admitted from packed words, with the names whose spelling the caller checks.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Admitted {
+    /// Offsets into the immutable backing.
+    pub table: CompactTable,
+    /// Names whose spelling the caller checks before use.
+    pub names: Vec<ryo_relations::domain::relations::types::Name>,
+}
+
+/// The address of a storage block.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StorageAddress(pub usize);
+
+/// The element count of a storage block.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StorageLength(pub usize);
+
+/// One storage block: where it starts and how long it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StoragePart {
+    /// Where the block starts.
+    pub address: StorageAddress,
+    /// How many elements it holds.
+    pub length: StorageLength,
+}
+
+/// The storage blocks one compact table borrows from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CompactStorage {
+    /// The packed words.
+    pub words: StoragePart,
+    /// The row offsets.
+    pub offsets: StoragePart,
 }
 impl Iterator for CompactCursor<'_> {
     type Item = Bits;
     fn next(&mut self) -> Option<Bits> {
         let (mut word, mut shift) = (0_u64, 0_u32);
-        while let Some(byte) = self.bytes.get(self.offset) {
-            self.offset += 1;
+        while let Some(byte) = self.bytes.0.get(self.offset.0) {
+            self.offset.0 += 1;
             word |= u64::from(byte & 0x7f)
                 .checked_shl(shift)
                 .unwrap_or_default();

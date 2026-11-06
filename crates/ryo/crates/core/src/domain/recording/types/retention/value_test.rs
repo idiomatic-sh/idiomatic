@@ -5,13 +5,13 @@ use crate::domain::storing::types::ToKeep;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
-use ryo_values::domain::records::types::retention::value::RetainedBytes;
 use ryo_values::domain::records::types::{
     FileOutcome, FindingRows, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
 };
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, KeptWords, LanguageNumber, NoteBytes, PackedWords,
 };
+use ryo_values::domain::stores::types::retention::value::RetainedBytes;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
 
 fn bytes(capacity: usize, count: usize) -> Vec<u8> {
@@ -159,7 +159,7 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
             RetainedBytes::packed(&packed).packed_live,
             RetainedBytes::packed(&packed).packed_capacity
         ),
-        (2, packed.0.0.capacity())
+        (2, packed.0 .0.capacity())
     );
 }
 

@@ -9,9 +9,9 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::{
     files::types::CorpusInput,
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation, ProducerReadiness},
+    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation},
     plan_parts::types::{HostedNumber, RepeatedRows, ObservationBindingId},
-    records::types::{Cell as HostCell, CrossPublicationTransfer, PackedObservedRoot, ObservationReadinessLayout, ObservationIndex},
+    records::types::{Cell as HostCell, CrossPublicationTransfer, PackedObservedRoot, ObservationReadinessLayout, ObservationIndex, ProducerReadiness},
     runs::types::{RuleApplicability, SkipReason, Skipped},
     stored_facts::types::{ArenaBytes, Digest, KeptWords},
     table_words::{

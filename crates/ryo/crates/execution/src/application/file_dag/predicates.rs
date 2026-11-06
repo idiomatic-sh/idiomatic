@@ -81,13 +81,13 @@ mod tests {
                 left: Operand::Column(ryo_values::domain::plan_parts::types::ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("pass".into()))),
                 test: Test::Equal,
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
             Comparison {
                 left: Operand::Literal(QueryLiteral::Text(LiteralText("subject".into()))),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
                 test: Test::Matches,
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
         ];
         let operation = Operation::Select {

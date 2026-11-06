@@ -41,7 +41,7 @@ fn named(column: u32, test: Test, literal: &str) -> Comparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -52,7 +52,7 @@ fn comparisons() -> Vec<Comparison> {
             test: Test::GreaterThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         },
         named(1, Test::Equal, "word"),
         named(2, Test::Equal, "a"),
@@ -60,7 +60,7 @@ fn comparisons() -> Vec<Comparison> {
             test: Test::Equal,
             left: Operand::Literal(QueryLiteral::Text(LiteralText("b".into()))),
             right: Operand::Column(ColumnIndex(2)),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         },
     ]
 }
@@ -101,7 +101,7 @@ fn columns(which: Option<&[usize]>) -> Value {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     });
     let mut needed = ColumnPlaces(vec![9]);
     match which {

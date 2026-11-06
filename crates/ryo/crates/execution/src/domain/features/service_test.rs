@@ -51,7 +51,7 @@ fn select_over_function() -> Plan {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: Vec::new(),
             },

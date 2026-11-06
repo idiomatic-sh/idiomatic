@@ -5,7 +5,10 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 };
 use ryo_values::domain::{
     observations::types::*,
-    records::types::{CrossPublicationTransfer, PackedObservedRoot},
+    plan_parts::types::ObservationBindingId,
+    records::types::{
+        CrossPublicationTransfer, ObservationReadinessLayout, PackedObservedRoot, ProducerReadiness,
+    },
     stored_facts::types::{ArenaBytes, Digest, KeptWords},
     table_words::{
         service::{encode_table, pack},

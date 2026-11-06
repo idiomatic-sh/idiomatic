@@ -38,7 +38,7 @@ fn filter() -> Comparison {
         test: Test::Matches,
         left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
         right: Operand::Column(ColumnIndex(2)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -152,7 +152,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("token".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 },
                 filter(),
             ],

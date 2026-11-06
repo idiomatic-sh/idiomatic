@@ -39,7 +39,7 @@ fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
         test: Test::Matches,
         left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
         right: Operand::Column(ColumnIndex(2)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let plans = [relation_plan(Relation::SemanticSyntax, vec![comparison])];
     let prepared = PreparedWalk::compile(&plans, &[vec![]]);

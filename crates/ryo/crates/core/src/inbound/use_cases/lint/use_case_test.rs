@@ -2,15 +2,15 @@
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
 use crate::outbound::rows;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use super::errors::LintError;
 use super::fixtures::contract::check;
 use super::interface::LintUseCase as _;
 use super::types::{LintRequest, Rule};
 use super::use_case::LintUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{run, selects, Case, CaseName, Expect, Word};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
@@ -34,12 +34,14 @@ use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
     QueryLiteral, QueryText, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{
+    Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep,
+};
 use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
 use ryo_values::domain::runs::types::{Budget, Session};
 use ryo_values::domain::stores::types::{FindingMade, Stored};
@@ -165,7 +167,7 @@ fn plan_with_name(name: &str) -> Plan {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut plan = QueryLanguageFake::selecting().plan;
     if let Some(PlanStep {
@@ -471,11 +473,11 @@ fn scheduled_world_with_query_resources(
             file
         })
         .collect();
-    let store: Arc<dyn crate::outbound::lint_store::interface::LintStorePort> =
-        match given.kept_in {
-            Some(other) => other,
-            None => given.store,
-        };
+    let store: Arc<dyn crate::outbound::lint_store::interface::LintStorePort> = match given.kept_in
+    {
+        Some(other) => other,
+        None => given.store,
+    };
     let use_case = {
         let analysis_corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort> =
             Arc::new(CorpusFake {
@@ -1306,15 +1308,13 @@ fn deleted() -> Result<Value, Failure> {
         cold.rows.len() - 1,
         "and the one removed reports nothing"
     );
-    assert!(
-        fewer
-            .rows
-            .iter()
-            .all(|row| row.0.iter().any(|cell| matches!(
-                cell,
-                Some(Typed::File(text) | Typed::Text(text)) if text.contains("a.rs")
-            )))
-    );
+    assert!(fewer
+        .rows
+        .iter()
+        .all(|row| row.0.iter().any(|cell| matches!(
+            cell,
+            Some(Typed::File(text) | Typed::Text(text)) if text.contains("a.rs")
+        ))));
     read_and_unread(fewer)
 }
 
@@ -1355,14 +1355,7 @@ fn placed() -> Result<Value, Failure> {
     let made = lint(violations());
     let first = made.rows.first().map(|row| &*row.0).unwrap_or_default();
     let (line, column) = match first {
-        [
-            Some(Typed::Text(_)),
-            _,
-            Some(Typed::Number(_)),
-            ..,
-            line,
-            column,
-        ] => (line, column),
+        [Some(Typed::Text(_)), _, Some(Typed::Number(_)), .., line, column] => (line, column),
         _ => (&None, &None),
     };
     assert!(
@@ -1562,8 +1555,8 @@ fn changed_nested_module() -> Result<Value, Failure> {
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
     use crate::outbound::query_language::factory;
-    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
     use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
 
     let make_bundle = |prefix: &str| {
         let module = format!(
@@ -1919,7 +1912,10 @@ fn answered(
         kept_in: Some(kept_in),
         ..violations()
     };
-    given.language.rejected_syntax = rejected.iter().map(|path| FilePath((*path).into())).collect();
+    given.language.rejected_syntax = rejected
+        .iter()
+        .map(|path| FilePath((*path).into()))
+        .collect();
     let mut asked = request(&given);
     asked.rules[0].applicability = applicability;
     let world = world(given);
@@ -1958,7 +1954,11 @@ fn store_of(
     }
 }
 
-const THREE: [(&str, &str); 3] = [("a.rs", "fn a() {}"), ("b.rs", "fn b() {}"), ("c.rs", "fn c() {}")];
+const THREE: [(&str, &str); 3] = [
+    ("a.rs", "fn a() {}"),
+    ("b.rs", "fn b() {}"),
+    ("c.rs", "fn c() {}"),
+];
 
 /// A cold, a warm and an edited run answer the rows and findings a cold run over the same files answers, whichever store keeps
 /// them; the stores that keep read only the files that changed, the one that discards reads every file each time.
@@ -1974,12 +1974,30 @@ fn cold_warm_and_edited_runs_answer_the_same_in_every_store() {
         ] {
             let directory = tempfile::tempdir().expect("a directory");
             let kept_in = store_of(kind, directory.path());
-            for (run, files) in [&THREE[..], &THREE[..], &edited[..]].into_iter().enumerate() {
-                let oracle = answered(files, &[], Always, answer, store_of("discard", directory.path()));
+            for (run, files) in [&THREE[..], &THREE[..], &edited[..]]
+                .into_iter()
+                .enumerate()
+            {
+                let oracle = answered(
+                    files,
+                    &[],
+                    Always,
+                    answer,
+                    store_of("discard", directory.path()),
+                );
                 let now = answered(files, &[], Always, answer, Arc::clone(&kept_in));
-                assert_eq!(now.rows, oracle.rows, "{kind} {answer:?} run {run}: the rows");
-                assert_eq!(now.undecided, oracle.undecided, "{kind} run {run}: what was undecided");
-                assert_eq!(now.skipped, oracle.skipped, "{kind} run {run}: what was skipped");
+                assert_eq!(
+                    now.rows, oracle.rows,
+                    "{kind} {answer:?} run {run}: the rows"
+                );
+                assert_eq!(
+                    now.undecided, oracle.undecided,
+                    "{kind} run {run}: what was undecided"
+                );
+                assert_eq!(
+                    now.skipped, oracle.skipped,
+                    "{kind} run {run}: what was skipped"
+                );
                 // The reuse of a rows answer is not asserted: it is decided apart from the findings (see ryo-l1w3).
                 if answer == AnswerShape::Findings {
                     assert_eq!(now.parses, parsed[run], "{kind} run {run}: the files read");
@@ -1997,15 +2015,37 @@ fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() {
     let without = [THREE[0], THREE[2]];
     for kind in ["memory", "postcard"] {
         let directory = tempfile::tempdir().expect("a directory");
-        let oracle = answered(&without, &[], Always, AnswerShape::Findings, store_of("discard", directory.path()));
+        let oracle = answered(
+            &without,
+            &[],
+            Always,
+            AnswerShape::Findings,
+            store_of("discard", directory.path()),
+        );
         let kept_in = store_of(kind, directory.path());
-        let cold = answered(&THREE, &["b.rs"], AcceptedSyntax, AnswerShape::Findings, Arc::clone(&kept_in));
-        let warm = answered(&THREE, &["b.rs"], AcceptedSyntax, AnswerShape::Findings, kept_in);
+        let cold = answered(
+            &THREE,
+            &["b.rs"],
+            AcceptedSyntax,
+            AnswerShape::Findings,
+            Arc::clone(&kept_in),
+        );
+        let warm = answered(
+            &THREE,
+            &["b.rs"],
+            AcceptedSyntax,
+            AnswerShape::Findings,
+            kept_in,
+        );
         assert_eq!(cold.rows, oracle.rows, "{kind}: cold rows");
         assert_eq!(warm.rows, oracle.rows, "{kind}: warm rows");
         assert_eq!(cold.undecided, "[]", "{kind}: nothing undecided cold");
         assert_eq!(warm.undecided, "[]", "{kind}: nothing undecided warm");
-        assert!(cold.skipped.contains("b.rs") && cold.skipped.contains("SyntaxRejected"), "{kind}: {}", cold.skipped);
+        assert!(
+            cold.skipped.contains("b.rs") && cold.skipped.contains("SyntaxRejected"),
+            "{kind}: {}",
+            cold.skipped
+        );
         assert_eq!(warm.skipped, cold.skipped, "{kind}: the skip is kept");
         assert_eq!(warm.parses, 0, "{kind}: a warm run reads no file");
     }
@@ -2021,7 +2061,10 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
             files: files.to_vec(),
             ..violations()
         };
-        given.language.rejected_syntax = rejected.iter().map(|path| FilePath((*path).into())).collect();
+        given.language.rejected_syntax = rejected
+            .iter()
+            .map(|path| FilePath((*path).into()))
+            .collect();
         let mut asked = request(&given);
         asked.rules[0].applicability = applicability;
         let world = world(given);
@@ -2034,7 +2077,11 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         )
         .rows;
-        (rows, format!("{:?}", report.unknowns), format!("{:?}", report.skipped))
+        (
+            rows,
+            format!("{:?}", report.unknowns),
+            format!("{:?}", report.skipped),
+        )
     };
     let oracle = lint(&[THREE[0], THREE[2]], &[], Always);
     let (rows, undecided, skipped) = lint(&THREE, &["b.rs"], AcceptedSyntax);
@@ -2044,7 +2091,11 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
         skipped.contains("b.rs") && skipped.contains("SyntaxRejected"),
         "named with its reason: {skipped}"
     );
-    assert!(oracle.2 == "[]", "a file that is read is not skipped: {}", oracle.2);
+    assert!(
+        oracle.2 == "[]",
+        "a file that is read is not skipped: {}",
+        oracle.2
+    );
 }
 
 mod project_budget;

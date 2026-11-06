@@ -5,9 +5,8 @@ use crate::application::file_dag::program::preparation::types::OutputRoot;
 use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
-    observations::types::ProducerReadiness,
     stored_facts::types::ArenaBytes,
-    records::types::ObservationIndex,
+    records::types::{ObservationIndex, ProducerReadiness},
 };
 use std::rc::Rc;
 use {
@@ -104,7 +103,7 @@ impl<'a> CrossPublications<'a> {
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
         let backing = std::sync::Arc::new(token.words().clone());
-        let (metadata, _spelling) = ryo_values::domain::table_words::service::admit_compact(
+        let ryo_values::domain::table_words::types::Admitted { table: metadata, .. } = ryo_values::domain::table_words::service::admit_compact(
             std::sync::Arc::clone(&backing),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
             ryo_values::domain::table_words::types::DecodeMode::Complete,

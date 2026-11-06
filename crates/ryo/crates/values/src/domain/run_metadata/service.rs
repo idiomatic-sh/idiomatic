@@ -8,9 +8,10 @@ use crate::domain::{
     plan_parts::types::Input,
     plans::{
         service::{inputs_of, named},
-        types::{Feature, Operation, Plan, StepScope},
+        types::{Feature, Operation, Plan},
     },
 };
+use crate::domain::plan_parts::types::StepScope;
 use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
 
 #[must_use]

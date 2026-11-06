@@ -1,7 +1,8 @@
 //! The `plans` service's cases, on values alone.
 
 use super::service::{inputs_of, named, step_scope};
-use super::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use super::types::{Emit, Operation, Plan, PlanStep};
+use crate::domain::plan_parts::types::StepScope;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::types::ColumnIndex;
 use crate::domain::plan_parts::types::HostedNumber;

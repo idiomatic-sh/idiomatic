@@ -165,8 +165,9 @@ fn positive_row_contracts_keep_partial_input_distinction() {
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     use ryo_values::domain::plans::{
         service::{inputs_of, named},
-        types::{Emit, Plan, PlanStep, StepScope},
+        types::{Emit, Plan, PlanStep},
     };
+use ryo_values::domain::plan_parts::types::StepScope;
     use ryo_values::domain::stored_facts::types::PartialCause;
     for kind in [
         OperationKind::Select,

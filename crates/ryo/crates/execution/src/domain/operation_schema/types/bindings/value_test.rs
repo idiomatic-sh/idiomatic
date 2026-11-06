@@ -112,7 +112,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 test: Test::Matches,
                 left: Operand::Column(ColumnIndex(0)),
                 right,
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             };
             BindingShape::new(&bindings).predicates(&[comparison], &[CellKind::Symbol])?;
             Ok(1)

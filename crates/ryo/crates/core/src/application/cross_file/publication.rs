@@ -5,9 +5,8 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
 use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
 use ryo_values::domain::{
-    observations::types::ProducerReadiness,
     stored_facts::types::{ArenaBytes, KeptWords},
-    records::types::ObservationReason,
+    records::types::{ObservationReason, ProducerReadiness},
 };
 use {
     crate::domain::crossing::types::ObservedRoot,

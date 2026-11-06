@@ -77,7 +77,7 @@ pub(super) fn compared(test: Test, column: u32, right: Operand) -> Comparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
         right,
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 pub(super) fn text(text: &str) -> Operand {

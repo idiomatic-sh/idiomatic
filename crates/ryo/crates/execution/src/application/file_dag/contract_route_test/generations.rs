@@ -52,7 +52,7 @@ fn binding_plan() -> Plan {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Parameter(ParameterId(0)),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: vec![],
                 },

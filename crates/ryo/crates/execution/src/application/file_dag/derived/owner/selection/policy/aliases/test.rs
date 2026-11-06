@@ -61,7 +61,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Text(word)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 bindings: Vec::new(),
             }),
@@ -144,13 +144,13 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("absent".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let bad = Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let selector = |comparisons| {
         Arc::new(Selector {
@@ -264,7 +264,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             bindings: Vec::new(),
         }),

@@ -5,7 +5,7 @@ use super::{
     bucket_bytes, bucket_from, contents, contents_bytes, rest_bytes, rest_from, tables_bytes,
     tables_of,
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{run, Case, CaseName, Expect, Word};
 use crate::outbound::lint_store::fixtures::fake::stored;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::Cell;
@@ -155,13 +155,15 @@ fn succeeds() {
 
 #[test]
 fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
+    use ryo_values::domain::records::types::ObservationReadinessCount;
+    use ryo_values::domain::records::types::ObservationReadinessLayout;
+    use ryo_values::domain::records::types::ObservationReadinessSlot;
+    use ryo_values::domain::records::types::ObservationReason;
+    use ryo_values::domain::records::types::ProducerReadiness;
     use ryo_values::domain::{
         observations::{
+            
             service::{new_frontiers, set_frontier},
-            types::{
-                ObservationReadinessCount, ObservationReadinessLayout, ObservationReadinessSlot,
-                ObservationReason, ProducerReadiness,
-            },
         },
         stored_facts::types::Digest,
         stores::types::{StoredFileNumber, StoredFrontierReadiness},

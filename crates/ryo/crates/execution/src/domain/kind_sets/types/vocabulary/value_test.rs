@@ -23,7 +23,7 @@ fn compared(test: Test, place: u32, literal: &str) -> Comparison {
         test,
         left: Operand::Column(column(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -206,7 +206,7 @@ fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
         test: Test::Matches,
         left: Operand::Column(column(1)),
         right: Operand::Column(column(2)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
     let mut kinds = KindScratch {
         names: Default::default(),

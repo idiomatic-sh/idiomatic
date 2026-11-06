@@ -41,7 +41,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         } else {
             Operand::Parameter(ParameterId(0))
         },
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let operation = Operation::Select {
         from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),

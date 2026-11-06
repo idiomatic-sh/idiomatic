@@ -4,7 +4,8 @@ use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{service::node_id, types::*};
 use ryo_values::domain::{
-    plan_parts::types::{Input, StepId, StepScope},
+    plan_parts::types::{Input, ObservationBindingId, StepId, StepScope},
+    records::types::ObservationReadinessLayout,
     plans::types::{Operation, PlanStep},
     rows::types::RowCount,
     stored_facts::types::{Bucket, Digest},

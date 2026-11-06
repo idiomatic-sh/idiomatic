@@ -67,7 +67,7 @@ pub(super) struct CachedInput {
 }
 
 pub(super) struct FileRoot {
-    pub(super) readiness: Option<ryo_values::domain::observations::types::ProducerReadiness>,
+    pub(super) readiness: Option<ryo_values::domain::records::types::ProducerReadiness>,
     pub(super) commit: FrontierCommit,
     pub(super) publication: Option<AdmittedInput>,
     pub(super) skipped: Option<ApplicabilityProof>,

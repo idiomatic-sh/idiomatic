@@ -50,7 +50,7 @@ pub(super) fn comparison(test: Test, number: Integer) -> Comparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Number(number)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 fn head(kept: Vec<ColumnIndex>, comparisons: Vec<Comparison>) -> Plan {
@@ -219,7 +219,7 @@ impl Authored {
                     test: Test::GreaterThan,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Number(Integer(0))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![],
             },

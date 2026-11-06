@@ -22,7 +22,7 @@ fn text_is(text: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -31,7 +31,7 @@ fn kind_is(name: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -123,7 +123,9 @@ fn comparison_origin_does_not_split_shared_step_classes() {
         let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
             panic!("the fixture has one select");
         };
-        comparisons[0].origin = Some(ComparisonOriginId(0));
+        comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+            ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+        );
     }
 
     let merged = merge(&[first, second], &[Vec::new(), Vec::new()]);
@@ -141,7 +143,7 @@ fn with_operands(left: Operand, right: Operand) -> Plan {
         test: Test::Equal,
         left,
         right,
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     });
     selected
 }
@@ -301,7 +303,7 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
         right: Operand::Literal(QueryLiteral::Number(
             ryo_relations::domain::relations::types::Integer(7),
         )),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     *kept = vec![ColumnIndex(8), ColumnIndex(0), ColumnIndex(8)];
     wide.steps.push(PlanStep {
@@ -311,7 +313,7 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(2)),
                 right: Operand::Column(ColumnIndex(0)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![ColumnIndex(1)],
         },

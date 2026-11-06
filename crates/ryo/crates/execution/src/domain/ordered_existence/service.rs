@@ -7,8 +7,9 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plans::{
     service::{inputs_of, named},
-    types::{Operation, Plan, StepScope},
+    types::{Operation, Plan},
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 
 fn step(plan: &Plan, id: StepId) -> Result<&Operation, Decline> {
     let step = plan

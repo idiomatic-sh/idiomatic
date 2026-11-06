@@ -56,7 +56,7 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
         test,
         left: Operand::Column(ColumnIndex(1)),
         right,
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
     let operation = match site {
         KindSite::Select => Operation::Select {
@@ -118,7 +118,9 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
     let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
         panic!("the test plan uses a select");
     };
-    comparisons[0].origin = Some(ComparisonOriginId(0));
+    comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+            ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+        );
 
     let mut other_origin = origin.clone();
     other_origin.source_id = QuerySourceId("other/filter".into());
@@ -136,7 +138,9 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
     else {
         panic!("the test plan uses a select");
     };
-    other_comparisons[0].origin = Some(ComparisonOriginId(0));
+    other_comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+            ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+        );
 
     assert_eq!(
         refusal(&plan, &KindVocabularies(Vec::new())).unwrap().1,

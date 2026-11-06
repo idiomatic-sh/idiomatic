@@ -67,7 +67,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
             test,
             left: Operand::Column(column(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         let operation = Operation::Select {
             from: FROM,
@@ -133,7 +133,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("{main}".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -186,7 +186,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("{main,other}".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -269,7 +269,7 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Column(column(1)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
     let mut context = OperatorContext {
         phase: crate::domain::operating::types::AfterTheFiles::Before,
@@ -305,7 +305,7 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
         test: Test::Equal,
         left: Operand::Column(column(0)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
@@ -369,7 +369,7 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
                 arguments: vec![Operand::Column(column(0))],
             }),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(String::new().into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         if holds_all(
             &[comparison],

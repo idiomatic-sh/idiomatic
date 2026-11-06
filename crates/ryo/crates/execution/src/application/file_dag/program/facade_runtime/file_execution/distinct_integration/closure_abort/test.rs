@@ -50,7 +50,7 @@ fn exercise(refusal: Refusal, fused: bool) {
                     test: Test::Matches,
                     left: Operand::Literal(QueryLiteral::Text(LiteralText("a".into()))),
                     right: Operand::Column(ColumnIndex(1)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![
                     ColumnIndex(0),

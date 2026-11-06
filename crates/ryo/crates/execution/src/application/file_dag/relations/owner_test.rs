@@ -43,7 +43,10 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let (compact, names) =
         service::admit_compact(Arc::clone(&words), &mut Vec::new(), DecodeMode::Complete).unwrap();
     assert!(names.is_empty());
-    assert!(service::compact_rectangular(&compact));
+    assert_eq!(
+        service::compact_rectangular(&compact),
+        ryo_values::domain::table_words::types::Shape::Rectangular
+    );
     let compact = Arc::new(compact);
     let compact_weak = Arc::downgrade(&compact);
     let owner = RelationOwner::new(

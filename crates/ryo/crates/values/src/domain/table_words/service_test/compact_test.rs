@@ -10,7 +10,9 @@ use ryo_relations::domain::relations::types::{
     Value as Cell, Words, WorkerNumber,
 };
 use std::sync::Arc;
-use types::{DecodeMode, WordSlice};
+use crate::domain::plan_parts::types::ColumnIndex;
+use crate::domain::rows::types::RowIndex;
+use types::{Admitted, CellCount, DecodeMode, WordSlice};
 fn place(at: u32) -> NamePlace {
     NamePlace {
         origin: Origin::Derived(WorkerNumber(0)),
@@ -48,24 +50,24 @@ fn packed(frames: &[Table]) -> Arc<KeptWords> {
 }
 fn same(actual: &types::CompactTable, expected: &Table) {
     assert_eq!(service::compact_kinds(actual), expected.kinds);
-    assert_eq!(service::compact_rows(actual), expected.count.0);
-    assert_eq!(service::compact_cells(actual), expected.cells.len());
+    assert_eq!(service::compact_rows(actual), expected.count);
+    assert_eq!(service::compact_cells(actual), CellCount(expected.cells.len()));
     let width = expected.kinds.len();
     let mut scratch = vec![Cell::Number(Integer(0)); width];
     for row in 0..expected.count.0 {
         let start = row * width;
         assert_eq!(
-            service::compact_read(actual, row, &mut scratch),
+            service::compact_read(actual, RowIndex(row), &mut scratch),
             expected.cells.get(start..start + width)
         );
         for column in 0..width {
             assert_eq!(
-                service::compact_cell(actual, row, column),
+                service::compact_cell(actual, RowIndex(row), ColumnIndex(column as u32)),
                 expected.cells.get(start + column).copied()
             );
         }
     }
-    assert!(service::compact_read(actual, expected.count.0, &mut scratch).is_none());
+    assert!(service::compact_read(actual, RowIndex(expected.count.0), &mut scratch).is_none());
 }
 
 fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
@@ -79,35 +81,38 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
     let new = service::admit_compact(input, &mut new_places, mode);
     assert_eq!(old.as_ref().err(), new.as_ref().err());
     assert_eq!(old_places, new_places);
-    if let (Ok(old), Ok((meta, _))) = (old, new) {
+    if let (Ok(old), Ok(Admitted { table: meta, .. })) = (old, new) {
         assert_eq!(service::compact_kinds(&meta), old.kinds);
-        assert_eq!(service::compact_rows(&meta), old.count.0);
-        assert_eq!(service::compact_cells(&meta), old.cells.len());
+        assert_eq!(service::compact_rows(&meta), old.count);
+        assert_eq!(service::compact_cells(&meta), CellCount(old.cells.len()));
         same(&meta, &old);
         let expected_rectangular = old
             .count
             .0
             .checked_mul(old.kinds.len())
             .is_some_and(|cells| cells == old.cells.len());
-        assert_eq!(service::compact_rectangular(&meta), expected_rectangular);
+        assert_eq!(
+            service::compact_rectangular(&meta) == crate::domain::table_words::types::Shape::Rectangular,
+            expected_rectangular
+        );
         if expected_rectangular {
             let mut scratch = vec![Cell::Number(Integer(0)); old.kinds.len()];
             for row in 0..old.count.0 {
                 let expected = &old.cells[row * old.kinds.len()..(row + 1) * old.kinds.len()];
                 assert_eq!(
-                    service::compact_read(&meta, row, &mut scratch),
+                    service::compact_read(&meta, RowIndex(row), &mut scratch),
                     Some(expected)
                 );
                 for (column, value) in expected.iter().enumerate() {
-                    let actual = service::compact_cell(&meta, row, column).unwrap();
+                    let actual = service::compact_cell(&meta, RowIndex(row), ColumnIndex(column as u32)).unwrap();
                     assert_eq!(actual, *value);
                     if let (Cell::Name(a), Cell::Name(b)) = (actual, value) {
                         assert_eq!(a.place, b.place);
                     }
                 }
             }
-            assert!(service::compact_read(&meta, old.count.0, &mut scratch).is_none());
-            assert!(service::compact_cell(&meta, 0, old.kinds.len()).is_none());
+            assert!(service::compact_read(&meta, RowIndex(old.count.0), &mut scratch).is_none());
+            assert!(service::compact_cell(&meta, RowIndex(0), ColumnIndex(old.kinds.len() as u32)).is_none());
         }
         let before = new_places.clone();
         same(&meta, &old);
@@ -120,15 +125,20 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
         differential(packed(&frames), mode);
     }
     let mut places = vec![];
-    let (meta, names) =
-        service::admit_compact(packed(&frames), &mut places, DecodeMode::Complete).unwrap();
-    assert_eq!(service::compact_rows(&meta), 4);
-    assert_eq!(service::compact_cells(&meta), 12);
-    assert!(service::compact_rectangular(&meta));
+    let Admitted {
+        table: meta,
+        names,
+    } = service::admit_compact(packed(&frames), &mut places, DecodeMode::Complete).unwrap();
+    assert_eq!(service::compact_rows(&meta), RowCount(4));
+    assert_eq!(service::compact_cells(&meta), CellCount(12));
+    assert_eq!(
+        service::compact_rectangular(&meta),
+        crate::domain::table_words::types::Shape::Rectangular
+    );
     assert_eq!(names.len(), 4);
     assert_eq!(places.len(), 4);
     assert_eq!(
-        service::compact_cell(&meta, 2, 1),
+        service::compact_cell(&meta, RowIndex(2), ColumnIndex(1)),
         Some(Cell::Name(Name {
             hash: TextHash(17),
             place: PlaceNumber(2)
@@ -144,13 +154,13 @@ fn truncated_tail_rolls_back_that_frame_or_complete_input() {
         differential(Arc::new(KeptWords(PackedWords(bytes.clone()))), mode);
     }
     let mut places = vec![];
-    let (meta, _) = service::admit_compact(
+    let Admitted { table: meta, .. } = service::admit_compact(
         Arc::new(KeptWords(PackedWords(bytes))),
         &mut places,
         DecodeMode::Permissive,
     )
     .unwrap();
-    assert_eq!(service::compact_rows(&meta), 2);
+    assert_eq!(service::compact_rows(&meta), RowCount(2));
     assert_eq!(places.len(), 2);
 }
 fn noncanonical_cut_and_incompatible_schema_preserve_modes() {
@@ -183,29 +193,38 @@ fn declared_cell_overflow_does_not_admit_current_frame_names() {
 }
 fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     let mut places = vec![];
-    let (mut meta, _) = service::admit_compact(
+    let Admitted {
+        table: mut meta, ..
+    } = service::admit_compact(
         Arc::new(KeptWords(PackedWords::default())),
         &mut places,
         DecodeMode::Complete,
     )
     .unwrap();
     service::shape_compact(&mut meta, &[CellKind::Number]).unwrap();
-    assert_eq!(service::compact_rows(&meta), 0);
-    assert_eq!(service::compact_cells(&meta), 0);
+    assert_eq!(service::compact_rows(&meta), RowCount(0));
+    assert_eq!(service::compact_cells(&meta), CellCount(0));
     assert_eq!(service::compact_kinds(&meta), &[CellKind::Number]);
-    assert!(service::compact_read(&meta, 0, &mut [Cell::Number(Integer(0))]).is_none());
+    assert!(service::compact_read(&meta, RowIndex(0), &mut [Cell::Number(Integer(0))]).is_none());
 }
 fn compact_lease_pins_backing_until_metadata_is_retired() {
     let input = packed(&[table()]);
     let weak = Arc::downgrade(&input);
-    let (meta, _) =
+    let Admitted { table: meta, .. } =
         service::admit_compact(Arc::clone(&input), &mut vec![], DecodeMode::Complete).unwrap();
     assert!(Arc::ptr_eq(service::compact_backing(&meta), &input));
     let storage = service::compact_storage(&meta);
-    assert_eq!(storage[0], (input.0.0.as_ptr() as usize, input.0.0.len()));
+    assert_eq!(
+        storage.words,
+        types::StoragePart {
+            address: types::StorageAddress(input.0.0.as_ptr() as usize),
+            length: types::StorageLength(input.0.0.len()),
+        }
+    );
     assert!(
-        service::compact_metadata_bytes(&meta)
-            >= size_of::<types::CompactTable>() + storage[1].1 * size_of::<usize>()
+        service::compact_metadata_bytes(&meta).0
+            >= size_of::<types::CompactTable>()
+                + storage.offsets.length.0 * size_of::<types::PackedOffset>()
     );
     drop(input);
     assert!(weak.upgrade().is_some());
@@ -342,17 +361,21 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
             DecodeMode::Permissive => service::decode_combined(&input.0, &mut decoded_places),
         };
         let mut compact_places = seed;
-        let (compact, names) =
-            service::admit_compact(Arc::clone(&input), &mut compact_places, mode).unwrap();
+        let Admitted {
+            table: compact,
+            names,
+        } = service::admit_compact(Arc::clone(&input), &mut compact_places, mode).unwrap();
         let compact_cells = (0..2)
             .flat_map(|row| (0..2).map(move |column| (row, column)))
-            .map(|(row, column)| service::compact_cell(&compact, row, column).unwrap())
+            .map(|(row, column)| {
+                service::compact_cell(&compact, RowIndex(row), ColumnIndex(column)).unwrap()
+            })
             .collect::<Vec<_>>();
         let mut compact_rows = Vec::new();
         let mut row_scratch = [Cell::Number(Integer(0)); 2];
         for row in 0..2 {
             compact_rows
-                .extend_from_slice(service::compact_read(&compact, row, &mut row_scratch).unwrap());
+                .extend_from_slice(service::compact_read(&compact, RowIndex(row), &mut row_scratch).unwrap());
         }
         let identities = |cells: &[Cell]| {
             cells

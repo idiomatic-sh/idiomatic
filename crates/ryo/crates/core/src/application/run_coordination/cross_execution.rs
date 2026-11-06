@@ -3,8 +3,8 @@ use crate::domain::crossing::types::{ObservedRoot, PhaseRoots};
 use ryo_execution::inbound::use_cases::execution::types::{
     ObservedPublication, ProjectObservation, RootOutcome,
 };
-use ryo_values::domain::observations::types::ProducerReadiness;
 use ryo_values::domain::records::types::ObservationReason;
+use ryo_values::domain::records::types::ProducerReadiness;
 
 /// Pure phase rows plus the actual admitted owner proof of each usable named root.
 pub(crate) struct ProgramEvaluated {
@@ -30,7 +30,11 @@ pub(crate) fn collected(
         RootOutcome::Skipped(_) | RootOutcome::NoQuery | RootOutcome::Deferred { .. } => {}
     }
     let mut publications = Vec::new();
-    for ryo_execution::inbound::use_cases::execution::types::ProjectOutputOutcome { output, outcome } in outcome.observations {
+    for ryo_execution::inbound::use_cases::execution::types::ProjectOutputOutcome {
+        output,
+        outcome,
+    } in outcome.observations
+    {
         let (table, readiness) = match outcome {
             ProjectObservation::Complete { table, publication } => {
                 publications.push((output, publication));

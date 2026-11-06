@@ -1,6 +1,8 @@
 //! Canonical identity of declared named inputs, independent of formatting and arena state.
 use super::errors::ObservationsError;
-use super::types::{ObservationBinding, ObservationIdentityBytes, ObservationProducer};
+use super::types::{
+    ObservationBinding, ObservationIdentityBytes, ObservationProducer, ReadinessBit,
+};
 use ryo_relations::domain::relations::types::CellKind;
 
 /// Versioned, typed, length-delimited bytes. Empty declarations preserve ordinary request identity.
@@ -12,10 +14,10 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
     let mut bytes = ObservationIdentityBytes(super::constants::BINDINGS_TAG.to_vec());
     tally(&mut bytes, &bindings);
     for binding in bindings {
-        text(&mut bytes, &binding.name.0);
+        text(&mut bytes, binding.name.0.as_bytes());
         tally(&mut bytes, &binding.columns);
         for column in &binding.columns {
-            text(&mut bytes, &column.name.0);
+            text(&mut bytes, column.name.0.as_bytes());
             bytes.0.push(match column.kind {
                 CellKind::Node => 0,
                 CellKind::Symbol => 1,
@@ -30,12 +32,12 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
             match producer {
                 ObservationProducer::Output { rule, output } => {
                     bytes.0.push(0);
-                    text(&mut bytes, &rule.0);
-                    text(&mut bytes, &output.0);
+                    text(&mut bytes, rule.0.as_bytes());
+                    text(&mut bytes, output.0.as_bytes());
                 }
                 ObservationProducer::NoQuery { rule } => {
                     bytes.0.push(1);
-                    text(&mut bytes, &rule.0);
+                    text(&mut bytes, rule.0.as_bytes());
                 }
             }
         }
@@ -52,15 +54,15 @@ where
             .to_le_bytes(),
     );
 }
-fn text(bytes: &mut ObservationIdentityBytes, value: &str) {
-    tally(bytes, value.as_bytes());
-    bytes.0.extend_from_slice(value.as_bytes());
+fn text(bytes: &mut ObservationIdentityBytes, value: &[u8]) {
+    tally(bytes, value);
+    bytes.0.extend_from_slice(value);
 }
 
 /// Allocate compact state only when a request has demanded persistent frontier slots.
 pub fn new_frontiers(
-    layout: super::types::ObservationReadinessLayout,
-    slots: super::types::ObservationReadinessCount,
+    layout: crate::domain::records::types::ObservationReadinessLayout,
+    slots: crate::domain::records::types::ObservationReadinessCount,
 ) -> crate::domain::records::types::FrontierReadiness {
     crate::domain::records::types::FrontierReadiness {
         version: super::constants::READINESS_VERSION,
@@ -77,10 +79,10 @@ pub fn new_frontiers(
 /// Record an actual state; an unset slot remains Unknown without allocating a boxed reason per root.
 pub fn set_frontier(
     map: &mut crate::domain::records::types::FrontierReadiness,
-    slot: super::types::ObservationReadinessSlot,
-    readiness: super::types::ProducerReadiness,
+    slot: crate::domain::records::types::ObservationReadinessSlot,
+    readiness: crate::domain::records::types::ProducerReadiness,
 ) -> Result<(), ObservationsError> {
-    use super::types::ProducerReadiness;
+    use crate::domain::records::types::ProducerReadiness;
     use crate::domain::records::types::{FrontierRefusal, FrontierRefusalReason};
     if slot.0 >= map.slots.0 {
         return Err(ObservationsError::Invalid);
@@ -137,8 +139,8 @@ pub fn set_frontier(
 /// Validate once against the current stable semantic layout before any bit can establish completion.
 pub fn validate_frontiers<'a>(
     map: &'a crate::domain::records::types::FrontierReadiness,
-    layout: super::types::ObservationReadinessLayout,
-    slots: super::types::ObservationReadinessCount,
+    layout: crate::domain::records::types::ObservationReadinessLayout,
+    slots: crate::domain::records::types::ObservationReadinessCount,
 ) -> Result<super::types::ValidatedFrontiers<'a>, ObservationsError> {
     use ObservationsError::Invalid;
     let words = (slots.0 as usize).div_ceil(64);
@@ -164,8 +166,8 @@ pub fn validate_frontiers<'a>(
     for refusal in &map.refusals {
         if refusal.slot.0 >= slots.0
             || previous.is_some_and(|old| old >= refusal.slot)
-            || bit(&map.complete, refusal.slot)
-            || bit(&map.skipped, refusal.slot)
+            || bit(&map.complete, refusal.slot) == ReadinessBit::Set
+            || bit(&map.skipped, refusal.slot) == ReadinessBit::Set
         {
             return Err(Invalid);
         }
@@ -176,18 +178,19 @@ pub fn validate_frontiers<'a>(
 /// Read the already-validated generation. Missing state is an explicit Unknown, not complete-empty.
 pub fn frontier_state(
     map: super::types::ValidatedFrontiers<'_>,
-    slot: super::types::ObservationReadinessSlot,
-) -> Result<super::types::ProducerReadiness, ObservationsError> {
-    use super::types::{ObservationReason, ProducerReadiness};
+    slot: crate::domain::records::types::ObservationReadinessSlot,
+) -> Result<crate::domain::records::types::ProducerReadiness, ObservationsError> {
+    use crate::domain::records::types::ProducerReadiness;
+use crate::domain::records::types::ObservationReason;
     use crate::domain::records::types::FrontierRefusalReason;
     let map = map.0;
     if slot.0 >= map.slots.0 {
         return Err(ObservationsError::Invalid);
     }
-    if bit(&map.complete, slot) {
+    if bit(&map.complete, slot) == ReadinessBit::Set {
         return Ok(ProducerReadiness::Complete);
     }
-    if bit(&map.skipped, slot) {
+    if bit(&map.skipped, slot) == ReadinessBit::Set {
         return Ok(ProducerReadiness::Skipped);
     }
     Ok(
@@ -212,19 +215,25 @@ pub fn frontier_state(
 }
 fn bit(
     words: &crate::domain::records::types::ReadinessBits,
-    slot: super::types::ObservationReadinessSlot,
-) -> bool {
-    words
+    slot: crate::domain::records::types::ObservationReadinessSlot,
+) -> ReadinessBit {
+    if words
         .0
         .get(slot.0 as usize / 64)
         .is_some_and(|word| word & (1_u64 << (slot.0 % 64)) != 0)
+    {
+        ReadinessBit::Set
+    } else {
+        ReadinessBit::Clear
+    }
 }
 /// Digest one original producer's slot range without walking unrelated roots or allocating rows.
 pub fn frontier_identity(
     validated: super::types::ValidatedFrontiers<'_>,
     range: super::types::ObservationReadinessRange,
 ) -> Result<ObservationIdentityBytes, ObservationsError> {
-    use super::types::{ObservationReadinessSlot, ProducerReadiness};
+    use crate::domain::records::types::ProducerReadiness;
+use crate::domain::records::types::ObservationReadinessSlot;
     let map = validated.0;
     let end = range
         .start
@@ -247,7 +256,7 @@ pub fn frontier_identity(
             ProducerReadiness::Complete => bytes.0.push(0),
             ProducerReadiness::Unknown(reason) => {
                 bytes.0.push(1);
-                text(&mut bytes, &reason.0);
+                text(&mut bytes, reason.0.as_bytes());
             }
             ProducerReadiness::Skipped => bytes.0.push(2),
             ProducerReadiness::NoQuery => bytes.0.push(3),
@@ -266,14 +275,14 @@ pub fn output_identity(outputs: &[super::types::PlanObservation]) -> Observation
     let mut bytes = ObservationIdentityBytes(super::constants::DEMANDED_ROOTS_TAG.to_vec());
     tally(&mut bytes, &outputs);
     for output in outputs {
-        text(&mut bytes, &output.name.0);
+        text(&mut bytes, output.name.0.as_bytes());
         bytes.0.push(match output.scope {
             StepScope::PerFile => 0,
             StepScope::CrossFile => 1,
         });
         tally(&mut bytes, &output.columns);
         for column in &output.columns {
-            text(&mut bytes, &column.name.0);
+            text(&mut bytes, column.name.0.as_bytes());
             bytes.0.push(match column.kind {
                 CellKind::Node => 0,
                 CellKind::Symbol => 1,
@@ -293,7 +302,7 @@ pub fn layout_identity(layout: &[super::types::ObservationRuleLayout]) -> Observ
     let mut bytes = ObservationIdentityBytes(super::constants::REQUEST_LAYOUT_TAG.to_vec());
     tally(&mut bytes, &layout);
     for rule in layout {
-        text(&mut bytes, &rule.rule.0);
+        text(&mut bytes, rule.rule.0.as_bytes());
         bytes.0.extend_from_slice(&rule.frontiers.0.to_le_bytes());
         match &rule.outputs {
             super::types::ObservationOutputLayout::NoPersistentRoots => bytes.0.push(0),

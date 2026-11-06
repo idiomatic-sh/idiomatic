@@ -116,7 +116,7 @@ pub(crate) fn prepare(
             continue;
         }
         if memory {
-            let bytes = ryo_values::domain::records::types::retention::value::RetainedBytes::packed(
+            let bytes = ryo_values::domain::stores::types::retention::value::RetainedBytes::packed(
                 &words.words,
             );
             tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live, packed_capacity_bytes=bytes.packed_capacity);
@@ -139,7 +139,7 @@ pub(crate) fn prepare(
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { table, .. } => {
-                    ryo_values::domain::table_words::service::compact_rows(table)
+                    ryo_values::domain::table_words::service::compact_rows(table).0
                 }
                 FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
@@ -206,7 +206,7 @@ pub(crate) fn admit(
     };
     if matches!(input, Input::Step(_)) {
         return admit_compact(words, places_mut(symbols), mode)
-            .map(|(table, spelling)| FrontierInput::Compact {
+            .map(|ryo_values::domain::table_words::types::Admitted { table, names: spelling }| FrontierInput::Compact {
                 input,
                 table: std::sync::Arc::new(table),
                 spelling,
@@ -276,7 +276,11 @@ pub(crate) fn validate_bucket(
         }
         let end = at.checked_add(source.length).ok_or_else(refuse)?;
         let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
-        if !ryo_values::domain::table_words::service::single_table_frame(frame) {
+        if ryo_values::domain::table_words::service::single_table_frame(
+            ryo_values::domain::table_words::types::PackedSlice(frame),
+        )
+            != ryo_values::domain::table_words::types::Framing::Whole
+        {
             return Err(refuse());
         }
         at = end;

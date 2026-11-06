@@ -266,7 +266,7 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             bindings: Vec::<ParameterBinding>::new(),
         }),

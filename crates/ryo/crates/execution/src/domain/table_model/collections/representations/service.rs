@@ -60,7 +60,7 @@ impl<'f> RepresentationInput<'f> {
                 tree.form == crate::domain::table_cells::types::TreeForm::Edges,
             )),
             Self::Computed(table) => table.count.0,
-            Self::Compact(table) => ryo_values::domain::table_words::service::compact_rows(table),
+            Self::Compact(table) => ryo_values::domain::table_words::service::compact_rows(table).0,
             Self::Positioned(view) => view
                 .positions
                 .slots

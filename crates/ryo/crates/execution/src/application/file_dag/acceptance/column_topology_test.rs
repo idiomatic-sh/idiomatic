@@ -107,7 +107,7 @@ fn plan(projected: Vec<ColumnIndex>) -> Plan {
                         test: Test::Equal,
                         left: Operand::Column(column(3)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText("body".into()))),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: Vec::new(),
                 },

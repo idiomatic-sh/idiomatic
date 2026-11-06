@@ -88,7 +88,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Number(Integer(20))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
             },
         });

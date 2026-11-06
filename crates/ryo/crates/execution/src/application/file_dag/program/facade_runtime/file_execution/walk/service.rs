@@ -149,7 +149,7 @@ impl FileRun<'_> {
                     if let Some(roots) = self.roots.get_mut(&rule) {
                         for root in roots {
                             root.readiness = Some(
-                                ryo_values::domain::observations::types::ProducerReadiness::Skipped,
+                                ryo_values::domain::records::types::ProducerReadiness::Skipped,
                             );
                             root.skipped = Some(proof.clone());
                         }
@@ -163,7 +163,7 @@ impl FileRun<'_> {
                     if let Some(roots) = self.roots.get_mut(&rule) {
                         for root in roots {
                             root.readiness = Some(
-                                ryo_values::domain::observations::types::ProducerReadiness::Unknown(
+                                ryo_values::domain::records::types::ProducerReadiness::Unknown(
                                     ryo_values::domain::records::types::ObservationReason(
                                         reason.into(),
                                     ),
@@ -288,7 +288,7 @@ impl FileRun<'_> {
                 Ok(input) => {
                     root.publication = Some(input);
                     root.readiness =
-                        Some(ryo_values::domain::observations::types::ProducerReadiness::Complete);
+                        Some(ryo_values::domain::records::types::ProducerReadiness::Complete);
                 }
                 Err(error) => {
                     root.readiness = readiness_of(&classify(error));

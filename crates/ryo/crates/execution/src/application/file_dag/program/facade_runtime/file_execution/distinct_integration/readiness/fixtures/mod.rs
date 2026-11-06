@@ -308,7 +308,7 @@ pub(super) fn observe(omit: bool) -> Coverage {
                             test: Test::Equal,
                             left: Operand::Literal(QueryLiteral::Number(Integer(index))),
                             right: Operand::Literal(QueryLiteral::Number(Integer(index))),
-                            origin: None,
+                            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                         }]
                     } else {
                         vec![]

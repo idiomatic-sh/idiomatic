@@ -5,14 +5,14 @@ use ryo_relations::domain::relations::types::Relation;
 use super::errors::VisitError;
 use super::service::{lines_in, roles_of, walked, wanted, wants};
 use super::types::{BorrowedBytes, Noting, RoleRead};
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{run, Case, CaseName, Expect, Word};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, Test};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 
 /// What a row asks: the relations a plan reads when the catalog is this, or the ones among these a visit walks.
 #[derive(Clone)]
@@ -261,7 +261,7 @@ fn plan_reading_edges(reading: Reading, relation: Relation) -> Plan {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(3)),
                 right: Operand::Column(ColumnIndex(3)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![ColumnIndex(1)],
         },

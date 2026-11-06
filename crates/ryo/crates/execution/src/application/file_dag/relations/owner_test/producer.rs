@@ -47,7 +47,7 @@ fn exercise_real_selector(limit: Retention) {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Parameter(ParameterId(0)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             bindings: vec![ParameterBinding::Number(WholeNumber(101))],
         }),
