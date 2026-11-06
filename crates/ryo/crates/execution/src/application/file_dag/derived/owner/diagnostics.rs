@@ -58,7 +58,7 @@ impl DerivedOwner {
             required_bytes = self.working_bytes().0, peak_required_bytes = self.peak_working_bytes().0,
             retained_bytes = self.retained_bytes().0, required_backend_bytes = self.required_backend_overlap().0,
             peak_required_views = ?self.peak_required_views(), owned_bytes = self.owned_bytes().0,
-            metadata_bytes = self.metadata_bytes().0, released_entries = ?self.state.borrow().released_entries);
+            metadata_bytes = self.metadata_bytes().0, released_entries = self.state.borrow().released_entries.0);
 
         if let Some(indexes) = self.backend.borrow().as_ref() {
             let state = self.state.borrow();
@@ -70,7 +70,7 @@ impl DerivedOwner {
                 graph_bytes = indexes.graph_bytes, memo_bytes = indexes.memo_bytes, graph_enabled = ?indexes.graph_enabled,
                 cache_bytes = indexes.bytes, cache_limit = indexes.limit, cache_peak_bytes = indexes.graph_counts.peak_bytes,
                 reclaimed_indexes = indexes.graph_counts.reclaimed_indexes, reclaimed_selections = indexes.graph_counts.reclaimed_selections,
-                reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = ?indexes.refusals,
+                reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = indexes.refusals.0,
                 selector_refusals = indexes.selection_counts.refusals);
             tracing::trace!(target: constants::TARGET_SELECTION, event = constants::EVENT_FILE_SELECTIONS, file = file.0,
                 source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
@@ -81,8 +81,8 @@ impl DerivedOwner {
                 compact_id_bytes = self.ledger.borrow().snapshot().optional_units.0.saturating_mul(size_of::<u32>()));
             tracing::trace!(target: constants::TARGET_STORED_JOIN, event = constants::EVENT_FILE_INDEXES, file = file.0,
                 entries = state.entries.values().filter(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some()).count(), eligible_relations = indexes.eligible.len(),
-                retained_bytes = indexes.bytes, physical_builds = ?indexes.builds,
-                reuses = ?indexes.reuses, refusals = ?indexes.refusals);
+                retained_bytes = indexes.bytes, physical_builds = indexes.builds.0,
+                reuses = indexes.reuses.0, refusals = indexes.refusals.0);
             if let Some(entries) = &indexes.selection_histogram {
                 for entry in entries {
                     let retained = state.entries.values().find_map(|candidate| {

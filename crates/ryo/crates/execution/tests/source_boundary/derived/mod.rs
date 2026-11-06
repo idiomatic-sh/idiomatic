@@ -1,6 +1,9 @@
 //! Same-crate controls target the actual derived owner and its actual private issuers.
 use super::fixtures::{Compilation, Expectation, Probe};
 mod kernel;
+pub(super) const KERNEL: &str = kernel::KERNEL;
+pub(super) const RAW_SCOPE: &str = kernel::RAW_SCOPE;
+pub(super) const CACHE: &str = sealing::CACHE;
 mod sealing;
 mod witness;
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
@@ -121,7 +124,7 @@ const DOMAIN_ALLOCATION_ESCAPE: &str = r#"
 mod domain_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle; fn escape(value: &DomainHandle) { let _: std::sync::Arc<Vec<bool>> = std::sync::Arc::clone(value.members()); } const _: fn(&DomainHandle) = escape; }
 "#;
 const GRAPH_RECORD_FORGERY: &str = r#"
-mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { shared: true, ..value } } const _: fn(Authority) -> Authority = forge; }
+mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { sharing: crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing::Shared, ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
 const UNADMITTED_GRAPH_DEMAND: &str = r#"
 mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::contract::types::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk) { let _ = DemandAnswers::new(owner, None).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk) = forge; }
@@ -130,10 +133,10 @@ const BORROWED_LEASED_READ: &str = r#"
 mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
 "#;
 const OWNED_GRAPH_PRIVATE_FIELDS: &str = r#"
-mod owned_graph_private_fields { use super::GraphHandle as Authority; fn policy(value: &mut Authority) { value.shared = false; } const _: fn(&mut Authority) = policy; }
+mod owned_graph_private_fields { use super::GraphHandle as Authority; fn policy(value: &mut Authority) { value.sharing = crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing::Local; } const _: fn(&mut Authority) = policy; }
 "#;
 const GRAPH_SELF_FORGERY: &str = r#"
-mod graph_self_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; impl Authority { fn denied_graph(value: Self) -> Self { Self { shared: false, ..value } } } const _: fn(Authority) -> Authority = Authority::denied_graph; }
+mod graph_self_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; impl Authority { fn denied_graph(value: Self) -> Self { Self { sharing: crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing::Local, ..value } } } const _: fn(Authority) -> Authority = Authority::denied_graph; }
 "#;
 const DOMAIN_ALIAS_FORGERY: &str = r#"
 mod domain_alias_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle as Authority; fn forge(left: &mut Authority, right: &mut Authority) { std::mem::swap(&mut left.parent, &mut right.parent); } const _: fn(&mut Authority, &mut Authority) = forge; }
@@ -152,7 +155,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: GRAPH_SELF_FORGERY.into(),
             expected: Expectation::Refuse {
                 code: "E0451",
-                first: "shared",
+                first: "sharing",
                 second: "private",
             },
         },
@@ -242,7 +245,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: GRAPH_RECORD_FORGERY.into(),
             expected: Expectation::Refuse {
                 code: "E0451",
-                first: "shared",
+                first: "sharing",
                 second: "private",
             },
         },

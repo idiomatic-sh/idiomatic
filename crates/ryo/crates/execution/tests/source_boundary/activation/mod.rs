@@ -16,7 +16,7 @@ mod targeted_activation {
         let _ = value.relations_for(rule)?;
         let _ = value.selectors_for(rule)?;
         let _ = value.graph_for(rule)?;
-        value.bind_views(cache);
+        cache.bind_request_views(value.views());
         Ok(())
     }
     const _: fn(&RequestDerived, RuleIndex, &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> = read;
@@ -45,9 +45,9 @@ mod targeted_activation {
     }
     controls.push(Probe {
         compilation: Compilation::Library,
-        owner: SETUP,
+        owner: "src/application/file_dag/relations.rs",
         source: "mod raw_views_getter { use crate::application::file_dag::derived::prepared::RequestDerived; fn read(value: &RequestDerived) { let _ = value.views(); } const _: fn(&RequestDerived) = read; }".into(),
-        expected: Expectation::Refuse { code: "E0599", first: "views", second: "method" },
+        expected: Expectation::Refuse { code: "E0624", first: "views", second: "private" },
     });
     controls
 }

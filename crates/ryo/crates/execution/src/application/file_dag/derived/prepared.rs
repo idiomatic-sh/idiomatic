@@ -152,7 +152,7 @@ impl RequestDerived {
         })
     }
     /// Immutable request descriptors; the owner alone installs them in its backend.
-    pub(in crate::application::file_dag) fn views(&self) -> Arc<PreparedSelectionViews> {
+    pub(in crate::application::file_dag::derived) fn views(&self) -> Arc<PreparedSelectionViews> {
         Arc::clone(&self.views)
     }
 }

@@ -1,8 +1,8 @@
 //! Kernel modules receive a borrowed raw order as a parameter; only the owner acquires it.
 use super::super::fixtures::{Compilation, Expectation, Probe};
 
-const KERNEL: &str = "src/domain/native_positions/service.rs";
-const RAW_SCOPE: &str = "src/application/file_dag/derived/owner/raw_scope.rs";
+pub(super) const KERNEL: &str = "src/domain/native_positions/service.rs";
+pub(super) const RAW_SCOPE: &str = "src/application/file_dag/derived/owner/raw_scope.rs";
 const KERNEL_NAMES_SCOPE: &str = r#"
 mod kernel_names_scope {
     use crate::application::file_dag::derived::owner::raw_scope::RawScope;
