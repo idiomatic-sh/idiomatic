@@ -52,7 +52,11 @@ pub(crate) fn prepared_sources(
         &vec![vec![]; plans.len()],
     )
     .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(plans, &request);
+    let graph = crate::domain::file_program::service::compile_prepared_observations(
+        plans,
+        &request,
+        crate::domain::file_program::types::ObservationRequest::Independent,
+    );
     let program =
         crate::domain::executable_program::service::compile(plans, graph, &partitions, &request)
             .unwrap();
