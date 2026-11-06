@@ -5,11 +5,22 @@ use super::service::validate;
 use super::types::{ReceiptCounts, Tally};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::registered_inputs::errors::RegisteredInputsError;
-use serde_json::{Value as Json, json};
+use crate::outbound::inventory::types::{
+    case_document::{ContextMode, EntryState},
+    discrepancy::{DiscrepancyIdentity, ReferenceDiscrepancy},
+    observation_document::{ContextManifest, ProcessObservation},
+    text::{CanonicalJson, SchemaName, Sha256Text, YesNo},
+};
+use crate::outbound::suite::types::process::ProcessFailureWire;
+use ryo_benchmark_contracts::domain::reports::types::{ComparisonContract, RuleCoverage};
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
 type Input = Documents;
 type Value = ReceiptCounts;
 type Failure = InventoryReceiptsError;
+
+const COHORT: &[&str] = &["A001", "B002"];
+const DECLARED: &str = "{\"A001\":[{\"name\":\"matched\"}]}";
 
 const fn counts(raw_exact: usize, documented: usize, contract_only: usize) -> ReceiptCounts {
     ReceiptCounts {
@@ -19,52 +30,22 @@ const fn counts(raw_exact: usize, documented: usize, contract_only: usize) -> Re
     }
 }
 
-fn changed_scope() -> Input {
-    fixtures::project_scope(json!(["vendor", "src"]), "file", None)
-}
-fn changed_entry() -> Input {
-    fixtures::project_scope(json!(["src"]), "missing", None)
-}
-fn stale_row() -> Input {
-    fixtures::project_scope(json!(["src"]), "file", Some("stale-identity"))
-}
-fn bound_scope() -> Input {
-    fixtures::project_scope(json!(["src"]), "file", None)
-}
-fn cohort_on_both() -> Input {
-    let cohort = || Some(json!(["A001", "B002"]));
-    fixtures::with_selected_rules(cohort(), [cohort(), cohort()])
-}
-fn cohort_narrowed_on_case() -> Input {
-    let cohort = || Some(json!(["A001", "B002"]));
-    fixtures::with_selected_rules(Some(json!(["A001"])), [cohort(), cohort()])
-}
-fn cohort_missing_on_reference_row() -> Input {
-    let cohort = || Some(json!(["A001", "B002"]));
-    fixtures::with_selected_rules(cohort(), [None, cohort()])
-}
-fn cohort_missing_on_case() -> Input {
-    let cohort = || Some(json!(["A001", "B002"]));
-    fixtures::with_selected_rules(None, [cohort(), cohort()])
-}
-fn declaration_on_both() -> Input {
-    let declared = || Some(fixtures::observation_declaration("used λ\t\\source"));
-    fixtures::with_rule_observations(declared(), [declared(), declared()])
-}
-fn declaration_changed_on_candidate_row() -> Input {
-    let declared = || Some(fixtures::observation_declaration("used λ\t\\source"));
-    fixtures::with_rule_observations(
-        declared(),
-        [declared(), Some(fixtures::observation_declaration("other"))],
-    )
-}
-fn declaration_missing_on_reference_row() -> Input {
-    let declared = || Some(fixtures::observation_declaration("used λ\t\\source"));
-    fixtures::with_rule_observations(declared(), [None, declared()])
-}
-fn declaration_missing_on_case() -> Input {
-    let declared = || Some(fixtures::observation_declaration("used λ\t\\source"));
-    fixtures::with_rule_observations(None, [declared(), declared()])
+/// A discrepancy registered as an explicit process failure.
+fn process_discrepancy() -> ReferenceDiscrepancy {
+    ReferenceDiscrepancy {
+        basis: DiscrepancyBasis::LanguageDefect,
+        identity: DiscrepancyIdentity::default(),
+        approved_executable_sha256: Vec::new(),
+        reference_expected: None,
+        intended_expected: Vec::new(),
+        reason: None,
+        process: Some(ProcessFailureWire::ProcessFailure {
+            exit: 1,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+            observations: Vec::new(),
+        }),
+    }
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -101,19 +82,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the registered project scope binds both raw sides"),
         word: Word::Succeeds,
-        input: bound_scope,
+        input: || fixtures::project_scope(&["src"], EntryState::File, None),
         expect: Expect::Value(counts(1, 0, 0)),
     },
     Case {
         name: CaseName("an explicit cohort on the case and both rows is accepted"),
         word: Word::Succeeds,
-        input: cohort_on_both,
+        input: || fixtures::with_selected_rules(Some(COHORT), [Some(COHORT), Some(COHORT)]),
         expect: Expect::Value(counts(1, 0, 0)),
     },
     Case {
         name: CaseName("observation declarations carried by both rows are accepted"),
         word: Word::Succeeds,
-        input: declaration_on_both,
+        input: || {
+            fixtures::with_rule_observations(Some(DECLARED), [Some(DECLARED), Some(DECLARED)])
+        },
         expect: Expect::Value(counts(1, 0, 0)),
     },
     Case {
@@ -123,10 +106,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(InventoryReceiptsError::DiagnosticsDiffer),
     },
     Case {
-        name: CaseName("diagnostics that are not an array are refused"),
+        name: CaseName("a candidate without diagnostics is refused"),
         word: Word::Refuses,
-        input: fixtures::candidate_diagnostics_not_an_array,
-        expect: Expect::Error(InventoryReceiptsError::DiagnosticsNotArray),
+        input: fixtures::candidate_without_diagnostics,
+        expect: Expect::Error(InventoryReceiptsError::DiagnosticsMissing),
     },
     Case {
         name: CaseName("a case registered twice is refused"),
@@ -161,7 +144,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a case without its metadata declaration is refused"),
         word: Word::Refuses,
-        input: || fixtures::without_case_key("file_metadata"),
+        input: || {
+            fixtures::edited(
+                || fixtures::with_file_metadata(false),
+                |d| d.0[0].file_metadata = None,
+            )
+        },
         expect: Expect::Error(InventoryReceiptsError::Inputs(
             RegisteredInputsError::InputObservationsMissing,
         )),
@@ -169,97 +157,111 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a case without its metadata identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::without_case_key("file_metadata_sha256"),
+        input: || {
+            fixtures::edited(
+                || fixtures::with_file_metadata(false),
+                |d| d.0[0].file_metadata_sha256 = None,
+            )
+        },
         expect: Expect::Error(InventoryReceiptsError::FileMetadataDigestDiffers),
     },
     Case {
         name: CaseName("rows without the metadata identity are refused"),
         word: Word::Refuses,
-        input: fixtures::rows_without_metadata_identity,
+        input: || {
+            fixtures::edited(
+                || fixtures::with_file_metadata(false),
+                |d| {
+                    for row in &mut d.1 {
+                        row.file_metadata_sha256 = None;
+                    }
+                },
+            )
+        },
         expect: Expect::Error(InventoryReceiptsError::ObservationStale),
     },
     Case {
         name: CaseName("a changed project scope no longer matches its registered identity"),
         word: Word::Refuses,
-        input: changed_scope,
+        input: || fixtures::project_scope(&["vendor", "src"], EntryState::File, None),
         expect: Expect::Error(InventoryReceiptsError::ProjectInputsDigestDiffers),
     },
     Case {
         name: CaseName("a changed project entry no longer matches its registered identity"),
         word: Word::Refuses,
-        input: changed_entry,
+        input: || fixtures::project_scope(&["src"], EntryState::Missing, None),
         expect: Expect::Error(InventoryReceiptsError::ProjectInputsDigestDiffers),
     },
     Case {
         name: CaseName("a stale project identity on a row is refused"),
         word: Word::Refuses,
-        input: stale_row,
+        input: || fixtures::project_scope(&["src"], EntryState::File, Some("stale-identity")),
         expect: Expect::Error(InventoryReceiptsError::ObservationStale),
     },
     Case {
         name: CaseName("a cohort narrowed on the case is refused"),
         word: Word::Refuses,
-        input: cohort_narrowed_on_case,
+        input: || fixtures::with_selected_rules(Some(&["A001"]), [Some(COHORT), Some(COHORT)]),
         expect: Expect::Error(InventoryReceiptsError::SelectedCohortDiffers),
     },
     Case {
         name: CaseName("a cohort missing on a row is refused"),
         word: Word::Refuses,
-        input: cohort_missing_on_reference_row,
+        input: || fixtures::with_selected_rules(Some(COHORT), [None, Some(COHORT)]),
         expect: Expect::Error(InventoryReceiptsError::SelectedCohortDiffers),
     },
     Case {
         name: CaseName("a cohort missing on the case is refused"),
         word: Word::Refuses,
-        input: cohort_missing_on_case,
+        input: || fixtures::with_selected_rules(None, [Some(COHORT), Some(COHORT)]),
         expect: Expect::Error(InventoryReceiptsError::SelectedCohortDiffers),
     },
     Case {
         name: CaseName("a changed observation declaration on a row is refused"),
         word: Word::Refuses,
-        input: declaration_changed_on_candidate_row,
+        input: || fixtures::with_rule_observations(Some(DECLARED), [Some(DECLARED), Some("other")]),
         expect: Expect::Error(InventoryReceiptsError::ObservationDeclarationsDiffer),
     },
     Case {
         name: CaseName("an observation declaration missing on a row is refused"),
         word: Word::Refuses,
-        input: declaration_missing_on_reference_row,
+        input: || fixtures::with_rule_observations(Some(DECLARED), [None, Some(DECLARED)]),
         expect: Expect::Error(InventoryReceiptsError::ObservationDeclarationsDiffer),
     },
     Case {
         name: CaseName("an observation declaration missing on the case is refused"),
         word: Word::Refuses,
-        input: declaration_missing_on_case,
+        input: || fixtures::with_rule_observations(None, [Some(DECLARED), Some(DECLARED)]),
         expect: Expect::Error(InventoryReceiptsError::ObservationDeclarationsDiffer),
     },
     Case {
         name: CaseName("a missing registered rule identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.0[0]["rule"] = Json::Null),
+        input: || fixtures::edited(fixtures::passing, |d| d.0[0].rule = None),
         expect: Expect::Error(InventoryReceiptsError::RegisteredRuleMissing),
     },
     Case {
         name: CaseName("a missing registered case identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.0[0]["name"] = Json::Null),
+        input: || fixtures::edited(fixtures::passing, |d| d.0[0].name = None),
         expect: Expect::Error(InventoryReceiptsError::RegisteredCaseMissing),
     },
     Case {
         name: CaseName("a missing native rule identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[0]["rule"] = Json::Null),
+        input: || fixtures::edited(fixtures::passing, |d| d.1[0].rule = None),
         expect: Expect::Error(InventoryReceiptsError::NativeRuleMissing),
     },
     Case {
         name: CaseName("a missing native case identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[0]["name"] = Json::Null),
+        input: || fixtures::edited(fixtures::passing, |d| d.1[0].name = None),
         expect: Expect::Error(InventoryReceiptsError::NativeCaseMissing),
     },
     Case {
         name: CaseName("a missing native side identity is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[0]["side"] = Json::Null),
+        input: || fixtures::edited(fixtures::passing, |d| d.1[0].side = None),
         expect: Expect::Error(InventoryReceiptsError::NativeSideMissing),
     },
     Case {
@@ -273,74 +275,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(InventoryReceiptsError::NativeCaseReceiptCount),
     },
     Case {
-        name: CaseName("an expected diagnostic without its rule is refused"),
-        word: Word::Refuses,
-        input: || {
-            fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["expected"] = json!([{"file": "input.txt", "start": 0, "end": 1}])
-            })
-        },
-        expect: Expect::Error(InventoryReceiptsError::DiagnosticRuleMissing),
-    },
-    Case {
-        name: CaseName("an expected diagnostic without its file is refused"),
-        word: Word::Refuses,
-        input: || {
-            fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["expected"] = json!([{"rule": "A001", "start": 0, "end": 1}])
-            })
-        },
-        expect: Expect::Error(InventoryReceiptsError::DiagnosticFileMissing),
-    },
-    Case {
-        name: CaseName("an expected diagnostic without its start is refused"),
-        word: Word::Refuses,
-        input: || {
-            fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["expected"] = json!([{"rule": "A001", "file": "input.txt", "end": 1}])
-            })
-        },
-        expect: Expect::Error(InventoryReceiptsError::DiagnosticStartInvalid),
-    },
-    Case {
-        name: CaseName("an expected diagnostic without its end is refused"),
-        word: Word::Refuses,
-        input: || {
-            fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["expected"] = json!([{"rule": "A001", "file": "input.txt", "start": 0}])
-            })
-        },
-        expect: Expect::Error(InventoryReceiptsError::DiagnosticEndInvalid),
-    },
-    Case {
         name: CaseName("an expected diagnostic that ends before it starts is refused"),
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["expected"] =
-                    json!([{"rule": "A001", "file": "input.txt", "start": 2, "end": 1}])
+                d.0[0].expected = vec![fixtures::finding("A001", "input.txt", 2, 1)]
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiagnosticSpanOrIdentityInvalid),
-    },
-    Case {
-        name: CaseName("a discrepancy of an unknown basis is refused"),
-        word: Word::Refuses,
-        input: || {
-            fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["reference_discrepancy"] = json!({"basis": "unknown"})
-            })
-        },
-        expect: Expect::Error(InventoryReceiptsError::UnknownDiscrepancyAuthority),
     },
     Case {
         name: CaseName("a process expectation under a complete-report contract is refused"),
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["expectation_contract"] = json!("complete-report");
-                d.0[0]["reference_discrepancy"] =
-                    json!({"basis": "language-defect", "process": {"kind": "process-failure"}});
+                d.0[0].expectation_contract = Some(ComparisonContract::CompleteReport);
+                d.0[0].reference_discrepancy = Some(process_discrepancy());
             })
         },
         expect: Expect::Error(InventoryReceiptsError::ProcessExpectationNotComplete),
@@ -349,10 +299,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an intended expectation that differs from the registered one is refused"),
         word: Word::Refuses,
         input: || {
-            fixtures::edited(
-                fixtures::passing,
-                |d| d.0[0]["reference_discrepancy"] = json!({"basis": "language-defect", "intended_expected": [{"rule": "A001", "file": "input.txt", "start": 0, "end": 1}]}),
-            )
+            fixtures::edited(fixtures::passing, |d| {
+                d.0[0].reference_discrepancy = Some(ReferenceDiscrepancy {
+                    intended_expected: vec![fixtures::finding("A001", "input.txt", 0, 1)],
+                    process: None,
+                    ..process_discrepancy()
+                })
+            })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyIntentionDiffers),
     },
@@ -361,7 +314,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0]["rule_context"] = json!({"configured": true})
+                d.1[0].rule_context = Some(CanonicalJson("{\"configured\":true}".into()))
             })
         },
         expect: Expect::Error(InventoryReceiptsError::RuleContextDiffers),
@@ -371,7 +324,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0]["observation_schema"] = json!("other")
+                d.1[0].observation_schema = Some(SchemaName("other".into()))
             })
         },
         expect: Expect::Error(InventoryReceiptsError::ExpectationContractDiffers),
@@ -379,7 +332,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a side that did not complete is refused"),
         word: Word::Refuses,
-        input: || fixtures::edited(fixtures::passing, |d| d.1[1]["complete"] = json!(false)),
+        input: || fixtures::edited(fixtures::passing, |d| d.1[1].complete = Some(YesNo::No)),
         expect: Expect::Error(InventoryReceiptsError::ObservationStale),
     },
     Case {
@@ -387,7 +340,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0]["documented_reference_discrepancy"] = json!(true)
+                d.1[0].documented_reference_discrepancy = Some(YesNo::Yes)
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyAuthorityDiffers),
@@ -397,7 +350,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0]["process_observation"] = json!({})
+                d.1[0].process_observation = Some(ProcessObservation::default())
             })
         },
         expect: Expect::Error(InventoryReceiptsError::UnexpectedProcessObservation),
@@ -407,7 +360,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[1]["coverage"]["selected_rule_file_pairs"] = json!(2)
+                d.1[1].coverage = Some(RuleCoverage {
+                    selected: 2,
+                    evaluated: 1,
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                })
             })
         },
         expect: Expect::Error(InventoryReceiptsError::CandidateNotAccounted),
@@ -417,7 +375,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0]["context_manifest"] = json!({"mode": "listed-disk"})
+                d.1[0].context_manifest = Some(ContextManifest {
+                    mode: Some(ContextMode::ListedDisk),
+                    logical_root: None,
+                    actual_root: None,
+                    manifest_hash: None,
+                })
             })
         },
         expect: Expect::Error(InventoryReceiptsError::UnexpectedProjectContext),
@@ -427,9 +390,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.0[0]["project_context_mode"] = json!("listed-disk");
-                d.0[0]["context_identity"] =
-                    json!({"mode": "listed-disk", "logical_root": "root", "manifest_hash": "hash"});
+                d.0[0].project_context_mode = ContextMode::ListedDisk;
+                d.0[0].context_identity = Some(fixtures::listed_context());
             })
         },
         expect: Expect::Error(InventoryReceiptsError::StaleProjectContext),
@@ -439,7 +401,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                d.0[0]["reference_discrepancy"]["identity"]["file-metadata-sha256"] = json!("other")
+                if let Some(certificate) = d.0[0].reference_discrepancy.as_mut() {
+                    certificate.identity.file_metadata = Some(Sha256Text("other".into()));
+                }
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyMetadataDiffers),
@@ -449,7 +413,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                d.1[1]["discrepancy_validation"] = Json::Null
+                d.1[1].discrepancy_validation = None
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyValidationMissing),
@@ -459,10 +423,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                d.0[0]["reference_discrepancy"]["basis"] = json!("tool-contract-difference");
+                if let Some(certificate) = d.0[0].reference_discrepancy.as_mut() {
+                    certificate.basis = DiscrepancyBasis::ToolContract;
+                }
                 for row in &mut d.1 {
-                    row["documented_reference_discrepancy"] = json!(false);
-                    row["documented_tool_contract_difference"] = json!(true);
+                    row.documented_reference_discrepancy = Some(YesNo::No);
+                    row.documented_tool_contract_difference = Some(YesNo::Yes);
                 }
             })
         },
@@ -474,7 +440,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
                 for row in &mut d.1 {
-                    row["discrepancy_validation"]["actual_executable_sha256"] = json!("");
+                    if let Some(proof) = row.discrepancy_validation.as_mut() {
+                        proof.actual_executable_sha256 = Some(Sha256Text(String::new()));
+                    }
                 }
             })
         },
@@ -485,8 +453,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                d.0[0]["reference_discrepancy"]["approved_executable_sha256"] =
-                    json!(["another-pin"])
+                if let Some(certificate) = d.0[0].reference_discrepancy.as_mut() {
+                    certificate.approved_executable_sha256 = vec![Sha256Text("another-pin".into())];
+                }
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyToolUnpinned),

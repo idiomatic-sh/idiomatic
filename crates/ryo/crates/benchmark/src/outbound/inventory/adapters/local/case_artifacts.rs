@@ -1,5 +1,8 @@
 //! Read only referenced receipt-file attempts; retain unreferenced resume history untouched.
 use crate::outbound::inventory::adapters::local::constants;
+use crate::outbound::inventory::types::{
+    discrepancy::ArtifactPointer, observation_document::ObservationDocument,
+};
 use sha2::{Digest as _, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -8,7 +11,7 @@ use std::{
 
 pub(super) fn read(
     receipt: &Path,
-    rows: &[serde_json::Value],
+    rows: &[ObservationDocument],
 ) -> Result<BTreeMap<PathBuf, Vec<u8>>, String> {
     let name = receipt
         .file_name()
@@ -25,28 +28,19 @@ pub(super) fn read(
     let mut directories = BTreeSet::new();
     for row in rows {
         let Some(artifacts) = row
-            .get(constants::PROCESS_OBSERVATION)
-            .and_then(|value| value.get(constants::ARTIFACTS))
+            .process_observation
+            .as_ref()
+            .and_then(|process| process.artifacts.as_ref())
         else {
             continue;
         };
-        let object = artifacts
-            .as_object()
-            .ok_or(constants::PROCESS_ARTIFACTS_MUST_BE_AN_OBJECT)?;
-        if object.len() != 3 {
-            return Err(constants::PROCESS_OBSERVATION_NEEDS_THREE_EXACT_RAW.into());
-        }
-        for (label, filename) in [
-            (constants::STDOUT, constants::STDOUT_BIN),
-            (constants::STDERR, constants::STDERR_BIN),
-            (constants::INVOCATION, constants::INVOCATION_JSON),
+        for (raw, filename) in [
+            (&artifacts.stdout, constants::STDOUT_BIN),
+            (&artifacts.stderr, constants::STDERR_BIN),
+            (&artifacts.invocation, constants::INVOCATION_JSON),
         ] {
-            let raw = object
-                .get(label)
-                .ok_or(constants::MISSING_NAMED_RAW_ARTIFACT)?;
-            let text = raw[constants::PATH]
-                .as_str()
-                .ok_or(constants::MISSING_RAW_ARTIFACT_PATH)?;
+            let ArtifactPointer { path: text, sha256 } = raw;
+            let text = text.0.as_str();
             let path = PathBuf::from(text);
             let components = path.components().collect::<Vec<_>>();
             if text.contains(['\\', ':'])
@@ -83,7 +77,7 @@ pub(super) fn read(
                 return Err(constants::RAW_ARTIFACT_ESCAPES_ITS_RECEIPT_BOUNDARY.into());
             }
             let data = std::fs::read(&full).map_err(|error| error.to_string())?;
-            if raw[constants::SHA256] != format!("{:x}", Sha256::digest(&data))
+            if sha256.0 != format!("{:x}", Sha256::digest(&data))
                 || bytes.insert(path.clone(), data).is_some()
             {
                 return Err(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into());

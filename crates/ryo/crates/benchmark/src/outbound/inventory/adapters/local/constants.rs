@@ -39,29 +39,8 @@ pub(super) const INVENTORYLOCALADAPTER: &str = "InventoryLocalAdapter";
 pub(super) const RECEIPT_FILENAME_IS_NOT_UTF8: &str = "receipt filename is not UTF8";
 /// Text of the dot in this part.
 pub(super) const DOT: &str = ".";
-/// Text of the process observation in this part.
-pub(super) const PROCESS_OBSERVATION: &str = "process_observation";
-/// Text of the artifacts in this part.
-pub(super) const ARTIFACTS: &str = "artifacts";
-/// Text of the process artifacts must be an object in this part.
-pub(super) const PROCESS_ARTIFACTS_MUST_BE_AN_OBJECT: &str = "process artifacts must be an object";
-/// Text of the process observation needs three exact raw in this part.
-pub(super) const PROCESS_OBSERVATION_NEEDS_THREE_EXACT_RAW: &str =
-    "process observation needs three exact raw artifacts";
-/// Text of the stdout in this part.
-pub(super) const STDOUT: &str = "stdout";
-/// Text of the stderr in this part.
-pub(super) const STDERR: &str = "stderr";
-/// Text of the invocation in this part.
-pub(super) const INVOCATION: &str = "invocation";
 /// Text of the invocation json in this part.
 pub(super) const INVOCATION_JSON: &str = "invocation.json";
-/// Text of the missing named raw artifact in this part.
-pub(super) const MISSING_NAMED_RAW_ARTIFACT: &str = "missing named raw artifact";
-/// Text of the path in this part.
-pub(super) const PATH: &str = "path";
-/// Text of the missing raw artifact path in this part.
-pub(super) const MISSING_RAW_ARTIFACT_PATH: &str = "missing raw artifact path";
 /// Text of the unsafe raw process artifact path in this part.
 pub(super) const UNSAFE_RAW_PROCESS_ARTIFACT_PATH: &str = "unsafe raw process artifact path";
 /// Text of the nonutf8 attempt in this part.
@@ -74,8 +53,6 @@ pub(super) const RAW_ARTIFACT_IS_OUTSIDE_ITS_RECEIPT: &str =
 /// Text of the raw artifact escapes its receipt boundary in this part.
 pub(super) const RAW_ARTIFACT_ESCAPES_ITS_RECEIPT_BOUNDARY: &str =
     "raw artifact escapes its receipt boundary";
-/// Text of the sha256 in this part.
-pub(super) const SHA256: &str = "sha256";
 /// Text of the raw process artifact is stale or in this part.
 pub(super) const RAW_PROCESS_ARTIFACT_IS_STALE_OR: &str =
     "raw process artifact is stale or reused by another observation";

@@ -4,21 +4,6 @@ use crate::domain::registered_inputs::{errors::RegisteredInputsError, types::Ref
 /// A refused receipt: each refusal of the registered and native documents is its own variant.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum InventoryReceiptsError {
-    /// Refuses: diagnostics must be an array.
-    #[error("diagnostics must be an array")]
-    DiagnosticsNotArray,
-    /// Refuses: diagnostic rule is missing.
-    #[error("diagnostic rule is missing")]
-    DiagnosticRuleMissing,
-    /// Refuses: diagnostic file is missing.
-    #[error("diagnostic file is missing")]
-    DiagnosticFileMissing,
-    /// Refuses: diagnostic start is invalid.
-    #[error("diagnostic start is invalid")]
-    DiagnosticStartInvalid,
-    /// Refuses: diagnostic end is invalid.
-    #[error("diagnostic end is invalid")]
-    DiagnosticEndInvalid,
     /// Refuses: diagnostic span or identity is invalid.
     #[error("diagnostic span or identity is invalid")]
     DiagnosticSpanOrIdentityInvalid,
@@ -55,9 +40,6 @@ pub(crate) enum InventoryReceiptsError {
     /// Refuses: registered project inputs digest differs.
     #[error("registered project inputs digest differs")]
     ProjectInputsDigestDiffers,
-    /// Refuses: unknown discrepancy authority.
-    #[error("unknown discrepancy authority")]
-    UnknownDiscrepancyAuthority,
     /// Refuses: process expectation cannot satisfy complete-report accounting.
     #[error("process expectation cannot satisfy complete-report accounting")]
     ProcessExpectationNotComplete,
@@ -118,6 +100,9 @@ pub(crate) enum InventoryReceiptsError {
     /// Refuses: discrepancy tool is not independently pinned.
     #[error("discrepancy tool is not independently pinned")]
     DiscrepancyToolUnpinned,
+    /// Refuses: diagnostics are missing.
+    #[error("diagnostics are missing")]
+    DiagnosticsMissing,
     /// The registered case's input identities are refused.
     #[error(transparent)]
     Inputs(#[from] RegisteredInputsError),

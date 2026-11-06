@@ -1,7 +1,10 @@
 //! Small real-file fixtures; only child execution is substituted, not artifact or comparison policy.
 use super::*;
 use crate::outbound::{
-    inventory::types::{CapturedObservation, Registration},
+    inventory::{
+        interface::InventoryPort as _,
+        types::{CapturedObservation, Registration, case_document::CaseDocument},
+    },
     suite::{fixtures::fake::SuiteFake, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -17,6 +20,7 @@ pub(super) struct Fixture {
     pub prepared: PreparedCase,
     pub rules: PathBuf,
     pub case: Value,
+    pub document: CaseDocument,
     receipt: PathBuf,
 }
 fn pin(bytes: &[u8]) -> String {
@@ -233,12 +237,14 @@ impl Fixture {
                 "identity":{"tool":name,"version":"1","settings-sha256":identity.settings_sha256.0,"profile-sha256":identity.profile_sha256.0,"source-sha256":source_digest,"reference-output-sha256":identity.reference_output_sha256.0,"intended-output-sha256":identity.intended_output_sha256.0},
             }
         });
+        let document = document_of(&case);
         Self {
             root,
             suite,
             prepared,
             rules,
             case,
+            document,
             receipt,
         }
     }
@@ -248,8 +254,59 @@ impl Fixture {
             .unwrap()
     }
     pub fn registration(&self) -> Registration {
-        serde_json::from_value(json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[self.case],"instance":null}]})).unwrap()
+        registration_of(&self.case)
     }
+    /// The discrepancy validation the reference side recorded, as written.
+    pub fn proof(&self) -> Value {
+        let text = std::fs::read_to_string(&self.receipt).unwrap();
+        let first: Value = serde_json::from_str(text.lines().next().unwrap()).unwrap();
+        first["discrepancy_validation"].clone()
+    }
+    /// The registered document with one edit, read through the adapter's schema.
+    pub fn document_with(&self, edit: impl FnOnce(&mut Value)) -> CaseDocument {
+        let mut case = self.case.clone();
+        edit(&mut case);
+        document_of(&case)
+    }
+    /// The observations with one JSON pointer replaced on one row, or none when the schema refuses them.
+    pub fn tampered(&self, row: usize, pointer: &str, value: Value) -> Option<CapturedObservation> {
+        let original = std::fs::read_to_string(&self.receipt).unwrap();
+        let mut lines: Vec<Value> = original
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        *lines[row].pointer_mut(pointer).unwrap() = value;
+        let edited = lines
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&self.receipt, edited + "\n").unwrap();
+        let loaded = crate::outbound::inventory::factory::local()
+            .observations(&self.receipt)
+            .ok();
+        std::fs::write(&self.receipt, original).unwrap();
+        loaded
+    }
+}
+
+/// Read a registration the way the offline command does: through the adapter's schema.
+pub(super) fn registration_of(case: &Value) -> Registration {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("registration.json");
+    std::fs::write(
+        &path,
+        json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[case],"instance":null}]}).to_string(),
+    )
+    .unwrap();
+    crate::outbound::inventory::factory::local()
+        .load(&path)
+        .unwrap()
+}
+
+/// One registered case read through the adapter's schema.
+pub(super) fn document_of(case: &Value) -> CaseDocument {
+    registration_of(case).rules.remove(0).cases.remove(0)
 }
 
 /// Different observed byte streams, independent of any certificate matching implementation.

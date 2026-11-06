@@ -14,7 +14,3 @@ pub(crate) struct ReceiptCounts {
     /// Cases that differ only by the comparison contract.
     pub contract_only: Tally,
 }
-
-/// The canonical text of one diagnostic row, ordered and compared as a multiset member.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct DiagnosticRow(pub String);

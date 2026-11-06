@@ -1,50 +1,84 @@
 //! Registered cases and native observation rows the receipt validation is proven over.
+use crate::domain::registered_inputs::service::project_inputs_digest;
+use crate::outbound::inventory::types::{
+    case_document::{
+        CaseDocument, ContextIdentity, ContextMode, EntryState, FileObservation,
+        InventoryCompleteness, ProjectEntry, ProjectInventoryDocument,
+    },
+    discrepancy::{DiscrepancyIdentity, DiscrepancyValidation, ReferenceDiscrepancy},
+    finding::ByteOffset,
+    finding::Finding,
+    observation_document::ObservationDocument,
+    text::{CanonicalJson, CaseName, PathText, RuleName, SchemaName, Sha256Text, Side, YesNo},
+};
+use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::artifacts::types::{
     FileExecutable, FileMetadataEntry, digest::value::ArtifactDigest,
 };
-use serde_json::{Value, json};
+use ryo_benchmark_contracts::domain::reports::types::{
+    ComparisonContract, ExecutionMetadata, RuleCoverage,
+};
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
 /// The registered documents and the native rows observed for them.
-pub type Documents = (Vec<Value>, Vec<Value>);
+pub type Documents = (Vec<CaseDocument>, Vec<ObservationDocument>);
 
-fn remove(document: &mut Value, key: &str) {
-    if let Some(object) = document.as_object_mut() {
-        let _removed = object.remove(key);
+fn sha(text: &str) -> Option<Sha256Text> {
+    Some(Sha256Text(text.into()))
+}
+
+/// A finding at an exact span of the case file.
+pub fn finding(rule: &str, file: &str, start: u64, end: u64) -> Finding {
+    Finding {
+        rule: RuleName(rule.into()),
+        file: PathText(file.into()),
+        start: ByteOffset(start),
+        end: ByteOffset(end),
     }
 }
 
-fn coverage() -> Value {
-    json!({"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1,
-           "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0})
+fn registered(name: &str) -> CaseDocument {
+    CaseDocument {
+        rule: Some(RuleName("A001".into())),
+        name: Some(CaseName(name.into())),
+        source_sha256: sha("source-pin"),
+        files: vec![PathText("input.txt".into())],
+        ..CaseDocument::default()
+    }
 }
 
-fn registered(name: &str) -> Value {
-    json!({
-        "rule": "A001", "name": name, "source_sha256": "source-pin",
-        "files": ["input.txt"], "expected": [],
-        "project_context_mode": "isolated", "reference_discrepancy": null
-    })
-}
-
-fn observed(name: &str) -> Value {
-    json!({
-        "rule": "A001", "name": name, "complete": true, "error": null,
-        "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"],
-        "expected": [], "reference_expected": [], "diagnostics": [], "skipped": [],
-        "context_manifest": null, "project_context": null,
-        "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
-        "execution_metadata": {"availability": "complete"}, "coverage": coverage()
-    })
+fn observed(name: &str) -> ObservationDocument {
+    ObservationDocument {
+        rule: Some(RuleName("A001".into())),
+        name: Some(CaseName(name.into())),
+        complete: Some(YesNo::Yes),
+        case_passed: Some(YesNo::Yes),
+        source_sha256: sha("source-pin"),
+        files: Some(vec![PathText("input.txt".into())]),
+        expected: Some(Vec::new()),
+        reference_expected: Some(Vec::new()),
+        diagnostics: Some(Vec::new()),
+        skipped: Some(Vec::new()),
+        observation_schema: Some(SchemaName("benchmark-case/v2".into())),
+        expectation_contract: Some(ComparisonContract::Diagnostics),
+        execution_metadata: Some(ExecutionMetadata::Complete),
+        coverage: Some(RuleCoverage {
+            selected: 1,
+            evaluated: 1,
+            skipped: 0,
+            unknown_or_unread: 0,
+        }),
+        ..ObservationDocument::default()
+    }
 }
 
 /// Both native sides of one named case.
-fn sides(base: &Value) -> Vec<Value> {
-    ["reference", "candidate"]
+fn sides(base: &ObservationDocument) -> Vec<ObservationDocument> {
+    [Side::Reference, Side::Candidate]
         .into_iter()
-        .map(|side| {
-            let mut row = base.clone();
-            row["side"] = json!(side);
-            row
+        .map(|side| ObservationDocument {
+            side: Some(side),
+            ..base.clone()
         })
         .collect()
 }
@@ -57,19 +91,18 @@ pub fn passing() -> Documents {
 /// The same registered case, observed with an extra diagnostic on the candidate side.
 pub fn candidate_with_unexpected_diagnostic() -> Documents {
     let (cases, mut rows) = passing();
-    rows[1]["diagnostics"] = json!([{"rule": "A001", "file": "input.txt", "start": 0, "end": 1}]);
+    rows[1].diagnostics = Some(vec![finding("A001", "input.txt", 0, 1)]);
     (cases, rows)
 }
 
-/// The candidate diagnostics are an object instead of an array.
-pub fn candidate_diagnostics_not_an_array() -> Documents {
+/// The candidate carries no diagnostics at all.
+pub fn candidate_without_diagnostics() -> Documents {
     let (cases, mut rows) = passing();
-    rows[1]["diagnostics"] = json!({"not": "an array"});
+    rows[1].diagnostics = None;
     (cases, rows)
 }
 
-/// Two registered cases and the rows of one case and an unrelated one.
-fn first_and_unrelated() -> Vec<Value> {
+fn first_and_unrelated() -> Vec<ObservationDocument> {
     let mut rows = sides(&observed("first"));
     rows.extend(sides(&observed("unrelated")));
     rows
@@ -99,45 +132,51 @@ pub fn duplicate_observation() -> Documents {
     (vec![registered("second"), registered("first")], doubled)
 }
 
-fn discrepancy_finding() -> Value {
-    json!({"rule": "A001", "file": "input.txt", "start": 0, "end": 1})
-}
-
-fn documented_discrepancy(settings: Value) -> Documents {
-    let finding = discrepancy_finding();
+fn documented_discrepancy(settings: Option<Sha256Text>) -> Documents {
+    let finding = finding("A001", "input.txt", 0, 1);
     let mut case = registered("case");
-    case["reference_discrepancy"] = json!({
-        "intended_expected": [], "reference_expected": [finding],
-        "approved_executable_sha256": ["tool-pin"],
-        "identity": {
-            "settings-sha256": settings, "profile-sha256": "profile-pin",
-            "source-sha256": "source-pin", "reference-output-sha256": "reference-pin",
-            "intended-output-sha256": "intended-pin"
-        }
-    });
-    let proof = json!({
-        "actual_executable_sha256": "tool-pin", "settings_sha256": settings,
-        "profile_sha256": "profile-pin", "source_sha256": "source-pin",
-        "reference_output_sha256": "reference-pin", "intended_output_sha256": "intended-pin"
+    case.reference_discrepancy = Some(ReferenceDiscrepancy {
+        basis: DiscrepancyBasis::LanguageDefect,
+        identity: DiscrepancyIdentity {
+            settings: settings.clone(),
+            profile: sha("profile-pin"),
+            source: sha("source-pin"),
+            reference_output: sha("reference-pin"),
+            intended_output: sha("intended-pin"),
+            ..DiscrepancyIdentity::default()
+        },
+        approved_executable_sha256: vec![Sha256Text("tool-pin".into())],
+        reference_expected: Some(vec![finding.clone()]),
+        intended_expected: Vec::new(),
+        reason: None,
+        process: None,
     });
     let mut base = observed("case");
-    base["reference_expected"] = json!([finding]);
-    base["discrepancy_validation"] = proof;
-    base["documented_reference_discrepancy"] = json!(true);
-    base["documented_tool_contract_difference"] = json!(false);
+    base.reference_expected = Some(vec![finding.clone()]);
+    base.discrepancy_validation = Some(DiscrepancyValidation {
+        actual_executable_sha256: sha("tool-pin"),
+        settings_sha256: settings,
+        profile_sha256: sha("profile-pin"),
+        source_sha256: sha("source-pin"),
+        reference_output_sha256: sha("reference-pin"),
+        intended_output_sha256: sha("intended-pin"),
+        ..DiscrepancyValidation::default()
+    });
+    base.documented_reference_discrepancy = Some(YesNo::Yes);
+    base.documented_tool_contract_difference = Some(YesNo::No);
     let mut rows = sides(&base);
-    rows[0]["diagnostics"] = json!([finding]);
+    rows[0].diagnostics = Some(vec![finding]);
     (vec![case], rows)
 }
 
 /// A reference difference bound to independent evidence on both sides.
 pub fn independently_bound_discrepancy() -> Documents {
-    documented_discrepancy(json!("settings-pin"))
+    documented_discrepancy(sha("settings-pin"))
 }
 
 /// The same difference whose settings identity is unbound.
 pub fn unbound_discrepancy() -> Documents {
-    documented_discrepancy(Value::Null)
+    documented_discrepancy(None)
 }
 
 /// One file whose executable bit is declared and observed on both sides.
@@ -147,8 +186,7 @@ pub fn with_file_metadata(executable: bool) -> Documents {
     } else {
         FileExecutable::Unset
     };
-    let values =
-        std::collections::BTreeMap::from([(ryo::linter::RelativePath("input.txt".into()), flag)]);
+    let values = std::collections::BTreeMap::from([(RelativePath("input.txt".into()), flag)]);
     let digest = ArtifactDigest::file_metadata(Some(values.iter().map(|(path, executable)| {
         FileMetadataEntry {
             path,
@@ -157,13 +195,16 @@ pub fn with_file_metadata(executable: bool) -> Documents {
     })))
     .ok()
     .flatten()
-    .map(|value| value.0);
+    .map(|value| Sha256Text(value.0));
     let mut case = registered("mode");
-    case["file_observation"] = json!("posix-executable");
-    case["file_metadata"] = json!({"input.txt": executable});
-    case["file_metadata_sha256"] = json!(digest);
+    case.file_observation = Some(FileObservation::PosixExecutable);
+    case.file_metadata = Some(std::collections::BTreeMap::from([(
+        PathText("input.txt".into()),
+        flag,
+    )]));
+    case.file_metadata_sha256 = digest.clone();
     let mut base = observed("mode");
-    base["file_metadata_sha256"] = json!(digest);
+    base.file_metadata_sha256 = digest;
     (vec![case], sides(&base))
 }
 
@@ -172,93 +213,75 @@ pub fn declaring_the_other_mode() -> Documents {
     (with_file_metadata(true).0, with_file_metadata(false).1)
 }
 
-/// The registered case lost one of its metadata keys.
-pub fn without_case_key(key: &'static str) -> Documents {
-    let (mut cases, rows) = with_file_metadata(false);
-    remove(&mut cases[0], key);
-    (cases, rows)
-}
-
-/// Both native rows lost their metadata identity.
-pub fn rows_without_metadata_identity() -> Documents {
-    let (cases, mut rows) = with_file_metadata(false);
-    for row in &mut rows {
-        remove(row, "file_metadata_sha256");
-    }
-    (cases, rows)
-}
-
 /// A case that never declared file metadata at all.
 pub fn unspecified_legacy() -> Documents {
     let (mut cases, mut rows) = with_file_metadata(false);
-    for key in ["file_observation", "file_metadata", "file_metadata_sha256"] {
-        remove(&mut cases[0], key);
-    }
+    cases[0].file_observation = None;
+    cases[0].file_metadata = None;
+    cases[0].file_metadata_sha256 = None;
     for row in &mut rows {
-        remove(row, "file_metadata_sha256");
+        row.file_metadata_sha256 = None;
     }
     (cases, rows)
 }
 
 /// The project scope and inventory are declared and their identity bound on all three documents.
-pub fn project_scope(roots: Value, state: &str, row_identity: Option<&str>) -> Documents {
+pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&str>) -> Documents {
     let mut declared = with_file_metadata(false);
-    declared.0[0]["project_search_roots"] = json!(["src"]);
-    declared.0[0]["given_project_inventory"] = json!({
-        "completeness": "partial", "entries": [{"path": "src/localmod.py", "state": "file"}]
-    });
-    let digest = crate::domain::registered_inputs::service::project_inputs_digest(&declared.0[0])
-        .unwrap_or(Value::Null);
-    declared.0[0]["project_inputs_sha256"] = digest.clone();
+    let inventory = |state| ProjectInventoryDocument {
+        completeness: InventoryCompleteness::Partial,
+        entries: vec![ProjectEntry {
+            path: PathText("src/localmod.py".into()),
+            state,
+        }],
+    };
+    declared.0[0].project_search_roots = Some(vec![PathText("src".into())]);
+    declared.0[0].given_project_inventory = Some(inventory(EntryState::File));
+    let digest = project_inputs_digest(
+        &crate::application::inventory_receipts::service::registered_inputs(&declared.0[0]),
+    )
+    .ok()
+    .flatten()
+    .map(|value| Sha256Text(value.0));
+    declared.0[0].project_inputs_sha256 = digest.clone();
     for row in &mut declared.1 {
-        row["project_inputs_sha256"] = digest.clone();
+        row.project_inputs_sha256 = digest.clone();
     }
-    declared.0[0]["project_search_roots"] = roots;
-    declared.0[0]["given_project_inventory"]["entries"][0]["state"] = json!(state);
+    declared.0[0].project_search_roots =
+        Some(roots.iter().map(|root| PathText((*root).into())).collect());
+    declared.0[0].given_project_inventory = Some(inventory(state));
     if let Some(identity) = row_identity {
-        declared.1[0]["project_inputs_sha256"] = json!(identity);
+        declared.1[0].project_inputs_sha256 = sha(identity);
     }
     declared
 }
 
 /// An explicit cohort declared on the case and on both rows.
 pub fn with_selected_rules(
-    case_cohort: Option<Value>,
-    row_cohorts: [Option<Value>; 2],
+    case_cohort: Option<&[&str]>,
+    row_cohorts: [Option<&[&str]>; 2],
 ) -> Documents {
+    let names = |cohort: &[&str]| cohort.iter().map(|rule| RuleName((*rule).into())).collect();
     let (mut cases, mut rows) = with_file_metadata(false);
-    for (target, cohort) in
-        std::iter::once((&mut cases[0], case_cohort)).chain(rows.iter_mut().zip(row_cohorts))
-    {
-        match cohort {
-            Some(value) => target["selected_rules"] = value,
-            None => remove(target, "selected_rules"),
-        }
+    cases[0].selected_rules = case_cohort.map(names);
+    for (row, cohort) in rows.iter_mut().zip(row_cohorts) {
+        row.selected_rules = cohort.map(names);
     }
     (cases, rows)
 }
 
 /// The observation declarations declared on the case and on both rows.
 pub fn with_rule_observations(
-    case_value: Option<Value>,
-    row_values: [Option<Value>; 2],
+    case_value: Option<&str>,
+    row_values: [Option<&str>; 2],
 ) -> Documents {
+    let declaration = |text: &str| CanonicalJson(text.into());
     let (mut cases, mut rows) = with_file_metadata(false);
-    for (target, value) in
-        std::iter::once((&mut cases[0], case_value)).chain(rows.iter_mut().zip(row_values))
-    {
-        match value {
-            Some(value) => target["rule_observations"] = value,
-            None => remove(target, "rule_observations"),
-        }
+    cases[0].rule_observations = case_value.map(declaration);
+    for (row, value) in rows.iter_mut().zip(row_values) {
+        row.rule_observations = value.map(declaration);
     }
     (cases, rows)
-}
-
-/// The declaration both sides must carry.
-pub fn observation_declaration(output: &str) -> Value {
-    json!({"A001": [{"name": "matched", "columns": [{"name": "file", "kind": "file"}],
-        "producers": [{"kind": "output", "rule": "B002", "output": output}]}]})
 }
 
 /// The documents `base` builds, with one edit applied.
@@ -266,4 +289,15 @@ pub fn edited(base: fn() -> Documents, edit: fn(&mut Documents)) -> Documents {
     let mut documents = base();
     edit(&mut documents);
     documents
+}
+
+/// A listed context identity the rows do not carry.
+pub fn listed_context() -> ContextIdentity {
+    ContextIdentity {
+        mode: ContextMode::ListedDisk,
+        logical_root: PathText("root".into()),
+        manifest_hash: Sha256Text("hash".into()),
+        present_paths: Vec::new(),
+        missing_paths: Vec::new(),
+    }
 }

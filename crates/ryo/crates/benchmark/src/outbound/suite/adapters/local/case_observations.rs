@@ -112,10 +112,15 @@ mod tests {
         let first = crate::outbound::inventory::factory::local()
             .observations(&receipt)
             .unwrap();
-        let pointer = first.records[0][constants::PROCESS_OBSERVATION][constants::ARTIFACTS]
-            [constants::STDOUT][constants::PATH]
-            .as_str()
-            .unwrap();
+        let pointer = first.records[0]
+            .process_observation
+            .as_ref()
+            .and_then(|process| process.artifacts.as_ref())
+            .unwrap()
+            .stdout
+            .path
+            .0
+            .as_str();
         assert_eq!(
             first.artifacts.get(Path::new(pointer)),
             Some(&vec![255, 0, 1])
@@ -167,10 +172,15 @@ mod tests {
         let loaded = crate::outbound::inventory::factory::local()
             .observations(&receipt)
             .unwrap();
-        let pointer = loaded.records[0][constants::PROCESS_OBSERVATION][constants::ARTIFACTS]
-            [constants::STDOUT][constants::PATH]
-            .as_str()
-            .unwrap();
+        let pointer = loaded.records[0]
+            .process_observation
+            .as_ref()
+            .and_then(|process| process.artifacts.as_ref())
+            .unwrap()
+            .stdout
+            .path
+            .0
+            .as_str();
         let path = root.path().join(pointer);
         std::fs::write(&path, constants::CHANGED).unwrap();
         assert!(
@@ -200,10 +210,15 @@ mod tests {
         let loaded = crate::outbound::inventory::factory::local()
             .observations(&receipt)
             .unwrap();
-        let pointer = loaded.records[0][constants::PROCESS_OBSERVATION][constants::ARTIFACTS]
-            [constants::STDOUT][constants::PATH]
-            .as_str()
-            .unwrap();
+        let pointer = loaded.records[0]
+            .process_observation
+            .as_ref()
+            .and_then(|process| process.artifacts.as_ref())
+            .unwrap()
+            .stdout
+            .path
+            .0
+            .as_str();
         let path = root.path().join(pointer);
         let target = outside.path().join(constants::BYTES);
         std::fs::write(&target, constants::FIRST).unwrap();

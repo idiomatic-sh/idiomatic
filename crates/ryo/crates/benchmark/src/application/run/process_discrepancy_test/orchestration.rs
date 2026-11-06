@@ -98,7 +98,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
     let captured = fixture.load();
     assert_eq!(
         crate::application::inventory_receipts::service::validate_with_artifacts(
-            &[fixture.case.clone()],
+            &[fixture.document.clone()],
             &captured.records,
             &captured.artifacts
         ),

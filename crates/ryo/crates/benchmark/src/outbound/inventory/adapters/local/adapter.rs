@@ -2,14 +2,18 @@
 use crate::outbound::inventory::adapters::local::constants;
 use crate::outbound::inventory::{
     interface::InventoryPort,
-    types::{CapturedObservation, Registration, Row, Summary},
+    types::{
+        CapturedObservation, Registration, Row, Summary, observation_document::ObservationDocument,
+    },
 };
 use std::{io::Write as _, path::Path};
 
 /// Decode the adapter's generated native invocation registration.
 fn load(path: &Path) -> Result<Registration, String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+    serde_json::from_slice::<super::schemas::RegistrationSchema>(&bytes)
+        .map(Registration::from)
+        .map_err(|e| e.to_string())
 }
 /// Publish a whole snapshot atomically, retaining the previous valid snapshot on failure.
 fn publish(output: &Path, summary: &Summary) -> Result<(), String> {
@@ -32,11 +36,16 @@ fn streams(directory: &Path, stdout: &[u8], stderr: &[u8]) -> Result<(), String>
     std::fs::write(directory.join(constants::STDERR_BIN), stderr).map_err(|e| e.to_string())
 }
 /// Read actual per-side observations; absence and malformed records remain errors.
-fn observations(path: &Path) -> Result<Vec<serde_json::Value>, String> {
+fn observations(path: &Path) -> Result<Vec<ObservationDocument>, String> {
     std::fs::read_to_string(path)
         .map_err(|e| e.to_string())?
         .lines()
-        .map(|line| serde_json::from_str(line).map_err(|e| e.to_string()))
+        .enumerate()
+        .map(|(index, line)| {
+            serde_json::from_str::<super::schemas::ObservationSchema>(line)
+                .map(ObservationDocument::from)
+                .map_err(|e| format!("receipt row {}: {e}", index + 1))
+        })
         .collect()
 }
 /// Persist one terminal row beside its raw receipts.

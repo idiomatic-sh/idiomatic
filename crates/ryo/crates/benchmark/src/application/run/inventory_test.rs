@@ -2,6 +2,8 @@
 use super::*;
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
+    case_document::CaseDocument,
+    text::{CaseName, PathText, RuleName, Sha256Text},
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
@@ -99,24 +101,51 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         .to_vec();
     let profile = context.path().join("benchmark.toml");
     std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
-    let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())].into_iter().map(|(mode, rule)| {
-        let directory = context.path().join(&rule);
-        std::fs::create_dir_all(directory.join("evidence")).unwrap();
-        let definition = directory.join("query.ryoql");
-        std::fs::write(&definition, format!("definition for {rule}")).unwrap();
-        let evidence = directory.join("evidence/oracle.json");
-        std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
-        let context_profile = directory.join("benchmark.toml");
-        std::fs::write(&context_profile, format!("tool='fixture'\nversion='1'\nsha256=['{reference_sha}']\ndefaults=['{rule}']\n")).unwrap();
-        let pin = FilePin { sha256: digest(&definition), path: definition.clone() };
-        RegisteredRule {
-        definition: Some(pin), modules: BTreeMap::new(),
-        artifacts: BTreeMap::from([(definition.clone(), digest(&definition)), (evidence.clone(), digest(&evidence)), (context_profile.clone(), digest(&context_profile))]),
-        rule_id: rule.clone(), reason: None,
-        command: Some(Command::CaseVerification { context: directory.clone() }),
-        cases: vec![json!({"rule": rule, "name": "independent-case", "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "project_context_mode": "isolated", "reference_discrepancy": null})],
-        instance: Some(json!({"input-pin": "immutable-provider-bytes"})),
-    }}).collect();
+    let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())]
+        .into_iter()
+        .map(|(mode, rule)| {
+            let directory = context.path().join(&rule);
+            std::fs::create_dir_all(directory.join("evidence")).unwrap();
+            let definition = directory.join("query.ryoql");
+            std::fs::write(&definition, format!("definition for {rule}")).unwrap();
+            let evidence = directory.join("evidence/oracle.json");
+            std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
+            let context_profile = directory.join("benchmark.toml");
+            std::fs::write(
+                &context_profile,
+                format!(
+                    "tool='fixture'\nversion='1'\nsha256=['{reference_sha}']\ndefaults=['{rule}']\n"
+                ),
+            )
+            .unwrap();
+            let pin = FilePin {
+                sha256: digest(&definition),
+                path: definition.clone(),
+            };
+            RegisteredRule {
+                definition: Some(pin),
+                modules: BTreeMap::new(),
+                artifacts: BTreeMap::from([
+                    (definition.clone(), digest(&definition)),
+                    (evidence.clone(), digest(&evidence)),
+                    (context_profile.clone(), digest(&context_profile)),
+                ]),
+                rule_id: rule.clone(),
+                reason: None,
+                command: Some(Command::CaseVerification {
+                    context: directory.clone(),
+                }),
+                cases: vec![CaseDocument {
+                    rule: Some(RuleName(rule.clone())),
+                    name: Some(CaseName("independent-case".into())),
+                    source_sha256: Some(Sha256Text("source-pin".into())),
+                    files: vec![PathText("input.txt".into())],
+                    ..CaseDocument::default()
+                }],
+                instance: Some(json!({"input-pin": "immutable-provider-bytes"})),
+            }
+        })
+        .collect();
     (
         Registration {
             authority: RegistrationAuthority::Execution {

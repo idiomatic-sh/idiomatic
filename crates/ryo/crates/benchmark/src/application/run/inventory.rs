@@ -128,11 +128,9 @@ pub fn verify(
             if entry.cases.is_empty() {
                 return Err(constants::MISSING_INDEPENDENT_CASES.into());
             }
-            if entry
-                .cases
-                .iter()
-                .any(|case| case[constants::RULE].as_str() != Some(entry.rule_id.as_str()))
-            {
+            if entry.cases.iter().any(|case| {
+                case.rule.as_ref().map(|rule| rule.0.as_str()) != Some(entry.rule_id.as_str())
+            }) {
                 return Err(constants::CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED.into());
             }
             let crate::outbound::inventory::types::RegistrationAuthority::Execution {

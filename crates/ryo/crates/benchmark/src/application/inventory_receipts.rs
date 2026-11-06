@@ -1,5 +1,4 @@
 //! Native case receipt validation against the registered cases.
-mod constants;
 pub mod errors;
 #[cfg(test)]
 pub mod fixtures;

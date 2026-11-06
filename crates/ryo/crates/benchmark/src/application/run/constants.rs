@@ -271,11 +271,6 @@ pub(super) const RECEIPT_ONLY_INVENTORY_CANNOT_AUTHORIZE_EXEC: &str =
 /// Text of the canonical inventory profile executable ident in this part.
 pub(super) const CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT: &str =
     "canonical inventory/profile/executable identity differs";
-/// Text of the complete report in this part.
-pub(super) const COMPLETE_REPORT: &str = "complete-report";
-/// Text of the missing or invalid expectation contract in this part.
-pub(super) const MISSING_OR_INVALID_EXPECTATION_CONTRACT: &str =
-    "missing or invalid expectation contract";
 /// Text of the missing or malformed execution capability in this part.
 pub(super) const MISSING_OR_MALFORMED_EXECUTION_CAPABILITY: &str =
     "missing or malformed execution capability";
@@ -288,16 +283,8 @@ pub(super) const MISSING_EXECUTION_FILES: &str = "missing execution files";
 pub(super) const INVALID_EXECUTION_FILE: &str = "invalid execution file";
 /// Text of the missing execution skips in this part.
 pub(super) const MISSING_EXECUTION_SKIPS: &str = "missing execution skips";
-/// Text of the invalid execution skip reason in this part.
-pub(super) const INVALID_EXECUTION_SKIP_REASON: &str = "invalid execution skip reason";
-/// Text of the missing skipped rule in this part.
-pub(super) const MISSING_SKIPPED_RULE: &str = "missing skipped rule";
 /// Text of the invalid skipped rule in this part.
 pub(super) const INVALID_SKIPPED_RULE: &str = "invalid skipped rule";
-/// Text of the missing skipped path in this part.
-pub(super) const MISSING_SKIPPED_PATH: &str = "missing skipped path";
-/// Text of the malformed execution coverage in this part.
-pub(super) const MALFORMED_EXECUTION_COVERAGE: &str = "malformed execution coverage";
 /// Text of the unavailable execution capability contains as in this part.
 pub(super) const UNAVAILABLE_EXECUTION_CAPABILITY_CONTAINS_AS: &str =
     "unavailable execution capability contains asserted accounting";
@@ -311,22 +298,8 @@ pub(super) const EXECUTION_EVIDENCE_DOES_NOT_SATISFY_THE: &str =
 pub(super) const PROJECT_SEARCH_ROOTS: &str = "project_search_roots";
 /// Text of the given project inventory in this part.
 pub(super) const GIVEN_PROJECT_INVENTORY: &str = "given_project_inventory";
-/// Text of the reference discrepancy in this part.
-pub(super) const REFERENCE_DISCREPANCY: &str = "reference_discrepancy";
-/// Text of the basis in this part.
-pub(super) const BASIS: &str = "basis";
-/// Text of the process in this part.
-pub(super) const PROCESS: &str = "process";
 /// Text of the project context mode in this part.
 pub(super) const PROJECT_CONTEXT_MODE: &str = "project_context_mode";
-/// Text of the identity in this part.
-pub(super) const IDENTITY: &str = "identity";
-/// Text of the file metadata sha256 2 in this part.
-pub(super) const FILE_METADATA_SHA256_2: &str = "file-metadata-sha256";
-/// Text of the settings sha256 2 in this part.
-pub(super) const SETTINGS_SHA256_2: &str = "settings-sha256";
-/// Text of the profile sha256 2 in this part.
-pub(super) const PROFILE_SHA256_2: &str = "profile-sha256";
 /// Text of the non utf8 reference invocation in this part.
 pub(super) const NON_UTF8_REFERENCE_INVOCATION: &str = "non-UTF8 reference invocation";
 /// Text of the state 2 in this part.
@@ -450,8 +423,6 @@ pub(super) const TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS: &str =
 /// Text of the no deadline in this part.
 #[cfg(test)]
 pub(super) const NO_DEADLINE: &str = "no-deadline";
-/// Text of the process artifact path is missing in this part.
-pub(super) const PROCESS_ARTIFACT_PATH_IS_MISSING: &str = "process artifact path is missing";
 /// Text of the missing captured process bytes in this part.
 pub(super) const MISSING_CAPTURED_PROCESS_BYTES: &str = "missing captured process bytes";
 /// Text of the captured process byte digest differs in this part.
@@ -459,10 +430,6 @@ pub(super) const CAPTURED_PROCESS_BYTE_DIGEST_DIFFERS: &str =
     "captured process byte digest differs";
 /// Text of the missing actual process executable in this part.
 pub(super) const MISSING_ACTUAL_PROCESS_EXECUTABLE: &str = "missing actual process executable";
-/// Text of the comparison in this part.
-pub(super) const COMPARISON: &str = "comparison";
-/// Text of the full in this part.
-pub(super) const FULL: &str = "full";
 /// Text of the reference process variant or exact terminati in this part.
 pub(super) const REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI: &str =
     "reference process variant or exact termination identity differs";
@@ -475,17 +442,10 @@ pub(super) const PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING: &str =
 /// Text of the process observation root differs from receip in this part.
 pub(super) const PROCESS_OBSERVATION_ROOT_DIFFERS_FROM_RECEIP: &str =
     "process observation root differs from receipt";
-/// Text of the registered process files are missing in this part.
-pub(super) const REGISTERED_PROCESS_FILES_ARE_MISSING: &str =
-    "registered process files are missing";
-/// Text of the invalid process source filename in this part.
-pub(super) const INVALID_PROCESS_SOURCE_FILENAME: &str = "invalid process source filename";
 /// Text of the missing registered rule in this part.
 pub(super) const MISSING_REGISTERED_RULE: &str = "missing registered rule";
 /// Text of the missing registered case in this part.
 pub(super) const MISSING_REGISTERED_CASE: &str = "missing registered case";
-/// Text of the artifacts in this part.
-pub(super) const ARTIFACTS: &str = "artifacts";
 /// Text of the missing raw process path in this part.
 pub(super) const MISSING_RAW_PROCESS_PATH: &str = "missing raw process path";
 /// Text of the raw process artifact belongs to another in this part.

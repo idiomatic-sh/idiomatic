@@ -1,5 +1,11 @@
 //! Reconstruct expected bytes from registration and actual request roots, never case_passed alone.
 use crate::application::run::constants;
+use crate::outbound::inventory::types::{
+    case_document::{CaseDocument, Comparison},
+    discrepancy::{ArtifactPointer, ExpectationKind},
+    observation_document::{ExitStatus, ObservationDocument},
+    text::{ReasonText, Sha256Text, YesNo},
+};
 use serde_json::Value;
 use sha2::Digest as _;
 use std::{
@@ -7,96 +13,142 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn raw<'a>(artifacts: &'a BTreeMap<PathBuf, Vec<u8>>, pointer: &Value) -> Result<&'a [u8], String> {
-    let path = pointer[constants::PATH]
-        .as_str()
-        .ok_or(constants::PROCESS_ARTIFACT_PATH_IS_MISSING)?;
+fn raw<'a>(
+    artifacts: &'a BTreeMap<PathBuf, Vec<u8>>,
+    pointer: &ArtifactPointer,
+) -> Result<&'a [u8], String> {
     let bytes = artifacts
-        .get(Path::new(path))
+        .get(Path::new(&pointer.path.0))
         .ok_or(constants::MISSING_CAPTURED_PROCESS_BYTES)?;
-    if pointer[constants::SHA256] != format!("{:x}", sha2::Sha256::digest(bytes)) {
+    if pointer.sha256.0 != format!("{:x}", sha2::Sha256::digest(bytes)) {
         return Err(constants::CAPTURED_PROCESS_BYTE_DIGEST_DIFFERS.into());
     }
     Ok(bytes)
 }
+
+fn text(value: Option<&Sha256Text>) -> Value {
+    value.map_or(Value::Null, |text| Value::String(text.0.clone()))
+}
+
+fn reason(value: Option<&ReasonText>) -> Value {
+    value.map_or(Value::Null, |text| Value::String(text.0.clone()))
+}
+
 /// Validate only the explicit reference process variant; candidate diagnostics are checked by the caller.
 pub(crate) fn validate(
-    case: &Value,
-    reference: &Value,
+    case: &CaseDocument,
+    reference: &ObservationDocument,
     artifacts: &BTreeMap<PathBuf, Vec<u8>>,
 ) -> Result<(), String> {
-    let certificate = &case[constants::REFERENCE_DISCREPANCY];
-    let wire = serde_json::from_value(certificate[constants::PROCESS].clone())
-        .map_err(|error| format!("invalid process registration: {error}"))?;
+    let wire = case
+        .reference_discrepancy
+        .as_ref()
+        .and_then(|certificate| certificate.process.clone())
+        .ok_or_else(|| "invalid process registration: missing".to_owned())?;
+    let certificate = case
+        .reference_discrepancy
+        .as_ref()
+        .ok_or(constants::REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI)?;
     let process = super::process_discrepancy::convert(wire).map_err(|error| error.to_string())?;
-    let captured = &reference[constants::PROCESS_OBSERVATION];
-    let proof = &reference[constants::DISCREPANCY_VALIDATION];
-    let identity = &certificate[constants::IDENTITY];
-    let executable = proof[constants::ACTUAL_EXECUTABLE_SHA256]
-        .as_str()
+    let (Some(captured), Some(proof)) = (
+        reference.process_observation.as_ref(),
+        reference.discrepancy_validation.as_ref(),
+    ) else {
+        return Err(constants::REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI.into());
+    };
+    let identity = &certificate.identity;
+    let executable = proof
+        .actual_executable_sha256
+        .as_ref()
+        .map(|digest| digest.0.as_str())
         .ok_or(constants::MISSING_ACTUAL_PROCESS_EXECUTABLE)?;
-    if case[constants::COMPARISON] != constants::FULL
-        || proof[constants::REFERENCE_EXPECTATION_KIND] != constants::PROCESS_FAILURE
-        || captured[constants::KIND] != constants::PROCESS_FAILURE
-        || !captured[constants::METADATA_ERROR].is_null()
-        || captured[constants::OBSERVER_NO_DEADLINE] != true
-        || captured[constants::EXIT].as_i64() != Some(i64::from(process.exit))
-        || captured.get(constants::SIGNAL) != Some(&Value::Null)
-        || captured[constants::EXECUTABLE_SHA256] != executable
-        || captured[constants::SETTINGS_SHA256] != identity[constants::SETTINGS_SHA256_2]
-        || captured[constants::TEMPLATE_SHA256]
-            != super::process_discrepancy::output_digest(&process).0
-        || proof[constants::PROCESS_OBSERVATION_GROUP_SHA256]
-            != super::process_discrepancy::group_digest(&process, executable)
-                .map_err(|error| error.to_string())?
-                .0
-        || !reference[constants::DIAGNOSTICS].is_null()
-        || !reference[constants::SKIPPED].is_null()
-        || !reference[constants::COVERAGE].is_null()
-        || !reference[constants::EXECUTION_METADATA].is_null()
-        || reference[constants::RAW_PARITY_MATCHES_INTENDED] != false
+    if case.comparison != Comparison::Full
+        || proof.reference_expectation_kind != Some(ExpectationKind::ProcessFailure)
+        || captured.kind != Some(ExpectationKind::ProcessFailure)
+        || captured.metadata_error.is_some()
+        || captured.observer_no_deadline != Some(YesNo::Yes)
+        || captured.exit != Some(ExitStatus(i64::from(process.exit)))
+        || captured.signal.is_some()
+        || captured
+            .executable_sha256
+            .as_ref()
+            .map(|digest| digest.0.as_str())
+            != Some(executable)
+        || captured.settings_sha256 != identity.settings
+        || captured
+            .template_sha256
+            .as_ref()
+            .map(|digest| digest.0.as_str())
+            != Some(
+                super::process_discrepancy::output_digest(&process)
+                    .0
+                    .as_str(),
+            )
+        || proof
+            .process_observation_group_sha256
+            .as_ref()
+            .map(|digest| digest.0.as_str())
+            != Some(
+                super::process_discrepancy::group_digest(&process, executable)
+                    .map_err(|error| error.to_string())?
+                    .0
+                    .as_str(),
+            )
+        || reference.diagnostics.is_some()
+        || reference.skipped.is_some()
+        || reference.coverage.is_some()
+        || reference.execution_metadata.is_some()
+        || reference.raw_parity_matches_intended != Some(YesNo::No)
     {
         return Err(constants::REFERENCE_PROCESS_VARIANT_OR_EXACT_TERMINATI.into());
     }
-    if identity[constants::FILE_METADATA_SHA256_2] != case[constants::FILE_METADATA_SHA256]
-        || proof[constants::FILE_METADATA_SHA256] != case[constants::FILE_METADATA_SHA256]
+    if identity.file_metadata != case.file_metadata_sha256
+        || proof.file_metadata_sha256 != case.file_metadata_sha256
     {
         return Err(constants::PROCESS_CERTIFICATE_FILE_METADATA_IDENTITY_D.into());
     }
-    let root = reference[constants::ACTUAL_REQUEST_ROOT]
-        .as_str()
-        .ok_or(constants::PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING)?;
-    if captured[constants::ACTUAL_REQUEST_ROOT] != root {
+    let root = reference
+        .actual_request_root
+        .as_ref()
+        .ok_or(constants::PROCESS_RECEIPT_REQUEST_ROOT_IS_MISSING)?
+        .0
+        .as_str();
+    if captured
+        .actual_request_root
+        .as_ref()
+        .map(|value| value.0.as_str())
+        != Some(root)
+    {
         return Err(constants::PROCESS_OBSERVATION_ROOT_DIFFERS_FROM_RECEIP.into());
     }
-    let files = case[constants::FILES]
-        .as_array()
-        .ok_or(constants::REGISTERED_PROCESS_FILES_ARE_MISSING)?
+    let files = case
+        .files
         .iter()
-        .map(|file| {
-            file.as_str()
-                .map(PathBuf::from)
-                .ok_or(constants::INVALID_PROCESS_SOURCE_FILENAME)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+        .map(|file| PathBuf::from(&file.0))
+        .collect::<Vec<_>>();
     let stdout =
         crate::domain::suite::process::service::expand(&process.stdout, Path::new(root), &files)?;
     let stderr =
         crate::domain::suite::process::service::expand(&process.stderr, Path::new(root), &files)?;
     let expected_key = crate::domain::suite::process::service::observation_key(
-        case[constants::RULE]
-            .as_str()
-            .ok_or(constants::MISSING_REGISTERED_RULE)?,
-        case[constants::NAME]
-            .as_str()
-            .ok_or(constants::MISSING_REGISTERED_CASE)?,
+        case.rule
+            .as_ref()
+            .ok_or(constants::MISSING_REGISTERED_RULE)?
+            .0
+            .as_str(),
+        case.name
+            .as_ref()
+            .ok_or(constants::MISSING_REGISTERED_CASE)?
+            .0
+            .as_str(),
         constants::REFERENCE,
     )?;
-    for label in [constants::STDOUT, constants::STDERR, constants::INVOCATION] {
-        let path = captured[constants::ARTIFACTS][label][constants::PATH]
-            .as_str()
-            .ok_or(constants::MISSING_RAW_PROCESS_PATH)?;
-        if Path::new(path)
+    let pointers = captured
+        .artifacts
+        .as_ref()
+        .ok_or(constants::MISSING_RAW_PROCESS_PATH)?;
+    for pointer in [&pointers.stdout, &pointers.stderr, &pointers.invocation] {
+        if Path::new(&pointer.path.0)
             .components()
             .nth(1)
             .is_none_or(|part| part.as_os_str() != expected_key.as_str())
@@ -104,55 +156,55 @@ pub(crate) fn validate(
             return Err(constants::RAW_PROCESS_ARTIFACT_BELONGS_TO_ANOTHER.into());
         }
     }
-    let pointers = &captured[constants::ARTIFACTS];
-    if raw(artifacts, &pointers[constants::STDOUT])? != stdout
-        || raw(artifacts, &pointers[constants::STDERR])? != stderr
-    {
+    if raw(artifacts, &pointers.stdout)? != stdout || raw(artifacts, &pointers.stderr)? != stderr {
         return Err(constants::CAPTURED_PROCESS_BYTES_DIFFER_FROM_REGISTERE.into());
     }
-    let invocation: Value =
-        serde_json::from_slice(raw(artifacts, &pointers[constants::INVOCATION])?)
-            .map_err(|error| error.to_string())?;
+    let invocation: Value = serde_json::from_slice(raw(artifacts, &pointers.invocation)?)
+        .map_err(|error| error.to_string())?;
     if !invocation[constants::METADATA_ERROR].is_null() {
         return Err(constants::PROCESS_METADATA_CAPTURE_FAILED.into());
     }
     // Unspecified historical observations omit this optional field; required metadata remains exact.
-    if invocation[constants::FILE_METADATA_SHA256] != case[constants::FILE_METADATA_SHA256] {
+    if invocation[constants::FILE_METADATA_SHA256] != text(case.file_metadata_sha256.as_ref()) {
         return Err(constants::RAW_PROCESS_INVOCATION_DIFFERS_AT_FILE.into());
     }
+    let case_files = Value::Array(
+        case.files
+            .iter()
+            .map(|file| Value::String(file.0.clone()))
+            .collect(),
+    );
+    let exit = captured
+        .exit
+        .map_or(Value::Null, |status| Value::from(status.0));
     for (key, required) in [
-        (constants::TOOL, &identity[constants::TOOL]),
-        (constants::VERSION, &identity[constants::VERSION]),
+        (constants::TOOL, reason(identity.tool.as_ref())),
+        (constants::VERSION, reason(identity.version.as_ref())),
         (
             constants::ACTUAL_REQUEST_ROOT,
-            &reference[constants::ACTUAL_REQUEST_ROOT],
+            Value::String(root.to_owned()),
         ),
-        (constants::FILES, &case[constants::FILES]),
-        (constants::SOURCE_SHA256, &case[constants::SOURCE_SHA256]),
+        (constants::FILES, case_files),
+        (constants::SOURCE_SHA256, text(case.source_sha256.as_ref())),
         (
             constants::EXECUTABLE_SHA256,
-            &proof[constants::ACTUAL_EXECUTABLE_SHA256],
+            Value::String(executable.to_owned()),
         ),
-        (
-            constants::SETTINGS_SHA256,
-            &identity[constants::SETTINGS_SHA256_2],
-        ),
-        (
-            constants::PROFILE_SHA256,
-            &identity[constants::PROFILE_SHA256_2],
-        ),
-        (constants::EXIT, &captured[constants::EXIT]),
-        (constants::SIGNAL, &Value::Null),
-        (constants::OBSERVER_NO_DEADLINE, &Value::Bool(true)),
+        (constants::SETTINGS_SHA256, text(identity.settings.as_ref())),
+        (constants::PROFILE_SHA256, text(identity.profile.as_ref())),
+        (constants::EXIT, exit),
+        (constants::SIGNAL, Value::Null),
+        (constants::OBSERVER_NO_DEADLINE, Value::Bool(true)),
     ] {
-        if invocation.get(key) != Some(required) {
+        if invocation.get(key) != Some(&required) {
             return Err(format!("raw process invocation differs at {key}"));
         }
     }
     // Pinned canonical settings authenticate configuration fields; derive argv/env/cwd again from raw metadata.
     let mut settings = invocation[constants::NORMALIZED_SETTINGS].clone();
     if !settings.is_object()
-        || super::discrepancy::json_digest(&settings).0 != identity[constants::SETTINGS_SHA256_2]
+        || Value::String(super::discrepancy::json_digest(&settings).0)
+            != text(identity.settings.as_ref())
     {
         return Err(constants::MISSING_PINNED_NORMALIZED_INVOCATION.into());
     }

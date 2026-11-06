@@ -1,9 +1,13 @@
 //! The offline path reuses actual artifact loading and native receipt comparison.
 use crate::application::run::constants;
 use crate::domain::suite::types::inventory::Inventory;
-use crate::outbound::inventory::types::{CapturedObservation, Registration};
+use crate::outbound::inventory::types::{
+    CapturedObservation, Registration, case_document::CaseDocument,
+    observation_document::ObservationDocument, text::Side,
+};
 use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Validate every registered case, retaining valid pairs for resume while reporting every failure.
@@ -16,7 +20,7 @@ pub fn validate(
 ) -> Result<ReceiptAudit, Error> {
     let _inventory = Inventory::new(&registration.defaults)?;
     let mut registered_rules = BTreeSet::new();
-    let mut cases = BTreeMap::new();
+    let mut cases = BTreeMap::<(String, String), &CaseDocument>::new();
     for rule in &registration.rules {
         if !registration.defaults.contains(&rule.rule_id) || !registered_rules.insert(&rule.rule_id)
         {
@@ -25,13 +29,14 @@ pub fn validate(
             ));
         }
         for case in &rule.cases {
-            let name = case[constants::NAME]
-                .as_str()
-                .filter(|name| !name.is_empty())
+            let name = case
+                .name
+                .as_ref()
+                .filter(|name| !name.0.is_empty())
                 .ok_or_else(|| Error::Invalid(constants::REGISTERED_CASE_NAME_IS_MISSING.into()))?;
-            if case[constants::RULE] != rule.rule_id
+            if case.rule.as_ref().map(|value| value.0.as_str()) != Some(rule.rule_id.as_str())
                 || cases
-                    .insert((rule.rule_id.clone(), name.to_owned()), case)
+                    .insert((rule.rule_id.clone(), name.0.clone()), case)
                     .is_some()
             {
                 return Err(Error::Invalid(
@@ -45,23 +50,21 @@ pub fn validate(
             constants::RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES.into(),
         ));
     }
-    let mut grouped = BTreeMap::<(String, String), Vec<serde_json::Value>>::new();
+    let mut grouped = BTreeMap::<(String, String), Vec<ObservationDocument>>::new();
     for row in &captured.records {
         let key = (
-            row[constants::RULE]
-                .as_str()
+            row.rule
+                .as_ref()
                 .ok_or_else(|| Error::Invalid(constants::MISSING_OBSERVED_RULE.into()))?
-                .to_owned(),
-            row[constants::NAME]
-                .as_str()
+                .0
+                .clone(),
+            row.name
+                .as_ref()
                 .ok_or_else(|| Error::Invalid(constants::MISSING_OBSERVED_CASE.into()))?
-                .to_owned(),
+                .0
+                .clone(),
         );
-        if !cases.contains_key(&key)
-            || !matches!(
-                row[constants::SIDE].as_str(),
-                Some(constants::REFERENCE | constants::CANDIDATE)
-            )
+        if !cases.contains_key(&key) || !matches!(row.side, Some(Side::Reference | Side::Candidate))
         {
             return Err(Error::Invalid(
                 constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
@@ -81,20 +84,22 @@ pub fn validate(
             &captured.artifacts,
         ) {
             Ok(counts) => {
-                let recomputed = crate::domain::registered_inputs::service::metadata_digest(case)
-                    .map_err(|error| Error::Invalid(error.to_string()))?;
-                if let Some(digest) = recomputed.as_str() {
-                    audit.metadata_verified.push((
-                        key.0.clone(),
-                        key.1.clone(),
-                        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
-                            digest.to_owned(),
-                        ),
-                    ));
+                let recomputed = crate::domain::registered_inputs::service::metadata_digest(
+                    &crate::application::inventory_receipts::service::registered_inputs(case),
+                )
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+                if let Some(digest) = recomputed {
+                    audit
+                        .metadata_verified
+                        .push((key.0.clone(), key.1.clone(), digest));
                 }
                 if counts.documented.0 > 0
-                    && case[constants::REFERENCE_DISCREPANCY][constants::BASIS]
-                        == constants::TOOL_CONTRACT_DIFFERENCE
+                    && case
+                        .reference_discrepancy
+                        .as_ref()
+                        .is_some_and(|certificate| {
+                            certificate.basis == DiscrepancyBasis::ToolContract
+                        })
                 {
                     audit.tool_contract_differences.push(key.clone());
                 }

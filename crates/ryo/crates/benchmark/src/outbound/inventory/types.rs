@@ -1,11 +1,17 @@
 //! Tool-neutral wire data; adapters own format and filesystem details.
+pub mod case_document;
+pub mod discrepancy;
+pub mod finding;
+pub mod observation_document;
+pub mod text;
+
+use self::{case_document::CaseDocument, observation_document::ObservationDocument};
 use crate::outbound::inventory::constants;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{collections::BTreeMap, path::PathBuf};
 
 /// A generated registration, never a second manually maintained rule roster.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Debug)]
 pub struct Registration {
     /// Explicit execution authority or receipt-only interpretation; never inferred.
     pub authority: RegistrationAuthority,
@@ -16,12 +22,10 @@ pub struct Registration {
     /// Implementations or explicit registration failures for those defaults.
     pub rules: Vec<RegisteredRule>,
     /// Source/worker pin metadata supplied by the provider adapter.
-    #[serde(default)]
     pub identity: BTreeMap<String, serde_json::Value>,
 }
 /// One ordinary native verifier invocation with exact registered case identities.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Debug)]
 pub struct RegisteredRule {
     /// Exact tested query definition, independently linked to measured code.
     pub definition: Option<FilePin>,
@@ -36,8 +40,7 @@ pub struct RegisteredRule {
     /// Explicit missing/configuration reason, never a skipped success.
     pub reason: Option<String>,
     /// Complete independently authored case identities, including evidence pins.
-    #[serde(default)]
-    pub cases: Vec<serde_json::Value>,
+    pub cases: Vec<CaseDocument>,
     /// Tool-specific source identity, preserved without interpretation by the runner.
     pub instance: Option<serde_json::Value>,
 }
@@ -46,8 +49,7 @@ pub const CASE_RECEIPTS_ARGUMENT: &str = constants::CASE_RECEIPTS;
 
 /// The shared worker's native case-verification operation. Executable and reference
 /// come exclusively from registration authority; argv/cwd/environment are not authorable.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Clone, Debug)]
 pub enum Command {
     /// Execute the existing shared verify-cases protocol over this exact pinned context.
     CaseVerification { context: PathBuf },
@@ -97,14 +99,13 @@ pub struct CapturedObservation {
     /// Exact receipt-scoped raw process artifacts, keyed by safe relative path.
     pub artifacts: BTreeMap<PathBuf, Vec<u8>>,
     /// Absent receipts are not fabricated as successful records.
-    pub records: Vec<serde_json::Value>,
+    pub records: Vec<ObservationDocument>,
     /// Absent until a native case receipt exists.
     pub sha256: Option<String>,
 }
 
 /// Receipt interpretation cannot authorize execution or benchmark certification.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Clone, Debug)]
 pub enum RegistrationAuthority {
     /// Parse existing receipts only; execution explicitly refuses this variant.
     ReceiptOnly,
@@ -119,8 +120,7 @@ pub enum RegistrationAuthority {
     },
 }
 /// An explicit executable location and immutable byte identity.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Debug)]
 pub struct ExecutablePin {
     pub path: PathBuf,
     pub sha256: String,
@@ -138,8 +138,7 @@ pub struct CanonicalFacts {
 }
 
 /// Exact raw content of one explicit case-context file.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Debug)]
 pub struct FilePin {
     pub path: PathBuf,
     pub sha256: String,
