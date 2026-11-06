@@ -103,3 +103,43 @@ impl DerivedOwner {
         Ok(RawScope::for_program(owner, prepared, admitted))
     }
 }
+
+impl RawScope {
+    /// The owner orders the keys the kernel names through its raw scope and lends the kernel the
+    /// admitted order for the call; the kernel never sees the scope or the acquisition path.
+    pub(in crate::application::file_dag) fn evaluate_native(
+        &mut self,
+        semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
+        operation: &ryo_values::domain::plans::types::Operation,
+        rows: &[crate::domain::table_model::types::Rows<'_>],
+        shape: &crate::domain::lowering::types::LoweredShape,
+        context: &mut crate::domain::operating::types::OperatorContext<'_>,
+        work: &mut crate::domain::native_positions::types::PositionWork,
+        counts: &crate::domain::operator::contract::types::WorkCounters,
+    ) -> Result<Option<crate::domain::positions::types::Positions>, OperatingError> {
+        let Some(staged) = crate::domain::native_positions::rows::stage(rows)? else {
+            return Ok(None);
+        };
+        let Some(raw) = staged.raw_keys(operation, shape, work, counts)? else {
+            return staged
+                .evaluate(semantics, None, operation, shape, context, work, counts)
+                .map(Some);
+        };
+        let mut positions = None;
+        let ordered = self.with_raw_order(&raw.keys, raw.stride, &mut |order| {
+            positions = Some(staged.evaluate(
+                semantics,
+                Some(order),
+                operation,
+                shape,
+                context,
+                work,
+                counts,
+            )?);
+            Ok(())
+        });
+        work.keys = raw.keys;
+        ordered?;
+        Ok(positions)
+    }
+}
