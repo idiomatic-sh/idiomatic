@@ -1,3 +1,5 @@
+#[path = "../composition/constants.rs"]
+pub mod constants;
 use super::constants::{
     ACCEPTED_SYNTAX, ALWAYS, DIAGNOSTIC_RYO, DIAGNOSTIC_UNKNOWN, EXE004, PARSER_CONFIGURATION,
     PROFILE_RYO, PYTHON_TARGET_3_7, PYTHON_TARGET_3_8, PYTHON_TARGET_3_9, PYTHON_TARGET_3_10,
@@ -7,8 +9,6 @@ use super::constants::{
 };
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-#[path = "../composition/constants.rs"]
-pub mod constants;
 #[path = "../composition/diagnostic_protocol.rs"]
 mod diagnostic_protocol;
 #[path = "../composition/request_input.rs"]

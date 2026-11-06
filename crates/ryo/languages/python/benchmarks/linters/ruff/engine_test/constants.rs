@@ -108,8 +108,38 @@ pub(crate) const PROFILES_RUF200_BENCHMARK_TOML: &str = "profiles/RUF200/benchma
 pub(crate) const CASES_TOML: &str = "cases.toml";
 /// Text `rules/RUF200`.
 pub(crate) const RULES_RUF200: &str = "rules/RUF200";
-/// Text ` [[cases]] name = "explicit-python-un...`.
-pub(crate) const CASES_NAME_EXPLICIT_PYTHON_UNRELAT: &str = "\n[[cases]]\nname = \"explicit-python-unrelated-toml-still-parses\"\ncomparison = \"full\"\nfiles = { \"other.toml\" = \"def broken(\\n\" }\ncontext = { logical-root = \"project\" }\nexpected = [{ rule = \"invalid-syntax\", file = \"other.toml\", start = 12, end = 12 }]\n";
+/// The key of a case's name.
+pub(crate) const KEY_NAME: &str = "name";
+/// The key of a case's comparison mode.
+pub(crate) const KEY_COMPARISON: &str = "comparison";
+/// The comparison of the whole report.
+pub(crate) const FULL: &str = "full";
+/// The key of a case's files.
+pub(crate) const KEY_FILES: &str = "files";
+/// The key of a case's project context.
+pub(crate) const KEY_CONTEXT: &str = "context";
+/// The key of the context's logical root.
+pub(crate) const KEY_LOGICAL_ROOT: &str = "logical-root";
+/// The logical root of a project.
+pub(crate) const PROJECT: &str = "project";
+/// The key of a case's expected findings.
+pub(crate) const KEY_EXPECTED: &str = "expected";
+/// The key of a finding's rule.
+pub(crate) const KEY_RULE: &str = "rule";
+/// The key of a finding's file.
+pub(crate) const KEY_FILE: &str = "file";
+/// The key of a finding's start offset.
+pub(crate) const KEY_START: &str = "start";
+/// The key of a finding's end offset.
+pub(crate) const KEY_END: &str = "end";
+/// The key of the cases of a case file.
+pub(crate) const KEY_CASES: &str = "cases";
+/// A file that is TOML by its name and holds Python.
+pub(crate) const OTHER_TOML: &str = "other.toml";
+/// Python that does not parse.
+pub(crate) const BROKEN_SOURCE: &str = "def broken(\n";
+/// The offset at which the broken source is refused.
+pub(crate) const BROKEN_OFFSET: i64 = 12;
 /// Text `cases`.
 pub(crate) const CASES: &str = "cases";
 /// Text `invalid-toml-and-invalid-python`.
