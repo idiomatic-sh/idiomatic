@@ -49,19 +49,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("explicit policies cover selected rules and supporting producers"),
         word: Word::Succeeds,
-        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'\nE501='accepted-syntax'",
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'\nE501='accepted-syntax'",
         expect: Expect::Value(true),
     },
     Case {
         name: CaseName("an explicit policy map cannot omit a supporting producer"),
         word: Word::Refuses,
-        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'",
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'",
         expect: Expect::Error("invalid applicability"),
     },
     Case {
         name: CaseName("an explicit policy map cannot omit a selected rule"),
         word: Word::Refuses,
-        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nE501='accepted-syntax'",
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nE501='accepted-syntax'",
         expect: Expect::Error("invalid applicability"),
     },
     Case {
@@ -130,6 +130,17 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 .is_some_and(|path| path == std::path::Path::new("fragments/suppress.ryoql"))
         } else {
             tool.query_modules.is_empty()
+        }
+        && if text.contains("supporting-rules") {
+            tool.supporting_rules
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                == ["E501"]
+                && tool.rule_applicability.get("E501").map(String::as_str)
+                    == Some("accepted-syntax")
+        } else {
+            tool.supporting_rules.is_empty()
         }
         && if text.contains("[rule-applicability]") {
             tool.rule_applicability
