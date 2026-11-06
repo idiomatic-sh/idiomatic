@@ -1,5 +1,5 @@
 description = "Runtime admission authority is sealed to its declaring owner concept."
-why = "The runtime concept owns invocation state, permits, and semantic/physical authority. Runtime service records have strictly private fields in runtime/service.rs, their sole Rust issuer; independent scratch, counters and observed DTOs stay in types.rs and never depend back on issuance. The program source/proof admission module retains private admitted-input fields, while the separately qualified relation AdmittedInput proof has strictly private data in relations/admission/service.rs, with owner-dependent admission methods in its private issuance child and validates explicit owner, generation, partition and root requirements, never an interpreter object. KernelAdmission remains the unforgeable prerequisite of all three KernelPermit constructors. This AST rule rejects moved/widened representations, every visible field on every runtime issuer record including newly added records, and written named authority construction outside runtime/service.rs. It does not resolve constructor aliases or Self: those are rejected by Rust privacy on the actual production records, with independent source-overlay controls covering every catalog member. Aliased/Self field-widening scenarios prove TM rejects the representation weakening that previously made those constructions legal. Rust privacy independently resolves aliases and rejects sibling program construction or field retargeting. Constructor contracts, macro expansion and runtime admission behavior remain compiler/production obligations."
+why = "The runtime concept owns invocation state, permits, and semantic/physical authority. Runtime service records have strictly private fields in runtime/service.rs, and construction and retargeting are confined to the service.rs files of the runtime directory tree (runtime/**/service.rs: concept directories beneath the record module are its Rust-private descendants); independent scratch, counters and observed DTOs stay in types.rs and never depend back on issuance. The program source/proof admission module retains private admitted-input fields, while the separately qualified relation AdmittedInput proof has strictly private data in relations/admission/service.rs, with owner-dependent admission methods in its private issuance child and validates explicit owner, generation, partition and root requirements, never an interpreter object. KernelAdmission remains the unforgeable prerequisite of all three KernelPermit constructors. This AST rule rejects moved/widened representations, every visible field on every runtime issuer record including newly added records, and written named authority construction outside the runtime directory's service.rs files. It does not resolve constructor aliases or Self: those are rejected by Rust privacy on the actual production records, with independent source-overlay controls covering every catalog member. Aliased/Self field-widening scenarios prove TM rejects the representation weakening that previously made those constructions legal. Rust privacy independently resolves aliases and rejects sibling program construction or field retargeting. Constructor contracts, macro expansion and runtime admission behavior remain compiler/production obligations."
 query = '''
 let nodes = select id, kind, file, span from "syntax-tree" where text = "";
 let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
@@ -10,9 +10,9 @@ let struct-names = select l.id as id, l.file as file, l.span as span, l.child as
 let name-children = select l.id as id, l.file as file, l.span as span, r.child as token from struct-names as l join "syntax-child" as r on l.node = r.parent;
 let named-structs = select l.id as id, l.file as file, l.span as span, r.text as name from name-children as l join tokens as r on l.token = r.id;
 let catalog = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,AdmittedInput,RuntimeState}");
-let issuer-records = select * from named-structs where glob_any(file, "{src,**/src}/application/file_dag/program/runtime/service.rs");
+let issuer-records = select * from named-structs where glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
 let sealed = union(left=catalog, right=issuer-records);
-let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/service.rs");
+let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
 let wrong-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/{program/admission.rs,relations/admission/service.rs}");
 let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
 let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
@@ -28,7 +28,7 @@ let record-paths = select l.id as id, l.file as file, l.span as span, l.child as
 let path-names = axis(from=paths, relation="syntax-child", direction=descendant, domain=tokens);
 let authority-names = select l.id as path from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and glob_any(r.text, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,RuntimeState}");
 let authority-records = select l.file as file, l.span as span from record-paths as l join authority-names as r on l.path = r.path;
-let foreign-issuers = select file, span from authority-records where not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/service.rs");
+let foreign-issuers = select file, span from authority-records where not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
 let wrong-placement = union(left=wrong-runtime, right=wrong-admission);
 let sealed-placement = union(left=wrong-placement, right=widened);
 let violations = union(left=sealed-placement, right=foreign-issuers);
@@ -38,7 +38,7 @@ emit violations subject file key(span);
 [diagnostic]
 primary = "span"
 message = "runtime admission authority escapes its sealed owner"
-help = "Keep runtime state and capability records in runtime/service.rs with strictly private fields; only that issuer may construct or retarget them. Keep each qualified AdmittedInput private beside its actual admission operation. Independent DTOs stay in types.rs. Rust rejects aliases and Self constructors from parent and sibling modules."
+help = "Keep runtime state and capability records in runtime/service.rs with strictly private fields; only the service.rs files of the runtime directory tree may construct or retarget them. Keep each qualified AdmittedInput private beside its actual admission operation. Independent DTOs stay in types.rs. Rust rejects aliases and Self constructors from parent and sibling modules."
 
 [given]
 include = ["src/**"]
@@ -367,3 +367,30 @@ given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
 given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
 given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { rows: usize }'
 then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtime-concept-directory-may-issue-authority"
+scenario = "A concept directory beneath the runtime record module issues authority through its own service.rs."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(in crate::application::file_dag::program) struct KernelAdmission { execution: (), region: usize } mod admission;'
+given.files.'src/application/file_dag/program/runtime/service/admission/mod.rs' = 'mod service;'
+given.files.'src/application/file_dag/program/runtime/service/admission/service.rs' = 'fn issue() -> super::super::KernelAdmission { super::super::KernelAdmission { execution: (), region: 0 } }'
+
+[[scenarios]]
+id = "runtime-concept-directory-record-cannot-be-widened"
+scenario = "A record declared in a concept directory's service.rs is an issuer record too and keeps strictly private fields."
+given.files.'src/application/file_dag/program/runtime/service/admission/service.rs' = 'pub(super) struct Cursor { pub(super) region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service/admission/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtime-concept-directory-non-service-file-cannot-issue"
+scenario = "Only the service.rs files of the runtime directory tree issue authority; another file in a concept directory is rejected."
+given.files.'src/application/file_dag/program/runtime/service/admission/mod.rs' = 'mod service; mod types;'
+given.files.'src/application/file_dag/program/runtime/service/admission/types.rs' = 'fn bypass() { let _ = super::super::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service/admission/types.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-lookalike-outside-runtime-cannot-issue"
+scenario = "A service.rs outside the runtime directory, even one whose directory name begins with runtime, cannot issue authority."
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; mod runtime_shadow;'
+given.files.'src/application/file_dag/program/runtime_shadow/service.rs' = 'fn bypass() { let _ = super::runtime::service::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime_shadow/service.rs", line = 1 }]
