@@ -1,19 +1,9 @@
 //! Explicit outer scope creation over one required request schedule. Inner
 //! operators/observation adapters receive its executor; they cannot mint owners.
 use super::relations::RelationOwner;
+pub(in crate::application::file_dag) mod types;
 use std::{rc::Rc, sync::Arc};
-
-/// A permit's private field prevents unrelated application code from creating a
-/// RelationOwner directly. Only this cohesive outer scope constructor mints it.
-pub(super) struct ScopePermit {
-    _private: (),
-}
-#[cfg(test)]
-impl ScopePermit {
-    pub(super) fn fixture() -> Self {
-        Self { _private: () }
-    }
-}
+use types::ScopePermit;
 
 pub(crate) enum ScopePartials<'a> {
     File {
@@ -32,7 +22,7 @@ pub(in crate::application::file_dag) fn open_program_owner(
     stable: bool,
 ) -> Rc<RelationOwner> {
     Rc::new(RelationOwner::for_scope(
-        ScopePermit { _private: () },
+        ScopePermit::new(),
         stable,
         program
             .regions()

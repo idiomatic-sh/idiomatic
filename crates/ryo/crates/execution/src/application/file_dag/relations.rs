@@ -18,48 +18,24 @@ use std::{
     sync::{Arc, OnceLock},
 };
 mod accounting;
-mod admission;
+pub(in crate::application::file_dag) mod generation;
+pub(crate) mod publication;
+use admission::service::AdmittedInput;
+use generation::service::GenerationLease;
+use handle::service::PublishedInput;
+use number::service::AdmittedNumber;
+use packed::service::PackedPublication;
+use publication::types::{ProducerScope, RelationBody, RelationResult, SourceDescriptor};
+pub(in crate::application::file_dag) mod admission;
 mod external;
-mod handle;
-pub(crate) use handle::PublishedInput;
+pub(in crate::application::file_dag) mod handle;
 mod identity;
 pub(super) mod positioned;
 mod selected_access;
 pub(super) mod selection;
-pub(super) use admission::AdmittedInput;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct SourceDescriptor {
-    relation: Relation,
-    kind: RepresentationKind,
-    kinds: Vec<CellKind>,
-    rows: usize,
-    storage: Vec<(usize, usize)>,
-    projection: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-    source_kinds: Vec<CellKind>,
-}
-#[derive(Debug)]
-enum RelationBody {
-    Source(SourceDescriptor),
-    Selected {
-        source: Arc<RelationResult>,
-        selection: Arc<StoredSelection>,
-    },
-    Positioned {
-        source: Arc<RelationResult>,
-        positions: Arc<crate::domain::positions::types::Positions>,
-        shape: Arc<crate::domain::lowering::types::LoweredShape>,
-        kinds: Arc<[CellKind]>,
-    },
-    Computed(Arc<Table>),
-    Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
-}
-mod packed;
-pub(crate) use packed::PackedPublication;
-mod number;
-pub(in crate::application::file_dag) use number::AdmittedNumber;
-mod record;
-pub(crate) use record::RelationResult;
+pub(in crate::application::file_dag) mod number;
+pub(in crate::application::file_dag) mod packed;
 
 struct SourceViews {
     population: SourceDescriptor,
@@ -67,30 +43,6 @@ struct SourceViews {
     views: HashMap<SourceDescriptor, PublishedInput>,
 }
 
-/// Read-only revocation witness. Only the population owner can invalidate it;
-/// semantic callbacks never receive a mutable atomic or a revival operation.
-pub(in crate::application::file_dag) struct GenerationLease {
-    live: std::sync::atomic::AtomicBool,
-}
-impl GenerationLease {
-    fn new() -> Self {
-        Self {
-            live: std::sync::atomic::AtomicBool::new(true),
-        }
-    }
-    fn invalidate(&self) {
-        self.live.store(false, std::sync::atomic::Ordering::Release);
-    }
-    pub(in crate::application::file_dag) fn is_live(&self) -> bool {
-        self.live.load(std::sync::atomic::Ordering::Acquire)
-    }
-}
-/// A typed invocation namespace; publications retain their actual population after it ends.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) enum ProducerScope {
-    File,
-    Project(PopulationId),
-}
 pub(crate) struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<u64>,
@@ -137,7 +89,7 @@ impl RelationOwner {
     }
 
     pub(super) fn for_scope(
-        _permit: super::scope::ScopePermit,
+        _permit: super::scope::types::ScopePermit,
         stable: bool,
         views: usize,
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
@@ -154,7 +106,12 @@ impl RelationOwner {
         stable: bool,
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
-        Self::for_scope(super::scope::ScopePermit::fixture(), stable, 1024, semantic)
+        Self::for_scope(
+            super::scope::types::ScopePermit::fixture(),
+            stable,
+            1024,
+            semantic,
+        )
     }
     #[cfg(test)]
     pub(in crate::application) fn for_request(
@@ -163,7 +120,7 @@ impl RelationOwner {
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
         Self::for_scope(
-            super::scope::ScopePermit::fixture(),
+            super::scope::types::ScopePermit::fixture(),
             stable,
             views,
             semantic,

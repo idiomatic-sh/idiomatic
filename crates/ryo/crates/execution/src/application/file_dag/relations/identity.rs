@@ -1,5 +1,5 @@
 //! Shallow immutable-population witnesses; no row scan, hashing or retained provider borrow.
-use super::SourceDescriptor;
+use crate::application::file_dag::relations::publication::types::SourceDescriptor;
 use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_model::collections::representations::service::kind;
 use ryo_relations::domain::relations::types::Relation;

@@ -72,3 +72,8 @@ pub(in crate::application::file_dag::program) struct ProducerLeaseEvent {
     pub index:
         Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
 }
+
+pub(in crate::application::file_dag::program) enum NativeJoinEligibility {
+    Native,
+    Ordinary,
+}

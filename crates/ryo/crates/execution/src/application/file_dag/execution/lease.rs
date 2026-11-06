@@ -1,5 +1,7 @@
 //! Construct and release the finite primitive capability at one scheduled evaluation.
-use super::super::executor::{KernelAnswer, KernelCall, KernelFault, PrimitiveExecutor};
+use crate::application::file_dag::executor::response::types::{KernelAnswer, KernelFault};
+pub(crate) mod capability;
+use super::super::executor::{KernelCall, PrimitiveExecutor};
 use super::super::{
     invocation::InvocationResources, predicates::BoundPredicate, workspace::InvocationWorkspace,
 };
@@ -15,51 +17,13 @@ use crate::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
+use capability::service::ExecutableLease;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use {
     crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell,
     ryo_values::domain::rows::service::reset,
 };
-
-/// The executable lease belongs to the application invocation owner. A pure
-/// borrowed context cannot be promoted into a registered call by a sibling.
-pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
-    permit: &'call crate::application::file_dag::program::runtime::service::KernelPermit<'scope>,
-    context: &'call mut PrimitiveLease<'resources>,
-    operation: &'call ryo_values::domain::plans::types::Operation,
-    input: PreparedInputs<'call>,
-    output: &'call mut dyn RowSink,
-}
-impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
-    fn new(
-        permit: &'call crate::application::file_dag::program::runtime::service::KernelPermit<
-            'scope,
-        >,
-        context: &'call mut PrimitiveLease<'resources>,
-        operation: &'call ryo_values::domain::plans::types::Operation,
-        input: PreparedInputs<'call>,
-        output: &'call mut dyn RowSink,
-    ) -> Self {
-        Self {
-            permit,
-            context,
-            operation,
-            input,
-            output,
-        }
-    }
-
-    pub(super) fn dispatch(self) -> Result<(), OperatingError> {
-        self.permit.validate_registered(self.operation)?;
-        crate::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
-            self.operation,
-            self.input,
-            self.context,
-            self.output,
-        )
-    }
-}
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(in crate::application::file_dag) fn evaluate(
