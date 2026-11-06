@@ -46,3 +46,10 @@ pub(crate) struct Merge {
     /// For each rule and each of its steps, the class that selects it, when it is one the merge covers.
     pub class_of: Vec<Vec<Option<ClassPlace>>>,
 }
+
+/// Whether two requests bind equal typed values wherever a predicate reads them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BindingsAgreement {
+    Equal,
+    Differ,
+}

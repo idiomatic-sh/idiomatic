@@ -5,7 +5,9 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::Value;
 
+pub(crate) mod native_batch;
 pub(crate) mod prepared_walk;
+pub(crate) mod walk_route;
 
 /// Number of equivalence classes in one prepared request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,6 +20,17 @@ pub(crate) struct RowsVisited(pub u64);
 /// Immutable identity of an exact ordered predicate prefix in this request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct PredicatePlace(pub usize);
+
+/// Place of one comparison within its class's ordered predicates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PredicateNumber(pub usize);
+
+/// A stored class result with the source rows its decision visited.
+#[derive(Clone, Debug)]
+pub(crate) struct ClassLease {
+    pub result: std::sync::Arc<ClassResult>,
+    pub visits: RowsVisited,
+}
 
 /// The number of kinds named by one prepared class.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

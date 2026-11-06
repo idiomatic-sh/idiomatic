@@ -153,9 +153,20 @@ pub(in super::super) fn compiled() -> CompiledCorpus {
         project.frontier.push(source);
         plans.push(project);
     }
+    let operated = plans.clone();
+    let (program, mut walk) = prepare(&plans, &operated);
+    walk.retain_program_consumers(&program).unwrap();
+    CompiledCorpus { program, walk }
+}
+/// Compile `plans` against operator contracts prepared for `operated`, unretained. A plan
+/// with steps beyond its operated contracts has unmapped origins.
+pub(in super::super) fn prepare(
+    plans: &[ryo_values::domain::plans::types::Plan],
+    operated: &[ryo_values::domain::plans::types::Plan],
+) -> (ExecutableProgram, super::super::super::PreparedWalk) {
     let bindings = vec![vec![]; plans.len()];
     let operators = RequestOperators::prepare_with_schemas(
-        &plans,
+        operated,
         &bindings,
         &[],
         &ryo_relations::domain::relations::service::kinds,
@@ -164,15 +175,10 @@ pub(in super::super) fn compiled() -> CompiledCorpus {
         ),
     )
     .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
-    let program = crate::domain::executable_program::service::compile(
-        &plans,
-        graph,
-        &FileSources,
-        &operators,
-    )
-    .unwrap();
-    let mut walk = super::super::super::PreparedWalk::compile(&plans, &bindings);
-    walk.retain_program_consumers(&program).unwrap();
-    CompiledCorpus { program, walk }
+    let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
+    let program =
+        crate::domain::executable_program::service::compile(plans, graph, &FileSources, &operators)
+            .unwrap();
+    let walk = super::super::super::PreparedWalk::compile(plans, &bindings);
+    (program, walk)
 }

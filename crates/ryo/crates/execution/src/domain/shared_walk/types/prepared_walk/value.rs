@@ -4,13 +4,18 @@ use crate::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
     positions::types::ClassPlace,
-    shared_walk::types::{ClassCount, PredicatePlace, RowsVisited},
+    shared_walk::types::{
+        PredicateNumber, PredicatePlace,
+        walk_route::value::{WalkBarrier, WalkRoute, source_barrier},
+    },
     step_classes::{
         service::merge,
-        types::{Merge, StepClass},
+        types::{BindingsAgreement, Merge, StepClass},
     },
 };
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::{
+    plan_parts::types::Input, plans::types::Plan, query_bindings::types::ParameterBinding,
+};
 
 /// A request's exact comparison and binding equivalence, with no retained Plan.
 #[derive(Debug)]
@@ -43,7 +48,10 @@ impl PreparedWalk {
         self.needed.clear();
         // Predicates bucketed by (parent, source): only these can be equal.
         let mut keyed: std::collections::HashMap<
-            (Option<PredicatePlace>, ryo_relations::domain::relations::types::Relation),
+            (
+                Option<PredicatePlace>,
+                ryo_relations::domain::relations::types::Relation,
+            ),
             Vec<usize>,
         > = std::collections::HashMap::new();
         for (at, class) in self.classes.classes.iter().enumerate() {
@@ -54,12 +62,12 @@ impl PreparedWalk {
                     bucket.iter().copied().find(|&place| {
                         let candidate = &self.predicates[place];
                         let other = &self.classes.classes[candidate.class.0];
-                        other.comparisons[candidate.number] == *comparison
+                        other.comparisons[candidate.number.0] == *comparison
                             && crate::domain::step_classes::service::predicate_bindings_match(
                                 std::slice::from_ref(comparison),
                                 bindings.get(other.first.rule.0).map(Vec::as_slice),
                                 bindings.get(class.first.rule.0).map(Vec::as_slice),
-                            )
+                            ) == BindingsAgreement::Equal
                     })
                 });
                 let place = match existing {
@@ -72,7 +80,7 @@ impl PreparedWalk {
                             .push(place.0);
                         self.predicates.push(PreparedPredicate {
                             class: ClassPlace(at),
-                            number,
+                            number: PredicateNumber(number),
                             comparison: comparison.clone(),
                         });
                         place
@@ -93,22 +101,6 @@ impl PreparedWalk {
             self.needed.push(needed);
         }
     }
-    pub(crate) fn prefixes(&self, class: ClassPlace) -> &[PredicatePlace] {
-        &self.prefixes[class.0]
-    }
-    pub(crate) fn comparison(
-        &self,
-        predicate: PredicatePlace,
-    ) -> &ryo_values::domain::plan_parts::types::Comparison {
-        &self.predicates[predicate.0].comparison
-    }
-    pub(crate) fn needed(
-        &self,
-        class: ClassPlace,
-    ) -> &crate::domain::table_cells::types::ColumnPlaces {
-        &self.needed[class.0]
-    }
-
     /// Count the exact routes chosen during binding, independently of later demand.
     pub(crate) fn census(&self) -> crate::domain::shared_walk::types::WalkCensus {
         use crate::domain::shared_walk::types::{WalkCensus, WalkRouteCount};
@@ -136,42 +128,24 @@ impl PreparedWalk {
         census.classes = classes.into_iter().map(ClassPlace).collect();
         census
     }
-
-    /// Direct lookup in the immutable physical program, prepared once per request.
-    pub(crate) fn class_for(
-        &self,
-        instruction: &crate::domain::executable_program::types::Instruction,
-    ) -> Option<ClassPlace> {
-        match self.physical.get(instruction.logical.0)?.as_ref()? {
-            WalkRoute::Shared(class) => Some(*class),
-            WalkRoute::Barrier(_barrier) => None,
-        }
-    }
-
-    /// The route bound to a physical instruction, if it was bound.
-    pub(crate) fn route_of(
-        &self,
-        instruction: &crate::domain::executable_program::types::Instruction,
-    ) -> Option<WalkRoute> {
-        *self.physical.get(instruction.logical.0)?
-    }
-
     /// Resolve only a physical selection head whose rows this walk can deliver.
     fn resolve_class(
         &self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
         instruction: &crate::domain::executable_program::types::Instruction,
-    ) -> Option<ClassPlace> {
-        let region = program.logical_regions().get(instruction.logical.0)?;
-        if program
+    ) -> Result<Option<ClassPlace>, OperatingError> {
+        let Some(region) = program.logical_regions().get(instruction.logical.0) else {
+            return Ok(None);
+        };
+        let Some(first) = program
             .regions()
-            .get(region.0)?
-            .instructions
-            .first()?
-            .logical
-            != instruction.logical
-        {
-            return None;
+            .get(region.0)
+            .and_then(|region| region.instructions.first())
+        else {
+            return Ok(None);
+        };
+        if first.logical != instruction.logical {
+            return Ok(None);
         }
         use ryo_values::domain::{plan_parts::types::RepeatedRows, plans::types::Operation};
         let (relation, comparisons, kept) = match &instruction.operation {
@@ -185,28 +159,41 @@ impl PreparedWalk {
                 columns,
                 distinct: RepeatedRows::Kept,
             } => (relation, &[][..], columns),
-            _ => return None,
+            _ => return Ok(None),
         };
         if kept.iter().any(|column| {
             column.0 as usize >= ryo_relations::domain::relations::service::columns(*relation).len()
         }) {
-            return None;
+            return Ok(None);
         }
-        let original = program
-            .rules()
-            .get(instruction.producer.0)?
-            .original_steps
-            .iter()
-            .filter_map(|origin| origin.as_ref().ok())
-            .find(|origin| origin.logical == instruction.logical)?;
-        let class = self
-            .class_of(instruction.producer)?
-            .get(original.step.0 as usize)
+        let Some(rule) = program.rules().get(instruction.producer.0) else {
+            return Ok(None);
+        };
+        // An errored origin is a refusal of the whole preparation, never a rule
+        // silently left out of sharing.
+        let mut original = None;
+        for origin in rule.original_steps.iter() {
+            let origin = origin.as_ref().map_err(Clone::clone)?;
+            if origin.logical == instruction.logical {
+                original = Some(origin);
+                break;
+            }
+        }
+        let Some(original) = original else {
+            return Ok(None);
+        };
+        let Some(class) = self
+            .class_of(instruction.producer)
+            .and_then(|classes| classes.get(original.step.0 as usize))
             .copied()
-            .flatten()?;
-        (self.classes().get(class.0)?.source == *relation
-            && self.classes().get(class.0)?.comparisons == comparisons)
-            .then_some(class)
+            .flatten()
+        else {
+            return Ok(None);
+        };
+        let Some(chosen) = self.classes().get(class.0) else {
+            return Ok(None);
+        };
+        Ok((chosen.source == *relation && chosen.comparisons == comparisons).then_some(class))
     }
 
     /// Exclude logical classes with no physical consumer of the shared result.
@@ -214,42 +201,38 @@ impl PreparedWalk {
         &mut self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
     ) -> Result<(), OperatingError> {
-        let retained = self
-            .classes
-            .classes
-            .iter()
-            .enumerate()
-            .map(|(at, class)| {
-                class
-                    .members
+        let mut retained = Vec::with_capacity(self.classes.classes.len());
+        for (at, class) in self.classes.classes.iter().enumerate() {
+            let mut members = Vec::new();
+            for &member in &class.members {
+                let Some(origin) = program
+                    .rules()
+                    .get(member.rule.0)
+                    .and_then(|rule| rule.original_steps.get(member.step.0))
+                else {
+                    continue;
+                };
+                let origin = origin.as_ref().map_err(Clone::clone)?;
+                let Some(region) = program
+                    .logical_regions()
+                    .get(origin.logical.0)
+                    .and_then(|region| program.regions().get(region.0))
+                else {
+                    continue;
+                };
+                let Some(head) = region
+                    .instructions
                     .iter()
-                    .copied()
-                    .filter(|member| {
-                        let Some(origin) = program
-                            .rules()
-                            .get(member.rule.0)
-                            .and_then(|rule| rule.original_steps.get(member.step.0))
-                            .and_then(|origin| origin.as_ref().ok())
-                        else {
-                            return false;
-                        };
-                        let Some(region) = program
-                            .logical_regions()
-                            .get(origin.logical.0)
-                            .and_then(|region| program.regions().get(region.0))
-                        else {
-                            return false;
-                        };
-                        region
-                            .instructions
-                            .iter()
-                            .find(|instruction| instruction.logical == origin.logical)
-                            .and_then(|instruction| self.resolve_class(program, instruction))
-                            == Some(ClassPlace(at))
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+                    .find(|instruction| instruction.logical == origin.logical)
+                else {
+                    continue;
+                };
+                if self.resolve_class(program, head)? == Some(ClassPlace(at)) {
+                    members.push(member);
+                }
+            }
+            retained.push(members);
+        }
         let mut remap = vec![None; self.classes.classes.len()];
         let mut compact = Vec::new();
         for (old, (mut class, members)) in std::mem::take(&mut self.classes.classes)
@@ -274,17 +257,10 @@ impl PreparedWalk {
         // The trie was built once in `compile`; retention only drops the per-class
         // entries of removed classes. Predicates own their comparison, so shared
         // prefixes of the retained classes stay valid and equal.
-        let keep = |old: usize| remap[old].is_some();
-        let mut at = 0;
-        self.prefixes.retain(|_| {
-            at += 1;
-            keep(at - 1)
-        });
-        let mut at = 0;
-        self.needed.retain(|_| {
-            at += 1;
-            keep(at - 1)
-        });
+        let mut kept = remap.iter().map(Option::is_some);
+        self.prefixes.retain(|_| kept.next().unwrap_or(false));
+        let mut kept = remap.iter().map(Option::is_some);
+        self.needed.retain(|_| kept.next().unwrap_or(false));
         // Observation unions also own physical instructions, beyond the original
         // logical-to-region table. Allocate by actual instruction identity; holes
         // are absent instructions, never invented representation barriers.
@@ -316,7 +292,7 @@ impl PreparedWalk {
             let Some(head) = region.instructions.first() else {
                 continue;
             };
-            if let Some(class) = self.resolve_class(program, head) {
+            if let Some(class) = self.resolve_class(program, head)? {
                 *self
                     .physical
                     .get_mut(head.logical.0)
@@ -324,6 +300,40 @@ impl PreparedWalk {
             }
         }
         Ok(())
+    }
+    pub(crate) fn prefixes(&self, class: ClassPlace) -> &[PredicatePlace] {
+        &self.prefixes[class.0]
+    }
+    pub(crate) fn comparison(
+        &self,
+        predicate: PredicatePlace,
+    ) -> &ryo_values::domain::plan_parts::types::Comparison {
+        &self.predicates[predicate.0].comparison
+    }
+    pub(crate) fn needed(
+        &self,
+        class: ClassPlace,
+    ) -> &crate::domain::table_cells::types::ColumnPlaces {
+        &self.needed[class.0]
+    }
+
+    /// Direct lookup in the immutable physical program, prepared once per request.
+    pub(crate) fn class_for(
+        &self,
+        instruction: &crate::domain::executable_program::types::Instruction,
+    ) -> Option<ClassPlace> {
+        match self.physical.get(instruction.logical.0)?.as_ref()? {
+            WalkRoute::Shared(class) => Some(*class),
+            WalkRoute::Barrier(_barrier) => None,
+        }
+    }
+
+    /// The route bound to a physical instruction, if it was bound.
+    pub(crate) fn route_of(
+        &self,
+        instruction: &crate::domain::executable_program::types::Instruction,
+    ) -> Option<WalkRoute> {
+        *self.physical.get(instruction.logical.0)?
     }
 
     pub(crate) fn classes(&self) -> &[StepClass] {
@@ -335,223 +345,14 @@ impl PreparedWalk {
     }
 }
 
-/// Explicit source boundaries remain in request metadata. Adding an operation
-/// requires choosing its source-walk barrier in this exhaustive classifier.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum WalkRoute {
-    Shared(ClassPlace),
-    Barrier(WalkBarrier),
-}
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum WalkBarrier {
-    Representation,
-    DependentInput,
-    Observation,
-    RowSemantics,
-    DerivedOrOrdered,
-    RequestOwnedSource,
-    Continuation,
-}
-fn source_barrier(
-    operation: &ryo_values::domain::plans::types::Operation,
-    inputs: &[crate::domain::executable_program::types::InputSource],
-) -> WalkBarrier {
-    use ryo_values::domain::plans::types::Operation;
-    match operation {
-        Operation::Select { from, .. } | Operation::Project { from, .. } => match from {
-            Input::Relation(_) => WalkBarrier::Representation,
-            // Canonical unary inputs use Step(0) for both ordinary producers
-            // and named observations. The resolved boundary retains that distinction.
-            Input::Step(_)
-                if matches!(
-                    inputs.first(),
-                    Some(crate::domain::executable_program::types::InputSource::Observation(_))
-                ) =>
-            {
-                WalkBarrier::Observation
-            }
-            Input::Step(_) => WalkBarrier::DependentInput,
-            Input::BoundObservation(_) => WalkBarrier::Observation,
-        },
-        Operation::Extend { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => WalkBarrier::RowSemantics,
-        Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. } => WalkBarrier::DerivedOrOrdered,
-        Operation::Rows { .. } | Operation::Hosted { .. } => WalkBarrier::RequestOwnedSource,
-    }
-}
-
 #[derive(Debug)]
 struct PreparedPredicate {
     /// The class and place that first defined it; meaningful only while building the trie.
     class: ClassPlace,
-    number: usize,
+    number: PredicateNumber,
     /// Owned, so retention can drop its defining class without invalidating the trie.
     comparison: ryo_values::domain::plan_parts::types::Comparison,
 }
-
-/// Sparse results for only classes reached in this admitted population.
-#[derive(Debug)]
-pub(crate) struct NativeBatch {
-    class_count: ClassCount,
-    refusal: Option<crate::domain::shared_walk::types::WalkRefusal>,
-    classes: std::collections::BTreeMap<
-        ClassPlace,
-        (
-            std::sync::Arc<crate::domain::shared_walk::types::ClassResult>,
-            RowsVisited,
-        ),
-    >,
-    counts: crate::domain::shared_walk::types::WalkCounts,
-}
-
-impl NativeBatch {
-    pub(crate) fn for_program(program: &PreparedWalk) -> Self {
-        Self::empty(ClassCount(program.classes().len()))
-    }
-    /// Preflight the whole transfer before committing any class or counter.
-    pub(crate) fn merge(&mut self, next: Self) -> Result<(), OperatingError> {
-        if self.class_count != next.class_count
-            || next
-                .classes
-                .keys()
-                .any(|class| self.classes.contains_key(class))
-        {
-            return Err(OperatingError::WrongOperation);
-        }
-        for (class, result) in next.classes {
-            let _previous = self.classes.insert(class, result);
-        }
-        self.counts.passes.0 = self.counts.passes.0.saturating_add(next.counts.passes.0);
-        self.counts.source_rows.0 = self
-            .counts
-            .source_rows
-            .0
-            .saturating_add(next.counts.source_rows.0);
-        self.counts.predicate_rows.0 = self
-            .counts
-            .predicate_rows
-            .0
-            .saturating_add(next.counts.predicate_rows.0);
-        self.counts.predicate_tests.0 = self
-            .counts
-            .predicate_tests
-            .0
-            .saturating_add(next.counts.predicate_tests.0);
-        self.counts.predicate_reuses.0 = self
-            .counts
-            .predicate_reuses
-            .0
-            .saturating_add(next.counts.predicate_reuses.0);
-        self.counts.decoded_rows.0 = self
-            .counts
-            .decoded_rows
-            .0
-            .saturating_add(next.counts.decoded_rows.0);
-        self.counts.scratch_classes.0 = self
-            .counts
-            .scratch_classes
-            .0
-            .saturating_add(next.counts.scratch_classes.0);
-        self.counts.result_slots.0 = self
-            .counts
-            .result_slots
-            .0
-            .saturating_add(next.counts.result_slots.0);
-        Ok(())
-    }
-    pub(crate) fn refusal(&self) -> Option<crate::domain::shared_walk::types::WalkRefusal> {
-        self.refusal
-    }
-    pub(in crate::domain::shared_walk) fn refuse_representation(&mut self) {
-        self.refusal = Some(crate::domain::shared_walk::types::WalkRefusal::Representation);
-    }
-    pub(crate) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
-        self.counts
-    }
-    pub(in crate::domain::shared_walk) fn record_pass(&mut self) {
-        self.counts.passes.0 = self.counts.passes.0.saturating_add(1);
-    }
-    pub(in crate::domain::shared_walk) fn record_source_row(&mut self) {
-        self.counts.source_rows.0 = self.counts.source_rows.0.saturating_add(1);
-    }
-    pub(in crate::domain::shared_walk) fn record_predicate_test(&mut self) {
-        self.counts.predicate_tests.0 = self.counts.predicate_tests.0.saturating_add(1);
-    }
-    pub(in crate::domain::shared_walk) fn record_predicate_reuse(&mut self) {
-        self.counts.predicate_reuses.0 = self.counts.predicate_reuses.0.saturating_add(1);
-    }
-    pub(in crate::domain::shared_walk) fn record_decoded_row(&mut self) {
-        self.counts.decoded_rows.0 = self.counts.decoded_rows.0.saturating_add(1);
-    }
-    pub(in crate::domain::shared_walk) fn record_scratch_reset(&mut self) {
-        self.counts.scratch_classes.0 = self.counts.scratch_classes.0.saturating_add(1);
-    }
-    pub(crate) fn class(
-        &self,
-        place: ClassPlace,
-    ) -> Option<&crate::domain::shared_walk::types::ClassResult> {
-        self.classes.get(&place).map(|(result, _)| result.as_ref())
-    }
-    pub(crate) fn lease(
-        &self,
-        place: ClassPlace,
-    ) -> Option<(
-        std::sync::Arc<crate::domain::shared_walk::types::ClassResult>,
-        RowsVisited,
-    )> {
-        self.classes
-            .get(&place)
-            .map(|(result, visits)| (std::sync::Arc::clone(result), *visits))
-    }
-    #[cfg(test)]
-    pub(crate) fn visits(&self, place: ClassPlace) -> RowsVisited {
-        self.classes
-            .get(&place)
-            .map_or(RowsVisited::default(), |(_, visits)| *visits)
-    }
-    pub(in crate::domain::shared_walk) fn empty(class_count: ClassCount) -> Self {
-        Self {
-            class_count,
-            refusal: None,
-            classes: Default::default(),
-            counts: Default::default(),
-        }
-    }
-    pub(in crate::domain::shared_walk) fn store(
-        &mut self,
-        place: ClassPlace,
-        result: crate::domain::shared_walk::types::ClassResult,
-        visits: RowsVisited,
-    ) {
-        let _previous = self
-            .classes
-            .insert(place, (std::sync::Arc::new(result), visits));
-        self.counts.result_slots.0 = self.counts.result_slots.0.saturating_add(1);
-        self.counts.predicate_rows.0 = self.counts.predicate_rows.0.saturating_add(visits.0);
-    }
-}
-
-use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 #[cfg(test)]
 mod coverage;

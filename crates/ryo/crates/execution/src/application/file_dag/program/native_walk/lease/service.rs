@@ -5,7 +5,7 @@ use crate::application::file_dag::program::{
 use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     positions::types::ClassPlace,
-    shared_walk::types::{WalkWork, prepared_walk::value::NativeBatch},
+    shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
 };
 /// Only the live engine permit can bind these borrowed, already-admitted rows.
 pub(crate) struct PermittedWalk<'call, 'context, 'scope> {

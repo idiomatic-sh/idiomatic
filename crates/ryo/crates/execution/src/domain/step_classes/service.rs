@@ -1,6 +1,6 @@
 //! Equivalent typed source predicates and pure projections, with no IO and no ports.
 
-use super::types::{Merge, MergedStep, Rooted, StepClass};
+use super::types::{BindingsAgreement, Merge, MergedStep, Rooted, StepClass};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
@@ -44,14 +44,18 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
         _ => return None,
     };
     let (source, mut chosen, columns) = match from {
-        Input::Relation(relation) => (
-            *relation,
-            Vec::new(),
-            (0..u32::try_from(ryo_relations::domain::relations::service::columns(*relation).len())
-                .ok()?)
-                .map(ColumnIndex)
-                .collect::<Vec<_>>(),
-        ),
+        Input::Relation(relation) => {
+            let Ok(width) =
+                u32::try_from(ryo_relations::domain::relations::service::columns(*relation).len())
+            else {
+                return None;
+            };
+            (
+                *relation,
+                Vec::new(),
+                (0..width).map(ColumnIndex).collect::<Vec<_>>(),
+            )
+        }
         Input::Step(step) => {
             let under = below
                 .get(usize::try_from(step.0).unwrap_or(usize::MAX))?
@@ -96,17 +100,27 @@ fn operand_bindings_match(
     operand: &Operand,
     left: &[ParameterBinding],
     right: &[ParameterBinding],
-) -> bool {
+) -> BindingsAgreement {
     match operand {
-        Operand::Parameter(id) => usize::try_from(id.0)
-            .ok()
-            .and_then(|at| left.get(at).zip(right.get(at)))
-            .is_some_and(|(left, right)| left == right),
-        Operand::Function(applied) => applied
-            .arguments
-            .iter()
-            .all(|argument| operand_bindings_match(argument, left, right)),
-        Operand::Column(_) | Operand::Literal(_) => true,
+        Operand::Parameter(id) => {
+            let Ok(at) = usize::try_from(id.0) else {
+                return BindingsAgreement::Differ;
+            };
+            match left.get(at).zip(right.get(at)) {
+                Some((left, right)) if left == right => BindingsAgreement::Equal,
+                _ => BindingsAgreement::Differ,
+            }
+        }
+        Operand::Function(applied) => {
+            if applied.arguments.iter().all(|argument| {
+                operand_bindings_match(argument, left, right) == BindingsAgreement::Equal
+            }) {
+                BindingsAgreement::Equal
+            } else {
+                BindingsAgreement::Differ
+            }
+        }
+        Operand::Column(_) | Operand::Literal(_) => BindingsAgreement::Equal,
     }
 }
 
@@ -115,14 +129,18 @@ pub(crate) fn predicate_bindings_match(
     comparisons: &[Comparison],
     left: Option<&[ParameterBinding]>,
     right: Option<&[ParameterBinding]>,
-) -> bool {
+) -> BindingsAgreement {
     let (Some(left), Some(right)) = (left, right) else {
-        return false;
+        return BindingsAgreement::Differ;
     };
-    comparisons.iter().all(|comparison| {
-        operand_bindings_match(&comparison.left, left, right)
-            && operand_bindings_match(&comparison.right, left, right)
-    })
+    if comparisons.iter().all(|comparison| {
+        operand_bindings_match(&comparison.left, left, right) == BindingsAgreement::Equal
+            && operand_bindings_match(&comparison.right, left, right) == BindingsAgreement::Equal
+    }) {
+        BindingsAgreement::Equal
+    } else {
+        BindingsAgreement::Differ
+    }
 }
 
 /// Group selections by source relation, ordered predicates and referenced typed bindings.
@@ -160,7 +178,7 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                             &class.comparisons,
                             bindings.get(class.first.rule.0).map(Vec::as_slice),
                             bindings.get(rule).map(Vec::as_slice),
-                        )
+                        ) == BindingsAgreement::Equal
                 })
             });
             let place = if let Some(place) = same {

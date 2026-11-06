@@ -1,7 +1,11 @@
 //! Expected eligibility never reads prepared classes, routes, census or trace events.
-use super::super::super::{PreparedWalk, WalkBarrier, WalkRoute};
-use super::super::fixtures::catalog::{CompiledCorpus, compiled};
+use super::super::fixtures::catalog::{CompiledCorpus, compiled, prepare};
+use super::super::fixtures::plan;
 use super::{expected, supported_head};
+use crate::domain::shared_walk::types::{
+    prepared_walk::value::PreparedWalk,
+    walk_route::value::{WalkBarrier, WalkRoute},
+};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::executable_program::types::ExecutableProgram,
@@ -17,6 +21,7 @@ use std::collections::HashSet;
 enum Refusal {
     EligibleHeadMissing,
     IneligibleHeadShared,
+    ErroredOriginDropped,
 }
 fn verify(program: &ExecutableProgram, walk: &PreparedWalk) -> Result<(), Refusal> {
     let expected = expected(program);
@@ -62,6 +67,7 @@ enum Scenario {
     Misclassified,
     Removed,
     ProjectPhase,
+    ErroredOrigin,
 }
 type Input = Scenario;
 type Value = ();
@@ -93,8 +99,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::ProjectPhase,
         expect: Expect::Error(Refusal::IneligibleHeadShared),
     },
+    Case {
+        name: CaseName(
+            "an errored origin of a class member is refused, never dropped from sharing",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ErroredOrigin,
+        expect: Expect::Value(()),
+    },
 ];
+/// A rule step beyond its prepared operator contracts has an errored origin; retention must
+/// return that error instead of leaving the step out of its class.
+fn errored_origin_refused() -> Result<Value, Failure> {
+    let select = || Operation::Select {
+        from: Source::Relation(ALL[0]),
+        comparisons: vec![],
+        kept: vec![],
+    };
+    let one = plan(select(), StepScope::PerFile);
+    let mut two = plan(select(), StepScope::PerFile);
+    two.steps.push(ryo_values::domain::plans::types::PlanStep {
+        operation: select(),
+        scope: StepScope::PerFile,
+    });
+    let (program, mut walk) = prepare(&[one.clone(), two], &[one.clone(), one]);
+    match walk.retain_program_consumers(&program) {
+        Err(crate::domain::operating::errors::OperatingError::NotRun) => Ok(()),
+        _ => Err(Refusal::ErroredOriginDropped),
+    }
+}
 fn subject(scenario: Input) -> Result<Value, Failure> {
+    if matches!(scenario, Scenario::ErroredOrigin) {
+        return errored_origin_refused();
+    }
     let CompiledCorpus { program, mut walk } = compiled();
     let eligible = expected(&program);
     assert!(!eligible.is_empty());

@@ -8,7 +8,7 @@ use crate::{
     domain::{
         operating::{errors::OperatingError, types::OperatorContext},
         positions::types::ClassPlace,
-        shared_walk::types::{WalkWork, prepared_walk::value::NativeBatch},
+        shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
         table_model::types::Rows,
     },
 };
@@ -109,9 +109,7 @@ impl WalkPartition<'_> {
         };
         // Result leases contain no RefCell guard or provider borrow. Reentrant
         // delivery may safely advance another admitted source in this file.
-        Ok(batch
-            .lease(class)
-            .map(|(result, visits)| WalkResult { result, visits }))
+        Ok(batch.lease(class).map(|lease| WalkResult { lease }))
     }
 }
 /// Physical delivery must decline before opening any shared predicate work.
@@ -122,15 +120,14 @@ pub(super) enum WalkDelivery {
     Rows,
 }
 pub(super) struct WalkResult {
-    result: std::sync::Arc<crate::domain::shared_walk::types::ClassResult>,
-    visits: crate::domain::shared_walk::types::RowsVisited,
+    lease: crate::domain::shared_walk::types::ClassLease,
 }
 impl WalkResult {
     pub(super) fn result(&self) -> &crate::domain::shared_walk::types::ClassResult {
-        &self.result
+        &self.lease.result
     }
     pub(super) fn visits(&self) -> crate::domain::shared_walk::types::RowsVisited {
-        self.visits
+        self.lease.visits
     }
 }
 
@@ -359,7 +356,7 @@ impl FileWalk {
             .borrow()
             .values()
             .find_map(|source| source.batch.lease(class))
-            .map(|(result, visits)| WalkResult { result, visits })
+            .map(|lease| WalkResult { lease })
     }
     #[cfg(test)]
     pub(super) fn retained(&self) -> RetainedBatches {

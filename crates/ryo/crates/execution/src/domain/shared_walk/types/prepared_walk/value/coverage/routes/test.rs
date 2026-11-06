@@ -1,10 +1,12 @@
 //! Every operation variant routes as its meaning says; relabelled routes are refused.
-use super::super::super::{WalkBarrier, WalkRoute, source_barrier};
 use super::super::fixtures::{
     meaning::{Eligibility, FirstInput, Meaning, Place, Route, head_route, meaning, route},
     operations::{Corpus, compiled_operations, operations},
 };
 use super::super::heads::expected;
+use crate::domain::shared_walk::types::walk_route::value::{
+    WalkBarrier, WalkRoute, source_barrier,
+};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::executable_program::types::{InputSource, LogicalInstruction},
@@ -193,7 +195,11 @@ fn table_list(text: &str, name: &str) -> Vec<String> {
     let opening = format!("const {name}: &[&str] = &[");
     let from = text.find(&opening).expect("a declared list") + opening.len();
     let list = &text[from..from + text[from..].find("];").expect("a closed list")];
-    list.split('"').skip(1).step_by(2).map(str::to_owned).collect()
+    list.split('"')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect()
 }
 /// Every operation kind is in exactly the list its meaning names.
 fn verify_table(text: &str) -> Result<(), RouteRefusal> {

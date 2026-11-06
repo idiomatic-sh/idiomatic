@@ -3,7 +3,7 @@
 
 use super::types::{
     ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, WalkWork,
-    prepared_walk::value::{NativeBatch, PreparedWalk},
+    native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
 };
 use crate::domain::{
     comparing::service::holds_all,

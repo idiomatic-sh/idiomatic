@@ -1,6 +1,8 @@
 //! The shared walk's census as trace events.
 use crate::domain::executable_program::types::ExecutableProgram;
-use crate::domain::shared_walk::types::prepared_walk::value::{PreparedWalk, WalkRoute};
+use crate::domain::shared_walk::types::{
+    prepared_walk::value::PreparedWalk, walk_route::value::WalkRoute,
+};
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// Emits the census of the compiled walk when its diagnostic target is on.

@@ -6,7 +6,7 @@ use ryo_operators::inbound::use_cases::operators::interface::{
 pub(crate) enum KernelAnswer {
     Complete,
     Physical(OperatorAnswer),
-    Walk(crate::domain::shared_walk::types::prepared_walk::value::NativeBatch),
+    Walk(crate::domain::shared_walk::types::native_batch::value::NativeBatch),
 }
 pub(crate) enum KernelFault {
     Refused(OperatingError),

@@ -26,7 +26,7 @@ use {
     crate::domain::positions::service_test::small_tree,
     crate::domain::positions::types::ClassPlace, crate::domain::shared_walk::service::evaluate,
     crate::domain::shared_walk::types::WalkWork,
-    crate::domain::shared_walk::types::prepared_walk::value::NativeBatch,
+    crate::domain::shared_walk::types::native_batch::value::NativeBatch,
     crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
     crate::domain::table_cells::types::TreeForm, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_scratch::types::OperatorScratch,
