@@ -1,9 +1,9 @@
 {
-  "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+  "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
   "scope": "Ownership consolidation checkpoint; not full product acceptance",
   "checks": {
     "libraries": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "cargo",
         "test",
@@ -39,10 +39,10 @@
         "--test-threads=6"
       ],
       "exit": 101,
-      "elapsed_seconds": 91.83033227920532
+      "elapsed_seconds": 1.0700592994689941
     },
     "boundary": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "cargo",
         "test",
@@ -62,10 +62,10 @@
         "--test-threads=6"
       ],
       "exit": 0,
-      "elapsed_seconds": 264.00328516960144
+      "elapsed_seconds": 251.58741188049316
     },
     "tm_guards": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "tm",
         "--root",
@@ -82,10 +82,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.07335114479064941
+      "elapsed_seconds": 0.0409550666809082
     },
     "tm_source": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "tm",
         "--root",
@@ -220,10 +220,10 @@
         "json"
       ],
       "exit": 1,
-      "elapsed_seconds": 44.67408871650696
+      "elapsed_seconds": 25.015808582305908
     },
     "ownership_edges": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "ryo",
         "query",
@@ -238,10 +238,10 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 2.3259012699127197
+      "elapsed_seconds": 1.5622787475585938
     },
     "tm_import_cli": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "cargo",
         "test",
@@ -264,10 +264,10 @@
         "--exact"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.9210937023162842
+      "elapsed_seconds": 0.5283260345458984
     },
     "tm_cli_source": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "tm",
         "--root",
@@ -279,7 +279,7 @@
         "json"
       ],
       "exit": 0,
-      "elapsed_seconds": 0.4544484615325928
+      "elapsed_seconds": 0.3716893196105957
     },
     "observer_source": {
       "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
@@ -382,7 +382,7 @@
       "elapsed_seconds": 49.18089318275452
     },
     "activation_targeted": {
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc",
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
       "command": [
         "cargo",
         "test",
@@ -396,20 +396,36 @@
         "--all-features",
         "-p",
         "idiomatic-sh-ryo-execution",
-        "--lib",
         "--test",
-        "activation",
-        "--test",
-        "boundary_contract",
-        "--no-fail-fast"
+        "activation"
       ],
       "exit": 0,
-      "elapsed_seconds": 243.48124194145203
+      "elapsed_seconds": 1.1751680374145508
+    },
+    "doctest": {
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/ryo/Cargo.toml",
+        "--target-dir",
+        "/workspaces/idiomatic-benchmark-guards/target",
+        "--locked",
+        "--offline",
+        "-j6",
+        "--all-features",
+        "-p",
+        "idiomatic-sh-ryo-execution",
+        "--doc"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 1.0350227355957031
     }
   },
   "results": {
     "execution_library": {
-      "passed": 464,
+      "passed": 471,
       "failed": 0
     },
     "core_library": {
@@ -421,7 +437,7 @@
     "sdk_passed": 43,
     "other_libraries_passed": 155,
     "execution_boundary": {
-      "passed": 91,
+      "passed": 95,
       "failed": 0
     },
     "core_compiler_controls_passed": 8,
@@ -436,9 +452,9 @@
     "actual_CLI_cases_passed": 1,
     "source_TM": {
       "paths": 125,
-      "findings": 416,
+      "findings": 370,
       "suppressed": 0,
-      "source": "8144e73fa0b7ae61ab7f73632892a1dc3f3417dc"
+      "source": "31e4692274c93b84b665740b89a86d2599dc5d05"
     },
     "observer_TM": {
       "findings": 55,
@@ -449,13 +465,17 @@
       "findings": 0,
       "suppressed": 0
     },
-    "activation_cases_passed": 7
+    "activation_cases_passed": 10,
+    "doctests": {
+      "passed": 10,
+      "failed": 0
+    }
   },
   "ownership_graph": {
-    "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+    "source": "31e4692274c93b84b665740b89a86d2599dc5d05",
     "raw": "ownership_edges.log",
-    "occurrences": 5104,
-    "unique_edges": 2872,
+    "occurrences": 5325,
+    "unique_edges": 3038,
     "target_filter": [
       "/file_dag/derived/owner",
       "/program/runtime/",
@@ -477,9 +497,8 @@
         "crates/execution/src/domain/table_model/collections/representations/publication.rs"
       ],
       [
-        "crates/execution/src/domain/executable_program/column.rs",
-        "crates/execution/src/domain/executable_program/selection.rs",
-        "crates/execution/src/domain/executable_program/types.rs"
+        "crates/execution/src/domain/column_kernel/service.rs",
+        "crates/execution/src/domain/column_kernel/service/driver.rs"
       ],
       [
         "crates/execution/src/domain/tree_join/service.rs",
@@ -490,28 +509,14 @@
         "crates/execution/src/domain/operation_schema/types/traversal/value.rs"
       ],
       [
-        "crates/execution/src/domain/column_kernel/service.rs",
-        "crates/execution/src/domain/column_kernel/service/driver.rs"
+        "crates/execution/src/domain/executable_program/column.rs",
+        "crates/execution/src/domain/executable_program/selection.rs",
+        "crates/execution/src/domain/executable_program/types.rs"
       ],
       [
         "crates/execution/src/application/file_dag/derived/prepare.rs",
         "crates/execution/src/application/file_dag/derived/request.rs",
         "crates/execution/src/application/file_dag/derived/request/identity.rs"
-      ],
-      [
-        "crates/execution/src/application/file_dag/invocation.rs",
-        "crates/execution/src/application/file_dag/invocation/groups.rs",
-        "crates/execution/src/application/file_dag/invocation/index.rs"
-      ],
-      [
-        "crates/execution/src/application/file_dag/frontiers/service.rs",
-        "crates/execution/src/application/file_dag/frontiers/types.rs",
-        "crates/execution/src/application/file_dag/program/context.rs",
-        "crates/execution/src/application/file_dag/program/facade_runtime.rs",
-        "crates/execution/src/application/file_dag/program/facade_runtime/file_execution.rs",
-        "crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
-        "crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs",
-        "crates/execution/src/application/file_dag/program/restored.rs"
       ],
       [
         "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures.rs",
@@ -524,5 +529,5 @@
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": "310"
+  "validation": "311"
 }
