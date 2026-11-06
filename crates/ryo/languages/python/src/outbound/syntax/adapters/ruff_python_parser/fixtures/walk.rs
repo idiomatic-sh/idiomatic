@@ -292,8 +292,19 @@ pub(crate) fn walked(text: &str) -> Walked {
     walked_with(text, PythonVersion::latest())
 }
 
+/// Walk the reference with precisely the parser's selected Python 3 minor version.
+pub(crate) fn walked_target<const MINOR: u8>(text: &str) -> Walked {
+    walked_with(
+        text,
+        PythonVersion {
+            major: 3,
+            minor: MINOR,
+        },
+    )
+}
+
 /// Reference callback configured to the same target as the fixture parser.
-pub(crate) fn walked_with(text: &str, version: PythonVersion) -> Walked {
+fn walked_with(text: &str, version: PythonVersion) -> Walked {
     let options = ParseOptions::from(Mode::Module).with_target_version(version);
     let parsed = parse_unchecked(text, options);
     let length = Offset(u32::try_from(text.len()).unwrap_or(u32::MAX));

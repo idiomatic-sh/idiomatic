@@ -8,7 +8,7 @@ mod invalid_project;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod projects;
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 pub(crate) mod reading;
 #[cfg(not(bless))]
 mod relations;

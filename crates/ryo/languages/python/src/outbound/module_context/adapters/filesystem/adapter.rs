@@ -1,7 +1,7 @@
 //! Disk package marker observations fed to the pure module context policy.
 use crate::domain::module_context::{
     service,
-    types::{Decision, Markers, ModuleContexts, ModuleIdentity},
+    types::{ModuleDecision, Markers, ModuleContexts, ModuleIdentity},
 };
 use crate::outbound::module_context::interface::ModuleContextPort;
 use ryo::languages::{FileId, FilePath, ProjectError, ProjectRequest, Repository, ToolMessage};
@@ -11,7 +11,7 @@ use std::{
 };
 /// Filesystem-backed package context; Given requests use only their inventory.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ModuleContextFilesystem;
+pub(crate) struct ModuleContextFilesystemAdapter;
 /// Preserve a context lookup failure as an owned diagnostic.
 fn failed(reason: String) -> ProjectError {
     ProjectError::Context {
@@ -35,7 +35,7 @@ fn absolute(path: &Path) -> Result<PathBuf, ProjectError> {
     }
     Ok(normalized)
 }
-impl ModuleContextPort for ModuleContextFilesystem {
+impl ModuleContextPort for ModuleContextFilesystemAdapter {
     fn resolve(&self, request: &ProjectRequest) -> Result<ModuleContexts, ProjectError> {
         if !request.files.iter().any(|file| {
             matches!(
@@ -73,7 +73,7 @@ impl ModuleContextPort for ModuleContextFilesystem {
                 let full = absolute(&root.join(file_path))?;
                 loop {
                     match service::disk(&full, &markers) {
-                        Decision::Need(marker) => {
+                        ModuleDecision::Need(marker) => {
                             let present = match std::fs::metadata(&marker) {
                                 Ok(metadata) => metadata.is_file(),
                                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
@@ -98,14 +98,14 @@ impl ModuleContextPort for ModuleContextFilesystem {
                             ));
                             let _previous = markers.0.insert(marker, present);
                         }
-                        complete @ (Decision::Known(_) | Decision::Unknown) => break complete,
+                        complete @ (ModuleDecision::Known(_) | ModuleDecision::Unknown) => break complete,
                     }
                 }
             } else {
                 service::given(file_path, &inventory)
             };
             match decision {
-                Decision::Known(Some(module)) => {
+                ModuleDecision::Known(Some(module)) => {
                     let source = match &root {
                         Some(root) => absolute(&root.join(file_path))?,
                         None => file_path.to_path_buf(),
@@ -122,9 +122,9 @@ impl ModuleContextPort for ModuleContextFilesystem {
                         package_root_name: module.package_root_name,
                     });
                 }
-                Decision::Known(None) => {}
-                Decision::Unknown => result.partial = true,
-                Decision::Need(_) => {
+                ModuleDecision::Known(None) => {}
+                ModuleDecision::Unknown => result.partial = true,
+                ModuleDecision::Need(_) => {
                     return Err(failed("unresolved module context observation".into()));
                 }
             }

@@ -9,7 +9,7 @@ use crate::domain::relations::collections::relations::{
     semantic_syntax::item::SemanticSyntaxItem,
 };
 use crate::fixtures::reading::{proposed, reading};
-use crate::outbound::literal_expression::ruff_string_annotation::RuffStringAnnotation;
+use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation;
 use ryo::languages::contract::{Reading, Want};
 
 /// Extract the stable outcome field from each complete typed row.

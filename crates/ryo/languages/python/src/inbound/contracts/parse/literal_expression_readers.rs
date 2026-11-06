@@ -8,7 +8,7 @@ use crate::domain::{
     nodes::types::Node,
     syntax::{service::kind_bits, types::Kind},
 };
-use crate::outbound::literal_expression::ruff_string_annotation::RuffStringAnnotation;
+use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation;
 use ryo::languages;
 use std::convert::identity;
 

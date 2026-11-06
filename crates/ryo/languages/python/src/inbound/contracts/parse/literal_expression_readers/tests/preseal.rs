@@ -13,7 +13,10 @@ use crate::{
     settings::{PythonParserSettings, PythonTargetVersion},
 };
 use ryo::languages::{self, ByteSlice};
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 fn build(
     parse: &ParseContract,
     source: &[u8],
@@ -111,7 +114,8 @@ fn invalid_nested_expression_keeps_outer_success_without_guessed_inner_root() {
 fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refill() {
     let source = b"Alias = list[\"'T'\"]\n";
     let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
-    let (syntax, count) = observed_ruff_python_parser();
+    let count = Arc::new(AtomicUsize::new(0));
+    let syntax = observed_ruff_python_parser(Arc::clone(&count));
     let (mut native, mut native_symbols) = (
         languages::Elements::default(),
         languages::Symbols::default(),
@@ -194,7 +198,8 @@ fn unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
     let source = (0..512)
         .map(|i| format!("value_{i} = env_{i}[\"'runtime_key_{i}'\"]\n"))
         .collect::<String>();
-    let (syntax, count) = observed_ruff_python_parser();
+    let count = Arc::new(AtomicUsize::new(0));
+    let syntax = observed_ruff_python_parser(Arc::clone(&count));
     let parse = ParseContract::new(
         PythonParserSettings::new(PythonTargetVersion::Py310),
         Arc::new(syntax),
@@ -239,7 +244,8 @@ fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() {
 fn complete_relation_rows_do_not_depend_on_demand_order() {
     fn run(order: &[languages::Relation]) -> Vec<(languages::Relation, Vec<Vec<String>>)> {
         let source = b"Alias = list[\"'T'\"]\nvalue = env[\"ordinary_key\"]\n";
-        let (syntax, count) = observed_ruff_python_parser();
+        let count = Arc::new(AtomicUsize::new(0));
+    let syntax = observed_ruff_python_parser(Arc::clone(&count));
         let parse = ParseContract::new(
             PythonParserSettings::new(PythonTargetVersion::Py310),
             Arc::new(syntax),
