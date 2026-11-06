@@ -23,11 +23,12 @@ use crate::domain::table_scratch::types::{
     SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::{Datum, Texts};
+use ryo_matching::inbound::use_cases::matching::types::{GlobPattern, MatchOutcome, SearchText};
 use ryo_matching::inbound::use_cases::matching::{
     compiled::CompiledTextGlobs, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
 use ryo_values::domain::plan_parts::service::columns_of;
-use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
 
 /// How many verdicts about texts a worker keeps from file to file.
@@ -126,39 +127,40 @@ fn compiled_glob(
     let Datum::Text(text) = left else {
         return None;
     };
-    if let (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) =
-        (prepared, &comparison.right)
-        && let Some(ready) = prepared.glob(comparison.test, &pattern.0)
-    {
-        let matched = MatchingUseCaseImpl::new().matches_text_globs(ready, text.0);
-        return Some(if matched == (comparison.test == Test::GlobAny) {
+    let matching = MatchingUseCaseImpl::new();
+    let literal = match (prepared, &comparison.right) {
+        (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) => {
+            prepared.glob(comparison.test, &pattern.0)
+        }
+        _ => None,
+    };
+    let ready = match literal {
+        Some(ready) => ready,
+        None if !columns_of(&comparison.right).is_empty() => return None,
+        None => {
+            let key = ComparisonSlot(std::ptr::from_ref(comparison).addr());
+            &*compiled.entry(key).or_insert_with(|| match right {
+                Datum::Text(pattern) => matching.compile_text_globs(&[GlobPattern(pattern.0)]),
+                Datum::Texts(patterns) => matching.compile_text_globs(
+                    &patterns
+                        .iter()
+                        .map(|pattern| GlobPattern(pattern.0.as_ref()))
+                        .collect::<Vec<_>>(),
+                ),
+                Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => {
+                    CompiledTextGlobs::default()
+                }
+            })
+        }
+    };
+    let outcome = matching.matches_text_globs(ready, SearchText(text.0));
+    Some(
+        if (outcome == MatchOutcome::Matches) == (comparison.test == Test::GlobAny) {
             Verdict::Holds
         } else {
             Verdict::Fails
-        });
-    }
-    if !columns_of(&comparison.right).is_empty() {
-        return None;
-    }
-    let key = ComparisonSlot(std::ptr::from_ref(comparison).addr());
-    let ready = compiled.entry(key).or_insert_with(|| match right {
-        Datum::Text(pattern) => MatchingUseCaseImpl::new().compile_text_globs(&[pattern.0]),
-        Datum::Texts(patterns) => MatchingUseCaseImpl::new().compile_text_globs(
-            &patterns
-                .iter()
-                .map(|pattern| pattern.0.as_ref())
-                .collect::<Vec<_>>(),
-        ),
-        Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => {
-            CompiledTextGlobs::default()
-        }
-    });
-    let matched = MatchingUseCaseImpl::new().matches_text_globs(ready, text.0);
-    Some(if matched == (comparison.test == Test::GlobAny) {
-        Verdict::Holds
-    } else {
-        Verdict::Fails
-    })
+        },
+    )
 }
 
 /// What the verdict of a glob is kept under when it asks of one name or of one file's path something that does not depend on the

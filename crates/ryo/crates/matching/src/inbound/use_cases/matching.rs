@@ -1,7 +1,8 @@
 //! Matching contract with opaque caller-owned compiled values.
+pub mod compiled;
 pub mod errors;
 pub mod interface;
-pub mod compiled;
+pub mod types;
 pub mod use_case;
 
 #[cfg(test)]

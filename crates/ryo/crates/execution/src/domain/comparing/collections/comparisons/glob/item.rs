@@ -6,7 +6,9 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::Datum;
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase,
+    types::{GlobPattern, MatchOutcome, SearchText},
+    use_case::MatchingUseCaseImpl,
 };
 use ryo_values::domain::plan_parts::types::Test;
 
@@ -20,10 +22,14 @@ fn any(text: &Datum<'_>, globs: &Datum<'_>) -> bool {
     };
     let matching = MatchingUseCaseImpl::new();
     match globs {
-        Datum::Text(glob) => matching.matches_text_glob(glob.0, text.0),
-        Datum::Texts(globs) => globs
-            .iter()
-            .any(|glob| matching.matches_text_glob(&glob.0, text.0)),
+        Datum::Text(glob) => {
+            matching.matches_text_glob(GlobPattern(glob.0), SearchText(text.0))
+                == MatchOutcome::Matches
+        }
+        Datum::Texts(globs) => globs.iter().any(|glob| {
+            matching.matches_text_glob(GlobPattern(&glob.0), SearchText(text.0))
+                == MatchOutcome::Matches
+        }),
         Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => false,
     }
 }

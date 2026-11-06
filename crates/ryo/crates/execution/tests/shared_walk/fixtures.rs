@@ -212,10 +212,11 @@ pub(super) fn counts(file: &impl FileExecution, passes: u64, rows: u64) {
 }
 pub(super) fn regex_error(pattern: &str) -> OperatingError {
     use ryo_matching::inbound::use_cases::matching::{
-        errors::MatchingError, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+        errors::MatchingError, interface::MatchingUseCase, types::RegexSource,
+        use_case::MatchingUseCaseImpl,
     };
     let error = MatchingUseCaseImpl::new()
-        .compile_regex(pattern)
+        .compile_regex(RegexSource(pattern))
         .err()
         .expect("intentionally malformed regular expression");
     let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) = error;

@@ -5,6 +5,7 @@ use std::sync::Arc;
 use ryo_execution::inbound::use_cases::execution::types::matching::{MatchingError, MatchingPort};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError as SemanticError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
+use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
 
@@ -14,24 +15,29 @@ pub(crate) struct MatchingGlobsetAdapter;
 
 impl MatchingPort for MatchingGlobsetAdapter {
     fn compile(&self, globs: &[Glob]) -> Result<GlobsMatcher, MatchingError> {
-        let authored: Vec<&str> = globs.iter().map(|glob| glob.0.as_ref()).collect();
+        let authored: Vec<GlobPattern<'_>> = globs
+            .iter()
+            .map(|glob| GlobPattern(glob.0.as_ref()))
+            .collect();
         let compiled = MatchingUseCaseImpl::new()
             .compile_globs(&authored)
             .map_err(matching_error)?;
         Ok(GlobsMatcher {
             matches: Arc::new(move |path: MatchCandidate<'_>, hits: &mut Hits| {
+                let mut found = GlobHits(std::mem::take(&mut hits.0));
                 MatchingUseCaseImpl::new().match_globs(
                     &compiled,
                     std::path::Path::new(path.0),
-                    &mut hits.0,
+                    &mut found,
                 );
+                hits.0 = found.0;
             }),
         })
     }
 
     fn parse(&self, glob: &Glob) -> Result<(), MatchingError> {
         MatchingUseCaseImpl::new()
-            .parse_glob(&glob.0)
+            .parse_glob(GlobPattern(&glob.0))
             .map_err(matching_error)
     }
 }

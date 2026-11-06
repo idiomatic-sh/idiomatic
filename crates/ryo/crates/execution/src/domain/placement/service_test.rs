@@ -4,6 +4,7 @@ use super::service::{decide, governs, place};
 use super::types::{Governing, Mask, PlacedScopes, RuleScope};
 use ryo_language::domain::files::types::FilePath;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
@@ -111,16 +112,22 @@ fn refuses() {
 fn compiled_globs(
     globs: &[Glob],
 ) -> Result<ryo_values::domain::files::types::GlobsMatcher, MatchingError> {
-    let compiled = MatchingUseCaseImpl::new()
-        .compile_globs(&globs.iter().map(|glob| glob.0.as_ref()).collect::<Vec<_>>())?;
+    let compiled = MatchingUseCaseImpl::new().compile_globs(
+        &globs
+            .iter()
+            .map(|glob| GlobPattern(glob.0.as_ref()))
+            .collect::<Vec<_>>(),
+    )?;
     Ok(ryo_values::domain::files::types::GlobsMatcher {
         matches: std::sync::Arc::new(
             move |path: ryo_values::domain::files::types::MatchCandidate<'_>, hits: &mut Hits| {
+                let mut found = GlobHits(std::mem::take(&mut hits.0));
                 MatchingUseCaseImpl::new().match_globs(
                     &compiled,
                     std::path::Path::new(path.0),
-                    &mut hits.0,
+                    &mut found,
                 );
+                hits.0 = found.0;
             },
         ),
     })

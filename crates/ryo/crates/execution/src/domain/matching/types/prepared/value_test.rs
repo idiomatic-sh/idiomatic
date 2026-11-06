@@ -8,14 +8,16 @@ use crate::domain::{
     table_texts::types::{Datum, TextView},
 };
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase,
+    types::{MatchOutcome, SearchText},
+    use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, PlanComparison, Input as Source, LiteralText, Operand, QueryLiteral, Test,
+            ColumnIndex, Input as Source, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
             WholeNumber,
         },
         plans::types::Operation,
@@ -65,13 +67,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(slots.builds.load(Ordering::Relaxed), 0);
             for _file in 0..3 {
                 let regex = slots.regex(r"\s+").unwrap()?;
-                assert!(MatchingUseCaseImpl::new().matches_regex(regex, "é\u{2003}雪"));
+                assert_eq!(
+                    MatchingUseCaseImpl::new().matches_regex(regex, SearchText("é\u{2003}雪")),
+                    MatchOutcome::Matches
+                );
                 assert!(std::ptr::eq(regex, slots.regex(r"\s+").unwrap()?));
-                assert!(
+                assert_eq!(
                     MatchingUseCaseImpl::new().matches_text_globs(
                         slots.glob(Test::GlobAny, "*.rs").unwrap(),
-                        "src/lib.rs"
-                    )
+                        SearchText("src/lib.rs")
+                    ),
+                    MatchOutcome::Matches
                 );
             }
             assert_eq!(
@@ -121,10 +127,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     !std::ptr::eq(positive, negative),
                     "polarity retains a separate finite slot"
                 );
-                assert!(MatchingUseCaseImpl::new().matches_text_globs(positive, "αβ"));
-                assert!(
-                    MatchingUseCaseImpl::new()
-                        .matches_text_globs(slots.glob(Test::GlobAny, "α?").unwrap(), "αβ")
+                assert_eq!(
+                    MatchingUseCaseImpl::new().matches_text_globs(positive, SearchText("αβ")),
+                    MatchOutcome::Matches
+                );
+                assert_eq!(
+                    MatchingUseCaseImpl::new().matches_text_globs(
+                        slots.glob(Test::GlobAny, "α?").unwrap(),
+                        SearchText("αβ")
+                    ),
+                    MatchOutcome::Matches
                 );
             }
             assert_eq!(
@@ -191,7 +203,8 @@ fn concurrent_literal_users_initialize_one_slot() {
             .map(|_| {
                 scope.spawn(move || {
                     MatchingUseCaseImpl::new()
-                        .matches_regex(slots.regex("α+").unwrap().unwrap(), "αα")
+                        .matches_regex(slots.regex("α+").unwrap().unwrap(), SearchText("αα"))
+                        == MatchOutcome::Matches
                 })
             })
             .collect();

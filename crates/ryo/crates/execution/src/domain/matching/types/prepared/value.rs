@@ -6,6 +6,7 @@ use ryo_matching::inbound::use_cases::matching::{
     compiled::{CompiledRegex, CompiledTextGlobs},
     errors::MatchingError,
     interface::MatchingUseCase,
+    types::{GlobPattern, RegexSource as AuthoredRegex},
     use_case::MatchingUseCaseImpl,
 };
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
@@ -110,7 +111,7 @@ impl PreparedMatchers {
             let _previous = self
                 .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            MatchingUseCaseImpl::new().compile_text_globs(&[pattern])
+            MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(pattern)])
         }))
     }
 }
@@ -118,7 +119,7 @@ impl PreparedMatchers {
 /// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
 pub(crate) fn compile_regex(pattern: &str) -> Result<CompiledRegex, OperatingError> {
     MatchingUseCaseImpl::new()
-        .compile_regex(pattern)
+        .compile_regex(AuthoredRegex(pattern))
         .map_err(|error| {
             let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) =
                 error;
