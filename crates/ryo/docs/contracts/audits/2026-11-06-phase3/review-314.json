@@ -73,7 +73,7 @@
  ],
  "dispositions": [],
  "manual_judgment": [
-  "a_held_lease_stays_readable... uses test-only lease_any; the KernelPermit path of a real nested demand is not exercised (ryo-74uu).",
+  "a_held_lease_stays_readable... uses test-only lease_any; the KernelPermit path of a real nested demand is not exercised.",
   "Row 76 cannot close until the owner decides ryo-vuzf."
  ]
 }

@@ -1,6 +1,6 @@
 # Relations and shared framework audit — frozen 076c
 
-**Category: INCOMPLETE.** Source inventory is 65 catalog members (56 syntax-provenance, 6 manifest-provenance, 3 engine-provenance), all 650 provider answers, plus hosted rows outside the catalog. Source: commit `076c3ab459ba192822c0f731e3613f95bd6986af`, tree `19e3e7500d5170b79ea84bb1d8ac48488b85f489`, clean `/tmp/ryo-audit-076c-20261103`. No builds, behavior tests or new production changes were made for this audit. Existing test source is evidence of intended coverage, not a fresh passed run.
+**Category: INCOMPLETE.** Source inventory is 65 catalog members (56 syntax-provenance, 6 manifest-provenance, 3 engine-provenance), all 650 provider answers, plus hosted rows outside the catalog. Source: commit `076c3ab459ba192822c0f731e3613f95bd6986af`, tree `19e3e7500d5170b79ea84bb1d8ac48488b85f489`, clean checkout. No builds, behavior tests or new production changes were made for this audit. Existing test source is evidence of intended coverage, not a fresh passed run.
 
 `members.json` is the complete member/provider map: every cell contains the exact method/file/line and blob digest, reader or typed absence, optional promise and effective gate result. It distinguishes declared semantic N/A from an unadvertised capability that actually returns NotYetRead. The extraction is an audit aid, not a new structural checker or completion gate.
 
