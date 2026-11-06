@@ -57,7 +57,11 @@ fn plan(operation: Operation, scope: StepScope) -> Plan {
         frontier: vec![],
     }
 }
-pub(super) fn compiled() -> (ExecutableProgram, super::super::PreparedWalk) {
+pub(super) struct CompiledCorpus {
+    pub(super) program: ExecutableProgram,
+    pub(super) walk: super::super::PreparedWalk,
+}
+pub(super) fn compiled() -> CompiledCorpus {
     let mut plans = Vec::new();
     for &relation in ALL {
         let source = Input::Relation(relation);
@@ -186,5 +190,5 @@ pub(super) fn compiled() -> (ExecutableProgram, super::super::PreparedWalk) {
     .unwrap();
     let mut walk = super::super::PreparedWalk::compile(&plans, &bindings);
     walk.retain_program_consumers(&program, &bindings).unwrap();
-    (program, walk)
+    CompiledCorpus { program, walk }
 }

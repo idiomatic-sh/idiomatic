@@ -2,17 +2,17 @@
 use super::super::{PreparedWalk, WalkBarrier, WalkRoute};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
-    domain::executable_program::types::{ExecutableProgram, Instruction},
+    domain::executable_program::types::{ExecutableProgram, Instruction, LogicalInstruction},
 };
 use ryo_relations::domain::relations::{
     service::{ALL, columns},
-    types::Relation,
+    types::{Column, Relation},
 };
 use ryo_values::domain::{
     plan_parts::types::{Input as Source, Operand, RepeatedRows},
     plans::types::{Operation, StepScope},
 };
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 
 // Every catalog relation has a typed borrowed-row representation. Source loading
 // and demand availability are runtime obligations, not static head eligibility.
@@ -30,32 +30,34 @@ fn supported_head(instruction: &Instruction) -> Option<Relation> {
         } => (*source, columns, &[][..]),
         _ => return None,
     };
-    let width = columns(source).len();
-    fn valid(operand: &Operand, width: usize) -> bool {
+    let source_columns = columns(source);
+    let width = source_columns.len();
+    fn valid(operand: &Operand, columns: &[Column]) -> Option<()> {
         match operand {
-            Operand::Column(column) => (column.0 as usize) < width,
+            Operand::Column(column) => columns.get(column.0 as usize).map(|_| ()),
             Operand::Function(function) => function
                 .arguments
                 .iter()
-                .all(|argument| valid(argument, width)),
-            Operand::Parameter(_) | Operand::Literal(_) => true,
+                .try_for_each(|argument| valid(argument, columns)),
+            Operand::Parameter(_) | Operand::Literal(_) => Some(()),
         }
     }
     (ALL.contains(&source)
         && projected.iter().all(|column| (column.0 as usize) < width)
-        && predicates
-            .iter()
-            .all(|predicate| valid(&predicate.left, width) && valid(&predicate.right, width)))
+        && predicates.iter().all(|predicate| {
+            valid(&predicate.left, &source_columns).is_some()
+                && valid(&predicate.right, &source_columns).is_some()
+        }))
     .then_some(source)
 }
-fn expected(program: &ExecutableProgram) -> BTreeSet<usize> {
+fn expected(program: &ExecutableProgram) -> HashSet<LogicalInstruction> {
     program
         .regions()
         .iter()
         .filter(|region| region.phase == StepScope::PerFile)
         .filter_map(|region| region.instructions.first())
         .filter(|instruction| supported_head(instruction).is_some())
-        .map(|instruction| instruction.logical.0)
+        .map(|instruction| instruction.logical)
         .collect()
 }
 #[derive(Debug, PartialEq)]
@@ -70,8 +72,8 @@ fn verify(program: &ExecutableProgram, walk: &PreparedWalk) -> Result<(), Refusa
         .iter()
         .flat_map(|region| &region.instructions)
         .filter(|instruction| walk.class_for(instruction).is_some())
-        .map(|instruction| instruction.logical.0)
-        .collect::<BTreeSet<_>>();
+        .map(|instruction| instruction.logical)
+        .collect::<HashSet<_>>();
     if !expected.is_subset(&actual) {
         return Err(Refusal::EligibleHeadMissing);
     }
@@ -140,7 +142,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let (program, mut walk) = super::fixtures::compiled();
+    let super::fixtures::CompiledCorpus { program, mut walk } = super::fixtures::compiled();
     let eligible = expected(&program);
     assert!(!eligible.is_empty());
     for relation in ALL {
@@ -192,13 +194,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ))
     );
     verify(&program, &walk).unwrap();
-    let logical = *eligible.first().unwrap();
+    let logical = *eligible.iter().next().unwrap();
     match scenario {
         Scenario::Catalog => {}
         Scenario::Misclassified => {
-            walk.physical[logical] = Some(WalkRoute::Barrier(WalkBarrier::Representation))
+            walk.physical[logical.0] = Some(WalkRoute::Barrier(WalkBarrier::Representation))
         }
-        Scenario::Removed => walk.physical[logical] = None,
+        Scenario::Removed => walk.physical[logical.0] = None,
         Scenario::ProjectPhase => {
             let project = program
                 .regions()
@@ -208,7 +210,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .instructions
                 .first()
                 .unwrap();
-            walk.physical[project.logical.0] = walk.physical[logical];
+            walk.physical[project.logical.0] = walk.physical[logical.0];
         }
     }
     internally_consistent(&walk);
