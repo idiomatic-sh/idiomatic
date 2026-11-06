@@ -7,7 +7,7 @@ use super::holding::service::held;
 use super::placing::service::{operator_of, returning};
 use super::types::{Field, Returning};
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{kind, parent};
+use crate::domain::syntax::service::{kind, kind_bits, kind_name, kinds, parent};
 use crate::domain::syntax::types::Kind;
 use ryo::languages::{self, Position, Tree};
 use strum::IntoEnumIterator as _;
@@ -67,4 +67,20 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
 #[must_use]
 pub(crate) fn role_of(tree: &Tree<'_>, at: Position) -> languages::FieldId {
     field_bits(field_of(tree, at))
+}
+
+/// Gives the completion the names of the language's kinds, and, when the run wants them, of its roles and the role of every element.
+pub(crate) fn name_vocabulary(
+    completion: &mut languages::Completion<'_>,
+    wanted: languages::FieldRequest,
+) {
+    for kind in kinds() {
+        languages::name_kind(completion, kind_bits(kind), kind_name(kind));
+    }
+    if wanted == languages::FieldRequest::Wanted {
+        for field in fields() {
+            languages::name_field(completion, field_bits(field), field_name(field));
+        }
+        languages::write_fields(completion, role_of);
+    }
 }

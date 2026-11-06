@@ -7,14 +7,30 @@ use std::sync::Arc;
 use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
 
 use crate::domain::fact_notes::service::noted;
-use crate::domain::fields::service::{field_bits, field_name, fields, role_of};
-use crate::domain::language::service::{goal, reads};
+use crate::domain::fields::service::name_vocabulary;
+use crate::domain::language::service::{reading_of, reads, recognized};
+use crate::domain::relations::collections::relations::assigns::item::AssignsItem;
+use crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
+use crate::domain::relations::collections::relations::comment::item::CommentItem;
+use crate::domain::relations::collections::relations::defines::item::DefinesItem;
+use crate::domain::relations::collections::relations::directive::item::DirectiveItem;
+use crate::domain::relations::collections::relations::function::item::FunctionItem;
+use crate::domain::relations::collections::relations::inherits::item::InheritsItem;
+use crate::domain::relations::collections::relations::parameter::item::ParameterItem;
+use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+use crate::domain::relations::collections::relations::scope::item::ScopeItem;
+use crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
+use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
+use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
+use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
+use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::relations::collections::relations::visibility::item::VisibilityItem;
 use crate::domain::syntax::constants::NO_CONFIGURATION;
-use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
-use crate::domain::syntax::types::Goal;
+use crate::domain::syntax::service::{kind_name, kinds};
+use crate::domain::syntax::types::{Goal, Scripting, Stretch, Written};
 use crate::outbound::embedded::interface::EmbeddedPort;
-use crate::outbound::embedded::types::{Blocks, Dialect, Markup};
+use crate::outbound::embedded::types::{Dialect, Markup};
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
@@ -45,14 +61,29 @@ impl ParseContract {
     }
 
     /// The blocks of javascript a file of another format carries, when an embedded adapter claims the file.
-    fn blocks_of<'a>(&self, request: &languages::ParseRequest<'a>) -> Option<Blocks<'a>> {
+    fn stretches<'a>(&self, request: &languages::ParseRequest<'a>) -> Option<Vec<Stretch<'a>>> {
         let adapter = self
             .embedded
             .iter()
             .find(|adapter| adapter.claims(request.path) == languages::Recognition::Reads)?;
-        Some(adapter.blocks(Markup(
+        let blocks = adapter.blocks(Markup(
             std::str::from_utf8(request.bytes.0).unwrap_or_default(),
-        )))
+        ));
+        Some(
+            blocks
+                .0
+                .iter()
+                .map(|block| Stretch {
+                    start: languages::Count(block.start.0),
+                    text: languages::ByteSlice(block.text.0.as_bytes()),
+                    written: if block.dialect == Dialect::Script {
+                        Written::Script
+                    } else {
+                        Written::Typed
+                    },
+                })
+                .collect(),
+        )
     }
 }
 
@@ -74,21 +105,8 @@ impl Parse for ParseContract {
     }
 
     fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
-        if reads(request.path) == languages::Recognition::Reads {
-            return languages::Recognition::Reads;
-        }
         // The two languages share the files that carry blocks: this one reads a file none of whose blocks is typed, the typed language the rest.
-        match self.blocks_of(request) {
-            Some(blocks)
-                if blocks
-                    .0
-                    .iter()
-                    .all(|block| block.dialect == Dialect::Script) =>
-            {
-                languages::Recognition::Reads
-            }
-            Some(_) | None => languages::Recognition::Declines,
-        }
+        recognized(reads(request.path), self.stretches(request).as_deref())
     }
 
     fn skips(&self) -> &'static [languages::SkippedDirectory] {
@@ -108,37 +126,14 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
-        let Some(blocks) = self
-            .blocks_of(request)
-            .filter(|_| reads(request.path) == languages::Recognition::Declines)
-        else {
-            self.syntax
-                .read(SourceText(request.bytes.0), goal(request.path), builder);
-            return Ok(());
-        };
-        // Everything outside the blocks reads as white space, line ends kept, so every offset and line of the tree is the file's and a
-        // line comment ends at its own line, not at the next block.
-        let mut script: Vec<u8> = request
-            .bytes
-            .0
-            .iter()
-            .map(|byte| {
-                if matches!(byte, b'\n' | b'\r') {
-                    *byte
-                } else {
-                    b' '
-                }
-            })
-            .collect();
-        for block in &blocks.0 {
-            // A block is a stretch of these same bytes, so its place is always inside the script.
-            if let Some(place) = script.get_mut(block.start.0..block.start.0 + block.text.0.len()) {
-                place.copy_from_slice(block.text.0.as_bytes());
+        let bytes = languages::ByteSlice(request.bytes.0);
+        match reading_of(request.path, bytes, self.stretches(request).as_deref()) {
+            Scripting::Own(goal) => self.syntax.read(SourceText(bytes.0), goal, builder),
+            Scripting::Script(script) => {
+                self.syntax
+                    .read(SourceText(&script.0), Goal::Detected, builder)
             }
         }
-        // The blocks, in place, are javascript with JSX, read as a `.js` file is.
-        self.syntax
-            .read(SourceText(&script), Goal::Detected, builder);
         Ok(())
     }
 
@@ -147,19 +142,9 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         completion: &mut languages::Completion<'_>,
     ) {
-        for kind in kinds() {
-            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
-        }
-        if request.fields == languages::FieldRequest::Wanted {
-            for field in fields() {
-                languages::name_field(completion, field_bits(field), field_name(field));
-            }
-            languages::write_fields(completion, role_of);
-        }
+        name_vocabulary(completion, request.fields);
         if request.notes == languages::NoteRequest::Wanted {
-            languages::write_notes(completion, |tree, out| {
-                self.notes.write(&noted(tree), out);
-            });
+            languages::write_notes(completion, |tree, out| self.notes.write(&noted(tree), out));
         }
     }
 
@@ -179,19 +164,15 @@ impl Parse for ParseContract {
     }
 
     fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::comment::item::CommentItem,
-        >()
+        languages::reads::<CommentItem>()
     }
 
     fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::directive::item::DirectiveItem,
-        >()
+        languages::reads::<DirectiveItem>()
     }
 
     fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
-        languages::reads::<crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem>()
+        languages::reads::<StringLiteralItem>()
     }
 
     fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
@@ -200,15 +181,11 @@ impl Parse for ParseContract {
     }
 
     fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem,
-        >()
+        languages::reads::<SyntaxChildItem>()
     }
 
     fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem,
-        >()
+        languages::reads::<SyntaxErrorItem>()
     }
 
     fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
@@ -227,9 +204,7 @@ impl Parse for ParseContract {
     }
 
     fn function(&self) -> Support<Reader<languages::Function, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::function::item::FunctionItem,
-        >()
+        languages::reads::<FunctionItem>()
     }
 
     fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
@@ -238,9 +213,7 @@ impl Parse for ParseContract {
     }
 
     fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::assigns::item::AssignsItem,
-        >()
+        languages::reads::<AssignsItem>()
     }
 
     fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
@@ -249,21 +222,15 @@ impl Parse for ParseContract {
     }
 
     fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::defines::item::DefinesItem,
-        >()
+        languages::reads::<DefinesItem>()
     }
 
     fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::visibility::item::VisibilityItem,
-        >()
+        languages::reads::<VisibilityItem>()
     }
 
     fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::inherits::item::InheritsItem,
-        >()
+        languages::reads::<InheritsItem>()
     }
 
     fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
@@ -272,32 +239,23 @@ impl Parse for ParseContract {
     }
 
     fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::parameter::item::ParameterItem,
-        >()
+        languages::reads::<ParameterItem>()
     }
 
     fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::reference::item::ReferenceItem,
-        >()
+        languages::reads::<ReferenceItem>()
     }
 
     fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
-        languages::reads::<crate::domain::relations::collections::relations::scope::item::ScopeItem>(
-        )
+        languages::reads::<ScopeItem>()
     }
 
     fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::static_call::item::StaticCallItem,
-        >()
+        languages::reads::<StaticCallItem>()
     }
 
     fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem,
-        >()
+        languages::reads::<CallArgumentItem>()
     }
 
     fn embedded_expression(
@@ -315,7 +273,6 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
-        // Parsed expression identity is not yet implemented by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -358,12 +315,10 @@ impl Parse for ParseContract {
     }
 
     fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        // This provider does not yet implement this optional semantic relation.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        // This provider does not yet implement this optional semantic relation.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -401,32 +356,26 @@ impl Parse for ParseContract {
     }
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        // This optional provider catalog is not yet implemented or advertised here.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
-        // Canonical identifier spelling is not yet exposed by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -441,9 +390,7 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::reads::<
-            crate::domain::relations::collections::relations::static_import::item::StaticImportItem,
-        >()
+        languages::reads::<StaticImportItem>()
     }
 
     fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
