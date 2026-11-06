@@ -11,6 +11,7 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::relations::RelationOwner;
+use crate::domain::executable_program::types::RouteKind;
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::executable_program::types::Instruction;
 use crate::domain::executable_program::types::Region;
@@ -55,7 +56,7 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
         InvocationFailure,
     >;
     fn selected(
@@ -65,7 +66,7 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
         InvocationFailure,
     >;
     fn column(
@@ -228,13 +229,6 @@ struct Invocation<'a> {
     prepare_only: PollMode,
 }
 #[derive(Clone, Copy)]
-enum KernelStrategy {
-    Registered,
-    Positions,
-    Ordered,
-    Column,
-}
-#[derive(Clone, Copy)]
 enum BoundInputs<'a> {
     Ordinary(&'a [AdmittedInput]),
     Ordered(&'a AdmittedInput),
@@ -252,7 +246,7 @@ pub(crate) struct KernelPermit<'scope> {
     live:
         &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     bindings: BoundInputs<'scope>,
-    strategy: KernelStrategy,
+    strategy: RouteKind,
     owner: &'scope RelationOwner,
 }
 
@@ -264,7 +258,7 @@ pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
     instruction: InstructionIndex,
     live:
         &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
-    strategy: KernelStrategy,
+    strategy: RouteKind,
 }
 
 /// The request and its validated authority cannot be separated or rewritten.

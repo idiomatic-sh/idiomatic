@@ -9,10 +9,7 @@ use crate::domain::{
     file_program::types::{NodeId, RequestGraph},
 };
 use ryo_derived::domain::contract::types::DerivedKind;
-use ryo_values::domain::{
-    plan_parts::types::{Input, StepId},
-    plans::types::Operation,
-};
+use ryo_values::domain::plan_parts::types::StepId;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -81,7 +78,7 @@ impl ColumnCandidates {
     pub(crate) fn capture(graph: &RequestGraph) -> Self {
         let mut candidates = Vec::new();
         for (at, node) in graph.nodes.iter().enumerate() {
-            for physical in &node.regions {
+            for physical in &node.analysis {
                 let Some(chain) = &physical.column else {
                     continue;
                 };
@@ -92,44 +89,10 @@ impl ColumnCandidates {
                 if target != NodeId(at) {
                     continue;
                 }
-                let plan = physical.plan.as_ref();
-                let Some(Operation::Project {
-                    from: Input::Step(filter_step),
-                    ..
-                }) = plan
-                    .steps
-                    .get(physical.step.0 as usize)
-                    .map(|step| &step.operation)
-                else {
-                    continue;
-                };
-                let Some(Operation::Select {
-                    from: Input::Step(join_step),
-                    ..
-                }) = plan
-                    .steps
-                    .get(filter_step.0 as usize)
-                    .map(|step| &step.operation)
-                else {
-                    continue;
-                };
-                let Some(Operation::Join {
-                    left: Input::Step(left_step),
-                    ..
-                }) = plan
-                    .steps
-                    .get(join_step.0 as usize)
-                    .map(|step| &step.operation)
-                else {
-                    continue;
-                };
-                if left_step.0 as usize != chain.left_step {
-                    continue;
-                }
                 let (Some(filter), Some(join), Some(left)) = (
-                    original(graph, rule, *filter_step),
-                    original(graph, rule, *join_step),
-                    original(graph, rule, *left_step),
+                    original(graph, rule, chain.filter_step),
+                    original(graph, rule, chain.join_step),
+                    original(graph, rule, StepId(chain.left_step as u32)),
                 ) else {
                     continue;
                 };

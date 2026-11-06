@@ -1,5 +1,6 @@
 //! Semantic permits and the physical request that carries its validated authority.
-use super::super::{KernelStrategy, PermittedPhysical, SemanticPermit};
+use super::super::{PermittedPhysical, SemanticPermit};
+use crate::domain::executable_program::types::RouteKind;
 use crate::domain::operating::errors::OperatingError;
 
 impl<'scope> SemanticPermit<'scope> {
@@ -25,23 +26,17 @@ impl<'scope> SemanticPermit<'scope> {
         self.validate_live()?;
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
         let route = match self.strategy {
-            KernelStrategy::Registered => PhysicalRoute::Registered,
-            KernelStrategy::Positions => PhysicalRoute::Positions(
-                self.program.regions()[self.region.0]
-                    .native_positions
-                    .as_ref()
+            RouteKind::Generic => PhysicalRoute::Registered,
+            RouteKind::NativePositions => PhysicalRoute::Positions(
+                crate::domain::executable_program::service::native_positions(&self.program.regions()[self.region.0].route)
                     .ok_or(OperatingError::WrongOperation)?,
             ),
-            KernelStrategy::Ordered => PhysicalRoute::Ordered(
-                self.program.regions()[self.region.0]
-                    .ordered_existence
-                    .as_ref()
+            RouteKind::OrderedExistence => PhysicalRoute::Ordered(
+                crate::domain::executable_program::service::ordered_existence(&self.program.regions()[self.region.0].route)
                     .ok_or(OperatingError::WrongOperation)?,
             ),
-            KernelStrategy::Column => PhysicalRoute::Column(
-                self.program.regions()[self.region.0]
-                    .column
-                    .as_ref()
+            RouteKind::Column => PhysicalRoute::Column(
+                crate::domain::executable_program::service::column(&self.program.regions()[self.region.0].route)
                     .ok_or(OperatingError::WrongOperation)?,
             ),
         };

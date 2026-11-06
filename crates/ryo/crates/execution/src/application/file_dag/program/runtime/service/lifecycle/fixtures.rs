@@ -86,7 +86,7 @@ impl KernelInvocation for RuntimeProbe {
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
         InvocationFailure,
     > {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
@@ -98,7 +98,7 @@ impl KernelInvocation for RuntimeProbe {
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
     ) -> Result<
-        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
         InvocationFailure,
     > {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))

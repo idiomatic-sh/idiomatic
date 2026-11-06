@@ -31,9 +31,7 @@ fn tail_selection(program: &Program, rule: RuleIndex) -> Selection {
         .unwrap()
         .logical;
     let region = program.prepared.program().logical_regions()[tail.0];
-    if program.prepared.program().regions()[region.0]
-        .selection
-        .is_some()
+    if crate::domain::executable_program::service::selection(&program.prepared.program().regions()[region.0].route).is_some()
     {
         Selection::Offered
     } else {
@@ -63,9 +61,7 @@ fn a_distinct_project_region_gets_a_selection_alternative() {
     let program = program(Authored::distinct(), Population::Three).program;
     let root = *program.prepared.program().rules()[0].emit.as_ref().unwrap();
     assert!(
-        program.prepared.program().regions()[root.0]
-            .selection
-            .is_some()
+        crate::domain::executable_program::service::selection(&program.prepared.program().regions()[root.0].route).is_some()
     );
 }
 

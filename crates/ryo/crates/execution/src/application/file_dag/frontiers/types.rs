@@ -132,9 +132,36 @@ pub(crate) enum FrontierInput {
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
         coverage: crate::domain::completion::types::CoverageState,
     },
+    /// Read from the store and proven, not yet decoded: the first demand admits it.
+    Packed(PackedFrontier),
+}
+
+/// The proven words of one stored frontier, decoded by `PreparedFrontiers::admit`.
+#[derive(Clone)]
+pub(crate) struct PackedFrontier {
+    pub input: ryo_values::domain::plan_parts::types::Input,
+    pub words: std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>,
+    pub mode: ryo_values::domain::table_words::types::DecodeMode,
+    pub coverage: crate::domain::completion::types::CoverageState,
 }
 
 impl PreparedFrontiers {
+    /// The first demand of the frontiers: decode what preparation left packed, in place. A
+    /// failed decode becomes the typed refusal the first demand of that source returns.
+    pub(in crate::application::file_dag) fn admit(
+        &mut self,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) {
+        for row in std::mem::take(&mut self.rows) {
+            match row {
+                FrontierInput::Packed(packed) => match super::service::admit(packed, symbols) {
+                    Ok(admitted) => self.rows.push(admitted),
+                    Err(refused) => self.refused.push(refused),
+                },
+                admitted => self.rows.push(admitted),
+            }
+        }
+    }
     pub(in crate::application::file_dag) fn validate_scope(
         &self,
         program: &std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,

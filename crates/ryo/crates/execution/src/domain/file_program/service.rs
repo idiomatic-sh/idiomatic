@@ -13,7 +13,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 struct CanonicalNode {
-    regions: Vec<super::types::PhysicalRegion>,
+    analysis: Vec<super::types::StepAnalysis>,
     needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
@@ -107,7 +107,7 @@ fn canonical(
     Some((normalized, edges))
 }
 
-fn materialized_steps(plan: &Plan) -> Vec<bool> {
+pub(crate) fn materialized_steps(plan: &Plan) -> Vec<bool> {
     let mut readers = vec![0usize; plan.steps.len()];
     for step in &plan.steps {
         if step.scope != StepScope::PerFile {
@@ -202,18 +202,17 @@ pub(crate) fn compile_prepared_observations(
     for (rule, plan) in plans.iter().enumerate() {
         let kept = materialized_steps(plan);
         let needs = crate::domain::trust::service::needs_of_contracts(plan, &operators.rules[rule]);
-        let physical_plan = Arc::new(plan.clone());
+        // The one analysis of the rule: the lowering is made once and the column chains are
+        // compiled over it. Nothing of it outlives the loop but the shapes found per step.
         let layout = operators.rules[rule]
             .iter()
             .map(|contract| contract.output_kinds.clone())
             .collect::<Result<Vec<_>, _>>()
             .ok()
-            .map(|kinds| {
-                Arc::new(crate::domain::operator::types::PlanLayout {
-                    kept: crate::domain::operator::types::KeptSteps(kept.clone()),
-                    kinds,
-                    lowering: crate::domain::lowering::service::lower(plan),
-                })
+            .map(|kinds| crate::domain::operator::types::PlanLayout {
+                kept: crate::domain::operator::types::KeptSteps(kept.clone()),
+                kinds,
+                lowering: crate::domain::lowering::service::lower(plan),
             });
         let columns = layout
             .as_ref()
@@ -236,18 +235,17 @@ pub(crate) fn compile_prepared_observations(
                             .and_then(|columns| columns.0.get(index))
                             .cloned()
                             .flatten();
-                        let native = layout
-                            .lowering
-                            .shapes
-                            .get(index)
-                            .is_some_and(Option::is_some)
-                            || layout.lowering.counting.get(index)
-                                == Some(&crate::domain::lowering::types::Counting::Counts);
-                        (native || column.is_some()).then(|| super::types::PhysicalRegion {
-                            plan: Arc::clone(&physical_plan),
-                            layout: Arc::clone(layout),
+                        // A step that only counts the rows of a lowered step makes no positions.
+                        let native = (step.scope == StepScope::PerFile
+                            && layout.lowering.counting.get(index)
+                                == Some(&crate::domain::lowering::types::Counting::DoesNotCount))
+                        .then(|| layout.lowering.shapes.get(index).and_then(Option::as_ref))
+                        .flatten()
+                        .map(|shape| Arc::new(shape.clone()));
+                        (native.is_some() || column.is_some()).then(|| super::types::StepAnalysis {
                             rule,
                             step: StepId(index as u32),
+                            native,
                             column,
                         })
                     });
@@ -265,7 +263,7 @@ pub(crate) fn compile_prepared_observations(
                         })
                     }) {
                         if let Some(region) = region {
-                            nodes[found.0].regions.push(region);
+                            nodes[found.0].analysis.push(region);
                         }
                         return Some(found);
                     }
@@ -277,7 +275,7 @@ pub(crate) fn compile_prepared_observations(
                         });
                     let id = NodeId(nodes.len());
                     nodes.push(CanonicalNode {
-                        regions: region.into_iter().collect(),
+                        analysis: region.into_iter().collect(),
                         needs: needs.as_ref().map_err(Clone::clone).and_then(|needs| {
                             needs
                                 .get(index)
@@ -479,7 +477,7 @@ pub(crate) fn compile_prepared_observations(
         nodes: nodes
             .into_iter()
             .map(|node| FileProgramNode {
-                regions: node.regions,
+                analysis: node.analysis,
                 needs: node.needs,
                 phase: node.phase,
                 contract: node.contract,

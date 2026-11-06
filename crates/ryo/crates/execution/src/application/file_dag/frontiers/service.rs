@@ -1,7 +1,7 @@
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
-use super::types::{FrontierInput, FrontierSource, PreparedFrontiers};
+use super::types::{FrontierInput, FrontierSource, PackedFrontier, PreparedFrontiers};
 use crate::outbound::facts::{
     errors::FactsError,
     interface::{FactsFinish, FactsWorker},
@@ -124,51 +124,14 @@ pub(crate) fn prepare(
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
             PreparationPolicy::Observations { .. } => DecodeMode::Complete,
         };
-        if matches!(input, Input::Step(_)) {
-            match admit_compact(std::sync::Arc::new(words.words), places_mut(symbols), mode) {
-                Ok((table, spelling)) => admitted.push(FrontierInput::Compact {
-                    input,
-                    table: std::sync::Arc::new(table),
-                    spelling,
-                    coverage,
-                }),
-                Err(error) => refused.push(RefusedFrontier {
-                    input,
-                    error: OperatingError::ObservationIncomplete {
-                        reason: error.to_string(),
-                    },
-                }),
-            }
-        } else {
-            // Non-Step borrowed relation/binding sources keep their existing
-            // representation in the bounded POC; no second evaluator exists.
-            match mode {
-                DecodeMode::Permissive => admitted.push(FrontierInput::Decoded {
-                    frontier: Frontier {
-                        input,
-                        table: std::sync::Arc::new(decode_input(&words.words, symbols)),
-                    },
-                    coverage,
-                }),
-                DecodeMode::Complete => {
-                    match decode_complete(&words.words.0, places_mut(symbols)) {
-                        Ok(table) => admitted.push(FrontierInput::Decoded {
-                            frontier: Frontier {
-                                input,
-                                table: std::sync::Arc::new(table),
-                            },
-                            coverage,
-                        }),
-                        Err(error) => refused.push(RefusedFrontier {
-                            input,
-                            error: OperatingError::ObservationIncomplete {
-                                reason: error.to_string(),
-                            },
-                        }),
-                    }
-                }
-            }
-        }
+        // Decoding waits for the first demand (`PreparedFrontiers::admit`): the store read, the
+        // proof and the refusals above keep their order; only the decode is deferred.
+        admitted.push(FrontierInput::Packed(PackedFrontier {
+            input,
+            words: std::sync::Arc::new(words.words),
+            mode,
+            coverage,
+        }));
     }
     if memory {
         let compact_rows = admitted
@@ -177,7 +140,7 @@ pub(crate) fn prepare(
                 FrontierInput::Compact { table, .. } => {
                     ryo_values::domain::table_words::service::compact_rows(table)
                 }
-                FrontierInput::Decoded { .. } => 0,
+                FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
             .sum::<usize>();
         let spelling_capacity = admitted
@@ -186,7 +149,7 @@ pub(crate) fn prepare(
                 FrontierInput::Compact { spelling, .. } => {
                     spelling.capacity() * size_of::<ryo_relations::domain::relations::types::Name>()
                 }
-                FrontierInput::Decoded { .. } => 0,
+                FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
             .sum::<usize>();
         tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=admitted.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
@@ -199,6 +162,55 @@ pub(crate) fn prepare(
         required: required.clone(),
         refused: refused.into(),
     })
+}
+
+/// Decode one packed frontier on its first demand. A decode failure is the same typed
+/// refusal preparation used to record, now recorded where the frontier is first admitted.
+pub(crate) fn admit(
+    packed: PackedFrontier,
+    symbols: &mut Symbols,
+) -> Result<FrontierInput, RefusedFrontier> {
+    let PackedFrontier {
+        input,
+        words,
+        mode,
+        coverage,
+    } = packed;
+    let refuse = |error: ryo_values::domain::table_words::errors::WordsDecodeError| RefusedFrontier {
+        input,
+        error: OperatingError::ObservationIncomplete {
+            reason: error.to_string(),
+        },
+    };
+    if matches!(input, Input::Step(_)) {
+        return admit_compact(words, places_mut(symbols), mode)
+            .map(|(table, spelling)| FrontierInput::Compact {
+                input,
+                table: std::sync::Arc::new(table),
+                spelling,
+                coverage,
+            })
+            .map_err(refuse);
+    }
+    // Non-Step borrowed relation/binding sources keep their existing representation.
+    match mode {
+        DecodeMode::Permissive => Ok(FrontierInput::Decoded {
+            frontier: Frontier {
+                input,
+                table: std::sync::Arc::new(decode_input(&words, symbols)),
+            },
+            coverage,
+        }),
+        DecodeMode::Complete => decode_complete(&words.0, places_mut(symbols))
+            .map(|table| FrontierInput::Decoded {
+                frontier: Frontier {
+                    input,
+                    table: std::sync::Arc::new(table),
+                },
+                coverage,
+            })
+            .map_err(refuse),
+    }
 }
 
 /// Check every range and root before a packed source is made visible to the

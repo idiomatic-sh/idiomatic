@@ -3,8 +3,8 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::{
         column::ColumnCandidates,
-        service::compile,
-        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions},
+        service::{self, compile},
+        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions, Route},
     },
     file_program::types::{NodeId, RequestGraph},
     operating::errors::OperatingError,
@@ -164,11 +164,30 @@ fn program(plans: &[Plan], operators: &RequestOperators, graph: RequestGraph) ->
     compile(plans, graph, &FileProducers, operators).unwrap()
 }
 
+/// An instruction has exactly one route: the accessors agree with the kind, and at most one is set.
+fn assert_one_route(program: &ExecutableProgram) {
+    for region in program.regions() {
+        let route = &region.route;
+        let named = [
+            service::ordered_existence(route).is_some(),
+            service::column(route).is_some(),
+            service::selection(route).is_some(),
+            service::native_positions(route).is_some(),
+        ];
+        assert!(named.iter().filter(|each| **each).count() <= 1);
+        assert_eq!(
+            named.iter().any(|each| *each),
+            !matches!(route, Route::Generic)
+        );
+    }
+}
+
 fn column_count(program: &ExecutableProgram) -> usize {
+    assert_one_route(program);
     program
         .regions()
         .iter()
-        .filter(|region| region.column.is_some())
+        .filter(|region| service::column(&region.route).is_some())
         .count()
 }
 
@@ -179,9 +198,10 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let compiled = program(&single, &operators, request);
     assert_eq!(column_count(&compiled), 1);
     assert!(
-        compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0]
-            .column
-            .is_some()
+        service::column(
+            &compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route
+        )
+        .is_some()
     );
 
     let duplicate = vec![ordinary_plan(), ordinary_plan()];

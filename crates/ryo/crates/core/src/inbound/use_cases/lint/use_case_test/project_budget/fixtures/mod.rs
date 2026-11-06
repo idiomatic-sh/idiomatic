@@ -173,14 +173,13 @@ pub(super) fn observe(scenario: BudgetScenario) -> BudgetObservation {
             }],
         }];
     }
-    let world = scheduled_world_with_query_kernel_resources(
+    let world = scheduled_world_with_query_resources(
         given,
         Arc::new(crate::outbound::scheduler::factory::sequential()),
         WorkerCount(1),
         Arc::new(ProjectQueries {
             route: scenario.route,
         }),
-        false,
         effect.clone(),
         effect.clone(),
     );

@@ -19,7 +19,6 @@ use std::sync::{Arc, atomic::Ordering};
 use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::execution::types::Counting;
-use ryo_execution::inbound::use_cases::execution::types::TreeSteps;
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
 use ryo_execution::inbound::use_cases::execution::{
     interface::ExecutionUseCase,

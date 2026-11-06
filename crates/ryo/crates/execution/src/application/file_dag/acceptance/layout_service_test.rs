@@ -25,6 +25,10 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
+use crate::application::file_dag::frontiers::types::FrontierInput;
+use crate::domain::completion::types::CoverageState;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::table_words::types::DecodeMode;
 use std::{collections::BTreeMap, sync::Arc};
 
 // Fixtures assemble authored requests only. The production compiler derives every schema,
@@ -131,12 +135,15 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
         crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
-    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
-    let first = graph.program_nodes[0][0].as_ref().unwrap();
-    let layout = &graph.nodes[first.0].regions[0].layout;
-    assert_eq!(layout.kept.0, [false, true]);
     assert_eq!(
-        layout.kinds,
+        crate::domain::file_program::service::materialized_steps(&plans[0]),
+        [false, true]
+    );
+    assert_eq!(
+        operators.rules[0]
+            .iter()
+            .map(|contract| contract.output_kinds.clone().unwrap())
+            .collect::<Vec<_>>(),
         [
             vec![
                 CellKind::Node,
@@ -160,10 +167,10 @@ fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
         crate::application::file_dag::testing::program_derived_port(),
     )
     .unwrap();
-    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
-    let first = graph.program_nodes[0][0].as_ref().unwrap();
-    let layout = &graph.nodes[first.0].regions[0].layout;
-    assert_eq!(layout.kept.0, [true, true]);
+    assert_eq!(
+        crate::domain::file_program::service::materialized_steps(&plans[0]),
+        [true, true]
+    );
     assert_eq!(
         operators.rules[0][1].schema,
         Ok(vec![CellKind::Symbol, CellKind::Number])
@@ -421,4 +428,58 @@ fn an_invalid_frontier_keeps_the_prior_source_and_its_own_typed_refusal() {
         Ok(crate::domain::executable_program::types::InputSource::Relation(Relation::Function))
     ));
     assert_eq!(frontier[1], Err(OperatingError::NotRun));
+}
+
+// Preparation leaves a stored frontier packed. Its decode runs on the first demand (open of the
+// project run), and a decode failure is the same typed refusal preparation used to record: it is
+// consulted at the same place, the first supply of that source, so the error precedence holds.
+
+/// A varint whose continuation bit is never closed: no canonical frame spells it.
+fn cut_words() -> Arc<ryo_values::domain::stored_facts::types::KeptWords> {
+    Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
+        ryo_values::domain::stored_facts::types::PackedWords(vec![0x80]),
+    ))
+}
+fn packed(input: Input, mode: DecodeMode) -> crate::application::file_dag::frontiers::types::PackedFrontier {
+    crate::application::file_dag::frontiers::types::PackedFrontier {
+        input,
+        words: cut_words(),
+        mode,
+        coverage: CoverageState::Complete,
+    }
+}
+
+#[test]
+fn a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
+    let input = Input::Relation(Relation::Function);
+    let refused = crate::application::file_dag::frontiers::service::admit(packed(input, DecodeMode::Complete), &mut Symbols::default())
+        .err()
+        .expect("a cut frame is never complete");
+    assert_eq!(refused.input, input);
+    assert!(matches!(
+        refused.error,
+        OperatingError::ObservationIncomplete { .. }
+    ));
+}
+
+#[test]
+fn a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
+    let input = Input::Step(StepId(0));
+    let refused = crate::application::file_dag::frontiers::service::admit(packed(input, DecodeMode::Complete), &mut Symbols::default())
+        .err()
+        .expect("a cut frame is never complete");
+    assert_eq!(refused.input, input);
+    assert!(matches!(
+        refused.error,
+        OperatingError::ObservationIncomplete { .. }
+    ));
+}
+
+#[test]
+fn the_permissive_diagnostic_decode_never_refuses_a_packed_frontier() {
+    let input = Input::Relation(Relation::Function);
+    let admitted = crate::application::file_dag::frontiers::service::admit(packed(input, DecodeMode::Permissive), &mut Symbols::default())
+        .ok()
+        .expect("diagnostic frontiers decode what they can");
+    assert!(matches!(admitted, FrontierInput::Decoded { .. }));
 }

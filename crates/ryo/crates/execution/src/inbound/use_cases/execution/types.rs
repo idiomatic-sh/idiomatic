@@ -22,6 +22,14 @@ pub struct PreparedRequest {
 /// ```compile_fail,E0603
 /// use ryo_execution::application::file_dag::relations::RelationOwner;
 /// ```
+/// There is no production strategy selector: the removed public kernel-strategy
+/// choice and the tree-step choice no longer resolve, and no execution API names them.
+/// ```compile_fail,E0432
+/// use ryo_execution::inbound::use_cases::execution::types::KernelStrategy;
+/// ```
+/// ```compile_fail,E0432
+/// use ryo_execution::inbound::use_cases::execution::types::TreeSteps;
+/// ```
 /// Even a valid public handle cannot expose the private execution owner.
 /// Root admission and scheduling remain behind the inbound protocol.
 /// ```compile_fail,E0616
@@ -253,9 +261,6 @@ pub use crate::domain::operator::types::RowsFed;
 pub use ryo_values::domain::records::types::PackedObservedRoot;
 
 pub use crate::domain::lowering::types::Counting;
-pub use crate::domain::operator::types::TreeSteps;
-
-pub use crate::domain::column_kernel::types::KernelStrategy;
 
 pub use crate::domain::coverage::types::{FilePartial, Lacking, LackingKind};
 pub use crate::domain::file_program::errors::FileProgramError;

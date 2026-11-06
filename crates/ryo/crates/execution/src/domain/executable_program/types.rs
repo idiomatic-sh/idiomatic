@@ -80,6 +80,37 @@ pub(crate) struct SourcePartition {
     pub source: InputSource,
     pub requirement: PartitionRequirement,
 }
+/// How a region is evaluated. Exactly one per region, kept by `service::choose`.
+#[derive(Clone, Debug, Default)]
+pub(crate) enum Route {
+    /// The registered operator of each instruction, in order: the definition of the operation.
+    #[default]
+    Generic,
+    /// The reviewed ordered-existence replacement of a self-join anti-join select.
+    OrderedExistence(OrderedExistence),
+    /// The column kernel over a stored equality index, replacing a join-filter-project chain.
+    Column(super::column::ColumnAlternative),
+    /// The stored selection of a direct select or project over one relation.
+    Selection(super::selection::SelectionAlternative),
+    /// The native positions of a step that reads only the tree.
+    NativePositions(Arc<crate::domain::lowering::types::LoweredShape>),
+}
+/// A route without its payload: what a permit is issued for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RouteKind {
+    Generic,
+    OrderedExistence,
+    Column,
+    NativePositions,
+}
+/// What the family analysers found eligible for one region, before the one rule keeps a route.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct RouteOffers {
+    pub ordered: Option<OrderedExistence>,
+    pub column: Option<super::column::ColumnAlternative>,
+    pub selection: Option<super::selection::SelectionAlternative>,
+    pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
+}
 #[derive(Clone, Debug)]
 pub(crate) struct Region {
     pub id: RegionId,
@@ -91,10 +122,7 @@ pub(crate) struct Region {
     pub source_partitions: Box<[SourcePartition]>,
     pub consumers: usize,
     pub dependencies: Box<[RegionId]>,
-    pub ordered_existence: Option<OrderedExistence>,
-    pub column: Option<super::column::ColumnAlternative>,
-    pub selection: Option<super::selection::SelectionAlternative>,
-    pub native_positions: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
+    pub route: Route,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Origin {

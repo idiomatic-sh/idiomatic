@@ -149,33 +149,13 @@ pub(super) trait Inputs {
         input: &AdmittedInput,
         representation: crate::domain::operator::contract::types::EmptyRepresentation,
     ) -> Result<crate::application::file_dag::program::admission::Emptiness, OperatingError>;
+    /// The one publication of a region result, in the representation the producer states.
     fn publish(
         &mut self,
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        rows: ryo_values::domain::rows::types::Table,
-    ) -> Result<AdmittedInput, OperatingError>;
-    fn publish_positions(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        produced: crate::application::file_dag::relations::handle::service::PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError>;
-    fn publish_selected(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        produced: crate::application::file_dag::relations::handle::service::PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError>;
-    fn publish_empty(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        schema: Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError>,
+        representation: Representation,
     ) -> Result<AdmittedInput, OperatingError>;
     fn replay(
         &self,
@@ -183,6 +163,24 @@ pub(super) trait Inputs {
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
         output: &mut dyn crate::domain::operating::types::Emit,
     ) -> Result<(), OperatingError>;
+}
+
+/// What a publication holds, stated by the producer and never inferred by the publisher.
+pub(in crate::application::file_dag::program) enum Representation {
+    /// Rows the generic route computed, empty or not: the owner stores them as computed rows.
+    Computed(ryo_values::domain::rows::types::Table),
+    /// A positioned or selected publication a kernel already minted with the owner.
+    Minted(crate::application::file_dag::relations::handle::service::PublishedInput),
+}
+impl Representation {
+    /// No rows over `schema`; a refused schema stays the producer's fault.
+    pub(in crate::application::file_dag::program) fn empty(
+        schema: Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError>,
+    ) -> Result<Self, OperatingError> {
+        let mut rows = ryo_values::domain::rows::types::Table::default();
+        ryo_values::domain::rows::service::reset(&mut rows, &schema?);
+        Ok(Self::Computed(rows))
+    }
 }
 
 /// Borrowed source access issued only after exact relation, schema and owner admission.

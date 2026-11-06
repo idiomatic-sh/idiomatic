@@ -5,6 +5,7 @@ use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::admission::Representation;
 use crate::application::file_dag::program::constants::PRODUCER_COVERAGE_INCOMPLETE;
 use crate::application::file_dag::program::facade_runtime::types::CachedInput;
 use crate::application::file_dag::program::facade_runtime::types::FileRoot;
@@ -14,7 +15,6 @@ use crate::application::file_dag::program::facade_runtime::types::PublicationSco
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
@@ -223,36 +223,9 @@ impl Inputs for SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        rows: Table,
+        representation: Representation,
     ) -> Result<AdmittedInput, OperatingError> {
-        self.publish_source(root, partition, inputs, rows)
-    }
-    fn publish_positions(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        publication: PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError> {
-        self.publish_positions_source(root, partition, inputs, publication)
-    }
-    fn publish_selected(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        publication: PublishedInput,
-    ) -> Result<AdmittedInput, OperatingError> {
-        self.publish_selected_source(root, partition, inputs, publication)
-    }
-    fn publish_empty(
-        &mut self,
-        root: ProducerRoot,
-        partition: &Partition,
-        inputs: &[AdmittedInput],
-        schema: Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError>,
-    ) -> Result<AdmittedInput, OperatingError> {
-        self.publish_empty_source(root, partition, inputs, schema)
+        self.publish_source(root, partition, inputs, representation)
     }
     fn replay(
         &self,

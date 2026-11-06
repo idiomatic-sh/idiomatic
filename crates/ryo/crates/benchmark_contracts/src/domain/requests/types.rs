@@ -82,8 +82,6 @@ pub enum WorkerState {
 /// Explicit performance controls; diagnostics are independent from timed execution.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PerformanceOptions {
-    /// Physical strategy forwarded through the SDK composition edge.
-    pub execution: ryo::linter::ExecutionOptions,
     /// Diagnostic target selection used only with an explicit event destination.
     pub diagnostics: DiagnosticOptions,
 }

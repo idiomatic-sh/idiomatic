@@ -31,6 +31,12 @@ pub(in crate::application::file_dag::program) enum StrategyOutcome {
     Executed,
     Declined,
 }
+/// What a route that mints its own publication answered. A decline happens before any
+/// observable work and is never a retry of another specialised route.
+pub(in crate::application::file_dag::program) enum Attempt<T> {
+    Produced(T),
+    Declined,
+}
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::application::file_dag::program) enum AttemptCheckpoint {

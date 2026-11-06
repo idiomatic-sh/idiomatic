@@ -139,6 +139,5 @@ pub use crate::domain::observation::types::ObservationName;
 pub use lint::types::ObservationBinding;
 /// A selected producer output or an explicitly unavailable query.
 pub use lint::types::ObservationProducer;
-pub use lint::types::{ExecutionOptions, NodeResultReuse};
 
 pub use crate::domain::observation::types::ObservationKind;

@@ -291,8 +291,7 @@ impl EngineExecution for LocalEngineSession<'_> {
             pool,
             MemoryBudget::Machine,
             cache,
-        )
-        .with_execution(request.performance.execution);
+        );
         let report = linter::lint_with(
             &engine,
             LintRequest {

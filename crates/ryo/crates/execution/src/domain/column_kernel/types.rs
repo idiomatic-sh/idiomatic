@@ -6,19 +6,14 @@ use std::sync::Arc;
 
 use crate::domain::derived_views::types::DerivedContract;
 
-/// The default evaluator remains the production strategy until measured proof permits a switch.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum KernelStrategy {
-    #[default]
-    Existing,
-    Column,
-}
-
 /// One final kept cut whose intermediate join and equality filter can stay as row IDs.
 #[derive(Clone, Debug)]
 pub(crate) struct Chain {
     /// Existing kept compact cut; this chain never re-evaluates its producer.
     pub left_step: usize,
+    /// The equality filter and the join the chain replaces, by their step numbers in the plan.
+    pub filter_step: ryo_values::domain::plan_parts::types::StepId,
+    pub join_step: ryo_values::domain::plan_parts::types::StepId,
     /// Complete rectangular relation looked up by typed equality.
     pub right: Relation,
     pub left_on: Vec<ColumnIndex>,

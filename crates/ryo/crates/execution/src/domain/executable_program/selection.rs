@@ -1,7 +1,9 @@
 //! Pure, request-qualified stored-selection alternatives.
 //! Acquisition, population identity, capacity, and release stay with the program owner.
 
-use super::types::{ExecutableProgram, InputSource, LogicalInstruction, OperandSource, RegionId};
+use super::types::{
+    InputSource, LogicalInstruction, OperandSource, Region, RegionId, RuleProgram,
+};
 use crate::domain::{
     coverage::types::RuleIndex, operator::contract::types::RequestOperators,
     stored_selection::types::Selector,
@@ -97,11 +99,13 @@ fn exact_output(operation: &Operation, selector: &Selector, relation: Relation) 
 /// A chain or fused region stays on its ordinary route: its ancestor demand and
 /// error order cannot be inferred from a terminal selector alone.
 pub(crate) fn compile(
-    program: &ExecutableProgram,
+    rules: &[RuleProgram],
+    logical_regions: &[RegionId],
+    regions: &[Region],
     prepared: &RequestOperators,
 ) -> Vec<SelectionAlternative> {
     let mut alternatives = Vec::new();
-    for (rule, mapping) in program.rules().iter().enumerate() {
+    for (rule, mapping) in rules.iter().enumerate() {
         let Some(selected) = prepared.selection_plans.get(rule) else {
             continue;
         };
@@ -132,10 +136,10 @@ pub(crate) fn compile(
             {
                 continue;
             }
-            let Some(&target) = program.logical_regions().get(origin.logical.0) else {
+            let Some(&target) = logical_regions.get(origin.logical.0) else {
                 continue;
             };
-            let Some(region) = program.regions().get(target.0) else {
+            let Some(region) = regions.get(target.0) else {
                 continue;
             };
             if region.id != target
