@@ -63,6 +63,26 @@ pub(crate) struct Refusal {
     pub reason: Reason,
 }
 
+/// The stage at which a manifest was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Stage {
+    /// The reader could not read the manifest.
+    Parse,
+    /// The manifest was read and its workspace is not consistent with it.
+    Validation,
+}
+
+/// A manifest refused, as the relation `manifest_diagnostic` says of it: the file, the stage and what the reader said.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Diagnosed {
+    /// The manifest, by its place among the files of the run.
+    pub file: ryo::languages::FileId,
+    /// The stage.
+    pub stage: Stage,
+    /// What the reader said.
+    pub reason: Reason,
+}
+
 /// What the manifests of a repository declare.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Packages {

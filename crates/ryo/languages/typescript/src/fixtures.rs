@@ -2,6 +2,7 @@
 //! each fixture must give. Project fixtures hold npm dependencies, workspace membership, and file ownership.
 
 pub mod contracts;
+mod invalid_manifest;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod reading;
@@ -17,7 +18,7 @@ pub fn expected() -> Fixtures {
     Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
-        manifests: vec![workspace::expected()],
+        manifests: vec![invalid_manifest::expected(), workspace::expected()],
         semantic: Vec::new(),
         shape: Shape::Reference(library::walk()),
         oracle: library::oracle(),

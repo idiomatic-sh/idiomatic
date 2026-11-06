@@ -20,6 +20,7 @@ use crate::domain::links::collections::links::file_package::item::FilePackageIte
 use crate::domain::links::collections::links::source_dependency::item::SourceDependencyItem;
 use crate::domain::links::service::{declared_in, draw, examine, facts_in, gaps_in, merged};
 use crate::domain::links::types::{Linked, Run};
+use crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
 use crate::domain::module_tree::types::Segment;
@@ -362,7 +363,7 @@ impl Project for ProjectContract {
     fn manifest_diagnostic(
         &self,
     ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        languages::reads_manifests::<ManifestDiagnosticItem>()
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {

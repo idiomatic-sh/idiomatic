@@ -2,8 +2,8 @@
 
 use ryo::languages::contract::{
     AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestExpected, ModuleIdentityExpectedRow,
-    PackageDependencyExpectedRow, SourceDependencyExpectedRow, WorkspaceMemberExpectedRow, file,
-    name, span, unknown,
+    PackageDependencyExpectedRow, ProjectNamespaceMembershipExpectedRow,
+    SourceDependencyExpectedRow, WorkspaceMemberExpectedRow, file, name, span, unknown,
 };
 
 /// The rows every manifest relation must give for the `workspace` fixture, a repository of every supported manifest kind.
@@ -296,6 +296,27 @@ pub(super) fn expected() -> ManifestExpected {
             FilePackageExpectedRow {
                 path: file("app.py"),
                 package: file("pyproject.toml"),
+            },
+            ProjectNamespaceMembershipExpectedRow {
+                file: file("app.py"),
+                root: name("lib_one"),
+                path: name("lib_one"),
+                membership: name("unknown"),
+                kind: name("unknown"),
+            },
+            ProjectNamespaceMembershipExpectedRow {
+                file: file("app.py"),
+                root: name("lib_one"),
+                path: name("lib_one.workers"),
+                membership: name("unknown"),
+                kind: name("unknown"),
+            },
+            ProjectNamespaceMembershipExpectedRow {
+                file: file("app.py"),
+                root: name("requests"),
+                path: name("requests"),
+                membership: name("unknown"),
+                kind: name("unknown"),
             },
             FilePackageExpectedRow {
                 path: file("packages/lib.two/pyproject.toml"),

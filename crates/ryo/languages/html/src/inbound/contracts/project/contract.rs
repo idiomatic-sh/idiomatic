@@ -62,17 +62,20 @@ impl Project for ProjectContract {
     }
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
+        // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn project_namespace_membership(
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

@@ -118,6 +118,17 @@ pub(crate) struct Refusal {
     pub reason: Reason,
 }
 
+/// A manifest the tool refused, as the relation `manifest_diagnostic` says of it: the file, which manifest it is and what the tool said.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Diagnosed {
+    /// The manifest, by its place among the files of the run.
+    pub file: languages::FileId,
+    /// Which manifest it is.
+    pub manifest: Manifestness,
+    /// What the tool said.
+    pub reason: Reason,
+}
+
 /// The manifests of a repository, in the order of their paths, and the ones that could not be read.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Modules {

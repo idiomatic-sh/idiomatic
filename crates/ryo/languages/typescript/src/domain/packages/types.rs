@@ -132,6 +132,32 @@ pub(crate) struct Packages {
     pub refused: Vec<languages::Refused>,
 }
 
+/// The stage at which a manifest was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Stage {
+    /// The reader could not read the manifest.
+    Parse,
+    /// The manifest was read and a reference in it does not hold.
+    Validation,
+}
+
+/// The name of the schema a manifest is read as, which is the name of its file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Schema(pub Box<str>);
+
+/// A manifest refused, as the relation `manifest-diagnostic` says of it: the file, the schema it is read as, the stage and what was said.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Diagnosed {
+    /// The manifest, by its place among the files of the run.
+    pub file: languages::FileId,
+    /// The schema the manifest is read as: its file name.
+    pub schema: Schema,
+    /// The stage.
+    pub stage: Stage,
+    /// What was said.
+    pub reason: languages::ToolMessage,
+}
+
 /// One `package-dependency` row before it is written: the two manifests and the requirement between them.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Dependency {

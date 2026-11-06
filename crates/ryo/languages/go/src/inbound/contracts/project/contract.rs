@@ -16,6 +16,7 @@ use crate::domain::links::service::linked;
 use crate::domain::links::types::Linked;
 use crate::domain::manifests::collections::manifests::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::manifests::collections::manifests::file_package::item::FilePackageItem;
+use crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
 use crate::domain::manifests::collections::manifests::source_dependency::item::SourceDependencyItem;
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
@@ -159,7 +160,7 @@ impl Project for ProjectContract {
     fn manifest_diagnostic(
         &self,
     ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        languages::reads_manifests::<ManifestDiagnosticItem>()
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {

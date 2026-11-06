@@ -4,7 +4,7 @@ use super::constants::{
     ALIAS_PREFIX, ANYWHERE, CATALOG_PREFIX, DEFAULT, FILE_MANIFEST, FILE_PREFIX, GIT_PREFIXES,
     GIT_SUFFIX, LINK_PREFIX, PATH_STARTS, SEMVER_PREFIX, URL_PREFIXES, WORKSPACE_PREFIX,
 };
-use crate::domain::packages::constants::SEPARATOR;
+use crate::domain::packages::constants::{SEPARATOR, UNRESOLVED_CATALOG};
 use crate::domain::packages::service::{directory, relative, within};
 use crate::domain::packages::types::{
     Binding, Catalog, CatalogName, Catalogs, Containment, Directory, ManifestPath, PackageName,
@@ -255,7 +255,7 @@ pub(crate) fn resolved(packages: &mut Packages) -> Vec<languages::Refused> {
                     path: languages::FilePath(manifest.0.clone()),
                     reason: languages::ToolMessage(
                         format!(
-                            "no catalog `{}` has an entry for `{}`: its version is unknown",
+                            "{UNRESOLVED_CATALOG}{}` has an entry for `{}`: its version is unknown",
                             if name.0.is_empty() { DEFAULT } else { &name.0 },
                             requirement.binding.0
                         )

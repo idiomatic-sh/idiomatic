@@ -68,7 +68,8 @@ impl Project for ProjectContract {
     }
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: mdast.md and micromark-util-types.d.ts: neither defines a project manifest; a Markdown file is a document, not a package.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
@@ -78,7 +79,8 @@ impl Project for ProjectContract {
     fn project_namespace_membership(
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        // standard: mdast.md and micromark-util-types.d.ts: neither defines a project manifest; a Markdown file is a document, not a package.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

@@ -10,3 +10,6 @@ pub(crate) const EMPTY: &str = "";
 pub(crate) const CURRENT: &str = ".";
 /// The part that goes up one directory.
 pub(crate) const PARENT: &str = "..";
+
+/// What the reason of a `catalog:` requirement no catalog has an entry for starts with.
+pub(crate) const UNRESOLVED_CATALOG: &str = "no catalog `";

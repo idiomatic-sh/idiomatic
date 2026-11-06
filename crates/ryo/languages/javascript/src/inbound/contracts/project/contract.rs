@@ -8,6 +8,7 @@ use crate::domain::links::service::linked;
 use crate::domain::links::types::Linked;
 use crate::domain::manifests::collections::manifests::{
     analyzed_source::item::AnalyzedSourceItem, file_package::item::FilePackageItem,
+    manifest_diagnostic::item::ManifestDiagnosticItem,
     package_dependency::item::PackageDependencyItem, source_dependency::item::SourceDependencyItem,
     workspace_member::item::WorkspaceMemberItem,
 };
@@ -168,7 +169,7 @@ impl Project for ProjectContract {
     fn manifest_diagnostic(
         &self,
     ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        languages::reads_manifests::<ManifestDiagnosticItem>()
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {

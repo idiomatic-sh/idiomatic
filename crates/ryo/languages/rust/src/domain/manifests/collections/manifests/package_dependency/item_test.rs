@@ -11,7 +11,7 @@ use ryo::languages::Optionality;
 use super::item::PackageDependencyItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::packages::service::numbered;
-use crate::domain::packages::types::{Dependency, Located, WorkspacePackageMembership, Packages};
+use crate::domain::packages::types::{Dependency, Located, Packages, WorkspacePackageMembership};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::targets::types::Version;
 use crate::fixtures::reading::SHOWN;
