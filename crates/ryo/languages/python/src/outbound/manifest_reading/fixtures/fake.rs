@@ -1,7 +1,7 @@
 //! The fake of the `manifest_reading` port: what the language's tests stand in for it with.
 
 use crate::domain::manifest_validation::types::MetadataDemand;
-use crate::outbound::manifest_reading::types::Reading;
+use crate::outbound::manifest_reading::types::ManifestRead;
 
 use super::super::errors::ManifestReadingError;
 use super::super::interface::ManifestReadingPort;
@@ -26,14 +26,14 @@ impl ManifestReadingPort for ManifestReadingFake {
         }
     }
 
-    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading {
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead {
         if demand == MetadataDemand::Diagnostics {
-            return Reading {
+            return ManifestRead {
                 declaration: None,
                 validation: None,
             };
         }
-        Reading {
+        ManifestRead {
             declaration: Some((|| {
                 let text = &manifest.text;
                 if text.starts_with("[project\n") {

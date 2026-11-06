@@ -1,5 +1,6 @@
 //! Regression cases for ruff literal braceformat bindings.
-use super::{RuffLiteralBraceFormat, parse};
+use super::grammar::RuffLiteralBraceFormat;
+use super::service::parse;
 use crate::domain::brace_format::interface::BraceFormatSyntax as _;
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceSelector,

@@ -6,10 +6,10 @@ use std::collections::BTreeMap;
 
 use crate::domain::dependencies::service::pep440_exactness;
 use crate::domain::manifest_validation::types::{
-    Diagnostic, Location, MetadataDemand, Phase, Validation,
+    ManifestDiagnostic, Location, MetadataDemand, Phase, Validation,
 };
 use crate::domain::packages::types::Reason;
-use crate::outbound::manifest_reading::types::Reading;
+use crate::outbound::manifest_reading::types::ManifestRead;
 use ryo::languages::{DependencyKind, Optionality};
 use ryo::languages::{Offset, Span};
 use serde::Deserialize;
@@ -143,13 +143,13 @@ impl From<PyprojectSchema> for Declared {
 }
 
 /// Parse once, retaining borrowed spelling and source ranges across the two deserializer views.
-pub(super) fn read(text: &str, demand: MetadataDemand) -> Reading {
+pub(super) fn read(text: &str, demand: MetadataDemand) -> ManifestRead {
     let document = match toml::de::DeTable::parse(text) {
         Ok(document) => document,
         Err(error) => {
             let validation = (demand != MetadataDemand::Projection)
                 .then(|| validation_error(text, Phase::Parse, &error));
-            return Reading {
+            return ManifestRead {
                 declaration: (demand != MetadataDemand::Diagnostics).then(|| {
                     Err(ManifestReadingError::Unreadable {
                         reason: error.message().to_owned(),
@@ -182,7 +182,7 @@ pub(super) fn read(text: &str, demand: MetadataDemand) -> Reading {
                 .and_then(projected),
         )
     };
-    Reading {
+    ManifestRead {
         declaration,
         validation,
     }
@@ -242,7 +242,7 @@ fn validation_error(text: &str, phase: Phase, error: &toml::de::Error) -> Valida
         }
     };
     Validation {
-        diagnostics: vec![Diagnostic {
+        diagnostics: vec![ManifestDiagnostic {
             phase,
             location,
             message: Reason(error.message().into()),

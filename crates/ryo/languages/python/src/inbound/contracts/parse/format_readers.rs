@@ -10,7 +10,7 @@ use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
     syntax::service::kind_bits, syntax::types::Kind,
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_cformat::RuffLiteralCFormat;
+use crate::outbound::format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat;
 use ryo::languages;
 
 /// Reads whole-token percent-format parse summaries.

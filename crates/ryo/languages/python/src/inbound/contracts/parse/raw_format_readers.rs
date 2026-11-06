@@ -9,7 +9,7 @@ use crate::domain::{
     raw_format::service::{prepare, result, segments, state},
     syntax::{service::kind_bits, types::Kind},
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_cformat::RuffLiteralCFormat;
+use crate::outbound::format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat;
 use ryo::languages;
 
 /// Reads one parse outcome for each original raw string token.

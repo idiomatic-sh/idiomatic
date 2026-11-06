@@ -8,7 +8,7 @@ use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
     syntax::service::kind_bits, syntax::types::Kind,
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::RuffLiteralBraceFormat;
+use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
 
 /// One outcome row per source string occurrence.

@@ -8,7 +8,7 @@ use crate::domain::{
     standard_format_spec::types::StandardSpecOutcome,
     syntax::{service::kind_bits, types::Kind},
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::RuffLiteralBraceFormat;
+use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
 pub(super) struct FormatSpecificationItem;
 
