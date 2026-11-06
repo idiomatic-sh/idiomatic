@@ -78,3 +78,10 @@ pub trait JoinCells {
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<ryo_relations::domain::relations::types::Value>;
 }
+
+/// The file-local position slots of the scheduled left row.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PositionSlots<'a>(pub &'a [u32]);
+
+/// The engine-owned flat position destination.
+pub(crate) struct PositionTarget<'a>(pub &'a mut Vec<u32>);

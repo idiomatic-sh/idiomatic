@@ -1,7 +1,7 @@
 //! Count saturation, digest bit pattern and duplicate group keys are preserved.
 use super::service::aggregate;
 use crate::domain::contract::types::PortableOperatorFault;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::ColumnIndex,
@@ -54,8 +54,8 @@ fn subject((keys, count, digest): Input) -> Result<Value, Failure> {
     aggregate(
         &[Cell::Number(Integer(7)), Cell::Number(Integer(9))],
         keys,
-        count,
-        digest,
+        Count(count),
+        digest.map(Integer),
         &mut output,
     )?;
     Ok(std::borrow::Cow::Owned(output))

@@ -1,6 +1,7 @@
 //! The first layer wins, including duplicate membership across layers.
 use super::service::rank;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::LiteralText,
@@ -33,7 +34,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         vec![LiteralText("same".into())],
         vec![LiteralText("same".into()), LiteralText("later".into())],
     ];
-    Ok(rank(text, &layers))
+    Ok(rank(CellText(text), &layers))
 }
 #[test]
 fn succeeds() {

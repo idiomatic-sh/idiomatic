@@ -1,12 +1,15 @@
 //! Unicode word splitting with the original case-boundary and digit policy.
+use crate::domain::words::types::WordScratch;
+use ryo_values::domain::row_texts::types::CellText;
 pub(crate) fn split(
-    text: &str,
-    word: &mut String,
+    text: CellText<'_>,
+    scratch: WordScratch<'_>,
     each: &mut dyn crate::domain::words::types::WordOutput,
 ) {
+    let word = scratch.0;
     word.clear();
     let mut before: Option<char> = None;
-    for character in text.chars() {
+    for character in text.0.chars() {
         if !character.is_alphanumeric() {
             if !word.is_empty() {
                 each.word(word.as_str());

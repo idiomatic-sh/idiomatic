@@ -1,6 +1,8 @@
 //! Unicode, acronym, digit and punctuation policies remain explicit.
 use super::service::split;
+use crate::domain::words::types::WordScratch;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::row_texts::types::CellText;
 type Input = &'static str;
 type Value = std::borrow::Cow<'static, str>;
 type Failure = std::convert::Infallible;
@@ -27,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(text: Input) -> Result<Value, Failure> {
     let mut word = String::with_capacity(32);
     let mut output = Vec::new();
-    split(text, &mut word, &mut |word: &str| {
+    split(CellText(text), WordScratch(&mut word), &mut |word: &str| {
         output.push(word.to_owned())
     });
     assert!(word.is_empty());

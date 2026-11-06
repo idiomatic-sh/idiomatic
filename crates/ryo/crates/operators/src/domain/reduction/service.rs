@@ -1,8 +1,9 @@
 //! Count/digest semantics over borrowed engine-owned populations, indexes, and reduction scratch.
 use crate::domain::contract::types::PortableOperatorFault as Fault;
 use crate::domain::reduction::types::{
-    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues,
-    GroupColumns, GroupOutput, StreamingReduction,
+    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
+    GroupColumns, GroupCounts, GroupMembership, GroupOutput, HashScratch, StreamingReduction,
+    ValueHash,
 };
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
@@ -30,14 +31,19 @@ fn check(kinds: &[CellKind], column: ColumnIndex) -> Result<CellKind, Fault> {
         .copied()
         .ok_or(Fault::NoSuchColumn { index: column.0 })
 }
-fn same(table: &Table, on: GroupColumns<'_>, left: RowIndex, right: RowIndex) -> bool {
+fn same(table: &Table, on: GroupColumns<'_>, left: RowIndex, right: RowIndex) -> GroupMembership {
     let (left, right) = (row(table, left), row(table, right));
-    match on {
+    let together = match on {
         GroupColumns::Whole => left == right,
         GroupColumns::Columns(columns) => columns.iter().all(|column| {
             let at = usize::try_from(column.0).unwrap_or(usize::MAX);
             left.get(at) == right.get(at)
         }),
+    };
+    if together {
+        GroupMembership::Together
+    } else {
+        GroupMembership::Apart
     }
 }
 pub(crate) fn count_groups(
@@ -57,14 +63,18 @@ pub(crate) fn count_groups(
         }
     }
     groups.clear();
-    for run in order.chunk_by(|left, right| same(table, on, *left, *right)) {
+    for run in
+        order.chunk_by(|left, right| same(table, on, *left, *right) == GroupMembership::Together)
+    {
         let first = run.iter().copied().min().unwrap_or(RowIndex(0));
         let counted = if let Some(column) = distinct {
             values.clear();
-            values.extend(
-                run.iter()
-                    .filter_map(|at| cell(row(table, *at), column).ok()),
-            );
+            for at in run {
+                let Ok(value) = cell(row(table, *at), column) else {
+                    continue;
+                };
+                values.push(value);
+            }
             values.sort_unstable();
             values.dedup();
             values.len()
@@ -81,21 +91,26 @@ pub(crate) fn digest_groups(
     keys: &[ColumnIndex],
     over: ColumnIndex,
     order: &[RowIndex],
-    hashes: &mut Vec<u64>,
+    scratch: HashScratch<'_>,
     hasher: &dyn DigestValues,
     groups: &mut dyn GroupOutput,
 ) -> Result<(), Fault> {
+    let hashes = scratch.0;
     check(&table.kinds, over)?;
     for column in keys {
         check(&table.kinds, *column)?;
     }
     groups.clear();
-    for run in order.chunk_by(|left, right| same(table, GroupColumns::Columns(keys), *left, *right))
-    {
+    for run in order.chunk_by(|left, right| {
+        same(table, GroupColumns::Columns(keys), *left, *right) == GroupMembership::Together
+    }) {
         let first = run.iter().copied().min().unwrap_or(RowIndex(0));
         hashes.clear();
-        for value in run.iter().filter_map(|at| cell(row(table, *at), over).ok()) {
-            hashes.push(hash_of(hasher.datum(value)));
+        for at in run {
+            let Ok(value) = cell(row(table, *at), over) else {
+                continue;
+            };
+            hashes.push(hash_of(hasher.datum(value)).0);
         }
         hashes.sort_unstable();
         hashes.dedup();
@@ -108,7 +123,7 @@ pub(crate) fn digest_groups(
     groups.sort_first();
     Ok(())
 }
-pub(crate) fn hash_of(datum: DigestDatum<'_>) -> u64 {
+pub(crate) fn hash_of(datum: DigestDatum<'_>) -> ValueHash {
     let mut hasher = rustc_hash::FxHasher::default();
     match datum {
         DigestDatum::Unlocated => {
@@ -124,7 +139,7 @@ pub(crate) fn hash_of(datum: DigestDatum<'_>) -> u64 {
             .iter()
             .for_each(|text| hasher.write(text.0.as_bytes())),
     }
-    hasher.finish()
+    ValueHash(hasher.finish())
 }
 pub(crate) fn check_program(
     program: AggregationPlan<'_>,
@@ -180,20 +195,21 @@ pub(crate) fn push(
             let hash = hash_of(driver.datum(cell(row, over)?));
             driver.append_hash(AggregationHash {
                 group: u32::try_from(group.0).unwrap_or(u32::MAX),
-                hash,
+                hash: hash.0,
             });
         }
     }
     Ok(())
 }
 pub(crate) fn finish(
-    counts: &[usize],
+    counts: GroupCounts<'_>,
     hashes: &mut Vec<AggregationHash>,
-    digest: bool,
+    finishing: Finishing,
     groups: &mut dyn GroupOutput,
 ) {
+    let counts = counts.0;
     groups.clear();
-    if !digest {
+    if finishing == Finishing::Counted {
         for (group, count) in counts.iter().copied().enumerate() {
             groups.push(RowIndex(group), RowCount(count), 0);
         }

@@ -1,10 +1,12 @@
 //! Replacement text is literal, including dollar syntax and unmatched Unicode suffixes.
 use super::service::replace_compiled;
+use super::types::{ReplacedText, ReplacementText};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl,
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::row_texts::types::CellText;
 type Input = (&'static str, &'static str, &'static str);
 type Value = std::borrow::Cow<'static, str>;
 type Failure = PortableOperatorFault;
@@ -30,10 +32,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject((pattern, text, replacement): Input) -> Result<Value, Failure> {
     let regex = MatchingUseCaseImpl::new()
-        .compile_regex(pattern)
+        .compile_regex(RegexSource(pattern))
         .expect("valid test pattern");
     let mut output = String::from("stale");
-    replace_compiled(&regex, text, replacement, &mut output)?;
+    replace_compiled(
+        &regex,
+        CellText(text),
+        ReplacementText(replacement),
+        ReplacedText(&mut output),
+    )?;
     Ok(std::borrow::Cow::Owned(output))
 }
 #[test]

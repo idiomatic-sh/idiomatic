@@ -1,12 +1,15 @@
 //! Enumerate path captures without allocating or splitting UTF-8 characters.
+use crate::domain::capture::constants::CROSSING_OPEN;
+use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
+
 pub(crate) fn matches(
-    pattern: &str,
-    whole: &str,
-    tail: &str,
-    slots: &mut Vec<std::ops::Range<usize>>,
-    each: &mut dyn crate::domain::capture::types::CaptureOutput,
+    pattern: SlotPattern<'_>,
+    whole: SlotSubject<'_>,
+    tail: SlotSubject<'_>,
+    slots: CaptureSlots<'_>,
+    each: &mut dyn CaptureOutput,
 ) {
-    let whole_text = whole;
+    let (pattern, whole, tail, slots) = (pattern.0, whole.0, tail.0, slots.0);
     let Some(open) = pattern.find('{') else {
         if pattern == tail {
             each.captures(slots);
@@ -15,7 +18,7 @@ pub(crate) fn matches(
     };
     let (literal, after_open) = pattern.split_at(open);
     // `{*name}` takes text with `/` in it; `{name}` stops at one.
-    let crosses = after_open.starts_with("{*");
+    let crosses = after_open.starts_with(CROSSING_OPEN);
     let Some(from) = tail.strip_prefix(literal) else {
         return;
     };
@@ -23,7 +26,7 @@ pub(crate) fn matches(
         .split_once('}')
         .map(|(_, after)| after)
         .unwrap_or_default();
-    let start = whole_text.len() - from.len();
+    let start = whole.len() - from.len();
     // What follows the slot is plain text: the slot is all that comes before it at the end of the text, nowhere else.
     if !rest.contains('{') {
         let Some(end) = from.len().checked_sub(rest.len()) else {
@@ -51,7 +54,13 @@ pub(crate) fn matches(
         }
         let mark = slots.len();
         slots.push(start..start + end);
-        matches(rest, whole, after, slots, each);
+        matches(
+            SlotPattern(rest),
+            SlotSubject(whole),
+            SlotSubject(after),
+            CaptureSlots(&mut *slots),
+            each,
+        );
         slots.truncate(mark);
     }
 }

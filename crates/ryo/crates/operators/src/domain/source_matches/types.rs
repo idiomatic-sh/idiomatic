@@ -22,3 +22,24 @@ pub trait TextRowDriver {
 }
 
 use crate::domain::contract::types::SemanticInterrupted;
+
+/// Bytes of the searched text or of the physical source it was cut from.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LineBytes<'a>(pub &'a [u8]);
+
+/// Where the searched text starts inside the physical source, in bytes.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SourceBase(pub usize);
+
+/// A byte position inside the searched text.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LineCursor(pub usize);
+
+/// Whether the last byte read was a carriage return that has not yet ended its line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CarriageReturn {
+    /// A carriage return ends its line unless a line feed follows.
+    Pending,
+    /// No carriage return awaits a line feed.
+    Clear,
+}

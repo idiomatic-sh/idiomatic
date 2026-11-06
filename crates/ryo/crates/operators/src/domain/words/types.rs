@@ -3,3 +3,6 @@
 pub trait WordOutput {
     fn word(&mut self, text: &str);
 }
+
+/// The engine-owned scratch one word is built in; it keeps its capacity between calls.
+pub(crate) struct WordScratch<'a>(pub &'a mut String);
