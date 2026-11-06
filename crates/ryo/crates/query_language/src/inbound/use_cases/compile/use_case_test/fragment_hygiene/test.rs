@@ -46,7 +46,7 @@ fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
     crate::domain::linking::service::link(bundle, parsed.root, &parsed.fragments)
-        .map_err(|error| error.message)
+        .map_err(|error| error.to_string())
 }
 
 fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
@@ -116,11 +116,11 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
             ))
         );
         assert_eq!(
-            argument("source").value,
+            argument(ryo_relations::domain::relations::constants::SOURCE).value,
             ArgumentValue::Word(WordText("id".into()))
         );
         assert_eq!(
-            argument("destination").value,
+            argument(crate::domain::syntax::constants::DESTINATION).value,
             ArgumentValue::Word(WordText("grouped".into()))
         );
         assert_eq!(

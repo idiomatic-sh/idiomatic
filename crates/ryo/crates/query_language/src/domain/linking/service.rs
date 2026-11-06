@@ -9,7 +9,7 @@ use ryo_values::domain::program::types::{
     StepName, WrittenApplied, WrittenOperand,
 };
 
-use super::errors::LinkError;
+use super::errors::LinkingError;
 use super::types::{Bindings, Imported};
 use crate::domain::syntax::constants::{
     BOOLEAN_WORDS, fragment_scalar_kind_named, relation_cell_kind_named,
@@ -23,7 +23,7 @@ pub(crate) fn link(
     bundle: &QueryBundle,
     root: Program,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
-) -> Result<Program, LinkError> {
+) -> Result<Program, LinkingError> {
     link_with_observations(bundle, root, fragments, &[])
 }
 
@@ -33,7 +33,7 @@ pub(crate) fn link_with_observations(
     mut root: Program,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-) -> Result<Program, LinkError> {
+) -> Result<Program, LinkingError> {
     let root_id = bundle.root.id.clone();
     assign_root_identities(&mut root);
     validate_step_names(&root_id, &root.steps)?;
@@ -175,7 +175,7 @@ fn assign_root_identities(program: &mut Program) {
 }
 
 /// Rejects repeated step names within one source module.
-fn validate_step_names(source: &QuerySourceId, steps: &[LetStep]) -> Result<(), LinkError> {
+fn validate_step_names(source: &QuerySourceId, steps: &[LetStep]) -> Result<(), LinkingError> {
     let mut names = BTreeSet::new();
     for step in steps {
         if !names.insert(step.name.0.as_ref()) {
@@ -197,7 +197,7 @@ fn validate_step_names(source: &QuerySourceId, steps: &[LetStep]) -> Result<(), 
 fn validate_fragment_signature(
     source: &QuerySourceId,
     fragment: &FragmentProgram,
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     let mut names = BTreeSet::new();
     for input in &fragment.inputs {
         if !names.insert(input.name.0.as_ref()) {
@@ -241,7 +241,7 @@ fn validate_fragment_signature(
 fn validate_relation_signature(
     source: &QuerySourceId,
     signature: &ryo_values::domain::program::types::RelationSignature,
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     let mut names = BTreeSet::new();
     for column in &signature.columns {
         if relation_cell_kind_named(&column.kind.0).is_none() {
@@ -271,8 +271,8 @@ fn validate_relation_signature(
 fn imports_for(
     source: &QuerySourceId,
     imports: &[ImportDeclaration],
-) -> Result<Imported, LinkError> {
-    let mut indexed = BTreeMap::new();
+) -> Result<Imported, LinkingError> {
+    let mut indexed = Imported::default();
     for import in imports {
         if indexed
             .insert(import.alias.0.clone(), import.clone())
@@ -293,7 +293,7 @@ fn imports_for(
 fn validate_import_targets(
     bundle: &QueryBundle,
     imports: &BTreeMap<QuerySourceId, Imported>,
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     for (source, aliases) in imports {
         for import in aliases.values() {
             let target = source_id(source, import)?;
@@ -315,15 +315,15 @@ fn reject_cycles(
     root: &QuerySourceId,
     imports: &BTreeMap<QuerySourceId, Imported>,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     fn visit(
         source: &QuerySourceId,
         imports: &BTreeMap<QuerySourceId, Imported>,
         colors: &mut BTreeSet<QuerySourceId>,
         path: &mut Vec<QueryTraceSite>,
-    ) -> Result<(), LinkError> {
+    ) -> Result<(), LinkingError> {
         let _new_color = colors.insert(source.clone());
-        for import in imports.get(source).into_iter().flat_map(BTreeMap::values) {
+        for import in imports.get(source).into_iter().flat_map(Imported::values) {
             let target = source_id(source, import)?;
             let edge = trace_site(source, &target, import.span);
             if colors.contains(&target) {
@@ -377,7 +377,7 @@ fn expand(
     origins: &mut Vec<QueryOrigin>,
     step_origins: &mut BTreeMap<StepIdentity, QueryOrigin>,
     contracts: &mut Vec<FragmentContract>,
-) -> Result<Vec<LetStep>, LinkError> {
+) -> Result<Vec<LetStep>, LinkingError> {
     let fragment = fragments.get(source).ok_or_else(|| {
         located(
             source,
@@ -528,7 +528,7 @@ fn expand(
                 span: input.span,
             })
         })
-        .collect::<Result<Vec<_>, LinkError>>()?;
+        .collect::<Result<Vec<_>, LinkingError>>()?;
     contracts.push(FragmentContract {
         first,
         result,
@@ -558,7 +558,7 @@ fn bind_arguments(
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
     trace: &[QueryTraceSite],
-) -> Result<(Bindings, Bindings), LinkError> {
+) -> Result<(Bindings, Bindings), LinkingError> {
     let mut given = BTreeMap::new();
     for argument in &call.arguments {
         if given
@@ -708,7 +708,7 @@ fn remap_step(
     source: &QuerySourceId,
     preceding: &[LetStep],
     trace: &[QueryTraceSite],
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     if let Some(identity) = step.name.1 {
         step.name.1 = identities.get(&identity).copied();
     }
@@ -731,7 +731,7 @@ fn remap_select(
     parameters: &Bindings,
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     for query_source in std::iter::once(&mut select.from).chain(match &mut select.join {
         ryo_values::domain::program::types::Joining::Alone => None,
         ryo_values::domain::program::types::Joining::Joined(join) => Some(&mut join.source),
@@ -776,7 +776,7 @@ fn remap_condition(
     parameters: &Bindings,
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     match condition {
         Condition::Test(filter) => remap_filter(filter, parameters, source, trace),
         Condition::Any(alternatives) => {
@@ -796,7 +796,7 @@ fn remap_filter(
     parameters: &Bindings,
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     remap_operand(&mut filter.left, parameters, filter.span, source, trace)?;
     remap_operand(&mut filter.right, parameters, filter.span, source, trace)
 }
@@ -808,7 +808,7 @@ fn remap_operand(
     span: QuerySpan,
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     match operand {
         WrittenOperand::Parameter(parameter) => {
             let value = parameters.get(&parameter.0).ok_or_else(|| {
@@ -855,7 +855,7 @@ fn remap_call(
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
     strict_parameters: bool,
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     if strict_parameters
         && let Some(parameter) = call
             .arguments
@@ -970,7 +970,7 @@ fn substitute_argument_value(value: &mut ArgumentValue, bindings: &Bindings) {
 fn source_id(
     source: &QuerySourceId,
     import: &ImportDeclaration,
-) -> Result<QuerySourceId, LinkError> {
+) -> Result<QuerySourceId, LinkingError> {
     ryo_values::domain::program::service::source_id(&import.module.0).map_err(|error| {
         located(
             source,
@@ -996,8 +996,8 @@ fn located(
     span: QuerySpan,
     trace: Vec<QueryTraceSite>,
     message: impl Into<String>,
-) -> LinkError {
-    LinkError {
+) -> LinkingError {
+    LinkingError::Located {
         origin: QueryOrigin {
             source_id: source_id.clone(),
             span,
@@ -1073,7 +1073,7 @@ fn bind_declared_sources(
     imports: &Imported,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     source: &QuerySourceId,
-) -> Result<(), LinkError> {
+) -> Result<(), LinkingError> {
     let names: BTreeSet<_> = observations
         .iter()
         .map(|input| input.name.0.as_ref())

@@ -9,6 +9,7 @@ use super::types::TypecheckRequest;
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::syntax::constants::operator_name;
 use crate::domain::syntax::service::{operators_used, relations_read};
+use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::errors::SyntaxError;
@@ -65,15 +66,14 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             &parsed.fragments,
             &request.observations,
         )
-        .map_err(|error| {
-            let span = error.origin.span;
-            TypecheckError::Located {
-                origin: error.origin,
+        .map_err(|error| match error {
+            LinkingError::Located { origin, message } => TypecheckError::Located {
                 error: Box::new(TypecheckError::Invalid {
-                    span,
-                    message: error.message,
+                    span: origin.span,
+                    message,
                 }),
-            }
+                origin,
+            },
         })?;
         let relations = self
             .catalog

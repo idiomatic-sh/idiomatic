@@ -38,8 +38,8 @@ fn closure_keeps_endpoint_columns() {
         "closure",
         vec![
             ("edges", text("semantic-child")),
-            ("source", word("parent")),
-            ("destination", word("child")),
+            (ryo_relations::domain::relations::constants::SOURCE, word("parent")),
+            (crate::domain::syntax::constants::DESTINATION, word("child")),
         ],
     );
     super::service::call_closure(&mut builder, &name(), &call, plans::QueryOperator::Closure)
@@ -60,8 +60,8 @@ fn endpoint_cannot_also_be_a_partition_key() {
         "closure",
         vec![
             ("edges", text("semantic-child")),
-            ("source", word("parent")),
-            ("destination", word("child")),
+            (ryo_relations::domain::relations::constants::SOURCE, word("parent")),
+            (crate::domain::syntax::constants::DESTINATION, word("child")),
             ("keys", syntax::ArgumentValue::List(vec![word("parent")])),
         ],
     );

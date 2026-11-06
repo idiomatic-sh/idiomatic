@@ -265,7 +265,7 @@ fn span_plan(
         .read_bundle(&bundle)
         .map_err(|error| error.to_string())?;
     let program = crate::domain::linking::service::link(&bundle, parsed.root, &parsed.fragments)
-        .map_err(|error| error.message)?;
+        .map_err(|error| error.to_string())?;
     let names = hosted
         .iter()
         .map(|relation| relation.name.clone())

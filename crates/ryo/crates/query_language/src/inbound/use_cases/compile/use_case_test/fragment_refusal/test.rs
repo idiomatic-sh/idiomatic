@@ -51,7 +51,7 @@ fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
     crate::domain::linking::service::link(bundle, parsed.root, &parsed.fragments)
-        .map_err(|error| error.message)
+        .map_err(|error| error.to_string())
 }
 
 fn a_fragment_cannot_forward_an_undeclared_caller_parameter() {
