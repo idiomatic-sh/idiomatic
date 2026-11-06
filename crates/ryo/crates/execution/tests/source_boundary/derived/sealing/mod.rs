@@ -110,6 +110,30 @@ mod access_prepare {
     const _: fn(&DerivedAccess, ViewRequest) -> Arc<PreparedDerived> = prepare;
 }
 "#;
+const INBOUND_BUILD: &str = r#"
+mod inbound_build {
+    use super::ExecutionUseCaseImpl;
+    fn escape(use_case: &ExecutionUseCaseImpl) { let _ = use_case.derived.build(); }
+    const _: fn(&ExecutionUseCaseImpl) = escape;
+}
+"#;
+const INBOUND_PORT: &str = r#"
+mod inbound_port {
+    use super::ExecutionUseCaseImpl;
+    use crate::outbound::derived::interface::DerivedPort;
+    use std::sync::Arc;
+    fn escape(use_case: &ExecutionUseCaseImpl) -> &Arc<dyn DerivedPort> { &use_case.derived }
+    const _: fn(&ExecutionUseCaseImpl) -> &Arc<dyn DerivedPort> = escape;
+}
+"#;
+const INBOUND_HOLDS: &str = r#"
+mod inbound_holds {
+    use super::ExecutionUseCaseImpl;
+    use crate::application::file_dag::derived::owner::types::DerivedAccess;
+    fn hold(use_case: &ExecutionUseCaseImpl) -> DerivedAccess { use_case.derived.clone() }
+    const _: fn(&ExecutionUseCaseImpl) -> DerivedAccess = hold;
+}
+"#;
 const PORT_OWNER: &str = r#"
 mod port_owner { use super::DerivedAccess; fn own(access: &DerivedAccess) { let _ = access.port(); } const _: fn(&DerivedAccess) = own; }
 "#;
@@ -170,6 +194,11 @@ pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
         refuse(root, PORT_FIELD.into(), "E0616", "port", "private"),
         Probe { compilation: Compilation::Library, owner: root, source: ACCESS_PREPARE.into(), expected: Expectation::Accept },
         Probe { compilation: Compilation::Library, owner: TYPES, source: PORT_OWNER.into(), expected: Expectation::Accept },
+        // The inbound layer holds the capability, not the port: it cannot call build through
+        // the field, cannot recover the port type from it, and can hold and clone the capability.
+        refuse(super::INBOUND, INBOUND_BUILD.into(), "E0599", "build", "DerivedAccess"),
+        refuse(super::INBOUND, INBOUND_PORT.into(), "E0308", "DerivedPort", "DerivedAccess"),
+        Probe { compilation: Compilation::Library, owner: super::INBOUND, source: INBOUND_HOLDS.into(), expected: Expectation::Accept },
     ];
     for field in &fields {
         probes.push(refuse(

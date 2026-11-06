@@ -1,0 +1,98 @@
+{
+ "schema": "contract-review-verdict/v1",
+ "scope": "Phase 4 re-review (base cd2b23f100; status ACTIVE): lifecycle exits, cache privacy probes, no-heap-accounting 0.2.0, DerivedAccess, CachedGraph, consumer census, rows (a)(b) ticked and (c) open",
+ "source": {
+  "base": "cd2b23f100b0c32a359aa81fd12515f61c4de73a",
+  "head": "1e3eba5c90a3de41b297676972c03d4187b2c6d0",
+  "tree": "02d22a77569b2fccdb9339a4def9dfe9534126ac",
+  "validated_source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+  "note": "dcfb869ef5..1e3eba5c90 is docs only (README.md, evidence/checkpoint/{identity,validation}.json)"
+ },
+ "reviewers": {
+  "lead": "unavailable: Astra not reachable in this session; this is the single independent review",
+  "independent": {
+   "model": "claude-opus-5-5",
+   "harness": "Claude Code subagent (contract-review)",
+   "session": "49097a8d-ede0-49a6-a00e-e5e13e0b95b9",
+   "round": "review-316-1e3eba5c90"
+  },
+  "mode": "read-only; git read commands only; no build, test or tm run",
+  "worktree": "/workspaces/ryo-review-316 detached at 1e3eba5c90a3de41b297676972c03d4187b2c6d0, status clean before and after, removed at end",
+  "evidence": "/tmp/ryo-contract-validation316-20261106/final3 (all 20 per-check json source=dcfb869ef5; run3.out BATCH COMPLETE; exits: ruff 101, core_allocation 101, tm_source 1, rest 0); committed evidence/checkpoint/validation.json (validation 316, raw_identity final3). Top-level raw files in that directory are from 46264ac52d and were not used."
+ },
+ "verdict": "blocking",
+ "axes": {
+  "enforced_boundaries": "FAIL",
+  "ownership_and_flow": "FAIL",
+  "proof": "FAIL"
+ },
+ "findings": [
+  {
+   "id": 1,
+   "axis": "enforced_boundaries",
+   "location": "final3/tm_source.log: 21 production findings under application/file_dag/derived (20 no-bare-integers, 1 no-bare-bool, e.g. derived/owner/cache/types.rs:59,61,94,96, graph_key.rs:11,28, request.rs:246); README:88",
+   "failure": "Row (c) is open by the author's own account: the derived scope is not at zero production structural findings (deferred to Phase 7), and the new fixtures family/fixtures/{route,refusing} have undecided placement. A phase cannot pass with in-scope production findings waived.",
+   "owner": "Phase 4 derived agent",
+   "required_enforcement": "Type the 21 values (row positions, vertex ids, byte fields) or show a decision record that moves them to Phase 7 and keeps Phase 4 ACTIVE; place the new fixture files and re-run scoped TM to zero production findings."
+  },
+  {
+   "id": 2,
+   "axis": "proof",
+   "location": "tastemaker/rules/no-heap-accounting/0.2.0/rule.toml:5-6,44-55,213-250; tastemaker/specs/idiomatic-rust/0.1.2/spec.toml:6; crates/ryo/tastemaker.toml:918; final3/tm_guards.json (validates only 7 ryo-local assets)",
+   "failure": "0.1.0 is restored and asymptote/tastemaker stay on it (fixed), but the new 0.2.0 scenarios (accounting-outside-the-ledger, accounting-in-the-ledger, a-second-owner-path) were never run by tm validate in any recorded evidence. The earlier blocker named exactly this missing validation.",
+   "owner": "Tastemaker specialist",
+   "required_enforcement": "Run tm validate on no-heap-accounting@0.2.0 and idiomatic-rust@0.1.2 and record it in the committed command set."
+  },
+  {
+   "id": 3,
+   "axis": "proof",
+   "location": "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/mod.rs:254-328 (leave releases pins itself); fixtures/route/graph/mod.rs:13-24 and route/selection (assert only after fixture.clear()); README:87",
+   "failure": "Release before retirement is shown only where the fixture itself calls owner.derived.release(population) in leave(); a production exit that forgets to release its population still passes because the fixture performs the release. On the production-entry route, Adjacency, Membership, PredicateMatches, CandidatePostings and DistinctRepresentatives (5 of 13) assert the ledger only after generation retirement, which a lease leaked until retirement passes.",
+   "owner": "Phase 4 derived agent",
+   "required_enforcement": "Drive each production entry's own cancel/error exit (the code that releases the population in production) and assert required bytes == baseline before release_population, for all 12 stored kinds including graph and selection."
+  },
+  {
+   "id": 4,
+   "axis": "ownership_and_flow",
+   "location": "crates/ryo/crates/execution/src/inbound/use_cases/execution/types.rs:81 (derived: Arc<dyn DerivedPort>); use_case.rs:14; crates/ryo/crates/execution/tests/source_boundary/derived/census/mod.rs:135-146",
+   "failure": "DerivedAccess seals the port for file_dag holders, but RequestExecution and ExecutionUseCaseImpl still hold the raw Arc<dyn DerivedPort>, on which DerivedUseCase::build is a public trait method; a new self.derived.build(..) in inbound compiles. The guard is a text scan (text.contains(\"DerivedPort\")) limited to application/file_dag/: a string marker, not a type boundary.",
+   "owner": "Phase 4 derived agent",
+   "required_enforcement": "Hand the composition an owner-issued sealed handle (constructed from the port once, port not retrievable) so no type outside derived/owner holds Arc<dyn DerivedPort> after construction; compile-fail probe from inbound/use_cases/execution calling build."
+  }
+ ],
+ "repaired": [
+  {
+   "earlier": 1,
+   "status": "partly fixed; see finding 3",
+   "evidence": "real lease acquired before cancel/error exits, Scenario::BuildFails with RefusingBuild for every stored kind; every_family_* ok in final3/libraries.log"
+  },
+  {
+   "earlier": 2,
+   "status": "fixed",
+   "evidence": "one E0616 probe per field parsed from the CacheBackend declaration plus an owner positive naming them all (sealing/mod.rs:127-170); boundary 99/99"
+  },
+  {
+   "earlier": 3,
+   "status": "partly fixed; see finding 2",
+   "evidence": "0.1.0 unchanged since before 16c297286a; 0.2.0 with owners param pinned only by crates/ryo/tastemaker.lock:71"
+  },
+  {
+   "earlier": 4,
+   "status": "partly fixed; see finding 4",
+   "evidence": "DerivedAccess prepare-only, probes port_build/port_field/port_accessor/access_prepare/port_owner"
+  },
+  {
+   "earlier": 5,
+   "status": "fixed",
+   "evidence": "derived/owner/cached_graph/ takes &mut CacheBackend; unprepared/retired owner refuse (cached_graph::test 3 ok); file_dag/cached_graph.rs deleted"
+  }
+ ],
+ "verified": [
+  "Consumer census every_derived_consumer_is_censused_and_every_kind_names_its_controls ok in final3/boundary.log (scanned owner surface equals the authored Entry table; per-kind exhaustive match; forgery controls)."
+ ],
+ "dispositions": [],
+ "manual_judgment": [
+  "0.2.0 adds a product-declared exemption (owners param) to a rule whose stated purpose is that heap accounting signals a design problem; owner decision, not a reviewer call.",
+  "The census inventory is read from source by line prefix (pub(crate)/pub(in crate::application::file_dag)); macro-generated or differently formatted functions escape it."
+ ]
+}

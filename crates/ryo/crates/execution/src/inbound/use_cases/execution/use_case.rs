@@ -11,11 +11,14 @@ use ryo_values::domain::{
 use std::sync::Arc;
 pub struct ExecutionUseCaseImpl {
     operators: Arc<dyn OperatorsPort>,
-    derived: Arc<dyn DerivedPort>,
+    derived: crate::application::file_dag::derived::owner::types::DerivedAccess,
 }
 impl ExecutionUseCaseImpl {
     pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
-        Self { operators, derived }
+        Self {
+            operators,
+            derived: derived.into(),
+        }
     }
 }
 impl ExecutionUseCase for ExecutionUseCaseImpl {
@@ -55,7 +58,7 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
             program: Arc::clone(&program.inner),
             services: Arc::new(ProgramServices::new(
                 Arc::clone(&program.kernels),
-                Arc::clone(&program.derived),
+                program.derived.clone(),
                 corpus,
             )),
             frontiers: Default::default(),
@@ -599,13 +602,13 @@ impl ExecutionUseCaseImpl {
             &rules,
             &digests,
             &hosted,
-            Arc::clone(&self.derived),
+            self.derived.clone(),
             identity,
         )?;
         Ok(PreparedExecutionProgram {
             inner,
             kernels: Arc::new(CommonOperatorEngine::new(Arc::clone(&self.operators))),
-            derived: Arc::clone(&self.derived),
+            derived: self.derived.clone(),
         })
     }
 }
