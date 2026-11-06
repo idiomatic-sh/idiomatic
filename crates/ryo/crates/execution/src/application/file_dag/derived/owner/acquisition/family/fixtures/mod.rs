@@ -353,7 +353,7 @@ fn acquire(
     }
     result
 }
-/// The last consumer's exit: the owner's own producer release runs while the generation is still
+/// The last consumer's exit: the producer release of the relation owner runs while the generation is still
 /// live, and nothing here releases a population. The required bytes must be what they were
 /// before the view was acquired; otherwise the exit leaked its lease.
 fn leave(
