@@ -1,34 +1,17 @@
 //! The `operation_schema` service: output column algebra with no row values, source bytes or execution storage.
-use super::projection::projected;
+use super::projection::{joined, projected, schema_input};
 
 use super::types::InputShape;
 use super::types::bindings::value::BindingShape;
 use super::types::traversal::value::TraversalShape;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
+use crate::domain::table_model::service::check_columns;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::service::inputs_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::rows::errors::TableModelError;
-use {
-    crate::domain::table_model::service::check_columns,
-    ryo_values::domain::rows::service::column_in,
-};
-
-/// Read one input's metadata in the same input order as execution.
-pub(crate) fn schema_input<'a>(
-    inputs: &[InputShape<'a>],
-    place: InputPlace,
-) -> Result<InputShape<'a>, OperatingError> {
-    inputs
-        .get(place.0)
-        .copied()
-        .ok_or(OperatingError::MissingInput {
-            position: place.0 + 1,
-        })
-}
 
 /// A fused join's logical RHS remains the original closure projection, without executing edges.
 pub(crate) fn reach_kinds(
@@ -38,35 +21,6 @@ pub(crate) fn reach_kinds(
     let mut columns = reach.keys.clone();
     columns.extend([reach.source, reach.destination]);
     projected(&projected(kinds, &columns)?, &reach.columns)
-}
-
-/// Output kinds of a two-input projection, optionally through a native tree view.
-pub(crate) fn joined(
-    left: &[CellKind],
-    right: &[CellKind],
-    view: Option<&[ColumnIndex]>,
-    output: &[JoinColumn],
-) -> Result<Vec<CellKind>, OperatingError> {
-    output
-        .iter()
-        .map(|column| {
-            let (kinds, source) = match column.side {
-                Side::Left => (left, column.column),
-                Side::Right => (
-                    right,
-                    view.map_or(column.column, |view| {
-                        crate::domain::tree_join::service::source_column(view, column.column)
-                    }),
-                ),
-            };
-            column_in(kinds, source).copied().ok_or_else(|| {
-                TableModelError::NoSuchColumn {
-                    index: column.column.0,
-                }
-                .into()
-            })
-        })
-        .collect()
 }
 
 /// Derive an operation's ordered output schema from metadata alone.
