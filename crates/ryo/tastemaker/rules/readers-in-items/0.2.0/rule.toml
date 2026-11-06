@@ -1,7 +1,8 @@
-description = "A language's reader is an item in `domain/<concept>/collections/<collection>/<name>/item.rs` of the concepts relations, manifests and links, and nowhere else."
+description = "A language's reader is in one of the homes its spec names (the item folders of its collections, and the readers of its parse contract), and nowhere else."
 why = "The author's first question is where a reader lives, and there is one answer: the item that implements `ReadItem` or `ManifestItem` is in the item folder of its collection, beside its fixtures' item_test.rs, so that the rules and the fixtures that look for items find every one. A reader in another place compiles and is held by the conformance, and every rule that looks for items does not see it; the `reads!` that writes one without code is looked for as well as the traits it implements. The marker traits in `languages::declared` are what keeps a hand-written impl from compiling by accident; a deliberate two-line marker impl still compiles, so a path through `declared` written in a language's source, which only a hand-written marker does (the macro's expansion is not source), is a finding wherever it stands."
 
 query = '''
+param homes: set<string>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let idents = select * from tree-tokens where kind = "ident";
@@ -21,12 +22,10 @@ let paths = select r."parent" as "node", l."file" as "file" from segments as l j
 let owners = select r."parent" as "node", l."file" as "file" from paths as l join "syntax-child" as r on l."node" = r."child";
 let macro-calls = select * from tree-nodes where kind = "macro-call";
 let reads-calls = select l."file" as "file" from owners as l join macro-calls as r on l."node" = r."id";
-let placed = capture(from=readers, path="file", pattern="{*root}/src/domain/{concept}/collections/{collection}/{reader}/item.rs", captures=["root", "concept", "collection", "reader"]);
-let rightful = select * from placed where glob_any(concept, "{relations,manifests,links}");
-let right-paths = project(from=rightful, columns=["file"]);
-let placed-calls = capture(from=reads-calls, path="file", pattern="{*root}/src/domain/{concept}/collections/{collection}/{reader}/item.rs", captures=["root", "concept", "collection", "reader"]);
-let rightful-calls = select * from placed-calls where glob_any(concept, "{relations,manifests,links}");
-let right-call-paths = project(from=rightful-calls, columns=["file"]);
+let right-readers = select * from readers where glob_any(file, $homes);
+let right-paths = project(from=right-readers, columns=["file"]);
+let right-calls = select * from reads-calls where glob_any(file, $homes);
+let right-call-paths = project(from=right-calls, columns=["file"]);
 let reader-paths = project(from=readers, columns=["file"]);
 let call-paths = project(from=reads-calls, columns=["file"]);
 let outside-idents = antijoin(left=reader-paths, right=right-paths, left-on=["file"], right-on=["file"]);
@@ -36,13 +35,17 @@ let outside = union(left=outside-reads, right=marker-paths);
 emit outside subject "file" key("file");
 '''
 
+[params]
+homes = { type = "set<string>", description = "The path patterns where a reader may live, as the language spec places them." }
+
 [diagnostic]
 primary = "file"
 message = "a reader is outside an item folder, or a `declared` marker is written by hand"
-help = "Move the item that implements `ReadItem` or `ManifestItem` to `src/domain/<concept>/collections/<collection>/<name>/item.rs`, the concept being relations, manifests or links,. Only `reads!` and `reads_manifest!` implement the markers of `languages::declared`; delete a hand-written impl of one. An ignore is never the fix."
+help = "Move the item that implements `ReadItem` or `ManifestItem` to one of the homes the language spec names: an item folder `src/domain/<concept>/collections/<collection>/<name>/item.rs` of the concepts relations, manifests or links, or `src/inbound/contracts/parse/readers/<concept>/composition.rs`. Only `reads!` and `reads_manifest!` implement the markers of `languages::declared`; delete a hand-written impl of one. An ignore is never the fix."
 
 [given]
 include = ['**']
+params = { homes = ["**/src/domain/{relations,manifests,links}/collections/*/*/item.rs", "**/src/inbound/contracts/parse/readers/*/composition.rs"] }
 files.'demo/Cargo.toml' = '''
 [package]
 name = "demo"
@@ -134,4 +137,47 @@ impl ReadItem for FunctionItem {
 '''
 then.findings = [
   { path = 'demo/src/domain/relations/collections/relations/function/item.rs' },
+]
+
+[[scenarios]]
+id = 'in-a-parse-reader'
+scenario = 'The reads macro is in the composition of a parse reader concept.'
+given.files.'demo/src/inbound/contracts/parse/readers/format/composition.rs' = '''
+ryo::reads! {
+    FormatItem => ryo::languages::Format {
+        row: [ryo::languages::FormatRow],
+        kinds: [KIND],
+        columns: { id: node },
+    }
+}
+'''
+
+[[scenarios]]
+id = 'reader-in-a-reader-concept-service'
+scenario = 'A reader written in the service of a parse reader concept, which is not its home.'
+given.files.'demo/src/inbound/contracts/parse/readers/format/service.rs' = '''
+pub struct FormatItem;
+
+impl ReadItem for FormatItem {
+    const READER: u8 = 0;
+}
+'''
+then.findings = [
+  { path = 'demo/src/inbound/contracts/parse/readers/format/service.rs' },
+]
+
+[[scenarios]]
+id = 'reader-in-the-parse-contract'
+scenario = 'A reader written beside the contract instead of in a reader concept.'
+given.files.'demo/src/inbound/contracts/parse/contract.rs' = '''
+ryo::reads! {
+    FormatItem => ryo::languages::Format {
+        row: [ryo::languages::FormatRow],
+        kinds: [KIND],
+        columns: { id: node },
+    }
+}
+'''
+then.findings = [
+  { path = 'demo/src/inbound/contracts/parse/contract.rs' },
 ]

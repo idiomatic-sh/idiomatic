@@ -1,5 +1,9 @@
 # language
 
+## 0.3.0
+
+Places `contract` 0.2.0, whose parse part may hold readers, and `readers-in-items` 0.2.0, which takes the homes of a reader from the `homes` param: the item folders of the collections and `inbound/contracts/parse/readers/<concept>/composition.rs`.
+
 ## 0.2.0
 
 Places `benchmark` 0.2.0 (and through it `benchmark-linter` 0.2.0). Nothing else changes; 0.1.0 stays as published.

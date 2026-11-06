@@ -1,0 +1,24 @@
+description = "The list of a contract's reader concepts: one public module each."
+why = "A contract's relations are read by readers grouped by the idea they read (`format`, `token_link`), each concept a directory beside this list. The list declares the concepts, so a concept that is placed and not declared here is a finding of the orphan rule, and the contract's module file declares only this one."
+content = '''
+//! The readers of the contract, one concept each.
+'''
+
+[given]
+file = 'readers.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'readers.rs' = '''
+//! The readers of the contract, one concept each.
+
+pub(crate) mod format;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'reader-list#count', path = '.' },
+]

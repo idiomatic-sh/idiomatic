@@ -1,5 +1,9 @@
 # contract
 
+## 0.2.0
+
+A contract part may hold readers: `readers.rs` (the list of concepts), `readers/<concept>.rs`, and for each concept `composition.rs` (the readers bound to the grammar adapters that serve them, the one place that may name an adapter), `service.rs`, `types.rs`, `constants.rs`, the proof `composition_test.rs` (and its groups) or `service_test.rs`, and `fixtures.rs` with `fixtures/<file>.rs`. The part may also hold `constants.rs` and `service.rs` of its own. All are optional (`count = { min = 0 }`), so a contract without readers is unchanged. New templates `reader-list`, `reader-module`, `reader-composition`, `reader-fixtures`, `reader-fixture`. Fixtures: `contract-with-readers`, `reader-composition-without-its-role`.
+
 ## 0.1.0
 
 The first version: a language's `parse` and `project` are contract parts, not use cases. A contract part is `contract.rs`, which imports the engine's trait (`ryo::languages::Parse`) and implements it for the struct `<Part>Contract`, and `contract_test.rs`, the language's own cases in the one test shape. The `trait` param names the trait, and the rule `contract-implements` holds that the file imports that exact path and implements it. The language spec places the two contracts and their module files; the part has no interface, types, errors or fakes of its own. Fixtures: the complete contract, no test, no contract file and a contract that does not implement its trait, the four of the rule and the templates' own.
