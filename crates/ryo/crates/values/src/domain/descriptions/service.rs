@@ -6,7 +6,7 @@ use crate::domain::descriptions::types::KindWord;
 use crate::domain::descriptions::types::RelationDescription;
 use crate::domain::descriptions::types::RelationName;
 use crate::domain::descriptions::types::RelationSummary;
-use crate::domain::program::types::ColumnName;
+use crate::domain::descriptions::types::ColumnName;
 use ryo_relations::domain::relations::service::vocabulary_of;
 use ryo_relations::domain::relations::constants::kind_name;
 use ryo_relations::domain::relations::service::column_name;

@@ -8,8 +8,9 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
-    files::types::CorpusInput, observations::types::ObservationBindingId,
-    plan_parts::types::InputNumber, runs::types::Skipped,
+    files::types::CorpusInput,
+    plan_parts::types::{InputNumber, ObservationBindingId},
+    runs::types::Skipped,
     stored_facts::types::{ArenaBytes, Bucket},
 };
 

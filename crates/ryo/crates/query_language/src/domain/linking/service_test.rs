@@ -7,10 +7,8 @@ use super::service::link;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
 use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
-use ryo_values::domain::program::types::{
-    ByteOffset, ColumnName, ImportDeclaration, Program, QuerySpan, StepName, WrittenEmit,
-    WrittenLiteral, WrittenName,
-};
+use ryo_values::domain::program::types::{ByteOffset, ImportDeclaration, Program, QuerySpan, StepName, WrittenEmit, WrittenLiteral, WrittenName};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy)]
@@ -68,7 +66,7 @@ fn import(alias: &str, module: &str) -> ImportDeclaration {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut program = Program {
-        linked: false,
+        linked: ryo_values::domain::program::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
@@ -93,7 +91,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let root = document_source(source_id("root").expect("a named source"), "");
     let bundle = query_bundle(root, []).expect("a bundle of one source");
-    link(&bundle, program, &BTreeMap::new()).map(|linked| linked.linked)
+    link(&bundle, program, &BTreeMap::new())
+        .map(|linked| linked.linked == ryo_values::domain::program::types::Linking::Linked)
 }
 
 #[test]

@@ -106,7 +106,7 @@ fn baseline_with_symbols(
     // authored result requires the actual Project operation.
     if program.distinct || program.columns.is_empty() {
         plan.steps.push(ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: Operation::Project {
                 from: Source::Step(plan.emit.step),
                 columns: program.columns.clone(),

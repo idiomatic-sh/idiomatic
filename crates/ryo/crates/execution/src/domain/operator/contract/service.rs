@@ -197,8 +197,11 @@ pub(crate) fn prepare_for(
             capture_text,
             capture_line,
             ..
-        } if ((*capture_text || *capture_line) && capture.is_none())
-            || (*capture_line && base_line.is_none()) =>
+        } if ((*capture_text == ryo_values::domain::plans::types::TextOutput::Appended
+            || *capture_line == ryo_values::domain::plans::types::LineOutput::Appended)
+            && capture.is_none())
+            || (*capture_line == ryo_values::domain::plans::types::LineOutput::Appended
+                && base_line.is_none()) =>
         {
             Some(crate::domain::operating::errors::OperatingError::WrongOperation)
         }

@@ -14,10 +14,10 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Relation, Words, WorkerNumber},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, InputNumber, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
-    rows::errors::TableModelError,
+    plan_parts::types::{ColumnIndex, Input, InputNumber, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
     stored_facts::types::Bucket,
+    rows::errors::TableModelError,
 };
 use std::sync::atomic::Ordering;
 

@@ -168,7 +168,7 @@ pub trait PreparedExecution {
     fn observation_layout(
         &self,
     ) -> Option<(
-        ryo_values::domain::observations::types::ObservationReadinessLayout,
+        ryo_values::domain::records::types::ObservationReadinessLayout,
         &[ObservedFrontierRoot],
     )>;
     fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError>;
@@ -176,7 +176,7 @@ pub trait PreparedExecution {
     fn frontier_dependencies(
         &self,
         rule: RuleIndex,
-    ) -> Result<&[Vec<ryo_values::domain::observations::types::ObservationBindingId>], OperatingError>;
+    ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>;
 }
 
 pub trait ExecutionCompilation {
@@ -206,7 +206,7 @@ pub trait ObservationExecution {
         rule: RuleIndex,
     ) -> Result<
         std::collections::BTreeMap<
-            ryo_values::domain::observations::types::ObservationBindingId,
+            ryo_values::domain::plan_parts::types::ObservationBindingId,
             bool,
         >,
         OperatingError,
@@ -231,7 +231,7 @@ pub trait ObservationPublication {
         slot: PublicationSlot,
         transfer: CrossPublicationTransfer,
         publications: Vec<(
-            ryo_values::domain::observations::types::ObservationIndex,
+            ryo_values::domain::records::types::ObservationIndex,
             ObservedPublication,
         )>,
     ) -> Result<(), OperatingError>;

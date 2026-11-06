@@ -61,7 +61,7 @@ impl RequestDerived {
                     .regions()
                     .get(region_id.0)
                     .ok_or(OperatingError::NotRun)?;
-                if region.phase != ryo_values::domain::plans::types::StepScope::PerFile {
+                if region.phase != ryo_values::domain::plan_parts::types::StepScope::PerFile {
                     continue;
                 }
 

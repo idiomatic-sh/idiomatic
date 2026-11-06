@@ -109,8 +109,8 @@ fn notes(capacity: usize, live: usize) -> FileNotes {
 }
 fn proof() -> FrontierProof {
     FrontierProof {
-        rule: 0,
-        input: 0,
+        rule: crate::domain::records::types::ProducerRule(0),
+        input: crate::domain::records::types::FrontierOrdinal(0),
         rule_digest: Digest([0; 16]),
         coverage: FrontierCoverage::Complete,
     }

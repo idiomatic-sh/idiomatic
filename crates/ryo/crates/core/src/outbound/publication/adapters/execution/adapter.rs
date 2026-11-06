@@ -6,7 +6,9 @@ use ryo_execution::inbound::use_cases::publication::{
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{NamePlace, WorkerNumber};
 use ryo_values::domain::{
-    observations::types::ObservationReason, rows::types::Table, stored_facts::types::ArenaBytes,
+    rows::types::Table,
+    stored_facts::types::ArenaBytes,
+    records::types::ObservationReason,
 };
 use std::sync::Arc;
 

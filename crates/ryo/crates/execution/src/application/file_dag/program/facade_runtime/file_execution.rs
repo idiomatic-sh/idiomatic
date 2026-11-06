@@ -188,7 +188,7 @@ impl FileRun<'_> {
     #[cfg(test)]
     pub(crate) fn observation_routes(
         &self,
-        slot: ryo_values::domain::observations::types::ObservationIndex,
+        slot: ryo_values::domain::records::types::ObservationIndex,
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
         let region = self
             .program
@@ -256,7 +256,8 @@ impl FileRun<'_> {
 fn readiness_of(
     outcome: &RootOutcome,
 ) -> Option<ryo_values::domain::observations::types::ProducerReadiness> {
-    use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
+    use ryo_values::domain::observations::types::ProducerReadiness;
+    use ryo_values::domain::records::types::ObservationReason;
     Some(match outcome {
         RootOutcome::Complete(_) => ProducerReadiness::Complete,
         RootOutcome::Partial { .. } => {

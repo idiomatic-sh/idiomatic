@@ -11,7 +11,7 @@ use crate::domain::source_partitions::types::source_partitions::value::SourcePar
 use crate::domain::trust::types::RelationRead;
 
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::observations::types::ObservationIndex;
+use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
@@ -160,7 +160,7 @@ impl PreparedProgram {
     pub(crate) fn frontier_dependencies(
         &self,
         rule: RuleIndex,
-    ) -> Result<&[Vec<ryo_values::domain::observations::types::ObservationBindingId>], OperatingError>
+    ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>
     {
         self.rule_metadata(rule)?
             .frontier_dependencies

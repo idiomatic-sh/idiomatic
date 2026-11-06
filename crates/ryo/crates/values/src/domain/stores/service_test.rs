@@ -22,8 +22,8 @@ const fn proof(file: u32, bucket: u32) -> StoredFrontierProof {
         file: StoredFileNumber(file),
         bucket: Bucket(bucket),
         proof: FrontierProof {
-            rule: 0,
-            input: 0,
+            rule: crate::domain::records::types::ProducerRule(0),
+            input: crate::domain::records::types::FrontierOrdinal(0),
             rule_digest: Digest([0; 16]),
             coverage: FrontierCoverage::Complete,
         },

@@ -5,7 +5,7 @@ use crate::application::file_dag::program::preparation::types::{
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::types::ResolvedObservationProducer;
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::stores::types::{MadeAgain, Reuse};
 use std::collections::VecDeque;
 

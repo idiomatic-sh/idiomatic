@@ -257,15 +257,23 @@ pub enum FrontierCoverage {
     Partial(Vec<FrontierAffected>),
 }
 
+/// A producer rule's ordinal in the request that wrote a bucket.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProducerRule(pub u32);
+
+/// A frontier's original ordinal within its producer rule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FrontierOrdinal(pub u32);
+
 /// Persisted root identity. The containing file and bucket remain part of the
 /// enclosing record; a new owner validates this proof against its current rule
 /// digest, frontier ordinal, physical file and observed coverage before use.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FrontierProof {
     /// Producer rule ordinal in the request that wrote this bucket.
-    pub rule: u32,
+    pub rule: ProducerRule,
     /// Original frontier ordinal within that rule.
-    pub input: u32,
+    pub input: FrontierOrdinal,
     /// Current compiled rule identity, compared with the stored rule contract.
     pub rule_digest: Digest,
     /// The exact physical coverage of this frontier.
@@ -351,11 +359,11 @@ pub struct RowTotal(pub u64);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FrontierReadiness {
     /// Encoding version; old versions cannot establish completion.
-    pub version: crate::domain::observations::types::ObservationReadinessVersion,
+    pub version: crate::domain::records::types::ObservationReadinessVersion,
     /// Stable ordered producer/output/query/config identity for these bits.
-    pub layout: crate::domain::observations::types::ObservationReadinessLayout,
+    pub layout: crate::domain::records::types::ObservationReadinessLayout,
     /// Exact number of logical roots represented.
-    pub slots: crate::domain::observations::types::ObservationReadinessCount,
+    pub slots: crate::domain::records::types::ObservationReadinessCount,
     /// Successful production bits, including actual complete zero-row outputs.
     pub complete: ReadinessBits,
     /// Explicit not-applicable bits; empty storage means no skips, never completion.
@@ -371,7 +379,7 @@ pub struct ReadinessBits(pub Vec<u64>);
 /// One explicitly unavailable root; ordinary pending slots need no owned reason.
 pub struct FrontierRefusal {
     /// Position in the enclosing validated map.
-    pub slot: crate::domain::observations::types::ObservationReadinessSlot,
+    pub slot: crate::domain::records::types::ObservationReadinessSlot,
     /// Why production cannot establish complete rows.
     pub reason: FrontierRefusalReason,
 }
@@ -379,7 +387,7 @@ pub struct FrontierRefusal {
 /// A typed unavailable state, never an empty successful population.
 pub enum FrontierRefusalReason {
     /// A real provider, dependency or retention refusal.
-    Unknown(crate::domain::observations::types::ObservationReason),
+    Unknown(crate::domain::records::types::ObservationReason),
     /// The selected producer has no executable query.
     NoQuery,
 }
@@ -391,7 +399,7 @@ pub mod retention;
 /// remains Unknown, require a matching engine-issued publication at admission.
 #[derive(Clone, Debug)]
 pub struct PackedObservedRoot {
-    pub output: crate::domain::observations::types::ObservationIndex,
+    pub output: crate::domain::records::types::ObservationIndex,
     pub words: Option<crate::domain::stored_facts::types::KeptWords>,
     pub readiness: crate::domain::observations::types::ProducerReadiness,
     /// Every arena actually referenced by encoded places, including inherited re-exports.

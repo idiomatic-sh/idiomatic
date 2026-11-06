@@ -11,7 +11,8 @@ use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, Test};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// What a row asks: the relations a plan reads when the catalog is this, or the ones among these a visit walks.
 #[derive(Clone)]

@@ -7,13 +7,14 @@ use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLa
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
 use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;
-use ryo_values::domain::plan_parts::types::RefusalMessage;
-use ryo_values::domain::plan_parts::types::RefusedKind;
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::program::types::RefusalMessage;
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// What the core's tests stand in for `query_language` with: it compiles any text to the plan it
 /// was given, validates any text as reading the relations the host declared, refuses text that contains `refuse`, and counts how many

@@ -164,7 +164,7 @@ impl FileRun<'_> {
                         for root in roots {
                             root.readiness = Some(
                                 ryo_values::domain::observations::types::ProducerReadiness::Unknown(
-                                    ryo_values::domain::observations::types::ObservationReason(
+                                    ryo_values::domain::records::types::ObservationReason(
                                         reason.into(),
                                     ),
                                 ),

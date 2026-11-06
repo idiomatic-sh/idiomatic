@@ -17,11 +17,9 @@ use crate::domain::coverage::types::Partials;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
-use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-    ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-    ObservationReadinessLayout, PlanObservation,
-};
+use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
+use ryo_values::domain::records::types::ObservationReadinessLayout;
+use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::plan_parts::types::{HostedNumber, InputNumber};
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 

@@ -8,7 +8,8 @@ use ryo_relations::domain::relations::types::{CellKind, Integer, NamePlace, Valu
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
-        observations::types::{ObservationIndex, ObservationReason, ProducerReadiness},
+        observations::types::ProducerReadiness,
+        records::types::{ObservationIndex, ObservationReason},
         rows::types::{RowCount, Table},
         stored_facts::types::ArenaBytes,
     },

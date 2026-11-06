@@ -103,7 +103,7 @@ impl FileRun<'_> {
             if let Ok(source) = source.as_ref()
                 && matches!(
                     self.program.program().frontier_phase(*source),
-                    Ok(ryo_values::domain::plans::types::StepScope::CrossFile)
+                    Ok(ryo_values::domain::plan_parts::types::StepScope::CrossFile)
                 )
             {
                 continue;
@@ -149,8 +149,8 @@ impl FileRun<'_> {
                         first, input,
                     ),
                     proof: ryo_values::domain::records::types::FrontierProof {
-                        rule: u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
-                        input: u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
+                        rule: ryo_values::domain::records::types::ProducerRule(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
+                        input: ryo_values::domain::records::types::FrontierOrdinal(u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?),
                         rule_digest,
                         coverage,
                     },

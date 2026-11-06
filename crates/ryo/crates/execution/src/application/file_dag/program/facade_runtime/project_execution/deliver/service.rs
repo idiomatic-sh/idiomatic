@@ -76,7 +76,7 @@ impl ProjectRun<'_> {
             EmitDemand::Enabled => match &metadata.emit_root {
                 Ok(id)
                     if self.program.program().regions()[id.0].phase
-                        != ryo_values::domain::plans::types::StepScope::CrossFile =>
+                        != ryo_values::domain::plan_parts::types::StepScope::CrossFile =>
                 {
                     RootOutcome::Deferred {
                         phase: self.program.program().regions()[id.0].phase,
@@ -94,7 +94,7 @@ impl ProjectRun<'_> {
         let mut observations = Vec::new();
         if matches!(demand.observations, ObservationDemand::Required) {
             for (index, root) in metadata.observations.iter().enumerate() {
-                if root.phase != ryo_values::domain::plans::types::StepScope::CrossFile {
+                if root.phase != ryo_values::domain::plan_parts::types::StepScope::CrossFile {
                     continue;
                 }
                 let result = root
@@ -114,7 +114,7 @@ impl ProjectRun<'_> {
                     .map(|input| input.with_coverage(completion.coverage(&root.reads)));
                 observations.push(
                     crate::application::file_dag::program::protocol::types::ProjectOutputOutcome {
-                    output: ryo_values::domain::observations::types::ObservationIndex(
+                    output: ryo_values::domain::records::types::ObservationIndex(
                         u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                     ),
                     outcome: match result {

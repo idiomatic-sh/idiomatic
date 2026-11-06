@@ -9,7 +9,7 @@ use ryo_values::domain::hosted::types::{HostedName, HostedRelation};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 
 #[derive(Clone, Copy)]
 enum Scenario {

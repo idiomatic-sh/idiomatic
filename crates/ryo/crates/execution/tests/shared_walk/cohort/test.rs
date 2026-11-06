@@ -7,8 +7,8 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_values::domain::{
-    plan_parts::types::{Input, Operand, QueryLiteral, StepId, Test},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{Input, Operand, QueryLiteral, StepId, Test, StepScope},
+    plans::types::{Operation, PlanStep},
 };
 
 #[test]

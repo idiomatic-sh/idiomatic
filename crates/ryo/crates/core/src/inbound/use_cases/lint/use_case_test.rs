@@ -38,9 +38,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
     QueryLiteral, QueryText, StepId, Test,
 };
-use ryo_values::domain::plans::types::{
-    Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep, StepScope,
-};
+use ryo_values::domain::plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
 use ryo_values::domain::runs::types::{Budget, Session};
 use ryo_values::domain::stores::types::{FindingMade, Stored};

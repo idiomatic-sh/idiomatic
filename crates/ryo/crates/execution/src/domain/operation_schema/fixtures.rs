@@ -180,8 +180,8 @@ fn unary() -> Vec<Operation> {
             base_line: None,
             pattern: LiteralText("a".into()),
             capture: None,
-            capture_text: false,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
         },
         Operation::RenderSyntax {
             from: FROM,

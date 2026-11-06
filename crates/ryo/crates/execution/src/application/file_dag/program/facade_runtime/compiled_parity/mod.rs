@@ -26,11 +26,8 @@ use ryo_relations::domain::relations::{
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{
-        ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
-        QueryLiteral, RepeatedRows, Side, StepId, Test,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows, Side, StepId, Test, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     runs::types::{RuleApplicability, RuleId},

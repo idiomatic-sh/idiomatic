@@ -5,11 +5,8 @@ use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreReques
 use ryo_relations::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::{
-    plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery},
-    program::types::{
-        ByteOffset as CoreByteOffset, QueryOrigin as CoreQueryOrigin, QuerySourceId,
-        QuerySpan as CoreQuerySpan,
-    },
+    plan_parts::types::QueryText,
+    program::types::{ByteOffset as CoreByteOffset, QueryOrigin as CoreQueryOrigin, QuerySourceId, QuerySpan as CoreQuerySpan, RefusedQuery, RefusedKind, RefusalMessage},
 };
 
 use super::{error, request};

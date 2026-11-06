@@ -5,10 +5,8 @@ use super::super::interface::SyntaxPort;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{
-    ByteOffset, Call, ColumnName, Expression, LetStep, OperationName, ParsedQueryBundle, Program,
-    QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit,
-};
+use ryo_values::domain::program::types::{ByteOffset, Call, Expression, LetStep, OperationName, ParsedQueryBundle, Program, QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 /// What the core's tests stand in for `syntax` with: it reads any text that contains `emit` as the
 /// program it was given, and refuses the rest.

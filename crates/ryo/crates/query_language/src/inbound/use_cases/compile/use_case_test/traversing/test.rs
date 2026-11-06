@@ -13,7 +13,8 @@ use crate::domain::traversing::service::{call_axis, call_closure, call_ordered_d
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::{Operation, PlanStep, QueryOperator, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep, QueryOperator};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::program::types::{Expression, QueryView};
 
 /// The query text a row gives.

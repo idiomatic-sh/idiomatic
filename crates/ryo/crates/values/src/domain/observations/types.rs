@@ -1,6 +1,6 @@
 //! Portable named-output contracts. Application execution owns readiness, publication and lifetime.
 use crate::domain::plan_parts::types::Input;
-use crate::domain::plans::types::StepScope;
+use crate::domain::plan_parts::types::StepScope;
 use crate::domain::runs::types::RuleId;
 use ryo_relations::domain::relations::types::CellKind;
 

@@ -10,7 +10,7 @@ use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, PartialEq, Eq)]

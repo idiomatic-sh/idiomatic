@@ -5,7 +5,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
-use ryo_values::domain::program::types::ColumnName;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{
     FileOutcome, FindingRows, Handing, PlacedColumn, PlacedLine, PlacedRule, Ran, Record,

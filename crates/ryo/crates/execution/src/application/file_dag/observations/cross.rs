@@ -5,8 +5,9 @@ use crate::application::file_dag::program::preparation::types::OutputRoot;
 use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
-    observations::types::{ObservationIndex, ProducerReadiness},
+    observations::types::ProducerReadiness,
     stored_facts::types::ArenaBytes,
+    records::types::ObservationIndex,
 };
 use std::rc::Rc;
 use {
@@ -185,7 +186,7 @@ impl<'a> CrossPublications<'a> {
         rule: RuleIndex,
     ) -> Result<
         std::collections::BTreeMap<
-            ryo_values::domain::observations::types::ObservationBindingId,
+            ryo_values::domain::plan_parts::types::ObservationBindingId,
             bool,
         >,
         OperatingError,
@@ -237,7 +238,7 @@ impl<'a> CrossPublications<'a> {
     /// Workers receive immutable words only; the coordinator retains the physical leases.
     pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
-        Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile).map(|binding| {
+        Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile).map(|binding| {
             let members = binding.producers.iter().map(|producer| match producer {
                 crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
                 crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),

@@ -15,9 +15,8 @@ use ryo_values::domain::plan_parts::types::{
     TableKey, Test,
 };
 use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::{
-    Operation, OperationKind, ParameterType, Plan, PlanParameter, StepScope,
-};
+use ryo_values::domain::plans::types::{Operation, OperationKind, ParameterType, Plan, PlanParameter};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 
 use super::plan;
@@ -61,7 +60,7 @@ impl ProducerPartitions for Sources {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }
@@ -232,8 +231,8 @@ pub(in super::super) fn operations() -> Vec<Operation> {
             base_line: None,
             pattern: LiteralText(TEXT_A.into()),
             capture: None,
-            capture_text: false,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
         },
         Operation::RenderSyntax {
             from: f,

@@ -62,7 +62,8 @@ pub(crate) fn settle(
     unknowns.append(&mut incomplete);
     observations
 }
-use ryo_values::domain::plans::types::{Plan, StepScope};
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plan_parts::types::StepScope;
 
 use ryo_execution::inbound::use_cases::metadata::{
     interface::MetadataUseCase, use_case::MetadataUseCaseImpl,

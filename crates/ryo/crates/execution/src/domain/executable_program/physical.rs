@@ -127,7 +127,7 @@ pub(crate) fn authorize(
         ),
         OperatorCall::SourceMatches { input, .. } => (
             SOURCE_MATCHES,
-            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && input.capture_text == *capture_text && input.capture_line == *capture_line)
+            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && (input.capture_text == (*capture_text == ryo_values::domain::plans::types::TextOutput::Appended)) && (input.capture_line == (*capture_line == ryo_values::domain::plans::types::LineOutput::Appended)))
                 && binding.regex_identity == Some(input.regex as *const _ as usize),
         ),
         OperatorCall::ReduceCount { keys, distinct, .. } => (

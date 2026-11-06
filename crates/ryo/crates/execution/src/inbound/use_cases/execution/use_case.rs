@@ -419,7 +419,7 @@ impl PreparedExecution for PreparedExecutionProgram {
     fn observation_layout(
         &self,
     ) -> Option<(
-        ryo_values::domain::observations::types::ObservationReadinessLayout,
+        ryo_values::domain::records::types::ObservationReadinessLayout,
         &[ObservedFrontierRoot],
     )> {
         self.inner
@@ -436,7 +436,7 @@ impl PreparedExecution for PreparedExecutionProgram {
     fn frontier_dependencies(
         &self,
         rule: RuleIndex,
-    ) -> Result<&[Vec<ryo_values::domain::observations::types::ObservationBindingId>], OperatingError>
+    ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>
     {
         self.inner.frontier_dependencies(rule)
     }
@@ -513,7 +513,7 @@ impl ObservationExecution for ObservationStage<'_> {
         rule: RuleIndex,
     ) -> Result<
         std::collections::BTreeMap<
-            ryo_values::domain::observations::types::ObservationBindingId,
+            ryo_values::domain::plan_parts::types::ObservationBindingId,
             bool,
         >,
         OperatingError,
@@ -550,7 +550,7 @@ impl ObservationPublication for ObservationStage<'_> {
         slot: PublicationSlot,
         transfer: CrossPublicationTransfer,
         publications: Vec<(
-            ryo_values::domain::observations::types::ObservationIndex,
+            ryo_values::domain::records::types::ObservationIndex,
             ObservedPublication,
         )>,
     ) -> Result<(), OperatingError> {

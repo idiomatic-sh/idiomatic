@@ -17,7 +17,7 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// The columns a join or an axis names of its input on `side`.
 fn side_columns(output: &[JoinColumn], side: Side) -> impl Iterator<Item = ColumnIndex> + '_ {

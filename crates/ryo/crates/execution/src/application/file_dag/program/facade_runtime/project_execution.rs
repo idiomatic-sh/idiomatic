@@ -177,7 +177,7 @@ impl ProjectRun<'_> {
         if demand.emit == EmitDemand::Enabled {
             if let Ok(id) = &metadata.emit_root {
                 if self.program.program().regions()[id.0].phase
-                    == ryo_values::domain::plans::types::StepScope::CrossFile
+                    == ryo_values::domain::plan_parts::types::StepScope::CrossFile
                 {
                     roots.push(*id);
                 }
@@ -185,7 +185,7 @@ impl ProjectRun<'_> {
         }
         if demand.observations == ObservationDemand::Required {
             for root in &metadata.observations {
-                if root.phase != ryo_values::domain::plans::types::StepScope::CrossFile {
+                if root.phase != ryo_values::domain::plan_parts::types::StepScope::CrossFile {
                     continue;
                 }
                 match &root.source {

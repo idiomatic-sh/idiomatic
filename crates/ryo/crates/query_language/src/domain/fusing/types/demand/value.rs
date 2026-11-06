@@ -5,7 +5,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ReachLookup, RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// Which step of the plan a closure sits at.
 #[derive(Clone, Copy, PartialEq, Eq)]

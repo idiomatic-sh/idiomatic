@@ -15,16 +15,8 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{
-    Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call,
-    ColumnName, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput,
-    FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep,
-    OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView,
-    RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference,
-    StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction,
-    WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter,
-    WrittenRelation, WrittenTest,
-};
+use ryo_values::domain::program::types::{Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput, FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep, OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView, RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference, StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 /// The winnow syntax adapter.
 #[derive(Debug)]

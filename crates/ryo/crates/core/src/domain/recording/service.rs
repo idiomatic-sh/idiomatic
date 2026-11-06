@@ -143,9 +143,9 @@ pub(crate) fn frontier_flat(
         let start = slots.partition_point(|slot| slot.producer.0 < rule.0);
         let end = slots.partition_point(|slot| slot.producer.0 <= rule.0);
         if start != end {
-            use ryo_values::domain::observations::types::{
-                ObservationReadinessCount, ObservationReadinessRange, ObservationReadinessSlot,
-            };
+            use ryo_values::domain::observations::types::ObservationReadinessRange;
+            use ryo_values::domain::records::types::ObservationReadinessSlot;
+            use ryo_values::domain::records::types::ObservationReadinessCount;
             let bytes = ryo_values::domain::observations::service::frontier_identity(
                 observations,
                 ObservationReadinessRange {

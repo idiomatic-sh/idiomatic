@@ -5,7 +5,8 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
 use ryo_values::domain::plan_parts::types::{Applied, ColumnIndex, Comparison, Input, Operand};
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// `operand` over the source's columns, using the projection's column map.

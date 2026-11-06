@@ -498,8 +498,8 @@ fn source_matches_named_capture_is_typed_and_validated() {
         step.operation,
         Operation::SourceMatches {
             capture: Some(_),
-            capture_text: true,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Appended,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
             ..
         }
     )));
@@ -588,7 +588,7 @@ fn span_bounds_types_outputs_and_file_scope() {
         .collect();
     assert_eq!(
         scopes,
-        [ryo_values::domain::plans::types::StepScope::CrossFile]
+        [ryo_values::domain::plan_parts::types::StepScope::CrossFile]
     );
     assert!(
         cross_plan.frontier.is_empty(),

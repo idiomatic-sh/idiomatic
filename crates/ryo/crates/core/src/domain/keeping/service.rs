@@ -13,7 +13,7 @@ use super::types::{Configuration, DigestInput, DigestPart, Remap};
 use crate::domain::finish::service::{column_cell, line_cell};
 use crate::domain::render::service::{finding_parts, key_count, row_cells};
 use crate::domain::render::types::{KeyCount, Rendered, RowNumber, RowOrder};
-use ryo_values::domain::program::types::ColumnName;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::service::{keep, lent, owned};
 use ryo_values::domain::records::types::RenderedText;
 use ryo_values::domain::records::types::{

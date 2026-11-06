@@ -10,7 +10,8 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, HostedNumber, Input, Operand, ParameterId, RepeatedRows, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 use super::plan;
 
@@ -36,7 +37,7 @@ impl ProducerPartitions for FileSources {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }

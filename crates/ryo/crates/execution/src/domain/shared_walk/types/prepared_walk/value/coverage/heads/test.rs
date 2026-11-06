@@ -12,8 +12,8 @@ use crate::{
 };
 use ryo_relations::domain::relations::service::ALL;
 use ryo_values::domain::{
-    plan_parts::types::{Input as Source, RepeatedRows},
-    plans::types::{Operation, StepScope},
+    plan_parts::types::{Input as Source, RepeatedRows, StepScope},
+    plans::types::Operation,
 };
 use std::collections::HashSet;
 

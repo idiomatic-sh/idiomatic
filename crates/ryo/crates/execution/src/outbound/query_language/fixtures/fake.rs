@@ -73,7 +73,9 @@ impl QueryLanguagePort for QueryLanguageFake {
 }
 fn compiler_refusal() -> QueryLanguageError {
     use ryo_relations::domain::relations::types::{Offset, Span};
-    use ryo_values::domain::plan_parts::types::{RefusalMessage, RefusedKind, RefusedQuery};
+    use ryo_values::domain::program::types::RefusalMessage;
+    use ryo_values::domain::program::types::RefusedKind;
+    use ryo_values::domain::program::types::RefusedQuery;
     QueryLanguageError::Refused {
         error: RefusedQuery {
             kind: RefusedKind::Invalid,

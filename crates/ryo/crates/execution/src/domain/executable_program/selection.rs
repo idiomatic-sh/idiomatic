@@ -10,8 +10,8 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, RepeatedRows},
-    plans::types::{Operation, StepScope},
+    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepScope},
+    plans::types::Operation,
 };
 use std::sync::Arc;
 

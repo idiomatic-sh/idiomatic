@@ -165,11 +165,9 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
 }
 
 pub(crate) fn named_request() -> PreparedRequest {
-    use ryo_values::domain::observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-        ObservationReadinessLayout, PlanObservation,
-    };
+    use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
+    use ryo_values::domain::records::types::ObservationReadinessLayout;
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
     let mut authored = authored_request(2);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),

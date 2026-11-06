@@ -4,11 +4,11 @@ use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{service::node_id, types::*};
 use ryo_values::domain::{
-    observations::types::*,
-    plan_parts::types::{Input, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
     rows::types::RowCount,
     stored_facts::types::{Bucket, Digest},
+    observations::types::*,
     table_words::service::decode_complete,
 };
 use std::cell::Cell;

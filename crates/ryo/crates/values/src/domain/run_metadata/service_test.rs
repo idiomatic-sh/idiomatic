@@ -3,12 +3,9 @@ use super::service::from_plans;
 use super::types::{CrossSteps, FeatureSource, FrontierCapture, ProjectRead};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    observations::types::{BoundObservationInput, ObservationBindingId, ObservationBindingName},
-    plan_parts::types::{
-        ColumnIndex, Comparison, Direction, Input as PlanInput, LiteralText, Operand, QueryLiteral,
-        RepeatedRows, StepId, Test,
-    },
-    plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep, StepScope},
+    observations::types::{BoundObservationInput, ObservationBindingName},
+    plan_parts::types::{ColumnIndex, Comparison, Direction, Input as PlanInput, LiteralText, Operand, QueryLiteral, RepeatedRows, StepId, Test, ObservationBindingId, StepScope},
+    plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep},
 };
 use ryo_relations::domain::relations::types::Relation;
 use std::borrow::Cow;

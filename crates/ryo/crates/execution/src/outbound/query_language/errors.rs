@@ -1,6 +1,6 @@
 //! The `query_language` port's failures.
 
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::program::types::RefusedQuery;
 
 /// Why the `query_language` port failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

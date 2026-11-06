@@ -8,11 +8,8 @@ use crate::selects;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{
-    ArgumentValue as Argument, ColumnName, Columns, Condition, Expression, Filter, Joining,
-    Program, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral,
-    WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest,
-};
+use ryo_values::domain::program::types::{ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, Program, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
+use ryo_values::domain::descriptions::types::ColumnName;
 use winnow::Parser as _;
 
 const FRAGMENT_DOCUMENT: &str = "import nested from \"shared/predicate\";\ninput candidates: relation<id: node, file: file, span: span, line: number>;\nparam inline-pattern: string;\nparam range-pattern: string;\noutput relation<id: node, file: file, span: span>;\nlet violations = select id, file, span from candidates;\nreturn violations;";

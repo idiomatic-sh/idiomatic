@@ -30,7 +30,8 @@ use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -283,8 +284,8 @@ pub(super) fn prepared_in(
     let facts_port = crate::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     let proof = FrontierProof {
-        rule: rule.0 as u32,
-        input: 0,
+        rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
+        input: ryo_values::domain::records::types::FrontierOrdinal(0),
         rule_digest: world.program.rule_digest(rule).expect("rule digest"),
         coverage: FrontierCoverage::Complete,
     };

@@ -1,5 +1,6 @@
 //! Compact rule facts for coverage, frontier retention and work accounting.
-use crate::domain::plans::types::{Feature, OperationKind, StepScope};
+use crate::domain::plans::types::{Feature, OperationKind};
+use crate::domain::plan_parts::types::StepScope;
 
 /// The rows counted for a feature come from every input or one source position.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

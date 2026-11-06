@@ -11,7 +11,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
     use ryo_execution::inbound::use_cases::execution::interface::{
         ObservationExecution, ObservationPublication,
     };
-    use ryo_values::domain::observations::types::ObservationBindingId;
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
     for rejected in [false, true] {
         let engine = engine();
         let mut authored = crate::file_intents::named_request();

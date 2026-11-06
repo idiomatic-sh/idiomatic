@@ -22,8 +22,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
-    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep},
 };
 
 fn plan(relation: Relation) -> Plan {

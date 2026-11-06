@@ -1,6 +1,6 @@
 //! The `validate` use case's failures.
 
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::program::types::QueryOrigin;
 
 /// Why `validate` failed.

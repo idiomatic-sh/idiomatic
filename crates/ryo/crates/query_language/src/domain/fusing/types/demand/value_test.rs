@@ -5,7 +5,8 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input, JoinColumn, Operand, RepeatedRows, Side, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {

@@ -5,7 +5,8 @@ use ryo_values::domain::plan_parts::{
     service::remapped,
     types::{ColumnIndex, Comparison, Input, RepeatedRows},
 };
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 

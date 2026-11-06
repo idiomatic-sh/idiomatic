@@ -21,15 +21,11 @@ use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-        ObservationReadinessLayout, PlanObservation,
-    },
-    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation},
+    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId, ObservationBindingId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    records::types::Cell,
+    records::types::{Cell, ObservationReadinessLayout},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
@@ -256,7 +252,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         );
         assert_eq!(table.count.0, expected.len());
         assert_eq!(
-            file.observation_routes(ryo_values::domain::observations::types::ObservationIndex(0)).unwrap().registered_calls,
+            file.observation_routes(ryo_values::domain::records::types::ObservationIndex(0)).unwrap().registered_calls,
             registered_calls,
             "the top union dispatches once per input row, including singleton duplication"
         );
@@ -268,7 +264,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
             }
         ));
     }
-    let registered = file.observation_routes(ryo_values::domain::observations::types::ObservationIndex(0)).unwrap().registered_calls;
+    let registered = file.observation_routes(ryo_values::domain::records::types::ObservationIndex(0)).unwrap().registered_calls;
     let readiness = file.readiness_counts();
     let repeated = file
         .rule(
@@ -302,7 +298,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         )),
     }
     assert_eq!(
-        file.observation_routes(ryo_values::domain::observations::types::ObservationIndex(0)).unwrap().registered_calls,
+        file.observation_routes(ryo_values::domain::records::types::ObservationIndex(0)).unwrap().registered_calls,
         registered
     );
     assert_eq!(file.readiness_counts(), readiness);

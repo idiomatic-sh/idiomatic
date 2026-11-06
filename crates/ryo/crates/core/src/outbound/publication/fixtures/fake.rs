@@ -3,7 +3,9 @@ use super::super::interface::PublicationPort;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CROSS_FILE, NamePlace, WorkerNumber};
 use ryo_values::domain::{
-    observations::types::ObservationReason, rows::types::Table, stored_facts::types::ArenaBytes,
+    rows::types::Table,
+    stored_facts::types::ArenaBytes,
+    records::types::ObservationReason,
 };
 
 #[derive(Default)]

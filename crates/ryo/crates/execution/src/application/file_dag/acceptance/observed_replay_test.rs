@@ -8,15 +8,11 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-        ObservationReadinessLayout, PlanObservation,
-    },
-    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation},
+    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId, ObservationBindingId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    records::types::{Cell, PlacedRule},
+    records::types::{Cell, PlacedRule, ObservationReadinessLayout},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::{Bucket, Digest},

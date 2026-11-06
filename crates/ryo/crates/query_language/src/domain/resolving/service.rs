@@ -164,7 +164,7 @@ pub(crate) fn read_source(
         })?;
         return Ok(Sourced {
             input: parts::Input::BoundObservation(
-                ryo_values::domain::observations::types::ObservationBindingId(index),
+                ryo_values::domain::plan_parts::types::ObservationBindingId(index),
             ),
             fields: bound
                 .columns

@@ -9,7 +9,7 @@ use crate::domain::{
 };
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
-    domain::plans::types::StepScope,
+    domain::plan_parts::types::StepScope,
 };
 fn program() -> ExecutableProgram {
     let regions = (0..2)

@@ -38,7 +38,7 @@ pub(super) enum NamedReadiness {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct PreparedNamed {
     pub(super) rule: crate::domain::coverage::types::RuleIndex,
-    pub(super) output: ryo_values::domain::observations::types::ObservationIndex,
+    pub(super) output: ryo_values::domain::records::types::ObservationIndex,
     pub(super) readiness: NamedReadiness,
 }
 /// The delivery, observation and capture a file declared for one rule.

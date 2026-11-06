@@ -64,9 +64,9 @@ pub(crate) fn prepared_sources(
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{
-        plan_parts::types::{Input, StepId},
-        plans::types::{Emit, Operation, PlanStep, StepScope},
-    };
+    plan_parts::types::{Input, StepId, StepScope},
+    plans::types::{Emit, Operation, PlanStep},
+};
     Plan {
         parameters: vec![],
         observation_inputs: vec![],

@@ -10,7 +10,7 @@ use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::rows::errors::RowsError;
 use crate::outbound::scheduler::errors::SchedulerError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 /// Why `lint` failed.

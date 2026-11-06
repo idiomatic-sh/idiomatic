@@ -1,11 +1,9 @@
 //! Authored plans declare expected barriers without consulting the prepared walk.
 use super::super::super::*;
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-    ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-    ObservationReadinessLayout, PlanObservation,
-};
+use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation};
+use ryo_values::domain::records::types::ObservationReadinessLayout;
+use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rule_requests::types::RuleSpec;

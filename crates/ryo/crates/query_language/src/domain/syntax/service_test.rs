@@ -2,11 +2,8 @@
 
 use super::service::{operators_used, relations_read, shape_named};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, Call, ColumnName, Columns, Expression, Joining, LetStep, OperationName,
-    Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit,
-    WrittenRelation,
-};
+use ryo_values::domain::program::types::{Alias, ByteOffset, Call, Columns, Expression, Joining, LetStep, OperationName, Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenRelation};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 /// A scenario: what a row asks of a program that reads one relation and calls `project`.
 type Input = fn(&Program) -> usize;

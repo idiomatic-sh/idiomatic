@@ -28,9 +28,9 @@ pub(crate) fn program(value: i64) -> Arc<Selector> {
 /// This only constructs metadata; providers and execution owners are absent.
 pub(crate) fn plan() -> ryo_values::domain::plans::types::Plan {
     use ryo_values::domain::{
-        plan_parts::types::{Input, LiteralText, QueryLiteral, RepeatedRows, StepId},
-        plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
-    };
+    plan_parts::types::{Input, LiteralText, QueryLiteral, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
+};
     Plan {
         parameters: vec![],
         observation_inputs: vec![],

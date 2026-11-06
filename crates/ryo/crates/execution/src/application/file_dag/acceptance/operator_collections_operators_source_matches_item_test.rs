@@ -41,8 +41,8 @@ fn evaluate(
             base_line: None,
             pattern: LiteralText(pattern.into()),
             capture: None,
-            capture_text: false,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
         }),
     ];
     let (collected, _) = compiled::run(
@@ -134,8 +134,8 @@ fn evaluate_lines(
             base_line: Some(ColumnIndex(1)),
             pattern: LiteralText(pattern.into()),
             capture: None,
-            capture_text: false,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
         }),
     ];
     let (result, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), false);
@@ -206,8 +206,8 @@ fn captured(
             base_line: None,
             pattern: LiteralText(pattern.into()),
             capture: Some(LiteralText("piece".into())),
-            capture_text: true,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Appended,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
         }),
     ];
     let mut symbols = Symbols::default();

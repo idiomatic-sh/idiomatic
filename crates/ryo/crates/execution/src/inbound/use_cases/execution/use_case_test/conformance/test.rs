@@ -157,7 +157,7 @@ pub(in super::super) fn compare_delivery_with_port(
         a.plan
             .steps
             .push(ryo_values::domain::plans::types::PlanStep {
-                scope: ryo_values::domain::plans::types::StepScope::PerFile,
+                scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
                 operation: span,
             });
         a.plan.emit.step = StepId((a.plan.steps.len() - 1) as u32);

@@ -27,7 +27,7 @@ use ryo_values::domain::table_words::types::WordSlice;
 use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::ColumnName;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, RowTotal};
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stores::types::{

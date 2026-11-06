@@ -30,7 +30,7 @@ pub(crate) struct FileProgramNode {
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
     >,
-    pub phase: ryo_values::domain::plans::types::StepScope,
+    pub phase: ryo_values::domain::plan_parts::types::StepScope,
     /// One semantic input and dependency contract for all output delivery.
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     /// Executable registered operation with normalized local input numbers.
@@ -73,7 +73,7 @@ pub(crate) enum ResolvedObservationProducer {
     /// An actual named root in a compiled producer plan.
     Output {
         rule: crate::domain::coverage::types::RuleIndex,
-        output: ryo_values::domain::observations::types::ObservationIndex,
+        output: ryo_values::domain::records::types::ObservationIndex,
     },
     /// Explicit unavailable selected query, never a fake empty root.
     NoQuery {
@@ -84,7 +84,7 @@ pub(crate) enum ResolvedObservationProducer {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ResolvedObservationBinding {
     /// Local compiled input identity.
-    pub input: ryo_values::domain::observations::types::ObservationBindingId,
+    pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
     /// The actual inferred schema and phase.
     pub schema: ryo_values::domain::observations::types::BoundObservationInput,
     /// Actual typed producers; no runtime name lookup remains.
@@ -105,7 +105,7 @@ pub(crate) enum ObservationRequest<'a> {
     Independent,
     /// Actual resolved bindings and original-index topology, never a second executor.
     Bound {
-        layout: ryo_values::domain::observations::types::ObservationReadinessLayout,
+        layout: ryo_values::domain::records::types::ObservationReadinessLayout,
         bindings: &'a [Vec<ResolvedObservationBinding>],
     },
 }
@@ -114,7 +114,7 @@ pub(crate) enum ObservationRequest<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ObservationSlot {
     pub rule: usize,
-    pub input: ryo_values::domain::observations::types::ObservationBindingId,
+    pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
 }
 /// Actual prepared root location; unsupported admission never becomes complete-empty.
 #[derive(Clone, Debug)]
@@ -132,7 +132,7 @@ pub(crate) struct GraphObservationOutput {
 /// The existing request graph owns both typed binding edges and root lifetime declarations.
 #[derive(Debug)]
 pub(crate) struct GraphObservations {
-    pub layout: ryo_values::domain::observations::types::ObservationReadinessLayout,
+    pub layout: ryo_values::domain::records::types::ObservationReadinessLayout,
     /// Request-qualified bound slots; graph edges carry a compact ID rather than widening every ordinary edge.
     pub slots: Vec<ObservationSlot>,
     /// Frontier buckets actually needed by authored observations, prepared once.
@@ -159,14 +159,14 @@ pub(crate) struct GraphObservationBinding {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ObservationRetirement {
     pub producer: crate::domain::coverage::types::RuleIndex,
-    pub output: ryo_values::domain::observations::types::ObservationIndex,
+    pub output: ryo_values::domain::records::types::ObservationIndex,
 }
 
 /// A persisted named root uses an existing frontier bucket, not another row store.
 #[derive(Clone, Copy, Debug)]
 pub struct ObservedFrontierRoot {
     pub producer: crate::domain::coverage::types::RuleIndex,
-    pub output: ryo_values::domain::observations::types::ObservationIndex,
+    pub output: ryo_values::domain::records::types::ObservationIndex,
     pub frontier: ryo_values::domain::plan_parts::types::InputNumber,
 }
 

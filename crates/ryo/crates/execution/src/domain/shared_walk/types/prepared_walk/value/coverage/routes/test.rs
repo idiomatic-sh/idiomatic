@@ -12,8 +12,7 @@ use crate::{
     domain::executable_program::types::{InputSource, LogicalInstruction},
 };
 use ryo_values::domain::{
-    observations::types::ObservationBindingId,
-    plan_parts::types::{Input as Source, RepeatedRows, StepId},
+    plan_parts::types::{Input as Source, RepeatedRows, StepId, ObservationBindingId},
     plans::{
         service::kind_of,
         types::{Operation, OperationKind},

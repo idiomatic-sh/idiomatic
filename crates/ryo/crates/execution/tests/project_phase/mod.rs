@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Relation, Value},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
     rows::types::RowCount,
 };
 use ryo_values::domain::{
@@ -738,11 +738,10 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     use ryo_execution::inbound::use_cases::execution::interface::{
         ObservationExecution, ObservationPublication, PreparedExecution,
     };
-    use ryo_values::domain::observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationIndex, ObservationName,
-        ObservationProducer, ObservationReadinessLayout, PlanObservation, ProducerReadiness,
-    };
+    use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation, ProducerReadiness};
+    use ryo_values::domain::records::types::ObservationIndex;
+    use ryo_values::domain::records::types::ObservationReadinessLayout;
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
     use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
     use ryo_values::domain::table_words::{

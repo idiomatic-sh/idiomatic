@@ -5,7 +5,7 @@ use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, H
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 use std::sync::Arc;
 
 use super::errors::TypecheckError;
@@ -18,11 +18,8 @@ use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, ColumnName, Columns, Condition, Expression, Filter, Joining, LetStep,
-    Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit,
-    WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest,
-};
+use ryo_values::domain::program::types::{Alias, ByteOffset, Columns, Condition, Expression, Filter, Joining, LetStep, Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 /// What a row gives the use case.
 type Input = fn() -> Given;

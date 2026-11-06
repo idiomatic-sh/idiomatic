@@ -6,7 +6,8 @@ use crate::domain::file_program::types::{
     RuleSchedule,
 };
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
-use ryo_values::domain::plans::types::{Plan, StepScope};
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
@@ -138,7 +139,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
                 u32::try_from(output_index).map_err(|_| FileProgramError::TooManyOutputs)?;
             producers.push(ResolvedObservationProducer::Output {
                 rule: RuleIndex(at),
-                output: ryo_values::domain::observations::types::ObservationIndex(output_index),
+                output: ryo_values::domain::records::types::ObservationIndex(output_index),
             });
         }
         let schema = BoundObservationInput {
@@ -148,7 +149,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
         };
         let local = u32::try_from(local).map_err(|_| FileProgramError::TooManyOutputs)?;
         bindings.push(ResolvedObservationBinding {
-            input: ryo_values::domain::observations::types::ObservationBindingId(local),
+            input: ryo_values::domain::plan_parts::types::ObservationBindingId(local),
             schema: schema.clone(),
             producers,
         });
@@ -182,7 +183,7 @@ pub(crate) fn graph_outputs(
                 .map(
                     move |(input, _)| crate::domain::file_program::types::ObservationSlot {
                         rule,
-                        input: ryo_values::domain::observations::types::ObservationBindingId(
+                        input: ryo_values::domain::plan_parts::types::ObservationBindingId(
                             u32::try_from(input).expect("compiled binding index fits u32"),
                         ),
                     },
@@ -236,7 +237,7 @@ pub(crate) fn graph_outputs(
             if let Some(&frontier) = positions.get(&root.source) {
                 frontiers.push(crate::domain::file_program::types::ObservedFrontierRoot {
                     producer: RuleIndex(rule),
-                    output: ryo_values::domain::observations::types::ObservationIndex(
+                    output: ryo_values::domain::records::types::ObservationIndex(
                         u32::try_from(output).expect("compiled output index fits u32"),
                     ),
                     frontier: ryo_values::domain::plan_parts::types::InputNumber(frontier),
@@ -345,7 +346,7 @@ pub(crate) fn graph_outputs(
 pub(crate) fn request<'a>(
     schedule: &'a RuleSchedule,
     bindings: &'a [Vec<ResolvedObservationBinding>],
-    layout: ryo_values::domain::observations::types::ObservationReadinessLayout,
+    layout: ryo_values::domain::records::types::ObservationReadinessLayout,
 ) -> Result<crate::domain::file_program::types::ObservationRequest<'a>, FileProgramError> {
     use crate::domain::file_program::types::ObservationRequest;
     if bindings.is_empty() {
@@ -360,7 +361,7 @@ pub(crate) fn request<'a>(
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
 pub(crate) fn frontier_dependencies(
     plan: &Plan,
-) -> Result<Vec<Vec<ryo_values::domain::observations::types::ObservationBindingId>>, FileProgramError>
+) -> Result<Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>, FileProgramError>
 {
     if plan.observation_inputs.is_empty() {
         return Ok(vec![Vec::new(); plan.frontier.len()]);
@@ -378,7 +379,7 @@ pub(crate) fn frontier_dependencies(
 pub(crate) fn bound_step_dependencies(
     plan: &Plan,
 ) -> Result<
-    Vec<BTreeSet<ryo_values::domain::observations::types::ObservationBindingId>>,
+    Vec<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>>,
     FileProgramError,
 > {
     let mut steps = Vec::with_capacity(plan.steps.len());
@@ -399,9 +400,9 @@ pub(crate) fn bound_step_dependencies(
 }
 fn bound_input_dependencies(
     input: ryo_values::domain::plan_parts::types::Input,
-    steps: &[BTreeSet<ryo_values::domain::observations::types::ObservationBindingId>],
+    steps: &[BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>],
     count: usize,
-) -> Result<BTreeSet<ryo_values::domain::observations::types::ObservationBindingId>, FileProgramError>
+) -> Result<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>, FileProgramError>
 {
     use ryo_values::domain::plan_parts::types::Input;
     match input {

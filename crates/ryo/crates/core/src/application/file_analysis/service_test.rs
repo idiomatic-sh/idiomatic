@@ -93,7 +93,7 @@ fn one_capture_plan() -> Plan {
         observations: Vec::new(),
         parameters: vec![],
         steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
                 comparisons: Vec::new(),
@@ -277,7 +277,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
                 comparisons: Vec::new(),
@@ -791,7 +791,7 @@ fn visited_inputs_with_rule_demands(
             observations: Vec::new(),
             parameters: Vec::new(),
             steps: vec![ryo_values::domain::plans::types::PlanStep {
-                scope: ryo_values::domain::plans::types::StepScope::PerFile,
+                scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
                 operation: ryo_values::domain::plans::types::Operation::Select {
                     from: ryo_values::domain::plan_parts::types::Input::Relation(
                         Relation::Function,
@@ -1224,7 +1224,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         observations: Vec::new(),
         parameters: vec![],
         steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
                 comparisons: Vec::new(),
@@ -1317,8 +1317,8 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         KeptWords(pack(WordSlice(&words.0)))
     };
     let proof = |input| ryo_values::domain::records::types::FrontierProof {
-        rule: 0,
-        input,
+        rule: ryo_values::domain::records::types::ProducerRule(0),
+        input: ryo_values::domain::records::types::FrontierOrdinal(input),
         rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
     };

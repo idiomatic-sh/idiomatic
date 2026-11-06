@@ -40,7 +40,7 @@ fn semantic_arguments(call: &Call, allowed: &[ArgumentSlot]) -> Result<(), Lower
 fn semantic_source(builder: &mut Builder<'_>, call: &Call) -> Result<Sourced, LoweringError> {
     let sourced = input_argument(builder, call, ArgumentSlot::From)?;
     if crate::domain::planning::service::scoped(builder, sourced.input).scope
-        != ryo_values::domain::plans::types::StepScope::PerFile
+        != ryo_values::domain::plan_parts::types::StepScope::PerFile
     {
         return Err(LoweringError::CrossFileSemantic { span: call.span });
     }
@@ -207,7 +207,7 @@ pub(crate) fn call_span_between(
         mut fields,
     } = input_argument(builder, call, ArgumentSlot::From)?;
     if crate::domain::planning::service::scoped(builder, from).scope
-        != ryo_values::domain::plans::types::StepScope::PerFile
+        != ryo_values::domain::plan_parts::types::StepScope::PerFile
     {
         return Err(LoweringError::CrossFileSpan { span: call.span });
     }
@@ -358,7 +358,7 @@ pub(crate) fn call_source_matches(
         mut fields,
     } = input_argument(builder, call, ArgumentSlot::From)?;
     if crate::domain::planning::service::scoped(builder, from).scope
-        != ryo_values::domain::plans::types::StepScope::PerFile
+        != ryo_values::domain::plan_parts::types::StepScope::PerFile
     {
         return Err(LoweringError::CrossFileSourceMatches { span: call.span });
     }
@@ -506,8 +506,16 @@ pub(crate) fn call_source_matches(
             base_line,
             pattern,
             capture: capture_name.map(|name| LiteralText(name.0)),
-            capture_text,
-            capture_line,
+            capture_text: if capture_text {
+                ryo_values::domain::plans::types::TextOutput::Appended
+            } else {
+                ryo_values::domain::plans::types::TextOutput::Omitted
+            },
+            capture_line: if capture_line {
+                ryo_values::domain::plans::types::LineOutput::Appended
+            } else {
+                ryo_values::domain::plans::types::LineOutput::Omitted
+            },
         },
         fields,
     );

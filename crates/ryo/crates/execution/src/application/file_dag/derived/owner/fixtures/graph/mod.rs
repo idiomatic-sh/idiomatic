@@ -19,8 +19,8 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
 };
 use std::rc::Rc;
 

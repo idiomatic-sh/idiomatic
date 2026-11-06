@@ -9,13 +9,9 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::{
     files::types::CorpusInput,
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationIndex, ObservationName,
-        ObservationProducer, ObservationReadinessLayout, PlanObservation, ProducerReadiness,
-    },
-    plan_parts::types::{HostedNumber, RepeatedRows},
-    records::types::{Cell as HostCell, CrossPublicationTransfer, PackedObservedRoot},
+    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer, PlanObservation, ProducerReadiness},
+    plan_parts::types::{HostedNumber, RepeatedRows, ObservationBindingId},
+    records::types::{Cell as HostCell, CrossPublicationTransfer, PackedObservedRoot, ObservationReadinessLayout, ObservationIndex},
     runs::types::{RuleApplicability, SkipReason, Skipped},
     stored_facts::types::{ArenaBytes, Digest, KeptWords},
     table_words::{
@@ -569,7 +565,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
                 table,
                 publication,
                 ProducerReadiness::Unknown(
-                    ryo_values::domain::observations::types::ObservationReason(
+                    ryo_values::domain::records::types::ObservationReason(
                         "physical source facts are incomplete".into(),
                     ),
                 ),

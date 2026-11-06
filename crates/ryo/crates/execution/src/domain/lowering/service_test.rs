@@ -10,7 +10,8 @@ use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// The plan a row lowers.
 type Input = Plan;

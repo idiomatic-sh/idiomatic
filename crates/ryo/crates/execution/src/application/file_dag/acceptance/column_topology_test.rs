@@ -13,14 +13,9 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    observations::types::{
-        ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
-    },
-    plan_parts::types::{
-        ColumnIndex, Comparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
-        Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, Test,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    observations::types::{ObservationColumn, ObservationColumnName, ObservationName, PlanObservation},
+    plan_parts::types::{ColumnIndex, Comparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, Test, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
 };
 
 struct FileProducers;
@@ -48,7 +43,7 @@ impl ProducerPartitions for FileProducers {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }

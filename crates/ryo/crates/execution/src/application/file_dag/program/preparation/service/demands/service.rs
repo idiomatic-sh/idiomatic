@@ -8,7 +8,7 @@ use crate::domain::executable_program::file_demand::types::{
 };
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::observations::types::ObservationIndex;
+use ryo_values::domain::records::types::ObservationIndex;
 
 /// One demand per rule, in rule order.
 pub(in crate::application::file_dag::program::preparation) fn file_demands(

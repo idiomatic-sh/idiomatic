@@ -13,11 +13,8 @@ use ryo_relations::domain::{
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{
-        ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, ParameterId,
-        QueryLiteral, StepId, Test,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, ParameterId, QueryLiteral, StepId, Test, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
 };
 use {
     crate::domain::operating::types::OperatorContext,

@@ -5,8 +5,8 @@ use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    plan_parts::types::{ColumnIndex, HostedNumber, Input, JoinColumn, Side, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, HostedNumber, Input, JoinColumn, Side, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
     records::types::Cell,
     rows::types::{RowCount, Table},
 };

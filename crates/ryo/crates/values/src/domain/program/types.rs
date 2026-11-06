@@ -101,11 +101,20 @@ pub struct BareWord<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QuerySpelling<'a>(pub &'a str);
 
+/// Whether a program's identities and imports have been linked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Linking {
+    /// Source-local identities and imports are linked.
+    Linked,
+    /// The program is as its syntax gave it.
+    Unlinked,
+}
+
 /// A whole query: its parameters, its steps and the one `emit`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Program {
     /// Whether source-local identities and imports have been linked for a complete query bundle.
-    pub linked: bool,
+    pub linked: Linking,
     /// The imported modules available to root-level calls.
     pub imports: Vec<ImportDeclaration>,
     /// Source attribution for original and linked syntax nodes.

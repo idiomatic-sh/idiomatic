@@ -17,9 +17,8 @@ use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate}
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
-use ryo_values::domain::plans::types::{
-    Emit, Feature, Operation, OperationKind, Plan, PlanStep, StepScope,
-};
+use ryo_values::domain::plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::PartialCause;
 use std::sync::Arc;

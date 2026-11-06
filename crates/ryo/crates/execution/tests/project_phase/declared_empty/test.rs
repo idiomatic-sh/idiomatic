@@ -2,12 +2,10 @@
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_values::domain::{
-    observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-    },
+    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer},
     runs::types::RuleId,
     stored_facts::types::Digest,
+    plan_parts::types::ObservationBindingId,
 };
 
 fn declared() -> PreparedRequest {
@@ -38,7 +36,7 @@ fn declared() -> PreparedRequest {
     }];
     input.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
     input.observations = ObservationIdentity::Named(
-        ryo_values::domain::observations::types::ObservationReadinessLayout(Digest([9; 16])),
+        ryo_values::domain::records::types::ObservationReadinessLayout(Digest([9; 16])),
     );
     input
 }

@@ -33,7 +33,7 @@ fn select(column: &str) -> syntax::Select {
 fn program() -> syntax::Program {
     let span = lowering_builder().span;
     syntax::Program {
-        linked: false,
+        linked: ryo_values::domain::program::types::Linking::Unlinked,
         imports: vec![],
         origins: vec![],
         fragment_contracts: vec![],

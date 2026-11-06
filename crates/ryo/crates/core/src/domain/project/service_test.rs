@@ -2,7 +2,8 @@
 
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 use super::service::{reads_any, reads_project, with_consulted};
 use super::types::PlanReads;

@@ -79,7 +79,7 @@ impl QueryLanguagePort for ProjectQueries {
         plan.observation_inputs = observations.to_vec();
         let from = if self.route == BudgetRoute::Named && !first {
             PlanInput::BoundObservation(
-                ryo_values::domain::observations::types::ObservationBindingId(0),
+                ryo_values::domain::plan_parts::types::ObservationBindingId(0),
             )
         } else {
             PlanInput::Step(StepId(0))

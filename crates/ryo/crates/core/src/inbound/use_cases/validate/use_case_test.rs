@@ -7,7 +7,10 @@ use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCas
 use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
 use ryo_values::domain::descriptions::types::{StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
-use ryo_values::domain::plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery};
+use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::program::types::RefusalMessage;
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::plans::types::{Plan, QueryOperator};
 
 use super::errors::ValidateError;

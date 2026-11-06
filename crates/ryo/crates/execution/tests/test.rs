@@ -10,8 +10,8 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId},
-    plans::types::{Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, Plan, PlanStep},
     program::types::QueryBundle,
     rows::types::{RowCount, Table},
     stored_facts::types::Digest,

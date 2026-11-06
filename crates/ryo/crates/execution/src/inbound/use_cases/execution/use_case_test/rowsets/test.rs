@@ -7,8 +7,10 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         hosted::types::HostRelation,
-        plan_parts::types::{ColumnIndex, HostedNumber, Input as PlanInput, RepeatedRows, StepId},
-        plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+        plan_parts::types::{
+            ColumnIndex, HostedNumber, Input as PlanInput, RepeatedRows, StepId, StepScope,
+        },
+        plans::types::{Emit, Operation, Plan, PlanStep},
         rows::errors::TableModelError,
     },
 };

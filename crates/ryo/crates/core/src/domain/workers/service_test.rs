@@ -6,7 +6,8 @@ use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, FileNumber, FileSize, Glob, Hits, Nanoseconds,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 

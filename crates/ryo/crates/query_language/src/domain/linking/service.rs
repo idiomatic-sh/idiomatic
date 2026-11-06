@@ -113,7 +113,7 @@ pub(crate) fn link_with_observations(
         }
         root_visible.push(original);
     }
-    root.linked = true;
+    root.linked = ryo_values::domain::program::types::Linking::Linked;
     root.steps = linked;
     root.fragment_contracts = contracts;
     attribute_root(&mut root, &root_id);

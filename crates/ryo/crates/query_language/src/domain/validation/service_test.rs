@@ -6,12 +6,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::ObservationName;
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, Call, ColumnName, Columns, Condition, Expression, Filter, Join, Joining,
-    LetStep, OperationName, Program, QueryOrigin, QuerySource, QuerySourceId, QuerySpan, Select,
-    SourceReference, StepIdentity, StepName, WrittenEmit, WrittenLiteral, WrittenObservation,
-    WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest,
-};
+use ryo_values::domain::program::types::{Alias, ByteOffset, Call, Columns, Condition, Expression, Filter, Join, Joining, LetStep, OperationName, Program, QueryOrigin, QuerySource, QuerySourceId, QuerySpan, Select, SourceReference, StepIdentity, StepName, WrittenEmit, WrittenLiteral, WrittenObservation, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -182,7 +178,7 @@ fn observation(name: &str) -> WrittenObservation {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut program = Program {
-        linked: false,
+        linked: ryo_values::domain::program::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),

@@ -237,9 +237,9 @@ pub(super) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation
 /// Assemble explicit step data; the production compiler owns dependencies and schemas.
 pub(super) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
     use ryo_values::domain::{
-        plan_parts::types::{ColumnIndex, StepId},
-        plans::types::{Emit, PlanStep, StepScope},
-    };
+    plan_parts::types::{ColumnIndex, StepId, StepScope},
+    plans::types::{Emit, PlanStep},
+};
     let emit = Emit {
         step: StepId((operations.len() - 1) as u32),
         subject: ColumnIndex(0),

@@ -3,14 +3,15 @@ use crate::domain::crossing::types::{ObservedRoot, PhaseRoots};
 use ryo_execution::inbound::use_cases::execution::types::{
     ObservedPublication, ProjectObservation, RootOutcome,
 };
-use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
+use ryo_values::domain::observations::types::ProducerReadiness;
+use ryo_values::domain::records::types::ObservationReason;
 
 /// Pure phase rows plus the actual admitted owner proof of each usable named root.
 pub(crate) struct ProgramEvaluated {
     pub roots: PhaseRoots,
     pub fed: Vec<ryo_execution::inbound::use_cases::execution::types::RowsFed>,
     pub publications: Vec<(
-        ryo_values::domain::observations::types::ObservationIndex,
+        ryo_values::domain::records::types::ObservationIndex,
         ObservedPublication,
     )>,
 }

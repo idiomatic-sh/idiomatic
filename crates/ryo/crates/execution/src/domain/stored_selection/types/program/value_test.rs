@@ -7,7 +7,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, Operand, ParameterId, RepeatedRows, StepId, Test,
     WholeNumber,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 #[test]

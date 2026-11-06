@@ -25,7 +25,8 @@ use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::{
     Comparison, Input, JoinColumn, Operand, QueryLiteral, Side, Test,
 };
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 
 /// A typed equality against authored text has no row-dependent error. Nonempty
 /// text also cannot match a malformed Symbol that the ordinary evaluator reads

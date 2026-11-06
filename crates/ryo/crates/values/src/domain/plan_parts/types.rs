@@ -68,7 +68,7 @@ pub enum Input {
     /// An earlier step.
     Step(StepId),
     /// An explicit typed producer binding, resolved by the request graph rather than the relation catalog.
-    BoundObservation(crate::domain::observations::types::ObservationBindingId),
+    BoundObservation(crate::domain::plan_parts::types::ObservationBindingId),
 }
 
 /// Which side of a join a column comes from.

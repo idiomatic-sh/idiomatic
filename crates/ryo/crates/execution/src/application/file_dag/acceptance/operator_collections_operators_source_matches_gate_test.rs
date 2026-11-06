@@ -29,8 +29,8 @@ fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), Operat
             base_line: Some(ColumnIndex(1)),
             pattern: LiteralText("(".into()),
             capture: None,
-            capture_text: false,
-            capture_line: false,
+            capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
         }),
     ];
     let (result, builds) = compiled::run(steps, &providers, b"x", &mut Symbols::default(), stream);

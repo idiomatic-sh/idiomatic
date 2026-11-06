@@ -25,11 +25,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{
-        ColumnIndex, Comparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId,
-        Test, WholeNumber,
-    },
-    plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Comparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId, Test, WholeNumber, StepScope},
+    plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     query_bindings::types::ParameterBinding,
     rows::types::Table,

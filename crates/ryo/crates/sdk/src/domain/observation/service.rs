@@ -36,10 +36,10 @@ pub(crate) fn declarations(
                 columns: columns(input.columns),
                 scope: match input.scope {
                     ObservationScope::PerFile => {
-                        ryo_values::domain::plans::types::StepScope::PerFile
+                        ryo_values::domain::plan_parts::types::StepScope::PerFile
                     }
                     ObservationScope::CrossFile => {
-                        ryo_values::domain::plans::types::StepScope::CrossFile
+                        ryo_values::domain::plan_parts::types::StepScope::CrossFile
                     }
                 },
             },

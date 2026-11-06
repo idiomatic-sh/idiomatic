@@ -1,5 +1,5 @@
 //! Refusals owned by rule compilation before file evaluation can begin.
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 /// A malformed program, rule identity, or parameter binding.

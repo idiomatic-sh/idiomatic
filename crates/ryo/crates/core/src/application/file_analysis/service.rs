@@ -1073,8 +1073,8 @@ impl FileAnalysis {
         out: &mut Words,
     ) -> Result<(), FileAnalysisError> {
         use ryo_values::domain::records::types::FrontierCoverage;
-        let rule = RuleIndex(usize::try_from(proof.rule).unwrap_or(usize::MAX));
-        let input = usize::try_from(proof.input).unwrap_or(usize::MAX);
+        let rule = RuleIndex(usize::try_from(proof.rule.0).unwrap_or(usize::MAX));
+        let input = usize::try_from(proof.input.0).unwrap_or(usize::MAX);
         let valid = setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
             && setting
                 .program
@@ -1341,7 +1341,7 @@ impl FileAnalysis {
         let layout = setting.program.observation_layout();
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (Some(map), Some((layout, slots))) => {
-                let count = ryo_values::domain::observations::types::ObservationReadinessCount(
+                let count = ryo_values::domain::records::types::ObservationReadinessCount(
                     u32::try_from(slots.len()).ok()?,
                 );
                 let checked = ryo_values::domain::observations::service::validate_frontiers(

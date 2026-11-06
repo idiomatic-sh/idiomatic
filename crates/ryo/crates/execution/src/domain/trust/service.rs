@@ -22,7 +22,8 @@ use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::runs::types::RuleId;
 
 /// The place of the `kind` column of a relation, when it has one.
@@ -186,10 +187,10 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
                 }
                 if capture.is_some() {
                     provenance.push(None);
-                    if *capture_text {
+                    if *capture_text == ryo_values::domain::plans::types::TextOutput::Appended {
                         provenance.push(None);
                     }
-                    if *capture_line {
+                    if *capture_line == ryo_values::domain::plans::types::LineOutput::Appended {
                         provenance.push(None);
                     }
                 }

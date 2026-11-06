@@ -12,8 +12,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
-    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep},
 };
 
 fn diamond() -> Plan {
@@ -322,8 +322,8 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
                     base_line: None,
                     pattern: LiteralText("(".into()),
                     capture: None,
-                    capture_text: false,
-                    capture_line: false,
+                    capture_text: ryo_values::domain::plans::types::TextOutput::Omitted,
+                    capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
                 },
             },
             PlanStep {

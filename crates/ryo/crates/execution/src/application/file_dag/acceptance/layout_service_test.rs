@@ -14,11 +14,8 @@ use ryo_relations::domain::relations::{
     types::{CellKind, Integer, Relation, Value},
 };
 use ryo_values::domain::{
-    plan_parts::types::{
-        ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
-        RepeatedRows, Side, StepId,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows, Side, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     rule_requests::types::{RuleParameters, RuleSpec},

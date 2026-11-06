@@ -5,7 +5,8 @@ use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,
 };
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 

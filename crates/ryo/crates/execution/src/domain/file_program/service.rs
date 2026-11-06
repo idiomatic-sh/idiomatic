@@ -7,7 +7,8 @@ use super::types::{FileProgramNode, NodeId, NodeInput, ObservationRequest, Reque
 
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;

@@ -4,7 +4,8 @@ use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
 use ryo_relations::domain::relations::types::Span as CoreSpan;
 use ryo_values::domain::descriptions::types::ValidateReport as CoreReport;
-use ryo_values::domain::plan_parts::types::{RefusedKind, RefusedQuery};
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::program::types::QueryOrigin as CoreOrigin;
 
 use ryo_relations::domain::relations::types::CellKind;

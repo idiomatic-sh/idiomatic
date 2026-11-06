@@ -84,6 +84,24 @@ pub enum StepScope {
     CrossFile,
 }
 
+/// Whether the source-matches step appends the captured physical text as a Symbol.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TextOutput {
+    /// The text is appended.
+    Appended,
+    /// The text is left out.
+    Omitted,
+}
+
+/// Whether the source-matches step appends the captured start line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LineOutput {
+    /// The line is appended.
+    Appended,
+    /// The line is left out.
+    Omitted,
+}
+
 /// The operations of the language, one variant each, with typed fields.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operation {
@@ -336,9 +354,9 @@ pub enum Operation {
         /// Optional required named capture; a nonparticipating capture emits no row.
         capture: Option<crate::domain::plan_parts::types::LiteralText>,
         /// Append the captured physical text as a source-backed Symbol.
-        capture_text: bool,
+        capture_text: TextOutput,
         /// Append the captured start line after any whole-match line output.
-        capture_line: bool,
+        capture_line: LineOutput,
     },
     /// Render candidate syntax in a declared embedding role on demand.
     RenderSyntax {

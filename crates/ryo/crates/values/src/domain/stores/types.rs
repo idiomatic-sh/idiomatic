@@ -3,7 +3,7 @@
 //! make again cheaply is. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::files::types::{FileSize, Nanoseconds};
-use crate::domain::program::types::ColumnName;
+use crate::domain::descriptions::types::ColumnName;
 use crate::domain::records::types::{
     Cell, GoverningRules, PlacedColumn, PlacedLine, PlacedRule, Unreadable,
 };

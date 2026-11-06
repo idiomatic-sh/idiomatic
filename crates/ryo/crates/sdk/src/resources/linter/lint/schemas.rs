@@ -19,10 +19,9 @@ use ryo_values::domain::hosted::types::{
     HostColumn as CoreHostColumn, HostColumnName as CoreHostColumnName, HostKind as CoreHostKind,
     HostName as CoreHostName, HostRelation as CoreHost, HostRow as CoreHostRow,
 };
-use ryo_values::domain::plan_parts::types::{
-    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, RefusedKind, RefusedQuery,
-    WholeNumber,
-};
+use ryo_values::domain::plan_parts::types::{FlagState as CoreFlag, LiteralText as CoreText, ParameterName, WholeNumber};
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::records::types::Cell as RowCell;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
 use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session, WorkersAsked};

@@ -259,7 +259,7 @@ pub fn frontier_identity(
 /// Identity of the actually demanded output set, distinct from all authored exports in a cached plan.
 #[must_use]
 pub fn output_identity(outputs: &[super::types::PlanObservation]) -> ObservationIdentityBytes {
-    use crate::domain::plans::types::StepScope;
+    use crate::domain::plan_parts::types::StepScope;
     if outputs.is_empty() {
         return ObservationIdentityBytes::default();
     }

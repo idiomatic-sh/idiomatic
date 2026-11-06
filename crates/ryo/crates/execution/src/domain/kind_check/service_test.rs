@@ -10,7 +10,8 @@ use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, Function, LiteralText, Operand, ParameterId, QueryLiteral,
     StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// What a row gives the check: how the kind is compared, with what, and the texts bound to the parameters.

@@ -1,6 +1,6 @@
 //! The types of the `descriptions` concept: what ryo says of the relations and the operators it owns. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::program::types::ColumnName;
+use crate::domain::descriptions::types::ColumnName;
 use ryo_relations::domain::relations::types::Holds;
 use ryo_relations::domain::terms::types::UnknownName;
 

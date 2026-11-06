@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-use ryo_values::domain::program::types::ColumnName;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{GoverningRules, PlacedRule};
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, Unreadable};
@@ -842,8 +842,8 @@ fn proof_schema(
     FrontierProofSchema {
         file: row.file.0,
         bucket: row.bucket.0,
-        rule: row.proof.rule,
-        input: row.proof.input,
+        rule: row.proof.rule.0,
+        input: row.proof.input.0,
         rule_digest: row.proof.rule_digest.0,
         coverage: match &row.proof.coverage {
             FrontierCoverage::Complete => FrontierCoverageSchema::Complete,
@@ -884,8 +884,8 @@ fn proof_row(
         file: StoredFileNumber(row.file),
         bucket: Bucket(row.bucket),
         proof: FrontierProof {
-            rule: row.rule,
-            input: row.input,
+            rule: ryo_values::domain::records::types::ProducerRule(row.rule),
+            input: ryo_values::domain::records::types::FrontierOrdinal(row.input),
             rule_digest: Digest(row.rule_digest),
             coverage,
         },
@@ -1020,10 +1020,11 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
             .observations
             .iter()
             .map(|each| {
-                use ryo_values::domain::observations::types::{
-                    ObservationReadinessCount, ObservationReadinessLayout,
-                    ObservationReadinessSlot, ObservationReadinessVersion, ObservationReason,
-                };
+                use ryo_values::domain::records::types::ObservationReason;
+                use ryo_values::domain::records::types::ObservationReadinessSlot;
+                use ryo_values::domain::records::types::ObservationReadinessCount;
+                use ryo_values::domain::records::types::ObservationReadinessLayout;
+                use ryo_values::domain::records::types::ObservationReadinessVersion;
                 use ryo_values::domain::records::types::{
                     FrontierReadiness, FrontierRefusal, FrontierRefusalReason,
                 };

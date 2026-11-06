@@ -8,11 +8,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{
-        ColumnIndex, Comparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
-        Side, StepId, Test,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Comparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral, Side, StepId, Test, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},

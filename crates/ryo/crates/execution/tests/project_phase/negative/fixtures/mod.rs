@@ -12,13 +12,11 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
-    observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName, ObservationColumn,
-        ObservationColumnName, ObservationReadinessLayout,
-    },
-    plan_parts::types::Input,
-    plans::types::{Operation, PlanStep, StepScope},
+    observations::types::{BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName},
+    plan_parts::types::{Input, ObservationBindingId, StepScope},
+    plans::types::{Operation, PlanStep},
     stored_facts::types::{Bucket, Digest},
+    records::types::ObservationReadinessLayout,
 };
 
 /// No compiled rule in these programs has a file frontier or a project relation.

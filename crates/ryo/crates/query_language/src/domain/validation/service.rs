@@ -41,7 +41,7 @@ pub(crate) fn validate_with_observations(
     hosted: &[HostedName],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<(), ValidationError> {
-    if program.linked {
+    if program.linked == ryo_values::domain::program::types::Linking::Linked {
         let mut identities = BTreeSet::new();
         for step in &program.steps {
             let Some(identity) = step.name.1 else {
@@ -59,7 +59,7 @@ pub(crate) fn validate_with_observations(
         }
     }
     let mut known = Known {
-        identities: if program.linked {
+        identities: if program.linked == ryo_values::domain::program::types::Linking::Linked {
             Identities::Assigned
         } else {
             Identities::Unassigned

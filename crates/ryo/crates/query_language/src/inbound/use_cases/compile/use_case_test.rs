@@ -5,7 +5,7 @@ use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, H
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 use std::sync::Arc;
 
 use super::errors::CompileError;
@@ -19,11 +19,8 @@ use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, ColumnName, ColumnReference, Columns, Condition, Expression, Filter,
-    Joining, LetStep, Program, QuerySource, QuerySpan, Select, SourceReference, StepName,
-    WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest,
-};
+use ryo_values::domain::program::types::{Alias, ByteOffset, ColumnReference, Columns, Condition, Expression, Filter, Joining, LetStep, Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest};
+use ryo_values::domain::descriptions::types::ColumnName;
 
 /// What a row asks of the use case.
 #[derive(Clone, Copy)]
@@ -82,7 +79,7 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
 
 fn program_with(filters: Vec<Filter>) -> Program {
     Program {
-        linked: false,
+        linked: ryo_values::domain::program::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
@@ -883,7 +880,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
         BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
     };
     use ryo_values::domain::plan_parts::types::Input;
-    use ryo_values::domain::plans::types::StepScope;
+    use ryo_values::domain::plan_parts::types::StepScope;
     use ryo_values::domain::program::types::QueryBundle;
     let compiler = CompileUseCaseImpl::new(
         Arc::new(crate::outbound::syntax::fixtures::winnow::winnow()),

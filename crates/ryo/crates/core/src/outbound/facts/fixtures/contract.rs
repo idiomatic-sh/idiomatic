@@ -15,8 +15,8 @@ use ryo_values::domain::table_words::types::WordSlice;
 
 static FRONTIER_PROOF: std::sync::LazyLock<ryo_values::domain::records::types::FrontierProof> =
     std::sync::LazyLock::new(|| ryo_values::domain::records::types::FrontierProof {
-        rule: 0,
-        input: 0,
+        rule: ryo_values::domain::records::types::ProducerRule(0),
+        input: ryo_values::domain::records::types::FrontierOrdinal(0),
         rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
     });

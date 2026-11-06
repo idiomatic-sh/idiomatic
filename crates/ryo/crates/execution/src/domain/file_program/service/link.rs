@@ -4,8 +4,8 @@ use crate::domain::file_program::{
     types::{ResolvedObservationBinding, ResolvedObservationProducer},
 };
 use ryo_values::domain::{
-    observations::types::ObservationIndex,
     plan_parts::types::{Input, StepId},
+    records::types::ObservationIndex,
     plans::{
         service::{each_input, inputs_of, named},
         types::{Plan, StepScope},
