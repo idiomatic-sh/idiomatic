@@ -24,11 +24,15 @@ use {
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {
-    for limit in [0, crate::application::file_dag::derived::owner::index::service::LIMIT] {
+    for limit in [Retention::Refused, Retention::Default] {
         exercise_real_selector(limit);
     }
 }
-fn exercise_real_selector(limit: usize) {
+enum Retention {
+    Refused,
+    Default,
+}
+fn exercise_real_selector(limit: Retention) {
     let relation = Relation::FilesystemLineCount;
     let schema = kinds(relation);
     let physical = columns(schema);
@@ -61,7 +65,9 @@ fn exercise_real_selector(limit: usize) {
         )
         .unwrap();
     let owner = fixture.owner();
-    owner.derived.set_optional_limit(limit).unwrap();
+    if matches!(limit, Retention::Refused) {
+        owner.derived.set_optional_limit(0).unwrap();
+    }
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
@@ -111,8 +117,12 @@ fn exercise_real_selector(limit: usize) {
         .select(&program, source, &owner, &population, &proof, &mut context)
         .unwrap()
         .expect("real repeated producer");
-    let repeated = owner.resolve(old_token.as_ref(), &|_| Ok(Rows::Stored(source))).unwrap();
-    let Rows::Selected(second_selected) = &repeated else { panic!("actual repeated selected publication"); };
+    let repeated = owner
+        .resolve(old_token.as_ref(), &|_| Ok(Rows::Stored(source)))
+        .unwrap();
+    let Rows::Selected(second_selected) = &repeated else {
+        panic!("actual repeated selected publication");
+    };
     let Rows::Selected(selected) = &resolved else {
         panic!("producer must publish compact rows")
     };
@@ -132,7 +142,9 @@ fn exercise_real_selector(limit: usize) {
     );
     owner.release_population();
     assert!(matches!(
-        owner.derived.select(&program, source, owner, &population, &proof, &mut context),
+        owner
+            .derived
+            .select(&program, source, owner, &population, &proof, &mut context),
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
 }

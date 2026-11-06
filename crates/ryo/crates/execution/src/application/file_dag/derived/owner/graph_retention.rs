@@ -4,7 +4,7 @@ use super::super::{
     owner::graphs::{
         service::{replace, room, slot},
         types::{
-            handles::GraphHandle,
+            handles::service::GraphHandle,
             retained::types::{DomainEntry, GraphEntry},
         },
     },

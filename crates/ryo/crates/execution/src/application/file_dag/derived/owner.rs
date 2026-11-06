@@ -1,9 +1,9 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
-use super::footprint::storage_bytes;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
 use acquisition::semantics::service::DerivedStorage;
+use footprint::service::storage_bytes;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -11,6 +11,7 @@ use std::{
 };
 
 mod diagnostics;
+mod footprint;
 #[path = "owner/lifetime.rs"]
 mod lifetime;
 mod observations;
@@ -54,9 +55,7 @@ impl ViewContext {
     }
 }
 mod graph_key;
-pub(in crate::application::file_dag::derived) use graph_key::{
-    GraphRequirement, GraphSelection, GraphViewIdentity, RequirementIdentity,
-};
+use graph_key::{GraphRequirement, GraphSelection, GraphViewIdentity, RequirementIdentity};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Key {
     plan: RequirementIdentity,
