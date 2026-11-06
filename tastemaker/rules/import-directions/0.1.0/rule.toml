@@ -1,5 +1,5 @@
 description = "A directory names only what its place in the crate's import directions allows: `forbidden` lists the targets it may not name, and an application service, use case, port or adapter names no sibling of its kind (a use case no other use case, a port no other port, an adapter no other adapter and no other port)."
-why = "Imports run one way inside a crate, and a part never reaches its sibling. The explicit local four-layer matrix is placed by nu-hex itself without blanket test or benchmark exemptions; this separate rule preserves the stricter sibling and edge restrictions, and the idiomatic-rust spec adds edge directions: domain imports only domain and the kernel crates' public types, never its own crate's inbound or outbound; an application service imports pure domain functions and outbound contracts, never sibling services or use cases; a use case (`inbound/use_cases/<use case>`) composes application services and imports domain, its own crate's outbound port interface, types and errors, and the kernel, never another use case; a port's `interface.rs`, `types.rs` and `errors.rs` import their own outbound vocabulary and external APIs, never another local layer or another port; an adapter (`outbound/<port>/adapters/<adapter>`) imports its own outbound port, its schemas and external client APIs, and when it translates one crate's use case for another it imports that other crate's use-case interface, types and errors, never another adapter and never another port; an edge (a command, an SDK entry or a composition) imports use-case interface, types and errors and port types and factory, never an adapter or a domain service, and `use_case.rs` is named only in `composition.rs`. The entry's `forbidden` param holds the targets one directory may not name (path globs as written in code, `*::inbound::*`); the identity of a use case, a port and an adapter is read from the file's own path, so a file naming `crate::outbound::<other port>` or `crate::inbound::use_cases::<other use case>` is a finding while its own port and use case are not: the files of one use case name each other with `super::`. Found from the paths the files write in imports and in code: the provider's `static-import` and `reference` relations. Resolved source dependencies also check relative imports and aliases between local parts. Paths inside macro expansions and dynamically chosen effects are not proven; behavioral tests and review remain necessary. The entry leaves out tests, fixtures and benches."
+why = "Imports run one way inside a crate, and a part never reaches its sibling. The explicit local four-layer matrix is placed by nu-hex itself without blanket test or benchmark exemptions; this separate rule preserves the stricter sibling and edge restrictions, and the idiomatic-rust spec adds edge directions: domain imports only domain and the kernel crates' public types, never its own crate's inbound or outbound; an application service imports pure domain functions and outbound contracts, never sibling services or use cases; a use case (`inbound/use_cases/<use case>`) composes application services and imports domain, its own crate's outbound port interface, types and errors, and the kernel, never another use case; a port's `interface.rs`, `types.rs` and `errors.rs` import their own outbound vocabulary and external APIs, never another local layer or another port; an adapter (`outbound/<port>/adapters/<adapter>`) imports its own outbound port, its schemas and external client APIs, and when it translates one crate's use case for another it imports that other crate's use-case interface, types and errors, never another adapter and never another port; an edge (a command, an SDK entry or a composition) imports use-case interface, types and errors and port types and factory, never an adapter or a domain service, and `use_case.rs` is named only in `composition.rs`. The entry's `forbidden` param holds the targets one directory may not name (path globs as written in code, `*::inbound::*`); the identity of a use case, a port and an adapter is read from the file's own path, so a file naming `crate::outbound::<other port>` or `crate::inbound::use_cases::<other use case>` is a finding while its own port and use case are not: the files of one use case name each other with `super::`. Found from the paths the files write in imports and in code: the provider's `static-import` and `reference` relations. Resolved source dependencies compare the same crate source root before checking relative imports and aliases between local parts. Public inbound interfaces of other crates are permitted; external implementations and adapters remain subject to their separate placement rules. Paths inside macro expansions and dynamically chosen effects are not proven; behavioral tests and review remain necessary. The entry leaves out tests, fixtures and benches."
 
 query = '''
 param forbidden: set<string>;
@@ -68,11 +68,21 @@ let app-mods = project(from=app-mod-other, columns=["source", "span"]);
 let app-all = union(left=app-files, right=app-mods);
 let app-named = select l."source" as "file", l."span" as "span" from app-all as l;
 let app-found = extend(from=app-named, values={"problem": "belongs to a sibling application service: the use case composes their operations"});
-let domain-source = select * from "source-dependency" where glob_any(source, "**/domain/**");
+let direction-source-dirs = capture(from="source-dependency", path="source", pattern="{*source-root}/{from-layer}/{*source-rest}", captures=["source-root", "from-layer", "source-rest"]);
+let direction-source-mods = capture(from="source-dependency", path="source", pattern="{*source-root}/{from-layer}.rs", captures=["source-root", "from-layer"]);
+let direction-dir-rows = select source, target, span, source-root from direction-source-dirs where glob_any(source-root, "{src,**/src}");
+let direction-mod-rows = select source, target, span, source-root from direction-source-mods where glob_any(source-root, "{src,**/src}");
+let direction-sources = union(left=direction-dir-rows, right=direction-mod-rows);
+let direction-target-dirs = capture(from=direction-sources, path="target", pattern="{*target-root}/{to-layer}/{*target-rest}", captures=["target-root", "to-layer", "target-rest"]);
+let direction-target-mods = capture(from=direction-sources, path="target", pattern="{*target-root}/{to-layer}.rs", captures=["target-root", "to-layer"]);
+let direction-local-dirs = select source, target, span from direction-target-dirs where source-root = target-root;
+let direction-local-mods = select source, target, span from direction-target-mods where source-root = target-root;
+let local-directions = union(left=direction-local-dirs, right=direction-local-mods);
+let domain-source = select * from local-directions where glob_any(source, "**/domain/**");
 let domain-bad = select * from domain-source where glob_any(target, "{**/application,**/application/**,**/application.rs,**/inbound,**/inbound/**,**/inbound.rs,**/outbound,**/outbound/**,**/outbound.rs}");
-let app-source = select * from "source-dependency" where glob_any(source, "**/application/**");
+let app-source = select * from local-directions where glob_any(source, "**/application/**");
 let app-bad = select * from app-source where glob_any(target, "{**/inbound,**/inbound/**,**/inbound.rs,**/outbound/*/adapters,**/outbound/*/adapters/**,**/outbound/*/adapters.rs,**/outbound/*/factory.rs}");
-let use-source = select * from "source-dependency" where glob_any(source, "**/inbound/use_cases/**");
+let use-source = select * from local-directions where glob_any(source, "**/inbound/use_cases/**");
 let use-bad = select * from use-source where glob_any(target, "{**/outbound/*/adapters,**/outbound/*/adapters/**,**/outbound/*/adapters.rs,**/outbound/*/factory.rs}");
 let outbound-source = capture(from="source-dependency", path="source", pattern="{*root}/outbound/{*rest}", captures=["root", "rest"]);
 let outbound-target = capture(from=outbound-source, path="target", pattern="{*troot}/application/{*trest}", captures=["troot", "trest"]);
@@ -1774,4 +1784,345 @@ use ryo_values::domain::records::types::Cell;
 pub trait RowsPort {
     fn row(&self, cells: &mut dyn Iterator<Item = Option<Cell<&str>>>);
 }
+'''
+
+[[scenarios]]
+id = 'application-external-inbound-aliased'
+scenario = 'External renamed crate inbound interface is a permitted semantic boundary.'
+given.params = { forbidden = ["{,::}crate::inbound", "{,::}crate::inbound::*"] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "semantic", path = "external" }
+'''
+given.files.'src/lib.rs' = '''
+pub mod application; pub mod inbound; pub mod domain;
+'''
+given.files.'src/application.rs' = '''
+pub mod run;
+'''
+given.files.'src/application/run.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain.rs' = '''
+pub mod meaning;
+'''
+given.files.'src/domain/meaning.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/meaning/service.rs' = '''
+pub fn run() {}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'external/Cargo.toml' = '''
+[package]
+name = "semantic"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'external/src/lib.rs' = '''
+pub mod inbound;
+'''
+given.files.'external/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'external/src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'external/src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'external/src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'src/application/run/service.rs' = '''
+use renamed::inbound::use_cases::evaluate::interface::Request as Input;
+pub fn run(_: Input) {}
+'''
+
+[[scenarios]]
+id = 'application-external-inbound-qualified'
+scenario = 'Qualified external inbound interface is allowed without a written-path exception.'
+given.params = { forbidden = ["{,::}crate::inbound", "{,::}crate::inbound::*"] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "semantic", path = "external" }
+'''
+given.files.'src/lib.rs' = '''
+pub mod application; pub mod inbound; pub mod domain;
+'''
+given.files.'src/application.rs' = '''
+pub mod run;
+'''
+given.files.'src/application/run.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain.rs' = '''
+pub mod meaning;
+'''
+given.files.'src/domain/meaning.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/meaning/service.rs' = '''
+pub fn run() {}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'external/Cargo.toml' = '''
+[package]
+name = "semantic"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'external/src/lib.rs' = '''
+pub mod inbound;
+'''
+given.files.'external/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'external/src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'external/src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'external/src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'src/application/run/service.rs' = '''
+pub fn run(_: renamed::inbound::use_cases::evaluate::interface::Request) {}
+'''
+
+[[scenarios]]
+id = 'application-local-inbound-aliased'
+scenario = 'Local aliases cannot bypass the application to inbound prohibition.'
+given.params = { forbidden = ["{,::}crate::inbound", "{,::}crate::inbound::*"] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "semantic", path = "external" }
+'''
+given.files.'src/lib.rs' = '''
+pub mod application; pub mod inbound; pub mod domain;
+'''
+given.files.'src/application.rs' = '''
+pub mod run;
+'''
+given.files.'src/application/run.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain.rs' = '''
+pub mod meaning;
+'''
+given.files.'src/domain/meaning.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/meaning/service.rs' = '''
+pub fn run() {}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'external/Cargo.toml' = '''
+[package]
+name = "semantic"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'external/src/lib.rs' = '''
+pub mod inbound;
+'''
+given.files.'external/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'external/src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'external/src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'external/src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'src/application/run/service.rs' = '''
+use crate::inbound::use_cases::evaluate::interface::Request as Input;
+pub fn run(_: Input) {}
+'''
+then.findings = [{ path = "src/application/run/service.rs", line = 1 }]
+
+[[scenarios]]
+id = 'application-local-inbound-relative'
+scenario = 'Relative local imports remain forbidden through resolved dependency facts.'
+given.params = { forbidden = ["{,::}crate::inbound", "{,::}crate::inbound::*"] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "semantic", path = "external" }
+'''
+given.files.'src/lib.rs' = '''
+pub mod application; pub mod inbound; pub mod domain;
+'''
+given.files.'src/application.rs' = '''
+pub mod run;
+'''
+given.files.'src/application/run.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain.rs' = '''
+pub mod meaning;
+'''
+given.files.'src/domain/meaning.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/meaning/service.rs' = '''
+pub fn run() {}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'external/Cargo.toml' = '''
+[package]
+name = "semantic"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'external/src/lib.rs' = '''
+pub mod inbound;
+'''
+given.files.'external/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'external/src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'external/src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'external/src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'src/application/run/service.rs' = '''
+use super::super::super::inbound::use_cases::evaluate::interface::Request as Input;
+pub fn run(_: Input) {}
+'''
+then.findings = [{ path = "src/application/run/service.rs", line = 1 }]
+
+[[scenarios]]
+id = 'domain-external-inbound-public-type'
+scenario = 'An external public type is not the local inbound layer.'
+given.params = { forbidden = ["{,::}crate::inbound", "{,::}crate::inbound::*"] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "semantic", path = "external" }
+'''
+given.files.'src/lib.rs' = '''
+pub mod application; pub mod inbound; pub mod domain;
+'''
+given.files.'src/application.rs' = '''
+pub mod run;
+'''
+given.files.'src/application/run.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain.rs' = '''
+pub mod meaning;
+'''
+given.files.'src/domain/meaning.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/meaning/service.rs' = '''
+use renamed::inbound::use_cases::evaluate::interface::Request;
+pub fn run(_: Request) {}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'external/Cargo.toml' = '''
+[package]
+name = "semantic"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'external/src/lib.rs' = '''
+pub mod inbound;
+'''
+given.files.'external/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'external/src/inbound/use_cases.rs' = '''
+pub mod evaluate;
+'''
+given.files.'external/src/inbound/use_cases/evaluate.rs' = '''
+pub mod interface;
+'''
+given.files.'external/src/inbound/use_cases/evaluate/interface.rs' = '''
+pub struct Request;
+'''
+given.files.'src/application/run/service.rs' = '''
+pub fn run() {}
 '''
