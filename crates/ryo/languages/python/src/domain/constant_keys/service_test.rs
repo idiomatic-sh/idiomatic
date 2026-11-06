@@ -1,14 +1,18 @@
 //! Independent boundary checks for typed constant keys.
 
-use crate::domain::constant_keys::types::{KeyClass, RetainedKeyIndex};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::service::{clear, intern_with_hash, key_of, prepare};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::constant_keys::types::{KeyClass, RetainedKeyIndex};
 use crate::domain::{
     constant_keys::types::{KeyHash, KeyState, KeyWord, LiteralKind},
     model::types::Declarations,
-    semantic_syntax::{service::{positions, visibility}, types::Visibility},
+    semantic_syntax::{
+        service::{positions, visibility},
+        types::Visibility,
+    },
     syntax::service::{kind, written},
-    syntax::types::Kind};
+    syntax::types::Kind,
+};
 use crate::fixtures::reading::{initialize_model, parsed};
 use ryo::languages::{self, ByteSlice, Tree};
 
@@ -23,7 +27,9 @@ fn supported_numeric_keys_normalize_and_unsupported_expressions_are_absent() {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| (visibility(&tree, &model, at, symbols) == Visibility::Visible).into());
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| {
+        (visibility(&tree, &model, at, symbols) == Visibility::Visible).into()
+    });
     assert_eq!(
         index.state,
         KeyState::Complete,
@@ -83,7 +89,9 @@ fn float_boundaries_and_huge_integer_structural_keys_are_retained() {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| (visibility(&tree, &model, at, symbols) == Visibility::Visible).into());
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| {
+        (visibility(&tree, &model, at, symbols) == Visibility::Visible).into()
+    });
     let values: Vec<_> = positions(&tree)
         .filter(|at| {
             matches!(
@@ -140,7 +148,9 @@ fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads()
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| (visibility(&tree, &model, at, symbols) == Visibility::Visible).into());
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| {
+        (visibility(&tree, &model, at, symbols) == Visibility::Visible).into()
+    });
     let occurrences: Vec<_> = positions(&tree)
         .filter(|at| {
             matches!(
@@ -187,7 +197,12 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
         model.constant_keys.borrow().records.is_empty(),
         "parsing is lazy"
     );
-    let first_index = prepare(&first_tree, &model.constant_keys, &mut first_symbols, |at, symbols| (visibility(&first_tree, &model, at, symbols) == Visibility::Visible).into());
+    let first_index = prepare(
+        &first_tree,
+        &model.constant_keys,
+        &mut first_symbols,
+        |at, symbols| (visibility(&first_tree, &model, at, symbols) == Visibility::Visible).into(),
+    );
     let first_words = first_index.words.clone();
     assert!(!first_index.records.is_empty());
     drop(first_index);
@@ -201,7 +216,12 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
     };
     let mut second_symbols = second.symbols;
     initialize_model(&second_tree, &mut model);
-    let second_index = prepare(&second_tree, &model.constant_keys, &mut second_symbols, |at, symbols| (visibility(&second_tree, &model, at, symbols) == Visibility::Visible).into());
+    let second_index = prepare(
+        &second_tree,
+        &model.constant_keys,
+        &mut second_symbols,
+        |at, symbols| (visibility(&second_tree, &model, at, symbols) == Visibility::Visible).into(),
+    );
     assert!(!second_index.records.is_empty());
     assert_ne!(second_index.words, first_words);
 }
@@ -212,15 +232,16 @@ fn full_keys_disambiguate_hash_collisions() {
         LiteralKind::Integer,
         Some(languages::Symbol(10)),
     ));
-    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0)).expect("first key interns");
+    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0))
+        .expect("first key interns");
     index.scratch.clear();
     index.scratch.push(KeyWord::Literal(
         LiteralKind::Integer,
         Some(languages::Symbol(11)),
     ));
     // Test the collision chain directly by using the same bucket hash in the service's intern path.
-    let second =
-        intern_with_hash(&mut index, languages::Position(5), KeyHash(0)).expect("second key interns");
+    let second = intern_with_hash(&mut index, languages::Position(5), KeyHash(0))
+        .expect("second key interns");
     assert_ne!(first, second);
     assert_eq!(index.records.len(), 2);
 }
@@ -240,7 +261,9 @@ const CASES: &[Case<fn(), (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads"),
+        name: CaseName(
+            "underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads",
+        ),
         word: Word::Succeeds,
         input: || underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads,
         expect: Expect::Value(()),

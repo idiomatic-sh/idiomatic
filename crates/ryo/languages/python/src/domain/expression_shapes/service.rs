@@ -1,7 +1,6 @@
 //! Lazily intern bottom-up parsed expression keys; source formatting and runtime value equality are separate.
 use crate::domain::constant_keys::types::{KeyRecord, KeyRecordIndex, RetainedKeyIndex};
-use crate::domain::model::types::{
-    ShapeHash, ShapeState, ShapeWord};
+use crate::domain::model::types::{ShapeHash, ShapeState, ShapeWord};
 use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
@@ -10,10 +9,13 @@ use crate::domain::{
     syntax::{
         constants::{
             BYTES_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY,
-            SCALAR_KIND, SCALAR_VALUE},
+            SCALAR_KIND, SCALAR_VALUE,
+        },
         service::{below, identifier_text, interpolation, is_token, kind, literal},
-        types::{Kind, Leaf, Literal}},
-    tokens::types::Token};
+        types::{Kind, Leaf, Literal},
+    },
+    tokens::types::Token,
+};
 use ryo::languages::{self, NameText, Position, Symbols, Tree};
 use std::cell::Ref;
 use std::hash::{Hash as _, Hasher as _};
@@ -48,20 +50,29 @@ pub(crate) fn clear(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash,
 }
 /// The existing canonical representative of one occurrence.
 #[must_use]
-pub(crate) fn shape_of(index: &RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>, at: Position) -> Option<Position> {
+pub(crate) fn shape_of(
+    index: &RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>,
+    at: Position,
+) -> Option<Position> {
     let Ok(slot) = usize::try_from(at.0) else {
         return None;
     };
     index.classes.get(slot).copied().flatten()
 }
 /// Intern a full key. Hash collisions share a bucket, never an expression identity.
-pub(super) fn intern(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>, at: Position, hash: ShapeHash) -> Position {
+pub(super) fn intern(
+    index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>,
+    at: Position,
+    hash: ShapeHash,
+) -> Position {
     let mut candidate = index.buckets.get(&hash).copied();
     while let Some(place) = candidate {
         let Some(record) = index.records.get(place.0) else {
             break;
         };
-        if index.words.get(record.words.clone()) == Some(index.scratch.as_slice()) {
+        if index.words.get(record.words.start.0..record.words.end.0)
+            == Some(index.scratch.as_slice())
+        {
             return record.representative;
         }
         candidate = record.previous;
@@ -69,7 +80,10 @@ pub(super) fn intern(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash
     let start = index.words.len();
     index.words.extend_from_slice(&index.scratch);
     let record = KeyRecord {
-        words: start..index.words.len(),
+        words: crate::domain::constant_keys::types::WordRange {
+            start: crate::domain::constant_keys::types::WordIndex(start),
+            end: crate::domain::constant_keys::types::WordIndex(index.words.len()),
+        },
         representative: at,
         previous: index.buckets.get(&hash).copied(),
     };

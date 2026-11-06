@@ -2,13 +2,32 @@
 
 use ryo::languages::{Position, Symbol};
 
+/// An integer that is safe to compare exactly across supported numeric literal types.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ExactInteger(pub i128);
+
+/// The IEEE-754 payload of a float key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct FloatPayload(pub u64);
+
+/// A binary64 value while a key is composed or negated.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Binary64(pub f64);
+
+impl std::ops::Neg for Binary64 {
+    type Output = Self;
+    fn neg(self) -> Self {
+        Self(-self.0)
+    }
+}
+
 /// A real or imaginary component after Python's bounded constant normalization.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum RealKey {
     /// An integer that is safe to compare exactly across supported numeric literal types.
-    Integer(i128),
+    Integer(ExactInteger),
     /// The IEEE-754 payload, with both signed zeros canonicalized before storage.
-    Float(u64),
+    Float(FloatPayload),
 }
 
 /// The tagged real and imaginary components of a numeric constant.
@@ -54,11 +73,33 @@ pub(crate) enum KeyWord {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KeyRecordIndex(pub usize);
 
+/// A position in the retained key-word arena.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WordIndex(pub usize);
+
+/// The words of one complete key in the retained arena.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WordRange {
+    /// The first word of the key.
+    pub start: WordIndex,
+    /// One past the last word of the key.
+    pub end: WordIndex,
+}
+
+/// Whether an occurrence is a synthetic literal segment inside an interpolated string.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Fragment {
+    /// A literal segment of an interpolated string.
+    Interpolated,
+    /// An ordinary occurrence.
+    Standalone,
+}
+
 /// A complete key, its original representative and the prior key in the same hash bucket.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct KeyRecord {
     /// The complete key in the retained arena.
-    pub words: std::ops::Range<usize>,
+    pub words: WordRange,
     /// An original syntax node representing this value class.
     pub representative: Position,
     /// Another full key in the bucket, compared after hashing.
@@ -113,7 +154,8 @@ pub(crate) struct RetainedKeyIndex<Class, Word, Digest: std::hash::Hash + Eq, St
 }
 
 impl<Class, Word, Digest: std::hash::Hash + Eq, State: Default> Default
-    for RetainedKeyIndex<Class, Word, Digest, State> {
+    for RetainedKeyIndex<Class, Word, Digest, State>
+{
     fn default() -> Self {
         Self {
             classes: Vec::new(),
