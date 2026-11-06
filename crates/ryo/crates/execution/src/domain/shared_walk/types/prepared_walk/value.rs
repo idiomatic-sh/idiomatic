@@ -148,6 +148,14 @@ impl PreparedWalk {
         }
     }
 
+    /// The route bound to a physical instruction, if it was bound.
+    pub(crate) fn route_of(
+        &self,
+        instruction: &crate::domain::executable_program::types::Instruction,
+    ) -> Option<WalkRoute> {
+        *self.physical.get(instruction.logical.0)?
+    }
+
     /// Resolve only a physical selection head whose rows this walk can deliver.
     fn resolve_class(
         &self,
@@ -330,12 +338,12 @@ impl PreparedWalk {
 /// Explicit source boundaries remain in request metadata. Adding an operation
 /// requires choosing its source-walk barrier in this exhaustive classifier.
 #[derive(Clone, Copy, Debug)]
-enum WalkRoute {
+pub(crate) enum WalkRoute {
     Shared(ClassPlace),
     Barrier(WalkBarrier),
 }
 #[derive(Clone, Copy, Debug)]
-enum WalkBarrier {
+pub(crate) enum WalkBarrier {
     Representation,
     DependentInput,
     Observation,

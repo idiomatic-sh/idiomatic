@@ -141,6 +141,8 @@ enum RouteScenario {
     MisclassifiedExtend,
     RowsSource,
     RelabelledBarrier,
+    SharingTable,
+    SharingTableMovedKind,
 }
 const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
     Case {
@@ -173,7 +175,51 @@ const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
         input: || RouteScenario::RelabelledBarrier,
         expect: Expect::Error(RouteRefusal::RouteMismatch),
     },
+    Case {
+        name: CaseName("the ruff sharing test's route table agrees with the meaning of every kind"),
+        word: Word::Succeeds,
+        input: || RouteScenario::SharingTable,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a sharing table that moves a kind to another meaning is refused"),
+        word: Word::Rejects,
+        input: || RouteScenario::SharingTableMovedKind,
+        expect: Expect::Error(RouteRefusal::RouteMismatch),
+    },
 ];
+/// The quoted kinds of one list of the ruff sharing test's route table.
+fn table_list(text: &str, name: &str) -> Vec<String> {
+    let opening = format!("const {name}: &[&str] = &[");
+    let from = text.find(&opening).expect("a declared list") + opening.len();
+    let list = &text[from..from + text[from..].find("];").expect("a closed list")];
+    list.split('"').skip(1).step_by(2).map(str::to_owned).collect()
+}
+/// Every operation kind is in exactly the list its meaning names.
+fn verify_table(text: &str) -> Result<(), RouteRefusal> {
+    let lists = [
+        (Meaning::Selection, table_list(text, "SELECTION")),
+        (Meaning::PerRow, table_list(text, "PER_ROW")),
+        (Meaning::WholeInput, table_list(text, "WHOLE_INPUT")),
+        (Meaning::RequestOwned, table_list(text, "REQUEST_OWNED")),
+    ];
+    for kind in OperationKind::ALL {
+        let name = format!("{kind:?}");
+        let holding = lists
+            .iter()
+            .filter(|(_, kinds)| kinds.contains(&name))
+            .map(|(meaning, _)| *meaning)
+            .collect::<Vec<_>>();
+        if holding != [meaning(*kind)] {
+            return Err(RouteRefusal::RouteMismatch);
+        }
+    }
+    Ok(())
+}
+const SHARING_TABLE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs"
+));
 fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstruction {
     corpus
         .program
@@ -205,6 +251,10 @@ fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
             let at = head_of(&corpus, OperationKind::Join);
             corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::Continuation));
             verify_program(&corpus)
+        }
+        RouteScenario::SharingTable => verify_table(SHARING_TABLE),
+        RouteScenario::SharingTableMovedKind => {
+            verify_table(&SHARING_TABLE.replacen("\"Hosted\"", "\"Join\"", 1))
         }
     }
 }

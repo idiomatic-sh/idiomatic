@@ -1,5 +1,5 @@
 //! Actual configured classes and explicit barriers, through the production SDK.
-use super::fixtures::{Observation, observe};
+use super::fixtures::{Observation, expected_routes, observe};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use std::collections::BTreeSet;
 type Input = ();
@@ -17,6 +17,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
     // The trace dispatcher installs once per process, so both controls reuse this observation.
     let mut silent = observed.clone();
     let mut single = observed.clone();
+    let mut relabelled = observed.clone();
     let mut omitted = observed;
     assert!(
         omitted.dispatches.len() > 1,
@@ -48,9 +49,49 @@ fn subject(_: Input) -> Result<Value, Failure> {
         std::panic::catch_unwind(|| verify(single)).is_err(),
         "a program in which no class is shared by two rules must fail coverage"
     );
+    // Relabelling one class's route must fail: a bound shared head claimed as a derived barrier.
+    let shared = relabelled
+        .routes
+        .iter_mut()
+        .find(|route| route.route == "Shared")
+        .expect("a shared route event");
+    shared.route = "derived".into();
+    assert!(
+        std::panic::catch_unwind(|| verify(relabelled)).is_err(),
+        "a class whose expected route is changed must fail coverage"
+    );
     Ok(())
 }
 fn verify(observed: Observation) -> Result<Value, Failure> {
+    // The engine-independent expectation: each instruction's route is one its operation kind
+    // allows, every instruction of the census is traced, and a class holds only selections.
+    assert_eq!(
+        observed.routes.len() as u64,
+        observed.census.instructions,
+        "one route event for each census instruction"
+    );
+    let mut counts = std::collections::BTreeMap::<&str, u64>::new();
+    for event in &observed.routes {
+        let allowed = expected_routes(&event.kind, event.head);
+        assert!(
+            allowed.contains(&event.route.as_str()),
+            "instruction {} ({}) bound to {}, expected one of {allowed:?}",
+            event.logical,
+            event.kind,
+            event.route
+        );
+        assert_eq!(
+            event.class.is_some(),
+            event.route == "Shared",
+            "a class is held by shared routes only"
+        );
+        *counts.entry(event.route.as_str()).or_default() += 1;
+    }
+    assert_eq!(
+        counts.get("Shared").copied().unwrap_or(0),
+        observed.census.shared,
+        "the traced shared routes are the census shared heads"
+    );
     let census = observed.census;
     let mut expected = observed.selected;
     expected.insert("invalid-syntax".into());

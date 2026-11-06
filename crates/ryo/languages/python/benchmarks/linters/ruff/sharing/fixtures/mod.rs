@@ -25,6 +25,64 @@ pub(super) struct Observation {
     pub heads: std::collections::BTreeMap<u64, u64>,
     pub ready: Vec<ReadyHead>,
     pub refused: BTreeSet<(String, String, u64)>,
+    /// The route the walk bound each physical instruction to, as the census traced it.
+    pub routes: Vec<Route>,
+}
+#[derive(Clone)]
+pub(super) struct Route {
+    pub logical: u64,
+    pub kind: String,
+    pub head: bool,
+    pub route: String,
+    pub class: Option<u64>,
+}
+// The route each operation kind's meaning allows. Execution's route test reads these four lists
+// and checks them against its `meaning` for every operation kind, so the two cannot drift.
+const SELECTION: &[&str] = &["Select", "Project"];
+const PER_ROW: &[&str] = &[
+    "Extend",
+    "Capture",
+    "Rank",
+    "Replace",
+    "SpanBetween",
+    "SourceMatches",
+    "RenderSyntax",
+    "FitsRendered",
+    "SpanBounds",
+];
+const WHOLE_INPUT: &[&str] = &[
+    "Join",
+    "Union",
+    "Intersection",
+    "Difference",
+    "Antijoin",
+    "GroupCount",
+    "GroupDigest",
+    "OrderedMatch",
+    "Words",
+    "Axis",
+    "Closure",
+    "OrderedDfs",
+    "Cycles",
+];
+const REQUEST_OWNED: &[&str] = &["Rows", "Hosted"];
+/// The routes an instruction of `kind` may bind to: a later instruction continues its region, an
+/// observation union is an observation, and a head follows its kind's meaning.
+pub(super) fn expected_routes(kind: &str, head: bool) -> &'static [&'static str] {
+    if !head {
+        return &["Continuation", "Observation"];
+    }
+    if SELECTION.contains(&kind) {
+        &["Shared", "Representation", "DependentInput", "Observation"]
+    } else if PER_ROW.contains(&kind) {
+        &["RowSemantics", "Observation"]
+    } else if WHOLE_INPUT.contains(&kind) {
+        &["DerivedOrOrdered", "Observation"]
+    } else if REQUEST_OWNED.contains(&kind) {
+        &["RequestOwnedSource", "Observation"]
+    } else {
+        panic!("operation kind {kind} has no declared meaning")
+    }
 }
 pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     let canonical = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
@@ -178,6 +236,7 @@ fn decode(
     let mut heads = std::collections::BTreeMap::new();
     let mut ready = Vec::new();
     let mut refused = BTreeSet::new();
+    let mut routes = Vec::new();
     for line in lines.lines() {
         let event: serde_json::Value = serde_json::from_str(line)?;
         let fields = &event["fields"];
@@ -234,6 +293,13 @@ fn decode(
                     "duplicate compiled class"
                 );
             }
+            "shared_walk_route" => routes.push(Route {
+                logical: count(fields, "logical"),
+                kind: fields["kind"].as_str().unwrap().to_owned(),
+                head: fields["head"].as_bool().unwrap(),
+                route: fields["barrier"].as_str().unwrap_or("Shared").to_owned(),
+                class: fields["class"].as_u64(),
+            }),
             "shared_walk_ready" => {
                 assert_eq!(fields["phase"].as_str(), Some("PerFile"));
                 ready.push(ReadyHead {
@@ -280,6 +346,7 @@ fn decode(
         heads,
         ready,
         refused,
+        routes,
     })
 }
 
