@@ -3,7 +3,7 @@
 use super::value::graph_source;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as Reads};
 use ryo_values::domain::plans::types::PlanStep;
 
 /// What a row asks of the value.
@@ -18,9 +18,10 @@ enum Scenario {
 /// Whether the graph is read from the stored relation.
 type Value = bool;
 type Failure = std::convert::Infallible;
+/// What a row asks of the value.
 type Input = Scenario;
 
-const CASES: &[Case<Request, Value, Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_stored_relation_is_the_graph_a_closure_reads"),
         word: Word::Succeeds,
@@ -35,14 +36,14 @@ const CASES: &[Case<Request, Value, Failure>] = &[
     },
 ];
 
-fn subject(scenario: Request) -> Result<Value, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     let relation = match scenario {
         Scenario::StoredEdges => Relation::SemanticChild,
         Scenario::SyntaxTree => Relation::SyntaxTree,
     };
     let steps: Vec<PlanStep> = Vec::new();
     Ok(graph_source(
-        Input::Relation(relation),
+        Reads::Relation(relation),
         ColumnIndex(0),
         ColumnIndex(1),
         &[],
