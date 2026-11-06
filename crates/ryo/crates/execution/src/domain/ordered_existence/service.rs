@@ -278,4 +278,5 @@ pub(crate) fn compile<'a>(
 }
 
 #[cfg(test)]
-mod test;
+#[path = "service_test.rs"]
+mod tests;
