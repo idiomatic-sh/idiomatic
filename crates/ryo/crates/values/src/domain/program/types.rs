@@ -177,7 +177,7 @@ pub struct QueryTraceSite {
     pub span: QuerySpan,
 }
 
-/// `import suppress from "python/ruff/suppress";`.
+/// `import suppress from "vendor/tool/suppress";`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImportDeclaration {
     /// The local name of the imported module.

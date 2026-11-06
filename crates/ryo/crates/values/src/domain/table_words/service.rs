@@ -58,9 +58,9 @@ fn decode_combined_status(
     let mut complete = mode == DecodeMode::Permissive || canonical_words(packed);
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
-    observed_decode("decode_before_reserve", packed, &combined, places);
+    observed_decode(super::constants::BEFORE_RESERVE, packed, &combined, places);
     combined.cells.reserve(packed.0.len() / 2);
-    observed_decode("decode_after_reserve", packed, &combined, places);
+    observed_decode(super::constants::AFTER_RESERVE, packed, &combined, places);
     let mut words = unpacked(packed);
     while let Some(Bits(columns)) = words.next() {
         let Some(Bits(rows)) = words.next() else {
@@ -117,9 +117,9 @@ fn decode_combined_status(
             break;
         }
     }
-    observed_decode("decode_before_shrink", packed, &combined, places);
+    observed_decode(super::constants::BEFORE_SHRINK, packed, &combined, places);
     combined.cells.shrink_to_fit();
-    observed_decode("decode_after_shrink", packed, &combined, places);
+    observed_decode(super::constants::AFTER_SHRINK, packed, &combined, places);
     (combined, complete)
 }
 
@@ -130,10 +130,10 @@ fn observed_decode(
     table: &Table,
     places: &Vec<NamePlace>,
 ) {
-    if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
+    if tracing::enabled!(target: super::constants::LIFECYCLE_TARGET, tracing::Level::TRACE) {
         let bytes = crate::domain::records::types::retention::value::RetainedBytes::table(table);
         let place_width = size_of::<NamePlace>();
-        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner = "decoding_input",
+        tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase, owner = super::constants::DECODING_OWNER,
             packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),
             decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity,
             decoded_rows = bytes.rows, metadata_capacity_bytes = bytes.metadata,
@@ -323,11 +323,10 @@ pub fn admit_compact(
         }
         let base = PlaceNumber(u32::try_from(kept).unwrap_or(u32::MAX));
         let start = cursor.offset;
-        let cells = usize::try_from(rows).ok().and_then(|rows| {
-            usize::try_from(columns)
-                .ok()
-                .and_then(|columns| rows.checked_mul(columns))
-        });
+        let cells = match (usize::try_from(rows), usize::try_from(columns)) {
+            (Ok(rows), Ok(columns)) => rows.checked_mul(columns),
+            _ => None,
+        };
         if cells.is_none() {
             readable = false;
         }
@@ -386,7 +385,7 @@ pub fn admit_compact(
         places.truncate(before);
         return Err(super::errors::WordsDecodeError::Incomplete);
     }
-    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase="compact_admission", packed_bytes=backing.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
+    tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase=super::constants::COMPACT_ADMISSION, packed_bytes=backing.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
     Ok((
         CompactTable {
             words: backing,

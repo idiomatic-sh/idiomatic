@@ -44,7 +44,7 @@ pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
         count(out, value.len());
         out.extend_from_slice(value.as_bytes());
     }
-    let mut out = b"ryo-hosted-facts-v1".to_vec();
+    let mut out = super::constants::IDENTITY_TAG.to_vec();
     count(&mut out, relations.len());
     for relation in relations {
         text(&mut out, &relation.name.0);

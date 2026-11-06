@@ -9,7 +9,7 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
     if bindings.is_empty() {
         return ObservationIdentityBytes::default();
     }
-    let mut bytes = b"ryo-observation-bindings-v1".to_vec();
+    let mut bytes = super::constants::BINDINGS_TAG.to_vec();
     count(&mut bytes, bindings.len());
     for binding in bindings {
         text(&mut bytes, &binding.name.0);
@@ -45,7 +45,7 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
 fn count(bytes: &mut Vec<u8>, value: usize) {
     bytes.extend_from_slice(
         &u64::try_from(value)
-            .expect("a declaration count fits in u64")
+            .expect(super::constants::COUNT_FITS_MESSAGE)
             .to_le_bytes(),
     );
 }
@@ -183,12 +183,13 @@ pub fn frontier_state(
         return Ok(ProducerReadiness::Skipped);
     }
     Ok(
-        match map
+        match match map
             .refusals
             .binary_search_by_key(&slot, |refusal| refusal.slot)
-            .ok()
-            .and_then(|at| map.refusals.get(at))
         {
+            Ok(at) => map.refusals.get(at),
+            Err(_) => None,
+        } {
             Some(refusal) => match &refusal.reason {
                 FrontierRefusalReason::Unknown(reason) => {
                     ProducerReadiness::Unknown(reason.clone())
@@ -196,7 +197,7 @@ pub fn frontier_state(
                 FrontierRefusalReason::NoQuery => ProducerReadiness::NoQuery,
             },
             None => ProducerReadiness::Unknown(ObservationReason(
-                "producer root did not publish in this file generation".into(),
+                super::constants::UNPUBLISHED_REASON.into(),
             )),
         },
     )
@@ -224,7 +225,7 @@ pub fn frontier_identity(
     if range.length.0 == 0 {
         return Ok(ObservationIdentityBytes::default());
     }
-    let mut bytes = b"ryo-observation-frontier-readiness-v1".to_vec();
+    let mut bytes = super::constants::FRONTIER_READINESS_TAG.to_vec();
     bytes.extend_from_slice(&map.layout.0.0);
     bytes.extend_from_slice(&map.version.0.to_le_bytes());
     bytes.extend_from_slice(&range.start.0.to_le_bytes());
@@ -250,7 +251,7 @@ pub fn output_identity(outputs: &[super::types::PlanObservation]) -> Observation
     if outputs.is_empty() {
         return ObservationIdentityBytes::default();
     }
-    let mut bytes = b"ryo-demanded-observation-roots-v1".to_vec();
+    let mut bytes = super::constants::DEMANDED_ROOTS_TAG.to_vec();
     count(&mut bytes, outputs.len());
     for output in outputs {
         text(&mut bytes, &output.name.0);
@@ -277,7 +278,7 @@ pub fn output_identity(outputs: &[super::types::PlanObservation]) -> Observation
 /// Reordering/adding rules or changing demanded frontier counts cannot reinterpret old bucket IDs.
 #[must_use]
 pub fn layout_identity(layout: &[super::types::ObservationRuleLayout]) -> ObservationIdentityBytes {
-    let mut bytes = b"ryo-named-request-layout-v2".to_vec();
+    let mut bytes = super::constants::REQUEST_LAYOUT_TAG.to_vec();
     count(&mut bytes, layout.len());
     for rule in layout {
         text(&mut bytes, &rule.rule.0);

@@ -90,7 +90,7 @@ pub fn standalone(text: &str) -> Result<QueryBundle, QueryBundleError> {
     if text.trim().is_empty() {
         return Err(QueryBundleError::BlankRootText);
     }
-    let id = source_id("<query>")?;
+    let id = source_id(super::constants::STANDALONE_SOURCE_ID)?;
     query_bundle(document_source(id, text), [])
 }
 
@@ -103,7 +103,7 @@ pub fn root_text(bundle: &QueryBundle) -> &str {
 impl From<QueryText> for QueryBundle {
     fn from(text: QueryText) -> Self {
         let root = QueryDocumentSource {
-            id: QuerySourceId("<query>".into()),
+            id: QuerySourceId(super::constants::STANDALONE_SOURCE_ID.into()),
             text: text.0.into(),
         };
         Self {

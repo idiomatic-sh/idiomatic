@@ -33,11 +33,14 @@ pub fn carry_proofs(current: &mut StoredHanded, old: &StoredHanded, kept: &KeptR
         if kept.unchanged.binary_search(&row.bucket).is_ok() {
             return (!made.contains(&row.bucket)).then(|| row.clone());
         }
-        kept.file_again
+        match kept
+            .file_again
             .binary_search_by_key(&row.file, |again| again.was)
-            .ok()
-            .and_then(|place| kept.file_again.get(place))
-            .map(|again| super::types::StoredFrontierProof {
+        {
+            Ok(place) => kept.file_again.get(place),
+            Err(_) => None,
+        }
+        .map(|again| super::types::StoredFrontierProof {
                 file: again.now,
                 ..row.clone()
             })
