@@ -212,6 +212,7 @@ impl ProjectRun<'_> {
         }
         Ok(roots)
     }
+    #[cfg(test)]
     pub(crate) fn rule(
         &mut self,
         rule: RuleIndex,

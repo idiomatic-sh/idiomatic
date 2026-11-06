@@ -141,11 +141,14 @@ impl ExecutionRequest for RequestExecution {
             )?),
         })
     }
-    fn open_project<'a>(
+}
+impl RequestExecution {
+    /// Sessions exist only inside `ProjectRootExecution::evaluate`, one per declared root.
+    pub(super) fn open_project<'a>(
         &'a self,
         input: ProjectInput<'a>,
         symbols: &mut Symbols,
-    ) -> Result<ProjectSession<'a>, OperatingError> {
+    ) -> Result<facade_runtime::project_execution::ProjectRun<'a>, OperatingError> {
         let frontiers =
             crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers {
                 publication: &input.scope.publication,
@@ -164,7 +167,7 @@ impl ExecutionRequest for RequestExecution {
             input.arenas,
             Arc::clone(&self.services),
         )?;
-        Ok(ProjectSession { inner })
+        Ok(inner)
     }
 }
 impl FileExecution for FileSession<'_, '_> {
@@ -234,21 +237,6 @@ impl FileExecution for FileSession<'_, '_> {
         self.inner.counts(rule)
     }
 }
-impl ProjectExecution for ProjectSession<'_> {
-    fn finish(self) {
-        drop(self);
-    }
-
-    fn rule(
-        &mut self,
-        rule: RuleIndex,
-        demand: RuleDemand,
-        symbols: &mut Symbols,
-    ) -> Result<ProjectRuleOutcome, OperatingError> {
-        self.inner.rule(rule, demand, symbols)
-    }
-}
-
 impl ProjectRootExecution for ProjectPhase<'_> {
     fn evaluate<E>(
         &self,
@@ -259,9 +247,7 @@ impl ProjectRootExecution for ProjectPhase<'_> {
         let mut roots = Vec::with_capacity(tasks.len());
         for task in tasks {
             let run = if std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {
-                self.request
-                    .open_project(task.input, symbols)
-                    .map(|session| session.inner)
+                self.request.open_project(task.input, symbols)
             } else {
                 Err(OperatingError::NotRead)
             };

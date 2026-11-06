@@ -1,6 +1,8 @@
 //! Canonical public request and catalog-row assembly shared by boundary controls.
 use ryo_execution::inbound::use_cases::execution::{
-    interface::ExecutionUseCase, types::*, use_case::ExecutionUseCaseImpl,
+    interface::{ExecutionUseCase, ProjectRootExecution},
+    types::*,
+    use_case::ExecutionUseCaseImpl,
 };
 use ryo_language::{domain::files::types::FilePath, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
@@ -135,4 +137,37 @@ pub(crate) fn named_functions(symbols: &mut Symbols) -> Table {
     }
     table.count = RowCount(3);
     table
+}
+
+/// The inputs are declared roots for one rule, evaluated as one batch through the phase or
+/// stage: the only route that opens a project session. Identical roots share one invocation.
+pub(crate) fn project_roots<R: ProjectRootExecution>(
+    root: &R,
+    rule: RuleIndex,
+    demand: RuleDemand,
+    inputs: Vec<ProjectInput<'_>>,
+    symbols: &mut Symbols,
+) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+    let tasks = inputs
+        .into_iter()
+        .map(|input| ProjectTask {
+            rule,
+            demand,
+            input,
+        })
+        .collect();
+    match root.evaluate(tasks, symbols, |_| Ok::<(), OperatingError>(())) {
+        ProjectBatch::Complete(done) => done,
+        ProjectBatch::Refused { error, .. } => panic!("the guard admits every root: {error:?}"),
+    }
+}
+/// One declared root through [`project_roots`].
+pub(crate) fn project_root<R: ProjectRootExecution>(
+    root: &R,
+    rule: RuleIndex,
+    demand: RuleDemand,
+    input: ProjectInput<'_>,
+    symbols: &mut Symbols,
+) -> Result<ProjectRuleOutcome, OperatingError> {
+    project_roots(root, rule, demand, vec![input], symbols).remove(0)
 }

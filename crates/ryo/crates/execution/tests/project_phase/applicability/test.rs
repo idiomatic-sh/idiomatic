@@ -212,21 +212,22 @@ fn exercise(case: Case) {
     }
     let ordinary = ordinary.expect("explicit rejection accounts for absent transport");
     let partials = Partials::default();
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &[],
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let RootOutcome::Partial { table, affected } =
-        run.rule(RuleIndex(0), demand(), &mut symbols).unwrap().emit
+    let RootOutcome::Partial { table, affected } = crate::boundary_fixture::project_root(
+        &phase,
+        RuleIndex(0),
+        demand(),
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: &[],
+        },
+        &mut symbols,
+    )
+    .unwrap()
+    .emit
     else {
         panic!("skipped partition must not become complete empty input")
     };
@@ -234,7 +235,6 @@ fn exercise(case: Case) {
     assert_eq!(table.cells, [Value::File(FileId(0))]);
     assert_eq!(table.count, RowCount(1));
     assert_eq!(affected, [Some(FileId(1))]);
-    run.finish();
 }
 
 #[test]
@@ -315,23 +315,23 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         )
         .unwrap();
     let partials = Partials::default();
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &[],
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    let outcome = crate::boundary_fixture::project_root(
+        &phase,
+        RuleIndex(0),
+        demand(),
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: &[],
+        },
+        &mut symbols,
+    );
     assert!(
-        matches!(run.rule(RuleIndex(0), demand(), &mut symbols).unwrap().emit,
+        matches!(outcome.unwrap().emit,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { reason })
         if reason == "every source partition was explicitly skipped")
     );
-    run.finish();
 }

@@ -653,18 +653,25 @@ use ryo_execution::inbound::use_cases::metadata::{
 #[test]
 fn current_project_roots_keep_the_original_two_group_four_cell_result() {
     use ryo_execution::inbound::use_cases::execution::{
-        interface::ProjectExecution,
-        types::{EmitDemand, ObservationDemand, Partials, ProjectInput, RootOutcome, RuleDemand},
+        interface::ProjectRootExecution,
+        types::{
+            EmitDemand, ObservationDemand, Partials, ProjectBatch, ProjectInput, ProjectTask,
+            RootOutcome, RuleDemand,
+        },
     };
     let world = world(counting_plan(1, Vec::new()));
     let mut symbols = Symbols::default();
-    let (_phase, scope, ordinary) =
+    let (phase, scope, ordinary) =
         prepared(&world, &frontier_rows(), &mut symbols).expect("actual source-bound frontier");
     let partials = Partials::default();
-    let mut run = world
-        .request
-        .open_project(
-            ProjectInput {
+    let ProjectBatch::Complete(mut done) = phase.evaluate(
+        vec![ProjectTask {
+            rule: RuleIndex(0),
+            demand: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::Required,
+            },
+            input: ProjectInput {
                 scope: &scope,
                 evaluation: &partials,
                 publication: &partials,
@@ -672,19 +679,13 @@ fn current_project_roots_keep_the_original_two_group_four_cell_result() {
                 bound: &[],
                 arenas: &world.arenas,
             },
-            &mut symbols,
-        )
-        .expect("project");
-    let done = run
-        .rule(
-            RuleIndex(0),
-            RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::Required,
-            },
-            &mut symbols,
-        )
-        .expect("rule");
+        }],
+        &mut symbols,
+        |_| Ok::<(), ryo_execution::inbound::use_cases::execution::types::OperatingError>(()),
+    ) else {
+        panic!("the guard admits the declared root")
+    };
+    let done = done.remove(0).expect("rule");
     let RootOutcome::Complete(table) = done.emit else {
         panic!("complete group root")
     };
@@ -692,7 +693,6 @@ fn current_project_roots_keep_the_original_two_group_four_cell_result() {
         [table.count.0, done.counts.fed.len(), table.cells.len()],
         [2, 2, 4]
     );
-    run.finish();
 }
 
 #[test]

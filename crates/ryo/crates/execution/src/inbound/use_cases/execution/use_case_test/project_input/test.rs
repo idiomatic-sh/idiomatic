@@ -81,45 +81,45 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
     let facts = UnavailableFacts::default();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &facts,
-                project: &facts,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
     let partials = Partials::default();
-    let mut project = request
-        .open_project(
-            ProjectInput {
+    // Two declared roots of the one rule: the refusal repeats without reacquiring the provider.
+    let tasks = (0..2)
+        .map(|_| ProjectTask {
+            rule: RuleIndex(0),
+            demand: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            input: ProjectInput {
                 scope: &scope,
                 evaluation: &partials,
                 publication: &partials,
-                ordinary,
+                ordinary: request
+                    .prepare_frontiers(
+                        FrontierRequest {
+                            demand: FrontierDemand::Diagnostic,
+                            scope: &scope,
+                            rule: RuleIndex(0),
+                            first: Bucket(0),
+                            facts: &facts,
+                            project: &facts,
+                            project_symbols: &project_symbols,
+                        },
+                        &mut symbols,
+                    )
+                    .unwrap(),
                 bound: &[],
                 arenas: &[],
             },
-            &mut symbols,
-        )
-        .unwrap();
-    for _retry in 0..2 {
-        let outcome = project
-            .rule(
-                RuleIndex(0),
-                RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
-                &mut symbols,
-            )
-            .unwrap();
+        })
+        .collect();
+    let ProjectBatch::Complete(outcomes) = phase.evaluate(tasks, &mut symbols, |_| {
+        Ok::<(), OperatingError>(())
+    }) else {
+        panic!("the guard admits the declared roots")
+    };
+    for outcome in outcomes {
+        let outcome = outcome.unwrap();
         assert!(
             matches!(outcome.emit, RootOutcome::Failed(OperatingError::NotRead)),
             "a missing file handover must refuse rather than become a complete empty source"
@@ -131,7 +131,6 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
         0,
         "a project invocation cannot reacquire the missing per-file provider"
     );
-    project.finish();
     drop(scope);
     phase.finish().unwrap();
     request.finish();
