@@ -2,7 +2,7 @@ Pinned source: Ruff 0.16.5, tag commit `9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a
 
 The candidate preserves initializer shape (tuple/list/set literals), async dispatch, after-body binding lookup, identifier-based mutation checks, direct expression-call requirements, and upstream augmented-subscript behavior. Annotated assignments use their values for this helper. The shared assigned-value query now handles arbitrary nested target/value pairing, including the two previously missing findings inside the tagged upstream fixture.
 
-Validation: 53/53 exact cases pass on actual benchmark worker `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`. Each case has complete reference/candidate records and zero unknown rule/file pairs. This bounded evidence is not a whole-corpus parity certificate. Receipts/hashes: `/tmp/assigned-type-20261101/verification.json`. No prepared-manifest registration changes.
+Validation: 53/53 exact cases pass on actual benchmark worker `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`. Each case has complete reference/candidate records and zero unknown rule/file pairs. This bounded evidence is not a whole-corpus parity certificate. Receipts/hashes: `assigned-type-20261101/verification.json`. No prepared-manifest registration changes.
 
 ## Shared context-target inference discrepancy
 

@@ -22,7 +22,7 @@ class header/function annotation scopes, cyclic ordered traversal, aliases,
 local members, rebinding, and deletion controls. On worker SHA
 `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`, all 422
 reference/candidate records are complete and pass (target Python 3.10). Receipts:
-`/tmp/pyi019-sol-seven/cases.jsonl` and `/tmp/pyi034-sol-seven/cases.jsonl`.
+`pyi019-sol-seven/cases.jsonl` and `pyi034-sol-seven/cases.jsonl`.
 This evidence covers the retained cases rather than universal semantic parity.
 
 ## Reference discrepancy report
@@ -34,7 +34,7 @@ The 1 certified case below retains their exact source bytes and full intended an
 To reproduce Ruff's reference finding for `metaclass-function-annotation-typescope`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
 ```sh
-RAYON_NUM_THREADS=1 /home/vscode/.local/bin/ruff check --isolated --output-format json --cache-dir ./ruff-cache --select PYI019 --target-version py310 -- case.pyi
+RAYON_NUM_THREADS=1 ruff check --isolated --output-format json --cache-dir ./ruff-cache --select PYI019 --target-version py310 -- case.pyi
 ```
 
 ### Documented source-specific difference

@@ -9,7 +9,7 @@ The 4 certified cases below retain their exact source bytes and full intended an
 To reproduce Ruff's reference finding for `crossrule-PLE0115-global-then-nonlocal`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
 ```sh
-RAYON_NUM_THREADS=1 /home/vscode/.local/bin/ruff check --isolated --output-format json --cache-dir ./ruff-cache --select PLE0117 --target-version py310 -- case.py
+RAYON_NUM_THREADS=1 ruff check --isolated --output-format json --cache-dir ./ruff-cache --select PLE0117 --target-version py310 -- case.py
 ```
 
 ### Documented source-specific difference

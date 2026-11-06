@@ -33,7 +33,7 @@ blank/code/column boundaries, empty-only blocks, tabs/form feed, strings, and
 ordinary suppression. TOML, declared module closure, byte ranges and source
 identity are sealed by canonical stage_binding and native verify-cases receipts:
 50complete pairs,50raw exact matches,0unknown/incomplete/skipped. Runtime artifacts:
-/tmp/plr2044-typed-correction-20261102/profiles/PLR2044; worker SHA
+plr2044-typed-correction-20261102/profiles/PLR2044; worker SHA
 6540ecd69e387437f7e2a7a03eebaeb24544ec97bd0dcfba9520ca7e46e4f83c.
 
 Primary source audit uses Ruff tag `0.16.5`, commit
