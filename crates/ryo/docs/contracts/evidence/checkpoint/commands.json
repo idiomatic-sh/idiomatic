@@ -73,9 +73,7 @@
    "-p",
    "idiomatic-sh-ryo-execution",
    "--test",
-   "activation",
-   "--",
-   "--test-threads=6"
+   "activation"
   ]
  ],
  [
