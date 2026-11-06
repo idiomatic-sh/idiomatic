@@ -91,7 +91,7 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
                 or instance.get("cases_sha256") != item["cases_sha256"]):
                 raise ValueError("target control invocation/source identity mismatch")
             records = [json.loads(line) for line in read(item["case_results_path"], item["case_results_sha256"]).splitlines()]
-            counts = case_records.case_expectation_summary(registered["rules"][0]["cases"], records)
+            counts = case_observations.case_expectation_summary(registered["rules"][0]["cases"], records)
             raw, differences = item["raw_exact"], item["documented_discrepancies"]
             contract_only = item.get("contract_only", 0)
             if (item.get("case_count") != count or type(raw) is not int or type(differences) is not int
@@ -216,7 +216,7 @@ def verified_failed_rows(ruff: Path, previous: dict[str, object], directory: Pat
             if hashlib.sha256(raw).hexdigest() != item["case_results_sha256"]:
                 raise ValueError("changed failed fixture receipt")
             records = [json.loads(line) for line in raw.splitlines()]
-            counts = case_records.case_expectation_summary(declared, records)
+            counts = case_observations.case_expectation_summary(declared, records)
             if (len(records) != 2 * len(cases) or counts != item["native_counts"]
                 or counts["intended_behavior_passes"] == len(cases)):
                 raise ValueError("invalid failed fixture observation")

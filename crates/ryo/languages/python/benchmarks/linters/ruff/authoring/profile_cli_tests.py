@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 import tomllib
 from authoring import case_records
+from authoring import case_observations
 from authoring import profile_case_tests
 from authoring import profile_config
 from authoring import profile_proof_tests
@@ -226,7 +227,7 @@ def self_test() -> int:
         output.mkdir()
         inv = case_records.profile_case_inventory(profile_root)
         case_results = root / 'candidate-cases.jsonl'
-        if case_records.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)[0]:
+        if case_observations.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)[0]:
             raise ValueError('zero-exit worker without case records was accepted')
 
         def synthetic_case_record(case, side):
@@ -249,7 +250,7 @@ def self_test() -> int:
             for side in ('reference', 'candidate'):
                 rows.append(synthetic_case_record(case, side))
         case_results.write_text('\n'.join((json.dumps(row) for row in rows)) + '\n', encoding='utf-8')
-        valid_receipt, _reason = case_records.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)
+        valid_receipt, _reason = case_observations.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)
         if not valid_receipt:
             raise ValueError('exact worker case receipts were rejected')
         for altered in (
@@ -260,7 +261,7 @@ def self_test() -> int:
             invalid = [dict(row) for row in rows]
             invalid[0 if altered['side'] == 'reference' else 1] = altered
             case_results.write_text('\n'.join((json.dumps(row) for row in invalid)) + '\n', encoding='utf-8')
-            if case_records.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)[0]:
+            if case_observations.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)[0]:
                 raise ValueError('missing or contradictory execution metadata was accepted')
         case_results.write_text('\n'.join((json.dumps(row) for row in rows)) + '\n', encoding='utf-8')
         false_audit = lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, b'running 0 tests\n', b'')
@@ -292,7 +293,7 @@ def self_test() -> int:
         shards_dir = output / 'profiles' / 'test' / 'shards'
         monolithic = output / 'profiles' / 'test' / 'monolithic.jsonl'
         monolithic.write_bytes(b''.join(((shards_dir / f'{index:03d}.cases.jsonl').read_bytes() for index in range(2))))
-        if not case_records.case_observations_match(monolithic, sorted(shards_dir.glob('*.cases.jsonl'))):
+        if not case_observations.case_observations_match(monolithic, sorted(shards_dir.glob('*.cases.jsonl'))):
             print('monolithic/sharded full-report comparison failed', file=sys.stderr)
             return 1
         lost_receipt = shards_dir / '000.receipt.json'

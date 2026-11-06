@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 import tomllib
 from authoring import case_records
+from authoring import case_observations
 from authoring import profile_config
 from authoring import profile_sources
 
@@ -223,7 +224,7 @@ def persist_run_record(output_directory: Path | None, name: str, command: list[s
     if case_results_path is not None and case_results_path.is_file():
         try:
             observed = [json.loads(line) for line in case_results_path.read_text().splitlines()]
-            record['case_expectation_summary'] = case_records.case_expectation_summary(case_records.profile_case_inventory(profile_root), observed, receipt_file=case_results_path)
+            record['case_expectation_summary'] = case_observations.case_expectation_summary(case_records.profile_case_inventory(profile_root), observed, receipt_file=case_results_path)
         except (OSError, ValueError, KeyError, TypeError) as summary_error:
             record['case_expectation_summary_error'] = str(summary_error)
     (record_directory / 'result.json').write_text(json.dumps(record, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
@@ -257,7 +258,7 @@ def verify_profile(name: str, profile_root: Path, command: list[str], output_dir
             validation_error = 'candidate verification requires durable output and exact case receipts'
             status_override = 1
         elif result.returncode == 0:
-            valid, validation_error = case_records.candidate_result_valid(profile_root, result.stdout, case_results_path)
+            valid, validation_error = case_observations.candidate_result_valid(profile_root, result.stdout, case_results_path)
             if not valid:
                 status_override = 1
     return persist_run_record(output_directory, name, command, profile_root, result, identities=identities, case_results_path=case_results_path, error=validation_error, status_override=status_override)

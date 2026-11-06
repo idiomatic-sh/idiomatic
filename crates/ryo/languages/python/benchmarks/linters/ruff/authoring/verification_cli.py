@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 import tomllib
-from authoring import case_records
+from authoring import case_observations
 from authoring import profile_cli_tests
 from authoring import profile_config
 from authoring import profile_proof_tests
@@ -213,7 +213,7 @@ def main() -> int:
                 shard_status = profile_shards.verify_profile_sharded(parity_name, parity_root, worker_executable, ruff, output_directory, parity_identity, 2)
                 shard_paths = sorted((output_directory / 'profiles' / parity_name / 'shards').glob('*.cases.jsonl'))
                 mono_path = output_directory / 'profiles' / parity_name / 'cases.jsonl'
-                observations_match = case_records.case_observations_match(mono_path, shard_paths)
+                observations_match = case_observations.case_observations_match(mono_path, shard_paths)
                 parity_status = 0 if dict(statuses).get(parity_name) == 0 and shard_status == 0 and observations_match else 1
                 profile_config.atomic_json_write(output_directory / 'profiles' / parity_name / 'parity.json', {'profile': parity_name, 'status': parity_status, 'worker_sha256': profile_config.sha256(worker_executable), 'monolithic_case_results_sha256': profile_config.sha256(mono_path) if mono_path.is_file() else None, 'sharded_case_result_shas': {path.name: profile_config.sha256(path) for path in shard_paths}, 'full_report_observations_match': observations_match, 'rule_profile_status': dict(statuses).get(parity_name), 'sharded_status': shard_status})
                 print(f'{parity_name}: monolithic/sharded full-report parity {parity_status}', file=sys.stderr)
