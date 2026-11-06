@@ -1,15 +1,19 @@
 //! Actual SDK projection distinguishes generic lazy validity from dedicated future codes.
-use super::PreparedEngine as _;
 use super::constants::{
     ALT, FROM_FUTURE_IMPORT_NOT_A_FEATURE_V, INPUT_PY, INVALID_SYNTAX,
     LAZY_FROM_FUTURE_IMPORT_ANNOTATION, LAZY_IMPORT_COLLECTIONS_VALUE_TRUE,
     LET_TRUTH_SELECT_ID_FILE_SPAN_FROM, LIT, LIVE_SELECTED_RULE_POSITIVE, PYTHON_TARGET_3_15,
     QUERY_RYOQL, RULES, TRUE, VALUE_TRUE_FROM_FUTURE_IMPORT_ANNO,
 };
-use super::*;
+use super::prepared_engine_test::{
+    PreparedEngine as _, default_frontend_projection, fixture_cohort,
+};
+use ryo_benchmark::outbound::engine::factory;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use std::collections::BTreeMap;
 
-#[test]
-fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), Error> {
+pub(super) fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), Error> {
     for selected in [LIT, ALT] {
         for (source, generic) in [
             (LAZY_FROM_FUTURE_IMPORT_ANNOTATION, true),
@@ -34,7 +38,7 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
             let report = factory::local_with_frontend_diagnostic(
                 languages,
                 None,
-                frontend_projection(EngineScenario::Finding)?,
+                default_frontend_projection()?,
             )
             .run_prepared(WorkerRequest {
                 performance: Default::default(),

@@ -1,5 +1,7 @@
 //! Actual local-adapter checks of canonical module features and annotation evaluation positions.
-use super::PreparedEngine as _;
+use super::prepared_engine_test::PreparedEngine as _;
+use crate::{BoundaryFailure, failure};
+use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -115,7 +117,7 @@ fn check_case(
     )
     .run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(super::fixture_cohort(&[
+        selected_rules: Some(super::prepared_engine_test::fixture_cohort(&[
             "INPUT",
             "FLAG",
             "EAGER",
@@ -177,7 +179,6 @@ fn check_case(
     Ok(())
 }
 
-#[test]
 fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/compiler-features/annotation-contexts.json");
@@ -195,7 +196,6 @@ fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> R
     Ok(())
 }
 
-#[test]
 fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source()
 -> Result<(), Error> {
     use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
@@ -272,7 +272,8 @@ fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_sou
             files: files.clone(),
             state: WorkerState::Retained(root.path().join("cache")),
         };
-        let report = factory::local(super::python_310(), None).run_prepared(request)?;
+        let report = factory::local(super::prepared_engine_test::python_310(), None)
+            .run_prepared(request)?;
         assert_eq!(
             report
                 .diagnostics
@@ -306,7 +307,6 @@ fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_sou
     Ok(())
 }
 
-#[test]
 fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
     use ryo::query::{
         BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
@@ -401,15 +401,74 @@ fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
             hosted: request.hosted.clone(),
             observations: Vec::new(),
         });
-        let answer = ryo::query::validate(&super::python_310(), request);
+        let answer = ryo::query::validate(&super::prepared_engine_test::python_310(), request);
         if let Err(error) = answer {
             failures.push(format!("{code}: {error:?}"));
         }
         if let Some(request) = undeclared {
-            if ryo::query::validate(&super::python_310(), request).is_ok() {
+            if ryo::query::validate(&super::prepared_engine_test::python_310(), request).is_ok() {
                 failures.push("RUF100 undeclared root input was accepted".into());
             }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[derive(Clone, Copy)]
+enum CompilerFeatureScenario {
+    CompilerFeaturesAndAnnotationContextsFollowTheLanguageContract,
+    DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource,
+    AuthoredSuppressionCohortQueriesValidateThroughPublicSdkContracts,
+}
+type Input = CompilerFeatureScenario;
+type Value = bool;
+type Failure = BoundaryFailure;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("compiler_features_and_annotation_contexts_follow_the_language_contract"),
+        word: Word::Succeeds,
+        input: || {
+            CompilerFeatureScenario::CompilerFeaturesAndAnnotationContextsFollowTheLanguageContract
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            CompilerFeatureScenario::DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("authored_suppression_cohort_queries_validate_through_public_sdk_contracts"),
+        word: Word::Succeeds,
+        input: || {
+            CompilerFeatureScenario::AuthoredSuppressionCohortQueriesValidateThroughPublicSdkContracts
+        },
+        expect: Expect::Value(true),
+    },
+];
+
+fn exercise(input: Input) -> Result<Value, Error> {
+    match input {
+        CompilerFeatureScenario::CompilerFeaturesAndAnnotationContextsFollowTheLanguageContract => compiler_features_and_annotation_contexts_follow_the_language_contract().map(|()| true),
+        CompilerFeatureScenario::DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource => declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source().map(|()| true),
+        CompilerFeatureScenario::AuthoredSuppressionCohortQueriesValidateThroughPublicSdkContracts => {
+            authored_suppression_cohort_queries_validate_through_public_sdk_contracts();
+            Ok(true)
+        }
+    }
+}
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    exercise(input).map_err(failure)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

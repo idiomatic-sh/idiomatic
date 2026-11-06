@@ -5,15 +5,19 @@ use super::constants::{
     OTHER_TOML_PYTHON_SOURCE_WITHOUT_M, PROFILE, PROFILES_RUF200_BENCHMARK_TOML, PYTHON,
     PYTHON_TARGET_3_10, QUERY_RYOQL, RUF200, RULES, RULES_RUF200, UNKNOWN_EXTENSION_STILL_PYTHON,
 };
-use super::*;
+use super::prepared_engine_test::{PreparedEngine as _, default_frontend_projection, python_310};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
+use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark::outbound::suite::{factory as suite, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use ryo_benchmark_contracts::domain::requests::types::WorkerState;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-#[test]
-fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(), Error> {
+pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(), Error>
+{
     let scratch = tempfile::tempdir()?;
     let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
     let profile = scratch.path().join(PROFILE);
@@ -43,11 +47,8 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
         EXPLICIT_PYTHON_UNRELATED_TOML_STI,
     ];
     let mut seen = BTreeSet::new();
-    let engine = factory::local_with_frontend_diagnostic(
-        python_310(),
-        None,
-        frontend_projection(EngineScenario::Finding)?,
-    );
+    let engine =
+        factory::local_with_frontend_diagnostic(python_310(), None, default_frontend_projection()?);
     for case in &cases {
         if !selected.contains(&case.name.0.as_ref()) {
             continue;

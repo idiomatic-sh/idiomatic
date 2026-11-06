@@ -2,7 +2,7 @@
 use super::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
-use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
+use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
@@ -10,30 +10,11 @@ use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 pub(crate) mod constants;
-
-/// Reuse the production worker preparation boundary before exercising the SDK adapter.
-trait PreparedEngine: EnginePort {
-    fn run_prepared(
-        &self,
-        request: WorkerRequest,
-    ) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error>;
-}
-impl<T: EnginePort + ?Sized> PreparedEngine for T {
-    fn run_prepared(
-        &self,
-        request: WorkerRequest,
-    ) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
-        let prepared = ryo_benchmark::application::worker_request::service::prepare(request)?;
-        {
-            let session = self.load(&prepared.request)?;
-            let configured = ryo_benchmark::application::worker_request::service::configure(
-                &prepared.request,
-                session,
-            )?;
-            configured.execute()
-        }
-    }
-}
+mod prepared_engine_test;
+use prepared_engine_test::{
+    PreparedEngine as _, custom_frontend_projection, default_frontend_projection, fixture_cohort,
+    python_310, suppress_modules,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum EngineScenario {
@@ -55,6 +36,15 @@ enum EngineScenario {
     ProjectionCacheQueryChange,
     QueryModuleInlineEquivalence,
     TargetConfigurationCacheChange,
+    RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules,
+    SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
+    LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes,
+    DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries,
+    SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics,
+    ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay,
+    LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
+    ListedProjectInputsAndInvalidSourcesKeepDistinctReaders,
+    I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory,
 }
 type Input = EngineScenario;
 type Value = bool;
@@ -168,8 +158,123 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || EngineScenario::Missing,
         expect: Expect::Error(BoundaryFailure::Io(std::io::ErrorKind::NotFound)),
     },
+    Case {
+        name: CaseName("rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules"),
+        word: Word::Succeeds,
+        input: || EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("shared_suppression_fragment_matches_the_historical_inline_queries"),
+        word: Word::Succeeds,
+        input: || EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("selected_consumer_keeps_unselected_producer_without_its_diagnostics"),
+        word: Word::Succeeds,
+        input: || EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("lazy_future_stays_visible_without_a_dedicated_selected_rule"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("listed_project_inputs_and_invalid_sources_keep_distinct_readers"),
+        word: Word::Succeeds,
+        input: || EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+        },
+        expect: Expect::Value(true),
+    },
 ];
 fn exercise(scenario: Input) -> Result<Value, Error> {
+    if scenario == EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules {
+        return rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules()
+            .map(|()| true);
+    }
+    if scenario == EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries {
+        return shared_suppression_fragment_matches_the_historical_inline_queries().map(|()| true);
+    }
+    if scenario == EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes {
+        return literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes()
+            .map(|()| true);
+    }
+    if scenario
+        == EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
+    {
+        return decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries()
+            .map(|()| true);
+    }
+    if scenario == EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics {
+        return selected_consumer_keeps_unselected_producer_without_its_diagnostics()
+            .map(|()| true);
+    }
+    if scenario
+        == EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+    {
+        actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay();
+        return Ok(true);
+    }
+    if scenario == EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule {
+        return future_directives_test::lazy_future_stays_visible_without_a_dedicated_selected_rule().map(|()| true);
+    }
+    if scenario == EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders {
+        return project_inputs_test::listed_project_inputs_and_invalid_sources_keep_distinct_readers().map(|()| true);
+    }
+    if scenario
+        == EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+    {
+        i001_observation_test::i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory();
+        return Ok(true);
+    }
     let root = tempfile::tempdir()?;
     if scenario == EngineScenario::QueryModuleInlineEquivalence {
         return query_module_inline_equivalence(root.path());
@@ -212,7 +317,6 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     Ok(report.files == [ryo::linter::RelativePath(file.into())] && report.diagnostics == expected)
 }
 
-#[test]
 fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> Result<(), Error> {
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
@@ -423,39 +527,6 @@ fn modules_for(scenario: EngineScenario) -> Result<BTreeMap<String, std::path::P
     Ok(resolved)
 }
 
-fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
-    BTreeMap::from([
-        (
-            "python/ruff/suppress-matches".to_owned(),
-            "fragments/suppress-matches.ryoql".into(),
-        ),
-        (
-            "python/ruff/noqa-line-map".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-line-map.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-locations".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-locations.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-additional-locations".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-additional-locations.ryoql"),
-        ),
-        (
-            "python/ruff/suppression-edges".to_owned(),
-            std::path::PathBuf::from("fragments/suppression-edges.ryoql"),
-        ),
-        (
-            "python/ruff/suppress".to_owned(),
-            std::path::PathBuf::from("fragments/suppress.ryoql"),
-        ),
-        (
-            "python/ruff/suppress-directives".to_owned(),
-            std::path::PathBuf::from("fragments/suppress-directives.ryoql"),
-        ),
-    ])
-}
-
 fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
     let directory = root.join("fragments");
     std::fs::create_dir_all(&directory)?;
@@ -491,14 +562,6 @@ fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
     Ok(())
 }
 
-fn python_310() -> ryo::linter::Languages {
-    ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-        ryo_python::settings::PythonParserSettings::new(
-            ryo_python::settings::PythonTargetVersion::Py310,
-        ),
-    )])
-}
-
 fn run_with_projection(
     scenario: EngineScenario,
     request: WorkerRequest,
@@ -506,32 +569,12 @@ fn run_with_projection(
     if scenario == EngineScenario::InvalidSyntaxProjectionDisabled {
         return factory::local(python_310(), None).run_prepared(request);
     }
-    let projection = frontend_projection(scenario)?;
-    factory::local_with_frontend_diagnostic(python_310(), None, projection).run_prepared(request)
-}
-
-fn frontend_projection(
-    scenario: EngineScenario,
-) -> Result<factory::FrontendDiagnosticProjection, Error> {
-    let (rule, query) = if scenario == EngineScenario::CustomFrontendProjection {
-        (
-            "parser-check",
-            r#"let diagnostics = select id, file, span from "syntax-error" where message = "nonlocal declaration not allowed at module level";
-emit diagnostics subject file key(id);
-"#,
-        )
+    let projection = if scenario == EngineScenario::CustomFrontendProjection {
+        custom_frontend_projection()?
     } else {
-        (
-            "invalid-syntax",
-            crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-        )
+        default_frontend_projection()?
     };
-    Ok(factory::FrontendDiagnosticProjection {
-        rule: ryo::linter::RuleId::try_from(rule)
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        query: ryo::query::RyoQlQuery::try_from(query)
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-    })
+    factory::local_with_frontend_diagnostic(python_310(), None, projection).run_prepared(request)
 }
 
 fn check_expected_failure(
@@ -937,7 +980,6 @@ fn write_rule_profile(
     Ok(())
 }
 
-#[test]
 fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result<(), Error> {
     // E722 retains its historical inline-query baseline. F632 independently exercises
     // inline suppression with current operator-ID semantics: distinct chained operators
@@ -1151,7 +1193,6 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
-#[test]
 fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() -> Result<(), Error> {
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
@@ -1208,7 +1249,6 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     Ok(())
 }
 
-#[test]
 fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries()
 -> Result<(), Error> {
     let root = tempfile::tempdir()?;
@@ -1297,13 +1337,12 @@ mod project_context;
 #[path = "compiler_feature_test.rs"]
 mod compiler_features;
 
-mod future_directives;
+mod future_directives_test;
 
-mod project_inputs;
+mod project_inputs_test;
 
-mod i001_observation;
+mod i001_observation_test;
 
-#[test]
 fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Result<(), Error> {
     use ryo::linter::{
         ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
@@ -1385,7 +1424,6 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     Ok(())
 }
 
-#[test]
 fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay() {
     use ryo::linter::{
         Cache, CaseSource, Corpus, ExecutablePermission, GivenProjectInventory, Glob, LintRequest,
@@ -1558,12 +1596,4 @@ fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay
             "excluded Emit does not suppress demanded roots"
         );
     }
-}
-
-/// Explicit fixture diagnostics, independent of whatever query directories happen to exist.
-fn fixture_cohort(names: &[&str]) -> Vec<ryo::linter::RuleId> {
-    names
-        .iter()
-        .map(|name| ryo::linter::RuleId::try_from(*name).unwrap())
-        .collect()
 }

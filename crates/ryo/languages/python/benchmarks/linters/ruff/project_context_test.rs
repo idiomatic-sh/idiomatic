@@ -1,5 +1,7 @@
 //! Real local-adapter project context and retained-cache lifecycle checks.
-use super::PreparedEngine as _;
+use super::prepared_engine_test::PreparedEngine as _;
+use crate::{BoundaryFailure, failure};
+use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::{
     engine::factory,
@@ -68,7 +70,7 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
         root: case.request.root.clone(),
         rules: profile.join("rules"),
         query_modules: {
-            let mut modules = super::suppress_modules();
+            let mut modules = super::prepared_engine_test::suppress_modules();
             let _previous = modules.insert(
                 "python/ruff/text-units".into(),
                 "fragments/text-units.ryoql".into(),
@@ -99,12 +101,11 @@ fn changed_manifest(manifest: &mut ContextManifest, path: &Path, bytes: &[u8]) {
         let _previous = manifest.source_files.insert(path.to_owned(), digest);
     }
 }
-#[test]
 fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let (profile, cases) = staged(scratch.path())?;
     assert_eq!(cases.len(), 21);
-    let engine = factory::local(super::python_310(), None);
+    let engine = factory::local(super::prepared_engine_test::python_310(), None);
     for case in &cases {
         let result = engine.run_prepared(request(
             &profile,
@@ -125,7 +126,6 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
     }
     Ok(())
 }
-#[test]
 fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let (profile, cases) = staged(scratch.path())?;
@@ -138,7 +138,7 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     let pkg = find("root-package-name-matches");
     let other = find("root-package-name-differs");
     let cache = scratch.path().join("shared-cache");
-    let engine = factory::local(super::python_310(), None);
+    let engine = factory::local(super::prepared_engine_test::python_310(), None);
     let cold = engine.run_prepared(request(&profile, pkg, &cache))?;
     let warm = engine.run_prepared(request(&profile, pkg, &cache))?;
     assert_eq!(
@@ -184,7 +184,6 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     );
     Ok(())
 }
-#[test]
 fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let (profile, cases) = staged(scratch.path())?;
@@ -192,7 +191,7 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
         .iter()
         .find(|case| case.name.0 == "root-package-name-matches")
         .expect("case");
-    let engine = factory::local(super::python_310(), None);
+    let engine = factory::local(super::prepared_engine_test::python_310(), None);
     let cache = scratch.path().join("cache");
     let mut undeclared = request(&profile, case, &cache);
     undeclared
@@ -255,7 +254,6 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     Ok(())
 }
 
-#[test]
 fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -> Result<(), Error>
 {
     let scratch = tempfile::tempdir()?;
@@ -264,7 +262,7 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
         .iter()
         .find(|case| case.name.0 == "ancestor-package-absent")
         .expect("case");
-    let engine = factory::local(super::python_310(), None);
+    let engine = factory::local(super::prepared_engine_test::python_310(), None);
     let cache = scratch.path().join("cache");
     let mut asked = request(&profile, case, &cache);
     let marker = PathBuf::from("pkg2/__init__.py");
@@ -303,4 +301,62 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     assert_eq!(removed.project_context, absent.project_context);
     assert_eq!(removed, engine.run_prepared(asked)?);
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum ProjectContextScenario {
+    ExactRootAndPackageControlsReachTheRealLocalAdapter,
+    SharedCacheRootModeAndSourceEditsPreserveProjectEvidence,
+    ChangedUndeclaredEscapingAndUnreadableContextNeverCertify,
+    AncestorMarkerAppearanceRemovalAndEditsInvalidateWarmProjectRows,
+}
+type Input = ProjectContextScenario;
+type Value = bool;
+type Failure = BoundaryFailure;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("exact_root_and_package_controls_reach_the_real_local_adapter"),
+        word: Word::Succeeds,
+        input: || ProjectContextScenario::ExactRootAndPackageControlsReachTheRealLocalAdapter,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("shared_cache_root_mode_and_source_edits_preserve_project_evidence"),
+        word: Word::Succeeds,
+        input: || ProjectContextScenario::SharedCacheRootModeAndSourceEditsPreserveProjectEvidence,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("changed_undeclared_escaping_and_unreadable_context_never_certify"),
+        word: Word::Succeeds,
+        input: || ProjectContextScenario::ChangedUndeclaredEscapingAndUnreadableContextNeverCertify,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows"),
+        word: Word::Succeeds,
+        input: || {
+            ProjectContextScenario::AncestorMarkerAppearanceRemovalAndEditsInvalidateWarmProjectRows
+        },
+        expect: Expect::Value(true),
+    },
+];
+
+fn exercise(input: Input) -> Result<Value, Error> {
+    match input {
+        ProjectContextScenario::ExactRootAndPackageControlsReachTheRealLocalAdapter => exact_root_and_package_controls_reach_the_real_local_adapter().map(|()| true),
+        ProjectContextScenario::SharedCacheRootModeAndSourceEditsPreserveProjectEvidence => shared_cache_root_mode_and_source_edits_preserve_project_evidence().map(|()| true),
+        ProjectContextScenario::ChangedUndeclaredEscapingAndUnreadableContextNeverCertify => changed_undeclared_escaping_and_unreadable_context_never_certify().map(|()| true),
+        ProjectContextScenario::AncestorMarkerAppearanceRemovalAndEditsInvalidateWarmProjectRows => ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows().map(|()| true),
+    }
+}
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    exercise(input).map_err(failure)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

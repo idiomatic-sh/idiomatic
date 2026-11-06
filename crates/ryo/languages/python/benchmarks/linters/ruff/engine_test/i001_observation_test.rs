@@ -7,7 +7,7 @@ use super::constants::{
     NOQA_MATCHES, OTHER_PY, PREFIX, QUERY_MODULES, RUF100, RULES_I001_QUERY_RYOQL,
     RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES, TEST_HIDDEN, TEST_I001, TEST_RUF100, TEXT,
 };
-use super::*;
+use super::prepared_engine_test::python_310;
 use ryo::linter::{
     Cache, CaseSource, Cell, Corpus, ExecutablePermission, GivenProjectInventory, Glob, HostColumn,
     HostColumnName, HostKind, HostRelation, HostRelationName, HostRow, HostText, LintRequest,
@@ -16,9 +16,9 @@ use ryo::linter::{
     ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness, ProjectSearchScope,
     RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool, Workers, lint_with,
 };
+use std::collections::BTreeMap;
 
-#[test]
-fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory() {
+pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory() {
     let root = tempfile::tempdir().unwrap();
     let store = tempfile::tempdir().unwrap();
     let authored = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
