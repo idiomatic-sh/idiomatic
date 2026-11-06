@@ -869,7 +869,7 @@ specs = [
     { resource = "query", path = "validate::schemas::RyoQlQuerySchemaError", as = "RyoQlQuerySchemaError" },
     { resource = "query", path = "crate::domain::query::types::RyoQlQuery", as = "RyoQlQuery" },
     { resource = "query", path = "crate::domain::query::types::QueryModuleSource", as = "QueryModuleSource" },
-    { resource = "query", path = "ryo_values::domain::program::errors::QueryBundleError", as = "QueryBundleError" },
+    { resource = "query", path = "ryo_values::domain::program::errors::ProgramError", as = "QueryBundleError" },
     { resource = "query", path = "ryo_values::domain::program::types::QueryOrigin", as = "QueryOrigin" },
     { resource = "query", path = "ryo_values::domain::program::types::QueryTraceSite", as = "QueryTraceSite" },
     { resource = "query", path = "validate::types::ValidateRequest", as = "ValidateRequest" },

@@ -1,5 +1,5 @@
 //! Declaration identity is typed and length-delimited, and readiness is bound to its layout and never defaults to complete.
-use super::errors::ObservationReadinessError;
+use super::errors::ObservationsError;
 use super::service::{
     frontier_state, identity, layout_identity, new_frontiers, set_frontier, validate_frontiers,
 };
@@ -41,7 +41,7 @@ enum Answer {
     Unknown,
 }
 type Value = Answer;
-type Failure = ObservationReadinessError;
+type Failure = ObservationsError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -114,43 +114,43 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_reordered_layout_cannot_reinterpret_completion_bits"),
         word: Word::Refuses,
         input: || Scenario::ReorderedLayout,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
     Case {
         name: CaseName("a_different_slot_count_is_refused"),
         word: Word::Refuses,
         input: || Scenario::ShorterCount,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
     Case {
         name: CaseName("an_old_readiness_version_is_refused"),
         word: Word::Refuses,
         input: || Scenario::OldVersion,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
     Case {
         name: CaseName("completion_bits_beyond_the_slots_are_refused"),
         word: Word::Refuses,
         input: || Scenario::InvalidCompleteBits,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
     Case {
         name: CaseName("a_slot_both_complete_and_skipped_is_refused"),
         word: Word::Refuses,
         input: || Scenario::CompleteAndSkipped,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
     Case {
         name: CaseName("missing_completion_words_are_refused"),
         word: Word::Refuses,
         input: || Scenario::MissingBits,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
     Case {
         name: CaseName("repeated_refusals_for_one_slot_are_refused"),
         word: Word::Refuses,
         input: || Scenario::DuplicateRefusals,
-        expect: Expect::Error(ObservationReadinessError::Invalid),
+        expect: Expect::Error(ObservationsError::Invalid),
     },
 ];
 

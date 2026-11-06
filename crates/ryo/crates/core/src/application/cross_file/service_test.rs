@@ -31,7 +31,7 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::PartialCause;
@@ -62,7 +62,7 @@ enum Scenario {
 type Input = Scenario;
 /// Up to three numbers a row answers; a place a row has no number for holds zero.
 type Value = [usize; 3];
-type Failure = RulesError;
+type Failure = RuleRequestsError;
 
 /// What the cross-file steps of every rule read, owned.
 pub(super) struct World {
@@ -261,7 +261,7 @@ fn prepared<'a>(
     world: &'a World,
     rows: &[(FileId, ryo_values::domain::rows::types::Table)],
     symbols: &mut Symbols,
-) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RulesError> {
+) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RuleRequestsError> {
     let phase = world.request.project_phase().expect("one project phase");
     let (scope, frontiers) =
         prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
@@ -274,7 +274,7 @@ pub(super) fn prepared_in(
     covered: &[Covered],
     rows: &[(FileId, Table)],
     symbols: &mut Symbols,
-) -> Result<(ProjectScope, PreparedFrontiers), RulesError> {
+) -> Result<(ProjectScope, PreparedFrontiers), RuleRequestsError> {
     use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
     use ryo_values::domain::{
         records::types::{FrontierCoverage, FrontierProof},
@@ -552,7 +552,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::CrossNoRule,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::Failed { .. }) {
+            if matches!(error, RuleRequestsError::Failed { .. }) {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -564,7 +564,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::CrossNothingHanded,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::Failed { .. }) {
+            if matches!(error, RuleRequestsError::Failed { .. }) {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -1716,7 +1716,7 @@ fn evaluate_fixture(
     symbols: &mut Symbols,
     scope: ProjectScope,
     phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
-) -> Result<crate::domain::answering::types::Crossed, RulesError> {
+) -> Result<crate::domain::answering::types::Crossed, RuleRequestsError> {
     let batch = sealed_fixture_batch(std::slice::from_ref(todo), vec![scope], vec![frontier]);
     let ProjectBatch::Complete(mut results) =
         service().evaluate_batch(crossing, batch, phase, symbols, |_| Ok(()))

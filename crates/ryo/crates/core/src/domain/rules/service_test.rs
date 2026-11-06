@@ -7,7 +7,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
 };
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::RuleNumber;
 
@@ -26,7 +26,7 @@ enum Scenario {
 type Input = Scenario;
 /// The answer as up to three numbers, the first byte of an id standing for the id; zero where there is nothing.
 type Value = [i64; 3];
-type Failure = RulesError;
+type Failure = RuleRequestsError;
 
 fn byte(id: &str) -> i64 {
     i64::from(id.bytes().next().unwrap_or(0))
@@ -154,7 +154,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             if matches!(
                 error,
-                RulesError::Failed { id, reason } if &*id.0 == "a" && reason == "boom"
+                RuleRequestsError::Failed { id, reason } if &*id.0 == "a" && reason == "boom"
             ) {
                 Selection::Matches
             } else {

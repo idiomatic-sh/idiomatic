@@ -400,7 +400,7 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
 
 type Input = fn() -> Result<(), Failure>;
 type Value = ();
-type Failure = crate::domain::table_words::errors::WordsDecodeError;
+type Failure = crate::domain::table_words::errors::TableWordsError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("cross_file_symbol_indices_survive_frame_local_rebasing"),

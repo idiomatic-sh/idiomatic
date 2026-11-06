@@ -164,7 +164,7 @@ fn prepare_frontiers(
     symbols: &mut Symbols,
 ) -> Result<
     ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers,
-    ryo_values::domain::rule_requests::errors::RulesError,
+    ryo_values::domain::rule_requests::errors::RuleRequestsError,
 > {
     let failed =
         |error: &dyn std::fmt::Display| crate::domain::rules::service::failed(&todo.id, error);

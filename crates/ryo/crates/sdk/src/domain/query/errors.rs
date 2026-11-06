@@ -70,9 +70,9 @@ pub enum QueryBundleError {
 impl QueryBundleError {
     /// Translate a source-bundle refusal into the public SDK vocabulary.
     pub(crate) fn from_internal(
-        error: ryo_values::domain::program::errors::QueryBundleError,
+        error: ryo_values::domain::program::errors::ProgramError,
     ) -> Self {
-        use ryo_values::domain::program::errors::QueryBundleError as Internal;
+        use ryo_values::domain::program::errors::ProgramError as Internal;
         match error {
             Internal::BlankSourceId => Self::BlankSourceId,
             Internal::BlankRootText => Self::BlankRootText,

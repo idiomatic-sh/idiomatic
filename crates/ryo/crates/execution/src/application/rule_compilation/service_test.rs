@@ -15,7 +15,7 @@ use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumbe
 use ryo_values::domain::plans::types::{ParameterType, Plan, PlanParameter};
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use std::sync::{Arc, PoisonError, atomic::Ordering};
 
@@ -88,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("blank_rule_is_refused_before_any_compile"),
         word: Word::Refuses,
         input: || blank_id,
-        expect: Expect::Error(RuleCompilationError::Rules(RulesError::BlankRuleId)),
+        expect: Expect::Error(RuleCompilationError::Rules(RuleRequestsError::BlankRuleId)),
     },
 ];
 
@@ -230,7 +230,7 @@ fn request_bindings() -> Result<Value, Failure> {
         .expect_err("a missing binding is refused");
     assert!(matches!(
         refused,
-        RuleCompilationError::Rules(RulesError::MissingParameter { .. })
+        RuleCompilationError::Rules(RuleRequestsError::MissingParameter { .. })
     ));
     asked.given.push(Given {
         name: ParameterName("limit".into()),

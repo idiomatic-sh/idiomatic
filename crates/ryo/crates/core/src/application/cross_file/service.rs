@@ -32,7 +32,7 @@ use ryo_values::domain::records::types::RenderedText;
 use ryo_values::domain::records::types::RowTotal;
 use ryo_values::domain::records::types::{Cell, CellText, TextRange};
 use ryo_values::domain::rows::service::cell;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use {
     crate::domain::finish::types::Arenas, crate::domain::finish::types::FoundRow,
     crate::domain::finish::types::HeldFile, crate::domain::finish::types::Loaded,
@@ -208,7 +208,7 @@ impl CrossFile {
         evaluated: crate::application::run_coordination::cross_execution::ProgramEvaluated,
         cross: &mut Symbols,
         publication: PublicationSlot,
-    ) -> Result<super::types::CrossedWithPublications, RulesError> {
+    ) -> Result<super::types::CrossedWithPublications, RuleRequestsError> {
         let emit = crossing
             .program
             .emit(todo.rule)
@@ -340,7 +340,7 @@ impl CrossFile {
         emit: &ryo_values::domain::plans::types::Emit,
         table: Option<ryo_values::domain::rows::types::Table>,
         cross: &mut Symbols,
-    ) -> Result<Option<Rendered>, RulesError> {
+    ) -> Result<Option<Rendered>, RuleRequestsError> {
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let rule_number = RuleNumber(u32::try_from(todo.rule.0).unwrap_or(u32::MAX));
         Ok(if let Some(table) = table {

@@ -11,7 +11,7 @@ use crate::outbound::rows::errors::RowsError;
 use crate::outbound::scheduler::errors::SchedulerError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_values::domain::plan_parts::types::RefusedQuery;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 /// Why `lint` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -149,22 +149,22 @@ pub enum LintError {
     OutputClosed,
 }
 
-impl From<RulesError> for LintError {
-    fn from(error: RulesError) -> Self {
+impl From<RuleRequestsError> for LintError {
+    fn from(error: RuleRequestsError) -> Self {
         match error {
-            RulesError::BlankRuleId => Self::BlankRuleId,
-            RulesError::DuplicateRuleId { id } => Self::DuplicateRuleId {
+            RuleRequestsError::BlankRuleId => Self::BlankRuleId,
+            RuleRequestsError::DuplicateRuleId { id } => Self::DuplicateRuleId {
                 id: id.0.to_string(),
             },
-            RulesError::MissingParameter { id } => Self::MissingParameter {
+            RuleRequestsError::MissingParameter { id } => Self::MissingParameter {
                 id: id.0.to_string(),
             },
-            RulesError::Failed { id, reason } => Self::Rule {
+            RuleRequestsError::Failed { id, reason } => Self::Rule {
                 id: id.0.to_string(),
                 reason,
             },
-            RulesError::SemanticIncomplete { id, reason }
-            | RulesError::ObservationIncomplete { id, reason } => Self::Rule {
+            RuleRequestsError::SemanticIncomplete { id, reason }
+            | RuleRequestsError::ObservationIncomplete { id, reason } => Self::Rule {
                 id: id.0.to_string(),
                 reason,
             },

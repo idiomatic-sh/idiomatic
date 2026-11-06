@@ -2,7 +2,7 @@
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{
@@ -57,8 +57,8 @@ pub(crate) fn governing(mask: &Mask, ids: &[RuleId]) -> Vec<RuleId> {
 
 /// Why a rule failed, in the words of what refused it.
 #[must_use]
-pub(crate) fn failed(id: &RuleId, reason: &dyn std::fmt::Display) -> RulesError {
-    RulesError::Failed {
+pub(crate) fn failed(id: &RuleId, reason: &dyn std::fmt::Display) -> RuleRequestsError {
+    RuleRequestsError::Failed {
         id: id.clone(),
         reason: reason.to_string(),
     }

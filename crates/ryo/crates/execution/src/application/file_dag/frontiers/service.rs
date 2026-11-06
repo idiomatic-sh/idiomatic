@@ -197,7 +197,7 @@ pub(crate) fn admit(
         mode,
         coverage,
     } = packed;
-    let refuse = |error: ryo_values::domain::table_words::errors::WordsDecodeError| RefusedFrontier {
+    let refuse = |error: ryo_values::domain::table_words::errors::TableWordsError| RefusedFrontier {
         input,
         error: OperatingError::ObservationIncomplete {
             reason: error.to_string(),

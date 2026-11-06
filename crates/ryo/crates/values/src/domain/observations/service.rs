@@ -1,5 +1,5 @@
 //! Canonical identity of declared named inputs, independent of formatting and arena state.
-use super::errors::ObservationReadinessError;
+use super::errors::ObservationsError;
 use super::types::{ObservationBinding, ObservationIdentityBytes, ObservationProducer};
 use ryo_relations::domain::relations::types::CellKind;
 
@@ -73,17 +73,17 @@ pub fn set_frontier(
     map: &mut crate::domain::records::types::FrontierReadiness,
     slot: super::types::ObservationReadinessSlot,
     readiness: super::types::ProducerReadiness,
-) -> Result<(), ObservationReadinessError> {
+) -> Result<(), ObservationsError> {
     use super::types::ProducerReadiness;
     use crate::domain::records::types::{FrontierRefusal, FrontierRefusalReason};
     if slot.0 >= map.slots.0 {
-        return Err(ObservationReadinessError::Invalid);
+        return Err(ObservationsError::Invalid);
     }
     let index = slot.0 as usize / 64;
     let mask = 1_u64 << (slot.0 % 64);
     *map.complete
         .get_mut(index)
-        .ok_or(ObservationReadinessError::Invalid)? &= !mask;
+        .ok_or(ObservationsError::Invalid)? &= !mask;
     if let Some(word) = map.skipped.get_mut(index) {
         *word &= !mask;
     }
@@ -101,7 +101,7 @@ pub fn set_frontier(
             }
             *map.skipped
                 .get_mut(index)
-                .ok_or(ObservationReadinessError::Invalid)? |= mask;
+                .ok_or(ObservationsError::Invalid)? |= mask;
         }
         ProducerReadiness::Unknown(reason) => {
             let index = map.refusals.partition_point(|refusal| refusal.slot < slot);
@@ -131,8 +131,8 @@ pub fn validate_frontiers<'a>(
     map: &'a crate::domain::records::types::FrontierReadiness,
     layout: super::types::ObservationReadinessLayout,
     slots: super::types::ObservationReadinessCount,
-) -> Result<super::types::ValidatedFrontiers<'a>, ObservationReadinessError> {
-    use ObservationReadinessError::Invalid;
+) -> Result<super::types::ValidatedFrontiers<'a>, ObservationsError> {
+    use ObservationsError::Invalid;
     let words = (slots.0 as usize).div_ceil(64);
     if map.version != super::constants::READINESS_VERSION
         || map.layout != layout
@@ -169,12 +169,12 @@ pub fn validate_frontiers<'a>(
 pub fn frontier_state(
     map: super::types::ValidatedFrontiers<'_>,
     slot: super::types::ObservationReadinessSlot,
-) -> Result<super::types::ProducerReadiness, ObservationReadinessError> {
+) -> Result<super::types::ProducerReadiness, ObservationsError> {
     use super::types::{ObservationReason, ProducerReadiness};
     use crate::domain::records::types::FrontierRefusalReason;
     let map = map.0;
     if slot.0 >= map.slots.0 {
-        return Err(ObservationReadinessError::Invalid);
+        return Err(ObservationsError::Invalid);
     }
     if bit(&map.complete, slot) {
         return Ok(ProducerReadiness::Complete);
@@ -211,16 +211,16 @@ fn bit(words: &[u64], slot: super::types::ObservationReadinessSlot) -> bool {
 pub fn frontier_identity(
     validated: super::types::ValidatedFrontiers<'_>,
     range: super::types::ObservationReadinessRange,
-) -> Result<ObservationIdentityBytes, ObservationReadinessError> {
+) -> Result<ObservationIdentityBytes, ObservationsError> {
     use super::types::{ObservationReadinessSlot, ProducerReadiness};
     let map = validated.0;
     let end = range
         .start
         .0
         .checked_add(range.length.0)
-        .ok_or(ObservationReadinessError::Invalid)?;
+        .ok_or(ObservationsError::Invalid)?;
     if end > map.slots.0 {
-        return Err(ObservationReadinessError::Invalid);
+        return Err(ObservationsError::Invalid);
     }
     if range.length.0 == 0 {
         return Ok(ObservationIdentityBytes::default());

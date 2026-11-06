@@ -2,17 +2,17 @@
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use super::errors::QueryBundleError;
+use super::errors::ProgramError;
 use super::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 
 /// Validate and construct a stable source identifier.
 ///
 /// # Errors
 ///
-/// Returns [`QueryBundleError::BlankSourceId`] when the identifier is blank.
-pub fn source_id(text: &str) -> Result<QuerySourceId, QueryBundleError> {
+/// Returns [`ProgramError::BlankSourceId`] when the identifier is blank.
+pub fn source_id(text: &str) -> Result<QuerySourceId, ProgramError> {
     if text.trim().is_empty() {
-        return Err(QueryBundleError::BlankSourceId);
+        return Err(ProgramError::BlankSourceId);
     }
     Ok(QuerySourceId(text.into()))
 }
@@ -30,16 +30,16 @@ pub fn document_source(id: QuerySourceId, text: impl Into<Arc<str>>) -> QueryDoc
 ///
 /// # Errors
 ///
-/// Returns [`QueryBundleError::DuplicateSourceId`] if a module repeats the root id or another module id.
+/// Returns [`ProgramError::DuplicateSourceId`] if a module repeats the root id or another module id.
 pub fn query_bundle(
     root: QueryDocumentSource,
     modules: impl IntoIterator<Item = QueryDocumentSource>,
-) -> Result<QueryBundle, QueryBundleError> {
+) -> Result<QueryBundle, ProgramError> {
     let mut indexed = BTreeMap::new();
     for module in modules {
         let id = module.id.clone();
         if id == root.id || indexed.insert(id.clone(), module).is_some() {
-            return Err(QueryBundleError::DuplicateSourceId { id });
+            return Err(ProgramError::DuplicateSourceId { id });
         }
     }
     Ok(QueryBundle {
@@ -51,15 +51,15 @@ pub fn query_bundle(
 /// Validate module identities once and retain their exact immutable source bytes.
 ///
 /// # Errors
-/// Returns [`QueryBundleError::DuplicateSourceId`] for repeated module ids.
+/// Returns [`ProgramError::DuplicateSourceId`] for repeated module ids.
 pub fn module_catalog(
     modules: impl IntoIterator<Item = QueryDocumentSource>,
-) -> Result<Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>, QueryBundleError> {
+) -> Result<Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>, ProgramError> {
     let mut indexed = BTreeMap::new();
     for module in modules {
         let id = module.id.clone();
         if indexed.insert(id.clone(), module).is_some() {
-            return Err(QueryBundleError::DuplicateSourceId { id });
+            return Err(ProgramError::DuplicateSourceId { id });
         }
     }
     Ok(Arc::new(indexed))
@@ -68,13 +68,13 @@ pub fn module_catalog(
 /// Associate a root with an immutable catalog without copying its documents.
 ///
 /// # Errors
-/// Returns [`QueryBundleError::DuplicateSourceId`] when the root id is a module id.
+/// Returns [`ProgramError::DuplicateSourceId`] when the root id is a module id.
 pub fn query_bundle_with_catalog(
     root: QueryDocumentSource,
     modules: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
-) -> Result<QueryBundle, QueryBundleError> {
+) -> Result<QueryBundle, ProgramError> {
     if modules.contains_key(&root.id) {
-        return Err(QueryBundleError::DuplicateSourceId { id: root.id });
+        return Err(ProgramError::DuplicateSourceId { id: root.id });
     }
     Ok(QueryBundle { root, modules })
 }
@@ -83,10 +83,10 @@ pub fn query_bundle_with_catalog(
 ///
 /// # Errors
 ///
-/// Returns [`QueryBundleError::BlankRootText`] when the query is blank.
-pub fn standalone(text: &str) -> Result<QueryBundle, QueryBundleError> {
+/// Returns [`ProgramError::BlankRootText`] when the query is blank.
+pub fn standalone(text: &str) -> Result<QueryBundle, ProgramError> {
     if text.trim().is_empty() {
-        return Err(QueryBundleError::BlankRootText);
+        return Err(ProgramError::BlankRootText);
     }
     let id = source_id(super::constants::STANDALONE_SOURCE_ID)?;
     query_bundle(document_source(id, text), [])

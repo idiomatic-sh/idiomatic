@@ -4,7 +4,7 @@ use super::types::QuerySourceId;
 
 /// A query bundle could not be constructed without ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum QueryBundleError {
+pub enum ProgramError {
     /// A source identity is blank.
     #[error("query source id is blank")]
     BlankSourceId,

@@ -1,5 +1,5 @@
 //! A query bundle names its sources without ambiguity: a blank identity, a blank query and a repeated identity are refused.
-use super::errors::QueryBundleError;
+use super::errors::ProgramError;
 use super::service::{document_source, query_bundle, source_id, standalone};
 use super::types::QuerySourceId;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -15,7 +15,7 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = Cow<'static, str>;
-type Failure = QueryBundleError;
+type Failure = ProgramError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_named_source_keeps_its_identity"),
@@ -33,20 +33,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_blank_source_identity_is_refused"),
         word: Word::Refuses,
         input: || Scenario::BlankSource,
-        expect: Expect::Error(QueryBundleError::BlankSourceId),
+        expect: Expect::Error(ProgramError::BlankSourceId),
     },
     Case {
         name: CaseName("a_blank_query_is_refused"),
         word: Word::Refuses,
         input: || Scenario::BlankQuery,
-        expect: Expect::Error(QueryBundleError::BlankRootText),
+        expect: Expect::Error(ProgramError::BlankRootText),
     },
     Case {
         name: CaseName("a_module_repeating_the_root_identity_is_refused"),
         word: Word::Refuses,
         input: || Scenario::RepeatedModule,
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(matches!(error, QueryBundleError::DuplicateSourceId { .. }))
+            crate::cases::selects(matches!(error, ProgramError::DuplicateSourceId { .. }))
         }),
     },
 ];

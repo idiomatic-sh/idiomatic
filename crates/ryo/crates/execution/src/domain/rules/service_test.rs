@@ -9,7 +9,7 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plans::types::{Emit, ParameterType, Plan, PlanParameter};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 
 /// What a row of the cases does with the rules of a run.
@@ -27,7 +27,7 @@ enum Scenario {
 type Input = Scenario;
 /// The answer as up to three numbers, the first byte of an id standing for the id; zero where there is nothing.
 type Value = [i64; 3];
-type Failure = RulesError;
+type Failure = RuleRequestsError;
 
 fn byte(id: &str) -> i64 {
     i64::from(id.bytes().next().unwrap_or(0))
@@ -163,14 +163,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("blank_rule_id_is_refused"),
         word: Word::Refuses,
         input: || Scenario::BlankId,
-        expect: Expect::Error(RulesError::BlankRuleId),
+        expect: Expect::Error(RuleRequestsError::BlankRuleId),
     },
     Case {
         name: CaseName("duplicate_rule_id_is_refused_naming_the_id"),
         word: Word::Refuses,
         input: || Scenario::DuplicateId,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::DuplicateRuleId { id } if &*id.0 == "a") {
+            if matches!(error, RuleRequestsError::DuplicateRuleId { id } if &*id.0 == "a") {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -182,7 +182,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Unbound,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::MissingParameter { id } if &*id.0 == "a") {
+            if matches!(error, RuleRequestsError::MissingParameter { id } if &*id.0 == "a") {
                 Selection::Matches
             } else {
                 Selection::Differs
