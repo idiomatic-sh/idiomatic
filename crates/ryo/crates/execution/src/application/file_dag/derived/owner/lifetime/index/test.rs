@@ -1,5 +1,5 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
-use super::*;
+use crate::application::file_dag::derived::owner::*;
 use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{

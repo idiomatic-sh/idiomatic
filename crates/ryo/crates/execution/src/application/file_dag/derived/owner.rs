@@ -16,15 +16,9 @@ mod backings;
 mod diagnostics;
 mod footprint;
 mod graph;
-#[cfg(test)]
-mod graph_lifetime_test;
 mod graph_policy;
 mod graph_retention;
-#[cfg(test)]
-#[path = "owner/index_lifetime_test.rs"]
-mod index_lifetime_test;
 mod leases;
-#[path = "owner/lifetime.rs"]
 mod lifetime;
 mod observations;
 mod setup;
@@ -215,8 +209,7 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
 }
 
 #[cfg(test)]
-#[path = "owner_test.rs"]
-mod owner_test;
+mod test;
 
 pub(in crate::application::file_dag) mod raw_scope;
 

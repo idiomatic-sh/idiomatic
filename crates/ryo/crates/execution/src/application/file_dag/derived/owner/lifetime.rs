@@ -77,3 +77,8 @@ impl DerivedOwner {
         drop(backend);
     }
 }
+
+#[cfg(test)]
+mod graph;
+#[cfg(test)]
+mod index;
