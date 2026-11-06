@@ -2,6 +2,7 @@
 use super::super::fixtures::catalog::{CompiledCorpus, compiled, prepare};
 use super::super::fixtures::plan;
 use super::{expected, supported_head};
+use crate::domain::coverage::types::RuleIndex;
 use crate::domain::shared_walk::types::{
     prepared_walk::value::PreparedWalk,
     walk_route::value::{WalkBarrier, WalkRoute},
@@ -22,6 +23,7 @@ enum Refusal {
     EligibleHeadMissing,
     IneligibleHeadShared,
     ErroredOriginDropped,
+    SiblingRefused,
 }
 fn verify(program: &ExecutableProgram, walk: &PreparedWalk) -> Result<(), Refusal> {
     let expected = expected(program);
@@ -100,17 +102,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::IneligibleHeadShared),
     },
     Case {
-        name: CaseName(
-            "an errored origin of a class member is refused, never dropped from sharing",
-        ),
+        name: CaseName("an errored origin refuses only its own rule; a sibling rule still shares"),
         word: Word::Succeeds,
         input: || Scenario::ErroredOrigin,
         expect: Expect::Value(()),
     },
 ];
-/// A rule step beyond its prepared operator contracts has an errored origin; retention must
-/// return that error instead of leaving the step out of its class.
-fn errored_origin_refused() -> Result<Value, Failure> {
+/// A rule step beyond its prepared operator contracts has an errored origin. Retention leaves
+/// only that rule out of sharing; the sibling rule keeps its class and its shared head.
+fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
     let select = || Operation::Select {
         from: Source::Relation(ALL[0]),
         comparisons: vec![],
@@ -123,14 +123,48 @@ fn errored_origin_refused() -> Result<Value, Failure> {
         scope: StepScope::PerFile,
     });
     let (program, mut walk) = prepare(&[one.clone(), two], &[one.clone(), one]);
-    match walk.retain_program_consumers(&program) {
-        Err(crate::domain::operating::errors::OperatingError::NotRun) => Ok(()),
-        _ => Err(Refusal::ErroredOriginDropped),
+    if walk.retain_program_consumers(&program).is_err() {
+        return Err(Refusal::SiblingRefused);
+    }
+    if !program.rules()[1].original_steps.iter().any(Result::is_err) {
+        return Err(Refusal::ErroredOriginDropped);
+    }
+    let shared = |rule: usize| {
+        walk.class_of(RuleIndex(rule))
+            .is_some_and(|classes| classes.iter().any(Option::is_some))
+    };
+    // The errored step joins no class; its sibling step may keep the head both rules dedupe.
+    let errored_step_shared =
+        program.rules()[1]
+            .original_steps
+            .iter()
+            .enumerate()
+            .any(|(at, origin)| {
+                origin.is_err()
+                    && walk
+                        .class_of(RuleIndex(1))
+                        .and_then(|classes| classes.get(at))
+                        .is_some_and(Option::is_some)
+            });
+    if errored_step_shared {
+        return Err(Refusal::ErroredOriginDropped);
+    }
+    let sibling_head = program.rules()[0]
+        .original_steps
+        .iter()
+        .flatten()
+        .next()
+        .and_then(|origin| program.logical_regions().get(origin.logical.0))
+        .and_then(|region| program.regions().get(region.0))
+        .and_then(|region| region.instructions.first());
+    match sibling_head {
+        Some(head) if shared(0) && walk.class_for(head).is_some() => Ok(()),
+        _ => Err(Refusal::SiblingRefused),
     }
 }
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::ErroredOrigin) {
-        return errored_origin_refused();
+        return errored_origin_refuses_its_rule();
     }
     let CompiledCorpus { program, mut walk } = compiled();
     let eligible = expected(&program);

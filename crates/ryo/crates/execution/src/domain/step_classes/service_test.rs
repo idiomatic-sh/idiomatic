@@ -12,7 +12,7 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The kinds the one step of each rule selects, an empty one for the elements with no text.
-type Input = &'static [&'static str];
+type Input = Scenario;
 /// How many classes the merge made, and the class of each rule's step.
 type Value = &'static str;
 type Failure = ();
@@ -64,7 +64,19 @@ fn plan(name: &str) -> Plan {
     }
 }
 
-fn subject(kinds: Input) -> Value {
+#[derive(Clone, Copy)]
+enum Scenario {
+    Kinds(&'static [&'static str]),
+    Check(fn()),
+}
+fn subject(scenario: Input) -> Value {
+    let kinds = match scenario {
+        Scenario::Kinds(kinds) => kinds,
+        Scenario::Check(check) => {
+            check();
+            return "held";
+        }
+    };
     let plans = kinds.iter().map(|name| plan(name)).collect::<Vec<_>>();
     let bindings = vec![Vec::new(); plans.len()];
     let merged = merge(&plans, &bindings);
@@ -82,29 +94,6 @@ fn subject(kinds: Input) -> Value {
     )
 }
 
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("rules_that_select_the_same_elements_are_one_class"),
-        word: Word::Succeeds,
-        input: || &["word", "other", "word", ""],
-        expect: Expect::Value("3 classes, rules [Some(0), Some(1), Some(0), Some(2)]"),
-    },
-    Case {
-        name: CaseName("rules_that_select_different_elements_are_classes_apart"),
-        word: Word::Succeeds,
-        input: || &["word", "other"],
-        expect: Expect::Value("2 classes, rules [Some(0), Some(1)]"),
-    },
-];
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, |input| {
-        Ok::<_, Failure>(subject(input))
-    });
-}
-
-#[test]
 fn comparison_origin_does_not_split_shared_step_classes() {
     use ryo_values::domain::plan_parts::types::ComparisonOriginId;
     use ryo_values::domain::query_tokens::types::{
@@ -154,7 +143,6 @@ fn text(value: &str) -> ParameterBinding {
     ParameterBinding::Text(LiteralText(value.into()))
 }
 
-#[test]
 fn parameter_free_predicates_share_across_unrelated_typed_binding_vectors() {
     let plans = [plan("word"), plan("word"), plan("word")];
     let merged = merge(
@@ -180,7 +168,6 @@ fn parameter_free_predicates_share_across_unrelated_typed_binding_vectors() {
     assert_eq!(merged.class_of[1], merged.class_of[2]);
 }
 
-#[test]
 fn only_referenced_slots_must_match_including_left_operands_and_duplicate_reads() {
     let selected = with_operands(
         Operand::Parameter(ParameterId(1)),
@@ -219,7 +206,6 @@ fn only_referenced_slots_must_match_including_left_operands_and_duplicate_reads(
     assert_eq!(wrong_type.classes.len(), 2);
 }
 
-#[test]
 fn nested_function_parameters_are_referenced_but_unread_slots_are_not() {
     let nested = Operand::Function(Applied {
         function: Function::Concat,
@@ -257,7 +243,6 @@ fn nested_function_parameters_are_referenced_but_unread_slots_are_not() {
     );
 }
 
-#[test]
 fn missing_vectors_or_referenced_slots_never_become_equal_values() {
     let empty = plan("word");
     assert_eq!(
@@ -287,7 +272,6 @@ fn missing_vectors_or_referenced_slots_never_become_equal_values() {
     }
 }
 
-#[test]
 fn relation_identity_and_wide_source_projections_are_preserved() {
     let mut wide = plan("word");
     let Operation::Select {
@@ -339,4 +323,72 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
         merged.classes[3].comparisons[1].right,
         Operand::Column(ColumnIndex(8))
     );
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("rules_that_select_the_same_elements_are_one_class"),
+        word: Word::Succeeds,
+        input: || Scenario::Kinds(&["word", "other", "word", ""]),
+        expect: Expect::Value("3 classes, rules [Some(0), Some(1), Some(0), Some(2)]"),
+    },
+    Case {
+        name: CaseName("rules_that_select_different_elements_are_classes_apart"),
+        word: Word::Succeeds,
+        input: || Scenario::Kinds(&["word", "other"]),
+        expect: Expect::Value("2 classes, rules [Some(0), Some(1)]"),
+    },
+    Case {
+        name: CaseName("comparison_origin_does_not_split_shared_step_classes"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(comparison_origin_does_not_split_shared_step_classes),
+        expect: Expect::Value("held"),
+    },
+    Case {
+        name: CaseName("parameter_free_predicates_share_across_unrelated_typed_binding_vectors"),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Check(parameter_free_predicates_share_across_unrelated_typed_binding_vectors)
+        },
+        expect: Expect::Value("held"),
+    },
+    Case {
+        name: CaseName(
+            "only_referenced_slots_must_match_including_left_operands_and_duplicate_reads",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Check(
+                only_referenced_slots_must_match_including_left_operands_and_duplicate_reads,
+            )
+        },
+        expect: Expect::Value("held"),
+    },
+    Case {
+        name: CaseName("nested_function_parameters_are_referenced_but_unread_slots_are_not"),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Check(nested_function_parameters_are_referenced_but_unread_slots_are_not)
+        },
+        expect: Expect::Value("held"),
+    },
+    Case {
+        name: CaseName("missing_vectors_or_referenced_slots_never_become_equal_values"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(missing_vectors_or_referenced_slots_never_become_equal_values),
+        expect: Expect::Value("held"),
+    },
+    Case {
+        name: CaseName("relation_identity_and_wide_source_projections_are_preserved"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(relation_identity_and_wide_source_projections_are_preserved),
+        expect: Expect::Value("held"),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| {
+        Ok::<_, Failure>(subject(input))
+    });
 }
