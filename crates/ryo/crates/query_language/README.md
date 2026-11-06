@@ -38,7 +38,7 @@ The `query_language` domain's `idioms` concept: the pairs of functions with equa
 
 ### inlining
 
-The `query_language` domain's `inlining` concept: the views of a relation read in place, and the rows handed over cut to the columns asked.
+The `query_language` domain's `inlining` concept: the views of a relation read in place, and what an operation reads of them.
 
 ### joining
 
