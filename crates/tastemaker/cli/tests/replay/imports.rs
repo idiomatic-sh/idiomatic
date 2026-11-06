@@ -29,6 +29,7 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(destination, text).unwrap();
     }
+    std::fs::create_dir_all(project.join("src/owner")).unwrap();
     let mut failures = Vec::new();
     for (name, module, text, expected) in [
         (

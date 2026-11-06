@@ -31,7 +31,6 @@ use ryo_values::domain::plans::types::OperationKind;
 /// The implementation trait stays inside the operator concept.
 pub(crate) struct RegisteredOperator {
     kind: OperationKind,
-    item: &'static dyn OperatorsItem,
 }
 impl RegisteredOperator {
     pub(in crate::domain::operator) fn prepare(
@@ -44,7 +43,7 @@ impl RegisteredOperator {
         if ryo_values::domain::plans::service::kind_of(operation) != self.kind {
             return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
         }
-        self.item.prepare(operation, inputs, bindings)
+        self.item().prepare(operation, inputs, bindings)
     }
     pub(crate) fn evaluate(
         &self,
@@ -56,37 +55,41 @@ impl RegisteredOperator {
         if ryo_values::domain::plans::service::kind_of(operation) != self.kind {
             return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
         }
-        self.item.evaluate(operation, inputs, lease, output)
+        self.item().evaluate(operation, inputs, lease, output)
+    }
+}
+impl RegisteredOperator {
+    fn item(&self) -> &'static dyn OperatorsItem {
+        match self.kind {
+            OperationKind::Replace => &ReplaceItem,
+            OperationKind::OrderedMatch => &OrderedMatchItem,
+            OperationKind::Select => &SelectItem,
+            OperationKind::Project => &ProjectItem,
+            OperationKind::Extend => &ExtendItem,
+            OperationKind::Join => &JoinItem,
+            OperationKind::Union => &UnionItem,
+            OperationKind::Intersection => &IntersectionItem,
+            OperationKind::Difference => &DifferenceItem,
+            OperationKind::Antijoin => &AntijoinItem,
+            OperationKind::GroupCount => &GroupCountItem,
+            OperationKind::GroupDigest => &GroupDigestItem,
+            OperationKind::Capture => &CaptureItem,
+            OperationKind::Rank => &RankItem,
+            OperationKind::Words => &WordsItem,
+            OperationKind::Axis => &AxisItem,
+            OperationKind::Closure => &ClosureItem,
+            OperationKind::Cycles => &CyclesItem,
+            OperationKind::Rows => &RowsItem,
+            OperationKind::Hosted => &HostedItem,
+            OperationKind::SpanBetween => &SpanBetweenItem,
+            OperationKind::SourceMatches => &SourceMatchesItem,
+            OperationKind::RenderSyntax => &RenderSyntaxItem,
+            OperationKind::FitsRendered => &FitsRenderedItem,
+            OperationKind::SpanBounds => &SpanBoundsItem,
+            OperationKind::OrderedDfs => &OrderedDfsItem,
+        }
     }
 }
 pub(crate) fn registered(kind: OperationKind) -> RegisteredOperator {
-    let item: &'static dyn OperatorsItem = match kind {
-        OperationKind::Replace => &ReplaceItem,
-        OperationKind::OrderedMatch => &OrderedMatchItem,
-        OperationKind::Select => &SelectItem,
-        OperationKind::Project => &ProjectItem,
-        OperationKind::Extend => &ExtendItem,
-        OperationKind::Join => &JoinItem,
-        OperationKind::Union => &UnionItem,
-        OperationKind::Intersection => &IntersectionItem,
-        OperationKind::Difference => &DifferenceItem,
-        OperationKind::Antijoin => &AntijoinItem,
-        OperationKind::GroupCount => &GroupCountItem,
-        OperationKind::GroupDigest => &GroupDigestItem,
-        OperationKind::Capture => &CaptureItem,
-        OperationKind::Rank => &RankItem,
-        OperationKind::Words => &WordsItem,
-        OperationKind::Axis => &AxisItem,
-        OperationKind::Closure => &ClosureItem,
-        OperationKind::Cycles => &CyclesItem,
-        OperationKind::Rows => &RowsItem,
-        OperationKind::Hosted => &HostedItem,
-        OperationKind::SpanBetween => &SpanBetweenItem,
-        OperationKind::SourceMatches => &SourceMatchesItem,
-        OperationKind::RenderSyntax => &RenderSyntaxItem,
-        OperationKind::FitsRendered => &FitsRenderedItem,
-        OperationKind::SpanBounds => &SpanBoundsItem,
-        OperationKind::OrderedDfs => &OrderedDfsItem,
-    };
-    RegisteredOperator { kind, item }
+    RegisteredOperator { kind }
 }

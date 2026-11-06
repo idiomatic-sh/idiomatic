@@ -1,5 +1,5 @@
 description = "Only declared owners and bridges may depend on execution implementation modules."
-why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The immutable preparation service/types, neutral protocol roles, outer file/project entry and borrowed semantic interfaces remain available. Lower implementations never depend on an orchestration facade. Public partition/applicability descriptors and opaque validated restoration retain their existing caller API at the actual defining module; their input/permit constructors remain Rust-private. Source admission validates explicit scope data and cannot depend on runtime state; protocol/preparation and runtime type roles cannot point back to their own workflow implementations. Rust visibility and engine-issued permits separately enforce construction and invocation. The source, invocation and semantic bridges have one production implementer each. Operator and physical representation implementers must be referenced by their actual exhaustive registry under their defining type, including renamed imports; a new implementation does not acquire a route merely by satisfying the trait. Registered proof roles may substitute implementations for negative controls. The kind enums drive exhaustive dispatch and real fixture coverage; this check does not establish runtime behavior. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
+why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The immutable preparation service/types, neutral protocol roles, outer file/project entry and borrowed semantic interfaces remain available. Lower implementations never depend on an orchestration facade. Public partition/applicability descriptors and opaque validated restoration retain their existing caller API at the actual defining module; their input/permit constructors remain Rust-private. Source admission validates explicit scope data and cannot depend on runtime state; protocol/preparation and runtime type roles cannot point back to their own workflow implementations. Rust visibility and engine-issued permits separately enforce construction and invocation. The source, invocation and semantic bridges have one production implementer each. Operator and physical representation implementers must be selected by the tail match of their actual RegisteredOperator/RegisteredRepresentation item method: only an unguarded direct immutable &Item arm result registers its resolved type, including qualified or renamed imports. Blocks, guards, patterns, unused matches and other methods supply no registration; a new implementation does not acquire a route merely by satisfying the trait. Registered proof roles may substitute implementations for negative controls. The kind enums drive exhaustive dispatch and real fixture coverage; this check does not establish runtime behavior. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
 
 query = '''
 let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
@@ -75,10 +75,37 @@ let engine-implementations = select * from named-implementations where
     or (glob_any(contract, "{PrimitiveExecutor,*::PrimitiveExecutor}") and source-tail = "application/file_dag/execution.rs" and name = "CommonOperatorEngine")
     or (glob_any(contract, "{PrimitiveSemantics,*::PrimitiveSemantics}") and source-tail = "application/file_dag/execution.rs" and name = "PrimitiveSemanticsBridge");
 let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration.rs,domain/table_model/collections/representations/types/registered_representation/value.rs}");
-let registry-arms = select id, file, span from "syntax-tree" where kind = "match-arm" and text = "";
-let registry-paths = select id, file, span from "syntax-tree" where kind = "path" and text = "";
-let arm-paths = axis(from=registry-arms, relation="syntax-child", direction=descendant, domain=registry-paths);
-let dispatch-paths = select r.file as file, r.span as span from arm-paths as l join registry-paths as r on l.related = r.id;
+let registry-nodes = select id, file, span, kind from "syntax-tree" where text = "";
+let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/registration.rs")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/collections/representations/types/registered_representation/value.rs")));
+let registry-roots = select id from registry-nodes where kind = "source-file";
+let root-children = select r.child as id from registry-roots as l join "syntax-child" as r on l.id = r.parent;
+let registry-owners = select l.id as id from candidate-registry-owners as l join root-children as r on l.id = r.id;
+let owner-children = select r.child as id from registry-owners as l join "syntax-child" as r on l.id = r.parent;
+let owner-lists = select r.id as id from owner-children as l join registry-nodes as r on l.id = r.id where r.kind = "assoc-item-list";
+let associated-items = select r.child as id from owner-lists as l join "syntax-child" as r on l.id = r.parent;
+let registry-methods = select r.id as id, r.file as file from associated-items as l join "defines" as r on l.id = r.id where r.kind = "method" and r.name = "item";
+let method-children = select r.child as id from registry-methods as l join "syntax-child" as r on l.id = r.parent;
+let method-bodies = select r.id as id from method-children as l join registry-nodes as r on l.id = r.id where r.kind = "block-expr";
+let body-children = select r.child as id from method-bodies as l join "syntax-child" as r on l.id = r.parent;
+let statement-lists = select r.id as id from body-children as l join registry-nodes as r on l.id = r.id where r.kind = "stmt-list";
+let tail-expressions = select r.child as id from statement-lists as l join "syntax-child" as r on l.id = r.parent;
+let selected-matches = select r.id as id from tail-expressions as l join registry-nodes as r on l.id = r.id where r.kind = "match-expr";
+let match-children = select r.child as id from selected-matches as l join "syntax-child" as r on l.id = r.parent;
+let arm-lists = select r.id as id from match-children as l join registry-nodes as r on l.id = r.id where r.kind = "match-arm-list";
+let arm-children = select r.child as id from arm-lists as l join "syntax-child" as r on l.id = r.parent;
+let registry-arms = select r.id as id from arm-children as l join registry-nodes as r on l.id = r.id where r.kind = "match-arm";
+let arm-values = select l.id as arm, r.child as id from registry-arms as l join "syntax-child" as r on l.id = r.parent;
+let guarded-arms = select l.arm as id from arm-values as l join registry-nodes as r on l.id = r.id where r.kind = "match-guard";
+let pure-arms = antijoin(left=registry-arms, right=guarded-arms, left-on=["id"], right-on=["id"]);
+let selected-values = select r.child as id from pure-arms as l join "syntax-child" as r on l.id = r.parent;
+let selected-references = select r.id as id from selected-values as l join registry-nodes as r on l.id = r.id where r.kind = "ref-expr";
+let reference-children = select l.id as reference, r.child as id from selected-references as l join "syntax-child" as r on l.id = r.parent;
+let mutable-references = select l.reference as id from reference-children as l join "syntax-tree" as r on l.id = r.id where r.kind = "mut-kw";
+let immutable-references = antijoin(left=selected-references, right=mutable-references, left-on=["id"], right-on=["id"]);
+let immutable-children = select r.child as id from immutable-references as l join "syntax-child" as r on l.id = r.parent;
+let selected-path-expressions = select r.id as id from immutable-children as l join registry-nodes as r on l.id = r.id where r.kind = "path-expr";
+let path-children = select r.child as id from selected-path-expressions as l join "syntax-child" as r on l.id = r.parent;
+let dispatch-paths = select r.file as file, r.span as span from path-children as l join registry-nodes as r on l.id = r.id where r.kind = "path";
 let qualified-dispatch-uses = select l.source as source, l.target as target, l.span as span, l.written as written, l.source-root as source-root, l.source-tail as source-tail from registry-uses as l join dispatch-paths as r on l.source = r.file and l.span = r.span;
 let registry-imports = select l.source as source, l.target as target, l.span as span, l.source-root as source-root, l.source-tail as source-tail, r.binding as binding from registry-uses as l join "static-import" as r on l.source = r.file and l.span = r.span;
 let dispatch-references = select l.file as file, l.span as span, l.target as target from "reference" as l join dispatch-paths as r on l.file = r.file and l.span = r.span;
@@ -163,7 +190,7 @@ files.'src/domain/operator/collections/operators.rs' = "pub mod select; pub mod 
 files.'src/domain/operator/collections/operators/select.rs' = 'pub mod item;'
 files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}"
 files.'src/domain/operator/contract.rs' = "pub mod registration; pub mod context; pub mod types;"
-files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub fn registered(kind: Kind) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match kind { Kind::Select => &SelectItem } }"
+files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 files.'src/domain/operator/contract/context.rs' = 'pub fn with_primitive_context() {}'
 files.'src/domain/operator/service.rs' = 'pub fn registered() {}'
 
@@ -183,7 +210,7 @@ files.'src/domain/table_model/collections/representations/stored.rs' = "pub mod 
 
 files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}"
 
-files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub fn registered(kind: Kind) -> &'static dyn super::super::super::interface::RepresentationsItem { match kind { Kind::Stored => &super::super::super::stored::item::StoredItem } }"
+files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
 
 files.'src/domain/table_model/collections/representations/types.rs' = 'pub mod registered_representation;'
 files.'src/domain/table_model/collections/representations/types/registered_representation/mod.rs' = 'pub mod value;'
@@ -564,13 +591,13 @@ then.findings = [{path="src/domain/operator/collections/operators/extra/item.rs"
 id = "import-is-not-registration"
 scenario = "An unused registry import cannot authorize a second callable implementer."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub fn registered(kind: Kind) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match kind { Kind::Select => &SelectItem } } use super::super::collections::operators::select::item::Extra;"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } use super::super::collections::operators::select::item::Extra;"
 then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
 
 [[scenarios]]
 id = "registry-alias-preserves-actual-member"
 scenario = "The registry may rename the actual implemented type while matching the same kind."
-given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem as Chosen; pub enum Kind { Select } pub fn registered(kind: Kind) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match kind { Kind::Select => &Chosen } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem as Chosen; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &Chosen } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 
 [[scenarios]]
 id = "unregistered-kernel-in-owner-file"
@@ -737,3 +764,169 @@ given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "p
 given.files.'src/application.rs' = "pub mod file_dag; pub mod caller; pub mod new_route;"
 given.files.'src/application/new_route.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk;"
 then.findings = [{path="src/application/new_route.rs",line=1}]
+
+[[scenarios]]
+id = "operator-incidental-same-arm-does-not-register"
+scenario = "A block arm referring to Extra but returning SelectItem is not a pure catalog selection."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::{SelectItem, Extra}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}, {path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-incidental-same-arm-does-not-register"
+scenario = "A physical block arm referring to Extra but returning StoredItem is not a pure catalog selection."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &super::super::super::stored::item::Extra; &super::super::super::stored::item::StoredItem } } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}, {path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-incidental-aliased-member-does-not-register"
+scenario = "Renamed imports inside a block do not turn incidental paths into selected implementations."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::{SelectItem as Selected, Extra as Incidental}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Incidental; &Selected } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}, {path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-incidental-aliased-member-does-not-register"
+scenario = "A renamed physical incidental import remains outside typed catalog dispatch."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "use super::super::super::stored::item::{StoredItem as Selected, Extra as Incidental}; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &Incidental; &Selected } } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}, {path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "new-operator-module-incidental-reference-does-not-register"
+scenario = "A new item module is not registered by an incidental expression in another arm."
+given.files.'src/domain/operator/collections/operators.rs' = "pub mod select; pub mod interface; pub mod extra;"
+given.files.'src/domain/operator/collections/operators/extra.rs' = "pub mod item;"
+given.files.'src/domain/operator/collections/operators/extra/item.rs' = "use super::super::interface::OperatorsItem; pub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select, Other } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem, Kind::Other => { let _ = &super::super::collections::operators::extra::item::Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/extra/item.rs",line=1}]
+
+[[scenarios]]
+id = "new-physical-module-incidental-reference-does-not-register"
+scenario = "An adjacent physical implementation needs a direct selected arm, even when its file is mentioned."
+given.files.'src/domain/table_model/collections/representations.rs' = "pub mod interface; pub mod stored; pub mod types; pub mod extra;"
+given.files.'src/domain/table_model/collections/representations/extra.rs' = "pub mod item;"
+given.files.'src/domain/table_model/collections/representations/extra/item.rs' = "use super::super::interface::RepresentationsItem; pub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored, Other } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem, Kind::Other => { let _ = &super::super::super::extra::item::Extra; &super::super::super::stored::item::StoredItem } } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/extra/item.rs",line=1}]
+
+[[scenarios]]
+id = "operator-block-only-return-is-not-pure-registration"
+scenario = "Registry arms use an unambiguous direct immutable reference, not general block dataflow."
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}]
+
+[[scenarios]]
+id = "physical-block-only-return-is-not-pure-registration"
+scenario = "Physical registry arms use the same direct immutable reference contract."
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => { &super::super::super::stored::item::StoredItem } } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}]
+
+[[scenarios]]
+id = "qualified-selected-operator-is-registered"
+scenario = "A direct qualified operator selection retains registration."
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &super::super::collections::operators::select::item::SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+
+[[scenarios]]
+id = "aliased-selected-physical-is-registered"
+scenario = "A direct renamed physical selection retains its actual implementation identity."
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "use super::super::super::stored::item::StoredItem as Selected; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &Selected } } }"
+
+[[scenarios]]
+id = "operator-unrelated-method-match-does-not-register"
+scenario = "A different method of the actual catalog owner cannot supply registration."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } impl RegisteredOperator { fn kind() -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-other-owner-item-method-does-not-register"
+scenario = "A similarly named method of another owner is outside the designated selector."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-discarded-match-does-not-register"
+scenario = "Only the selector tail expression, not an unused earlier match in that method, registers types."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { let _ = match () { () => &super::super::collections::operators::select::item::Extra }; match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-guard-reference-does-not-register"
+scenario = "Mentioning an implementation inside the arm guard does not select it."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if { let _ = &super::super::collections::operators::select::item::Extra; true } => &SelectItem, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-guarded-result-is-not-pure-registration"
+scenario = "A guarded conditional result is not an unguarded constant catalog selection."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if false => &super::super::collections::operators::select::item::Extra, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-pattern-reference-does-not-register"
+scenario = "A unit implementation in a match pattern supplies no selected result identity."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match (self.kind, super::super::collections::operators::select::item::Extra) { (Kind::Select, super::super::collections::operators::select::item::Extra) => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "operator-nested-lookalike-owner-does-not-register"
+scenario = "A nested lookalike cannot impersonate the actual top-level catalog owner."
+given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } fn unrelated() { struct RegisteredOperator; impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } } }"
+then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-unrelated-method-match-does-not-register"
+scenario = "A different method of the actual catalog owner cannot supply registration."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } impl RegisteredRepresentation { fn kind() -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-other-owner-item-method-does-not-register"
+scenario = "A similarly named method of another owner is outside the designated selector."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-discarded-match-does-not-register"
+scenario = "Only the selector tail expression, not an unused earlier match in that method, registers types."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { let _ = match () { () => &super::super::super::stored::item::Extra }; match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-guard-reference-does-not-register"
+scenario = "Mentioning an implementation inside the arm guard does not select it."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored if { let _ = &super::super::super::stored::item::Extra; true } => &super::super::super::stored::item::StoredItem, Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-guarded-result-is-not-pure-registration"
+scenario = "A guarded conditional result is not an unguarded constant catalog selection."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored if false => &super::super::super::stored::item::Extra, Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-pattern-reference-does-not-register"
+scenario = "A unit implementation in a match pattern supplies no selected result identity."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match (self.kind, super::super::super::stored::item::Extra) { (Kind::Stored, super::super::super::stored::item::Extra) => &super::super::super::stored::item::StoredItem } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "physical-nested-lookalike-owner-does-not-register"
+scenario = "A nested lookalike cannot impersonate the actual top-level catalog owner."
+given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
+given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } fn unrelated() { struct RegisteredRepresentation; impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } } }"
+then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
