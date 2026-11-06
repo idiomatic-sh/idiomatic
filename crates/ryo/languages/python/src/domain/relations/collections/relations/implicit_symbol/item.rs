@@ -49,11 +49,31 @@ struct CatalogName {
 /// Names supplied by the builtins environment, including attributes of the builtins module.
 /// These module attributes overlap with module execution globals without sharing origin.
 const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
-    catalog(super::constants::DOC, 3, 0),
-    catalog(super::constants::LOADER, 3, 0),
-    catalog(super::constants::NAME, 3, 0),
-    catalog(super::constants::PACKAGE, 3, 0),
-    catalog(super::constants::SPEC, 3, 4),
+    catalog(
+        languages::NameText(super::constants::DOC),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::LOADER),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::NAME),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::PACKAGE),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::SPEC),
+        languages::Integer(3),
+        languages::Integer(4),
+    ),
 ];
 
 /// Selected known names installed by Python's module environment, not declarations.
@@ -65,24 +85,68 @@ const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
 /// docs.python.org/3.6/whatsnew/3.6.html, docs.python.org/3/reference/datamodel.html,
 /// peps.python.org/pep-0302/, and peps.python.org/pep-0366/.
 const MODULE_GLOBALS: &[CatalogName] = &[
-    catalog(super::constants::ANNOTATIONS, 3, 6),
-    catalog(super::constants::BUILTINS, 3, 0),
-    catalog(super::constants::CACHED, 3, 2),
-    catalog(super::constants::DOC, 3, 0),
-    catalog(super::constants::FILE, 3, 0),
-    catalog(super::constants::LOADER, 3, 0),
-    catalog(super::constants::NAME, 3, 0),
-    catalog(super::constants::PACKAGE, 3, 0),
-    catalog(super::constants::SPEC, 3, 4),
-    catalog(super::constants::WARNINGREGISTRY, 3, 0),
-    catalog(super::constants::ANNOTATE, 3, 14),
+    catalog(
+        languages::NameText(super::constants::ANNOTATIONS),
+        languages::Integer(3),
+        languages::Integer(6),
+    ),
+    catalog(
+        languages::NameText(super::constants::BUILTINS),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::CACHED),
+        languages::Integer(3),
+        languages::Integer(2),
+    ),
+    catalog(
+        languages::NameText(super::constants::DOC),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::FILE),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::LOADER),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::NAME),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::PACKAGE),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::SPEC),
+        languages::Integer(3),
+        languages::Integer(4),
+    ),
+    catalog(
+        languages::NameText(super::constants::WARNINGREGISTRY),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::ANNOTATE),
+        languages::Integer(3),
+        languages::Integer(14),
+    ),
 ];
 
 /// Build a static catalog row from a name and its first supported version.
-const fn catalog(name: &'static str, major: i64, minor: i64) -> CatalogName {
-    CatalogName {
-        name: languages::NameText(name),
-        major: languages::Integer(major),
-        minor: languages::Integer(minor),
-    }
+const fn catalog(
+    name: languages::NameText<'static>,
+    major: languages::Integer,
+    minor: languages::Integer,
+) -> CatalogName {
+    CatalogName { name, major, minor }
 }

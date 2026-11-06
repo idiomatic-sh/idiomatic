@@ -99,7 +99,7 @@ fn child(words: &mut Vec<ShapeWord>, classes: &[Option<Position>], field: Field,
     }
 }
 /// Operators are meaningful; separators, redundant parentheses and lexical trivia are not.
-fn significant(token: Token) -> bool {
+fn significant(token: Token) -> Option<Token> {
     matches!(
         token,
         Token::Name
@@ -125,6 +125,7 @@ fn significant(token: Token) -> bool {
             | Token::At
             | Token::Ellipsis
     )
+    .then_some(token)
 }
 /// Preserve the parser's literal category and payload, or its already-decoded text.
 fn constant(
@@ -281,7 +282,7 @@ fn key(
         if is_token(tree, each) == Leaf::Node {
             child(words, classes, field_of(tree, each), each);
         } else if let Kind::Token(token) = kind(tree, each)
-            && significant(token)
+            && significant(token).is_some()
         {
             words.push(ShapeWord::Token(
                 kind(tree, each),
