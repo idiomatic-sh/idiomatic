@@ -1,5 +1,5 @@
 //! Stable scalar observations written through the executable's supplied writer.
-use super::commands::constants as runner_constants;
+use super::constants;
 use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
 use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -12,7 +12,7 @@ pub(super) fn diagnostic_counts(
         counts
             .entry(&diagnostic.rule)
             .or_insert_with(FindingCount::default)
-            .0 += runner_constants::ONE_FINDING;
+            .0 += constants::ONE_FINDING;
     }
     FindingCounts(counts)
 }
@@ -25,8 +25,8 @@ pub(super) fn observe_sample(
 ) -> Result<(), Error> {
     use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
     let order = match order {
-        RunOrder::ReferenceFirst => runner_constants::REFERENCE_FIRST,
-        RunOrder::CandidateFirst => runner_constants::CANDIDATE_FIRST,
+        RunOrder::ReferenceFirst => constants::REFERENCE_FIRST,
+        RunOrder::CandidateFirst => constants::CANDIDATE_FIRST,
     };
     match sample.measurement().resources {
         ResourceObservation::Collected(resources) => writeln!(
@@ -71,7 +71,7 @@ impl std::fmt::Display for FindingCounts<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (index, (rule, count)) in self.0.iter().enumerate() {
             if index != 0_usize {
-                f.write_str(runner_constants::FINDING_SEPARATOR)?;
+                f.write_str(constants::FINDING_SEPARATOR)?;
             }
             write!(f, "{rule}={}", count.0)?;
         }
