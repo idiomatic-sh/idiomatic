@@ -20,7 +20,7 @@ strum.workspace = true
 swc_html_parser = "=26.1.0"
 swc_html_ast = "=26.0.0"
 swc_common = "=26.0.0"
-serde_json.workspace = true                                                              # ignore: idiomatic.arch/no-json-in-process - only the swc_html_parser adapter and its oracle use it: they read the parser's own JSON form of the tree
+serde_json.workspace = true
 swc_atoms = "=10.0.0"
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
 

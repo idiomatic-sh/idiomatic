@@ -18,7 +18,7 @@ name = "ryo_typescript"
 [dependencies]
 serde.workspace = true
 postcard.workspace = true
-serde_json.workspace = true                                  # ignore: idiomatic.arch/no-json-in-process - only the npm and bun manifest reading adapters use it: package.json and bun.lock are JSON by format
+serde_json.workspace = true
 globset.workspace = true
 thiserror.workspace = true
 jsonc-parser = { version = "=0.34.0", features = ["serde"] }
