@@ -148,3 +148,12 @@ pub(crate) struct Candidate {
     /// Namespace supplying it.
     pub scope: Position,
 }
+
+/// The Python version from which a builtin binding exists; zero for states without a builtin alternative.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Availability {
+    /// The major version.
+    pub major: Integer,
+    /// The minor version.
+    pub minor: Integer,
+}

@@ -16,13 +16,18 @@ use crate::domain::{
         types::Kind,
     },
 };
-use ryo::languages::{Position, Symbol, Tree};
+use ryo::languages::{Flag, Position, Symbol, Tree};
 
 /// Annotation declarations own a lexical name but do not supply an initialized value.
-fn annotation_only(tree: &Tree<'_>, at: Position) -> bool {
+fn annotation_only(tree: &Tree<'_>, at: Position) -> Flag {
     let statement = parent(tree, at);
-    kind(tree, statement) == Kind::Node(Node::AnnAssign)
+    if kind(tree, statement) == Kind::Node(Node::AnnAssign)
         && !nodes(tree, statement).any(|child| field_of(tree, child) == Field::Value)
+    {
+        Flag::Raised
+    } else {
+        Flag::Lowered
+    }
 }
 
 /// Distinguish real alternatives from possible absence, with no shared fake binding identity.
@@ -70,7 +75,7 @@ pub(crate) fn resolve(
             output.extend(
                 candidates(state, value)
                     .iter()
-                    .filter(|binding| !annotation_only(tree, **binding))
+                    .filter(|binding| annotation_only(tree, **binding) == Flag::Lowered)
                     .map(|binding| Candidate {
                         binding: *binding,
                         scope,

@@ -1,5 +1,5 @@
 //! Encode static semantic categories without embedding lint policy.
-use super::types::{EventKind, ReadContext, ReadState, ShadowRelationship, UseCertainty};
+use super::types::{Availability, EventKind, ReadContext, ReadState, ShadowRelationship, UseCertainty};
 use ryo::languages::{Integer, NameText};
 use super::constants;
 /// Event category.
@@ -50,7 +50,7 @@ pub(crate) const fn relationship(value: ShadowRelationship) -> NameText<'static>
     }
 }
 /// Numeric availability is applicable only to states containing a builtin alternative.
-pub(crate) const fn availability(value: ReadState) -> (Integer, Integer) {
+pub(crate) const fn availability(value: ReadState) -> Availability {
     match value {
         ReadState::Builtin {
             since_major,
@@ -59,11 +59,17 @@ pub(crate) const fn availability(value: ReadState) -> (Integer, Integer) {
         | ReadState::DeclarationOrBuiltin {
             since_major,
             since_minor,
-        } => (since_major, since_minor),
+        } => Availability {
+            major: since_major,
+            minor: since_minor,
+        },
         ReadState::UniqueDeclaration
         | ReadState::AlternativeDeclarations
         | ReadState::PossiblyUnbound
         | ReadState::Unbound
-        | ReadState::Uncertain => (Integer(0), Integer(0)),
+        | ReadState::Uncertain => Availability {
+            major: Integer(0),
+            minor: Integer(0),
+        },
     }
 }
