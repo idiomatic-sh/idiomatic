@@ -261,7 +261,10 @@ pub(super) fn verify_reference_cases(
 
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
-    if tool.file_observation.is_some() && !super::super::host::permission_checks_supported() {
+    if tool.file_observation.is_some()
+        && super::super::host::permission_checks_supported()
+            == super::super::host_policy::Permissions::Unsupported
+    {
         return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
     }
     let target_version = ruff_target(tool.parser_configuration.as_deref())?.to_owned();

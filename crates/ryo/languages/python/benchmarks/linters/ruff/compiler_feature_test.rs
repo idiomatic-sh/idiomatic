@@ -1,6 +1,6 @@
 //! Actual local-adapter checks of canonical module features and annotation evaluation positions.
+use super::boundary_failure_test::{BoundaryFailure, failure};
 use super::prepared_engine_test::PreparedEngine as _;
-use crate::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;

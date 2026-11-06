@@ -1,6 +1,6 @@
 //! Real local-adapter project context and retained-cache lifecycle checks.
+use super::boundary_failure_test::{BoundaryFailure, failure};
 use super::prepared_engine_test::PreparedEngine as _;
-use crate::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::{

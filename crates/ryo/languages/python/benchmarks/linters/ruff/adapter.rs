@@ -14,12 +14,8 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 /// Executes the pinned Ruff protocol against an explicit source set.
 pub(crate) struct LinterRuffAdapter {
-    /// Exact executable selected by composition.
-    executable: PathBuf,
-    /// Permitted rule identities in the compared reference profile.
-    defaults: BTreeSet<RuleId>,
-    /// Explicit target used by the pinned reference parser.
-    target_version: String,
+    /// Executable, permitted rules and target chosen by composition.
+    settings: LinterRuffSettings,
 }
 impl LinterPort for LinterRuffAdapter {
     fn rule_configuration(
@@ -42,7 +38,7 @@ impl LinterPort for LinterRuffAdapter {
             return Err(Error::Invalid(constants::UNSUPPORTED_PROJECT_ROOTS.into()));
         }
         let selected = request.selected_rules.as_ref().map_or_else(
-            || self.defaults.clone(),
+            || self.settings.defaults.clone(),
             |rules| rules.iter().cloned().collect(),
         );
         let mut arguments = vec![
@@ -60,7 +56,7 @@ impl LinterPort for LinterRuffAdapter {
                 .join(constants::RULE_SEPARATOR)
                 .into(),
             constants::TARGET_VERSION.into(),
-            self.target_version.clone().into(),
+            self.settings.target_version.clone().into(),
         ];
         if let Some(context) = &request.rule_context {
             let root = std::path::absolute(&request.root)?;
@@ -75,7 +71,7 @@ impl LinterPort for LinterRuffAdapter {
             arguments.push(file.0.as_ref().into());
         }
         Ok(Invocation {
-            executable: self.executable.clone(),
+            executable: self.settings.executable.clone(),
             arguments,
             environment: [(constants::WORKERS_ENV.into(), constants::ONE_WORKER.into())]
                 .into_iter()
@@ -103,7 +99,7 @@ impl LinterPort for LinterRuffAdapter {
             }
         }
         let selected = request.selected_rules.as_ref().map_or_else(
-            || self.defaults.clone(),
+            || self.settings.defaults.clone(),
             |rules| rules.iter().cloned().collect(),
         );
         schemas::decode(request, &output, &selected, &sources)
@@ -113,16 +109,12 @@ impl LinterPort for LinterRuffAdapter {
 impl LinterRuffAdapter {
     /// Bind the executable and selected rules before preparing invocations.
     pub(crate) fn new(settings: LinterRuffSettings) -> Self {
-        Self {
-            executable: settings.executable,
-            defaults: settings.defaults,
-            target_version: settings.target_version,
-        }
+        Self { settings }
     }
 
     /// Ask the pinned tool for its default file selection before either timer starts.
     pub(crate) fn files(&self, root: &Path) -> Result<Vec<RelativePath>, Error> {
-        let output = std::process::Command::new(&self.executable)
+        let output = std::process::Command::new(&self.settings.executable)
             .args([
                 constants::CHECK,
                 constants::ISOLATED,

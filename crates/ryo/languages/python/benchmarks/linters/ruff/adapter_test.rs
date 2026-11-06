@@ -1,5 +1,6 @@
 //! Invocation, operational failures and exact-source decoding through the actual adapter.
-use super::{BoundaryFailure, adapter::LinterRuffAdapter, failure, settings::LinterRuffSettings};
+use super::engine_test::boundary_failure_test::{BoundaryFailure, failure};
+use super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use ryo::linter::RuleId;
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::outbound::linter::fixtures::contract::check;

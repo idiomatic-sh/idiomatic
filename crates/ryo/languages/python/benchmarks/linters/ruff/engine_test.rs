@@ -1,5 +1,5 @@
 //! Real SDK evidence for missing files, unread or partial inputs and typed findings.
-use super::{BoundaryFailure, failure};
+use boundary_failure_test::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::engine::factory;
@@ -9,6 +9,7 @@ use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
+pub(crate) mod boundary_failure_test;
 pub(crate) mod constants;
 mod prepared_engine_test;
 use prepared_engine_test::{
@@ -1343,6 +1344,8 @@ mod future_directives_test;
 mod project_inputs_test;
 
 mod i001_observation_test;
+
+mod worker_request_input_test;
 
 fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Result<(), Error> {
     use ryo::linter::{
