@@ -1,4 +1,5 @@
-import json,os,subprocess,time,fcntl
+import json,os,subprocess,sys,time,fcntl
+from datetime import date
 from pathlib import Path
 p=Path(__file__).resolve().parent
 locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
@@ -14,12 +15,16 @@ for d,dirs,fs in os.walk('crates/ryo'):
   if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
 commands=json.loads((p/'commands.json').read_text())
 (p/'identity.json').write_text(json.dumps({'source':head,'commands':commands},indent=2))
+# Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
+# by default /tmp/ryo-contract-validation-<source head>-<date>.
+out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
+out_dir.mkdir(parents=True,exist_ok=True)
 for name,cmd in commands:
  print('START '+name,flush=True)
  started=time.time()
- with (p/(name+'.log')).open('w') as out: r=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
+ with (out_dir/(name+'.log')).open('w') as out: r=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
  result={'source':head,'command':cmd,'exit':r.returncode,'elapsed_seconds':time.time()-started}
- (p/(name+'.json')).write_text(json.dumps(result,indent=2))
+ (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
  print('END '+name+' exit='+str(r.returncode),flush=True)
  if name=='build' and r.returncode: break
 print('BATCH COMPLETE',flush=True)

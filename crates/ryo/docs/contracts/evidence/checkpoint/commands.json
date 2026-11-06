@@ -156,6 +156,28 @@
   ]
  ],
  [
+  "ruff",
+  [
+   "cargo",
+   "test",
+   "--manifest-path",
+   "crates/ryo/Cargo.toml",
+   "--target-dir",
+   "/workspaces/idiomatic-benchmark-guards/target",
+   "--locked",
+   "--offline",
+   "-j6",
+   "--all-features",
+   "-p",
+   "idiomatic-sh-ryo-python",
+   "--test",
+   "ruff",
+   "--no-fail-fast",
+   "--",
+   "--test-threads=6"
+  ]
+ ],
+ [
   "core_bdd",
   [
    "cargo",
