@@ -41,6 +41,7 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
+        let (_, _, capture_intent) = self.declared(rule)?;
         self.prepare_walk(read, symbols)?;
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;

@@ -19,6 +19,8 @@ pub(super) struct Observation {
     pub selected: BTreeSet<String>,
     pub census: Census,
     pub classes: std::collections::BTreeMap<u64, String>,
+    /// The rules whose compiled instructions are heads of each class.
+    pub class_rules: std::collections::BTreeMap<u64, BTreeSet<u64>>,
     pub dispatches: Vec<Dispatch>,
     pub heads: std::collections::BTreeMap<u64, u64>,
     pub ready: Vec<ReadyHead>,
@@ -171,6 +173,7 @@ fn decode(
 ) -> Result<Observation, Box<dyn std::error::Error>> {
     let mut census = None;
     let mut classes = std::collections::BTreeMap::new();
+    let mut class_rules = std::collections::BTreeMap::new();
     let mut dispatches = Vec::new();
     let mut heads = std::collections::BTreeMap::new();
     let mut ready = Vec::new();
@@ -212,6 +215,15 @@ fn decode(
                         "one compiled class per physical head"
                     );
                 }
+                assert!(
+                    class_rules
+                        .insert(
+                            count(fields, "class"),
+                            serde_json::from_str::<BTreeSet<u64>>(fields["rules"].as_str().unwrap())?
+                        )
+                        .is_none(),
+                    "duplicate compiled class membership"
+                );
                 assert!(
                     classes
                         .insert(
@@ -263,6 +275,7 @@ fn decode(
         selected,
         census: census.expect("actual bound program census"),
         classes,
+        class_rules,
         dispatches,
         heads,
         ready,

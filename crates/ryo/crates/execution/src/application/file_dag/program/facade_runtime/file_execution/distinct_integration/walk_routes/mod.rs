@@ -12,4 +12,6 @@ mod lifetime;
 #[cfg(test)]
 mod observation;
 #[cfg(test)]
+mod retention;
+#[cfg(test)]
 mod selection;

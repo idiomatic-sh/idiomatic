@@ -23,25 +23,15 @@ use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, Param
 use super::plan;
 
 // Text the plans carry in; it enters the engine here, as authored query text does.
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const CAPTURE_PATTERN: &str = "{parent}/{child}";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const SETS_PARAMETER: &str = "sets";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const ROWS_PARAMETER: &str = "rows";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const ROW_KEY: &str = "key";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const ROW_VALUE: &str = "value";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const HOSTED_RELATION: &str = "hosted";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const HOSTED_COLUMN: &str = "n";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const TEXT_A: &str = "a";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const TEXT_B: &str = "b";
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - authored query text enters the engine in this fixture
 const TEXT_EMPTY: &str = "";
 
 /// The function relation: id Node, name Symbol, file File, span Span.

@@ -4,7 +4,7 @@ use super::super::fixtures::{
     meaning::{Eligibility, FirstInput, Meaning, Place, Route, head_route, meaning, route},
     operations::{Corpus, compiled_operations, operations},
 };
-use super::super::heads::service::expected;
+use super::super::heads::expected;
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::executable_program::types::{InputSource, LogicalInstruction},
