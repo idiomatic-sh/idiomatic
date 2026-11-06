@@ -25,6 +25,12 @@ pub(super) enum Exit {
     CancelledDelivery,
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum BoundSupply {
+    Restored,
+    Refused,
+}
+
 pub(super) struct CapturedProject {
     pub(super) prepared: Arc<PreparedProgram>,
     pub(super) phase: PublicationScope,
@@ -244,7 +250,7 @@ impl CapturedProject {
         rule: RuleIndex,
         partials: &'a Partials,
         symbols: &mut Symbols,
-        refused: bool,
+        supply: BoundSupply,
     ) -> Result<ProjectRun<'a>, OperatingError> {
         open_project(
             &self.prepared,
@@ -263,7 +269,11 @@ impl CapturedProject {
                     required: self.required.clone(),
                     refused: vec![],
                 },
-                bound_inputs: if refused { &self.refused } else { &self.bound },
+                bound_inputs: if matches!(supply, BoundSupply::Refused) {
+                    &self.refused
+                } else {
+                    &self.bound
+                },
             },
             symbols,
             &[],

@@ -1,6 +1,6 @@
 //! Real restored-token consumers keep backing and terminal results through outer delivery exits.
 use super::super::super::*;
-use super::fixtures::{CapturedProject, Exit};
+use super::fixtures::{BoundSupply, CapturedProject, Exit};
 use crate::application::file_dag::program::facade_runtime::{
     ProjectRootDeclaration, evaluate_roots,
 };
@@ -30,7 +30,11 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
                 RuleIndex(at),
                 &partials,
                 &mut symbols,
-                at == 4 && matches!(exit, Exit::RefusedBinding | Exit::CancelledDelivery),
+                if at == 4 && matches!(exit, Exit::RefusedBinding | Exit::CancelledDelivery) {
+                    BoundSupply::Refused
+                } else {
+                    BoundSupply::Restored
+                },
             )
         })
         .collect::<Vec<_>>();
@@ -111,7 +115,11 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
             RuleIndex(at),
             &partials,
             &mut symbols,
-            at == 4 && matches!(exit, Exit::RefusedBinding | Exit::CancelledDelivery),
+            if at == 4 && matches!(exit, Exit::RefusedBinding | Exit::CancelledDelivery) {
+                BoundSupply::Refused
+            } else {
+                BoundSupply::Restored
+            },
         )?;
         for _ in 0..2 {
             let replay = run.rule(RuleIndex(at), demand, &mut symbols)?;

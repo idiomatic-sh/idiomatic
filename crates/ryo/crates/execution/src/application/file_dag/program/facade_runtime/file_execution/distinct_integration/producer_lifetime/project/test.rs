@@ -21,7 +21,13 @@ enum PhaseExit {
     RefuseLaterCohort,
 }
 
-fn exercise(exit: PhaseExit, replay: bool) -> Result<(), OperatingError> {
+#[derive(Clone, Copy)]
+enum Delivery {
+    Once,
+    Replayed,
+}
+
+fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
     let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
     external.steps.truncate(2);
     external.emit.step = StepId(1);
@@ -277,7 +283,7 @@ fn exercise(exit: PhaseExit, replay: bool) -> Result<(), OperatingError> {
         );
         assert_eq!(transferred[0].count.0, 2);
     }
-    if replay && !matches!(exit, PhaseExit::RefuseBeforeWork) {
+    if matches!(delivery, Delivery::Replayed) && !matches!(exit, PhaseExit::RefuseBeforeWork) {
         // A new public delivery object must bind the same actual population;
         // it cannot revive terminal roots or consume another alias's obligation.
         for at in [0, 1, 3] {
@@ -386,22 +392,23 @@ fn exercise(exit: PhaseExit, replay: bool) -> Result<(), OperatingError> {
 
 #[test]
 fn project_batch_success_releases_actual_phase_leases() {
-    exercise(PhaseExit::Complete, false).expect("successful project lifecycle");
+    exercise(PhaseExit::Complete, Delivery::Once).expect("successful project lifecycle");
 }
 
 #[test]
 fn project_batch_semantic_failure_releases_actual_phase_leases() {
-    exercise(PhaseExit::SemanticFailure, false).expect("failed project lifecycle");
+    exercise(PhaseExit::SemanticFailure, Delivery::Once).expect("failed project lifecycle");
 }
 
 #[test]
 fn project_batch_refusal_before_work_releases_actual_phase_leases() {
-    exercise(PhaseExit::RefuseBeforeWork, false).expect("project refusal before work");
+    exercise(PhaseExit::RefuseBeforeWork, Delivery::Once).expect("project refusal before work");
 }
 
 #[test]
 fn project_batch_refusal_before_later_cohort_releases_actual_phase_leases() {
-    exercise(PhaseExit::RefuseLaterCohort, false).expect("project refusal before later cohort");
+    exercise(PhaseExit::RefuseLaterCohort, Delivery::Once)
+        .expect("project refusal before later cohort");
 }
 
 #[test]
@@ -411,6 +418,6 @@ fn project_duplicate_delivery_preserves_terminal_failure_and_cancelled_cohort_ba
         PhaseExit::SemanticFailure,
         PhaseExit::RefuseLaterCohort,
     ] {
-        exercise(exit, true).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
+        exercise(exit, Delivery::Replayed).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
     }
 }
