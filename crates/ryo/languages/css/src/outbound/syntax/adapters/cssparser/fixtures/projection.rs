@@ -10,17 +10,10 @@ use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::SourcePath;
-use ryo::languages::{ByteSlice, Elements, Position, Symbols, children as children_at, end_at, kind_at, start_at, table_builder};
-
-
-
-
-
-
-
-
-
-
+use ryo::languages::{
+    ByteSlice, Elements, Position, Symbols, children as children_at, end_at, kind_at, start_at,
+    table_builder,
+};
 
 /// A node or a token of a tree, by its kind's name, with what it holds under it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -173,7 +166,12 @@ pub(in super::super) fn skip_charset(elements: &Elements, text: &str, kids: &mut
 /// Our tree at `at` in the standard's terms: what the print has. The print drops white space, comments and the byte order mark, a
 /// rule's `}` and `;` and a block's or function's closing token, a stylesheet's `<!--` and `-->`; it has no rule for a qualified rule
 /// with no block (an error), and `!important` is a flag of a declaration.
-pub(in super::super) fn project(elements: &Elements, text: &str, at: Position, out: &mut Vec<Shape>) {
+pub(in super::super) fn project(
+    elements: &Elements,
+    text: &str,
+    at: Position,
+    out: &mut Vec<Shape>,
+) {
     let kind = kind_of(kind_at(elements, at));
     let node = match kind {
         Kind::Token(Token::Whitespace) | Kind::Extra(Extra::Comment | Extra::ByteOrderMark) => {

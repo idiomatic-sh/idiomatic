@@ -1,18 +1,12 @@
 //! The `cssparser` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxCssparserAdapter;
+use super::fixtures::projection::{differences, dumped, projected};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_name;
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo::languages::Elements;
-use super::fixtures::projection::{differences, dumped, projected};
-
-
-
-
-
-
 
 /// What a row reads: CSS text whose elements are listed, a file and the tree the standard's tool printed for it, or every file
 /// whose tree is pinned.
@@ -42,17 +36,6 @@ enum Seen {
     /// The pinned files whose tree differs from the standard's.
     Pinned(&'static [&'static str]),
 }
-
-
-
-
-
-
-
-
-
-
-
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[

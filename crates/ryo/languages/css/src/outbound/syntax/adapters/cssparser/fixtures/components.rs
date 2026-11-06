@@ -1,18 +1,12 @@
 //! Part of the walk of the `cssparser` fixtures: contents, Depth, Piece and more.
 
-use cssparser::{ParseError, Parser, Token};
 use super::super::types::{ByteIndex, Contents};
+use super::tokens::{is_matcher, is_trivia, opens, place, token_kind};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::service::mirror;
-use super::tokens::{is_matcher, is_trivia, opens, place, token_kind};
-
-
-
-
-
-
+use cssparser::{ParseError, Parser, Token};
 
 /// Whether the value `input` holds has a `{}` block at its top beside other content.
 pub(super) fn contents(input: &mut Parser<'_>) -> Contents {

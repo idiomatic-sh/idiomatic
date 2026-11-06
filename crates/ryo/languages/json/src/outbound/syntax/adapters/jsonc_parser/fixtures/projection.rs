@@ -6,10 +6,6 @@ use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo::languages::{self, Elements, Position};
 
-
-
-
-
 /// One piece of a tree held to the standard's: its rule's name, the bytes it spans and the pieces under it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in super::super) struct Shape {

@@ -3,11 +3,13 @@
 //! `package_dependency` and `workspace_member`, from what the files hold; no manifest, no rows;
 //! a manifest that cannot be read is refused and gives no row.
 
-use crate::fixtures::project::{A_ALONE, A_DEPENDS_ON_B, A_DEPENDS_ON_PATCHED_B, REFUSED, TWO_MEMBERS, Wrote, held_manifest, linked, manifest, nothing, patched, request_of, use_case, workspace};
-use crate::fixtures::consulted_test::{members_at, workspace_with};
-use std::sync::Arc;
 use super::contract::ProjectContract;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::fixtures::consulted_test::{members_at, workspace_with};
+use crate::fixtures::project::{
+    A_ALONE, A_DEPENDS_ON_B, A_DEPENDS_ON_PATCHED_B, REFUSED, TWO_MEMBERS, Wrote, held_manifest,
+    linked, manifest, nothing, patched, request_of, use_case, workspace,
+};
 use crate::fixtures::reading::SHOWN;
 use crate::outbound::conditions::factory::cargo_platform;
 use crate::outbound::job_scheduling::fixtures::fake::JobSchedulingFake;
@@ -17,25 +19,7 @@ use crate::outbound::repository::interface::RepositoryPort;
 use ryo::languages::contract::{Reading, written};
 use ryo::languages::contract::{want_file, want_name, want_span};
 use ryo::languages::{self, RootPath};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+use std::sync::Arc;
 
 /// What a row gives the contract: what its port would report, and the manifests of the repository.
 #[derive(Clone, Copy)]
@@ -68,18 +52,6 @@ type Input = Scenario;
 /// What the contract wrote, relation by relation, for the relations asked of it.
 type Value = &'static [Wrote];
 type Failure = languages::ProjectError;
-
-
-
-
-
-
-
-
-
-
-
-
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -219,7 +191,6 @@ fn two_roots() -> Value {
     ]))
 }
 
-
 fn subject(given: Input) -> Result<Value, Failure> {
     if matches!(given, Scenario::TwoRoots) {
         return Ok(two_roots());
@@ -317,7 +288,6 @@ fn subject(given: Input) -> Result<Value, Failure> {
     }
     Ok(Box::leak(wrote.into_boxed_slice()))
 }
-
 
 #[test]
 fn succeeds() {

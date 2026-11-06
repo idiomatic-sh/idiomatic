@@ -2,13 +2,13 @@
 //! read through the parse. The roles are those the labels of `rust.ungram` give; the adapter of the syntax port holds them to the typed
 //! accessors of the library.
 
-use crate::domain::nodes::types::Node;
-use crate::domain::tokens::types::Token;
-use super::service::fields;
-use crate::domain::labels::types::Field;
-use crate::domain::syntax::types::Kind;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::fixtures::{Edge, edge, subject};
+use super::service::fields;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::labels::types::Field;
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
 
 /// What a row is given.
 type Input = Edge;
@@ -217,9 +217,14 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// The rows of every table of the part's cases.
 fn all_cases() -> impl Iterator<Item = &'static Case<Input, Value, Failure>> {
-    [CASES, super::identity_test::CASES, super::lists_test::CASES, super::bodies_test::CASES]
-        .into_iter()
-        .flat_map(|table| table.iter())
+    [
+        CASES,
+        super::identity_test::CASES,
+        super::lists_test::CASES,
+        super::bodies_test::CASES,
+    ]
+    .into_iter()
+    .flat_map(|table| table.iter())
 }
 
 /// Every role of the vocabulary has a row of its own.
@@ -227,8 +232,7 @@ fn every_role_has_a_row() -> usize {
     fields()
         .filter(|field| {
             let name = super::service::field_name(*field).0;
-            !all_cases()
-                .any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == name))
+            !all_cases().any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == name))
         })
         .count()
 }

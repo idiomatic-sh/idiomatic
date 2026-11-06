@@ -1,10 +1,10 @@
 //! The `fields` service's cases for positions: the role of an edge of the tree under its parent.
 
+use super::fixtures::{Dialect, Edge, edge, subject};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::fixtures::{Dialect, Edge, edge, subject};
 
 /// What a row is given.
 type Input = Edge;

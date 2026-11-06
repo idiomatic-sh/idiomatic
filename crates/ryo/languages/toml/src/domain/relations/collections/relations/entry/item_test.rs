@@ -4,10 +4,9 @@ use super::super::fixtures::contract::check;
 use super::item::EntryItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::{SHOWN, reading};
-use ryo::languages::contract::{Reading, want_file, want_flag, want_name, want_node, want_number, want_span};
-
-
-
+use ryo::languages::contract::{
+    Reading, want_file, want_flag, want_name, want_node, want_number, want_span,
+};
 
 /// The source the item reads.
 type Input = &'static str;

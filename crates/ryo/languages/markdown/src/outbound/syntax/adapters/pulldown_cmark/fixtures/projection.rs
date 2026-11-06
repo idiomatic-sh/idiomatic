@@ -12,16 +12,6 @@ use crate::outbound::syntax::types::SourceText;
 use ryo::languages::SourcePath;
 use ryo::languages::{self, ByteSlice, Elements, Position, Symbols, TOKEN};
 
-
-
-
-
-
-
-
-
-
-
 /// The nodes under `at`, each written `kind(held held)`, its tokens left out.
 pub(in super::super) fn nesting(elements: &Elements, at: Position) -> String {
     let held: Vec<String> = languages::children(elements, at)

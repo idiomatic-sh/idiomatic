@@ -1,13 +1,13 @@
 //! The `fields` service's cases: the role of an edge of the tree under its parent, one row for each role of the vocabulary, on source
 //! read through the parse. The roles are the properties of TypeScript-ESTree that hold a child (`@typescript-eslint/visitor-keys`).
 
+use super::fixtures::{Dialect, Edge, edge, subject};
 use super::service::fields;
 use super::types::Field;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::fixtures::{Dialect, Edge, edge, subject};
 
 /// What a row is given.
 type Input = Edge;
@@ -231,9 +231,17 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// The rows of every table of the part's cases.
 fn all_cases() -> impl Iterator<Item = &'static Case<Input, Value, Failure>> {
-    [CASES, super::positions_test::CASES, super::jsx_test::CASES, super::modules_test::CASES, super::control_test::CASES, super::types_test::CASES, super::classes_test::CASES]
-        .into_iter()
-        .flat_map(|table| table.iter())
+    [
+        CASES,
+        super::positions_test::CASES,
+        super::jsx_test::CASES,
+        super::modules_test::CASES,
+        super::control_test::CASES,
+        super::types_test::CASES,
+        super::classes_test::CASES,
+    ]
+    .into_iter()
+    .flat_map(|table| table.iter())
 }
 
 /// Every role of the vocabulary has a row of its own.
@@ -241,8 +249,7 @@ fn every_role_has_a_row() -> usize {
     fields()
         .filter(|field| {
             let name = super::service::field_name(*field).0;
-            !all_cases()
-                .any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == name))
+            !all_cases().any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == name))
         })
         .count()
 }

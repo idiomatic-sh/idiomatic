@@ -1,16 +1,11 @@
 //! Part of the walk of the `cssparser` fixtures: place, token_kind, is_trivia and more.
 
-use cssparser::{Parser, Token};
 use super::super::types::ByteIndex;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token as Lexeme;
-
-
-
-
-
+use cssparser::{Parser, Token};
 
 /// Where the parser is, in bytes from the start of its text.
 pub(super) fn place(input: &Parser<'_>) -> ByteIndex {

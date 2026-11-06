@@ -1,10 +1,11 @@
 //! The test support of the `project` cases.
 
-use std::sync::Arc;
-use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::domain::fact_notes::service::note_of;
-use crate::domain::module_tree::types::{Body, Cleanliness, Facts, ModDeclaration, Segment, Spelling, Written};
+use crate::domain::module_tree::types::{
+    Body, Cleanliness, Facts, ModDeclaration, Segment, Spelling, Written,
+};
 use crate::domain::paths::types::Section;
+use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::conditions::factory::cargo_platform;
 use crate::outbound::job_scheduling::fixtures::fake::JobSchedulingFake;
 use crate::outbound::manifest::factory::toml;
@@ -15,34 +16,7 @@ use crate::outbound::repository::interface::RepositoryPort;
 use ryo::languages::contract::Reading;
 use ryo::languages::contract::{want_file, want_flag, want_name};
 use ryo::languages::{self, RootPath};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+use std::sync::Arc;
 
 /// What the contract wrote for one relation: its rows in full, and the causes for which it read the relation only in part.
 #[derive(Debug, PartialEq)]
@@ -146,7 +120,10 @@ pub(crate) fn manifest(path: &str, text: &str) -> languages::ManifestFile {
 }
 
 /// The manifest at `path` of the files `held`, with the text it has there.
-pub(crate) fn held_manifest(held: &[(&'static str, &'static str)], path: &str) -> languages::ManifestFile {
+pub(crate) fn held_manifest(
+    held: &[(&'static str, &'static str)],
+    path: &str,
+) -> languages::ManifestFile {
     let text = held
         .iter()
         .find(|(each, _)| *each == path)

@@ -1,22 +1,17 @@
 //! Test support split from adapter_test: read, functions, own_tree and more.
 
+use super::adapter::SyntaxRaApSyntaxAdapter;
+use super::unproduced::kind_of_bits;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::EXPANDED_MACROS;
-use crate::outbound::syntax::types::{Expanding, SourceText};
-use ryo::languages::{ByteSlice, Elements, Position, Symbol, Symbols, TOKEN, end_at, positions, start_at, table_builder, text_of};
-use super::adapter::SyntaxRaApSyntaxAdapter;
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use super::unproduced::kind_of_bits;
-
-
-
-
-
-
-
-
+use crate::outbound::syntax::types::{Expanding, SourceText};
+use ryo::languages::{
+    ByteSlice, Elements, Position, Symbol, Symbols, TOKEN, end_at, positions, start_at,
+    table_builder, text_of,
+};
 
 pub(in super::super) fn read(source: &str) -> (Elements, Symbols) {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());

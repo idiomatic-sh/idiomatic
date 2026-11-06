@@ -3,33 +3,20 @@
 //! declaration from its parsers' callbacks; each is nested in the smallest of the others that holds it. The kinds are named here by
 //! the standard's names, not through the adapter's schemas.
 
-use cssparser::{AtRuleParser, BasicParseErrorKind, CowRcStr, DeclarationParser, ParseError, Parser, ParserState, QualifiedRuleParser, RuleBodyItemParser, RuleBodyParser, StyleSheetParser, Token};
-use ryo::languages::contract::{Leafness, Walked};
-use ryo::languages::{NameText, Offset};
 use super::super::constants::{BYTE_ORDER_MARK, CHARSET, CUSTOM_PROPERTY, RULE_BODIES};
 use super::super::types::{Body, ByteIndex, Contents};
+use super::components::{Depth, Piece, components, content_end, contents, skip_content};
+use super::tokens::place;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
-use super::tokens::place;
-use super::components::{Depth, Piece, components, content_end, contents, skip_content};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+use cssparser::{
+    AtRuleParser, BasicParseErrorKind, CowRcStr, DeclarationParser, ParseError, Parser,
+    ParserState, QualifiedRuleParser, RuleBodyItemParser, RuleBodyParser, StyleSheetParser, Token,
+};
+use ryo::languages::contract::{Leafness, Walked};
+use ryo::languages::{NameText, Offset};
 
 /// What the block of the at-rule `name` holds: rules for an at-rule CSS defines so, with or without a vendor prefix.
 pub(super) fn body_of(name: NameText<'_>) -> Body {
@@ -47,13 +34,6 @@ pub(super) fn body_of(name: NameText<'_>) -> Body {
         Body::Components
     }
 }
-
-
-
-
-
-
-
 
 /// The rules and declarations of a stylesheet, as the library's parsers are called for them.
 struct Rules {

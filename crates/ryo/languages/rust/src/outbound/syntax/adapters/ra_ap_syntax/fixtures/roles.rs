@@ -1,20 +1,15 @@
 //! Test support split from adapter_test: Said, accessor_roles, declared_roles and more.
 
-use crate::domain::syntax::constants::EXPANDED_MACROS;
-use crate::outbound::syntax::types::Expanding;
-use ra_ap_syntax::SyntaxKind;
-use ryo::languages::{ByteSlice, Elements, Position, Symbols, end_at, kind_at, positions, start_at, text_of};
 use super::adapter::SyntaxRaApSyntaxAdapter;
 use super::schemas::kind_of;
+use crate::domain::syntax::constants::EXPANDED_MACROS;
 use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-
-
-
-
-
-
-
+use crate::outbound::syntax::types::Expanding;
+use ra_ap_syntax::SyntaxKind;
+use ryo::languages::{
+    ByteSlice, Elements, Position, Symbols, end_at, kind_at, positions, start_at, text_of,
+};
 
 /// A child an accessor names: the construct it is a child of, its place, and the role the accessor is called.
 pub(in super::super) type Said = (

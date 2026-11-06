@@ -1,9 +1,9 @@
 //! The `fields` service's cases for bodies: the role of an edge of the tree under its parent.
 
+use super::fixtures::{Edge, edge, subject};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::fixtures::{Edge, edge, subject};
 
 /// What a row is given.
 type Input = Edge;

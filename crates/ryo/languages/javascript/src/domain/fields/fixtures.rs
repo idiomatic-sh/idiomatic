@@ -1,6 +1,5 @@
 //! The test support of the `fields` cases: what a row is given and the one subject every table is run through.
 
-use std::sync::Arc;
 use super::service::role_of;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
@@ -8,6 +7,7 @@ use crate::inbound::contracts::parse::contract::ParseContract;
 use crate::outbound::notes::fixtures::fake::NotesFake;
 use crate::outbound::syntax::factory::oxc_parser;
 use ryo::languages::{self, Position, Tree};
+use std::sync::Arc;
 
 /// An edge of the tree of some source: the nth edge, in source order, from a node of a kind to an element of a kind.
 #[derive(Clone, Copy)]

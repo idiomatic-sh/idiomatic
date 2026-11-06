@@ -1,30 +1,18 @@
 // the adapter spec allows one adapter_test.rs, which holds the port contract rows, the cases of the adapter's kind map and macro expansion, and the comparison of the whole tree with the pinned standard
 //! The `ra_ap_syntax` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
+use super::adapter::SyntaxRaApSyntaxAdapter;
+use super::fixtures::comparison::{broken, difference, functions, printed, read};
+use super::fixtures::roles::roles;
+use super::fixtures::unproduced::{kinds, trees_agree, unproduced_kinds_a_source_gives};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::EXPANDED_MACROS;
-use crate::outbound::syntax::types::Expanding;
-use ryo::languages::{ByteSlice, Elements, Position, Symbols, kind_at, positions};
-use super::adapter::SyntaxRaApSyntaxAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::fixtures::contract::check;
-use super::fixtures::roles::roles;
-use super::fixtures::unproduced::{kinds, trees_agree, unproduced_kinds_a_source_gives};
-use super::fixtures::comparison::{broken, difference, functions, printed, read};
-
-
-
-
-
-
-
-
-
-
-
-
+use crate::outbound::syntax::types::Expanding;
+use ryo::languages::{ByteSlice, Elements, Position, Symbols, kind_at, positions};
 
 /// What a row is given.
 #[derive(Clone, Copy)]
@@ -157,11 +145,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-
-
-
-
-
 /// The files whose tree is pinned below `standard`, each with its dump and its input, both by path below `fixtures`, sorted: the corpus
 /// and the suite at the same path, and each relation's input beside the page `standard/<relation>.rast`.
 fn pinned(
@@ -226,17 +209,6 @@ fn pinned_differences() -> String {
         differing.join("; ")
     }
 }
-
-
-
-
-
-
-
-
-
-
-
 
 /// How many elements of `source` have a role, when the parse is not asked for the roles.
 fn unasked(source: &'static str) -> String {
@@ -304,7 +276,6 @@ fn origins(source: &'static str) -> String {
         "expanded under the call".to_owned()
     }
 }
-
 
 fn subject(scenario: Input) -> Value {
     let shown = match scenario {

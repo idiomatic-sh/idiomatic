@@ -1,7 +1,9 @@
 //! The files the `project` contract reads beyond the manifests it is handed, by where they lie around a repository.
 
-use std::sync::Arc;
+use super::project::{manifest, workspace};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::SHOWN;
+use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::conditions::factory::cargo_platform;
 use crate::outbound::job_scheduling::fixtures::fake::JobSchedulingFake;
 use crate::outbound::manifest::factory::toml;
@@ -9,20 +11,7 @@ use crate::outbound::pattern_matching::factory::globset;
 use crate::outbound::repository::interface::RepositoryPort;
 use ryo::languages::contract::{Reading, written};
 use ryo::languages::{self, RootPath};
-use crate::inbound::contracts::project::contract::ProjectContract;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::project::{manifest, workspace};
-
-
-
-
-
-
-
-
-
-
-
+use std::sync::Arc;
 
 /// What the contract fails with.
 type Failure = languages::ProjectError;
@@ -157,7 +146,11 @@ pub(crate) fn workspace_with(member: &str) -> tempfile::TempDir {
 }
 
 /// What one contract, built once with the ports it calls, writes for `workspace_member` of the repository at `root`.
-pub(crate) fn members_at(contract: &ProjectContract, root: &std::path::Path, member: &str) -> Reading {
+pub(crate) fn members_at(
+    contract: &ProjectContract,
+    root: &std::path::Path,
+    member: &str,
+) -> Reading {
     let (mut out, mut symbols) = (
         languages::contract::Collect::default(),
         languages::Symbols::default(),

@@ -1,34 +1,20 @@
 //! Test support split from adapter_test: kind_of_bits, PROBES, UNPRODUCED and more.
 
-use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
-use crate::domain::tokens::types::Token;
-use ra_ap_syntax::SyntaxKind;
-use ryo::languages::{Elements, Position, kind_at};
 use super::adapter::SyntaxRaApSyntaxAdapter;
 use super::schemas::kind_of;
+use crate::domain::extras::types::Extra;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
 use crate::fixtures::kinds::sample;
 use crate::outbound::syntax::fixtures::contract::{Told, expanding, made_by};
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use crate::outbound::syntax::fixtures::trees::{SOURCES, tree_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use ra_ap_syntax::SyntaxKind;
 use ryo::languages::Sample;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+use ryo::languages::{Elements, Position, kind_at};
 
 pub(in super::super) fn kind_of_bits(elements: &Elements, position: Position) -> Kind {
     crate::domain::syntax::service::kind_of(kind_at(elements, position))

@@ -1,14 +1,10 @@
 //! The `roles` service's cases for declarations: the role of an edge of the tree under its parent.
 
+use super::fixtures::{Given, edge, subject};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::fixtures::{Given, edge, subject};
-
-
-
-
 
 /// What a row is given.
 type Input = Given;

@@ -1,9 +1,9 @@
 //! The `reference` item's cases for printing.
 
+use super::item_test::subject;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::SHOWN;
 use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_span};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::item_test::subject;
 
 /// The source the item reads.
 type Input = &'static str;

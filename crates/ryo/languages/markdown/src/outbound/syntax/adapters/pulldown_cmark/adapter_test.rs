@@ -2,6 +2,7 @@
 //! The `pulldown_cmark` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxPulldownCmarkAdapter;
+use super::fixtures::projection::{nesting, projected};
 use super::fixtures::walk::{differences, dumped};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_name;
@@ -10,16 +11,6 @@ use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::SourcePath;
 use ryo::languages::{self, ByteSlice, Elements, Position, Symbols};
-use super::fixtures::projection::{nesting, projected};
-
-
-
-
-
-
-
-
-
 
 /// What a row reads: a text whose elements are listed, a text and what the standard's reference tool printed for it, or every file
 /// pinned.
@@ -167,13 +158,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Seen::Elements("root paragraph text whitespace")),
     },
 ];
-
-
-
-
-
-
-
 
 /// The prints pinned below `standard`, each with the file it was printed for, both by path below `fixtures`, sorted: for the corpus
 /// and the suite at the same path, and for each relation's input beside the page `standard/<relation>.mdast`.

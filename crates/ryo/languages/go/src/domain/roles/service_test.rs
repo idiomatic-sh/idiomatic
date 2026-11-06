@@ -2,17 +2,12 @@
 //! read through the parse; and, for every file the fixtures pin, the role of every element is the field of `go/ast` that holds it, as
 //! `tests/fixtures/standard/dump.go` reads it with `reflect` and `output.txt` pins it.
 
+use super::fixtures::{Given, edge, subject};
 use super::service::{field_name, fields};
 use super::types::AstField;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::fixtures::{Given, edge, subject};
-
-
-
-
-
 
 /// What a row is given.
 type Input = Given;
@@ -221,9 +216,15 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// The rows of every table of the part's cases.
 fn all_cases() -> impl Iterator<Item = &'static Case<Input, Value, Failure>> {
-    [CASES, super::punctuation_test::CASES, super::statements_test::CASES, super::declarations_test::CASES, super::pinned_test::CASES]
-        .into_iter()
-        .flat_map(|table| table.iter())
+    [
+        CASES,
+        super::punctuation_test::CASES,
+        super::statements_test::CASES,
+        super::declarations_test::CASES,
+        super::pinned_test::CASES,
+    ]
+    .into_iter()
+    .flat_map(|table| table.iter())
 }
 
 /// The roles of the vocabulary with no row of their own.
@@ -231,8 +232,7 @@ fn roles_without_a_row() -> Vec<AstField> {
     fields()
         .filter(|field| {
             let name = field_name(*field).0;
-            !all_cases()
-                .any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == name))
+            !all_cases().any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == name))
         })
         .collect()
 }

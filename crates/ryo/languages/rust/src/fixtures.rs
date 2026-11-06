@@ -1,16 +1,16 @@
 //! What the language's conformance is held to besides the files of its fixtures: how each kind of its trees is shown and the typed rows
 //! each fixture must give.
 
-pub mod contracts;
-pub(crate) mod kinds;
-#[cfg(test)]
-pub(crate) mod project;
 #[cfg(test)]
 pub(crate) mod consulted_test;
+pub mod contracts;
+pub(crate) mod kinds;
 #[cfg(not(bless))]
 mod packages;
 #[cfg(not(bless))]
 mod patched;
+#[cfg(test)]
+pub(crate) mod project;
 #[cfg(test)]
 pub(crate) mod reading;
 #[cfg(not(bless))]

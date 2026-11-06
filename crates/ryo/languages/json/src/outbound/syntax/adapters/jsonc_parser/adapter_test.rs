@@ -2,6 +2,7 @@
 //! The `jsonc_parser` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxJsoncParserAdapter;
+use super::fixtures::projection::{bare, differences, dumped, onto, ours};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
 use crate::domain::language::service::dialect;
@@ -12,18 +13,6 @@ use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::{self, ByteSlice, Elements, Position, SourcePath, Symbols};
 use std::path::{Path, PathBuf};
-use super::fixtures::projection::{bare, differences, dumped, onto, ours};
-
-
-
-
-
-
-
-
-
-
-
 
 /// What a row reads: a text whose elements are listed, a text whose reports are listed, a text held to a dump written out, or every
 /// file pinned.
@@ -146,12 +135,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-
-
-
-
-
-
 /// The table the adapter reads `bytes` into, as a file read in `dialect`.
 fn read(bytes: &[u8], dialect: Dialect) -> Elements {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -159,7 +142,6 @@ fn read(bytes: &[u8], dialect: Dialect) -> Elements {
     SyntaxJsoncParserAdapter.read(SourceText(bytes), dialect, &mut builder);
     elements
 }
-
 
 /// Whether the table says something is wrong with the file: a diagnostic, or a piece of text it could not read.
 fn says_wrong(elements: &Elements) -> bool {

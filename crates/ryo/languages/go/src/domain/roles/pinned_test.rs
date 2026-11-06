@@ -17,14 +17,12 @@ type Value = &'static str;
 type Failure = ();
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("every_pinned_file_gives_each_element_the_field_of_go_ast_that_holds_it"),
-        word: Word::Succeeds,
-        input: || Given::Pinned,
-        expect: Expect::Value(""),
-    },
-];
+pub(super) const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("every_pinned_file_gives_each_element_the_field_of_go_ast_that_holds_it"),
+    word: Word::Succeeds,
+    input: || Given::Pinned,
+    expect: Expect::Value(""),
+}];
 
 /// The roles our tree of `source` gives, as the dump writes `go/ast`'s: `start end N|T kind field`, an edge with no role left out.
 fn ours(source: &[u8]) -> Result<Vec<String>, Failure> {
