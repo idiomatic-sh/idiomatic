@@ -3,7 +3,8 @@ use crate::outbound::inventory::adapters::local::constants;
 use crate::outbound::inventory::{
     interface::InventoryPort,
     types::{
-        CapturedObservation, Registration, Row, Summary, observation_document::ObservationDocument,
+        CapturedObservation, InvocationDocument, Registration, Row, Summary,
+        observation_document::ObservationDocument,
     },
 };
 use std::{io::Write as _, path::Path};
@@ -192,11 +193,17 @@ impl InventoryPort for InventoryLocalAdapter {
 
     fn observations(&self, receipt: &Path) -> Result<CapturedObservation, String> {
         let records = observations(receipt)?;
+        let raw = super::case_artifacts::read(receipt, &records)?;
         Ok(CapturedObservation {
-            artifacts: super::case_artifacts::read(receipt, &records)?,
+            artifacts: raw.bytes,
+            invocations: raw.invocations,
             records,
             sha256: Some(digest(receipt)?),
         })
+    }
+
+    fn decode_invocation(&self, bytes: &[u8]) -> Result<InvocationDocument, String> {
+        super::schemas::invocation(bytes)
     }
 
     fn load(&self, path: &Path) -> Result<Registration, String> {
@@ -222,6 +229,7 @@ impl InventoryPort for InventoryLocalAdapter {
         if !path.is_file() {
             return Ok(CapturedObservation {
                 artifacts: std::collections::BTreeMap::new(),
+                invocations: std::collections::BTreeMap::new(),
                 records: Vec::new(),
                 sha256: None,
             });

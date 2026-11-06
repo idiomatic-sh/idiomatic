@@ -1,5 +1,6 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use super::{constants, discrepancy_artifacts};
+use crate::outbound::inventory::interface::InventoryPort as _;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -144,6 +145,14 @@ impl SuitePort for SuiteLocalAdapter {
         artifacts: crate::outbound::suite::types::discrepancy::CaseArtifacts<'_>,
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::discrepancy_artifacts::verify(artifacts)
+    }
+    fn decode_invocation(
+        &self,
+        bytes: &[u8],
+    ) -> Result<crate::outbound::inventory::types::InvocationDocument, Error> {
+        crate::outbound::inventory::factory::local()
+            .decode_invocation(bytes)
+            .map_err(Error::Invalid)
     }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)

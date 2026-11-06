@@ -28,6 +28,12 @@ pub trait InventoryPort {
         Err(constants::EXPLICIT_RECEIPT_LOADING_IS_UNAVAILABLE.into())
     }
 
+    /// Decode one raw invocation record kept beside a captured process.
+    ///
+    /// # Errors
+    /// Refuses malformed or unknown record fields.
+    fn decode_invocation(&self, bytes: &[u8]) -> Result<super::types::InvocationDocument, String>;
+
     /// Decode the adapter's generated invocation registration.
     ///
     /// # Errors

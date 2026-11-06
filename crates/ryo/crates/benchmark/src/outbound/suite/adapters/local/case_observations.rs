@@ -101,8 +101,16 @@ mod tests {
         inventory::interface::InventoryPort as _,
         suite::{interface::SuitePort as _, types::ArtifactPath},
     };
+    /// A capture that could not record its process identity, as the typed record reads it.
+    fn failed_invocation() -> serde_json::Value {
+        serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/receipts/failed-invocation.json"
+        )))
+        .unwrap()
+    }
     fn write(receipt: &Path, stdout: &[u8]) {
-        crate::outbound::suite::factory::local().record_case(ArtifactPath(receipt),serde_json::json!({constants::RULE:constants::CHECK001,constants::NAME:constants::ONE,constants::SIDE:constants::REFERENCE,constants::PROCESS_OBSERVATION:{constants::KIND:constants::PROCESS_FAILURE}}),Some(CapturedProcess { key:&constants::A.repeat(64), invocation:&serde_json::json!({constants::EXIT:2}),stdout,stderr:constants::ERROR })).unwrap();
+        crate::outbound::suite::factory::local().record_case(ArtifactPath(receipt),serde_json::json!({constants::RULE:constants::CHECK001,constants::NAME:constants::ONE,constants::SIDE:constants::REFERENCE,constants::PROCESS_OBSERVATION:{constants::KIND:constants::PROCESS_FAILURE}}),Some(CapturedProcess { key:&constants::A.repeat(64), invocation:&failed_invocation(),stdout,stderr:constants::ERROR })).unwrap();
     }
     #[test]
     fn raw_bytes_attempts_and_unreferenced_resume_history_are_retained() {
