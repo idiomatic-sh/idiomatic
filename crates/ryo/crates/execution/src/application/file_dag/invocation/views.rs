@@ -37,5 +37,4 @@ impl InvocationResources<'_> {
 }
 
 #[cfg(test)]
-#[path = "views_test.rs"]
-mod tests;
+mod test;

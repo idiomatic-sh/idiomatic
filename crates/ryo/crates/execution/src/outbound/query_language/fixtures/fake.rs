@@ -88,5 +88,4 @@ fn compiler_refusal() -> QueryLanguageError {
 }
 
 #[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;
+mod test;
