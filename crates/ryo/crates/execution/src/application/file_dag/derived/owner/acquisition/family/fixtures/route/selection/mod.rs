@@ -176,6 +176,7 @@ fn run_with(
     let error = refusing(chosen);
     authored.push(Arc::clone(&error));
     let fixture = SelectionFixture::new(&[relation], &[], active.to_vec(), authored, kinds)?;
+    let floor = fixture.source_floor(relation, source)?;
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let result = {
@@ -229,6 +230,7 @@ fn run_with(
         kind,
         exit,
         fixture.owner().derived.publication_ownership_bytes(),
+        floor,
     );
     fixture.owner().release_population();
     released(

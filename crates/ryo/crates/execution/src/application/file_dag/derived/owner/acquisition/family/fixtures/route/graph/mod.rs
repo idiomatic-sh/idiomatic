@@ -19,6 +19,7 @@ pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, Operat
         kind,
         exit,
         (at_exit.required_bytes, at_exit.optional_bytes, at_exit.unique_bytes),
+        0,
     );
     fixture.clear();
     let state = fixture.snapshot();
