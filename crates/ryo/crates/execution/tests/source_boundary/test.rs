@@ -111,6 +111,7 @@ const PROGRAM: &str = "src/application/file_dag/program.rs";
 const RUNTIME_MODULE: &str = "src/application/file_dag/program/runtime/mod.rs";
 const RUNTIME_TYPES: &str = "src/application/file_dag/program/runtime/types.rs";
 const RELATIONS: &str = "src/application/file_dag/relations.rs";
+const REQUEST: &str = "src/inbound/use_cases/execution/use_case.rs";
 const RELATION_ISSUER: &str = "src/application/file_dag/relations/admission/service.rs";
 const RUNTIME: &str = "src/application/file_dag/program/runtime/service.rs";
 const AUTHORIZED: &str = r#"
@@ -165,6 +166,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     let runtime_types = fs::read_to_string(source.join(RUNTIME_TYPES)).unwrap();
     let relations = fs::read_to_string(source.join(RELATIONS)).unwrap();
     let relation_issuer = fs::read_to_string(source.join(RELATION_ISSUER)).unwrap();
+    let request = fs::read_to_string(source.join(REQUEST)).unwrap();
     let graph_issuer = fs::read_to_string(source.join(super::derived::GRAPH_ISSUER)).unwrap();
     let derived_root = fs::read_to_string(source.join(super::derived::ROOT)).unwrap();
     let derived_module = fs::read_to_string(source.join(super::derived::MODULE)).unwrap();
@@ -368,6 +370,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         fs::write(overlay.path().join(RUNTIME_TYPES), &runtime_types).unwrap();
         fs::write(overlay.path().join(RELATIONS), &relations).unwrap();
         fs::write(overlay.path().join(RELATION_ISSUER), &relation_issuer).unwrap();
+        fs::write(overlay.path().join(REQUEST), &request).unwrap();
         fs::write(
             overlay.path().join(super::derived::GRAPH_ISSUER),
             &graph_issuer,
@@ -394,6 +397,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             RUNTIME_TYPES => &runtime_types,
             RELATIONS => &relations,
             RELATION_ISSUER => &relation_issuer,
+            REQUEST => &request,
             super::derived::GRAPH_ISSUER => &graph_issuer,
             super::derived::ROOT => &derived_root,
             super::derived::MODULE => &derived_module,

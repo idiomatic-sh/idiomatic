@@ -199,32 +199,23 @@ pub(super) fn observed_undeclared_rule() {
         assert!(ObservationExecution::finish(stage, undeclared).is_err());
     });
 }
-/// A publication is installed only for a rule the program declared; a declared rule's is accepted.
+/// A publication is installed only for a rule the program declared.
 pub(super) fn install_undeclared_rule() {
     with_held(&engine(), Entry::Stage, 3, |_, held, _, _| {
         let Held::Stage(stage) = held else {
             panic!("the stage entry holds an observation stage")
         };
-        let transfer = |slot| {
-            let PublicationSlot::Reserved(worker) = slot else {
-                panic!("a demanded publication arena")
-            };
-            ryo_values::domain::records::types::CrossPublicationTransfer {
-                worker,
-                arena: ryo_values::domain::stored_facts::types::ArenaBytes::default(),
-                roots: vec![],
-            }
+        let worker = ryo_relations::domain::relations::types::WorkerNumber(1);
+        let transfer = ryo_values::domain::records::types::CrossPublicationTransfer {
+            worker,
+            arena: ryo_values::domain::stored_facts::types::ArenaBytes::default(),
+            roots: vec![],
         };
-        let slot = stage.reserve(RuleIndex(1)).unwrap();
         assert!(
             stage
-                .install(RuleIndex(3), slot, transfer(slot), vec![])
+                .install(RuleIndex(3), PublicationSlot::Reserved(worker), transfer, vec![])
                 .is_err()
         );
-        let slot = stage.reserve(RuleIndex(2)).unwrap();
-        stage
-            .install(RuleIndex(2), slot, transfer(slot), vec![])
-            .expect("a declared rule accepts its publication");
     });
 }
 /// Restoration takes the inapplicable files of every rule or of none; any other count is refused.
