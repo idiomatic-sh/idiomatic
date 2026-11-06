@@ -1,6 +1,6 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
-use ryo_execution::inbound::use_cases::execution::interface::{ProjectExecution, ProjectStage};
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::{
     interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
     types::*,
@@ -243,38 +243,46 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .unwrap();
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
-        let ordinary = request
-            .prepare_frontiers(
-                FrontierRequest {
-                    demand: FrontierDemand::Diagnostic,
-                    scope: &scope,
-                    rule: RuleIndex(0),
-                    first: Bucket(0),
-                    facts: &stored,
-                    project: &project,
-                    project_symbols: &project_symbols,
-                },
-                &mut symbols,
-            )
-            .expect("admit real file frontier and project facts");
-        assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
-        assert_eq!(project.reads.load(Ordering::SeqCst), 1);
+        // Two declared roots of the one rule; each root prepares (and so acquires) its own frontier.
+        let prepare = |symbols: &mut Symbols| {
+            request
+                .prepare_frontiers(
+                    FrontierRequest {
+                        demand: FrontierDemand::Diagnostic,
+                        scope: &scope,
+                        rule: RuleIndex(0),
+                        first: Bucket(0),
+                        facts: &stored,
+                        project: &project,
+                        project_symbols: &project_symbols,
+                    },
+                    symbols,
+                )
+                .expect("admit real file frontier and project facts")
+        };
+        let (first, second) = (prepare(&mut symbols), prepare(&mut symbols));
+        assert_eq!(stored.reads.load(Ordering::SeqCst), 2);
+        assert_eq!(project.reads.load(Ordering::SeqCst), 2);
         let partials = Partials::default();
-        let mut run = request
-            .open_project(
-                ProjectInput {
-                    scope: &scope,
-                    evaluation: &partials,
-                    publication: &partials,
-                    ordinary,
-                    bound: &[],
-                    arenas: &[],
-                },
-                &mut symbols,
-            )
-            .unwrap();
-        let outcome = run
-            .rule(RuleIndex(0), demand(), &mut symbols)
+        let input = |ordinary| ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: &[],
+        };
+        let mut outcomes = crate::boundary_fixture::project_roots(
+            &phase,
+            RuleIndex(0),
+            demand(),
+            vec![input(first), input(second)],
+            &mut symbols,
+        );
+        let again = outcomes.pop().unwrap().unwrap();
+        let outcome = outcomes
+            .pop()
+            .unwrap()
             .expect("project emit runs at project scope");
         let RootOutcome::Complete(table) = outcome.emit else {
             panic!("one complete project diagnostic table")
@@ -288,7 +296,6 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .iter()
             .map(|count| count.0)
             .collect::<Vec<_>>();
-        let again = run.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
         assert_eq!(
             again
                 .counts
@@ -299,10 +306,13 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             counts,
             "one cached project invocation, with no second semantic evaluation"
         );
-        run.finish();
         drop(scope);
         phase.finish().expect("release project publications");
-        assert_eq!(project.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            project.reads.load(Ordering::SeqCst),
+            2,
+            "evaluating the roots rereads no project facts beyond the two frontier acquisitions"
+        );
         request.finish();
         assert_eq!(
             file_reads.get(),
@@ -472,21 +482,22 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
     let partials = Partials::default();
     let arenas = [ArenaBytes(arena)];
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &arenas,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let RootOutcome::Complete(result) =
-        run.rule(RuleIndex(0), demand(), &mut symbols).unwrap().emit
+    let RootOutcome::Complete(result) = crate::boundary_fixture::project_root(
+        &phase,
+        RuleIndex(0),
+        demand(),
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: &arenas,
+        },
+        &mut symbols,
+    )
+    .unwrap()
+    .emit
     else {
         panic!("project count must complete")
     };
@@ -506,7 +517,6 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     actual.sort_unstable();
     expected.sort_unstable();
     assert_eq!(actual, expected);
-    run.finish();
     drop(scope);
     phase.finish().unwrap();
     request.finish();
@@ -906,29 +916,24 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         )
         .unwrap();
     let partials = Partials::default();
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &producer_scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: stage.arenas(),
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let mut result = run
-        .rule(
-            RuleIndex(0),
-            RuleDemand {
-                emit: EmitDemand::Disabled,
-                observations: ObservationDemand::Required,
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    let mut result = crate::boundary_fixture::project_root(
+        &stage,
+        RuleIndex(0),
+        RuleDemand {
+            emit: EmitDemand::Disabled,
+            observations: ObservationDemand::Required,
+        },
+        ProjectInput {
+            scope: &producer_scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: stage.arenas(),
+        },
+        &mut symbols,
+    )
+    .unwrap();
     assert!(matches!(result.emit, RootOutcome::NoQuery));
     let (output, observed) = result.observations.pop().unwrap();
     assert_eq!(output, ObservationIndex(0));
@@ -957,7 +962,6 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     } else {
         assert_eq!(table.cells, [Value::File(FileId(0))]);
     }
-    run.finish();
     let PublicationSlot::Reserved(worker) = slot else {
         panic!("real reserved publication slot")
     };
@@ -1033,25 +1037,26 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         0,
         "no union bytes were supplied by a file frontier"
     );
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &consumer_scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &bound,
-                arenas: stage.arenas(),
-            },
-            &mut symbols,
-        )
-        .unwrap();
     assert_eq!(
         union_semantic_calls.0.load(Ordering::SeqCst),
         0,
         "preparing member handles and an ordinary frontier does not invoke Union semantics"
     );
-    let result = run.rule(RuleIndex(1), demand(), &mut symbols).unwrap();
+    let result = crate::boundary_fixture::project_root(
+        &stage,
+        RuleIndex(1),
+        demand(),
+        ProjectInput {
+            scope: &consumer_scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &bound,
+            arenas: stage.arenas(),
+        },
+        &mut symbols,
+    )
+    .unwrap();
     if refused {
         assert!(
             matches!(result.emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
@@ -1091,7 +1096,6 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         reads,
         "no producer or provider is rerun for the union"
     );
-    run.finish();
     drop(bound);
     stage.finish(RuleIndex(1)).unwrap();
     drop(producer_scope);
@@ -1223,20 +1227,21 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     )
                     .unwrap();
                 let partials = Partials::default();
-                let mut run = request
-                    .open_project(
-                        ProjectInput {
-                            scope: &scope,
-                            evaluation: &partials,
-                            publication: &partials,
-                            ordinary,
-                            bound: &[],
-                            arenas: &arenas,
-                        },
-                        &mut symbols,
-                    )
-                    .unwrap();
-                let result = run.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+                let result = crate::boundary_fixture::project_root(
+                    &phase,
+                    RuleIndex(0),
+                    demand(),
+                    ProjectInput {
+                        scope: &scope,
+                        evaluation: &partials,
+                        publication: &partials,
+                        ordinary,
+                        bound: &[],
+                        arenas: &arenas,
+                    },
+                    &mut symbols,
+                )
+                .unwrap();
                 let RootOutcome::Complete(table) = result.emit else {
                     panic!("complete project join")
                 };
@@ -1250,7 +1255,6 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                         vec![]
                     }
                 );
-                run.finish();
             }
         }
     }

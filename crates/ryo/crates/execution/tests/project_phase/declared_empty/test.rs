@@ -136,38 +136,34 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .project_scope(RuleIndex(0), &corpus, &covered, &[])
         .unwrap();
     let project_symbols = Symbols::default();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
     let partials = Partials::default();
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &bound,
-                arenas: stage.arenas(),
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    for _ in 0..2 {
-        let RootOutcome::Complete(table) =
-            run.rule(RuleIndex(0), demand(), &mut symbols).unwrap().emit
-        else {
+    // Two declared roots of the one rule share the invocation; each prepares its own frontiers.
+    let inputs = (0..2)
+        .map(|_| ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary: request
+                .prepare_frontiers(
+                    FrontierRequest {
+                        demand: FrontierDemand::Diagnostic,
+                        scope: &scope,
+                        rule: RuleIndex(0),
+                        first: Bucket(0),
+                        facts: &stored,
+                        project: &project,
+                        project_symbols: &project_symbols,
+                    },
+                    &mut symbols,
+                )
+                .unwrap(),
+            bound: &bound,
+            arenas: stage.arenas(),
+        })
+        .collect();
+    for outcome in crate::boundary_fixture::project_roots(&stage, RuleIndex(0), demand(), inputs, &mut symbols)
+    {
+        let RootOutcome::Complete(table) = outcome.unwrap().emit else {
             panic!("authoritatively empty union must complete in its declared phase")
         };
         assert_eq!(table.kinds, [CellKind::Symbol]);
@@ -176,7 +172,6 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
     }
     assert_eq!(stored.reads.load(Ordering::SeqCst), 0);
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
-    run.finish();
     stage.finish(RuleIndex(0)).unwrap();
 }
 
@@ -236,27 +231,27 @@ fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
         )
         .unwrap();
     let partials = Partials::default();
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &bound,
-                arenas: stage.arenas(),
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    let outcome = crate::boundary_fixture::project_root(
+        &stage,
+        RuleIndex(0),
+        demand(),
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &bound,
+            arenas: stage.arenas(),
+        },
+        &mut symbols,
+    );
     assert!(
-        matches!(run.rule(RuleIndex(0), demand(), &mut symbols).unwrap().emit,
+        matches!(outcome.unwrap().emit,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
         if reason == expected)
     );
     assert_eq!(stored.reads.load(Ordering::SeqCst), 0);
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
-    run.finish();
 }
 
 #[test]

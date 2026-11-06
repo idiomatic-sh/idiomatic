@@ -1,11 +1,11 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
 use super::super::source_facts::fixtures::ProjectFacts;
 use super::fixtures::{Entry, Root, submit};
-use crate::boundary_fixture::{authored_request, corpus, demand, engine, prepared, source};
+use crate::boundary_fixture::{
+    authored_request, corpus, demand, engine, prepared, project_root, source,
+};
 use ryo_execution::inbound::use_cases::execution::{
-    interface::{
-        ExecutionRequest, ExecutionUseCase, FileExecution, ProjectExecution, ProjectStage,
-    },
+    interface::{ExecutionRequest, ExecutionUseCase, FileExecution, ProjectStage},
     types::*,
 };
 use ryo_language::domain::symbols::types::Symbols;
@@ -61,20 +61,21 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
         )
         .unwrap();
     let partials = Partials::default();
-    let mut run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &[],
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let result = run.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+    let result = project_root(
+        &phase,
+        RuleIndex(0),
+        demand(),
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: &[],
+        },
+        &mut symbols,
+    )
+    .unwrap();
     assert!(matches!(
         result.emit,
         RootOutcome::Deferred {
@@ -83,7 +84,6 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     ));
     assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
-    run.finish();
     drop(scope);
     phase.finish().unwrap();
 
@@ -298,8 +298,74 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     assert!(!guarded.guarded.contains(&RuleIndex(2)));
 }
 
+/// The scope and frontiers come from rule 0; the task names rule 1, which is in range.
 #[test]
-fn finish_refuses_while_a_scope_or_session_still_shares_the_publication() {
+fn an_in_range_root_the_session_did_not_declare_is_refused_by_name() {
+    let engine = engine();
+    let undeclared = Root {
+        declared: 0,
+        named: 1,
+    };
+    for entry in [Entry::Phase, Entry::Stage] {
+        let submitted = submit(&engine, entry, 3, &[root(0), undeclared, root(2)], None);
+        assert!(submitted.refused.is_none());
+        assert_eq!(submitted.outcomes.len(), 3, "the undeclared root keeps its own slot");
+        assert!(submitted.outcomes[0].is_ok());
+        assert!(
+            matches!(submitted.outcomes[1], Err(OperatingError::NotRead)),
+            "a rule the session did not declare is refused although it is in range"
+        );
+        assert!(submitted.outcomes[2].is_ok());
+    }
+}
+
+/// The guard is asked about the undeclared in-range root by name; its refusal ends the batch there.
+#[test]
+fn a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_before_it() {
+    let engine = engine();
+    let undeclared = Root {
+        declared: 0,
+        named: 1,
+    };
+    let refused = submit(
+        &engine,
+        Entry::Phase,
+        3,
+        &[root(0), undeclared, root(2)],
+        Some(RuleIndex(1)),
+    );
+    assert!(matches!(refused.refused, Some(OperatingError::WrongBinding)));
+    assert_eq!(refused.outcomes.len(), 1);
+    assert!(refused.outcomes[0].is_ok());
+    assert!(refused.guarded.contains(&RuleIndex(1)));
+    assert!(!refused.guarded.contains(&RuleIndex(2)));
+}
+
+/// A root submitted twice is two submissions: each gets its own outcome, neither is dropped,
+/// and a duplicated undeclared root is refused every time rather than once.
+#[test]
+fn a_duplicated_root_keeps_one_outcome_per_submission() {
+    let engine = engine();
+    let twice = submit(&engine, Entry::Phase, 3, &[root(0), root(0)], None);
+    assert!(twice.refused.is_none());
+    assert_eq!(twice.outcomes.len(), 2);
+    assert!(twice.outcomes.iter().all(Result::is_ok));
+    assert!(twice.guarded.iter().all(|rule| *rule == RuleIndex(0)));
+    assert!(!twice.guarded.is_empty());
+
+    let undeclared = Root {
+        declared: 0,
+        named: 1,
+    };
+    let refused = submit(&engine, Entry::Phase, 3, &[root(0), undeclared, undeclared], None);
+    assert_eq!(refused.outcomes.len(), 3);
+    assert!(refused.outcomes[0].is_ok());
+    assert!(matches!(refused.outcomes[1], Err(OperatingError::NotRead)));
+    assert!(matches!(refused.outcomes[2], Err(OperatingError::NotRead)));
+}
+
+#[test]
+fn finish_refuses_while_a_scope_still_shares_the_publication() {
     let engine = engine();
     let prepared = prepared(&engine);
     let corpus = corpus();
@@ -331,24 +397,25 @@ fn finish_refuses_while_a_scope_or_session_still_shares_the_publication() {
         )
         .unwrap();
     let partials = Partials::default();
-    let run = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &[],
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    project_root(
+        &phase,
+        RuleIndex(0),
+        demand(),
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary,
+            bound: &[],
+            arenas: &[],
+        },
+        &mut symbols,
+    )
+    .unwrap();
     assert!(
         matches!(phase.finish(), Err(OperatingError::NotRead)),
-        "an outstanding scope and session keep the publication shared, so finish reports the refusal"
+        "an outstanding scope keeps the publication shared, so finish reports the refusal"
     );
-    run.finish();
     drop(scope);
     request.finish();
 }

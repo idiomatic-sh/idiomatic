@@ -44,11 +44,6 @@ pub trait ExecutionRequest {
     ) -> Result<FileSession<'a, 'facts>, OperatingError>;
     /// One mandatory owner for all ordinary project rules in this request phase.
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError>;
-    fn open_project<'a>(
-        &'a self,
-        input: ProjectInput<'a>,
-        symbols: &mut Symbols,
-    ) -> Result<ProjectSession<'a>, OperatingError>;
 }
 /// The intent supplied at file start is immutable throughout this session.
 /// Applicability cannot be changed after another rule has started the shared walk.
@@ -101,29 +96,32 @@ pub trait FileExecution {
     ) -> Result<(), OperatingError>;
     fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError>;
 }
+pub use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
 /// Project rules are collected only; no row callback delivery exists on this route.
 /// ```compile_fail,E0599
 /// use ryo_execution::inbound::use_cases::execution::{
-///     interface::FileExecution,
-///     types::ProjectSession,
+///     interface::{FileExecution, ProjectRootExecution, ProjectStage},
+///     types::ProjectPhase,
 /// };
-/// fn deliver(project: &mut ProjectSession<'_>) {
+/// fn deliver(project: &mut ProjectPhase<'_>) {
 ///     project.emit_rows();
 /// }
 /// ```
-pub trait ProjectExecution {
-    fn finish(self)
-    where
-        Self: Sized;
-    fn rule(
-        &mut self,
-        rule: RuleIndex,
-        demand: RuleDemand,
-        symbols: &mut Symbols,
-    ) -> Result<ProjectRuleOutcome, OperatingError>;
-}
-
-pub use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
+/// The authorized route, declared roots through the phase, compiles.
+/// ```
+/// use ryo_execution::inbound::use_cases::execution::{
+///     interface::ProjectRootExecution,
+///     types::{OperatingError, ProjectBatch, ProjectPhase, ProjectRuleOutcome, ProjectTask, RuleIndex},
+/// };
+/// use ryo_language::domain::symbols::types::Symbols;
+/// fn evaluate(
+///     phase: &ProjectPhase<'_>,
+///     tasks: Vec<ProjectTask<'_>>,
+///     symbols: &mut Symbols,
+/// ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, OperatingError> {
+///     phase.evaluate(tasks, symbols, |_: RuleIndex| Ok(()))
+/// }
+/// ```
 pub trait ProjectRootExecution {
     /// Bind all actual tasks, prepare compatible root cohorts, then deliver in declaration order.
     fn evaluate<E>(

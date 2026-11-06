@@ -1,75 +1,33 @@
-//! Submission routes come from the source inventory: a new entry or demand variant without a
-//! control here fails this census instead of silently escaping it.
+//! Every method that accepts a declared root, scope or intent is an entry. The witness impls
+//! below must define every method of each entry trait, so a new method fails to compile until it
+//! names a `Method`; the exhaustive `control` match then fails to compile until that method has
+//! a control here. Each control submits an incomplete, extra or undeclared root and expects refusal.
 use crate::boundary_fixture::{corpus, engine, prepared_rules};
 use crate::file_intents::named_request;
-use crate::project_phase::negative::fixtures::{Entry, Root, submit};
+use crate::project_phase::negative::fixtures::{
+    Entry, Held, Root, foreign_phase_outcome, prepare_for, submit, with_held,
+};
 use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
+    interface::{
+        ExecutionRequest, ExecutionUseCase, FileExecution, InvocationStateCounts,
+        ObservationExecution, ProjectRootExecution, ProjectStage, ReadinessCounts,
+    },
     types::*,
 };
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::FileId;
-use std::{
-    collections::BTreeSet,
-    fs,
-    path::{Path, PathBuf},
+use ryo_values::domain::{
+    files::types::CorpusInput, observations::types::ObservationBindingId, runs::types::Skipped,
+    stored_facts::types::ArenaBytes,
 };
+use std::{collections::BTreeSet, fs, path::Path};
 
 const PROTOCOL: &str = "src/application/file_dag/program/protocol/types.rs";
 const ADMISSION: &str = "src/application/file_dag/program/admission.rs";
-/// Public traits whose implementations accept a set of declared roots or intents.
-const SUBMISSION_TRAITS: [&str; 2] = ["ExecutionRequest", "ProjectRootExecution"];
-
-fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
-    for entry in fs::read_dir(dir).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
-            rust_files(&path, found);
-        } else if path.extension().is_some_and(|extension| extension == "rs") {
-            found.push(path);
-        }
-    }
-}
 fn identifier(text: &str) -> &str {
     text.split(|c: char| !(c.is_alphanumeric() || c == '_'))
         .next()
         .unwrap_or_default()
-}
-/// Every `impl <submission trait> for <Type>` in the production inbound layer.
-fn entries(root: &Path) -> BTreeSet<String> {
-    let mut files = Vec::new();
-    rust_files(&root.join("src/inbound"), &mut files);
-    let mut found = BTreeSet::new();
-    for file in files {
-        for line in fs::read_to_string(file).unwrap().lines() {
-            let Some(mut rest) = line.strip_prefix("impl") else {
-                continue;
-            };
-            if rest.starts_with('<') {
-                let mut depth = 0;
-                let end = rest
-                    .char_indices()
-                    .find(|(_, c)| {
-                        depth += match c {
-                            '<' => 1,
-                            '>' => -1,
-                            _ => 0,
-                        };
-                        depth == 0
-                    })
-                    .map_or(0, |(at, _)| at + 1);
-                rest = &rest[end..];
-            }
-            let Some((head, tail)) = rest.trim_start().split_once(" for ") else {
-                continue;
-            };
-            let head = identifier(head.trim());
-            if SUBMISSION_TRAITS.contains(&head) {
-                found.insert(format!("{head} for {}", identifier(tail.trim())));
-            }
-        }
-    }
-    found
 }
 /// The variants a declaration lists, read from its source text.
 fn variants(source: &str, name: &str) -> BTreeSet<String> {
@@ -240,29 +198,263 @@ fn project_route(entry: Entry) {
     );
     assert!(matches!(callback.refused, Some(OperatingError::WrongBinding)));
     assert_eq!(callback.outcomes.len(), 1);
+    // In range, but the session declared rule 0: refused, never run undeclared.
+    let undeclared = Root {
+        declared: 0,
+        named: 1,
+    };
+    let mismatch = submit(&engine, entry, 3, &[root(0), undeclared, root(2)], None);
+    assert_eq!(mismatch.outcomes.len(), 3);
+    assert!(mismatch.outcomes[0].is_ok() && mismatch.outcomes[2].is_ok());
+    assert!(matches!(mismatch.outcomes[1], Err(OperatingError::NotRead)));
+    // A declared root submitted twice keeps one outcome per submission.
+    let twice = submit(&engine, entry, 3, &[root(0), root(0)], None);
+    assert_eq!(twice.outcomes.len(), 2);
+    assert!(twice.outcomes.iter().all(Result::is_ok));
+}
+
+/// One variant per method of every entry trait. `witness` below maps each trait method here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Method {
+    RequestObservations,
+    RequestPrepareFrontiers,
+    RequestFinish,
+    RequestOpenFile,
+    RequestProjectPhase,
+    RootsEvaluate,
+    RootsReadinessCounts,
+    StageStateCounts,
+    StageProjectScope,
+    StageFinish,
+    ObservedReserve,
+    ObservedBindings,
+    ObservedBindingReadiness,
+    ObservedArenas,
+    ObservedProjectScope,
+    ObservedFinish,
+    ObservedFinishStage,
+}
+const ALL: [Method; 17] = [
+    Method::RequestObservations,
+    Method::RequestPrepareFrontiers,
+    Method::RequestFinish,
+    Method::RequestOpenFile,
+    Method::RequestProjectPhase,
+    Method::RootsEvaluate,
+    Method::RootsReadinessCounts,
+    Method::StageStateCounts,
+    Method::StageProjectScope,
+    Method::StageFinish,
+    Method::ObservedReserve,
+    Method::ObservedBindings,
+    Method::ObservedBindingReadiness,
+    Method::ObservedArenas,
+    Method::ObservedProjectScope,
+    Method::ObservedFinish,
+    Method::ObservedFinishStage,
+];
+/// Its methods never run: implementing every method of each entry trait is what the compiler checks.
+struct Witness;
+fn implements_every_entry_trait<
+    W: ExecutionRequest + ProjectRootExecution + ProjectStage + ObservationExecution,
+>(
+    _: &W,
+) {
+}
+fn witness(method: Method) -> ! {
+    unreachable!("{method:?} is a compile-time witness only")
+}
+impl ExecutionRequest for Witness {
+    fn observations<'a>(
+        &'a self,
+        _: &'a mut Vec<ArenaBytes>,
+    ) -> Result<ObservationStage<'a>, OperatingError> {
+        witness(Method::RequestObservations)
+    }
+    fn prepare_frontiers(
+        &self,
+        _: FrontierRequest<'_>,
+        _: &mut Symbols,
+    ) -> Result<PreparedFrontiers, PreparationError> {
+        witness(Method::RequestPrepareFrontiers)
+    }
+    fn finish(self) {
+        witness(Method::RequestFinish)
+    }
+    fn open_file<'a, 'facts: 'a>(
+        &'a self,
+        _: FileInput<'a, 'facts>,
+        _: &mut Symbols,
+    ) -> Result<FileSession<'a, 'facts>, OperatingError> {
+        witness(Method::RequestOpenFile)
+    }
+    fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
+        witness(Method::RequestProjectPhase)
+    }
+}
+impl ProjectRootExecution for Witness {
+    fn evaluate<E>(
+        &self,
+        _: Vec<ProjectTask<'_>>,
+        _: &mut Symbols,
+        _: impl FnMut(RuleIndex) -> Result<(), E>,
+    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+        witness(Method::RootsEvaluate)
+    }
+    fn readiness_counts(&self) -> ReadinessCounts {
+        witness(Method::RootsReadinessCounts)
+    }
+}
+impl ProjectStage for Witness {
+    fn state_counts(&self) -> InvocationStateCounts {
+        witness(Method::StageStateCounts)
+    }
+    fn project_scope(
+        &self,
+        _: RuleIndex,
+        _: &[CorpusInput],
+        _: &[Covered],
+        _: &[Skipped],
+    ) -> Result<ProjectScope, OperatingError> {
+        witness(Method::StageProjectScope)
+    }
+    fn finish(self) -> Result<(), OperatingError> {
+        witness(Method::StageFinish)
+    }
+}
+impl ObservationExecution for Witness {
+    fn reserve(&mut self, _: RuleIndex) -> Result<PublicationSlot, OperatingError> {
+        witness(Method::ObservedReserve)
+    }
+    fn bindings(&self, _: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
+        witness(Method::ObservedBindings)
+    }
+    fn binding_readiness(
+        &self,
+        _: RuleIndex,
+    ) -> Result<std::collections::BTreeMap<ObservationBindingId, bool>, OperatingError> {
+        witness(Method::ObservedBindingReadiness)
+    }
+    fn arenas(&self) -> &[ArenaBytes] {
+        witness(Method::ObservedArenas)
+    }
+    fn project_scope(
+        &self,
+        _: RuleIndex,
+        _: &[CorpusInput],
+        _: &[Covered],
+        _: &[Skipped],
+    ) -> Result<ProjectScope, OperatingError> {
+        witness(Method::ObservedProjectScope)
+    }
+    fn finish(&mut self, _: RuleIndex) -> Result<(), OperatingError> {
+        witness(Method::ObservedFinish)
+    }
+    fn finish_stage(self) -> Result<(), OperatingError> {
+        witness(Method::ObservedFinishStage)
+    }
+}
+
+/// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
+/// accept none at all (its inputs carry no rule, scope or intent to declare).
+enum Control {
+    Refuses(fn()),
+    AcceptsNoRoot(&'static str),
+}
+fn control(method: Method) -> Control {
+    match method {
+        Method::RequestOpenFile => Control::Refuses(file_route),
+        Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
+        Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
+        Method::RequestProjectPhase => Control::Refuses(a_scope_belongs_to_its_own_phase),
+        Method::RootsEvaluate => Control::Refuses(evaluate_routes),
+        Method::StageProjectScope => Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Phase)),
+        Method::ObservedProjectScope => {
+            Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Stage))
+        }
+        Method::ObservedReserve
+        | Method::ObservedBindings
+        | Method::ObservedBindingReadiness
+        | Method::ObservedFinish => Control::Refuses(observed_undeclared_rule),
+        Method::RequestFinish => Control::AcceptsNoRoot("drops the request"),
+        Method::RootsReadinessCounts => Control::AcceptsNoRoot("reads counters"),
+        Method::StageStateCounts => Control::AcceptsNoRoot("reads counters"),
+        Method::StageFinish => Control::AcceptsNoRoot("releases the phase"),
+        Method::ObservedArenas => Control::AcceptsNoRoot("reads published arenas"),
+        Method::ObservedFinishStage => Control::AcceptsNoRoot("releases the stage"),
+    }
+}
+fn evaluate_routes() {
+    project_route(Entry::Phase);
+    project_route(Entry::Stage);
+}
+fn observations_need_a_named_program() {
+    let engine = engine();
+    let corpus = corpus();
+    let unnamed = prepared_rules(&engine, 2);
+    let request = engine.begin(&unnamed, &corpus);
+    let mut arenas = Vec::new();
+    assert!(matches!(
+        request.observations(&mut arenas),
+        Err(OperatingError::NotRun)
+    ));
+    request.finish();
+    let named = engine.prepare(named_request()).expect("named request");
+    let request = engine.begin(&named, &corpus);
+    let mut arenas = Vec::new();
+    request
+        .observations(&mut arenas)
+        .expect("a named program opens its stage")
+        .finish_stage()
+        .unwrap();
+    request.finish();
+}
+fn frontiers_of_an_undeclared_rule() {
+    with_held(&engine(), Entry::Phase, 3, |request, held, corpus, covered| {
+        let scope = held.try_scope(RuleIndex(0), corpus, covered).unwrap();
+        assert!(prepare_for(request, &scope, RuleIndex(0)).is_ok());
+        assert!(matches!(
+            prepare_for(request, &scope, RuleIndex(3)),
+            Err(PreparationError::Metadata(OperatingError::NotRead))
+        ));
+    });
+}
+fn a_scope_belongs_to_its_own_phase() {
+    assert!(matches!(
+        foreign_phase_outcome(&engine()),
+        Err(OperatingError::NotRead)
+    ));
+}
+fn scope_of_an_undeclared_rule(entry: Entry) {
+    with_held(&engine(), entry, 3, |_, held, corpus, covered| {
+        assert!(held.try_scope(RuleIndex(2), corpus, covered).is_ok());
+        assert!(matches!(
+            held.try_scope(RuleIndex(3), corpus, covered),
+            Err(OperatingError::NotRun)
+        ));
+    });
+}
+fn observed_undeclared_rule() {
+    with_held(&engine(), Entry::Stage, 3, |_, held, _, _| {
+        let Held::Stage(stage) = held else {
+            panic!("the stage entry holds an observation stage")
+        };
+        let undeclared = RuleIndex(3);
+        assert!(stage.reserve(undeclared).is_err());
+        assert!(stage.bindings(undeclared).is_err());
+        assert!(stage.binding_readiness(undeclared).is_err());
+        assert!(ObservationExecution::finish(stage, undeclared).is_err());
+    });
 }
 
 #[test]
-fn every_submission_route_refuses_an_incomplete_or_extra_root_set() {
+fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let routes: Vec<(&str, Box<dyn Fn()>)> = vec![
-        ("ExecutionRequest for RequestExecution", Box::new(file_route)),
-        (
-            "ProjectRootExecution for ProjectPhase",
-            Box::new(|| project_route(Entry::Phase)),
-        ),
-        (
-            "ProjectRootExecution for ObservationStage",
-            Box::new(|| project_route(Entry::Stage)),
-        ),
-    ];
+    implements_every_entry_trait(&Witness);
     assert_eq!(
-        entries(root),
-        routes
-            .iter()
-            .map(|(name, _)| (*name).to_owned())
-            .collect::<BTreeSet<_>>(),
-        "a submission entry gained or lost its implementation: add or remove its control"
+        ALL.iter().collect::<BTreeSet<_>>().len(),
+        ALL.len(),
+        "each entry method has exactly one control"
     );
     assert_inventory(root, PROTOCOL, "DiagnosticDelivery", covered(&DELIVERIES));
     assert_inventory(root, PROTOCOL, "ObservationDemand", covered(&DEMANDS));
@@ -270,7 +462,18 @@ fn every_submission_route_refuses_an_incomplete_or_extra_root_set() {
     assert_inventory(root, PROTOCOL, "ApplicabilityRefusal", covered(&REFUSALS));
     assert_inventory(root, ADMISSION, "ApplicabilityReason", covered(&REASONS));
     assert_inventory(root, PROTOCOL, "FileRuleIntent", covered(&every_intent()));
-    for (_, route) in routes {
-        route();
+    let (mut refused, mut exempt) = (0, 0);
+    for method in ALL {
+        match control(method) {
+            Control::Refuses(refuses) => {
+                refuses();
+                refused += 1;
+            }
+            Control::AcceptsNoRoot(reason) => {
+                assert!(!reason.is_empty(), "{method:?} states why it takes no root");
+                exempt += 1;
+            }
+        }
     }
+    assert_eq!(refused + exempt, ALL.len(), "every entry method was classified");
 }

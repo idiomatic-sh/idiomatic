@@ -32,9 +32,22 @@ pub struct PreparedRequest {
 /// use ryo_execution::inbound::use_cases::execution::types::FileSession;
 /// fn bypass(file: &FileSession<'_, '_>) { let _ = &file.inner; }
 /// ```
-/// ```compile_fail,E0616
+/// A project session cannot be named or opened outside a declared root: the removed
+/// session type, its trait and the request's open method no longer resolve.
+/// ```compile_fail,E0432
 /// use ryo_execution::inbound::use_cases::execution::types::ProjectSession;
-/// fn bypass(project: &ProjectSession<'_>) { let _ = &project.inner; }
+/// ```
+/// ```compile_fail,E0432
+/// use ryo_execution::inbound::use_cases::execution::interface::ProjectExecution;
+/// ```
+/// ```compile_fail,E0624
+/// use ryo_execution::inbound::use_cases::execution::types::{
+///     ProjectInput, RequestExecution,
+/// };
+/// use ryo_language::domain::symbols::types::Symbols;
+/// fn open(request: &RequestExecution, input: ProjectInput<'_>, symbols: &mut Symbols) {
+///     let _ = request.open_project(input, symbols);
+/// }
 /// ```
 /// Public prepared handles can be accepted and inspected through the inbound contract.
 /// ```
@@ -174,10 +187,6 @@ pub struct ProjectTask<'a> {
     pub input: ProjectInput<'a>,
 }
 pub use crate::application::file_dag::program::protocol::types::ProjectBatch;
-pub struct ProjectSession<'a> {
-    pub(super) inner:
-        crate::application::file_dag::program::facade_runtime::project_execution::ProjectRun<'a>,
-}
 
 pub struct FileFinished {
     pub readiness: Option<Arc<ryo_values::domain::records::types::FrontierReadiness>>,

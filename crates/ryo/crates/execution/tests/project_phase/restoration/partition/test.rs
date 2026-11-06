@@ -519,29 +519,24 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             &mut symbols,
         )
         .unwrap();
-    let mut project = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &publication_partials,
-                ordinary,
-                bound: &[],
-                arenas: stage.arenas(),
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let mut outcome = project
-        .rule(
-            RuleIndex(1),
-            RuleDemand {
-                emit: EmitDemand::Disabled,
-                observations: ObservationDemand::Required,
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    let mut outcome = crate::boundary_fixture::project_root(
+        &stage,
+        RuleIndex(1),
+        RuleDemand {
+            emit: EmitDemand::Disabled,
+            observations: ObservationDemand::Required,
+        },
+        ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &publication_partials,
+            ordinary,
+            bound: &[],
+            arenas: stage.arenas(),
+        },
+        &mut symbols,
+    )
+    .unwrap();
     let (output, observed) = outcome.observations.pop().unwrap();
     let (table, publication, readiness) = match (mode, observed) {
         (
@@ -576,7 +571,6 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         }
         _ => panic!("the actual project population keeps its exact completeness"),
     };
-    project.finish();
     let PublicationSlot::Reserved(worker) = slot else {
         panic!("demanded publication arena")
     };
@@ -623,39 +617,33 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             .get(&ObservationBindingId(0)),
         Some(&true)
     );
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(2),
-                first: Bucket(20),
-                facts: &stored,
-                project: &project_facts,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let mut project = request
-        .open_project(
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &bound,
-                arenas: stage.arenas(),
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    for _retry in 0..2 {
-        let RootOutcome::Partial { table, affected } = project
-            .rule(RuleIndex(2), demand(), &mut symbols)
-            .unwrap()
-            .emit
-        else {
+    // Two declared roots of the one rule share the invocation; each prepares its own frontier.
+    let inputs = (0..2)
+        .map(|_| ProjectInput {
+            scope: &scope,
+            evaluation: &partials,
+            publication: &partials,
+            ordinary: request
+                .prepare_frontiers(
+                    FrontierRequest {
+                    demand: FrontierDemand::Diagnostic,
+                    scope: &scope,
+                    rule: RuleIndex(2),
+                    first: Bucket(20),
+                    facts: &stored,
+                    project: &project_facts,
+                    project_symbols: &project_symbols,
+                },
+                    &mut symbols,
+                )
+                .unwrap(),
+            bound: &bound,
+            arenas: stage.arenas(),
+        })
+        .collect();
+    let outcomes = crate::boundary_fixture::project_roots(&stage, RuleIndex(2), demand(), inputs, &mut symbols);
+    for outcome in outcomes {
+        let RootOutcome::Partial { table, affected } = outcome.unwrap().emit else {
             panic!("only the bad physical partition must remain explicitly unknown")
         };
         if matches!(mode, Mode::CurrentRekey { file_key: false }) {
@@ -701,9 +689,9 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
     }
     assert_eq!(
         project_facts.reads.load(Ordering::SeqCst),
-        usize::from(matches!(mode, Mode::Current | Mode::CurrentRekey { .. }))
+        2 * usize::from(matches!(mode, Mode::Current | Mode::CurrentRekey { .. })),
+        "one project read per prepared frontier, none while evaluating the roots"
     );
-    project.finish();
     drop(bound);
     drop(scope);
     stage.finish(RuleIndex(2)).unwrap();

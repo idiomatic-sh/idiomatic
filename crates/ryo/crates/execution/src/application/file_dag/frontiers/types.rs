@@ -80,6 +80,12 @@ pub(in crate::application::file_dag) fn validate_consumer_sources(
     if consumer == producer {
         return Ok(());
     }
+    // A consumer other than the declared producer is admitted only by sources that name it.
+    // An undeclared rule in range finds no source here and is refused like an unread input.
+    prepared.frontiers(consumer)?;
+    if sources.is_empty() {
+        return Err(crate::domain::operating::errors::OperatingError::NotRead);
+    }
     for binding in sources {
         let at = prepared
             .frontiers(consumer)?
