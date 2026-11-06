@@ -6,7 +6,7 @@ use ryo_relations::domain::terms::types::Vocabulary;
 
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -249,7 +249,7 @@ pub(crate) enum PairFiltering {
     /// The pairs are the join's rows.
     Unfiltered,
     /// A filter keeps some of the join's rows.
-    Filtered(Vec<Comparison>),
+    Filtered(Vec<PlanComparison>),
 }
 
 /// Why an argument cannot be used.

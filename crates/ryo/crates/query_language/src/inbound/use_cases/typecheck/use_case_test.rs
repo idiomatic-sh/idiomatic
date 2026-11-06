@@ -18,7 +18,7 @@ use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::{Alias, ByteOffset, Columns, Condition, Expression, Filter, Joining, LetStep, Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest};
+use ryo_values::domain::program::types::{Alias, ByteOffset, Columns, Condition, Expression, Filter, Joining, LetStep, WrittenProgram, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest};
 use ryo_values::domain::descriptions::types::ColumnName;
 
 /// What a row gives the use case.
@@ -58,8 +58,8 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
     }
 }
 
-fn program_with(filters: Vec<Filter>) -> Program {
-    Program {
+fn program_with(filters: Vec<Filter>) -> WrittenProgram {
+    WrittenProgram {
         linked: false,
         imports: Vec::new(),
         origins: Vec::new(),

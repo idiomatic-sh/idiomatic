@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput, FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep, OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView, RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference, StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
+use ryo_values::domain::program::types::{Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput, FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep, OperationName, ParameterDeclaration, WrittenProgram, QuerySource, QuerySpan, QueryView, RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference, StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
 use ryo_values::domain::descriptions::types::ColumnName;
 
 /// The winnow syntax adapter.
@@ -61,7 +61,7 @@ pub(super) enum FragmentLine {
 }
 
 impl SyntaxPort for SyntaxWinnowAdapter {
-    fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError> {
+    fn read(&self, text: QueryView<'_>) -> Result<WrittenProgram, SyntaxError> {
         program
             .parse(LocatingSlice::new(text.0))
             .map_err(|error| unreadable(&error))
@@ -146,7 +146,7 @@ fn unreadable(
 }
 
 /// The whole text: lines until the end, put together as parameters, steps and the one `emit`.
-pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
+pub(super) fn program(input: &mut Input<'_>) -> ModalResult<WrittenProgram> {
     let mut parameters = Vec::new();
     let mut imports = Vec::new();
     let mut steps = Vec::new();
@@ -181,7 +181,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
                     .find(|step| step.name.0 == output.step.0)
                     .and_then(|step| step.name.1);
             }
-            Ok(Program {
+            Ok(WrittenProgram {
                 linked: false,
                 imports,
                 origins: Vec::new(),

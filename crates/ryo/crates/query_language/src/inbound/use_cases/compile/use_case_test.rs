@@ -7,6 +7,7 @@ use crate::cases::Word;
 use crate::cases::run;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::selects;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Relation;
@@ -16,14 +17,12 @@ use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::program::types::Alias;
 use ryo_values::domain::program::types::ByteOffset;
-use ryo_values::domain::program::types::ColumnReference;
 use ryo_values::domain::program::types::Columns;
 use ryo_values::domain::program::types::Condition;
 use ryo_values::domain::program::types::Expression;
 use ryo_values::domain::program::types::Filter;
 use ryo_values::domain::program::types::Joining;
 use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::Program;
 use ryo_values::domain::program::types::QuerySource;
 use ryo_values::domain::program::types::QuerySpan;
 use ryo_values::domain::program::types::Select;
@@ -32,11 +31,11 @@ use ryo_values::domain::program::types::StepName;
 use ryo_values::domain::program::types::WrittenEmit;
 use ryo_values::domain::program::types::WrittenLiteral;
 use ryo_values::domain::program::types::WrittenOperand;
+use ryo_values::domain::program::types::WrittenProgram;
 use ryo_values::domain::program::types::WrittenRelation;
 use ryo_values::domain::program::types::WrittenTest;
 use std::sync::Arc;
 use super::errors::CompileError;
-use crate::outbound::syntax::fixtures::winnow::winnow;
 use super::interface::CompileUseCase;
 use super::types::CompileRequest;
 use super::use_case::CompileUseCaseImpl;
@@ -78,8 +77,8 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
     }
 }
 
-fn program_with(filters: Vec<Filter>) -> Program {
-    Program {
+fn program_with(filters: Vec<Filter>) -> WrittenProgram {
+    WrittenProgram {
         linked: ryo_values::domain::program::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
@@ -155,46 +154,6 @@ fn comparing_text_with_a_number() -> Given {
     }
 }
 
-/// A query that compares the `kind` of `defines` with the text it is given.
-fn defines_where_kind_is(word: &str) -> Given {
-    let filter = Filter {
-        left: WrittenOperand::Column(ColumnReference {
-            alias: Alias::Unwritten,
-            column: ColumnName("kind".into()),
-        }),
-        test: WrittenTest::Equal,
-        right: WrittenOperand::Text(WrittenLiteral(word.into())),
-        span: NOWHERE,
-    };
-    let mut step = read_function(vec![filter]);
-    if let Expression::Select(select) = &mut step.expression {
-        select.from.reference = SourceReference::Relation(WrittenRelation("defines".into()));
-    }
-    Given {
-        syntax: SyntaxFake {
-            program: Program {
-                steps: vec![step],
-                ..program_with(Vec::new())
-            },
-        },
-        catalog: CatalogFake {
-            relations: vec![Relation::Defines],
-            fails: false,
-        },
-        text: "emit",
-        hosted: vec![],
-        observations: vec![],
-    }
-}
-
-fn a_kind_of_defines_that_is_misspelled() -> Given {
-    defines_where_kind_is("headline")
-}
-
-fn a_kind_of_defines_that_exists() -> Given {
-    defines_where_kind_is("section")
-}
-
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
     program.emit.step = StepName("later".into(), None);
@@ -211,7 +170,36 @@ fn same_text_twice() -> Given {
 /// An external schema supplied at the real inbound API, without supplying any facts.
 
 /// The rows of this part's cases.
+/// An observation input named `name` with the given file-kind columns, shared by the observation groups.
+fn observed(name: &str, columns: &[&str]) -> BoundObservationInput {
+    BoundObservationInput {
+        name: ObservationBindingName(name.into()),
+        columns: columns
+            .iter()
+            .map(|name| ObservationColumn {
+                name: ObservationColumnName((*name).into()),
+                kind: CellKind::File,
+            })
+            .collect(),
+        scope: StepScope::PerFile,
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("blank_observation_name_is_refused"),
+        word: Word::Refuses,
+        input: || {
+            || Given {
+                observations: vec![observed(" ", &["file"])],
+
+                ..text_the_fake_reads()
+            }
+        },
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, CompileError::ObservationInputs { .. }))
+        }),
+    },
     Case {
         name: CaseName("compiles_valid_text_to_a_plan"),
         word: Word::Succeeds,
@@ -256,28 +244,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::Type { .. })),
             )
         }),
-    },
-    Case {
-        name: CaseName("a_word_that_is_no_kind_of_the_column_it_is_compared_with_is_refused"),
-        word: Word::Refuses,
-        input: || a_kind_of_defines_that_is_misspelled,
-        expect: Expect::Refusal(|error| {
-            selects!(
-                matches!(
-                    error,
-                    CompileError::Type { message, .. }
-                        if message == "`headline` is not a kind of defines; the kinds are function, method, class, struct, enum, enum-member, trait, interface, type, type-alias, type-parameter, namespace, package, import, variable, constant, parameter, property, macro, section, label, implementation"
-                ) || matches!(error, CompileError::Located { error, .. }
-                    if matches!(error.as_ref(), CompileError::Type { message, .. }
-                        if message == "`headline` is not a kind of defines; the kinds are function, method, class, struct, enum, enum-member, trait, interface, type, type-alias, type-parameter, namespace, package, import, variable, constant, parameter, property, macro, section, label, implementation")),
-            )
-        }),
-    },
-    Case {
-        name: CaseName("a_word_that_is_a_kind_of_the_column_compiles"),
-        word: Word::Succeeds,
-        input: || a_kind_of_defines_that_exists,
-        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("a_step_nobody_defined_is_refused_as_invalid"),
@@ -357,6 +323,9 @@ mod fragment_contracts;
 mod observation_plans;
 #[cfg(test)]
 mod observations;
+
+#[cfg(test)]
+mod defines_kinds;
 
 #[cfg(test)]
 mod fragment_hygiene;

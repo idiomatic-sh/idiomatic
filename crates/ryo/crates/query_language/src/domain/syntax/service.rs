@@ -9,7 +9,7 @@ use super::constants::operator_named;
 use super::types::{ArgumentRole, ArgumentSlot, OperationShape};
 use ryo_values::domain::plans::types::QueryOperator;
 use ryo_values::domain::program::types::{
-    ArgumentName, ArgumentValue, Expression, Joining, OperationName, Program, SourceReference,
+    ArgumentName, ArgumentValue, Expression, Joining, OperationName, WrittenProgram, SourceReference,
 };
 
 /// The operations a query can call, besides `select`.
@@ -198,7 +198,7 @@ pub(crate) fn shape_named(name: &OperationName) -> Option<&'static OperationShap
 
 /// The relations a program reads from, each once, in the order it first reads them.
 #[must_use]
-pub(crate) fn relations_read(program: &Program) -> Vec<Relation> {
+pub(crate) fn relations_read(program: &WrittenProgram) -> Vec<Relation> {
     let mut relations: Vec<Relation> = Vec::new();
     for step in &program.steps {
         let mut found: Vec<Relation> = Vec::new();
@@ -248,7 +248,7 @@ pub(crate) fn is_input(inputs: &[ArgumentSlot], name: &ArgumentName) -> Argument
 
 /// The operators a program uses, each once, in the order it first uses them.
 #[must_use]
-pub(crate) fn operators_used(program: &Program) -> Vec<QueryOperator> {
+pub(crate) fn operators_used(program: &WrittenProgram) -> Vec<QueryOperator> {
     let mut operators: Vec<QueryOperator> = Vec::new();
     for step in &program.steps {
         let operator = match &step.expression {

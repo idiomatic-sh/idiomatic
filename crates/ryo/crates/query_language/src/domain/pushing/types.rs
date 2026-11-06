@@ -2,7 +2,7 @@
 //! constructor and no inherent impl.
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Operation;
 
@@ -20,7 +20,7 @@ pub(crate) struct FilteredElements<'a> {
     /// The columns of the elements the keys name, in order.
     pub view: &'a [ColumnIndex],
     /// The comparisons the elements already satisfy.
-    pub filter: &'a [Comparison],
+    pub filter: &'a [PlanComparison],
 }
 
 /// What the first join of a lookup keeps.
@@ -45,7 +45,7 @@ pub(crate) struct Pushed {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct FilterStep<'a> {
     /// The comparisons it holds.
-    pub comparisons: &'a [Comparison],
+    pub comparisons: &'a [PlanComparison],
     /// The columns it keeps; none named means every column.
     pub kept: &'a [ColumnIndex],
 }
@@ -57,7 +57,7 @@ pub(crate) struct MovedComparisons {
     /// What the capture reads.
     pub input: Input,
     /// The comparisons that are made before the capture.
-    pub before: Vec<Comparison>,
+    pub before: Vec<PlanComparison>,
     /// The comparisons that stay where they are.
-    pub rest: Vec<Comparison>,
+    pub rest: Vec<PlanComparison>,
 }

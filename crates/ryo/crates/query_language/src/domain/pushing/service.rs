@@ -12,7 +12,7 @@ use crate::domain::rewriting::types::{Planned, StepIndex};
 use crate::domain::walking::service::width_of;
 use ryo_values::domain::plan_parts::service::{columns_of, each_column, remapped};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -97,12 +97,12 @@ fn element_comparisons(
     chain: &[FilterStep<'_>],
     made_output: &[JoinColumn],
     elements: FilteredElements<'_>,
-) -> Option<Vec<Comparison>> {
+) -> Option<Vec<PlanComparison>> {
     let FilteredElements {
         view: element_view,
         filter: element_filter,
     } = elements;
-    let mut filters: Vec<Comparison> = element_filter.to_vec();
+    let mut filters: Vec<PlanComparison> = element_filter.to_vec();
     for (depth, FilterStep { comparisons, .. }) in chain.iter().enumerate() {
         for comparison in *comparisons {
             let element_side = |operand: &Operand| -> Option<Operand> {
@@ -118,7 +118,7 @@ fn element_comparisons(
                     })
                 })
             };
-            filters.push(Comparison {
+            filters.push(PlanComparison {
                 test: comparison.test,
                 left: element_side(&comparison.left)?,
                 right: element_side(&comparison.right)?,
@@ -448,7 +448,7 @@ fn movable(steps: &[PlanStep], place: StepIndex, roots: &[StepId]) -> Option<Mov
         return None;
     }
     let width = width_of(steps, *from)?.0;
-    let (moved, rest): (Vec<Comparison>, Vec<Comparison>) =
+    let (moved, rest): (Vec<PlanComparison>, Vec<PlanComparison>) =
         comparisons.iter().cloned().partition(|comparison| {
             let mut inside = true;
             for operand in [&comparison.left, &comparison.right] {

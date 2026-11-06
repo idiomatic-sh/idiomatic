@@ -8,7 +8,7 @@ use super::types::StepReading;
 use crate::domain::rewriting::types::Planned;
 use ryo_values::domain::plan_parts::service::{each_column, each_column_mut};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -39,7 +39,7 @@ fn side_columns_mut(
 }
 
 /// The columns the comparisons read, those the arguments of a function read among them.
-fn compared_columns(comparisons: &[Comparison]) -> impl Iterator<Item = ColumnIndex> + '_ {
+fn compared_columns(comparisons: &[PlanComparison]) -> impl Iterator<Item = ColumnIndex> + '_ {
     let mut read = Vec::new();
     for comparison in comparisons {
         each_column(&comparison.left, &mut |column| read.push(column));
@@ -49,7 +49,7 @@ fn compared_columns(comparisons: &[Comparison]) -> impl Iterator<Item = ColumnIn
 }
 
 /// Renames each column the comparisons read with `place`, those the arguments of a function read among them.
-fn rename_compared<F>(comparisons: &mut [Comparison], mut place: F)
+fn rename_compared<F>(comparisons: &mut [PlanComparison], mut place: F)
 where
     F: FnMut(&mut ColumnIndex),
 {

@@ -77,7 +77,7 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
         both_fields.clone(),
     );
     let wide = u32::try_from(pair_fields.len()).unwrap_or(u32::MAX);
-    let same = |left: parts::ColumnIndex, right: parts::ColumnIndex| parts::Comparison {
+    let same = |left: parts::ColumnIndex, right: parts::ColumnIndex| parts::PlanComparison {
         test: parts::Test::Equal,
         left: parts::Operand::Column(left),
         right: parts::Operand::Column(right),

@@ -1,6 +1,6 @@
 //! The names, columns and schemas of observation inputs, from the compile inbound API.
 
-use super::super::{Given, compile_twice, text_the_fake_reads};
+use super::super::{Given, compile_twice, observed, text_the_fake_reads};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::ColumnLabel;
 use ryo_values::domain::hosted::types::HostedColumn;
@@ -15,19 +15,6 @@ use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
 
-fn observed(name: &str, columns: &[&str]) -> BoundObservationInput {
-    BoundObservationInput {
-        name: ObservationBindingName(name.into()),
-        columns: columns
-            .iter()
-            .map(|name| ObservationColumn {
-                name: ObservationColumnName((*name).into()),
-                kind: CellKind::File,
-            })
-            .collect(),
-        scope: StepScope::PerFile,
-    }
-}
 
 /// What a row gives the use case.
 type Input = fn() -> Given;
@@ -51,20 +38,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("blank_observation_name_is_refused"),
-        word: Word::Refuses,
-        input: || {
-            || Given {
-                observations: vec![observed(" ", &["file"])],
-
-                ..text_the_fake_reads()
-            }
-        },
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, CompileError::ObservationInputs { .. }))
-        }),
     },
     Case {
         name: CaseName("observation_cannot_shadow_catalog_relation"),

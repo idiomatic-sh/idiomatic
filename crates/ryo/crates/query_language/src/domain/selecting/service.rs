@@ -174,7 +174,7 @@ fn filtered_by(
     builder: &mut Builder<'_>,
     name: Option<&syntax::StepName>,
     input: parts::Input,
-    alternatives: Vec<Vec<parts::Comparison>>,
+    alternatives: Vec<Vec<parts::PlanComparison>>,
     fields: &[PlannedColumn],
 ) -> parts::Input {
     let count = alternatives.len();
@@ -223,7 +223,7 @@ fn comparisons_of(
     builder: &mut Builder<'_>,
     conditions: &[syntax::Condition],
     columns: Addressable<'_>,
-) -> Result<Vec<Vec<parts::Comparison>>, LoweringError> {
+) -> Result<Vec<Vec<parts::PlanComparison>>, LoweringError> {
     let mut alternatives = Vec::new();
     for tests in alternatives_of(conditions) {
         let mut comparisons = Vec::new();

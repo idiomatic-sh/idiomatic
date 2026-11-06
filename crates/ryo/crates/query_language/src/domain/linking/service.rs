@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ryo_values::domain::program::types::{
     Argument, ArgumentValue, Call, Condition, Expression, Filter, FragmentContract,
-    FragmentContractInput, FragmentProgram, ImportDeclaration, LetStep, Program, QueryBundle,
+    FragmentContractInput, FragmentProgram, ImportDeclaration, LetStep, WrittenProgram, QueryBundle,
     QueryOrigin, QuerySourceId, QuerySpan, QueryTraceSite, Select, SourceReference, StepIdentity,
     StepName, WrittenApplied, WrittenOperand,
 };
@@ -23,19 +23,19 @@ use ryo_values::domain::plans::types::ParameterType;
 #[cfg(test)]
 pub(crate) fn link(
     bundle: &QueryBundle,
-    root: Program,
+    root: WrittenProgram,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
-) -> Result<Program, LinkingError> {
+) -> Result<WrittenProgram, LinkingError> {
     link_with_observations(bundle, root, fragments, &[])
 }
 
 /// Bind declared external input names before expanding calls; no local definition is synthesized.
 pub(crate) fn link_with_observations(
     bundle: &QueryBundle,
-    mut root: Program,
+    mut root: WrittenProgram,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-) -> Result<Program, LinkingError> {
+) -> Result<WrittenProgram, LinkingError> {
     let root_id = bundle.root.id.clone();
     assign_root_identities(&mut root);
     validate_step_names(&root_id, &root.steps)?;
@@ -121,7 +121,7 @@ pub(crate) fn link_with_observations(
 }
 
 /// Completes source-local identities for syntax ports that return named, unlinked programs.
-fn assign_root_identities(program: &mut Program) {
+fn assign_root_identities(program: &mut WrittenProgram) {
     let mut next = program
         .steps
         .iter()
@@ -988,7 +988,7 @@ fn source_id(
     source: &QuerySourceId,
     import: &ImportDeclaration,
 ) -> Result<QuerySourceId, LinkingError> {
-    ryo_values::domain::program::service::source_id(&import.module.0).map_err(|error| {
+    ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling(&import.module.0)).map_err(|error| {
         located(
             source,
             import.span,
@@ -1025,7 +1025,7 @@ fn located(
 }
 
 /// Assigns root source locations to parser nodes not already attributed to fragments.
-fn attribute_root(program: &mut Program, root: &QuerySourceId) {
+fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId) {
     for import in &program.imports {
         program.origins.push(QueryOrigin {
             source_id: root.clone(),
@@ -1085,7 +1085,7 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
 
 /// Root local definitions cannot shadow external inputs; hygienic private fragment definitions remain local.
 fn bind_declared_sources(
-    root: &mut Program,
+    root: &mut WrittenProgram,
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     imports: &ImportIndex,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,

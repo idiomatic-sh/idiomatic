@@ -34,7 +34,7 @@ fn typed_comparison_keeps_operands_and_test() {
     .unwrap();
     assert_eq!(
         comparison,
-        parts::Comparison {
+        parts::PlanComparison {
             test: parts::Test::Equal,
             left: parts::Operand::Column(parts::ColumnIndex(1)),
             right: parts::Operand::Literal(parts::QueryLiteral::Text(parts::LiteralText(

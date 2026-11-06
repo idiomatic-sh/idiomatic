@@ -5,7 +5,7 @@ use super::super::interface::SyntaxPort;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{ByteOffset, Call, Expression, LetStep, OperationName, ParsedQueryBundle, Program, QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit};
+use ryo_values::domain::program::types::{ByteOffset, Call, Expression, LetStep, OperationName, ParsedQueryBundle, WrittenProgram, QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit};
 use ryo_values::domain::descriptions::types::ColumnName;
 
 /// What the core's tests stand in for `syntax` with: it reads any text that contains `emit` as the
@@ -13,14 +13,14 @@ use ryo_values::domain::descriptions::types::ColumnName;
 #[derive(Debug)]
 pub struct SyntaxFake {
     /// The program every readable text is read as.
-    pub program: Program,
+    pub program: WrittenProgram,
 }
 
 impl Default for SyntaxFake {
     /// A fake whose program has one step, so it passes the contract.
     fn default() -> Self {
         Self {
-            program: Program {
+            program: WrittenProgram {
                 linked: false,
                 imports: Vec::new(),
                 origins: Vec::new(),
@@ -59,7 +59,7 @@ impl Default for SyntaxFake {
 }
 
 impl SyntaxPort for SyntaxFake {
-    fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError> {
+    fn read(&self, text: QueryView<'_>) -> Result<WrittenProgram, SyntaxError> {
         if text.0.contains("emit") {
             return Ok(self.program.clone());
         }

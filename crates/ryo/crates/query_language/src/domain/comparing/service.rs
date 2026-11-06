@@ -243,7 +243,7 @@ pub(crate) fn comparison_of(
     builder: &mut Builder<'_>,
     filter: &syntax::Filter,
     columns: Addressable<'_>,
-) -> Result<parts::Comparison, LoweringError> {
+) -> Result<parts::PlanComparison, LoweringError> {
     let ResolvedOperand {
         operand: left,
         typed: left_type,
@@ -314,7 +314,7 @@ pub(crate) fn comparison_of(
     } else {
         parts::ComparisonOrigin::Unrecorded
     };
-    Ok(parts::Comparison {
+    Ok(parts::PlanComparison {
         test,
         left,
         right,

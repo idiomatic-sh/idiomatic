@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Relation;
 use super::service::fuse_descents;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Reads;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -41,21 +41,21 @@ fn column(index: u32) -> ColumnIndex {
 
 fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
     let nodes = if scenario == Scenario::ADescentAndTheJoinsAfterItAreOneWalk {
-        Comparison {
+        PlanComparison {
             test: Test::Equal,
             left: Operand::Column(column(2)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
             origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }
     } else {
-        Comparison {
+        PlanComparison {
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("fn".into()))),
             origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }
     };
-    let tokens = Comparison {
+    let tokens = PlanComparison {
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),

@@ -8,7 +8,7 @@ use crate::selects;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, Program, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
+use ryo_values::domain::program::types::{ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, WrittenProgram, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
 use ryo_values::domain::descriptions::types::ColumnName;
 use winnow::Parser as _;
 
@@ -146,11 +146,11 @@ fn fragment_emit_is_rejected_at_its_original_module_span() {
 
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             "let rows = select id from \"syntax-tree\"; emit rows subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("fragment").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("fragment")).unwrap(),
             "output relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;\nemit rows subject id key(id);",
         )],
     )
@@ -180,7 +180,7 @@ fn alternatives(condition: &Condition) -> Vec<usize> {
 }
 
 /// `a or b and c` of `OR` is one `or` of `a` and of `b and c`.
-fn or_precedence_read(program: &Program) {
+fn or_precedence_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -189,7 +189,7 @@ fn or_precedence_read(program: &Program) {
 }
 
 /// `(a or b) and c and (d and e)` of `GROUPED` is an `or` and three tests: the group with no `or` is read as its tests.
-fn grouped_read(program: &Program) {
+fn grouped_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -201,7 +201,7 @@ fn grouped_read(program: &Program) {
 }
 
 /// The parameter and the `where` filter of `LONG_FILES` are read as written.
-fn parameter_and_filter_read(program: &Program) {
+fn parameter_and_filter_read(program: &WrittenProgram) {
     assert_eq!(&*program.parameters[0].name.0, "max-lines");
     assert_eq!(&*program.parameters[0].kind.0, "integer");
     let Expression::Select(select) = &program.steps[0].expression else {
@@ -220,7 +220,7 @@ fn parameter_and_filter_read(program: &Program) {
 }
 
 /// The float-text filter of `FLOATS` is read with its parameter.
-fn float_text_filter_read(program: &Program) {
+fn float_text_filter_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -235,7 +235,7 @@ fn float_text_filter_read(program: &Program) {
 }
 
 /// The affix filters of `FUNCTIONS` are read with their nested functions.
-fn functions_and_affixes_read(program: &Program) {
+fn functions_and_affixes_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -271,7 +271,7 @@ fn functions_and_affixes_read(program: &Program) {
 }
 
 /// The `axis` call and the join of `IFS_IN_FUNCTIONS` are read.
-fn call_and_join_read(program: &Program) {
+fn call_and_join_read(program: &WrittenProgram) {
     let Expression::Call(call) = &program.steps[1].expression else {
         panic!("the step is a call");
     };
@@ -288,7 +288,7 @@ fn call_and_join_read(program: &Program) {
 }
 
 /// The list of texts `ANTIJOIN` gives an argument is read.
-fn lists_of_strings_read(program: &Program) {
+fn lists_of_strings_read(program: &WrittenProgram) {
     let Expression::Call(call) = &program.steps[0].expression else {
         panic!("the step is a call");
     };

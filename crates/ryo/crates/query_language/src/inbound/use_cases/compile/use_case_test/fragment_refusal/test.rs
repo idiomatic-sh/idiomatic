@@ -3,7 +3,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{Program, QueryBundle};
+use ryo_values::domain::program::types::{WrittenProgram, QueryBundle};
 
 type Input = fn();
 type Value = ();
@@ -46,7 +46,7 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
-fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
+fn parse_and_link(bundle: &QueryBundle) -> Result<WrittenProgram, String> {
     let parsed = winnow()
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
@@ -60,16 +60,16 @@ fn a_fragment_cannot_forward_an_undeclared_caller_parameter() {
     let inner = "param secret: string;\noutput relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;";
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             root,
         ),
         [
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("outer").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap(),
                 outer,
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("inner").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("inner")).unwrap(),
                 inner,
             ),
         ],
@@ -110,11 +110,11 @@ fn duplicate_fragment_aliases_and_invalid_signatures_are_refused() {
     for (expected, module) in cases {
         let bundle = ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("root").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
                 root,
             ),
             [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query")).unwrap(),
                 module,
             )],
         )
@@ -124,20 +124,20 @@ fn duplicate_fragment_aliases_and_invalid_signatures_are_refused() {
 
     let duplicate_aliases = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             root,
         ),
         [
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query")).unwrap(),
                 "import helper from \"one\";\nimport helper from \"two\";\noutput relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("one").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("one")).unwrap(),
                 "output relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("two").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("two")).unwrap(),
                 "output relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
             ),
         ],
@@ -153,11 +153,11 @@ fn duplicate_fragment_aliases_and_invalid_signatures_are_refused() {
 fn imported_module_cycle_is_refused() {
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             "import query from \"query\";\nlet result = query();\nemit result subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("query").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query")).unwrap(),
             "import recursive from \"query\";\noutput relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;",
         )],
     )
@@ -172,7 +172,7 @@ fn imported_module_cycle_is_refused() {
 fn imported_module_must_be_present_and_arguments_must_be_unique() {
     let missing = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             "import query from \"missing\";\nlet result = query();\nemit result subject id key(id);",
         ),
         [],
@@ -186,11 +186,11 @@ fn imported_module_must_be_present_and_arguments_must_be_unique() {
 
     let repeated = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             "import query from \"query\";\nlet result = query(source=\"syntax-tree\", source=\"syntax-tree\");\nemit result subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("query").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query")).unwrap(),
             "input source: relation<id: node>;\noutput relation<id: node>;\nlet rows = select id from source;\nreturn rows;",
         )],
     )

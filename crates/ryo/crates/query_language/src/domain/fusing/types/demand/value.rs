@@ -408,7 +408,7 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInput {
 }
 
 /// Error-sensitive functions/patterns stay in their original owner-local execution path.
-fn purity(comparison: &ryo_values::domain::plan_parts::types::Comparison) -> Purity {
+fn purity(comparison: &ryo_values::domain::plan_parts::types::PlanComparison) -> Purity {
     let plain = !matches!(comparison.left, Operand::Function(_))
         && !matches!(comparison.right, Operand::Function(_))
         && matches!(

@@ -6,7 +6,7 @@ use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::remapped;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::Side;
@@ -55,7 +55,7 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
     let remap = |operand: &Operand| remapped(operand, &|column| source_column(cut, column));
     let mut comparisons = first.clone();
     for comparison in second {
-        comparisons.push(Comparison {
+        comparisons.push(PlanComparison {
             test: comparison.test,
             left: remap(&comparison.left)?,
             right: remap(&comparison.right)?,
@@ -248,7 +248,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let remap = |operand: &Operand| remapped(operand, &in_tree);
     let mut merged = filter.clone();
     for comparison in comparisons {
-        merged.push(Comparison {
+        merged.push(PlanComparison {
             test: comparison.test,
             left: remap(&comparison.left)?,
             right: remap(&comparison.right)?,

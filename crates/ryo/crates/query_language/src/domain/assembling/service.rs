@@ -39,7 +39,7 @@ use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
 )]
 #[cfg(test)]
 pub(crate) fn lower(
-    program: &syntax::Program,
+    program: &syntax::WrittenProgram,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
 ) -> Result<plans::Plan, LoweringError> {
@@ -48,7 +48,7 @@ pub(crate) fn lower(
 
 /// Resolve every declared producer source through the same typed lowering pass.
 pub(crate) fn lower_with_observations(
-    program: &syntax::Program,
+    program: &syntax::WrittenProgram,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
@@ -241,7 +241,7 @@ pub(crate) fn lower_with_observations(
 
 /// Attaches the expanded fragment origin to a lowering error for one root step.
 fn locate_step_error(
-    program: &syntax::Program,
+    program: &syntax::WrittenProgram,
     identity: Option<syntax::StepIdentity>,
     error: LoweringError,
 ) -> LoweringError {

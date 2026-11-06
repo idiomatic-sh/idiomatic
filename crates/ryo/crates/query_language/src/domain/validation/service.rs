@@ -15,7 +15,7 @@ use crate::domain::syntax::service::{is_input, shape_named};
 use crate::domain::syntax::types::ArgumentRole;
 use ryo_values::domain::program::types::{
     ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, ParameterDeclaration,
-    Program, QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand,
+    WrittenProgram, QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand,
 };
 use std::collections::BTreeSet;
 
@@ -27,7 +27,7 @@ use std::collections::BTreeSet;
 /// The first thing wrong, with the place it is written.
 #[cfg(test)]
 pub(crate) fn validate(
-    program: &Program,
+    program: &WrittenProgram,
     catalog: &[Relation],
     hosted: &[HostedName],
 ) -> Result<(), ValidationError> {
@@ -36,7 +36,7 @@ pub(crate) fn validate(
 
 /// Validate declared typed named inputs without admitting arbitrary unknown step names.
 pub(crate) fn validate_with_observations(
-    program: &Program,
+    program: &WrittenProgram,
     catalog: &[Relation],
     hosted: &[HostedName],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
