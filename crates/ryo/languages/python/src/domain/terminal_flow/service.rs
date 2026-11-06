@@ -8,7 +8,9 @@ use crate::domain::{
         service::{category, kind},
         types::Kind,
     },
-    terminal_flow::types::{IndexState, NodeSummary, TerminalOutcome, TerminalIndex},
+    terminal_flow::types::{
+        Breaks, IndexState, NodeSummary, Returns, TerminalIndex, TerminalOutcome, WildcardPattern,
+    },
 };
 use ryo::languages::{self, NameText, Position, Tree};
 use std::cell::{Ref, RefCell};
@@ -60,11 +62,11 @@ fn sequence(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position, field: Field) 
 }
 
 /// Check whether a terminal summary includes a return path.
-fn has_return(value: TerminalOutcome) -> bool {
-    matches!(
+fn has_return(value: TerminalOutcome) -> Returns {
+    Returns(matches!(
         value,
         TerminalOutcome::Return | TerminalOutcome::RaiseOrReturn | TerminalOutcome::ConditionalReturn
-    )
+    ))
 }
 
 /// Compose sequential statement outcomes from left to right.
@@ -105,42 +107,44 @@ fn branch(left: TerminalOutcome, right: TerminalOutcome) -> TerminalOutcome {
 }
 
 /// Check whether the first terminal statement in a body is `break`.
-fn always_breaks(tree: &Tree<'_>, at: Position) -> bool {
+fn always_breaks(tree: &Tree<'_>, at: Position) -> Breaks {
     for statement in children(tree, at, Field::Body, Category::Statement) {
         match kind(tree, statement) {
-            Kind::Node(Node::Break) => return true,
-            Kind::Node(Node::Return | Node::Raise) => return false,
+            Kind::Node(Node::Break) => return Breaks(true),
+            Kind::Node(Node::Return | Node::Raise) => return Breaks(false),
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
     }
-    false
+    Breaks(false)
 }
 
 /// Check whether a body can reach a break statement.
-fn body_breaks(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> bool {
+fn body_breaks(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> Breaks {
     for statement in children(tree, at, Field::Body, Category::Statement) {
         match kind(tree, statement) {
-            Kind::Node(Node::Break) => return true,
-            Kind::Node(Node::Return | Node::Raise) => return false,
+            Kind::Node(Node::Break) => return Breaks(true),
+            Kind::Node(Node::Return | Node::Raise) => return Breaks(false),
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)
-                if node_index(nodes, statement).sometimes_breaks =>
+                if node_index(nodes, statement).sometimes_breaks.0 =>
             {
-                return true;
+                return Breaks(true);
             }
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
     }
-    false
+    Breaks(false)
 }
 
 /// Check whether a match case is an unguarded wildcard pattern.
-fn exhaustive_case(tree: &Tree<'_>, nodes: &[NodeSummary], case: Position) -> bool {
-    children(tree, case, Field::Guard, Category::Expression)
-        .next()
-        .is_none()
-        && children(tree, case, Field::Pattern, Category::Pattern)
+fn exhaustive_case(tree: &Tree<'_>, nodes: &[NodeSummary], case: Position) -> WildcardPattern {
+    WildcardPattern(
+        children(tree, case, Field::Guard, Category::Expression)
             .next()
-            .is_some_and(|pattern| node_index(nodes, pattern).wildcard_pattern)
+            .is_none()
+            && children(tree, case, Field::Pattern, Category::Pattern)
+                .next()
+                .is_some_and(|pattern| node_index(nodes, pattern).wildcard_pattern.0),
+    )
 }
 
 #[expect(
@@ -156,19 +160,21 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
     use crate::domain::syntax::types::Kind::Node as SyntaxNode;
     match kind(tree, at) {
         SyntaxNode(MatchAs) => NodeSummary {
-            wildcard_pattern: children(tree, at, Field::Pattern, Category::Pattern)
-                .next()
-                .is_none_or(|pattern| node_index(nodes, pattern).wildcard_pattern),
+            wildcard_pattern: WildcardPattern(
+                children(tree, at, Field::Pattern, Category::Pattern)
+                    .next()
+                    .is_none_or(|pattern| node_index(nodes, pattern).wildcard_pattern.0),
+            ),
             ..NodeSummary::default()
         },
         SyntaxNode(MatchOr) => {
             let mut patterns = children(tree, at, Field::Patterns, Category::Pattern);
             let wildcard = patterns.next().is_some_and(|first| {
-                node_index(nodes, first).wildcard_pattern
-                    && patterns.all(|pattern| node_index(nodes, pattern).wildcard_pattern)
+                node_index(nodes, first).wildcard_pattern.0
+                    && patterns.all(|pattern| node_index(nodes, pattern).wildcard_pattern.0)
             });
             NodeSummary {
-                wildcard_pattern: wildcard,
+                wildcard_pattern: WildcardPattern(wildcard),
                 ..NodeSummary::default()
             }
         }
@@ -178,41 +184,41 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
         },
         SyntaxNode(Break) => NodeSummary {
             terminal: TerminalOutcome::None,
-            sometimes_breaks: true,
+            sometimes_breaks: Breaks(true),
             ..NodeSummary::default()
         },
         SyntaxNode(Return) => NodeSummary {
             terminal: TerminalOutcome::RaiseOrReturn,
-            sometimes_breaks: false,
+            sometimes_breaks: Breaks(false),
             ..NodeSummary::default()
         },
         SyntaxNode(Raise) => NodeSummary {
             terminal: TerminalOutcome::Raise,
-            sometimes_breaks: false,
+            sometimes_breaks: Breaks(false),
             ..NodeSummary::default()
         },
         SyntaxNode(If) => {
             let mut branches = sequence(tree, nodes, at, Field::Body);
             let mut exhaustive = false;
-            let mut breaks = body_breaks(tree, nodes, at);
+            let mut breaks = body_breaks(tree, nodes, at).0;
             for clause in clauses(tree, at) {
                 let has_test = children(tree, clause, Field::Test, Category::Expression)
                     .next()
                     .is_some();
                 exhaustive |= !has_test;
                 branches = branch(branches, sequence(tree, nodes, clause, Field::Body));
-                breaks |= body_breaks(tree, nodes, clause);
+                breaks |= body_breaks(tree, nodes, clause).0;
             }
             let terminal = if exhaustive {
                 and_then(TerminalOutcome::None, branches)
-            } else if has_return(branches) {
+            } else if has_return(branches).0 {
                 and_then(TerminalOutcome::None, TerminalOutcome::ConditionalReturn)
             } else {
                 TerminalOutcome::None
             };
             NodeSummary {
                 terminal,
-                sometimes_breaks: breaks,
+                sometimes_breaks: Breaks(breaks),
                 ..NodeSummary::default()
             }
         }
@@ -222,40 +228,41 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
             let mut breaks = false;
             for case in children(tree, at, Field::Cases, Category::Part) {
                 terminal = branch(terminal, sequence(tree, nodes, case, Field::Body));
-                exhaustive |= exhaustive_case(tree, nodes, case);
-                breaks |= body_breaks(tree, nodes, case);
+                exhaustive |= exhaustive_case(tree, nodes, case).0;
+                breaks |= body_breaks(tree, nodes, case).0;
             }
             let terminal = if exhaustive {
                 and_then(TerminalOutcome::None, terminal)
-            } else if has_return(terminal) {
+            } else if has_return(terminal).0 {
                 and_then(TerminalOutcome::None, TerminalOutcome::ConditionalReturn)
             } else {
                 TerminalOutcome::None
             };
             NodeSummary {
                 terminal,
-                sometimes_breaks: breaks,
+                sometimes_breaks: Breaks(breaks),
                 ..NodeSummary::default()
             }
         }
         SyntaxNode(For | AsyncFor | While) => {
             let body = sequence(tree, nodes, at, Field::Body);
             let otherwise = sequence(tree, nodes, at, Field::Orelse);
-            if always_breaks(tree, at) {
+            if always_breaks(tree, at).0 {
                 NodeSummary {
                     terminal: TerminalOutcome::None,
-                    sometimes_breaks: false,
+                    sometimes_breaks: Breaks(false),
                     ..NodeSummary::default()
                 }
             } else {
                 let mut terminal = and_then(TerminalOutcome::None, body);
-                if !body_breaks(tree, nodes, at) {
+                if !body_breaks(tree, nodes, at).0 {
                     terminal = and_then(terminal, otherwise);
                 }
                 NodeSummary {
                     terminal,
-                    sometimes_breaks: !has_return(body)
-                        && sequence_breaks(tree, nodes, at, Field::Orelse),
+                    sometimes_breaks: Breaks(
+                        !has_return(body).0 && sequence_breaks(tree, nodes, at, Field::Orelse).0,
+                    ),
                     ..NodeSummary::default()
                 }
             }
@@ -271,12 +278,12 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
             let mut handler_breaks = false;
             for handler in children(tree, at, Field::Handlers, Category::Part) {
                 branches = branch(branches, sequence(tree, nodes, handler, Field::Body));
-                handler_breaks |= body_breaks(tree, nodes, handler);
+                handler_breaks |= body_breaks(tree, nodes, handler).0;
             }
             let orelse = sequence(tree, nodes, at, Field::Orelse);
             let finally = sequence(tree, nodes, at, Field::Finalbody);
             let mut terminal = TerminalOutcome::None;
-            if has_return(body) {
+            if has_return(body).0 {
                 terminal = and_then(terminal, TerminalOutcome::ConditionalReturn);
             }
             terminal = and_then(terminal, finally);
@@ -284,7 +291,7 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
                 .next()
                 .is_none()
             {
-                if has_return(branches) {
+                if has_return(branches).0 {
                     terminal = and_then(terminal, TerminalOutcome::ConditionalReturn);
                 }
             } else {
@@ -292,10 +299,12 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
             }
             NodeSummary {
                 terminal,
-                sometimes_breaks: body_breaks(tree, nodes, at)
-                    || handler_breaks
-                    || sequence_breaks(tree, nodes, at, Field::Orelse)
-                    || sequence_breaks(tree, nodes, at, Field::Finalbody),
+                sometimes_breaks: Breaks(
+                    body_breaks(tree, nodes, at).0
+                        || handler_breaks
+                        || sequence_breaks(tree, nodes, at, Field::Orelse).0
+                        || sequence_breaks(tree, nodes, at, Field::Finalbody).0,
+                ),
                 ..NodeSummary::default()
             }
         }
@@ -304,20 +313,20 @@ fn node_summary(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position) -> NodeSum
 }
 
 /// Check whether an ordered statement field can reach a break.
-fn sequence_breaks(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position, field: Field) -> bool {
+fn sequence_breaks(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position, field: Field) -> Breaks {
     for statement in children(tree, at, field, Category::Statement) {
         match kind(tree, statement) {
-            Kind::Node(Node::Break) => return true,
-            Kind::Node(Node::Return | Node::Raise) => return false,
+            Kind::Node(Node::Break) => return Breaks(true),
+            Kind::Node(Node::Return | Node::Raise) => return Breaks(false),
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)
-                if node_index(nodes, statement).sometimes_breaks =>
+                if node_index(nodes, statement).sometimes_breaks.0 =>
             {
-                return true;
+                return Breaks(true);
             }
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
     }
-    false
+    Breaks(false)
 }
 
 /// Populate terminal summaries in reverse source-tree order.
