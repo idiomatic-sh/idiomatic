@@ -3,8 +3,8 @@ use super::{RawFormatFieldItem, RawFormatSegmentItem};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::{proposed, reading};
 use ryo::languages::contract::Want;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
-#[test]
 fn raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions() {
     check::<RawFormatSegmentItem>();
     check::<RawFormatFieldItem>();
@@ -39,7 +39,6 @@ fn raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions() {
     assert_eq!(fields.rows[2][9], Want::Name("star"));
 }
 
-#[test]
 fn raw_format_failed_segments_contribute_no_valid_prefix_fields() {
     let source = "'%s' '%d%q' '%x'\n";
     let segments = reading::<RawFormatSegmentItem>(source);
@@ -60,7 +59,6 @@ fn raw_format_failed_segments_contribute_no_valid_prefix_fields() {
     assert_eq!(fields.rows[1][7], Want::Name("x"));
 }
 
-#[test]
 fn raw_format_preserves_escapes_segment_boundaries_and_unicode_indices() {
     let source = "'\\x25d' '%d'\n'%' 'd'\n'é%n'\n'%(\\x78)d'\n";
     let segments = reading::<RawFormatSegmentItem>(source);
@@ -80,7 +78,6 @@ fn raw_format_preserves_escapes_segment_boundaries_and_unicode_indices() {
     assert_eq!(fields.rows[1][6], Want::Name(r"\x78"));
 }
 
-#[test]
 fn raw_format_accepts_prefixes_quotes_comments_and_original_crlf() {
     let segments = reading::<RawFormatSegmentItem>("(r'%d' # keep\r\n U\"%s\" '''%c\r\n%x''')\r\n");
     assert!(segments.causes.is_empty(), "{:?}", segments.causes);
@@ -90,7 +87,6 @@ fn raw_format_accepts_prefixes_quotes_comments_and_original_crlf() {
     assert_eq!(segments.rows[2][8], Want::Number(2));
 }
 
-#[test]
 fn raw_format_uses_embedded_logical_spelling_and_excludes_hidden_candidates() {
     let source =
         "from typing import Literal\nx: \"Literal[\\\"%d\\\"]\"\ny: \"Literal['%(\\\\x78)d']\"\n";
@@ -133,7 +129,6 @@ fn raw_format_uses_embedded_logical_spelling_and_excludes_hidden_candidates() {
     );
 }
 
-#[test]
 fn raw_format_excludes_bytes_interpolated_and_template_strings() {
     let source = "b'%d'\nf'%d'\nf'%d {x}'\nt'%d'\n";
     let segments = reading::<RawFormatSegmentItem>(source);
@@ -144,7 +139,6 @@ fn raw_format_excludes_bytes_interpolated_and_template_strings() {
     assert!(fields.rows.is_empty());
 }
 
-#[test]
 fn raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields() {
     let segments = proposed::<RawFormatSegmentItem>("'%d'\n(\n");
     assert!(!segments.causes.is_empty());
@@ -153,7 +147,6 @@ fn raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields() {
     assert!(fields.rows.is_empty());
 }
 
-#[test]
 fn raw_error_characters_preserve_two_and_four_byte_unicode_scalars() {
     let report = reading::<RawFormatSegmentItem>("a = '%é'\nb = '%🧪'\nc = '%s'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
@@ -169,7 +162,6 @@ fn raw_error_characters_preserve_two_and_four_byte_unicode_scalars() {
     assert_eq!(fields.rows[0][7], Want::Name("s"));
 }
 
-#[test]
 fn raw_flags_append_to_the_schema_and_preserve_normalized_parse_metadata() {
     let report = reading::<RawFormatFieldItem>("'%s' '%0- +#10r' '%##00--++  r' '%0s' '%%'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
@@ -185,7 +177,6 @@ fn raw_flags_append_to_the_schema_and_preserve_normalized_parse_metadata() {
     assert_eq!(report.rows[3][12], Want::Name("0"));
 }
 
-#[test]
 fn raw_flags_do_not_decode_escaped_flags_or_invent_fields_from_percent_escapes() {
     let report = reading::<RawFormatFieldItem>("'\\x25+r' '%\\x2br' '%%' '%+r'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
@@ -193,4 +184,115 @@ fn raw_flags_do_not_decode_escaped_flags_or_invent_fields_from_percent_escapes()
     assert_eq!(report.rows[0][2], Want::Number(3));
     assert_eq!(report.rows[0][7], Want::Name("r"));
     assert_eq!(report.rows[0][12], Want::Name("+"));
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions`.
+    RawFormatRowsKeepEmptySegmentsRepeatedKeysAndStarConversions,
+    /// The case `raw_format_failed_segments_contribute_no_valid_prefix_fields`.
+    RawFormatFailedSegmentsContributeNoValidPrefixFields,
+    /// The case `raw_format_preserves_escapes_segment_boundaries_and_unicode_indices`.
+    RawFormatPreservesEscapesSegmentBoundariesAndUnicodeIndices,
+    /// The case `raw_format_accepts_prefixes_quotes_comments_and_original_crlf`.
+    RawFormatAcceptsPrefixesQuotesCommentsAndOriginalCrlf,
+    /// The case `raw_format_uses_embedded_logical_spelling_and_excludes_hidden_candidates`.
+    RawFormatUsesEmbeddedLogicalSpellingAndExcludesHiddenCandidates,
+    /// The case `raw_format_excludes_bytes_interpolated_and_template_strings`.
+    RawFormatExcludesBytesInterpolatedAndTemplateStrings,
+    /// The case `raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields`.
+    RawFormatIncompleteSyntaxIsPartialAndHasNoPreciseGlobalFields,
+    /// The case `raw_error_characters_preserve_two_and_four_byte_unicode_scalars`.
+    RawErrorCharactersPreserveTwoAndFourByteUnicodeScalars,
+    /// The case `raw_flags_append_to_the_schema_and_preserve_normalized_parse_metadata`.
+    RawFlagsAppendToTheSchemaAndPreserveNormalizedParseMetadata,
+    /// The case `raw_flags_do_not_decode_escaped_flags_or_invent_fields_from_percent_escapes`.
+    RawFlagsDoNotDecodeEscapedFlagsOrInventFieldsFromPercentEscapes,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatRowsKeepEmptySegmentsRepeatedKeysAndStarConversions,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_failed_segments_contribute_no_valid_prefix_fields"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatFailedSegmentsContributeNoValidPrefixFields,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_preserves_escapes_segment_boundaries_and_unicode_indices"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatPreservesEscapesSegmentBoundariesAndUnicodeIndices,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_accepts_prefixes_quotes_comments_and_original_crlf"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatAcceptsPrefixesQuotesCommentsAndOriginalCrlf,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_uses_embedded_logical_spelling_and_excludes_hidden_candidates"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatUsesEmbeddedLogicalSpellingAndExcludesHiddenCandidates,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_excludes_bytes_interpolated_and_template_strings"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatExcludesBytesInterpolatedAndTemplateStrings,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields"),
+        word: Word::Succeeds,
+        input: || Body::RawFormatIncompleteSyntaxIsPartialAndHasNoPreciseGlobalFields,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_error_characters_preserve_two_and_four_byte_unicode_scalars"),
+        word: Word::Succeeds,
+        input: || Body::RawErrorCharactersPreserveTwoAndFourByteUnicodeScalars,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_flags_append_to_the_schema_and_preserve_normalized_parse_metadata"),
+        word: Word::Succeeds,
+        input: || Body::RawFlagsAppendToTheSchemaAndPreserveNormalizedParseMetadata,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_flags_do_not_decode_escaped_flags_or_invent_fields_from_percent_escapes"),
+        word: Word::Succeeds,
+        input: || Body::RawFlagsDoNotDecodeEscapedFlagsOrInventFieldsFromPercentEscapes,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::RawFormatRowsKeepEmptySegmentsRepeatedKeysAndStarConversions => raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions(),
+        Body::RawFormatFailedSegmentsContributeNoValidPrefixFields => raw_format_failed_segments_contribute_no_valid_prefix_fields(),
+        Body::RawFormatPreservesEscapesSegmentBoundariesAndUnicodeIndices => raw_format_preserves_escapes_segment_boundaries_and_unicode_indices(),
+        Body::RawFormatAcceptsPrefixesQuotesCommentsAndOriginalCrlf => raw_format_accepts_prefixes_quotes_comments_and_original_crlf(),
+        Body::RawFormatUsesEmbeddedLogicalSpellingAndExcludesHiddenCandidates => raw_format_uses_embedded_logical_spelling_and_excludes_hidden_candidates(),
+        Body::RawFormatExcludesBytesInterpolatedAndTemplateStrings => raw_format_excludes_bytes_interpolated_and_template_strings(),
+        Body::RawFormatIncompleteSyntaxIsPartialAndHasNoPreciseGlobalFields => raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields(),
+        Body::RawErrorCharactersPreserveTwoAndFourByteUnicodeScalars => raw_error_characters_preserve_two_and_four_byte_unicode_scalars(),
+        Body::RawFlagsAppendToTheSchemaAndPreserveNormalizedParseMetadata => raw_flags_append_to_the_schema_and_preserve_normalized_parse_metadata(),
+        Body::RawFlagsDoNotDecodeEscapedFlagsOrInventFieldsFromPercentEscapes => raw_flags_do_not_decode_escaped_flags_or_invent_fields_from_percent_escapes(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

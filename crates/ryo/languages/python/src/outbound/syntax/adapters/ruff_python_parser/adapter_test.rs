@@ -15,7 +15,6 @@ use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::{PySourceType, PythonVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols, TreeImpact};
 
-#[test]
 fn preserves_async_statement_kinds() {
     let source = "async def f(items):\n    async for item in items:\n        async with manager():\n            pass\n    def g():\n        for item in items:\n            with manager():\n                pass\n";
     let seen = elements_of(&SyntaxRuffPythonParserAdapter::default(), source);
@@ -29,7 +28,6 @@ fn preserves_async_statement_kinds() {
     assert!(kinds.contains(&Kind::Node(Node::With)));
 }
 
-#[test]
 fn target_version_syntax_warning_preserves_the_tree() {
     let source = "try:\n    pass\nexcept* (ValueError,):\n    pass\n";
     let diagnostics_for = |target| {
@@ -71,7 +69,6 @@ fn target_version_syntax_warning_preserves_the_tree() {
     assert_eq!(py311_acceptance, languages::SyntaxAcceptance::Accepted);
 }
 
-#[test]
 fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
     let diagnostics_for = |source: &str| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -116,7 +113,6 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
     );
 }
 
-#[test]
 fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
     let cases = [
         (
@@ -169,7 +165,6 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
     }
 }
 
-#[test]
 fn named_expression_annotation_validity_does_not_depend_on_filename() {
     let diagnostics_for = |source: &str, source_kind| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -232,7 +227,6 @@ fn named_expression_annotation_validity_does_not_depend_on_filename() {
     );
 }
 
-#[test]
 fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
     let impacts = |source: &str| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -297,7 +291,6 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
     }
 }
 
-#[test]
 fn parser_refusal_with_complete_tokens_keeps_lexical_facts_available() {
     let source = "try:\n    work()\nelse:\n    recover()\n";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -1063,13 +1056,164 @@ fn diagnostics_of(
     Seen::Diagnostics(Box::leak(diagnostics.into_boxed_slice()))
 }
 
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `preserves_async_statement_kinds`.
+    PreservesAsyncStatementKinds,
+    /// The case `target_version_syntax_warning_preserves_the_tree`.
+    TargetVersionSyntaxWarningPreservesTheTree,
+    /// The case `semantic_syntax_checks_only_run_after_an_accepted_parse`.
+    SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse,
+    /// The case `comprehension_rebinding_preserves_ast_and_respects_lambda_scope`.
+    ComprehensionRebindingPreservesAstAndRespectsLambdaScope,
+    /// The case `named_expression_annotation_validity_does_not_depend_on_filename`.
+    NamedExpressionAnnotationValidityDoesNotDependOnFilename,
+    /// The case `parser_errors_distinguish_complete_tokens_from_lexical_failure`.
+    ParserErrorsDistinguishCompleteTokensFromLexicalFailure,
+    /// The case `parser_refusal_with_complete_tokens_keeps_lexical_facts_available`.
+    ParserRefusalWithCompleteTokensKeepsLexicalFactsAvailable,
+    /// The case `parser_options_keep_source_kind_and_configured_target`.
+    ParserOptionsKeepSourceKindAndConfiguredTarget,
+    /// The case `future_annotations_use_only_valid_compiler_directives`.
+    FutureAnnotationsUseOnlyValidCompilerDirectives,
+    /// The case `native_annotation_scopes_are_version_sensitive`.
+    NativeAnnotationScopesAreVersionSensitive,
+    /// The case `malformed_future_import_never_enables_a_compiler_feature`.
+    MalformedFutureImportNeverEnablesACompilerFeature,
+    /// The case `bare_starred_loop_target_preserves_accepted_ast_with_validation_error`.
+    BareStarredLoopTargetPreservesAcceptedAstWithValidationError,
+    /// The case `starred_targets_require_unpacking_containers_without_affecting_expression_stars`.
+    StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars,
+    /// The case `invalid_utf8_never_certifies_a_complete_lexical_stream`.
+    InvalidUtf8NeverCertifiesACompleteLexicalStream,
+    /// The case `invalid_syntax_keeps_actual_comment_tokens`.
+    InvalidSyntaxKeepsActualCommentTokens,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("preserves_async_statement_kinds"),
+        word: Word::Succeeds,
+        input: || Body::PreservesAsyncStatementKinds,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("target_version_syntax_warning_preserves_the_tree"),
+        word: Word::Succeeds,
+        input: || Body::TargetVersionSyntaxWarningPreservesTheTree,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("semantic_syntax_checks_only_run_after_an_accepted_parse"),
+        word: Word::Succeeds,
+        input: || Body::SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("comprehension_rebinding_preserves_ast_and_respects_lambda_scope"),
+        word: Word::Succeeds,
+        input: || Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("named_expression_annotation_validity_does_not_depend_on_filename"),
+        word: Word::Succeeds,
+        input: || Body::NamedExpressionAnnotationValidityDoesNotDependOnFilename,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("parser_errors_distinguish_complete_tokens_from_lexical_failure"),
+        word: Word::Succeeds,
+        input: || Body::ParserErrorsDistinguishCompleteTokensFromLexicalFailure,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("parser_refusal_with_complete_tokens_keeps_lexical_facts_available"),
+        word: Word::Succeeds,
+        input: || Body::ParserRefusalWithCompleteTokensKeepsLexicalFactsAvailable,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("parser_options_keep_source_kind_and_configured_target"),
+        word: Word::Succeeds,
+        input: || Body::ParserOptionsKeepSourceKindAndConfiguredTarget,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("future_annotations_use_only_valid_compiler_directives"),
+        word: Word::Succeeds,
+        input: || Body::FutureAnnotationsUseOnlyValidCompilerDirectives,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("native_annotation_scopes_are_version_sensitive"),
+        word: Word::Succeeds,
+        input: || Body::NativeAnnotationScopesAreVersionSensitive,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("malformed_future_import_never_enables_a_compiler_feature"),
+        word: Word::Succeeds,
+        input: || Body::MalformedFutureImportNeverEnablesACompilerFeature,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("bare_starred_loop_target_preserves_accepted_ast_with_validation_error"),
+        word: Word::Succeeds,
+        input: || Body::BareStarredLoopTargetPreservesAcceptedAstWithValidationError,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("starred_targets_require_unpacking_containers_without_affecting_expression_stars"),
+        word: Word::Succeeds,
+        input: || Body::StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("invalid_utf8_never_certifies_a_complete_lexical_stream"),
+        word: Word::Succeeds,
+        input: || Body::InvalidUtf8NeverCertifiesACompleteLexicalStream,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("invalid_syntax_keeps_actual_comment_tokens"),
+        word: Word::Succeeds,
+        input: || Body::InvalidSyntaxKeepsActualCommentTokens,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::PreservesAsyncStatementKinds => preserves_async_statement_kinds(),
+        Body::TargetVersionSyntaxWarningPreservesTheTree => target_version_syntax_warning_preserves_the_tree(),
+        Body::SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse => semantic_syntax_checks_only_run_after_an_accepted_parse(),
+        Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope => comprehension_rebinding_preserves_ast_and_respects_lambda_scope(),
+        Body::NamedExpressionAnnotationValidityDoesNotDependOnFilename => named_expression_annotation_validity_does_not_depend_on_filename(),
+        Body::ParserErrorsDistinguishCompleteTokensFromLexicalFailure => parser_errors_distinguish_complete_tokens_from_lexical_failure(),
+        Body::ParserRefusalWithCompleteTokensKeepsLexicalFactsAvailable => parser_refusal_with_complete_tokens_keeps_lexical_facts_available(),
+        Body::ParserOptionsKeepSourceKindAndConfiguredTarget => parser_options_keep_source_kind_and_configured_target(),
+        Body::FutureAnnotationsUseOnlyValidCompilerDirectives => future_annotations_use_only_valid_compiler_directives(),
+        Body::NativeAnnotationScopesAreVersionSensitive => native_annotation_scopes_are_version_sensitive(),
+        Body::MalformedFutureImportNeverEnablesACompilerFeature => malformed_future_import_never_enables_a_compiler_feature(),
+        Body::BareStarredLoopTargetPreservesAcceptedAstWithValidationError => bare_starred_loop_target_preserves_accepted_ast_with_validation_error(),
+        Body::StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars => starred_targets_require_unpacking_containers_without_affecting_expression_stars(),
+        Body::InvalidUtf8NeverCertifiesACompleteLexicalStream => invalid_utf8_never_certifies_a_complete_lexical_stream(),
+        Body::InvalidSyntaxKeepsActualCommentTokens => invalid_syntax_keeps_actual_comment_tokens(),
+    }
+    Ok(())
+}
+
 #[test]
 fn succeeds() {
+    run(BODIES, Word::Succeeds, body);
     check(&SyntaxRuffPythonParserAdapter::default());
     run(CASES, Word::Succeeds, subject);
 }
 
-#[test]
 fn parser_options_keep_source_kind_and_configured_target() {
     assert_eq!(
         super::adapter::source_type(PythonSourceKind::Python),
@@ -1194,7 +1338,6 @@ const COMPILER_DIRECTIVE_CASES: &[CompilerDirectiveCase] = &[
 ];
 
 /// Independent compiler controls; exact external observations are retained beside the fixture.
-#[test]
 fn future_annotations_use_only_valid_compiler_directives() {
     for case in COMPILER_DIRECTIVE_CASES {
         let source = case.source;
@@ -1243,7 +1386,6 @@ fn future_annotations_use_only_valid_compiler_directives() {
 }
 
 /// The compiler's native annotation scopes are independent of a future import.
-#[test]
 fn native_annotation_scopes_are_version_sensitive() {
     let source = "x:(value:=int)\n";
     for (target, reject) in [
@@ -1276,7 +1418,6 @@ fn native_annotation_scopes_are_version_sensitive() {
     }
 }
 
-#[test]
 fn malformed_future_import_never_enables_a_compiler_feature() {
     let source = "from __future__ import (\n";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -1300,7 +1441,6 @@ fn malformed_future_import_never_enables_a_compiler_feature() {
     );
 }
 
-#[test]
 fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
     let source = "f=open(\"x\",\"w\")\nfor *[x] in rows:\n    f.write(x)\n";
     for target in [PythonTargetVersion::Py310, PythonTargetVersion::Py313] {
@@ -1330,7 +1470,6 @@ fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
     }
 }
 
-#[test]
 fn starred_targets_require_unpacking_containers_without_affecting_expression_stars() {
     let cases = [
         ("for *x in rows:\n pass\n", false),
@@ -1392,7 +1531,6 @@ fn starred_targets_require_unpacking_containers_without_affecting_expression_sta
     }
 }
 
-#[test]
 fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
     let source = b"x = ( # before invalid byte\n\xff\n";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -1407,7 +1545,6 @@ fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
     assert!(languages::has_incomplete_lexical_stream(&elements));
 }
 
-#[test]
 fn invalid_syntax_keeps_actual_comment_tokens() {
     let source = "if ( # retained comment\n";
     let elements = elements_of(&SyntaxRuffPythonParserAdapter::default(), source);

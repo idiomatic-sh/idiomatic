@@ -5,8 +5,8 @@ use crate::domain::brace_format::interface::BraceFormatSyntax as _;
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceSelector,
 };
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
-#[test]
 fn preserves_selector_kinds_duplicates_and_nested_order() {
     let parsed = parse("{{{key!r:{width}} {} {2} {2}").expect("valid format");
     assert_eq!(parsed.automatic_count.0, 1);
@@ -57,7 +57,6 @@ fn preserves_selector_kinds_duplicates_and_nested_order() {
     );
 }
 
-#[test]
 fn retains_decoded_spec_text_and_explicit_empty_colon() {
     let parsed = parse("{thing:.{width}q} {plain:} {absent}").expect("valid format");
     assert_eq!(
@@ -84,7 +83,6 @@ fn retains_decoded_spec_text_and_explicit_empty_colon() {
     assert_eq!(parsed.fields[3].format_spec, None);
 }
 
-#[test]
 fn distinguishes_valid_empty_from_malformed_and_digit_keyword() {
     assert!(
         matches!(RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput("{{}}")), BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
@@ -121,7 +119,6 @@ fn distinguishes_valid_empty_from_malformed_and_digit_keyword() {
     );
 }
 
-#[test]
 fn reports_nesting_and_unmatched_braces() {
     assert!(matches!(
         parse("{x:{y:{z}}}"),
@@ -137,7 +134,6 @@ fn reports_nesting_and_unmatched_braces() {
     ));
 }
 
-#[test]
 fn full_selector_paths_and_conversions_survive_spec_retention() {
     let BraceFormatResult::Parsed(parsed) = RuffLiteralBraceFormat::parse(
         crate::domain::format_syntax::types::FormatInput("{0.value!s:{width!r:q}}"),
@@ -161,4 +157,70 @@ fn full_selector_paths_and_conversions_survive_spec_retention() {
             .map(|text| text.0.as_str()),
         Some("q")
     );
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `preserves_selector_kinds_duplicates_and_nested_order`.
+    PreservesSelectorKindsDuplicatesAndNestedOrder,
+    /// The case `retains_decoded_spec_text_and_explicit_empty_colon`.
+    RetainsDecodedSpecTextAndExplicitEmptyColon,
+    /// The case `distinguishes_valid_empty_from_malformed_and_digit_keyword`.
+    DistinguishesValidEmptyFromMalformedAndDigitKeyword,
+    /// The case `reports_nesting_and_unmatched_braces`.
+    ReportsNestingAndUnmatchedBraces,
+    /// The case `full_selector_paths_and_conversions_survive_spec_retention`.
+    FullSelectorPathsAndConversionsSurviveSpecRetention,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("preserves_selector_kinds_duplicates_and_nested_order"),
+        word: Word::Succeeds,
+        input: || Body::PreservesSelectorKindsDuplicatesAndNestedOrder,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("retains_decoded_spec_text_and_explicit_empty_colon"),
+        word: Word::Succeeds,
+        input: || Body::RetainsDecodedSpecTextAndExplicitEmptyColon,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("distinguishes_valid_empty_from_malformed_and_digit_keyword"),
+        word: Word::Succeeds,
+        input: || Body::DistinguishesValidEmptyFromMalformedAndDigitKeyword,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("reports_nesting_and_unmatched_braces"),
+        word: Word::Succeeds,
+        input: || Body::ReportsNestingAndUnmatchedBraces,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("full_selector_paths_and_conversions_survive_spec_retention"),
+        word: Word::Succeeds,
+        input: || Body::FullSelectorPathsAndConversionsSurviveSpecRetention,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::PreservesSelectorKindsDuplicatesAndNestedOrder => preserves_selector_kinds_duplicates_and_nested_order(),
+        Body::RetainsDecodedSpecTextAndExplicitEmptyColon => retains_decoded_spec_text_and_explicit_empty_colon(),
+        Body::DistinguishesValidEmptyFromMalformedAndDigitKeyword => distinguishes_valid_empty_from_malformed_and_digit_keyword(),
+        Body::ReportsNestingAndUnmatchedBraces => reports_nesting_and_unmatched_braces(),
+        Body::FullSelectorPathsAndConversionsSurviveSpecRetention => full_selector_paths_and_conversions_survive_spec_retention(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

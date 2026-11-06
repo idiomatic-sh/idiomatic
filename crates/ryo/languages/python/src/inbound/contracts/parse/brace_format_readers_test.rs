@@ -3,8 +3,8 @@ use super::{BraceFormatFieldItem, BraceFormatParseItem};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
-#[test]
 fn parse_rows_preserve_empty_valid_malformed_and_dynamic_states() {
     check::<BraceFormatParseItem>();
     let report = reading::<BraceFormatParseItem>(concat!(
@@ -34,7 +34,6 @@ fn parse_rows_preserve_empty_valid_malformed_and_dynamic_states() {
     assert_eq!(report.rows[2][3], Want::Name("empty-attribute"));
 }
 
-#[test]
 fn field_rows_keep_duplicates_and_nested_parent_order() {
     check::<BraceFormatFieldItem>();
     let report = reading::<BraceFormatFieldItem>("'{key:{width}} {key}'\n");
@@ -52,7 +51,6 @@ fn field_rows_keep_duplicates_and_nested_parent_order() {
     assert_eq!(report.rows[2][7], Want::Name("key"));
 }
 
-#[test]
 fn oversized_positional_selector_keeps_exact_digits_and_overflow_flag() {
     let report = reading::<BraceFormatFieldItem>("'{9223372036854775808}'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
@@ -65,4 +63,52 @@ fn oversized_positional_selector_keeps_exact_digits_and_overflow_flag() {
     } else {
         assert!(report.rows.is_empty());
     }
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `parse_rows_preserve_empty_valid_malformed_and_dynamic_states`.
+    ParseRowsPreserveEmptyValidMalformedAndDynamicStates,
+    /// The case `field_rows_keep_duplicates_and_nested_parent_order`.
+    FieldRowsKeepDuplicatesAndNestedParentOrder,
+    /// The case `oversized_positional_selector_keeps_exact_digits_and_overflow_flag`.
+    OversizedPositionalSelectorKeepsExactDigitsAndOverflowFlag,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("parse_rows_preserve_empty_valid_malformed_and_dynamic_states"),
+        word: Word::Succeeds,
+        input: || Body::ParseRowsPreserveEmptyValidMalformedAndDynamicStates,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("field_rows_keep_duplicates_and_nested_parent_order"),
+        word: Word::Succeeds,
+        input: || Body::FieldRowsKeepDuplicatesAndNestedParentOrder,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("oversized_positional_selector_keeps_exact_digits_and_overflow_flag"),
+        word: Word::Succeeds,
+        input: || Body::OversizedPositionalSelectorKeepsExactDigitsAndOverflowFlag,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::ParseRowsPreserveEmptyValidMalformedAndDynamicStates => parse_rows_preserve_empty_valid_malformed_and_dynamic_states(),
+        Body::FieldRowsKeepDuplicatesAndNestedParentOrder => field_rows_keep_duplicates_and_nested_parent_order(),
+        Body::OversizedPositionalSelectorKeepsExactDigitsAndOverflowFlag => oversized_positional_selector_keeps_exact_digits_and_overflow_flag(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

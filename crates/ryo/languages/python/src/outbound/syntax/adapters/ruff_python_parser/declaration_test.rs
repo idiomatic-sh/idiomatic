@@ -6,6 +6,7 @@ use crate::outbound::syntax::{
 };
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn diagnostics(source: &str, kind: PythonSourceKind) -> Vec<(String, String, String, u32, u32)> {
     diagnostics_at(source, kind, PythonTargetVersion::Py310)
@@ -46,7 +47,6 @@ fn diagnostics_at(
         .collect()
 }
 
-#[test]
 fn conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources() {
     for source in [
         "def outer():\n value=0\n def inner():\n  global value\n  nonlocal value\n",
@@ -71,7 +71,6 @@ fn conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources() {
     }
 }
 
-#[test]
 fn separate_scopes_and_different_names_do_not_conflict() {
     for source in [
         "def outer():\n value=0\n def first():\n  global value\n def second():\n  nonlocal value\n",
@@ -84,7 +83,6 @@ fn separate_scopes_and_different_names_do_not_conflict() {
     }
 }
 
-#[test]
 fn future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets() {
     let statement = "lazy from __future__ import annotations";
     let source = format!("{statement}\ndef f(x:int): ...\n");
@@ -115,7 +113,6 @@ fn future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targ
     }
 }
 
-#[test]
 fn separating_lazy_cause_preserves_placement_and_unknown_feature_causes() {
     for kind in [PythonSourceKind::Python, PythonSourceKind::Stub] {
         let placement = diagnostics_at(
@@ -141,4 +138,61 @@ fn separating_lazy_cause_preserves_placement_and_unknown_feature_causes() {
             .is_empty()
         );
     }
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources`.
+    ConflictingDeclarationsAreRejectedInEitherOrderAndInStubSources,
+    /// The case `separate_scopes_and_different_names_do_not_conflict`.
+    SeparateScopesAndDifferentNamesDoNotConflict,
+    /// The case `future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets`.
+    FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets,
+    /// The case `separating_lazy_cause_preserves_placement_and_unknown_feature_causes`.
+    SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources"),
+        word: Word::Succeeds,
+        input: || Body::ConflictingDeclarationsAreRejectedInEitherOrderAndInStubSources,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("separate_scopes_and_different_names_do_not_conflict"),
+        word: Word::Succeeds,
+        input: || Body::SeparateScopesAndDifferentNamesDoNotConflict,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets"),
+        word: Word::Succeeds,
+        input: || Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("separating_lazy_cause_preserves_placement_and_unknown_feature_causes"),
+        word: Word::Succeeds,
+        input: || Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::ConflictingDeclarationsAreRejectedInEitherOrderAndInStubSources => conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources(),
+        Body::SeparateScopesAndDifferentNamesDoNotConflict => separate_scopes_and_different_names_do_not_conflict(),
+        Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets => future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets(),
+        Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses => separating_lazy_cause_preserves_placement_and_unknown_feature_causes(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

@@ -3,8 +3,8 @@ use super::{FormatFieldItem, FormatParseItem};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
-#[test]
 fn parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs() {
     check::<FormatParseItem>();
     let report = reading::<FormatParseItem>(concat!(
@@ -64,7 +64,6 @@ fn parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs() {
     );
 }
 
-#[test]
 fn conversion_rows_keep_repeated_mapping_keys_and_order() {
     check::<FormatFieldItem>();
     let report = reading::<FormatFieldItem>("value = '%(key)s %*.*r %% %s'\n");
@@ -82,7 +81,6 @@ fn conversion_rows_keep_repeated_mapping_keys_and_order() {
     assert_eq!(report.rows[2][1], Want::Number(2));
 }
 
-#[test]
 fn unknown_and_malformed_inputs_have_no_conversion_rows() {
     let dynamic = reading::<FormatFieldItem>("value = f'%s {value}'\n");
     assert!(dynamic.causes.is_empty(), "{:?}", dynamic.causes);
@@ -92,14 +90,12 @@ fn unknown_and_malformed_inputs_have_no_conversion_rows() {
     assert!(malformed.rows.is_empty());
 }
 
-#[test]
 fn template_strings_are_not_percent_string_inputs() {
     let report = reading::<FormatParseItem>("value = t'%s'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
     assert!(report.rows.is_empty());
 }
 
-#[test]
 fn error_characters_preserve_two_and_four_byte_unicode_scalars() {
     let report = reading::<FormatParseItem>("a = '%é'\nb = '%🧪'\nc = '%s'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
@@ -113,4 +109,70 @@ fn error_characters_preserve_two_and_four_byte_unicode_scalars() {
     assert_eq!(report.rows[1][6], Want::Number(1));
     let fields = reading::<FormatFieldItem>("a = '%s'\n");
     assert_eq!(fields.rows[0][4], Want::Name("s"));
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs`.
+    ParseRowsDistinguishZeroFieldsMalformedAndDynamicInputs,
+    /// The case `conversion_rows_keep_repeated_mapping_keys_and_order`.
+    ConversionRowsKeepRepeatedMappingKeysAndOrder,
+    /// The case `unknown_and_malformed_inputs_have_no_conversion_rows`.
+    UnknownAndMalformedInputsHaveNoConversionRows,
+    /// The case `template_strings_are_not_percent_string_inputs`.
+    TemplateStringsAreNotPercentStringInputs,
+    /// The case `error_characters_preserve_two_and_four_byte_unicode_scalars`.
+    ErrorCharactersPreserveTwoAndFourByteUnicodeScalars,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs"),
+        word: Word::Succeeds,
+        input: || Body::ParseRowsDistinguishZeroFieldsMalformedAndDynamicInputs,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("conversion_rows_keep_repeated_mapping_keys_and_order"),
+        word: Word::Succeeds,
+        input: || Body::ConversionRowsKeepRepeatedMappingKeysAndOrder,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unknown_and_malformed_inputs_have_no_conversion_rows"),
+        word: Word::Succeeds,
+        input: || Body::UnknownAndMalformedInputsHaveNoConversionRows,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("template_strings_are_not_percent_string_inputs"),
+        word: Word::Succeeds,
+        input: || Body::TemplateStringsAreNotPercentStringInputs,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("error_characters_preserve_two_and_four_byte_unicode_scalars"),
+        word: Word::Succeeds,
+        input: || Body::ErrorCharactersPreserveTwoAndFourByteUnicodeScalars,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::ParseRowsDistinguishZeroFieldsMalformedAndDynamicInputs => parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs(),
+        Body::ConversionRowsKeepRepeatedMappingKeysAndOrder => conversion_rows_keep_repeated_mapping_keys_and_order(),
+        Body::UnknownAndMalformedInputsHaveNoConversionRows => unknown_and_malformed_inputs_have_no_conversion_rows(),
+        Body::TemplateStringsAreNotPercentStringInputs => template_strings_are_not_percent_string_inputs(),
+        Body::ErrorCharactersPreserveTwoAndFourByteUnicodeScalars => error_characters_preserve_two_and_four_byte_unicode_scalars(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

@@ -3,7 +3,7 @@ use super::FormatSpecificationItem;
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
-#[test]
+use crate::cases::{Case, CaseName, Expect, Word, run};
 fn literals_without_method_calls_and_fstrings_have_independent_spec_facts() {
     check::<FormatSpecificationItem>();
     let result = reading::<FormatSpecificationItem>("'{:q}'\n'{:{width:y}}'\nf'{value:q}'\n");
@@ -56,7 +56,6 @@ fn literals_without_method_calls_and_fstrings_have_independent_spec_facts() {
         "an actual f-string format-spec node is its own origin"
     );
 }
-#[test]
 fn malformed_braces_and_absent_colons_do_not_fabricate_specs() {
     let result = reading::<FormatSpecificationItem>("'{}'\n'{broken'\n'{:}'\n");
     assert!(result.causes.is_empty());
@@ -64,7 +63,6 @@ fn malformed_braces_and_absent_colons_do_not_fabricate_specs() {
     assert_eq!(result.rows[0][5], Want::Name(""));
     assert_eq!(result.rows[0][6], Want::Name("recognized"));
 }
-#[test]
 fn unicode_width_and_precision_are_standard_syntax() {
     let result = reading::<FormatSpecificationItem>("'{:٣d} {:.٢f} {:²d}'\n");
     assert!(result.causes.is_empty());
@@ -78,7 +76,6 @@ fn unicode_width_and_precision_are_standard_syntax() {
     );
 }
 
-#[test]
 fn dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry() {
     let result = reading::<FormatSpecificationItem>("f'{value:{width:y}}'\n");
     assert!(result.causes.is_empty(), "{:?}", result.causes);
@@ -88,4 +85,61 @@ fn dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry() {
     assert_eq!(result.rows[1][2], Want::Number(0));
     assert_eq!(result.rows[1][6], Want::Name("invalid-type"));
     assert_eq!(result.rows[1][7], Want::Name("y"));
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `literals_without_method_calls_and_fstrings_have_independent_spec_facts`.
+    LiteralsWithoutMethodCallsAndFstringsHaveIndependentSpecFacts,
+    /// The case `malformed_braces_and_absent_colons_do_not_fabricate_specs`.
+    MalformedBracesAndAbsentColonsDoNotFabricateSpecs,
+    /// The case `unicode_width_and_precision_are_standard_syntax`.
+    UnicodeWidthAndPrecisionAreStandardSyntax,
+    /// The case `dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry`.
+    DynamicFstringValueRemainsUnknownAndNestedSpecsKeepAncestry,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("literals_without_method_calls_and_fstrings_have_independent_spec_facts"),
+        word: Word::Succeeds,
+        input: || Body::LiteralsWithoutMethodCallsAndFstringsHaveIndependentSpecFacts,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("malformed_braces_and_absent_colons_do_not_fabricate_specs"),
+        word: Word::Succeeds,
+        input: || Body::MalformedBracesAndAbsentColonsDoNotFabricateSpecs,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unicode_width_and_precision_are_standard_syntax"),
+        word: Word::Succeeds,
+        input: || Body::UnicodeWidthAndPrecisionAreStandardSyntax,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry"),
+        word: Word::Succeeds,
+        input: || Body::DynamicFstringValueRemainsUnknownAndNestedSpecsKeepAncestry,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::LiteralsWithoutMethodCallsAndFstringsHaveIndependentSpecFacts => literals_without_method_calls_and_fstrings_have_independent_spec_facts(),
+        Body::MalformedBracesAndAbsentColonsDoNotFabricateSpecs => malformed_braces_and_absent_colons_do_not_fabricate_specs(),
+        Body::UnicodeWidthAndPrecisionAreStandardSyntax => unicode_width_and_precision_are_standard_syntax(),
+        Body::DynamicFstringValueRemainsUnknownAndNestedSpecsKeepAncestry => dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

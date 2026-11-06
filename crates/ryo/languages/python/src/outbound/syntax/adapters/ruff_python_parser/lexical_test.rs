@@ -4,8 +4,8 @@ use ruff_python_ast::PySourceType;
 use ruff_python_ast::token::{Token, TokenFlags, TokenKind};
 use ruff_python_parser::{ParseOptions, parse_unchecked};
 use ruff_text_size::{TextRange, TextSize};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
-#[test]
 fn unclosed_delimiters_preserve_fully_read_comments() {
     for source in [
         "x= (\n",
@@ -24,7 +24,6 @@ fn unclosed_delimiters_preserve_fully_read_comments() {
     }
 }
 
-#[test]
 fn complete_byte_coverage_does_not_override_lost_lexer_state() {
     for source in [
         "value = 'unterminated\n# not certainly a comment\n",
@@ -45,7 +44,6 @@ fn complete_byte_coverage_does_not_override_lost_lexer_state() {
     }
 }
 
-#[test]
 fn truncated_or_invalid_token_stream_cannot_certify_absence() {
     let source = "first = 1\n# retained\nsecond = 2\n";
     let parsed = parse_unchecked(source, ParseOptions::from(PySourceType::Python));
@@ -69,4 +67,52 @@ fn truncated_or_invalid_token_stream_cannot_certify_absence() {
         !covered(&[invalid], source.as_bytes(), true),
         "an interior error cannot be an EOF marker"
     );
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `unclosed_delimiters_preserve_fully_read_comments`.
+    UnclosedDelimitersPreserveFullyReadComments,
+    /// The case `complete_byte_coverage_does_not_override_lost_lexer_state`.
+    CompleteByteCoverageDoesNotOverrideLostLexerState,
+    /// The case `truncated_or_invalid_token_stream_cannot_certify_absence`.
+    TruncatedOrInvalidTokenStreamCannotCertifyAbsence,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("unclosed_delimiters_preserve_fully_read_comments"),
+        word: Word::Succeeds,
+        input: || Body::UnclosedDelimitersPreserveFullyReadComments,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("complete_byte_coverage_does_not_override_lost_lexer_state"),
+        word: Word::Succeeds,
+        input: || Body::CompleteByteCoverageDoesNotOverrideLostLexerState,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("truncated_or_invalid_token_stream_cannot_certify_absence"),
+        word: Word::Succeeds,
+        input: || Body::TruncatedOrInvalidTokenStreamCannotCertifyAbsence,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::UnclosedDelimitersPreserveFullyReadComments => unclosed_delimiters_preserve_fully_read_comments(),
+        Body::CompleteByteCoverageDoesNotOverrideLostLexerState => complete_byte_coverage_does_not_override_lost_lexer_state(),
+        Body::TruncatedOrInvalidTokenStreamCannotCertifyAbsence => truncated_or_invalid_token_stream_cannot_certify_absence(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }

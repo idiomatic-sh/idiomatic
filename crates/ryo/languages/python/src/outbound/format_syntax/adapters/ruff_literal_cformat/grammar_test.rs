@@ -6,6 +6,7 @@ use crate::domain::format_syntax::types::{
 };
 use crate::domain::format_syntax::interface::FormatSyntax;
 use crate::domain::format_syntax::service::flag_text;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn parsed(source: &str) -> ParsedFormat {
     match RuffLiteralCFormat::parse(
@@ -19,14 +20,12 @@ fn parsed(source: &str) -> ParsedFormat {
     }
 }
 
-#[test]
 fn escaped_percent_is_a_valid_zero_field_format() {
     let result = parsed("100%%");
     assert!(result.fields.is_empty());
     assert_eq!(result.summary, FormatSummary::default());
 }
 
-#[test]
 fn dynamic_width_and_precision_each_consume_positional_values() {
     let result = parsed("%*.*s");
     assert_eq!(result.summary.positional_consumption.0, 3);
@@ -36,7 +35,6 @@ fn dynamic_width_and_precision_each_consume_positional_values() {
     assert_eq!(result.fields[0].precision, FormatQuantityMode::Star);
 }
 
-#[test]
 fn repeated_mapping_keys_and_mixed_positional_fields_are_preserved() {
     let result = parsed("%(name)s %(name)r %s");
     assert_eq!(result.fields.len(), 3);
@@ -57,7 +55,6 @@ fn repeated_mapping_keys_and_mixed_positional_fields_are_preserved() {
     assert!(bool::from(result.summary.mapping_present));
 }
 
-#[test]
 fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
     assert_eq!(
         RuffLiteralCFormat::parse(
@@ -83,7 +80,6 @@ fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
     );
 }
 
-#[test]
 fn unmatched_mapping_and_overflow_are_diagnostics() {
     assert!(matches!(
         RuffLiteralCFormat::parse(
@@ -129,7 +125,6 @@ fn unmatched_mapping_and_overflow_are_diagnostics() {
     ));
 }
 
-#[test]
 fn flags_are_preserved_without_reordering_the_grammar_or_applying_precedence() {
     let plain = parsed("%s");
     assert_eq!(flag_text(plain.fields[0].flags).0, "");
@@ -144,4 +139,79 @@ fn flags_are_preserved_without_reordering_the_grammar_or_applying_precedence() {
     assert_eq!(flag_text(zero.fields[0].flags).0, "0");
     assert_eq!(zero.fields[0].width, FormatQuantityMode::None);
     assert!(parsed("%%").fields.is_empty());
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `escaped_percent_is_a_valid_zero_field_format`.
+    EscapedPercentIsAValidZeroFieldFormat,
+    /// The case `dynamic_width_and_precision_each_consume_positional_values`.
+    DynamicWidthAndPrecisionEachConsumePositionalValues,
+    /// The case `repeated_mapping_keys_and_mixed_positional_fields_are_preserved`.
+    RepeatedMappingKeysAndMixedPositionalFieldsArePreserved,
+    /// The case `malformed_percent_and_unicode_error_indices_use_scalar_offsets`.
+    MalformedPercentAndUnicodeErrorIndicesUseScalarOffsets,
+    /// The case `unmatched_mapping_and_overflow_are_diagnostics`.
+    UnmatchedMappingAndOverflowAreDiagnostics,
+    /// The case `flags_are_preserved_without_reordering_the_grammar_or_applying_precedence`.
+    FlagsArePreservedWithoutReorderingTheGrammarOrApplyingPrecedence,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("escaped_percent_is_a_valid_zero_field_format"),
+        word: Word::Succeeds,
+        input: || Body::EscapedPercentIsAValidZeroFieldFormat,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("dynamic_width_and_precision_each_consume_positional_values"),
+        word: Word::Succeeds,
+        input: || Body::DynamicWidthAndPrecisionEachConsumePositionalValues,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("repeated_mapping_keys_and_mixed_positional_fields_are_preserved"),
+        word: Word::Succeeds,
+        input: || Body::RepeatedMappingKeysAndMixedPositionalFieldsArePreserved,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("malformed_percent_and_unicode_error_indices_use_scalar_offsets"),
+        word: Word::Succeeds,
+        input: || Body::MalformedPercentAndUnicodeErrorIndicesUseScalarOffsets,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unmatched_mapping_and_overflow_are_diagnostics"),
+        word: Word::Succeeds,
+        input: || Body::UnmatchedMappingAndOverflowAreDiagnostics,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("flags_are_preserved_without_reordering_the_grammar_or_applying_precedence"),
+        word: Word::Succeeds,
+        input: || Body::FlagsArePreservedWithoutReorderingTheGrammarOrApplyingPrecedence,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::EscapedPercentIsAValidZeroFieldFormat => escaped_percent_is_a_valid_zero_field_format(),
+        Body::DynamicWidthAndPrecisionEachConsumePositionalValues => dynamic_width_and_precision_each_consume_positional_values(),
+        Body::RepeatedMappingKeysAndMixedPositionalFieldsArePreserved => repeated_mapping_keys_and_mixed_positional_fields_are_preserved(),
+        Body::MalformedPercentAndUnicodeErrorIndicesUseScalarOffsets => malformed_percent_and_unicode_error_indices_use_scalar_offsets(),
+        Body::UnmatchedMappingAndOverflowAreDiagnostics => unmatched_mapping_and_overflow_are_diagnostics(),
+        Body::FlagsArePreservedWithoutReorderingTheGrammarOrApplyingPrecedence => flags_are_preserved_without_reordering_the_grammar_or_applying_precedence(),
+    }
+    Ok(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, body);
 }
