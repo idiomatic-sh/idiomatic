@@ -84,14 +84,14 @@ fn current_project_relation_coverage_precedes_rekeying_and_survives_named_handov
 /// and without B's set, so a run whose rules differ in it answers exactly as one whose rules do not.
 #[test]
 fn a_rule_with_inapplicable_files_reads_a_restored_observation_as_a_rule_without() {
-    for mode in [
-        Mode::PartialRight,
-        Mode::PartialLeft { difference: false },
-        Mode::Rekey { file_key: true },
-        Mode::Current,
+    for (empty, mode) in [
+        (true, Mode::PartialRight),
+        (false, Mode::PartialLeft { difference: false }),
+        (true, Mode::Rekey { file_key: true }),
+        (true, Mode::Current),
     ] {
         for inapplicable in [&[][..], &[FileId(0)][..]] {
-            exercise_with(true, false, false, mode, inapplicable);
+            exercise_with(empty, false, false, mode, inapplicable);
         }
     }
 }
