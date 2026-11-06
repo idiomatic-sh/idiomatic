@@ -1,5 +1,4 @@
 //! Independent typed, textual and set-digest expectations for the conformance fixtures.
-use super::SOURCE;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
@@ -62,3 +61,5 @@ pub(crate) fn assert_expected(
 }
 
 use ryo_values::domain::rows::types::Table;
+
+pub(super) const SOURCE: &[u8] = b"a a";

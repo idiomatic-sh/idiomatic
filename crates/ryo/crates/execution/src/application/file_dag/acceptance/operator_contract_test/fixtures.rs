@@ -34,7 +34,6 @@ impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
 pub(crate) const FROM: Input = Input::Relation(Relation::Function);
 pub(crate) const RIGHT: Input = Input::Relation(Relation::Scope);
 pub(crate) const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);
-pub(crate) const SOURCE: &[u8] = b"a a";
 pub(crate) fn n(value: i64) -> Value {
     Value::Number(Integer(value))
 }
@@ -434,7 +433,7 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
 
 mod expectations;
 pub(crate) use expectations::assert_expected;
-use expectations::{Expected, Fixture, cells};
+use expectations::{Expected, Fixture, SOURCE, cells};
 
 use ryo_values::domain::rows::types::Table;
 
