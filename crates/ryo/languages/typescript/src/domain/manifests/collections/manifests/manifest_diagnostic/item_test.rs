@@ -36,13 +36,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_manifest_that_is_not_json_is_a_row_of_the_parse_at_the_file_origin"),
         word: Word::Succeeds,
         input: || NOT_JSON,
-        expect: Expect::Value(vec![]),
+        expect: Expect::Value(
+            "1 0..0 file-origin parse package.json unreadable-manifest EOF while parsing an object at line 1 column 1",
+        ),
     },
     Case {
         name: CaseName("a_catalog_requirement_no_catalog_answers_is_a_row_of_the_validation"),
         word: Word::Succeeds,
         input: || NO_CATALOG,
-        expect: Expect::Value(Vec::new()),
+        expect: Expect::Value(
+            "0 0..0 file-origin validation package.json unresolved-catalog-entry no catalog `default` has an entry for `left`: its version is unknown",
+        ),
     },
 ];
 
