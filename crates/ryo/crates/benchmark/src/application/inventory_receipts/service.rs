@@ -1,12 +1,14 @@
 //! Validate native case observations; expectation comparison stays in the existing verifier.
 use super::errors::InventoryReceiptsError;
 use super::types::{ReceiptCounts, Tally};
-use crate::application::run::{inventory_execution, process_receipts};
+use crate::application::process_receipts::service as process_receipts;
+use crate::application::run::inventory_execution;
 use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},
 };
 use crate::outbound::inventory::types::{
+    InvocationDocument,
     case_document::{
         CaseDocument, ContextMode, EntryState, FileObservation, InventoryCompleteness,
     },
@@ -104,7 +106,12 @@ pub(crate) fn validate(
     cases: &[CaseDocument],
     observations: &[ObservationDocument],
 ) -> Result<ReceiptCounts, Failure> {
-    validate_with_artifacts(cases, observations, &std::collections::BTreeMap::new())
+    validate_with_artifacts(
+        cases,
+        observations,
+        &std::collections::BTreeMap::new(),
+        &std::collections::BTreeMap::new(),
+    )
 }
 
 /// The same validation with exact raw process bytes loaded by the artifact boundary.
@@ -112,6 +119,7 @@ pub(crate) fn validate_with_artifacts(
     cases: &[CaseDocument],
     observations: &[ObservationDocument],
     artifacts: &std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+    invocations: &std::collections::BTreeMap<std::path::PathBuf, InvocationDocument>,
 ) -> Result<ReceiptCounts, Failure> {
     if cases.is_empty() || observations.len() != cases.len() * 2 {
         return Err(Failure::NativeCaseReceiptCount);
@@ -229,7 +237,8 @@ pub(crate) fn validate_with_artifacts(
                 return Err(Failure::DiscrepancyAuthorityDiffers);
             }
             if process && side == Side::Reference {
-                process_receipts::validate(case, row, artifacts)?;
+                process_receipts::validate(case, row, artifacts, invocations)
+                    .map_err(String::from)?;
             } else {
                 if row.process_observation.is_some() {
                     return Err(Failure::UnexpectedProcessObservation);
