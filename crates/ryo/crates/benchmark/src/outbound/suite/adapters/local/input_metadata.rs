@@ -1,4 +1,5 @@
 //! Physical observation and staging, confined to the suite's filesystem edge.
+use crate::outbound::suite::adapters::local::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo_benchmark_contracts::domain::artifacts::types::{
     digest::value::ArtifactDigest, relative_artifact_path::value::RelativeArtifactPath,
@@ -13,8 +14,7 @@ fn observed(path: &Path) -> Result<bool, Error> {
     let metadata = std::fs::metadata(path)?;
     if !metadata.is_file() {
         return Err(Error::Invalid(
-            crate::outbound::suite::adapters::local::constants::METADATA_SOURCE_IS_NOT_A_REGULAR
-                .into(),
+            constants::METADATA_SOURCE_IS_NOT_A_REGULAR.into(),
         ));
     }
     Ok(metadata.permissions().mode() & 0o111 != 0)
@@ -22,7 +22,7 @@ fn observed(path: &Path) -> Result<bool, Error> {
 #[cfg(not(unix))]
 fn observed(_: &Path) -> Result<bool, Error> {
     Err(Error::Invalid(
-        crate::outbound::suite::adapters::local::constants::POSIX_EXECUTABLE_OBSERVATIONS_ARE_UNSUPPORTE.into(),
+        constants::POSIX_EXECUTABLE_OBSERVATIONS_ARE_UNSUPPORTE.into(),
     ))
 }
 
@@ -42,8 +42,7 @@ pub(super) fn stage(path: &Path, executable: bool) -> Result<(), Error> {
     }
     if observed(path)? != executable {
         return Err(Error::Invalid(
-            crate::outbound::suite::adapters::local::constants::STAGED_EXECUTABLE_METADATA_DIFFERS
-                .into(),
+            constants::STAGED_EXECUTABLE_METADATA_DIFFERS.into(),
         ));
     }
     Ok(())
@@ -58,15 +57,19 @@ pub(super) fn validate(request: &RunRequest) -> Result<(), Error> {
     for (file, expected) in values {
         let relative = RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
         if !request.files.contains(file) {
-            return Err(Error::Invalid(crate::outbound::suite::adapters::local::constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into()));
+            return Err(Error::Invalid(
+                constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
+            ));
         }
         let path = root.join(relative.as_ref()).canonicalize()?;
         if !path.starts_with(&root) {
-            return Err(Error::Invalid(crate::outbound::suite::adapters::local::constants::METADATA_SOURCE_ESCAPES_INPUT_ROOT.into()));
+            return Err(Error::Invalid(
+                constants::METADATA_SOURCE_ESCAPES_INPUT_ROOT.into(),
+            ));
         }
         if observed(&path)? != *expected {
             return Err(Error::Invalid(
-                crate::outbound::suite::adapters::local::constants::DECLARED_EXECUTABLE_METADATA_DRIFTED_BEFORE.into(),
+                constants::DECLARED_EXECUTABLE_METADATA_DRIFTED_BEFORE.into(),
             ));
         }
     }
@@ -81,16 +84,20 @@ pub(super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result
         let relative = RelativeArtifactPath::try_from(file.as_path())?;
         let path = root.join(relative.as_ref()).canonicalize()?;
         if !path.starts_with(&root) {
-            return Err(Error::Invalid(crate::outbound::suite::adapters::local::constants::METADATA_SOURCE_ESCAPES_INPUT_ROOT.into()));
+            return Err(Error::Invalid(
+                constants::METADATA_SOURCE_ESCAPES_INPUT_ROOT.into(),
+            ));
         }
         let name = file
             .to_str()
-            .ok_or_else(|| Error::Invalid(crate::outbound::suite::adapters::local::constants::METADATA_SOURCE_NAME_IS_NOT_UTF8.into()))?;
+            .ok_or_else(|| Error::Invalid(constants::METADATA_SOURCE_NAME_IS_NOT_UTF8.into()))?;
         if values
             .insert(ryo::linter::RelativePath(name.into()), observed(&path)?)
             .is_some()
         {
-            return Err(Error::Invalid(crate::outbound::suite::adapters::local::constants::DUPLICATE_PHYSICAL_METADATA_SOURCE.into()));
+            return Err(Error::Invalid(
+                constants::DUPLICATE_PHYSICAL_METADATA_SOURCE.into(),
+            ));
         }
     }
     ArtifactDigest::file_metadata((Some(&values)).map(|values| {
@@ -104,12 +111,7 @@ pub(super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result
         })
     }))?
     .map(|digest| digest.0)
-    .ok_or_else(|| {
-        Error::Invalid(
-            crate::outbound::suite::adapters::local::constants::MISSING_PHYSICAL_METADATA_DIGEST
-                .into(),
-        )
-    })
+    .ok_or_else(|| Error::Invalid(constants::MISSING_PHYSICAL_METADATA_DIGEST.into()))
 }
 
 /// Write only selected source facts; semantic preparation and expected reports stay above this port.
@@ -166,25 +168,25 @@ pub(super) fn materialize_inventory(
         match entry.state {
             ryo::linter::ProjectEntryState::File if !path.is_file() => {
                 return Err(Error::Invalid(
-                    crate::outbound::suite::adapters::local::constants::GIVEN_PROJECT_FILE_ENTRY_LACKS_STAGED.into(),
+                    constants::GIVEN_PROJECT_FILE_ENTRY_LACKS_STAGED.into(),
                 ));
             }
             ryo::linter::ProjectEntryState::Directory => {
                 if path.is_file() {
                     return Err(Error::Invalid(
-                        crate::outbound::suite::adapters::local::constants::GIVEN_PROJECT_DIRECTORY_COLLIDES_WITH_A.into(),
+                        constants::GIVEN_PROJECT_DIRECTORY_COLLIDES_WITH_A.into(),
                     ));
                 }
                 std::fs::create_dir_all(&path)?;
             }
             ryo::linter::ProjectEntryState::Missing if path.exists() => {
                 return Err(Error::Invalid(
-                    crate::outbound::suite::adapters::local::constants::GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH.into(),
+                    constants::GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH.into(),
                 ));
             }
             ryo::linter::ProjectEntryState::Other => {
                 return Err(Error::Invalid(
-                    crate::outbound::suite::adapters::local::constants::GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES.into(),
+                    constants::GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES.into(),
                 ));
             }
             ryo::linter::ProjectEntryState::File

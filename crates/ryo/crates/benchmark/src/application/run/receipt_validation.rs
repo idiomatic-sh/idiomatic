@@ -1,4 +1,5 @@
 //! The offline path reuses actual artifact loading and native receipt comparison.
+use crate::application::run::constants;
 use crate::domain::suite::types::inventory::Inventory;
 use crate::outbound::inventory::types::{CapturedObservation, Registration};
 use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
@@ -20,62 +21,50 @@ pub fn validate(
         if !registration.defaults.contains(&rule.rule_id) || !registered_rules.insert(&rule.rule_id)
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU
-                    .into(),
+                constants::UNKNOWN_OR_DUPLICATE_RECEIPT_REGISTRATION_RU.into(),
             ));
         }
         for case in &rule.cases {
-            let name = case[crate::application::run::constants::NAME]
+            let name = case[constants::NAME]
                 .as_str()
                 .filter(|name| !name.is_empty())
-                .ok_or_else(|| {
-                    Error::Invalid(
-                        crate::application::run::constants::REGISTERED_CASE_NAME_IS_MISSING.into(),
-                    )
-                })?;
-            if case[crate::application::run::constants::RULE] != rule.rule_id
+                .ok_or_else(|| Error::Invalid(constants::REGISTERED_CASE_NAME_IS_MISSING.into()))?;
+            if case[constants::RULE] != rule.rule_id
                 || cases
                     .insert((rule.rule_id.clone(), name.to_owned()), case)
                     .is_some()
             {
                 return Err(Error::Invalid(
-                    crate::application::run::constants::UNKNOWN_OR_DUPLICATE_REGISTERED_CASE.into(),
+                    constants::UNKNOWN_OR_DUPLICATE_REGISTERED_CASE.into(),
                 ));
             }
         }
     }
     if cases.is_empty() {
         return Err(Error::Invalid(
-            crate::application::run::constants::RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES.into(),
+            constants::RECEIPT_VALIDATION_REQUIRES_REGISTERED_CASES.into(),
         ));
     }
     let mut grouped = BTreeMap::<(String, String), Vec<serde_json::Value>>::new();
     for row in &captured.records {
         let key = (
-            row[crate::application::run::constants::RULE]
+            row[constants::RULE]
                 .as_str()
-                .ok_or_else(|| {
-                    Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_RULE.into())
-                })?
+                .ok_or_else(|| Error::Invalid(constants::MISSING_OBSERVED_RULE.into()))?
                 .to_owned(),
-            row[crate::application::run::constants::NAME]
+            row[constants::NAME]
                 .as_str()
-                .ok_or_else(|| {
-                    Error::Invalid(crate::application::run::constants::MISSING_OBSERVED_CASE.into())
-                })?
+                .ok_or_else(|| Error::Invalid(constants::MISSING_OBSERVED_CASE.into()))?
                 .to_owned(),
         );
         if !cases.contains_key(&key)
             || !matches!(
-                row[crate::application::run::constants::SIDE].as_str(),
-                Some(
-                    crate::application::run::constants::REFERENCE
-                        | crate::application::run::constants::CANDIDATE
-                )
+                row[constants::SIDE].as_str(),
+                Some(constants::REFERENCE | constants::CANDIDATE)
             )
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
+                constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
             ));
         }
         grouped.entry(key).or_default().push(row.clone());
@@ -104,9 +93,8 @@ pub fn validate(
                     ));
                 }
                 if documented > 0
-                    && case[crate::application::run::constants::REFERENCE_DISCREPANCY]
-                        [crate::application::run::constants::BASIS]
-                        == crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE
+                    && case[constants::REFERENCE_DISCREPANCY][constants::BASIS]
+                        == constants::TOOL_CONTRACT_DIFFERENCE
                 {
                     audit.tool_contract_differences.push(key.clone());
                 }

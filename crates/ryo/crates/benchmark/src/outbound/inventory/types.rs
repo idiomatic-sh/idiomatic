@@ -1,4 +1,5 @@
 //! Tool-neutral wire data; adapters own format and filesystem details.
+use crate::outbound::inventory::constants;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -41,7 +42,7 @@ pub struct RegisteredRule {
     pub instance: Option<serde_json::Value>,
 }
 /// Shared verifier argv contract: every registered verifier accepts this explicit receipt destination.
-pub const CASE_RECEIPTS_ARGUMENT: &str = crate::outbound::inventory::constants::CASE_RECEIPTS;
+pub const CASE_RECEIPTS_ARGUMENT: &str = constants::CASE_RECEIPTS;
 
 /// The shared worker's native case-verification operation. Executable and reference
 /// come exclusively from registration authority; argv/cwd/environment are not authorable.

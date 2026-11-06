@@ -1,4 +1,5 @@
 //! Registered native contexts reuse the sole shared inventory execution loop.
+use crate::inbound::use_cases::certify::constants;
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{
@@ -36,7 +37,7 @@ pub(super) fn prepare(
     let actual: std::collections::BTreeSet<_> = loaded.defaults.iter().cloned().collect();
     if expected != actual || loaded.defaults.len() != expected.len() {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED_COMPLET.into(),
+            constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED_COMPLET.into(),
         ));
     }
     let RegistrationAuthority::Execution {
@@ -47,40 +48,39 @@ pub(super) fn prepare(
     } = &loaded.authority
     else {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::REGISTERED_CERTIFICATION_REQUIRES_ACTUAL_EXE.into(),
+            constants::REGISTERED_CERTIFICATION_REQUIRES_ACTUAL_EXE.into(),
         ));
     };
     if suite
-        .digest(ArtifactPath(&measured_profile.join(
-            crate::inbound::use_cases::certify::constants::FIXTURE_PROFILE_FILE,
-        )))?
+        .digest(ArtifactPath(
+            &measured_profile.join(constants::FIXTURE_PROFILE_FILE),
+        ))?
         .0
         != *profile_sha256
     {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
+            constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
         ));
     }
     if rules
         != measured_profile
-            .join(crate::inbound::use_cases::certify::constants::FIXTURE_RULE_DIRECTORY_NAME)
+            .join(constants::FIXTURE_RULE_DIRECTORY_NAME)
             .as_path()
     {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED
-                .into(),
+            constants::SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED.into(),
         ));
     }
     if suite.digest(ArtifactPath(reference))?.0 != reference_pin.sha256
         || suite.digest(ArtifactPath(candidate))?.0 != worker.sha256
     {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::CASE_INVENTORY_EXECUTABLE_IDENTITIES_DIFFER.into(),
+            constants::CASE_INVENTORY_EXECUTABLE_IDENTITIES_DIFFER.into(),
         ));
     }
     let mut paths = vec![
         registration.to_owned(),
-        profile.join(crate::inbound::use_cases::certify::constants::FIXTURE_PROFILE_FILE),
+        profile.join(constants::FIXTURE_PROFILE_FILE),
         reference_pin.path.clone(),
         worker.path.clone(),
     ];
@@ -91,29 +91,25 @@ pub(super) fn prepare(
                 entry.rule_id
             )));
         }
-        let crate::outbound::inventory::types::Command::CaseVerification { context } =
-            entry.command.as_ref().ok_or_else(|| {
-                Error::Invalid(
-                    crate::inbound::use_cases::certify::constants::MISSING_VERIFICATION_COMMAND
-                        .into(),
-                )
-            })?;
+        let crate::outbound::inventory::types::Command::CaseVerification { context } = entry
+            .command
+            .as_ref()
+            .ok_or_else(|| Error::Invalid(constants::MISSING_VERIFICATION_COMMAND.into()))?;
         crate::application::run::registered_context::verify(entry, store)
             .map_err(Error::Invalid)?;
-        let pin = entry
-            .definition
-            .as_ref()
-            .ok_or_else(|| Error::Invalid(crate::inbound::use_cases::certify::constants::REGISTERED_CONTEXT_LACKS_TESTED_QUERY.into()))?;
+        let pin = entry.definition.as_ref().ok_or_else(|| {
+            Error::Invalid(constants::REGISTERED_CONTEXT_LACKS_TESTED_QUERY.into())
+        })?;
         if pin.path
             != context
-                .join(crate::inbound::use_cases::certify::constants::FIXTURE_RULE_DIRECTORY_NAME)
+                .join(constants::FIXTURE_RULE_DIRECTORY_NAME)
                 .join(&entry.rule_id)
-                .join(crate::inbound::use_cases::certify::constants::QUERY_RYOQL)
+                .join(constants::QUERY_RYOQL)
             || entry.artifacts.get(&pin.path) != Some(&pin.sha256)
             || suite
-                .digest(ArtifactPath(&rules.join(&entry.rule_id).join(
-                    crate::inbound::use_cases::certify::constants::QUERY_RYOQL,
-                )))?
+                .digest(ArtifactPath(
+                    &rules.join(&entry.rule_id).join(constants::QUERY_RYOQL),
+                ))?
                 .0
                 != pin.sha256
         {
@@ -152,7 +148,7 @@ pub(super) fn execute(
 ) -> Result<CaseCount, Error> {
     if !crate::application::run::inventory::verify(registration, output, execution, store)? {
         return Err(Error::Invalid(
-            crate::inbound::use_cases::certify::constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA.into(),
+            constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA.into(),
         ));
     }
     Ok(CaseCount(

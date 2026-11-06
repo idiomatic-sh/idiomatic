@@ -1,6 +1,7 @@
 //! Load and validate the suite's external artifacts.
 use super::types::ArtifactPath;
 use super::types::ArtifactSet;
+use crate::outbound::suite::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
@@ -15,7 +16,7 @@ pub trait SuitePort {
     ) -> Result<(), Error> {
         if request.file_metadata.is_some() {
             Err(Error::Invalid(
-                crate::outbound::suite::constants::FILE_METADATA_VERIFICATION_IS_UNAVAILABLE.into(),
+                constants::FILE_METADATA_VERIFICATION_IS_UNAVAILABLE.into(),
             ))
         } else {
             Ok(())
@@ -37,7 +38,7 @@ pub trait SuitePort {
         _files: &[std::path::PathBuf],
     ) -> Result<String, super::types::discrepancy::ArtifactError> {
         Err(super::types::discrepancy::ArtifactError::Invalid(
-            crate::outbound::suite::constants::CASE_SOURCE_READER_IS_UNAVAILABLE.into(),
+            constants::CASE_SOURCE_READER_IS_UNAVAILABLE.into(),
         ))
     }
 
@@ -54,7 +55,7 @@ pub trait SuitePort {
         super::types::discrepancy::ArtifactError,
     > {
         Err(super::types::discrepancy::ArtifactError::Invalid(
-            crate::outbound::suite::constants::ARTIFACT_READER_IS_UNAVAILABLE.into(),
+            constants::ARTIFACT_READER_IS_UNAVAILABLE.into(),
         ))
     }
     /// Append an application-owned observation and preserve optional raw process bytes.
@@ -68,7 +69,7 @@ pub trait SuitePort {
         _process: Option<super::types::process::CapturedProcess<'_>>,
     ) -> Result<(), super::types::discrepancy::ArtifactError> {
         Err(super::types::discrepancy::ArtifactError::Invalid(
-            crate::outbound::suite::constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
+            constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
         ))
     }
 

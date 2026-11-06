@@ -1,4 +1,5 @@
 //! Admit independently evidenced reference disagreements without relaxing either contract.
+use crate::application::run::constants;
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
 use crate::outbound::{
     linter::interface::LinterPort,
@@ -19,9 +20,9 @@ pub(super) fn attach(
     rules: &Path,
     cases: &mut [PreparedCase],
 ) -> Result<(), Error> {
-    let profile = rules.parent().ok_or_else(|| {
-        Error::Invalid(crate::application::run::constants::MISSING_CASE_PROFILE_BOUNDARY.into())
-    })?;
+    let profile = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into()))?;
     let tool = suite
         .profile(ArtifactPath(profile))
         .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -32,19 +33,18 @@ pub(super) fn attach(
     for wire in wires {
         if !seen.insert((wire.rule.clone(), wire.name.clone())) {
             return Err(Error::Invalid(
-                crate::application::run::constants::DUPLICATE_REFERENCE_EXPECTATION_IDENTITY.into(),
+                constants::DUPLICATE_REFERENCE_EXPECTATION_IDENTITY.into(),
             ));
         }
         let case = cases
             .iter_mut()
             .find(|case| case.rule.as_ref() == wire.rule && case.name.to_string() == wire.name)
             .ok_or_else(|| {
-                Error::Invalid(crate::application::run::constants::REFERENCE_EXPECTATION_OUTSIDE_EXECUTABLE_CAS.into())
+                Error::Invalid(constants::REFERENCE_EXPECTATION_OUTSIDE_EXECUTABLE_CAS.into())
             })?;
         if case.reference_discrepancy.is_some() {
             return Err(Error::Invalid(
-                crate::application::run::constants::DUPLICATE_CANONICAL_REFERENCE_EXPECTATION
-                    .into(),
+                constants::DUPLICATE_CANONICAL_REFERENCE_EXPECTATION.into(),
             ));
         }
         case.reference_discrepancy = Some(convert(wire.discrepancy, wire.basis, case)?);
@@ -60,7 +60,7 @@ pub(super) fn digest(value: String) -> Result<ArtifactDigest, Error> {
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTI.into(),
+            constants::DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTI.into(),
         ));
     }
     Ok(ArtifactDigest(value))
@@ -87,7 +87,7 @@ fn convert(
     let process = wire.process;
     if process.is_some() && !wire.expected.is_empty() {
         return Err(Error::Invalid(
-            crate::application::run::constants::PROCESS_EXPECTATION_CANNOT_ALSO_DECLARE_REFE.into(),
+            constants::PROCESS_EXPECTATION_CANNOT_ALSO_DECLARE_REFE.into(),
         ));
     }
     let mut expected = case.expected.clone();
@@ -98,8 +98,7 @@ fn convert(
             let file = ryo::linter::RelativePath(row.file.into_boxed_str());
             if !case.request.files.contains(&file) || row.start > row.end {
                 return Err(Error::Invalid(
-                    crate::application::run::constants::INVALID_REFERENCE_EXPECTATION_SOURCE_RANGE
-                        .into(),
+                    constants::INVALID_REFERENCE_EXPECTATION_SOURCE_RANGE.into(),
                 ));
             }
             Ok(
@@ -118,7 +117,7 @@ fn convert(
     expected.diagnostics.sort();
     if basis == DiscrepancyBasis::ToolContract && process.is_some() {
         return Err(Error::Invalid(
-            crate::application::run::constants::TOOL_CONTRACT_DIFFERENCES_REQUIRE_COMPLETE_D.into(),
+            constants::TOOL_CONTRACT_DIFFERENCES_REQUIRE_COMPLETE_D.into(),
         ));
     }
     let evidence = wire.evidence.into_iter().map(|item| {
@@ -128,7 +127,7 @@ fn convert(
             (DiscrepancyBasis::LanguageDefect, EvidenceWire::LanguageSpec { path, sha256, language_version, target_configuration, version_rationale })
             | (DiscrepancyBasis::LanguageDefect, EvidenceWire::IndependentLanguageRun { path, sha256, language_version, target_configuration, version_rationale }) => {
                 if language_version.trim().is_empty() || target_configuration.trim().is_empty() || version_rationale.trim().is_empty() {
-                    return Err(Error::Invalid(crate::application::run::constants::INDEPENDENT_EVIDENCE_REQUIRES_EXPLICIT_LANGU.into()));
+                    return Err(Error::Invalid(constants::INDEPENDENT_EVIDENCE_REQUIRES_EXPLICIT_LANGU.into()));
                 }
                 let kind = if language_spec { DiscrepancyEvidenceKind::LanguageSpec } else { DiscrepancyEvidenceKind::IndependentLanguageRun };
                 Ok(DiscrepancyEvidence::Language { path, sha256: digest(sha256)?, kind, language_version, target_configuration, version_rationale })
@@ -136,15 +135,15 @@ fn convert(
             (DiscrepancyBasis::ToolContract, EvidenceWire::PublicToolContract { path, sha256, source_revision, source_path, rationale }) => {
                 ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(&source_path)))?;
                 if source_revision.len() != 40 || !source_revision.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) || rationale.trim().is_empty() {
-                    return Err(Error::Invalid(crate::application::run::constants::TOOL_CONTRACT_EVIDENCE_NEEDS_A_PINNED.into()));
+                    return Err(Error::Invalid(constants::TOOL_CONTRACT_EVIDENCE_NEEDS_A_PINNED.into()));
                 }
                 Ok(DiscrepancyEvidence::PublicToolContract { path, sha256: digest(sha256)?, source_revision, source_path, rationale })
             }
             (DiscrepancyBasis::ToolContract, EvidenceWire::PriorWorkerRun { path, sha256, worker_sha256, control_source_sha256, control_query_sha256, control_profile_sha256, witness_case, rationale }) => {
-                if rationale.trim().is_empty() || witness_case.trim().is_empty() { return Err(Error::Invalid(crate::application::run::constants::PRIOR_WORKER_EVIDENCE_NEEDS_A_NAMED.into())); }
+                if rationale.trim().is_empty() || witness_case.trim().is_empty() { return Err(Error::Invalid(constants::PRIOR_WORKER_EVIDENCE_NEEDS_A_NAMED.into())); }
                 Ok(DiscrepancyEvidence::PriorWorkerRun { path, sha256: digest(sha256)?, worker_sha256: digest(worker_sha256)?, control_source_sha256: digest(control_source_sha256)?, control_query_sha256: digest(control_query_sha256)?, control_profile_sha256: digest(control_profile_sha256)?, witness_case, rationale })
             }
-            _ => Err(Error::Invalid(crate::application::run::constants::DISCREPANCY_EVIDENCE_DOES_NOT_MATCH_ITS.into())),
+            _ => Err(Error::Invalid(constants::DISCREPANCY_EVIDENCE_DOES_NOT_MATCH_ITS.into())),
         }
     }).collect::<Result<Vec<_>, Error>>()?;
     if basis == DiscrepancyBasis::ToolContract
@@ -161,7 +160,7 @@ fn convert(
                 != 1)
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE_REQUIRES_ONE_PUBLIC.into(),
+            constants::TOOL_CONTRACT_DIFFERENCE_REQUIRES_ONE_PUBLIC.into(),
         ));
     }
     Ok(PreparedReferenceDiscrepancy {
@@ -203,7 +202,7 @@ pub(super) fn reference_expected(case: &PreparedCase) -> Result<&RunReport, Erro
         None => Ok(&case.expected),
         Some(ReferenceExpectation::Diagnostics(report)) => Ok(report),
         Some(ReferenceExpectation::ProcessFailure(_)) => Err(Error::Invalid(
-            crate::application::run::constants::PROCESS_EXPECTATION_IS_NOT_A_DIAGNOSTIC.into(),
+            constants::PROCESS_EXPECTATION_IS_NOT_A_DIAGNOSTIC.into(),
         )),
     }
 }
@@ -232,11 +231,11 @@ pub(super) fn output_digest(report: &RunReport) -> ArtifactDigest {
         .collect::<Vec<_>>();
     files.sort_unstable();
     json_digest(&serde_json::json!({
-        crate::application::run::constants::FILES: files,
-        crate::application::run::constants::DIAGNOSTICS: findings.iter().map(|row| serde_json::json!({
-            crate::application::run::constants::RULE: row.rule.as_ref(), crate::application::run::constants::FILE: row.file.0.as_ref(), crate::application::run::constants::START: row.start.0, crate::application::run::constants::END: row.end.0,
+        constants::FILES: files,
+        constants::DIAGNOSTICS: findings.iter().map(|row| serde_json::json!({
+            constants::RULE: row.rule.as_ref(), constants::FILE: row.file.0.as_ref(), constants::START: row.start.0, constants::END: row.end.0,
         })).collect::<Vec<_>>(),
-        crate::application::run::constants::SKIPPED: [],
+        constants::SKIPPED: [],
     }))
 }
 
@@ -262,7 +261,7 @@ pub(super) fn complete(
         || (candidate && report.coverage.is_none())
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::REFERENCE_DISCREPANCY_REQUIRES_COMPLETE_KNOW.into(),
+            constants::REFERENCE_DISCREPANCY_REQUIRES_COMPLETE_KNOW.into(),
         ));
     }
     Ok(())
@@ -297,12 +296,12 @@ pub(super) fn validate(
         || item.evidence.is_empty()
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::REFERENCE_DISCREPANCY_REQUIRES_DISTINCT_FULL.into(),
+            constants::REFERENCE_DISCREPANCY_REQUIRES_DISTINCT_FULL.into(),
         ));
     }
-    let profile_root = rules.parent().ok_or_else(|| {
-        Error::Invalid(crate::application::run::constants::MISSING_PROFILE_ROOT.into())
-    })?;
+    let profile_root = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid(constants::MISSING_PROFILE_ROOT.into()))?;
     let profile = suite.profile(ArtifactPath(profile_root))?;
     let identity = &item.identity;
     let invocation = reference.prepare(&case.request)?;
@@ -312,9 +311,7 @@ pub(super) fn validate(
         identity,
         &profile,
         &actual_executable,
-        &suite.digest(ArtifactPath(
-            &profile_root.join(crate::application::run::constants::BENCHMARK_TOML),
-        ))?,
+        &suite.digest(ArtifactPath(&profile_root.join(constants::BENCHMARK_TOML)))?,
     )?;
     let settings = super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
     let files = crate::domain::suite::service::materialized_sources(&case.request);
@@ -376,7 +373,7 @@ pub(super) fn validate(
                         != Some(target_configuration.as_str())
                 {
                     return Err(Error::Invalid(
-                        crate::application::run::constants::INDEPENDENT_EVIDENCE_DOES_NOT_SUPPORT_CONFIG.into(),
+                        constants::INDEPENDENT_EVIDENCE_DOES_NOT_SUPPORT_CONFIG.into(),
                     ));
                 }
             }
@@ -387,7 +384,7 @@ pub(super) fn validate(
             ) => {}
             _ => {
                 return Err(Error::Invalid(
-                    crate::application::run::constants::DISCREPANCY_AUTHORITY_AND_EVIDENCE_DIFFER.into(),
+                    constants::DISCREPANCY_AUTHORITY_AND_EVIDENCE_DIFFER.into(),
                 ));
             }
         }
@@ -424,7 +421,7 @@ pub(super) fn validate(
         || reference_digest(&item.expected) != identity.reference_output_sha256
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::STALE_REFERENCE_DISCREPANCY_SETTINGS_SOURCE.into(),
+            constants::STALE_REFERENCE_DISCREPANCY_SETTINGS_SOURCE.into(),
         ));
     }
     if super::process_discrepancy::expected(case).is_some() {
@@ -438,19 +435,18 @@ pub(super) fn validate(
         )?;
     }
     let mut validation = serde_json::json!({
-        crate::application::run::constants::DISCREPANCY_BASIS: match item.basis { ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect => crate::application::run::constants::LANGUAGE_DEFECT, ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract => crate::application::run::constants::TOOL_CONTRACT_DIFFERENCE },
-        crate::application::run::constants::PROCESS_OBSERVATION_GROUP_SHA256: super::process_discrepancy::expected(case).map(|process|super::process_discrepancy::group_digest(process,&actual_executable.0)).transpose()?.map(|value|value.0),
-        crate::application::run::constants::REFERENCE_EXPECTATION_KIND: if super::process_discrepancy::expected(case).is_some() { crate::application::run::constants::PROCESS_FAILURE } else { crate::application::run::constants::DIAGNOSTICS },
-        crate::application::run::constants::SETTINGS_SHA256: settings.0,
-        crate::application::run::constants::ACTUAL_EXECUTABLE_SHA256: actual_executable.0,
-        crate::application::run::constants::PROFILE_SHA256: identity.profile_sha256.0,
-        crate::application::run::constants::SOURCE_SHA256: identity.source_sha256.0,
-        crate::application::run::constants::REFERENCE_OUTPUT_SHA256: identity.reference_output_sha256.0,
-        crate::application::run::constants::INTENDED_OUTPUT_SHA256: identity.intended_output_sha256.0,
+        constants::DISCREPANCY_BASIS: match item.basis { ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect => constants::LANGUAGE_DEFECT, ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract => constants::TOOL_CONTRACT_DIFFERENCE },
+        constants::PROCESS_OBSERVATION_GROUP_SHA256: super::process_discrepancy::expected(case).map(|process|super::process_discrepancy::group_digest(process,&actual_executable.0)).transpose()?.map(|value|value.0),
+        constants::REFERENCE_EXPECTATION_KIND: if super::process_discrepancy::expected(case).is_some() { constants::PROCESS_FAILURE } else { constants::DIAGNOSTICS },
+        constants::SETTINGS_SHA256: settings.0,
+        constants::ACTUAL_EXECUTABLE_SHA256: actual_executable.0,
+        constants::PROFILE_SHA256: identity.profile_sha256.0,
+        constants::SOURCE_SHA256: identity.source_sha256.0,
+        constants::REFERENCE_OUTPUT_SHA256: identity.reference_output_sha256.0,
+        constants::INTENDED_OUTPUT_SHA256: identity.intended_output_sha256.0,
     });
     if let Some(digest) = &identity.file_metadata_sha256 {
-        validation[crate::application::run::constants::FILE_METADATA_SHA256] =
-            serde_json::json!(digest.0);
+        validation[constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
     }
     Ok(Some(validation))
 }
@@ -470,7 +466,7 @@ fn validate_pins(
         || profile_digest != &identity.profile_sha256
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::STALE_REFERENCE_DISCREPANCY_TOOL_PROFILE_OR.into(),
+            constants::STALE_REFERENCE_DISCREPANCY_TOOL_PROFILE_OR.into(),
         ));
     }
     Ok(())

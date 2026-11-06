@@ -1,4 +1,5 @@
 //! Comparison evidence accompanies timing output without becoming a fabricated BMF metric.
+use crate::outbound::evidence::adapters::comparison::constants;
 use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
 use ryo_benchmark_contracts::domain::reports::types::ReportComparison;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
@@ -13,35 +14,27 @@ pub(crate) fn write(
     eprintln!(
         "{}",
         serde_json::json!({
-            crate::outbound::evidence::adapters::comparison::constants::SCHEMA: crate::outbound::evidence::adapters::comparison::constants::BENCHMARK_COMPARISON_V1,
-            crate::outbound::evidence::adapters::comparison::constants::CONTRACT: contract_name(contract),
-            crate::outbound::evidence::adapters::comparison::constants::COMPARISON: comparison_value(comparison),
-            crate::outbound::evidence::adapters::comparison::constants::REFERENCE_EXECUTION_METADATA: crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&reference.execution_metadata),
-            crate::outbound::evidence::adapters::comparison::constants::CANDIDATE_EXECUTION_METADATA: crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&candidate.execution_metadata),
+            constants::SCHEMA: constants::BENCHMARK_COMPARISON_V1,
+            constants::CONTRACT: contract_name(contract),
+            constants::COMPARISON: comparison_value(comparison),
+            constants::REFERENCE_EXECUTION_METADATA: crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&reference.execution_metadata),
+            constants::CANDIDATE_EXECUTION_METADATA: crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&candidate.execution_metadata),
         })
     );
 }
 
 fn contract_name(contract: ComparisonContract) -> &'static str {
     match contract {
-        ComparisonContract::Diagnostics => {
-            crate::outbound::evidence::adapters::comparison::constants::DIAGNOSTICS
-        }
-        ComparisonContract::CompleteReport => {
-            crate::outbound::evidence::adapters::comparison::constants::COMPLETE_REPORT
-        }
+        ComparisonContract::Diagnostics => constants::DIAGNOSTICS,
+        ComparisonContract::CompleteReport => constants::COMPLETE_REPORT,
     }
 }
 fn comparison_value(comparison: ReportComparison) -> serde_json::Value {
     use ryo_benchmark_contracts::domain::reports::types::Comparison;
     let name = |value| match value {
-        Comparison::Exact => crate::outbound::evidence::adapters::comparison::constants::EXACT,
-        Comparison::Different => {
-            crate::outbound::evidence::adapters::comparison::constants::DIFFERENT
-        }
-        Comparison::Incomparable => {
-            crate::outbound::evidence::adapters::comparison::constants::INCOMPARABLE
-        }
+        Comparison::Exact => constants::EXACT,
+        Comparison::Different => constants::DIFFERENT,
+        Comparison::Incomparable => constants::INCOMPARABLE,
     };
-    serde_json::json!({crate::outbound::evidence::adapters::comparison::constants::DIAGNOSTICS:name(comparison.diagnostics),crate::outbound::evidence::adapters::comparison::constants::EXECUTION_METADATA:name(comparison.execution_metadata)})
+    serde_json::json!({constants::DIAGNOSTICS:name(comparison.diagnostics),constants::EXECUTION_METADATA:name(comparison.execution_metadata)})
 }

@@ -1,4 +1,5 @@
 //! Canonical identity for optional project namespace inputs used by both contestants.
+use crate::domain::suite::constants;
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
 };
@@ -22,23 +23,23 @@ pub fn value(
         .iter()
         .map(|entry| {
             let state = match entry.state {
-                ProjectEntryState::File => crate::domain::suite::constants::FILE,
-                ProjectEntryState::Directory => crate::domain::suite::constants::DIRECTORY,
-                ProjectEntryState::Other => crate::domain::suite::constants::OTHER,
-                ProjectEntryState::Missing => crate::domain::suite::constants::MISSING,
-                ProjectEntryState::Unknown => crate::domain::suite::constants::UNKNOWN,
+                ProjectEntryState::File => constants::FILE,
+                ProjectEntryState::Directory => constants::DIRECTORY,
+                ProjectEntryState::Other => constants::OTHER,
+                ProjectEntryState::Missing => constants::MISSING,
+                ProjectEntryState::Unknown => constants::UNKNOWN,
             };
-            serde_json::json!({crate::domain::suite::constants::PATH: entry.path.0.as_ref(), crate::domain::suite::constants::STATE: state})
+            serde_json::json!({constants::PATH: entry.path.0.as_ref(), constants::STATE: state})
         })
         .collect::<Vec<_>>();
     Some(serde_json::json!({
-        crate::domain::suite::constants::PROJECT_SEARCH_ROOTS: roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
-        crate::domain::suite::constants::GIVEN_PROJECT_INVENTORY: {
-            crate::domain::suite::constants::COMPLETENESS: match inventory.completeness {
-                ProjectInventoryCompleteness::Partial => crate::domain::suite::constants::PARTIAL,
-                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => crate::domain::suite::constants::COMPLETE_WITHIN_DECLARED_SCOPE,
+        constants::PROJECT_SEARCH_ROOTS: roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
+        constants::GIVEN_PROJECT_INVENTORY: {
+            constants::COMPLETENESS: match inventory.completeness {
+                ProjectInventoryCompleteness::Partial => constants::PARTIAL,
+                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => constants::COMPLETE_WITHIN_DECLARED_SCOPE,
             },
-            crate::domain::suite::constants::ENTRIES: entries,
+            constants::ENTRIES: entries,
         }
     }))
 }
@@ -60,17 +61,17 @@ pub fn digest(
 #[test]
 fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
     let roots = [
-        RelativePath(crate::domain::suite::constants::SRC.into()),
-        RelativePath(crate::domain::suite::constants::VENDOR.into()),
+        RelativePath(constants::SRC.into()),
+        RelativePath(constants::VENDOR.into()),
     ];
     let inventory = GivenProjectInventory {
         entries: vec![
             ryo::linter::ProjectEntryObservation {
-                path: RelativePath(crate::domain::suite::constants::SRC_PKG.into()),
+                path: RelativePath(constants::SRC_PKG.into()),
                 state: ProjectEntryState::Directory,
             },
             ryo::linter::ProjectEntryObservation {
-                path: RelativePath(crate::domain::suite::constants::VENDOR_PKG_PY.into()),
+                path: RelativePath(constants::VENDOR_PKG_PY.into()),
                 state: ProjectEntryState::Missing,
             },
         ],
@@ -78,18 +79,16 @@ fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
     };
     assert_eq!(
         digest(Some(&roots), &inventory)
-            .expect(crate::domain::suite::constants::DIGEST)
+            .expect(constants::DIGEST)
             .map(|value| value.0),
-        Some(crate::domain::suite::constants::FF9B78535B775BABAADAE518C198876AA1C27EF21D0A.into())
+        Some(constants::FF9B78535B775BABAADAE518C198876AA1C27EF21D0A.into())
     );
     assert_eq!(
-        digest(None, &GivenProjectInventory::default())
-            .expect(crate::domain::suite::constants::LEGACY),
+        digest(None, &GivenProjectInventory::default()).expect(constants::LEGACY),
         None
     );
     assert_ne!(
-        digest(Some(&roots), &inventory).expect(crate::domain::suite::constants::ORIGINAL),
-        digest(Some(&roots[..1]), &inventory)
-            .expect(crate::domain::suite::constants::CHANGED_ROOT_AUTHORITY)
+        digest(Some(&roots), &inventory).expect(constants::ORIGINAL),
+        digest(Some(&roots[..1]), &inventory).expect(constants::CHANGED_ROOT_AUTHORITY)
     );
 }

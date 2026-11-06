@@ -1,5 +1,6 @@
 //! Convert explicit process wire contracts; actual matching remains shared and byte-exact.
 use super::discrepancy::digest;
+use crate::application::run::constants;
 use crate::outbound::suite::types::process::{
     OutputPartWire, PathEncodingWire, ProcessArtifactWire, ProcessFailureWire,
 };
@@ -45,7 +46,7 @@ pub(super) fn convert(value: ProcessFailureWire) -> Result<ProcessFailure, Error
     } = value;
     if exit <= 0 {
         return Err(Error::Invalid(
-            crate::application::run::constants::PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC.into(),
+            constants::PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC.into(),
         ));
     }
     Ok(ProcessFailure {
@@ -72,12 +73,12 @@ pub(super) fn output_digest(
 ) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
     let encode = |parts: &[OutputPart]| {
         parts.iter().map(|part| match part {
-        OutputPart::Literal(value) => serde_json::json!({crate::application::run::constants::KIND:crate::application::run::constants::LITERAL, crate::application::run::constants::VALUE:value}),
-        OutputPart::InputPath { file, encoding } => serde_json::json!({crate::application::run::constants::KIND:crate::application::run::constants::INPUT_PATH, crate::application::run::constants::FILE:file, crate::application::run::constants::ENCODING:match encoding { PathEncoding::Utf8Bytes => crate::application::run::constants::UTF8_BYTES, PathEncoding::JsonStringContent => crate::application::run::constants::JSON_STRING_CONTENT }}),
+        OutputPart::Literal(value) => serde_json::json!({constants::KIND:constants::LITERAL, constants::VALUE:value}),
+        OutputPart::InputPath { file, encoding } => serde_json::json!({constants::KIND:constants::INPUT_PATH, constants::FILE:file, constants::ENCODING:match encoding { PathEncoding::Utf8Bytes => constants::UTF8_BYTES, PathEncoding::JsonStringContent => constants::JSON_STRING_CONTENT }}),
     }).collect::<Vec<_>>()
     };
     super::discrepancy::json_digest(
-        &serde_json::json!({crate::application::run::constants::KIND:crate::application::run::constants::PROCESS_FAILURE, crate::application::run::constants::EXIT:process.exit, crate::application::run::constants::SIGNAL:null, crate::application::run::constants::STDOUT:encode(&process.stdout), crate::application::run::constants::STDERR:encode(&process.stderr)}),
+        &serde_json::json!({constants::KIND:constants::PROCESS_FAILURE, constants::EXIT:process.exit, constants::SIGNAL:null, constants::STDOUT:encode(&process.stdout), constants::STDERR:encode(&process.stderr)}),
     )
 }
 
@@ -106,31 +107,27 @@ pub(super) fn matches(
     suite: &dyn crate::outbound::suite::interface::SuitePort,
     rules: &std::path::Path,
 ) -> Result<(), Error> {
-    let process = expected(case).ok_or_else(|| {
-        Error::Invalid(crate::application::run::constants::NO_PROCESS_EXPECTATION.into())
-    })?;
-    if validation[crate::application::run::constants::REFERENCE_EXPECTATION_KIND]
-        != crate::application::run::constants::PROCESS_FAILURE
-        || capture.invocation[crate::application::run::constants::EXECUTABLE_SHA256]
-            != validation[crate::application::run::constants::ACTUAL_EXECUTABLE_SHA256]
-        || capture.invocation[crate::application::run::constants::SETTINGS_SHA256]
-            != validation[crate::application::run::constants::SETTINGS_SHA256]
-        || capture.invocation[crate::application::run::constants::PROFILE_SHA256]
-            != validation[crate::application::run::constants::PROFILE_SHA256]
-        || capture.invocation[crate::application::run::constants::FILE_METADATA_SHA256]
-            != validation[crate::application::run::constants::FILE_METADATA_SHA256]
+    let process =
+        expected(case).ok_or_else(|| Error::Invalid(constants::NO_PROCESS_EXPECTATION.into()))?;
+    if validation[constants::REFERENCE_EXPECTATION_KIND] != constants::PROCESS_FAILURE
+        || capture.invocation[constants::EXECUTABLE_SHA256]
+            != validation[constants::ACTUAL_EXECUTABLE_SHA256]
+        || capture.invocation[constants::SETTINGS_SHA256] != validation[constants::SETTINGS_SHA256]
+        || capture.invocation[constants::PROFILE_SHA256] != validation[constants::PROFILE_SHA256]
+        || capture.invocation[constants::FILE_METADATA_SHA256]
+            != validation[constants::FILE_METADATA_SHA256]
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::ACTUAL_PROCESS_IDENTITY_IS_NOT_THE.into(),
+            constants::ACTUAL_PROCESS_IDENTITY_IS_NOT_THE.into(),
         ));
     }
 
     if capture.output.signal.is_some()
         || capture.output.status.0 != process.exit
-        || capture.invocation[crate::application::run::constants::OBSERVER_NO_DEADLINE] != true
+        || capture.invocation[constants::OBSERVER_NO_DEADLINE] != true
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::REFERENCE_TERMINATION_DIFFERS_FROM_DECLARED.into(),
+            constants::REFERENCE_TERMINATION_DIFFERS_FROM_DECLARED.into(),
         ));
     }
     let files = case
@@ -147,12 +144,12 @@ pub(super) fn matches(
             .map_err(Error::Invalid)?;
     if stdout != capture.output.stdout.0 || stderr != capture.output.stderr.0 {
         return Err(Error::Invalid(
-            crate::application::run::constants::REFERENCE_PROCESS_BYTES_DIFFER_FROM_DECLARED.into(),
+            constants::REFERENCE_PROCESS_BYTES_DIFFER_FROM_DECLARED.into(),
         ));
     }
-    let profile_root = rules.parent().ok_or_else(|| {
-        Error::Invalid(crate::application::run::constants::MISSING_PROCESS_PROFILE_BOUNDARY.into())
-    })?;
+    let profile_root = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid(constants::MISSING_PROCESS_PROFILE_BOUNDARY.into()))?;
     let metadata_files = case
         .request
         .file_metadata
@@ -170,16 +167,11 @@ pub(super) fn matches(
             root: &case.request.root,
             files: &files,
             file_metadata_files: &metadata_files,
-            file_metadata_sha256: validation
-                [crate::application::run::constants::FILE_METADATA_SHA256]
-                .as_str(),
-            source_sha256: validation[crate::application::run::constants::SOURCE_SHA256]
+            file_metadata_sha256: validation[constants::FILE_METADATA_SHA256].as_str(),
+            source_sha256: validation[constants::SOURCE_SHA256]
                 .as_str()
                 .ok_or_else(|| {
-                    Error::Invalid(
-                        crate::application::run::constants::MISSING_VALIDATED_SOURCE_IDENTITY
-                            .into(),
-                    )
+                    Error::Invalid(constants::MISSING_VALIDATED_SOURCE_IDENTITY.into())
                 })?,
             evidence: &[],
         })
@@ -197,9 +189,8 @@ pub(super) fn validate_archives(
     actual: &ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 ) -> Result<(), Error> {
     use crate::outbound::suite::types::{ArtifactPath, discrepancy::EvidenceArtifact};
-    let process = expected(case).ok_or_else(|| {
-        Error::Invalid(crate::application::run::constants::MISSING_PROCESS_CONTRACT.into())
-    })?;
+    let process =
+        expected(case).ok_or_else(|| Error::Invalid(constants::MISSING_PROCESS_CONTRACT.into()))?;
     let mut artifacts = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     let mut groups = std::collections::BTreeMap::<&str, usize>::new();
@@ -210,7 +201,7 @@ pub(super) fn validate_archives(
             .any(|pin| pin.0 == observation.executable_sha256.0)
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::PROCESS_EVIDENCE_HAS_AN_UNAPPROVED_EXACT.into(),
+                constants::PROCESS_EVIDENCE_HAS_AN_UNAPPROVED_EXACT.into(),
             ));
         }
         *groups.entry(&observation.executable_sha256.0).or_default() += 1;
@@ -221,7 +212,7 @@ pub(super) fn validate_archives(
         ] {
             if !seen.insert(artifact.path.clone()) {
                 return Err(Error::Invalid(
-                    crate::application::run::constants::PROCESS_OBSERVATIONS_MUST_RETAIN_SEPARATE_RA.into(),
+                    constants::PROCESS_OBSERVATIONS_MUST_RETAIN_SEPARATE_RA.into(),
                 ));
             }
             artifacts.push(EvidenceArtifact {
@@ -237,7 +228,7 @@ pub(super) fn validate_archives(
         || groups.get(actual.0.as_str()).copied().unwrap_or(0) < 2
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::PROCESS_EXPECTATION_NEEDS_TWO_CAPTURES_FOR.into(),
+            constants::PROCESS_EXPECTATION_NEEDS_TWO_CAPTURES_FOR.into(),
         ));
     }
     let bytes = suite
@@ -250,18 +241,15 @@ pub(super) fn validate_archives(
         .map(|file| std::path::PathBuf::from(file.0.as_ref()))
         .collect::<Vec<_>>();
     for observation in &process.observations {
-        let metadata: serde_json::Value =
-            serde_json::from_slice(bytes.get(&observation.invocation.path).ok_or_else(|| {
-                Error::Invalid(crate::application::run::constants::MISSING_RAW_INVOCATION.into())
-            })?)
-            .map_err(|error| Error::Invalid(error.to_string()))?;
-        let root = metadata[crate::application::run::constants::ACTUAL_REQUEST_ROOT]
+        let metadata: serde_json::Value = serde_json::from_slice(
+            bytes
+                .get(&observation.invocation.path)
+                .ok_or_else(|| Error::Invalid(constants::MISSING_RAW_INVOCATION.into()))?,
+        )
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+        let root = metadata[constants::ACTUAL_REQUEST_ROOT]
             .as_str()
-            .ok_or_else(|| {
-                Error::Invalid(
-                    crate::application::run::constants::ARCHIVED_REQUEST_ROOT_IS_MISSING.into(),
-                )
-            })?;
+            .ok_or_else(|| Error::Invalid(constants::ARCHIVED_REQUEST_ROOT_IS_MISSING.into()))?;
         let stdout = crate::domain::suite::process::service::expand(
             &process.stdout,
             std::path::Path::new(root),
@@ -280,50 +268,37 @@ pub(super) fn validate_archives(
             .iter()
             .map(|file| file.0.as_ref())
             .collect::<Vec<_>>();
-        if !metadata[crate::application::run::constants::METADATA_ERROR].is_null()
-            || metadata[crate::application::run::constants::FILES]
-                != serde_json::json!(required_files)
-            || metadata[crate::application::run::constants::EXECUTABLE_SHA256]
-                != observation.executable_sha256.0
-            || metadata[crate::application::run::constants::PROFILE_SHA256]
-                != identity.profile_sha256.0
-            || metadata[crate::application::run::constants::SOURCE_SHA256]
-                != identity.source_sha256.0
-            || metadata[crate::application::run::constants::FILE_METADATA_SHA256]
+        if !metadata[constants::METADATA_ERROR].is_null()
+            || metadata[constants::FILES] != serde_json::json!(required_files)
+            || metadata[constants::EXECUTABLE_SHA256] != observation.executable_sha256.0
+            || metadata[constants::PROFILE_SHA256] != identity.profile_sha256.0
+            || metadata[constants::SOURCE_SHA256] != identity.source_sha256.0
+            || metadata[constants::FILE_METADATA_SHA256]
                 != serde_json::json!(identity.file_metadata_sha256.as_ref().map(|value| &value.0))
-            || metadata[crate::application::run::constants::SETTINGS_SHA256]
-                != identity.settings_sha256.0
-            || metadata[crate::application::run::constants::TOOL] != profile.tool.0.as_str()
-            || metadata[crate::application::run::constants::VERSION] != profile.version.0.as_str()
-            || metadata[crate::application::run::constants::EXIT].as_i64()
-                != Some(i64::from(process.exit))
-            || metadata.get(crate::application::run::constants::SIGNAL)
-                != Some(&serde_json::Value::Null)
-            || metadata[crate::application::run::constants::OBSERVER_NO_DEADLINE] != true
+            || metadata[constants::SETTINGS_SHA256] != identity.settings_sha256.0
+            || metadata[constants::TOOL] != profile.tool.0.as_str()
+            || metadata[constants::VERSION] != profile.version.0.as_str()
+            || metadata[constants::EXIT].as_i64() != Some(i64::from(process.exit))
+            || metadata.get(constants::SIGNAL) != Some(&serde_json::Value::Null)
+            || metadata[constants::OBSERVER_NO_DEADLINE] != true
             || bytes.get(&observation.stdout.path) != Some(&stdout)
             || bytes.get(&observation.stderr.path) != Some(&stderr)
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::ARCHIVED_PROCESS_BYTES_TERMINATION_OR_IMMUTA
-                    .into(),
+                constants::ARCHIVED_PROCESS_BYTES_TERMINATION_OR_IMMUTA.into(),
             ));
         }
         let mut archived_case = case.clone();
         archived_case.request.root = root.into();
-        archived_case.request.state = metadata[crate::application::run::constants::STATE]
+        archived_case.request.state = metadata[constants::STATE]
             .as_str()
-            .ok_or_else(|| {
-                Error::Invalid(
-                    crate::application::run::constants::ARCHIVED_STATE_BOUNDARY_IS_MISSING.into(),
-                )
-            })?
+            .ok_or_else(|| Error::Invalid(constants::ARCHIVED_STATE_BOUNDARY_IS_MISSING.into()))?
             .into();
-        let arguments = serde_json::from_value::<Vec<String>>(
-            metadata[crate::application::run::constants::ARGUMENTS].clone(),
-        )
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+        let arguments =
+            serde_json::from_value::<Vec<String>>(metadata[constants::ARGUMENTS].clone())
+                .map_err(|error| Error::Invalid(error.to_string()))?;
         let environment = serde_json::from_value::<std::collections::BTreeMap<String, String>>(
-            metadata[crate::application::run::constants::ENVIRONMENT].clone(),
+            metadata[constants::ENVIRONMENT].clone(),
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
         let invocation = ryo_benchmark_contracts::domain::measurements::types::Invocation {
@@ -333,13 +308,15 @@ pub(super) fn validate_archives(
                 .into_iter()
                 .map(|(key, value)| (key.into(), value.into()))
                 .collect(),
-            directory: metadata[crate::application::run::constants::DIRECTORY]
+            directory: metadata[constants::DIRECTORY]
                 .as_str()
-                .ok_or_else(|| Error::Invalid(crate::application::run::constants::ARCHIVED_INVOCATION_DIRECTORY_IS_MISSING.into()))?
+                .ok_or_else(|| {
+                    Error::Invalid(constants::ARCHIVED_INVOCATION_DIRECTORY_IS_MISSING.into())
+                })?
                 .into(),
         };
         if super::invocation_identity::normalized_invocation(&invocation, &archived_case, profile)?
-            != metadata[crate::application::run::constants::NORMALIZED_SETTINGS]
+            != metadata[constants::NORMALIZED_SETTINGS]
             || super::invocation_identity::invocation_settings(
                 &invocation,
                 &archived_case,
@@ -347,8 +324,7 @@ pub(super) fn validate_archives(
             )? != identity.settings_sha256
         {
             return Err(Error::Invalid(
-                crate::application::run::constants::ARCHIVED_ARGV_ENVIRONMENT_DO_NOT_ESTABLISH
-                    .into(),
+                constants::ARCHIVED_ARGV_ENVIRONMENT_DO_NOT_ESTABLISH.into(),
             ));
         }
     }
@@ -371,7 +347,7 @@ pub(super) fn group_digest(
         ] {
             if !artifacts.insert(&raw.path) {
                 return Err(Error::Invalid(
-                    crate::application::run::constants::PROCESS_OBSERVATION_GROUPS_MUST_RETAIN_DISTI.into(),
+                    constants::PROCESS_OBSERVATION_GROUPS_MUST_RETAIN_DISTI.into(),
                 ));
             }
         }
@@ -379,7 +355,7 @@ pub(super) fn group_digest(
     }
     if groups.values().any(|count| *count < 2) || groups.get(executable).copied().unwrap_or(0) < 2 {
         return Err(Error::Invalid(
-            crate::application::run::constants::MISSING_REPRODUCIBLE_EXACT_BINARY_OBSERVATIO.into(),
+            constants::MISSING_REPRODUCIBLE_EXACT_BINARY_OBSERVATIO.into(),
         ));
     }
     let mut rows = process
@@ -388,10 +364,10 @@ pub(super) fn group_digest(
         .filter(|row| row.executable_sha256.0 == executable)
         .map(|row| {
             serde_json::json!({
-                crate::application::run::constants::EXECUTABLE_SHA256:row.executable_sha256.0,
-                crate::application::run::constants::INVOCATION:{crate::application::run::constants::PATH:row.invocation.path,crate::application::run::constants::SHA256:row.invocation.sha256.0},
-                crate::application::run::constants::STDOUT:{crate::application::run::constants::PATH:row.stdout.path,crate::application::run::constants::SHA256:row.stdout.sha256.0},
-                crate::application::run::constants::STDERR:{crate::application::run::constants::PATH:row.stderr.path,crate::application::run::constants::SHA256:row.stderr.sha256.0},
+                constants::EXECUTABLE_SHA256:row.executable_sha256.0,
+                constants::INVOCATION:{constants::PATH:row.invocation.path,constants::SHA256:row.invocation.sha256.0},
+                constants::STDOUT:{constants::PATH:row.stdout.path,constants::SHA256:row.stdout.sha256.0},
+                constants::STDERR:{constants::PATH:row.stderr.path,constants::SHA256:row.stderr.sha256.0},
             })
         })
         .collect::<Vec<_>>();

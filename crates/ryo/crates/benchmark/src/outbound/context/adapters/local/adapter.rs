@@ -1,4 +1,5 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
+use crate::outbound::context::adapters::local::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
@@ -35,8 +36,7 @@ fn relative(path: &Path, root: bool) -> Result<(), Error> {
 fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
     if path.is_absolute() {
         return Err(Error::Invalid(
-            crate::outbound::context::adapters::local::constants::ABSOLUTE_CONTEXT_DEPENDENCY
-                .into(),
+            constants::ABSOLUTE_CONTEXT_DEPENDENCY.into(),
         ));
     }
     let mut resolved = PathBuf::new();
@@ -130,23 +130,14 @@ fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error> {
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    frame(
-        &mut hash,
-        crate::outbound::context::adapters::local::constants::LISTED_DISK_CONTEXT_V1,
-    );
+    frame(&mut hash, constants::LISTED_DISK_CONTEXT_V1);
     frame(
         &mut hash,
         manifest.logical_root.as_os_str().as_encoded_bytes(),
     );
     for (kind, files) in [
-        (
-            crate::outbound::context::adapters::local::constants::SOURCE.as_slice(),
-            &manifest.source_files,
-        ),
-        (
-            crate::outbound::context::adapters::local::constants::AUXILIARY.as_slice(),
-            &manifest.auxiliary_files,
-        ),
+        (constants::SOURCE, &manifest.source_files),
+        (constants::AUXILIARY, &manifest.auxiliary_files),
     ] {
         frame(&mut hash, kind);
         for (path, digest) in files {
@@ -157,10 +148,7 @@ pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut missing = manifest.missing.clone();
     missing.sort();
     for path in missing {
-        frame(
-            &mut hash,
-            crate::outbound::context::adapters::local::constants::MISSING,
-        );
+        frame(&mut hash, constants::MISSING);
         frame(&mut hash, path.as_os_str().as_encoded_bytes());
     }
     ArtifactDigest(format!("{:x}", hash.finalize()))
@@ -173,7 +161,7 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
         || actual_root != manifest.boundary.join(&manifest.logical_root)
     {
         return Err(Error::Invalid(
-            crate::outbound::context::adapters::local::constants::CONTEXT_LOGICAL_AND_PHYSICAL_ROOTS_DISAGREE.into(),
+            constants::CONTEXT_LOGICAL_AND_PHYSICAL_ROOTS_DISAGREE.into(),
         ));
     }
     let mut missing = manifest.missing.clone();
@@ -183,8 +171,7 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
         .any(|pair| matches!(pair, [first, second] if first == second))
     {
         return Err(Error::Invalid(
-            crate::outbound::context::adapters::local::constants::DUPLICATE_MISSING_CONTEXT_PATH
-                .into(),
+            constants::DUPLICATE_MISSING_CONTEXT_PATH.into(),
         ));
     }
     for (path, expected) in manifest
@@ -197,7 +184,9 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
         if manifest.source_files.contains_key(path) && manifest.auxiliary_files.contains_key(path)
             || missing.contains(path)
         {
-            return Err(Error::Invalid(crate::outbound::context::adapters::local::constants::CONTEXT_PATH_HAS_CONFLICTING_ROLES.into()));
+            return Err(Error::Invalid(
+                constants::CONTEXT_PATH_HAS_CONFLICTING_ROLES.into(),
+            ));
         }
         let bytes = std::fs::read(manifest.boundary.join(path))?;
         if artifact(&bytes) != *expected {
@@ -241,13 +230,12 @@ pub(crate) fn seal_existing(
         || !source_set.is_subset(&tracked_set)
     {
         return Err(Error::Invalid(
-            crate::outbound::context::adapters::local::constants::SEALED_CORPUS_REQUIRES_UNIQUE_ACTUAL_TRACKED
-                .into(),
+            constants::SEALED_CORPUS_REQUIRES_UNIQUE_ACTUAL_TRACKED.into(),
         ));
     }
     let mut manifest = ContextManifest {
         boundary,
-        logical_root: PathBuf::from(crate::outbound::context::adapters::local::constants::DOT),
+        logical_root: PathBuf::from(constants::DOT),
         source_files: BTreeMap::new(),
         auxiliary_files: BTreeMap::new(),
         missing: Vec::new(),
@@ -294,11 +282,11 @@ pub(crate) fn materialize(
     for (path, bytes) in &context.auxiliary_files {
         relative(path, false)?;
         let actual = manifest.boundary.join(path);
-        std::fs::create_dir_all(actual.parent().ok_or_else(|| {
-            Error::Invalid(
-                crate::outbound::context::adapters::local::constants::MISSING_CONTEXT_PARENT.into(),
-            )
-        })?)?;
+        std::fs::create_dir_all(
+            actual
+                .parent()
+                .ok_or_else(|| Error::Invalid(constants::MISSING_CONTEXT_PARENT.into()))?,
+        )?;
         std::fs::write(actual, bytes)?;
         let _previous = manifest
             .auxiliary_files
@@ -308,15 +296,15 @@ pub(crate) fn materialize(
         let path = resolve(&manifest, Path::new(path.0.as_ref()))?;
         if manifest.auxiliary_files.contains_key(&path) {
             return Err(Error::Invalid(
-                crate::outbound::context::adapters::local::constants::AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
+                constants::AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
             ));
         }
         let actual = manifest.boundary.join(&path);
-        std::fs::create_dir_all(actual.parent().ok_or_else(|| {
-            Error::Invalid(
-                crate::outbound::context::adapters::local::constants::MISSING_SOURCE_PARENT.into(),
-            )
-        })?)?;
+        std::fs::create_dir_all(
+            actual
+                .parent()
+                .ok_or_else(|| Error::Invalid(constants::MISSING_SOURCE_PARENT.into()))?,
+        )?;
         std::fs::write(actual, source.0.as_bytes())?;
         let _previous = manifest
             .source_files
@@ -353,7 +341,7 @@ pub(crate) fn receipt(
                 let bytes = std::fs::read(manifest.boundary.join(&declared))?;
                 if ryo::linter::dependency_fingerprint(&bytes) != fingerprint {
                     return Err(Error::Invalid(
-                        crate::outbound::context::adapters::local::constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES.into(),
+                        constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES.into(),
                     ));
                 }
                 Some(fingerprint)
@@ -419,7 +407,9 @@ pub(crate) fn verify_receipt(
         })
         .collect();
     if receipt(manifest, actual_root, dependencies)? != *observed {
-        return Err(Error::Invalid(crate::outbound::context::adapters::local::constants::CONTEXT_RECEIPT_IDENTITY_DISAGREES.into()));
+        return Err(Error::Invalid(
+            constants::CONTEXT_RECEIPT_IDENTITY_DISAGREES.into(),
+        ));
     }
     Ok(())
 }

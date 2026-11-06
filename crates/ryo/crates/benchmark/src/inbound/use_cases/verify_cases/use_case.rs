@@ -1,5 +1,6 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::VerifyCasesUseCase;
+use crate::inbound::use_cases::verify_cases::constants;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// verify_cases with required borrowed boundaries.
@@ -40,9 +41,9 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
         if coverage
             == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted
         {
-            let profile = rules
-                .parent()
-                .ok_or_else(|| ReportsError::Invalid(crate::inbound::use_cases::verify_cases::constants::MISSING_CASE_PROFILE_BOUNDARY.into()))?;
+            let profile = rules.parent().ok_or_else(|| {
+                ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
+            })?;
             let tool = self
                 .suite
                 .profile(crate::outbound::suite::types::ArtifactPath(profile))?;

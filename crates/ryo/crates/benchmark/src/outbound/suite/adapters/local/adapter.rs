@@ -24,11 +24,8 @@ fn validate_query_modules(
 ) -> Result<(), Error> {
     let root = directory.canonicalize()?;
     for (id, relative) in modules {
-        let _module = ryo::query::QueryModuleSource::try_new(
-            id,
-            crate::outbound::suite::adapters::local::constants::MODULE_SOURCE,
-        )
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+        let _module = ryo::query::QueryModuleSource::try_new(id, constants::MODULE_SOURCE)
+            .map_err(|error| Error::Invalid(error.to_string()))?;
         let relative = RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
         for component in relative.as_ref().components() {
@@ -268,14 +265,11 @@ impl SuitePort for SuiteLocalAdapter {
         let narrowed = tool.defaults != authored;
         let manifest = if narrowed {
             let mut value: toml::Value = toml::from_str(&original)?;
-            let table = value.as_table_mut().ok_or_else(|| {
-                Error::Invalid(
-                    crate::outbound::suite::adapters::local::constants::PROFILE_MUST_BE_A_TABLE
-                        .into(),
-                )
-            })?;
+            let table = value
+                .as_table_mut()
+                .ok_or_else(|| Error::Invalid(constants::PROFILE_MUST_BE_A_TABLE.into()))?;
             table.insert(
-                crate::outbound::suite::adapters::local::constants::DEFAULTS.into(),
+                constants::DEFAULTS.into(),
                 toml::Value::Array(
                     authored
                         .iter()
@@ -284,7 +278,7 @@ impl SuitePort for SuiteLocalAdapter {
                 ),
             );
             table.insert(
-                crate::outbound::suite::adapters::local::constants::SUPPORTING_RULES.into(),
+                constants::SUPPORTING_RULES.into(),
                 toml::Value::Array(
                     definitions
                         .iter()
@@ -293,12 +287,9 @@ impl SuitePort for SuiteLocalAdapter {
                         .collect(),
                 ),
             );
-            table.remove(crate::outbound::suite::adapters::local::constants::PENDING);
-            table.remove(crate::outbound::suite::adapters::local::constants::DEFERRED);
-            for key in [
-                crate::outbound::suite::adapters::local::constants::RULE_OBSERVATIONS,
-                crate::outbound::suite::adapters::local::constants::RULE_APPLICABILITY,
-            ] {
+            table.remove(constants::PENDING);
+            table.remove(constants::DEFERRED);
+            for key in [constants::RULE_OBSERVATIONS, constants::RULE_APPLICABILITY] {
                 if let Some(entries) = table.get_mut(key).and_then(toml::Value::as_table_mut) {
                     entries.retain(|id, _| definitions.iter().any(|rule| rule.as_ref() == id));
                 }

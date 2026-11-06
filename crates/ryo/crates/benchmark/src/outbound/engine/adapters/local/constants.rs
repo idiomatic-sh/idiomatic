@@ -71,84 +71,124 @@ pub(super) const RYO_DIAGNOSTIC_LIFECYCLE_MEMORY: &str = "ryo::diagnostic::lifec
 /// Text of the ryo diagnostic row progress in this part.
 pub(super) const RYO_DIAGNOSTIC_ROW_PROGRESS: &str = "ryo::diagnostic::row_progress";
 /// Text of the profile root in this part.
+#[cfg(test)]
 pub(super) const PROFILE_ROOT: &str = "profile root";
 /// Text of the rules in this part.
+#[cfg(test)]
 pub(super) const RULES: &str = "rules";
 /// Text of the f401 in this part.
+#[cfg(test)]
 pub(super) const F401: &str = "F401";
 /// Text of the rule directory in this part.
+#[cfg(test)]
 pub(super) const RULE_DIRECTORY: &str = "rule directory";
 /// Text of the f401 query ryoql in this part.
+#[cfg(test)]
 pub(super) const F401_QUERY_RYOQL: &str = "F401/query.ryoql";
 /// Text of the import shared from python ruff suppress in this part.
+#[cfg(test)]
 pub(super) const IMPORT_SHARED_FROM_PYTHON_RUFF_SUPPRESS: &str =
     "import shared from \"python/ruff/suppress\";";
 /// Text of the query source in this part.
+#[cfg(test)]
 pub(super) const QUERY_SOURCE: &str = "query source";
 /// Text of the fragments suppress ryoql in this part.
+#[cfg(test)]
 pub(super) const FRAGMENTS_SUPPRESS_RYOQL: &str = "fragments/suppress.ryoql";
 /// Text of the module parent in this part.
+#[cfg(test)]
 pub(super) const MODULE_PARENT: &str = "module parent";
 /// Text of the module folder in this part.
+#[cfg(test)]
 pub(super) const MODULE_FOLDER: &str = "module folder";
 /// Text of the input source relation id node in this part.
+#[cfg(test)]
 pub(super) const INPUT_SOURCE_RELATION_ID_NODE: &str = "input source: relation<id: node>;\n";
 /// Text of the python ruff suppress in this part.
+#[cfg(test)]
 pub(super) const PYTHON_RUFF_SUPPRESS: &str = "python/ruff/suppress";
 /// Text of the module bundle is loaded in the in this part.
+#[cfg(test)]
 pub(super) const MODULE_BUNDLE_IS_LOADED_IN_THE: &str = "module bundle is loaded in the worker";
 /// Text of the rule in this part.
+#[cfg(test)]
 pub(super) const RULE: &str = "rule";
 /// Text of the complete applicability map loads in this part.
+#[cfg(test)]
 pub(super) const COMPLETE_APPLICABILITY_MAP_LOADS: &str = "complete applicability map loads";
 /// Text of the f402 in this part.
+#[cfg(test)]
 pub(super) const F402: &str = "F402";
 /// Text of the extra applicability entry is refused in this part.
+#[cfg(test)]
 pub(super) const EXTRA_APPLICABILITY_ENTRY_IS_REFUSED: &str =
     "extra applicability entry is refused";
 /// Text of the does not exactly match in this part.
+#[cfg(test)]
 pub(super) const DOES_NOT_EXACTLY_MATCH: &str = "does not exactly match";
 /// Text of the parse only in this part.
+#[cfg(test)]
 pub(super) const PARSE_ONLY: &str = "parse-only";
 /// Text of the unknown applicability is refused in this part.
+#[cfg(test)]
 pub(super) const UNKNOWN_APPLICABILITY_IS_REFUSED: &str = "unknown applicability is refused";
 /// Text of the unsupported applicability in this part.
+#[cfg(test)]
 pub(super) const UNSUPPORTED_APPLICABILITY: &str = "unsupported applicability";
 /// Text of the input py in this part.
+#[cfg(test)]
 pub(super) const INPUT_PY: &str = "input.py";
 /// Text of the expected success in this part.
+#[cfg(test)]
 pub(super) const EXPECTED_SUCCESS: &str = "expected success";
 /// Text of the expected refusal in this part.
+#[cfg(test)]
 pub(super) const EXPECTED_REFUSAL: &str = "expected refusal";
 /// Text of the else py in this part.
+#[cfg(test)]
 pub(super) const ELSE_PY: &str = "else.py";
 /// Text of the outside ryoql in this part.
+#[cfg(test)]
 pub(super) const OUTSIDE_RYOQL: &str = "../outside.ryoql";
 /// Text of the traversal is refused in this part.
+#[cfg(test)]
 pub(super) const TRAVERSAL_IS_REFUSED: &str = "traversal is refused";
 /// Text of the unsafe corpus path in this part.
+#[cfg(test)]
 pub(super) const UNSAFE_CORPUS_PATH: &str = "unsafe corpus path";
 /// Text of the fragments in this part.
+#[cfg(test)]
 pub(super) const FRAGMENTS: &str = "fragments";
 /// Text of the outside ryoql 2 in this part.
+#[cfg(test)]
 pub(super) const OUTSIDE_RYOQL_2: &str = "outside.ryoql";
 /// Text of the module bytes in this part.
+#[cfg(test)]
 pub(super) const MODULE_BYTES: &str = "module bytes";
 /// Text of the symlink fixture in this part.
+#[cfg(test)]
 pub(super) const SYMLINK_FIXTURE: &str = "symlink fixture";
 /// Text of the symlink is refused in this part.
+#[cfg(test)]
 pub(super) const SYMLINK_IS_REFUSED: &str = "symlink is refused";
 /// Text of the query module is a symlink in this part.
+#[cfg(test)]
 pub(super) const QUERY_MODULE_IS_A_SYMLINK: &str = "query module is a symlink";
 /// Text of the published in this part.
+#[cfg(test)]
 pub(super) const PUBLISHED: &str = "published";
 /// Text of the file in this part.
+#[cfg(test)]
 pub(super) const FILE: &str = "file";
 /// Text of the b002 in this part.
+#[cfg(test)]
 pub(super) const B002: &str = "B002";
 /// Text of the matched in this part.
+#[cfg(test)]
 pub(super) const MATCHED: &str = "matched";
 /// Text of the typo in this part.
+#[cfg(test)]
 pub(super) const TYPO: &str = "typo";
 /// Text of the unregistered consumer in this part.
+#[cfg(test)]
 pub(super) const UNREGISTERED_CONSUMER: &str = "unregistered consumer";

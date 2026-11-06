@@ -1,4 +1,5 @@
 //! Explicit source isolation and stable process spelling.
+use crate::domain::context::types::project_context_mode::constants;
 /// Source isolation contract at the benchmark boundary.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ProjectContextMode {
@@ -14,12 +15,8 @@ impl ProjectContextMode {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Isolated => {
-                crate::domain::context::types::project_context_mode::constants::ISOLATED
-            }
-            Self::ListedDisk => {
-                crate::domain::context::types::project_context_mode::constants::LISTED_DISK
-            }
+            Self::Isolated => constants::ISOLATED,
+            Self::ListedDisk => constants::LISTED_DISK,
         }
     }
 }

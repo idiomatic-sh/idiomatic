@@ -1,5 +1,6 @@
 //! Shared reference invocation identity; captures and offline replay use the same path encoding.
 use super::discrepancy::json_digest;
+use crate::application::run::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
@@ -21,19 +22,19 @@ pub(super) fn normalized_invocation(
     profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
 ) -> Result<serde_json::Value, Error> {
     let normalize = |value: &std::ffi::OsStr| -> Result<String, Error> {
-        let value = value.to_str().ok_or_else(|| {
-            Error::Invalid(crate::application::run::constants::NON_UTF8_REFERENCE_INVOCATION.into())
-        })?;
+        let value = value
+            .to_str()
+            .ok_or_else(|| Error::Invalid(constants::NON_UTF8_REFERENCE_INVOCATION.into()))?;
         Ok(value
             .replace(
                 &case.request.state.to_string_lossy().to_string(),
-                crate::application::run::constants::STATE_2,
+                constants::STATE_2,
             )
             .replace(
                 &case.request.root.to_string_lossy().to_string(),
-                crate::application::run::constants::ROOT,
+                constants::ROOT,
             )
-            .replace('\\', crate::application::run::constants::SLASH))
+            .replace('\\', constants::SLASH))
     };
     let arguments = invocation
         .arguments
@@ -46,21 +47,21 @@ pub(super) fn normalized_invocation(
         .map(|(key, value)| Ok((normalize(key)?, normalize(value)?)))
         .collect::<Result<std::collections::BTreeMap<_, _>, Error>>()?;
     let mut settings = serde_json::json!({
-        crate::application::run::constants::ARGUMENTS: arguments, crate::application::run::constants::ENVIRONMENT: environment,
-        crate::application::run::constants::DIRECTORY: normalize(invocation.directory.as_os_str())?,
-        crate::application::run::constants::PARSER_CONFIGURATION: profile.parser_configuration,
-        crate::application::run::constants::PROJECT_CONTEXT_MODE: format!("{:?}", profile.project_context_mode),
+        constants::ARGUMENTS: arguments, constants::ENVIRONMENT: environment,
+        constants::DIRECTORY: normalize(invocation.directory.as_os_str())?,
+        constants::PARSER_CONFIGURATION: profile.parser_configuration,
+        constants::PROJECT_CONTEXT_MODE: format!("{:?}", profile.project_context_mode),
     });
-    settings[crate::application::run::constants::PERFORMANCE] = serde_json::to_value(
+    settings[constants::PERFORMANCE] = serde_json::to_value(
         crate::outbound::worker::schemas::OptionsSchema::from(case.request.performance),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
     if let Some(declaration) = &profile.rule_context {
-        settings[crate::application::run::constants::RULE_CONTEXT_DECLARATION] =
+        settings[constants::RULE_CONTEXT_DECLARATION] =
             crate::outbound::worker::schemas::declaration_value(declaration);
     }
     if let Some(context) = &case.request.rule_context {
-        settings[crate::application::run::constants::RULE_CONTEXT] =
+        settings[constants::RULE_CONTEXT] =
             crate::outbound::worker::schemas::prepared_value(context);
     }
     if !profile.rule_observations.is_empty() {
@@ -73,24 +74,24 @@ pub(super) fn normalized_invocation(
             profile.rule_observation_selection,
         );
         if !declarations.is_empty() {
-            settings[crate::application::run::constants::RULE_OBSERVATIONS] =
+            settings[constants::RULE_OBSERVATIONS] =
                 crate::outbound::worker::schemas::observation_declarations_value(&declarations);
         }
     }
     if let Some(declarations) = &case.request.rule_observations {
-        settings[crate::application::run::constants::RULE_OBSERVATIONS] =
+        settings[constants::RULE_OBSERVATIONS] =
             crate::outbound::worker::schemas::observation_declarations_value(declarations);
     }
     if let Some(selected) = &case.request.selected_rules {
         let selected: std::collections::BTreeSet<_> =
             selected.iter().map(ToString::to_string).collect();
-        settings[crate::application::run::constants::SELECTED_RULES] = serde_json::json!(selected);
+        settings[constants::SELECTED_RULES] = serde_json::json!(selected);
     }
     if let Some(language) = &profile.source_language {
-        settings[crate::application::run::constants::SOURCE_LANGUAGE] = serde_json::json!(language);
+        settings[constants::SOURCE_LANGUAGE] = serde_json::json!(language);
     }
     if let Some(roots) = &case.request.project_search_roots {
-        settings[crate::application::run::constants::PROJECT_SEARCH_ROOTS] =
+        settings[constants::PROJECT_SEARCH_ROOTS] =
             serde_json::json!(roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>());
     }
     let inventory =
@@ -98,7 +99,7 @@ pub(super) fn normalized_invocation(
             case.request.given_project_inventory.clone(),
         );
     if !inventory.is_default() {
-        settings[crate::application::run::constants::GIVEN_PROJECT_INVENTORY] =
+        settings[constants::GIVEN_PROJECT_INVENTORY] =
             serde_json::to_value(inventory).map_err(|error| Error::Json(Box::new(error)))?;
     }
     Ok(settings)
@@ -107,61 +108,45 @@ pub(super) fn normalized_invocation(
 /// Reconstruct argv/environment/cwd from raw captured metadata, without trusting precomputed digests.
 pub(super) fn reconstruct(invocation: &serde_json::Value) -> Result<serde_json::Value, Error> {
     use serde_json::Value;
-    let mut settings = invocation[crate::application::run::constants::NORMALIZED_SETTINGS].clone();
+    let mut settings = invocation[constants::NORMALIZED_SETTINGS].clone();
     if !settings.is_object() {
         return Err(Error::Invalid(
-            crate::application::run::constants::MISSING_NORMALIZED_INVOCATION_CONFIGURATION.into(),
+            constants::MISSING_NORMALIZED_INVOCATION_CONFIGURATION.into(),
         ));
     }
-    let root = invocation[crate::application::run::constants::ACTUAL_REQUEST_ROOT]
+    let root = invocation[constants::ACTUAL_REQUEST_ROOT]
         .as_str()
         .filter(|root| !root.is_empty())
-        .ok_or_else(|| {
-            Error::Invalid(
-                crate::application::run::constants::RAW_INVOCATION_ROOT_IS_MISSING.into(),
-            )
-        })?;
+        .ok_or_else(|| Error::Invalid(constants::RAW_INVOCATION_ROOT_IS_MISSING.into()))?;
     if !std::path::Path::new(root).is_absolute() {
         return Err(Error::Invalid(
-            crate::application::run::constants::RAW_INVOCATION_ROOT_IS_NOT_ABSOLUTE.into(),
+            constants::RAW_INVOCATION_ROOT_IS_NOT_ABSOLUTE.into(),
         ));
     }
-    let state = invocation[crate::application::run::constants::STATE]
+    let state = invocation[constants::STATE]
         .as_str()
         .filter(|state| !state.is_empty())
-        .ok_or_else(|| {
-            Error::Invalid(
-                crate::application::run::constants::RAW_INVOCATION_STATE_IS_MISSING.into(),
-            )
-        })?;
+        .ok_or_else(|| Error::Invalid(constants::RAW_INVOCATION_STATE_IS_MISSING.into()))?;
     let normalize = |value: &Value| -> Result<String, Error> {
         Ok(value
             .as_str()
-            .ok_or_else(|| {
-                Error::Invalid(crate::application::run::constants::NONUTF8_INVOCATION_VALUE.into())
-            })?
-            .replace(state, crate::application::run::constants::STATE_2)
-            .replace(root, crate::application::run::constants::ROOT)
-            .replace('\\', crate::application::run::constants::SLASH))
+            .ok_or_else(|| Error::Invalid(constants::NONUTF8_INVOCATION_VALUE.into()))?
+            .replace(state, constants::STATE_2)
+            .replace(root, constants::ROOT)
+            .replace('\\', constants::SLASH))
     };
-    settings[crate::application::run::constants::ARGUMENTS] = Value::Array(
-        invocation[crate::application::run::constants::ARGUMENTS]
+    settings[constants::ARGUMENTS] = Value::Array(
+        invocation[constants::ARGUMENTS]
             .as_array()
-            .ok_or_else(|| {
-                Error::Invalid(crate::application::run::constants::RAW_ARGV_IS_MISSING.into())
-            })?
+            .ok_or_else(|| Error::Invalid(constants::RAW_ARGV_IS_MISSING.into()))?
             .iter()
             .map(|arg| normalize(arg).map(Value::String))
             .collect::<Result<_, _>>()?,
     );
-    settings[crate::application::run::constants::ENVIRONMENT] = Value::Object(
-        invocation[crate::application::run::constants::ENVIRONMENT]
+    settings[constants::ENVIRONMENT] = Value::Object(
+        invocation[constants::ENVIRONMENT]
             .as_object()
-            .ok_or_else(|| {
-                Error::Invalid(
-                    crate::application::run::constants::RAW_ENVIRONMENT_IS_MISSING.into(),
-                )
-            })?
+            .ok_or_else(|| Error::Invalid(constants::RAW_ENVIRONMENT_IS_MISSING.into()))?
             .iter()
             .map(|(key, value)| {
                 Ok((
@@ -171,8 +156,6 @@ pub(super) fn reconstruct(invocation: &serde_json::Value) -> Result<serde_json::
             })
             .collect::<Result<_, Error>>()?,
     );
-    settings[crate::application::run::constants::DIRECTORY] = Value::String(normalize(
-        &invocation[crate::application::run::constants::DIRECTORY],
-    )?);
+    settings[constants::DIRECTORY] = Value::String(normalize(&invocation[constants::DIRECTORY])?);
     Ok(settings)
 }

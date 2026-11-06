@@ -1,4 +1,5 @@
 //! Enumerate every registered default, invoke the existing verifier, and retain every result.
+use crate::application::run::constants;
 use crate::domain::suite::types::inventory::Inventory;
 use crate::outbound::{
     execution::interface::ExecutionPort,
@@ -21,9 +22,9 @@ fn summary(registration: &Registration, inventory: &Inventory, state: &'static s
         .map(|result| Row {
             rule_id: result.rule.clone(),
             status: if result.passed {
-                crate::application::run::constants::PASS
+                constants::PASS
             } else {
-                crate::application::run::constants::FAIL
+                constants::FAIL
             },
             reason: result.reason.clone(),
             instance: registration
@@ -40,16 +41,16 @@ fn summary(registration: &Registration, inventory: &Inventory, state: &'static s
         .collect::<Vec<_>>();
     let pass = rules
         .iter()
-        .filter(|row| row.status == crate::application::run::constants::PASS)
+        .filter(|row| row.status == constants::PASS)
         .count();
     Summary {
-        schema: crate::application::run::constants::BENCHMARK_INVENTORY_V1,
+        schema: constants::BENCHMARK_INVENTORY_V1,
         provider: registration.provider.clone(),
         run_state: state,
         identity: registration.identity.clone(),
         counts: BTreeMap::from([
-            (crate::application::run::constants::PASS, pass),
-            (crate::application::run::constants::FAIL, rules.len() - pass),
+            (constants::PASS, pass),
+            (constants::FAIL, rules.len() - pass),
         ]),
         rules,
     }
@@ -74,11 +75,7 @@ pub fn verify(
     store
         .publish(
             output,
-            &summary(
-                registration,
-                &inventory,
-                crate::application::run::constants::RUNNING,
-            ),
+            &summary(registration, &inventory, constants::RUNNING),
         )
         .map_err(io_error)?;
     let mut registered = BTreeSet::new();
@@ -86,69 +83,57 @@ pub fn verify(
         !registration.defaults.contains(&rule.rule_id) || !registered.insert(&rule.rule_id)
     }) {
         for row in &mut inventory.rules {
-            row.reason = Some(
-                crate::application::run::constants::UNKNOWN_OR_DUPLICATE_REGISTERED_RULE.into(),
-            );
+            row.reason = Some(constants::UNKNOWN_OR_DUPLICATE_REGISTERED_RULE.into());
         }
         store
             .publish(
                 output,
-                &summary(
-                    registration,
-                    &inventory,
-                    crate::application::run::constants::FAILED,
-                ),
+                &summary(registration, &inventory, constants::FAILED),
             )
             .map_err(io_error)?;
         return Err(Error::Invalid(
-            crate::application::run::constants::UNKNOWN_OR_DUPLICATE_REGISTERED_RULE.into(),
+            constants::UNKNOWN_OR_DUPLICATE_REGISTERED_RULE.into(),
         ));
     }
     for index in 0..inventory.rules.len() {
         let rule = &inventory.rules[index].rule;
-        let directory = output
-            .join(crate::application::run::constants::PROFILES)
-            .join(rule);
+        let directory = output.join(constants::PROFILES).join(rule);
         let entry = registration
             .rules
             .iter()
             .find(|entry| entry.rule_id == *rule);
         let outcome = (|| -> Result<(usize, usize, usize, usize, String), String> {
-            let entry = entry
-                .ok_or(crate::application::run::constants::MISSING_IMPLEMENTATION_REGISTRATION)?;
+            let entry = entry.ok_or(constants::MISSING_IMPLEMENTATION_REGISTRATION)?;
             if let Some(reason) = &entry.reason {
                 return Err(reason.clone());
             }
             let command = entry
                 .command
                 .as_ref()
-                .ok_or(crate::application::run::constants::MISSING_IMPLEMENTATION_INVOCATION)?;
+                .ok_or(constants::MISSING_IMPLEMENTATION_INVOCATION)?;
             let crate::outbound::inventory::types::Command::CaseVerification { context } = command;
             super::registered_context::verify(entry, store)?;
-            let definition = entry.definition.as_ref().ok_or(
-                crate::application::run::constants::EXECUTABLE_RULE_HAS_NO_TESTED_DEFINITION,
-            )?;
+            let definition = entry
+                .definition
+                .as_ref()
+                .ok_or(constants::EXECUTABLE_RULE_HAS_NO_TESTED_DEFINITION)?;
             if entry.artifacts.get(&definition.path) != Some(&definition.sha256)
                 || entry
                     .modules
                     .values()
                     .any(|pin| entry.artifacts.get(&pin.path) != Some(&pin.sha256))
             {
-                return Err(
-                    crate::application::run::constants::QUERY_MODULE_PINS_ARE_OUTSIDE_THE.into(),
-                );
+                return Err(constants::QUERY_MODULE_PINS_ARE_OUTSIDE_THE.into());
             }
             if entry.cases.is_empty() {
-                return Err(crate::application::run::constants::MISSING_INDEPENDENT_CASES.into());
+                return Err(constants::MISSING_INDEPENDENT_CASES.into());
             }
-            if entry.cases.iter().any(|case| {
-                case[crate::application::run::constants::RULE].as_str()
-                    != Some(entry.rule_id.as_str())
-            }) {
-                return Err(
-                    crate::application::run::constants::CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED
-                        .into(),
-                );
+            if entry
+                .cases
+                .iter()
+                .any(|case| case[constants::RULE].as_str() != Some(entry.rule_id.as_str()))
+            {
+                return Err(constants::CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED.into());
             }
             let crate::outbound::inventory::types::RegistrationAuthority::Execution {
                 reference,
@@ -156,19 +141,15 @@ pub fn verify(
                 ..
             } = &registration.authority
             else {
-                return Err(crate::application::run::constants::CASE_VERIFICATION_REQUIRES_EXECUTION_AUTHORI.into());
+                return Err(constants::CASE_VERIFICATION_REQUIRES_EXECUTION_AUTHORI.into());
             };
             let mut destination = std::ffi::OsString::from(CASE_RECEIPTS_ARGUMENT);
-            destination.push(
-                directory
-                    .join(crate::application::run::constants::CASES_JSONL)
-                    .as_os_str(),
-            );
+            destination.push(directory.join(constants::CASES_JSONL).as_os_str());
             store.prepare(&directory)?;
             let invocation = Invocation {
                 executable: worker.path.clone(),
                 arguments: vec![
-                    crate::application::run::constants::VERIFY_CASES.into(),
+                    constants::VERIFY_CASES.into(),
                     reference.path.as_os_str().to_owned(),
                     context.as_os_str().to_owned(),
                     destination,
@@ -199,7 +180,7 @@ pub fn verify(
             super::registered_context::verify(entry, store)?;
             let digest = captured
                 .sha256
-                .ok_or(crate::application::run::constants::NATIVE_RECEIPT_DIGEST_IS_MISSING)?;
+                .ok_or(constants::NATIVE_RECEIPT_DIGEST_IS_MISSING)?;
             Ok((entry.cases.len(), raw, documented, contract_only, digest))
         })();
         let row = &mut inventory.rules[index];
@@ -215,11 +196,7 @@ pub fn verify(
             }
             Err(reason) => row.reason = Some(reason),
         }
-        let report = summary(
-            registration,
-            &inventory,
-            crate::application::run::constants::RUNNING,
-        );
+        let report = summary(registration, &inventory, constants::RUNNING);
         store
             .result(&directory, &report.rules[index])
             .map_err(io_error)?;
@@ -229,11 +206,7 @@ pub fn verify(
     store
         .publish(
             output,
-            &summary(
-                registration,
-                &inventory,
-                crate::application::run::constants::COMPLETE,
-            ),
+            &summary(registration, &inventory, constants::COMPLETE),
         )
         .map_err(io_error)?;
     Ok(inventory.all_passed())
@@ -264,7 +237,7 @@ pub(crate) fn require_authority(
     } = &registration.authority
     else {
         return Err(Error::Invalid(
-            crate::application::run::constants::RECEIPT_ONLY_INVENTORY_CANNOT_AUTHORIZE_EXEC.into(),
+            constants::RECEIPT_ONLY_INVENTORY_CANNOT_AUTHORIZE_EXEC.into(),
         ));
     };
     let observed = store
@@ -282,7 +255,7 @@ pub(crate) fn require_authority(
         || !observed.approved_reference.contains(&reference.sha256)
     {
         return Err(Error::Invalid(
-            crate::application::run::constants::CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT.into(),
+            constants::CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT.into(),
         ));
     }
     for entry in &registration.rules {

@@ -3,6 +3,7 @@ use super::types::CapturedObservation;
 use super::types::Registration;
 use super::types::Row;
 use super::types::Summary;
+use crate::outbound::inventory::constants;
 use std::path::Path;
 
 /// Read registrations and persist exact inventory observations.
@@ -24,7 +25,7 @@ pub trait InventoryPort {
     /// # Errors
     /// Refuses unsafe paths, missing bytes or malformed observations.
     fn observations(&self, _receipt: &Path) -> Result<CapturedObservation, String> {
-        Err(crate::outbound::inventory::constants::EXPLICIT_RECEIPT_LOADING_IS_UNAVAILABLE.into())
+        Err(constants::EXPLICIT_RECEIPT_LOADING_IS_UNAVAILABLE.into())
     }
 
     /// Decode the adapter's generated invocation registration.

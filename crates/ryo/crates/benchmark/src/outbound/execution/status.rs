@@ -1,4 +1,5 @@
 //! Preserve signal identity without interpreting Windows exit codes as signals.
+use crate::outbound::execution::constants;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Decode the OS status; a negative compatibility status is accompanied by an explicit signal.
@@ -16,6 +17,6 @@ pub(super) fn decode(
         }
     }
     Err(Error::Invalid(
-        crate::outbound::execution::constants::CHILD_STATUS_HAS_NEITHER_AN_EXIT.into(),
+        constants::CHILD_STATUS_HAS_NEITHER_AN_EXIT.into(),
     ))
 }

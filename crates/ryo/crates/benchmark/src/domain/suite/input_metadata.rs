@@ -1,4 +1,5 @@
 //! Pure identity of declared file observations, separate from unchanged source-byte framing.
+use crate::domain::suite::constants;
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
@@ -14,7 +15,7 @@ pub fn require(
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(path.0.as_ref()))?;
             if !files.contains(path) {
                 return Err(Error::Invalid(
-                    crate::domain::suite::constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
+                    constants::METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
                 ));
             }
         }
@@ -25,7 +26,7 @@ pub fn require(
         })
     {
         return Err(Error::Invalid(
-            crate::domain::suite::constants::REQUIRED_FILE_OBSERVATIONS_ARE_MISSING.into(),
+            constants::REQUIRED_FILE_OBSERVATIONS_ARE_MISSING.into(),
         ));
     }
     Ok(())

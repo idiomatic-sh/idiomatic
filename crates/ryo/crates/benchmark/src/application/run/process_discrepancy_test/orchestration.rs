@@ -1,5 +1,6 @@
 //! Exercise the actual verifier orchestration and its fail-closed observer gate.
 use super::*;
+use crate::application::run::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     DiscrepancyEvidence, DiscrepancyEvidenceKind,
@@ -21,7 +22,7 @@ impl ExecutionPort for PairExecution {
         let status = if invocation
             .arguments
             .iter()
-            .any(|arg| arg == crate::application::run::constants::CANDIDATE)
+            .any(|arg| arg == constants::CANDIDATE)
         {
             0
         } else {
@@ -38,7 +39,7 @@ impl ExecutionPort for PairExecution {
 #[test]
 fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declared_reference_failure()
  {
-    let fixture = fixtures::Fixture::new(crate::application::run::constants::ORCHESTRATION);
+    let fixture = fixtures::Fixture::new(constants::ORCHESTRATION);
     let mut suite = fixture.suite.clone();
     let mut prepared = fixture.prepared.clone();
     prepared
@@ -47,19 +48,17 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
         .unwrap()
         .evidence
         .push(DiscrepancyEvidence::Language {
-            path: crate::application::run::constants::SEMANTIC_AUTHORITY_TXT.into(),
-            sha256: ArtifactDigest(crate::application::run::constants::F.repeat(64)),
+            path: constants::SEMANTIC_AUTHORITY_TXT.into(),
+            sha256: ArtifactDigest(constants::F.repeat(64)),
             kind: DiscrepancyEvidenceKind::LanguageSpec,
-            language_version: crate::application::run::constants::TOY_V1.into(),
-            target_configuration: crate::application::run::constants::PYTHON3_10.into(),
-            version_rationale:
-                crate::application::run::constants::TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS
-                    .into(),
+            language_version: constants::TOY_V1.into(),
+            target_configuration: constants::PYTHON3_10.into(),
+            version_rationale: constants::TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS.into(),
         });
     suite.prepared = vec![prepared];
     let reference = crate::outbound::linter::fixtures::fake::LinterFake::default();
     let candidate = crate::outbound::linter::fixtures::fake::LinterFake {
-        arguments: vec![crate::application::run::constants::CANDIDATE.into()],
+        arguments: vec![constants::CANDIDATE.into()],
         ..Default::default()
     };
     let bounded = crate::outbound::execution::fixtures::fake::ExecutionFake::default();
@@ -75,7 +74,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
         )
         .unwrap_err()
         .to_string()
-        .contains(crate::application::run::constants::NO_DEADLINE)
+        .contains(constants::NO_DEADLINE)
     );
     assert!(
         bounded.history.lock().unwrap().is_empty(),

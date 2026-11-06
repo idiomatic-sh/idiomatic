@@ -1,4 +1,5 @@
 //! Declared linter configuration data; matching remains with the tool/query and ordinary SDK scope rules.
+use crate::domain::suite::constants;
 use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
 use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
 use ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration;
@@ -12,7 +13,7 @@ pub fn resolve(
     match (profile, requested) {
         (None, None) => Ok(None),
         (None, Some(_)) => Err(Error::Invalid(
-            crate::domain::suite::constants::CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE.into(),
+            constants::CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE.into(),
         )),
         (Some(profile), requested) => {
             let names = [
@@ -28,8 +29,7 @@ pub fn resolve(
                     != names.len()
             {
                 return Err(Error::Invalid(
-                    crate::domain::suite::constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT
-                        .into(),
+                    constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT.into(),
                 ));
             }
             Ok(Some(PreparedRuleContext {
@@ -58,7 +58,7 @@ pub fn check(
             != names.len()
     {
         return Err(Error::Invalid(
-            crate::domain::suite::constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT.into(),
+            constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT.into(),
         ));
     }
     for (file, rules) in &prepared.configuration.disabled_rules {
@@ -76,7 +76,7 @@ pub fn check(
             != rules.len()
         {
             return Err(Error::Invalid(
-                crate::domain::suite::constants::DISABLED_RULE_LISTS_CONTAIN_EACH_RULE.into(),
+                constants::DISABLED_RULE_LISTS_CONTAIN_EACH_RULE.into(),
             ));
         }
     }
@@ -89,9 +89,7 @@ pub fn check_selection(
     selected: Option<&[ryo::linter::RuleId]>,
 ) -> Result<(), Error> {
     let selected = selected.ok_or_else(|| {
-        Error::Invalid(
-            crate::domain::suite::constants::RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED.into(),
-        )
+        Error::Invalid(constants::RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED.into())
     })?;
     if prepared
         .configuration
@@ -101,7 +99,7 @@ pub fn check_selection(
         .any(|rule| !selected.contains(rule))
     {
         return Err(Error::Invalid(
-            crate::domain::suite::constants::DISABLED_RULES_MUST_BELONG_TO_THE.into(),
+            constants::DISABLED_RULES_MUST_BELONG_TO_THE.into(),
         ));
     }
     Ok(())
@@ -122,9 +120,10 @@ pub fn selected_pairs(
 ) -> Result<usize, Error> {
     check(prepared, files)?;
     check_selection(prepared, Some(selected))?;
-    let all = selected.len().checked_mul(files.len()).ok_or_else(|| {
-        Error::Invalid(crate::domain::suite::constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into())
-    })?;
+    let all = selected
+        .len()
+        .checked_mul(files.len())
+        .ok_or_else(|| Error::Invalid(constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into()))?;
     let disabled =
         prepared
             .configuration
@@ -132,14 +131,9 @@ pub fn selected_pairs(
             .values()
             .try_fold(0_usize, |count, rules| {
                 count.checked_add(rules.len()).ok_or_else(|| {
-                    Error::Invalid(
-                        crate::domain::suite::constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into(),
-                    )
+                    Error::Invalid(constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into())
                 })
             })?;
-    all.checked_sub(disabled).ok_or_else(|| {
-        Error::Invalid(
-            crate::domain::suite::constants::DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT.into(),
-        )
-    })
+    all.checked_sub(disabled)
+        .ok_or_else(|| Error::Invalid(constants::DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT.into()))
 }

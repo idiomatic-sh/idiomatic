@@ -1,4 +1,5 @@
 //! One common admission for declared input observations on both verifier routes.
+use crate::application::run::constants;
 use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
@@ -9,9 +10,9 @@ pub(super) fn admit(
     rules: &Path,
     cases: &[PreparedCase],
 ) -> Result<(), Error> {
-    let root = rules.parent().ok_or_else(|| {
-        Error::Invalid(crate::application::run::constants::MISSING_CASE_PROFILE_BOUNDARY.into())
-    })?;
+    let root = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into()))?;
     let profile = suite.profile(ArtifactPath(root))?;
     for case in cases {
         crate::domain::suite::input_metadata::require(

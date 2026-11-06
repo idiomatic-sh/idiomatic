@@ -470,34 +470,49 @@ pub(super) const APPROVED_EXECUTABLE_SHA256: &str = "approved_executable_sha256"
 pub(super) const DISCREPANCY_TOOL_IS_NOT_INDEPENDENTLY_PINNED: &str =
     "discrepancy tool is not independently pinned";
 /// Text of the a001 in this part.
+#[cfg(test)]
 pub(super) const A001: &str = "A001";
 /// Text of the case in this part.
+#[cfg(test)]
 pub(super) const CASE: &str = "case";
 /// Text of the source pin in this part.
+#[cfg(test)]
 pub(super) const SOURCE_PIN: &str = "source-pin";
 /// Text of the input txt in this part.
+#[cfg(test)]
 pub(super) const INPUT_TXT: &str = "input.txt";
 /// Text of the native diagnostics differ in this part.
+#[cfg(test)]
 pub(super) const NATIVE_DIAGNOSTICS_DIFFER: &str = "native diagnostics differ";
 /// Text of the not in this part.
+#[cfg(test)]
 pub(super) const NOT: &str = "not";
 /// Text of the an array in this part.
+#[cfg(test)]
 pub(super) const AN_ARRAY: &str = "an array";
 /// Text of the first in this part.
+#[cfg(test)]
 pub(super) const FIRST: &str = "first";
 /// Text of the unrelated in this part.
+#[cfg(test)]
 pub(super) const UNRELATED: &str = "unrelated";
 /// Text of the second in this part.
+#[cfg(test)]
 pub(super) const SECOND: &str = "second";
 /// Text of the tool pin in this part.
+#[cfg(test)]
 pub(super) const TOOL_PIN: &str = "tool-pin";
 /// Text of the settings pin in this part.
+#[cfg(test)]
 pub(super) const SETTINGS_PIN: &str = "settings-pin";
 /// Text of the profile pin in this part.
+#[cfg(test)]
 pub(super) const PROFILE_PIN: &str = "profile-pin";
 /// Text of the reference pin in this part.
+#[cfg(test)]
 pub(super) const REFERENCE_PIN: &str = "reference-pin";
 /// Text of the intended pin in this part.
+#[cfg(test)]
 pub(super) const INTENDED_PIN: &str = "intended-pin";
 /// Text of the non utf8 reference invocation in this part.
 pub(super) const NON_UTF8_REFERENCE_INVOCATION: &str = "non-UTF8 reference invocation";
@@ -601,19 +616,26 @@ pub(super) const INVOCATION: &str = "invocation";
 /// Text of the sha256 in this part.
 pub(super) const SHA256: &str = "sha256";
 /// Text of the orchestration in this part.
+#[cfg(test)]
 pub(super) const ORCHESTRATION: &str = "orchestration";
 /// Text of the semantic authority txt in this part.
+#[cfg(test)]
 pub(super) const SEMANTIC_AUTHORITY_TXT: &str = "semantic-authority.txt";
 /// Text of the f in this part.
+#[cfg(test)]
 pub(super) const F: &str = "f";
 /// Text of the toy v1 in this part.
+#[cfg(test)]
 pub(super) const TOY_V1: &str = "toy-v1";
 /// Text of the python3 10 in this part.
+#[cfg(test)]
 pub(super) const PYTHON3_10: &str = "python3.10";
 /// Text of the toy fixture contract independent of process in this part.
+#[cfg(test)]
 pub(super) const TOY_FIXTURE_CONTRACT_INDEPENDENT_OF_PROCESS: &str =
     "toy fixture contract independent of process output";
 /// Text of the no deadline in this part.
+#[cfg(test)]
 pub(super) const NO_DEADLINE: &str = "no-deadline";
 /// Text of the process artifact path is missing in this part.
 pub(super) const PROCESS_ARTIFACT_PATH_IS_MISSING: &str = "process artifact path is missing";

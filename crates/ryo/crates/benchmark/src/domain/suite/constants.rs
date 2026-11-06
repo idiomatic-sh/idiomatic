@@ -64,23 +64,32 @@ pub(super) const COMPLETE_WITHIN_DECLARED_SCOPE: &str = "complete-within-declare
 /// Text of the entries in this part.
 pub(super) const ENTRIES: &str = "entries";
 /// Text of the src in this part.
+#[cfg(test)]
 pub(super) const SRC: &str = "src";
 /// Text of the vendor in this part.
+#[cfg(test)]
 pub(super) const VENDOR: &str = "vendor";
 /// Text of the src pkg in this part.
+#[cfg(test)]
 pub(super) const SRC_PKG: &str = "src/pkg";
 /// Text of the vendor pkg py in this part.
+#[cfg(test)]
 pub(super) const VENDOR_PKG_PY: &str = "vendor/pkg.py";
 /// Text of the digest in this part.
+#[cfg(test)]
 pub(super) const DIGEST: &str = "digest";
 /// Text of the ff9b78535b775babaadae518c198876aa1c27ef21d0a in this part.
+#[cfg(test)]
 pub(super) const FF9B78535B775BABAADAE518C198876AA1C27EF21D0A: &str =
     "ff9b78535b775babaadae518c198876aa1c27ef21d0abb75e04588c25638df7d";
 /// Text of the legacy in this part.
+#[cfg(test)]
 pub(super) const LEGACY: &str = "legacy";
 /// Text of the original in this part.
+#[cfg(test)]
 pub(super) const ORIGINAL: &str = "original";
 /// Text of the changed root authority in this part.
+#[cfg(test)]
 pub(super) const CHANGED_ROOT_AUTHORITY: &str = "changed root authority";
 /// Text of the case rule configuration requires the profile in this part.
 pub(super) const CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE: &str =

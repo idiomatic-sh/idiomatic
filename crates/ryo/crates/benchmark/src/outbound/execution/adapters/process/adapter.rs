@@ -1,4 +1,5 @@
 //! Child startup, tool work, serialization and waiting are inside wall time.
+use crate::outbound::execution::adapters::process::constants;
 use crate::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
@@ -45,9 +46,9 @@ impl ExecutionPort for ExecutionProcessAdapter {
                 let _command = command.process_group(0);
             }
             let mut child = command.spawn()?;
-            let deadline = Instant::now()
-                .checked_add(timeout)
-                .ok_or_else(|| Error::Invalid(crate::outbound::execution::adapters::process::constants::PROCESS_DEADLINE_IS_OUT_OF_RANGE.into()))?;
+            let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+                Error::Invalid(constants::PROCESS_DEADLINE_IS_OUT_OF_RANGE.into())
+            })?;
             let mut timed_out = false;
             let status = loop {
                 if let Some(status) = child.try_wait()? {
@@ -57,28 +58,24 @@ impl ExecutionPort for ExecutionProcessAdapter {
                     timed_out = true;
                     #[cfg(unix)]
                     {
-                        let _result = Command::new(
-                            crate::outbound::execution::adapters::process::constants::KILL,
-                        )
-                        .args([
-                            crate::outbound::execution::adapters::process::constants::KILL_2,
-                            crate::outbound::execution::adapters::process::constants::TEXT,
-                            &format!("-{}", child.id()),
-                        ])
-                        .status();
+                        let _result = Command::new(constants::KILL)
+                            .args([
+                                constants::KILL_2,
+                                constants::TEXT,
+                                &format!("-{}", child.id()),
+                            ])
+                            .status();
                     }
                     #[cfg(windows)]
                     {
-                        let _result = Command::new(
-                            crate::outbound::execution::adapters::process::constants::TASKKILL,
-                        )
-                        .args([
-                            crate::outbound::execution::adapters::process::constants::PID,
-                            &child.id().to_string(),
-                            crate::outbound::execution::adapters::process::constants::T,
-                            crate::outbound::execution::adapters::process::constants::F,
-                        ])
-                        .status();
+                        let _result = Command::new(constants::TASKKILL)
+                            .args([
+                                constants::PID,
+                                &child.id().to_string(),
+                                constants::T,
+                                constants::F,
+                            ])
+                            .status();
                     }
                     let _result = child.kill();
                     break child.wait()?;

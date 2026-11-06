@@ -1,5 +1,6 @@
 //! Project declared configuration data into existing SDK hosted inputs and exact rule exclusions.
 use super::types::CandidateConfiguration;
+use crate::domain::candidate_rules::constants;
 use ryo::linter::{
     Cell, Glob, HostColumn, HostColumnName, HostKind, HostRelation, HostRelationName, HostRow,
     HostText, Rule, RuleId,
@@ -21,10 +22,7 @@ pub(crate) fn project(
     };
     crate::domain::suite::rule_context::check(prepared, &request.files)?;
     let selected = request.selected_rules.as_deref().ok_or_else(|| {
-        Error::Invalid(
-            crate::domain::candidate_rules::constants::RULE_CONTEXT_REQUIRES_THE_EXPLICIT_CONFIGURE
-                .into(),
-        )
+        Error::Invalid(constants::RULE_CONTEXT_REQUIRES_THE_EXPLICIT_CONFIGURE.into())
     })?;
     let context = &prepared.configuration;
     for (file, disabled) in &context.disabled_rules {
@@ -79,32 +77,20 @@ pub(crate) fn project(
         hosted: vec![
             table(
                 &prepared.tables.selected,
-                vec![column(
-                    crate::domain::candidate_rules::constants::CODE,
-                    HostKind::Text,
-                )],
+                vec![column(constants::CODE, HostKind::Text)],
                 selected_rows,
             ),
             table(
                 &prepared.tables.disabled,
                 vec![
-                    column(
-                        crate::domain::candidate_rules::constants::FILE,
-                        HostKind::File,
-                    ),
-                    column(
-                        crate::domain::candidate_rules::constants::CODE,
-                        HostKind::Text,
-                    ),
+                    column(constants::FILE, HostKind::File),
+                    column(constants::CODE, HostKind::Text),
                 ],
                 disabled_rows,
             ),
             table(
                 &prepared.tables.external,
-                vec![column(
-                    crate::domain::candidate_rules::constants::PREFIX,
-                    HostKind::Text,
-                )],
+                vec![column(constants::PREFIX, HostKind::Text)],
                 external_rows,
             ),
         ],
@@ -134,8 +120,8 @@ pub(crate) fn retain_producers(
         }
     }
     rules.retain(|id, _| retained.contains(id));
-    let excluded = Glob::try_from(crate::domain::candidate_rules::constants::TEXT)
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let excluded =
+        Glob::try_from(constants::TEXT).map_err(|error| Error::Invalid(error.to_string()))?;
     for (id, rule) in rules {
         if !selected.contains(id) && frontend != Some(id) {
             rule.exclude.push(excluded.clone());
@@ -150,12 +136,9 @@ pub(crate) fn exclude_missing(
     frontend: &RuleId,
     missing: &BTreeSet<ryo::linter::RelativePath>,
 ) -> Result<(), Error> {
-    let rule = rules.get_mut(frontend).ok_or_else(|| {
-        Error::Invalid(
-            crate::domain::candidate_rules::constants::FRONTEND_PROJECTION_WAS_NOT_REGISTERED
-                .into(),
-        )
-    })?;
+    let rule = rules
+        .get_mut(frontend)
+        .ok_or_else(|| Error::Invalid(constants::FRONTEND_PROJECTION_WAS_NOT_REGISTERED.into()))?;
     rule.exclude = frontend_exclusions(missing)?;
     Ok(())
 }
@@ -166,17 +149,12 @@ pub(crate) fn exclude_configuration(
     frontend: &RuleId,
     files: &[ryo::linter::RelativePath],
 ) -> Result<(), Error> {
-    let rule = rules.get_mut(frontend).ok_or_else(|| {
-        Error::Invalid(
-            crate::domain::candidate_rules::constants::FRONTEND_PROJECTION_WAS_NOT_REGISTERED
-                .into(),
-        )
-    })?;
+    let rule = rules
+        .get_mut(frontend)
+        .ok_or_else(|| Error::Invalid(constants::FRONTEND_PROJECTION_WAS_NOT_REGISTERED.into()))?;
     for file in files {
         #[cfg(unix)]
-        let literal = file
-            .0
-            .replace('\\', crate::domain::candidate_rules::constants::TEXT_2);
+        let literal = file.0.replace('\\', constants::TEXT_2);
         #[cfg(not(unix))]
         let literal = file.0.to_string();
         rule.exclude.push(
@@ -195,9 +173,7 @@ pub(super) fn frontend_exclusions(
         .iter()
         .map(|file| {
             #[cfg(unix)]
-            let literal = file
-                .0
-                .replace('\\', crate::domain::candidate_rules::constants::TEXT_2);
+            let literal = file.0.replace('\\', constants::TEXT_2);
             #[cfg(not(unix))]
             let literal = file.0.to_string();
             Glob::try_from(globset::escape(&literal).as_str())

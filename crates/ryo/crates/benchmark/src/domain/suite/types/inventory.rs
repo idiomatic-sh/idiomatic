@@ -1,4 +1,5 @@
 //! Complete rule inventories never turn missing or unrun work into success.
+use crate::domain::suite::constants;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeSet;
 
@@ -41,7 +42,7 @@ impl Inventory {
             || rules.iter().any(|r| r.trim().is_empty())
         {
             return Err(Error::Invalid(
-                crate::domain::suite::constants::INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE.into(),
+                constants::INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE.into(),
             ));
         }
         for rule in rules {
@@ -53,7 +54,7 @@ impl Inventory {
                 .map(|rule| RuleResult {
                     rule: rule.clone(),
                     passed: false,
-                    reason: Some(crate::domain::suite::constants::NOT_RUN.into()),
+                    reason: Some(constants::NOT_RUN.into()),
                     cases: 0,
                     raw_exact: 0,
                     documented: 0,

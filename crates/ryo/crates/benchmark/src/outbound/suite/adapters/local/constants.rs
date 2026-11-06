@@ -75,46 +75,65 @@ pub(super) const PROCESS_OBSERVATION: &str = "process_observation";
 /// Text of the artifacts in this part.
 pub(super) const ARTIFACTS: &str = "artifacts";
 /// Text of the rule in this part.
+#[cfg(test)]
 pub(super) const RULE: &str = "rule";
 /// Text of the check001 in this part.
+#[cfg(test)]
 pub(super) const CHECK001: &str = "CHECK001";
 /// Text of the name in this part.
 pub(super) const NAME: &str = "name";
 /// Text of the one in this part.
+#[cfg(test)]
 pub(super) const ONE: &str = "one";
 /// Text of the side in this part.
 pub(super) const SIDE: &str = "side";
 /// Text of the reference in this part.
+#[cfg(test)]
 pub(super) const REFERENCE: &str = "reference";
 /// Text of the kind in this part.
+#[cfg(test)]
 pub(super) const KIND: &str = "kind";
 /// Text of the process failure in this part.
+#[cfg(test)]
 pub(super) const PROCESS_FAILURE: &str = "process-failure";
 /// Text of the a in this part.
+#[cfg(test)]
 pub(super) const A: &str = "a";
 /// Text of the exit in this part.
+#[cfg(test)]
 pub(super) const EXIT: &str = "exit";
 /// Text of the error in this part.
+#[cfg(test)]
 pub(super) const ERROR: &[u8] = b"error\n";
 /// Text of the n 001 cases jsonl in this part.
+#[cfg(test)]
 pub(super) const N_001_CASES_JSONL: &str = "001.cases.jsonl";
 /// Text of the n 001 cases jsonl process orphan in this part.
+#[cfg(test)]
 pub(super) const N_001_CASES_JSONL_PROCESS_ORPHAN: &str = "001.cases.jsonl.process-orphan";
 /// Text of the second in this part.
+#[cfg(test)]
 pub(super) const SECOND: &[u8] = b"second";
 /// Text of the first in this part.
+#[cfg(test)]
 pub(super) const FIRST: &[u8] = b"first";
 /// Text of the n 002 cases jsonl in this part.
+#[cfg(test)]
 pub(super) const N_002_CASES_JSONL: &str = "002.cases.jsonl";
 /// Text of the cases jsonl in this part.
+#[cfg(test)]
 pub(super) const CASES_JSONL: &str = "cases.jsonl";
 /// Text of the changed in this part.
+#[cfg(test)]
 pub(super) const CHANGED: &[u8] = b"changed";
 /// Text of the unexpected bin in this part.
+#[cfg(test)]
 pub(super) const UNEXPECTED_BIN: &str = "unexpected.bin";
 /// Text of the extra in this part.
+#[cfg(test)]
 pub(super) const EXTRA: &[u8] = b"extra";
 /// Text of the bytes in this part.
+#[cfg(test)]
 pub(super) const BYTES: &str = "bytes";
 /// Text of the non utf8 artifact path in this part.
 pub(super) const NON_UTF8_ARTIFACT_PATH: &str = "non-UTF8 artifact path";
@@ -227,6 +246,7 @@ pub(super) const NONUTF8_SOURCE_PATH: &str = "nonUTF8 source path";
 /// Text of the metadata source is not a regular in this part.
 pub(super) const METADATA_SOURCE_IS_NOT_A_REGULAR: &str = "metadata source is not a regular file";
 /// Text of the posix executable observations are unsupporte in this part.
+#[cfg(not(unix))]
 pub(super) const POSIX_EXECUTABLE_OBSERVATIONS_ARE_UNSUPPORTE: &str =
     "POSIX executable observations are unsupported on this host";
 /// Text of the staged executable metadata differs in this part.

@@ -1,4 +1,5 @@
 //! Byte-exact path substitution; no regular expressions or inferred normalization.
+use crate::domain::suite::constants;
 use ryo_benchmark_contracts::domain::process::types::OutputPart;
 use ryo_benchmark_contracts::domain::process::types::PathEncoding;
 use std::path::{Component, Path, PathBuf};
@@ -9,9 +10,7 @@ use std::path::{Component, Path, PathBuf};
 /// Rejects relative/empty/nonUTF8 roots, escaping paths and undeclared inputs.
 pub fn expand(parts: &[OutputPart], root: &Path, files: &[PathBuf]) -> Result<Vec<u8>, String> {
     if !root.is_absolute() || root.as_os_str().is_empty() || root.to_str().is_none() {
-        return Err(
-            crate::domain::suite::constants::PROCESS_OBSERVATION_REQUIRES_AN_ABSOLUTE_UTF.into(),
-        );
+        return Err(constants::PROCESS_OBSERVATION_REQUIRES_AN_ABSOLUTE_UTF.into());
     }
     let mut bytes = Vec::new();
     for part in parts {
@@ -25,14 +24,12 @@ pub fn expand(parts: &[OutputPart], root: &Path, files: &[PathBuf]) -> Result<Ve
                         .components()
                         .any(|part| !matches!(part, Component::Normal(_)))
                 {
-                    return Err(
-                        crate::domain::suite::constants::PROCESS_OUTPUT_SLOT_IS_NOT_A.into(),
-                    );
+                    return Err(constants::PROCESS_OUTPUT_SLOT_IS_NOT_A.into());
                 }
                 let path = root.join(file);
                 let text = path
                     .to_str()
-                    .ok_or(crate::domain::suite::constants::PROCESS_INPUT_PATH_IS_NOT_UTF8)?;
+                    .ok_or(constants::PROCESS_INPUT_PATH_IS_NOT_UTF8)?;
                 match encoding {
                     PathEncoding::Utf8Bytes => bytes.extend_from_slice(text.as_bytes()),
                     PathEncoding::JsonStringContent => {
@@ -54,7 +51,7 @@ pub fn expand(parts: &[OutputPart], root: &Path, files: &[PathBuf]) -> Result<Ve
 pub fn observation_key(rule: &str, name: &str, side: &str) -> Result<String, String> {
     use sha2::Digest as _;
     let mut hash = sha2::Sha256::new();
-    hash.update(crate::domain::suite::constants::RYO_CASE_PROCESS_V1);
+    hash.update(constants::RYO_CASE_PROCESS_V1);
     for part in [rule, name, side] {
         hash.update(
             u64::try_from(part.len())
