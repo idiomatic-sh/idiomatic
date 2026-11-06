@@ -30,7 +30,7 @@ pub(crate) struct PartitionedClosure<'f> {
     scratch: DerivedScratch,
 }
 impl<'f> PartitionedClosure<'f> {
-    pub(crate) fn from_prepared(
+    pub(in crate::application::file_dag) fn from_prepared(
         proof: super::relations::AdmittedInput<'f>,
         partition_plan: Arc<DerivedContract>,
         closure_plan: Arc<DerivedContract>,

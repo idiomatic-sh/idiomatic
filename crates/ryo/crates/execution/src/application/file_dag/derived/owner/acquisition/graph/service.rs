@@ -102,7 +102,6 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     }
     Ok(Some(GraphHandle {
         generation: input.generation(),
-        built: acquired.was_built(),
         access: GraphAccess {
             graph: Arc::clone(&graph),
             orientation,
@@ -297,7 +296,6 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         _parent: access.acquired.clone(),
         _acquired: acquired.clone(),
         domain,
-        built: acquired.was_built(),
         _lease: owner.required_lease(&backings)?,
     })
 }

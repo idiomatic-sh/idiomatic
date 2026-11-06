@@ -137,6 +137,7 @@ impl DerivedOwner {
         Ok(raw_scope::RawScope::for_program(owner, prepared, admitted))
     }
 
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn prepare_view(
         &self,
         request: &ViewRequest,

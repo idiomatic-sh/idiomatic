@@ -19,7 +19,6 @@ pub(in crate::application::file_dag) struct GraphAccess {
 
 pub(in crate::application::file_dag) struct GraphHandle {
     pub(in crate::application::file_dag::derived) generation: Arc<()>,
-    pub(in crate::application::file_dag::derived) built: bool,
     pub(in crate::application::file_dag::derived) access: GraphAccess,
     pub(in crate::application::file_dag::derived) backings: Arc<[Backing]>,
     pub(in crate::application::file_dag::derived) acquired: AcquiredView,
@@ -33,7 +32,6 @@ impl Deref for GraphHandle {
 pub(in crate::application::file_dag) struct DomainHandle {
     pub(in crate::application::file_dag::derived) _acquired: AcquiredView,
     pub(in crate::application::file_dag::derived) _parent: AcquiredView,
-    pub(in crate::application::file_dag::derived) built: bool,
     pub(in crate::application::file_dag::derived) domain: Arc<GraphDomain>,
     pub(in crate::application::file_dag::derived) _lease: Arc<ResourceLease>,
 }

@@ -359,11 +359,6 @@ impl AcquisitionOrigin {
     }
 }
 impl AdmittedViewInputs<'_> {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn origin(
-        &self,
-    ) -> &AcquisitionOrigin {
-        &self.origin
-    }
     pub(in crate::application::file_dag::derived::owner::acquisition) fn lifetime(
         &self,
     ) -> AcquisitionLifetime {
