@@ -342,7 +342,7 @@ pub(crate) fn holds_bound(
     Ok(Verdict::Holds)
 }
 
-/// Adapt legacy native context owners to the same narrow semantic algorithm.
+/// Evaluate one comparison with the operator context's own texts, bindings and scratch.
 fn holds_one(
     number: ComparisonNumber,
     comparison: &Comparison,
@@ -357,7 +357,7 @@ fn holds_one(
         paths: context.paths,
         arenas: context.arenas,
     };
-    // Keep the old equality fast path free of lazy scratch initialization.
+    // The equality fast path stays free of lazy scratch initialization.
     if let Some(verdict) = equal_to_text(comparison, row, &texts) {
         return Ok(verdict);
     }
