@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use ryo::languages::{FileId, FilePath};
 
 use super::types::{
-    DottedPath, EntryKind, EntryName, FilesystemPath, ImportPath, ImportedRoot, MembershipKey,
-    MembershipState, NamespaceMembership, NamespaceMemberships, Prefix,
+    EntryKind, EntryName, EntryShape, FilesystemPath, ImportPath, ImportedRoot, MembershipState,
+    NamespaceMembership, NamespaceMemberships, Prefix, Presence,
 };
 use crate::domain::fact_notes::types::Note;
 
@@ -51,14 +51,14 @@ fn prefixes(path: &ImportPath) -> Vec<Prefix> {
         dotted.push_str(component);
         filesystem.push_str(component);
         result.push(Prefix {
-            dotted: DottedPath(dotted.clone()),
+            dotted: ImportPath::from(dotted.clone()),
             filesystem: FilesystemPath(filesystem.clone()),
         });
     }
     result
 }
 
-fn entry_paths(search: &FilePath, filesystem: &FilesystemPath) -> [(FilePath, bool); 5] {
+fn entry_paths(search: &FilePath, filesystem: &FilesystemPath) -> [(FilePath, EntryShape); 5] {
     let filesystem = &filesystem.0;
     [
         (
@@ -121,7 +121,7 @@ pub(crate) fn candidates(
 fn classify(
     search_roots: Option<&[FilePath]>,
     filesystem: &FilesystemPath,
-    candidate: &impl Fn(&FilePath, bool) -> Option<bool>,
+    candidate: &impl Fn(&FilePath, EntryShape) -> Option<Presence>,
 ) -> Vec<EntryKind> {
     let Some(search_roots) = search_roots else {
         return vec![EntryKind::Unknown];
@@ -133,14 +133,15 @@ fn classify(
     for search in search_roots {
         let [module, stub, directory, initializer, stub_initializer] =
             entry_paths(search, filesystem).map(|(path, file)| candidate(&path, file));
-        module_present |= module == Some(true) || stub == Some(true);
-        package_present |= directory == Some(true)
-            && (initializer == Some(true) || stub_initializer == Some(true));
+        module_present |= module == Some(Presence::Present) || stub == Some(Presence::Present);
+        package_present |= directory == Some(Presence::Present)
+            && (initializer == Some(Presence::Present)
+                || stub_initializer == Some(Presence::Present));
         // These are observed entries, not import-resolution precedence. A
         // sibling module file cannot erase an independently observed directory.
-        namespace_present |= directory == Some(true)
-            && initializer == Some(false)
-            && stub_initializer == Some(false);
+        namespace_present |= directory == Some(Presence::Present)
+            && initializer == Some(Presence::Absent)
+            && stub_initializer == Some(Presence::Absent);
         unknown |= [module, stub, directory, initializer, stub_initializer]
             .into_iter()
             .any(|state| state.is_none());
@@ -172,10 +173,10 @@ pub(crate) fn memberships(
     search_roots: Option<&[FilePath]>,
     roots: &[ImportedRoot],
     incomplete_notes: Vec<FileId>,
-    candidate: impl Fn(&FilePath, bool) -> Option<bool>,
+    candidate: impl Fn(&FilePath, EntryShape) -> Option<Presence>,
 ) -> NamespaceMemberships {
     let paths: BTreeSet<Prefix> = roots.iter().flat_map(|root| prefixes(&root.path)).collect();
-    let mut classified: BTreeMap<DottedPath, Vec<EntryKind>> = paths
+    let mut classified: BTreeMap<ImportPath, Vec<EntryKind>> = paths
         .iter()
         .map(|prefix| {
             (
@@ -193,7 +194,7 @@ pub(crate) fn memberships(
         let Some((parent, _)) = path.0.rsplit_once('.') else {
             continue;
         };
-        let parent = DottedPath(parent.to_owned());
+        let parent = ImportPath::from(parent);
         let present = |kinds: Option<&Vec<EntryKind>>| {
             kinds.is_some_and(|kinds| {
                 kinds.iter().any(|kind| {
@@ -212,7 +213,7 @@ pub(crate) fn memberships(
     let mut rows = BTreeSet::new();
     for imported in roots {
         for prefix in prefixes(&imported.path) {
-            rows.insert(MembershipKey {
+            rows.insert(ImportedRoot {
                 file: imported.file,
                 root: imported.root.clone(),
                 path: prefix.dotted,
@@ -233,7 +234,7 @@ pub(crate) fn memberships(
                 NamespaceMembership {
                     file: key.file,
                     root: key.root.clone(),
-                    path: ImportPath::from(key.path.0.clone()),
+                    path: key.path.clone(),
                     state,
                     kind,
                 }

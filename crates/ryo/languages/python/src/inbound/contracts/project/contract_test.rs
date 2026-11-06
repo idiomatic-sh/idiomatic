@@ -382,7 +382,7 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
     use crate::domain::project_namespace::{
         constants::UNKNOWN_CONTEXT,
         service::memberships,
-        types::{EntryKind, ImportedRoot, MembershipState},
+        types::{EntryKind, EntryShape, ImportedRoot, MembershipState, Presence},
     };
     use languages::ManifestItem as _;
     for (module, directory, incomplete, expected) in [
@@ -415,15 +415,16 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
             languages::FilePath("lib".into()),
         ];
         let namespace_memberships =
-            memberships(Some(&search), &roots, vec![], |candidate, file| {
+            memberships(Some(&search), &roots, vec![], |candidate, shape| {
+                let file = shape == EntryShape::File;
                 if candidate.0.starts_with("lib/") && incomplete {
                     None
                 } else {
-                    Some(match candidate.0.as_ref() {
+                    Some(Presence::from(match candidate.0.as_ref() {
                         "src/acme.py" => module && file,
                         "src/acme" => directory && !file,
                         _ => false,
-                    })
+                    }))
                 }
             });
         let derived = crate::domain::links::types::Linked {

@@ -22,6 +22,7 @@ use crate::domain::manifests::collections::manifests::source_dependency::item::S
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
 use crate::domain::merging::service::merged;
 use crate::domain::packages::types::{ManifestPath, Package, Packages, Reason as Said, Refusal};
+use crate::domain::project_namespace::types::{EntryShape, Presence};
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
 use crate::outbound::notes::interface::NotesPort;
@@ -63,13 +64,7 @@ impl ProjectContract {
     }
 
     /// What the manifests of the request declare: the packages, and the manifests the tools refused.
-    fn packages(
-        &self,
-        request: &ProjectRequest,
-    ) -> (
-        Packages,
-        crate::domain::manifest_validation::types::ManifestValidations,
-    ) {
+    fn packages(&self, request: &ProjectRequest) -> Linked {
         use crate::domain::manifest_validation::types::{
             FileValidation, ManifestValidations, MetadataDemand,
         };
@@ -90,7 +85,7 @@ impl ProjectContract {
             (true, true) => MetadataDemand::Both,
             (true, false) => MetadataDemand::Projection,
             (false, true) => MetadataDemand::Diagnostics,
-            (false, false) => return (Packages::default(), ManifestValidations::default()),
+            (false, false) => return Linked::default(),
         };
         let mut validation = ManifestValidations::default();
         let projects = (self.projects)(&request.manifests);
@@ -120,7 +115,8 @@ impl ProjectContract {
                             });
                         } else {
                             validation.incomplete.push(Said(
-                                "requested manifest file identity exceeds the catalog range".into(),
+                                crate::domain::packages::constants::FILE_IDENTITY_EXCEEDS_CATALOG
+                                    .into(),
                             ));
                         }
                     }
@@ -156,19 +152,25 @@ impl ProjectContract {
                         })
                 {
                     validation.incomplete.push(Said(
-                        format!("requested metadata validator did not observe {}", file.0).into(),
+                        format!(
+                            "{}{}",
+                            crate::domain::packages::constants::VALIDATOR_DID_NOT_OBSERVE,
+                            file.0
+                        )
+                        .into(),
                     ));
                 }
             }
         }
         refused.sort_by(|left, right| left.manifest.cmp(&right.manifest));
-        (
-            Packages {
+        Linked {
+            packages: Packages {
                 packages: merged(found),
                 refused,
             },
-            validation,
-        )
+            manifest_validation: validation,
+            ..Linked::default()
+        }
     }
 }
 
@@ -205,7 +207,11 @@ impl Project for ProjectContract {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
-        let (packages, validation) = self.packages(request);
+        let Linked {
+            packages,
+            manifest_validation: validation,
+            ..
+        } = self.packages(request);
         // Refusals describe only the dependency outputs that were actually demanded and read.
         let refused = packages
             .refused
@@ -272,12 +278,12 @@ impl Project for ProjectContract {
                 request.search_roots(),
                 &roots,
                 incomplete_notes,
-                |path, file| {
-                    if file {
-                        request.candidate_file(path)
-                    } else {
-                        request.candidate_directory(path)
+                |path, shape| {
+                    match shape {
+                        EntryShape::File => request.candidate_file(path),
+                        EntryShape::Directory => request.candidate_directory(path),
                     }
+                    .map(Presence::from)
                 },
             );
         }

@@ -9,10 +9,6 @@ pub(crate) struct ImportRootName(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ImportPath(pub Box<str>);
 
-/// A dotted path as spelled in source.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct DottedPath(pub String);
-
 /// The filesystem spelling of a dotted path, below a search root.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct FilesystemPath(pub String);
@@ -21,7 +17,7 @@ pub(crate) struct FilesystemPath(pub String);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Prefix {
     /// The dotted spelling.
-    pub dotted: DottedPath,
+    pub dotted: ImportPath,
     /// The `/` spelling.
     pub filesystem: FilesystemPath,
 }
@@ -119,13 +115,26 @@ pub(crate) struct NamespaceMemberships {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct EntryName(pub String);
 
-/// One imported path of one file, as a membership row is keyed.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct MembershipKey {
-    /// The importing file.
-    pub file: FileId,
-    /// The first component of the import.
-    pub root: ImportRootName,
-    /// The dotted prefix the row is about.
-    pub path: DottedPath,
+/// What one candidate path is asked to be.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EntryShape {
+    /// A file.
+    File,
+    /// A directory.
+    Directory,
+}
+
+/// What the engine observed at one candidate path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Presence {
+    /// The entry exists with the asked shape.
+    Present,
+    /// The entry does not exist with the asked shape.
+    Absent,
+}
+
+impl From<bool> for Presence {
+    fn from(exists: bool) -> Self {
+        if exists { Self::Present } else { Self::Absent }
+    }
 }
