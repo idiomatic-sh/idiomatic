@@ -1,5 +1,5 @@
 //! Validate both located operands before propagating an absent span.
-use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::contract::types::{PortableOperatorFault, SourceByteLength};
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,
     types::{Span, Value},
@@ -11,7 +11,7 @@ pub fn between(
     row: &[Value],
     start: ColumnIndex,
     end: ColumnIndex,
-    source_len: usize,
+    source_len: SourceByteLength,
 ) -> Result<Value, PortableOperatorFault> {
     let cell = |column: ColumnIndex| {
         row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
@@ -26,7 +26,7 @@ pub fn between(
         if span != NO_SPAN {
             let span_end =
                 usize::try_from(span.end.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
-            if span.start > span.end || span_end > source_len {
+            if span.start > span.end || span_end > source_len.0 {
                 return Err(PortableOperatorFault::InvalidSpan);
             }
         }

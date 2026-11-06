@@ -1,9 +1,17 @@
 //! Inbound implementation delegates projection to the pure domain algorithm.
 use super::interface::OperatorsUseCase;
+use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
+use crate::domain::equality_join::types::{PositionSlots, PositionTarget};
 use crate::domain::project::service;
+use crate::domain::reduction::types::{Finishing, GroupCounts, HashScratch};
+use crate::domain::replace::types::{ReplacedText, ReplacementText};
+use crate::domain::select::types::{PredicateOutcome, RowSelection};
+use crate::domain::words::types::WordScratch;
 use crate::inbound::use_cases::operators::interface::{
     OperatorAnswer, OperatorCall, PortableOperatorFault,
 };
+use ryo_relations::domain::relations::types::{Count, Integer};
+use ryo_values::domain::row_texts::types::CellText;
 
 /// Stateless capability implementation; the adapter is composed once by the engine.
 #[derive(Clone, Copy, Debug)]
@@ -43,12 +51,18 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 target,
             } => {
                 crate::domain::reduction::service::digest_groups(
-                    table, keys, over, order, hashes, hasher, target,
+                    table,
+                    keys,
+                    over,
+                    order,
+                    HashScratch(hashes),
+                    hasher,
+                    target,
                 )?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::HashValue { datum } => Ok(OperatorAnswer::ValueHash(
-                crate::domain::reduction::service::hash_of(datum),
+                crate::domain::reduction::service::hash_of(datum).0,
             )),
             OperatorCall::CheckAggregation {
                 program,
@@ -74,7 +88,16 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 digest,
                 target,
             } => {
-                crate::domain::reduction::service::finish(counts, hashes, digest, target);
+                crate::domain::reduction::service::finish(
+                    GroupCounts(counts),
+                    hashes,
+                    if digest {
+                        Finishing::Digested
+                    } else {
+                        Finishing::Counted
+                    },
+                    target,
+                );
                 Ok(OperatorAnswer::Written)
             }
 
@@ -83,10 +106,19 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 kept,
                 holds,
                 target,
-            } => crate::domain::select::service::select(row, kept, holds, target)
-                .map(OperatorAnswer::Selected),
+            } => crate::domain::select::service::select(
+                row,
+                kept,
+                if holds {
+                    PredicateOutcome::Holds
+                } else {
+                    PredicateOutcome::Fails
+                },
+                target,
+            )
+            .map(|selection| OperatorAnswer::Selected(selection == RowSelection::Kept)),
             OperatorCall::Words { text, word, each } => {
-                crate::domain::words::service::split(text, word, each);
+                crate::domain::words::service::split(CellText(text), WordScratch(word), each);
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Capture {
@@ -95,11 +127,17 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 slots,
                 each,
             } => {
-                crate::domain::capture::service::matches(pattern, text, text, slots, each);
+                crate::domain::capture::service::matches(
+                    SlotPattern(pattern),
+                    SlotSubject(text),
+                    SlotSubject(text),
+                    CaptureSlots(slots),
+                    each,
+                );
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Rank { text, layers } => Ok(OperatorAnswer::Rank(
-                crate::domain::rank::service::rank(text, layers),
+                crate::domain::rank::service::rank(CellText(text), layers),
             )),
             OperatorCall::Replace {
                 regex,
@@ -109,9 +147,9 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             } => {
                 crate::domain::replace::service::replace_compiled(
                     regex,
-                    text,
-                    replacement,
-                    target,
+                    CellText(text),
+                    ReplacementText(replacement),
+                    ReplacedText(target),
                 )?;
                 Ok(OperatorAnswer::Written)
             }
@@ -122,7 +160,13 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 digest,
                 target,
             } => {
-                crate::domain::aggregate::service::aggregate(row, keys, count, digest, target)?;
+                crate::domain::aggregate::service::aggregate(
+                    row,
+                    keys,
+                    Count(count),
+                    digest.map(Integer),
+                    target,
+                )?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::OrderedMatch {
@@ -186,7 +230,11 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                         left,
                         driver,
                         target,
-                    } => crate::domain::equality_join::service::positions(left, driver, target)?,
+                    } => crate::domain::equality_join::service::positions(
+                        PositionSlots(left),
+                        driver,
+                        PositionTarget(target),
+                    )?,
                 }
                 Ok(OperatorAnswer::Written)
             }
@@ -215,7 +263,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 start,
                 end,
                 source_len,
-            } => crate::domain::span_between::service::between(row, start, end, source_len.0)
+            } => crate::domain::span_between::service::between(row, start, end, source_len)
                 .map(OperatorAnswer::SpanBetween),
         }
     }

@@ -1,5 +1,6 @@
-//! Predicate refusal does not inspect invalid kept columns.
+//! PredicateOutcome refusal does not inspect invalid kept columns.
 use super::service::select;
+use super::types::{PredicateOutcome, RowSelection};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::{
@@ -47,10 +48,17 @@ fn subject((holds, kept): Input) -> Result<Value, Failure> {
     let accepted = select(
         &[Cell::Number(Integer(7)), Cell::Number(Integer(9))],
         kept,
-        holds,
+        if holds {
+            PredicateOutcome::Holds
+        } else {
+            PredicateOutcome::Fails
+        },
         &mut target,
     )?;
-    Ok((accepted, std::borrow::Cow::Owned(target)))
+    Ok((
+        accepted == RowSelection::Kept,
+        std::borrow::Cow::Owned(target),
+    ))
 }
 #[test]
 fn succeeds() {

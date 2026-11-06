@@ -7,7 +7,10 @@ use crate::domain::table_scratch::types::Patterns;
 use crate::domain::table_texts::types::Datum;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
-    compiled::CompiledRegex, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+    compiled::CompiledRegex,
+    interface::MatchingUseCase,
+    types::{MatchOutcome, SearchText},
+    use_case::MatchingUseCaseImpl,
 };
 
 /// Searches text with a regular expression. Invalid expressions are errors, not empty results.
@@ -31,7 +34,10 @@ pub(crate) fn matches_prepared(
         return Ok(Verdict::Fails);
     };
     Ok(
-        if MatchingUseCaseImpl::new().matches_regex(regex(*pattern, prepared, compiled)?, text.0) {
+        if MatchingUseCaseImpl::new()
+            .matches_regex(regex(*pattern, prepared, compiled)?, SearchText(text.0))
+            == MatchOutcome::Matches
+        {
             Verdict::Holds
         } else {
             Verdict::Fails

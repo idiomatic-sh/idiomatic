@@ -1,9 +1,108 @@
-//! Public grouping requests borrow fixture-owned storage; fixtures implement storage, never reductions.
-use super::*;
-use ryo_values::domain::{
-    plan_parts::types::WholeNumber,
-    rows::types::{RowCount, RowIndex, Table},
-};
+//! Public streaming and metadata calls borrow engine-owned reduction state and keep fault order.
+use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::WholeNumber;
+use ryo_values::domain::rows::types::{RowCount, RowIndex};
+use std::borrow::Cow;
+
+#[derive(Clone, Copy)]
+enum Scenario {
+    CheckCount,
+    CheckDigest,
+    CheckStreamCountOrder,
+    CheckCollectedCountOrder,
+    CheckStreamDigestOrder,
+    StreamCount,
+    StreamDigest,
+    StreamEarlyFault,
+    StreamStorageFailure,
+    FinishDigest,
+}
+#[derive(Debug, PartialEq)]
+enum Observation {
+    Groups(Cow<'static, [(usize, usize)]>),
+    Kinds(Cow<'static, [CellKind]>),
+}
+type Input = Scenario;
+type Value = Observation;
+type Failure = PortableOperatorFault;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("count_metadata_keeps_repeated_key_kinds"),
+        word: Word::Succeeds,
+        input: || Scenario::CheckCount,
+        expect: Expect::Value(Observation::Kinds(Cow::Borrowed(&[
+            CellKind::Number,
+            CellKind::Number,
+        ]))),
+    },
+    Case {
+        name: CaseName("digest_metadata_keeps_key_kinds"),
+        word: Word::Succeeds,
+        input: || Scenario::CheckDigest,
+        expect: Expect::Value(Observation::Kinds(Cow::Borrowed(&[CellKind::Number]))),
+    },
+    Case {
+        name: CaseName("streamed_count_metadata_checks_keys_first"),
+        word: Word::Refuses,
+        input: || Scenario::CheckStreamCountOrder,
+        expect: Expect::Error(Failure::NoSuchColumn { index: 99 }),
+    },
+    Case {
+        name: CaseName("collected_count_metadata_checks_operand_first"),
+        word: Word::Refuses,
+        input: || Scenario::CheckCollectedCountOrder,
+        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+    },
+    Case {
+        name: CaseName("streamed_digest_metadata_checks_operand_first"),
+        word: Word::Refuses,
+        input: || Scenario::CheckStreamDigestOrder,
+        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+    },
+    Case {
+        name: CaseName("stream_count_and_finish_keep_original_representatives"),
+        word: Word::Succeeds,
+        input: || Scenario::StreamCount,
+        expect: Expect::Value(Observation::Groups(Cow::Borrowed(&[(0, 2), (1, 1)]))),
+    },
+    Case {
+        name: CaseName("stream_digest_and_finish_count_distinct_resolved_values"),
+        word: Word::Succeeds,
+        input: || Scenario::StreamDigest,
+        expect: Expect::Value(Observation::Groups(Cow::Borrowed(&[(0, 2), (1, 1)]))),
+    },
+    Case {
+        name: CaseName("stream_bad_early_row_prevents_later_upstream_demand"),
+        word: Word::Refuses,
+        input: || Scenario::StreamEarlyFault,
+        expect: Expect::Error(Failure::NoSuchColumn { index: 1 }),
+    },
+    Case {
+        name: CaseName("stream_group_storage_refusal_prevents_value_access"),
+        word: Word::Fails,
+        input: || Scenario::StreamStorageFailure,
+        expect: Expect::Error(Failure::Interrupted),
+    },
+    Case {
+        name: CaseName("finish_digest_sorts_deduplicates_and_keeps_group_coordinates"),
+        word: Word::Succeeds,
+        input: || Scenario::FinishDigest,
+        expect: Expect::Value(Observation::Groups(Cow::Borrowed(&[(0, 2), (1, 1)]))),
+    },
+];
+fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
+    assert_eq!(
+        fixtures::operators().operators(call)?,
+        OperatorAnswer::Written
+    );
+    Ok(())
+}
 #[derive(Default)]
 struct Groups {
     rows: Vec<(RowIndex, RowCount, i64)>,
@@ -29,46 +128,6 @@ fn observation(groups: Groups) -> Observation {
             .map(|(first, count, _)| (first.0, count.0))
             .collect(),
     ))
-}
-fn table(rows: &[[i64; 2]]) -> Table {
-    Table {
-        kinds: vec![CellKind::Number; 2],
-        cells: rows
-            .iter()
-            .flat_map(|row| row.iter().copied().map(number))
-            .collect(),
-        count: RowCount(rows.len()),
-    }
-}
-struct Resolved {
-    renamed: bool,
-}
-impl DigestValues for Resolved {
-    fn datum(&self, value: Cell) -> DigestDatum<'_> {
-        let Cell::Number(Integer(id)) = value else {
-            panic!("fixture handles are numeric")
-        };
-        DigestDatum::Text(match (self.renamed, id) {
-            (false, 7) | (true, 70) => "same",
-            (false, 8) | (true, 80) => "other",
-            _ => "changed",
-        })
-    }
-}
-fn digest(rows: &[[i64; 2]], renamed: bool) -> Result<Groups, Failure> {
-    let table = table(rows);
-    let order: Vec<_> = (0..rows.len()).map(RowIndex).collect();
-    let mut output = Groups::default();
-    written(OperatorCall::ReduceDigest {
-        table: &table,
-        keys: &[ColumnIndex(0)],
-        over: ColumnIndex(1),
-        order: &order,
-        hashes: &mut Vec::new(),
-        hasher: &Resolved { renamed },
-        target: &mut output,
-    })?;
-    Ok(output)
 }
 #[derive(Default)]
 struct State {
@@ -113,7 +172,7 @@ impl StreamingReduction for State {
         self.hashes.push(hash);
     }
 }
-fn stream(input: Scenario) -> Result<Observation, Failure> {
+fn stream(input: Input) -> Result<Value, Failure> {
     let digest = matches!(
         input,
         Scenario::StreamDigest | Scenario::StreamEarlyFault | Scenario::StreamStorageFailure
@@ -202,7 +261,7 @@ fn stream(input: Scenario) -> Result<Observation, Failure> {
     })?;
     Ok(observation(output))
 }
-fn check(input: Scenario) -> Result<Observation, Failure> {
+fn check(input: Input) -> Result<Value, Failure> {
     let mut kinds = Vec::with_capacity(4);
     let original = kinds.as_ptr();
     let (program, order) = match input {
@@ -251,81 +310,8 @@ fn check(input: Scenario) -> Result<Observation, Failure> {
     assert_eq!(kinds.as_ptr(), original);
     Ok(Observation::Kinds(Cow::Owned(kinds)))
 }
-pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::CountGroups | Scenario::DistinctGroups | Scenario::CountOperandFirst => {
-            let table = table(&[[2, 7], [1, 7], [2, 7], [2, 8]]);
-            let mut output = Groups::default();
-            let (keys, distinct): (&[ColumnIndex], _) =
-                if matches!(input, Scenario::CountOperandFirst) {
-                    (&[ColumnIndex(99)], Some(ColumnIndex(98)))
-                } else {
-                    (
-                        &[ColumnIndex(0)],
-                        if matches!(input, Scenario::DistinctGroups) {
-                            Some(ColumnIndex(1))
-                        } else {
-                            None
-                        },
-                    )
-                };
-            let mut values = Vec::with_capacity(8);
-            let original = values.as_ptr();
-            let result = written(OperatorCall::ReduceCount {
-                table: &table,
-                keys: GroupColumns::Columns(keys),
-                distinct,
-                order: &[RowIndex(1), RowIndex(0), RowIndex(2), RowIndex(3)],
-                values: &mut values,
-                target: &mut output,
-            });
-            if matches!(input, Scenario::CountOperandFirst) {
-                assert_eq!(
-                    output.clears, 0,
-                    "metadata failure precedes output mutation"
-                );
-            }
-            result?;
-            assert_eq!(values.as_ptr(), original);
-            assert!(output.rows.iter().all(|group| group.2 == 0));
-            Ok(observation(output))
-        }
-        Scenario::DigestGroups => {
-            let original = digest(&[[1, 7], [1, 8], [1, 7]], false)?;
-            let renamed = digest(&[[1, 80], [1, 70]], true)?;
-            let changed = digest(&[[1, 7], [1, 9]], false)?;
-            assert_eq!(
-                original.rows, renamed.rows,
-                "same resolved text set survives changed handles, row order and duplicate count"
-            );
-            assert_ne!(
-                original.rows[0].2, changed.rows[0].2,
-                "changing resolved text invalidates this digest"
-            );
-            Ok(observation(original))
-        }
-        Scenario::HashValue => {
-            let same = String::from("same");
-            let literal = OperatorsUseCaseImpl::new().operators(OperatorCall::HashValue {
-                datum: DigestDatum::Text("same"),
-            })?;
-            let borrowed = OperatorsUseCaseImpl::new().operators(OperatorCall::HashValue {
-                datum: DigestDatum::Text(&same),
-            })?;
-            let first = OperatorsUseCaseImpl::new().operators(OperatorCall::HashValue {
-                datum: DigestDatum::Number(WholeNumber(7)),
-            })?;
-            let second = OperatorsUseCaseImpl::new().operators(OperatorCall::HashValue {
-                datum: DigestDatum::Number(WholeNumber(8)),
-            })?;
-            assert!(matches!(literal, OperatorAnswer::ValueHash(_)));
-            assert!(matches!(first, OperatorAnswer::ValueHash(_)));
-            assert!(matches!(second, OperatorAnswer::ValueHash(_)));
-            Ok(Observation::Hashes {
-                same_text: literal == borrowed,
-                different_numbers: first != second,
-            })
-        }
         Scenario::CheckCount
         | Scenario::CheckDigest
         | Scenario::CheckStreamCountOrder
@@ -375,6 +361,18 @@ pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
             );
             Ok(observation(output))
         }
-        _ => unreachable!("group fixture receives only group scenarios"),
     }
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

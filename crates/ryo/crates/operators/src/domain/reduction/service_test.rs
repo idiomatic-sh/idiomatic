@@ -2,8 +2,8 @@
 use super::service as reduction;
 use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
 use crate::domain::reduction::types::{
-    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues,
-    GroupColumns, GroupOutput, StreamingReduction,
+    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
+    GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction,
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::{
@@ -180,7 +180,7 @@ fn digest(table: &Table, resolved: &Resolved) -> Output {
         &[ColumnIndex(0)],
         ColumnIndex(1),
         &order,
-        &mut hashes,
+        HashScratch(&mut hashes),
         resolved,
         &mut output,
     )
@@ -214,7 +214,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for row in [[2, 7], [1, 7], [2, 7], [2, 8]] {
                 reduction::push(program, &row.map(number), &mut Vec::new(), &mut state)?;
             }
-            reduction::finish(&state.counts, &mut state.hashes, false, &mut output);
+            reduction::finish(
+                GroupCounts(&state.counts),
+                &mut state.hashes,
+                Finishing::Counted,
+                &mut output,
+            );
             let mut result = state
                 .first
                 .into_iter()

@@ -1,4 +1,3 @@
-
 #[path = "../src/inbound/use_cases/matching/acceptance.rs"]
 mod matching;
 
@@ -9,7 +8,8 @@ struct Behavior {
 }
 
 /// The colocated acceptance features of this crate, sorted.
-fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+fn features()
+-> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
     let tests = ::cargo_metadata::MetadataCommand::new()
         .manifest_path(::std::concat!(
             ::std::env!("CARGO_MANIFEST_DIR"),
@@ -25,13 +25,20 @@ fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::
     let mut features = ::std::vec::Vec::new();
     for namespace in ["use_cases", "contracts"] {
         let owners = inbound.join(namespace);
-        if !owners.is_dir() { continue; }
+        if !owners.is_dir() {
+            continue;
+        }
         for owner in ::std::fs::read_dir(owners)? {
             let owner = owner?.path();
-            if owner.is_dir() { features.push(owner.join("acceptance.feature")); }
+            if owner.is_dir() {
+                features.push(owner.join("acceptance.feature"));
+            }
         }
     }
-    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.retain(|path| {
+        path.extension()
+            .is_some_and(|extension| extension == "feature")
+    });
     features.sort();
     Ok(features)
 }
@@ -61,11 +68,25 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
         })
         .collect::<::std::vec::Vec<_>>();
-    ::std::assert!(scenarios.iter().all(|scenario| !scenario.steps.is_empty()), "every scenario has executable steps");
-    ::std::assert!(scenarios.iter().all(|scenario| {
-        (!matches!(scenario.keyword.as_str(), "Scenario Outline" | "Scenario Template") || !scenario.examples.is_empty())
-            && scenario.examples.iter().all(|examples| examples.table.as_ref().is_some_and(|table| table.rows.len() > 1))
-    }), "every outline and Examples table has a data row");
+    ::std::assert!(
+        scenarios.iter().all(|scenario| !scenario.steps.is_empty()),
+        "every scenario has executable steps"
+    );
+    ::std::assert!(
+        scenarios.iter().all(|scenario| {
+            (!matches!(
+                scenario.keyword.as_str(),
+                "Scenario Outline" | "Scenario Template"
+            ) || !scenario.examples.is_empty())
+                && scenario.examples.iter().all(|examples| {
+                    examples
+                        .table
+                        .as_ref()
+                        .is_some_and(|table| table.rows.len() > 1)
+                })
+        }),
+        "every outline and Examples table has a data row"
+    );
     let words = ["succeeds", "refuses", "fails", "rejects"];
     let one_word_each = scenarios.iter().all(|scenario| {
         scenario
@@ -85,21 +106,45 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
             .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
         ::std::assert!(stated, "the features have a @{word} scenario");
     }
-    parsed.iter().flatten().map(|feature| {
-        let expanded = ::cucumber::feature::Ext::expand_examples(feature.clone());
-        ::std::assert!(expanded.is_ok(), "every outline expands");
-        expanded.iter().map(|feature| {
-            let background = feature.background.as_ref().map_or(0, |background| background.steps.len());
-            let direct: usize = feature.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum();
-            let rules: usize = feature.rules.iter().map(|rule| {
-                let background = background + rule.background.as_ref().map_or(0, |background| background.steps.len());
-                rule.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum::<usize>()
-            }).sum();
-            ::std::assert!(direct + rules > 0, "every feature has executable scenarios");
-            direct + rules
-        }).sum()
-    }).collect()
-
+    parsed
+        .iter()
+        .flatten()
+        .map(|feature| {
+            let expanded = ::cucumber::feature::Ext::expand_examples(feature.clone());
+            ::std::assert!(expanded.is_ok(), "every outline expands");
+            expanded
+                .iter()
+                .map(|feature| {
+                    let background = feature
+                        .background
+                        .as_ref()
+                        .map_or(0, |background| background.steps.len());
+                    let direct: usize = feature
+                        .scenarios
+                        .iter()
+                        .map(|scenario| scenario.steps.len() + background)
+                        .sum();
+                    let rules: usize = feature
+                        .rules
+                        .iter()
+                        .map(|rule| {
+                            let background = background
+                                + rule
+                                    .background
+                                    .as_ref()
+                                    .map_or(0, |background| background.steps.len());
+                            rule.scenarios
+                                .iter()
+                                .map(|scenario| scenario.steps.len() + background)
+                                .sum::<usize>()
+                        })
+                        .sum();
+                    ::std::assert!(direct + rules > 0, "every feature has executable scenarios");
+                    direct + rules
+                })
+                .sum()
+        })
+        .collect()
 }
 
 /// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
@@ -113,7 +158,11 @@ async fn run(feature: ::std::path::PathBuf, expected_steps: usize) {
     let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
     ::std::assert!(!failed, "a step failed or was skipped");
     ::std::assert!(some_passed, "no step passed");
-    ::std::assert_eq!(::cucumber::writer::Stats::<Behavior>::passed_steps(&result), expected_steps, "every discovered scenario and example must execute");
+    ::std::assert_eq!(
+        ::cucumber::writer::Stats::<Behavior>::passed_steps(&result),
+        expected_steps,
+        "every discovered scenario and example must execute"
+    );
 }
 
 #[::tokio::main(flavor = "current_thread")]

@@ -1,47 +1,55 @@
 //! Physical occurrence span, capture and line semantics over one borrowed checked interval.
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
+use crate::domain::source_matches::types::{
+    CarriageReturn, LineBytes, LineCursor, SourceBase, SourceMatchesInput, TextRowDriver,
+};
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase,
+    types::{GroupName, SearchText, TextSpan},
+    use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use std::ops::ControlFlow;
 fn advance_line(
-    bytes: &[u8],
-    source: &[u8],
-    base: usize,
-    cursor: &mut usize,
-    to: usize,
-    line: &mut i64,
-    pending_cr: &mut bool,
+    bytes: LineBytes<'_>,
+    source: LineBytes<'_>,
+    base: SourceBase,
+    cursor: &mut LineCursor,
+    to: LineCursor,
+    line: &mut Integer,
+    pending_cr: &mut CarriageReturn,
 ) -> Result<(), PortableOperatorFault> {
     for &byte in bytes
-        .get(*cursor..to)
+        .0
+        .get(cursor.0..to.0)
         .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?
     {
-        if *pending_cr {
-            *line = line
+        if *pending_cr == CarriageReturn::Pending {
+            line.0 = line
+                .0
                 .checked_add(1)
                 .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-            *pending_cr = false;
+            *pending_cr = CarriageReturn::Clear;
             if byte == b'\n' {
                 continue;
             }
         }
         if byte == b'\r' {
-            *pending_cr = true;
+            *pending_cr = CarriageReturn::Pending;
         } else if byte == b'\n' {
-            *line = line
+            line.0 = line
+                .0
                 .checked_add(1)
                 .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
         }
     }
     *cursor = to;
-    if *pending_cr && source.get(base + to) != Some(&b'\n') {
-        *line = line
+    if *pending_cr == CarriageReturn::Pending && source.0.get(base.0 + to.0) != Some(&b'\n') {
+        line.0 = line
+            .0
             .checked_add(1)
             .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-        *pending_cr = false;
+        *pending_cr = CarriageReturn::Clear;
     }
     Ok(())
 }
@@ -56,52 +64,56 @@ pub(crate) fn occurrences(
         source,
         base,
         text,
-        line: mut line,
+        line,
         regex,
         capture,
         capture_text,
         capture_line,
     } = input;
+    let base = SourceBase(base);
+    let mut line = line.map(Integer);
     if (capture_text || capture_line) && capture.is_none() {
         return Err(PortableOperatorFault::WrongOperation);
     }
     if capture_line && line.is_none() {
         return Err(PortableOperatorFault::WrongOperation);
     }
-    let mut cursor = 0;
-    let mut pending_cr = false;
-    let mut emit_one = |start_at: usize,
-                        end_at: usize,
-                        captured: Option<(usize, usize)>|
+    let mut cursor = LineCursor(0);
+    let mut pending_cr = CarriageReturn::Clear;
+    let mut emit_one = |whole: TextSpan,
+                        captured: Option<TextSpan>|
      -> Result<(), PortableOperatorFault> {
+        let (start_at, end_at) = (whole.0.start, whole.0.end);
         let mut whole_line = None;
         if let Some(current) = line.as_mut() {
             advance_line(
-                text.as_bytes(),
-                source,
+                LineBytes(text.as_bytes()),
+                LineBytes(source),
                 base,
                 &mut cursor,
-                start_at,
+                LineCursor(start_at),
                 current,
                 &mut pending_cr,
             )?;
             whole_line = Some(*current);
-            if capture_line && let Some((capture_start, _)) = captured {
+            if capture_line && let Some(group) = &captured {
                 advance_line(
-                    text.as_bytes(),
-                    source,
+                    LineBytes(text.as_bytes()),
+                    LineBytes(source),
                     base,
                     &mut cursor,
-                    capture_start,
+                    LineCursor(group.0.start),
                     current,
                     &mut pending_cr,
                 )?;
             }
         }
         let start = base
+            .0
             .checked_add(start_at)
             .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
         let end = base
+            .0
             .checked_add(end_at)
             .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
         let start =
@@ -114,16 +126,19 @@ pub(crate) fn occurrences(
             end: Offset(end),
         }));
         if let Some(current) = whole_line {
-            joined.push(Value::Number(Integer(current)));
+            joined.push(Value::Number(current));
         }
-        if let Some((capture_start, capture_end)) = captured {
+        if let Some(group) = captured {
+            let (capture_start, capture_end) = (group.0.start, group.0.end);
             let absolute_start = u32::try_from(
-                base.checked_add(capture_start)
+                base.0
+                    .checked_add(capture_start)
                     .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?,
             )
             .map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)?;
             let absolute_end = u32::try_from(
-                base.checked_add(capture_end)
+                base.0
+                    .checked_add(capture_end)
                     .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?,
             )
             .map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)?;
@@ -141,9 +156,9 @@ pub(crate) fn occurrences(
                 joined.push(driver.intern(captured_text));
             }
             if capture_line {
-                joined.push(Value::Number(Integer(
+                joined.push(Value::Number(
                     line.ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?,
-                )));
+                ));
             }
         }
         driver
@@ -154,31 +169,30 @@ pub(crate) fn occurrences(
     let mut failure = None;
     if let Some(name) = capture {
         let _flow = MatchingUseCaseImpl::new()
-            .visit_regex_captures(regex, text, name, &mut |found, group| match emit_one(
-                found.start,
-                found.end,
-                Some((group.start, group.end)),
-            ) {
-                Ok(()) => ControlFlow::Continue(()),
-                Err(error) => {
-                    failure = Some(error);
-                    ControlFlow::Break(())
-                }
-            })
-            .map_err(|_| PortableOperatorFault::MissingCapture)?;
-    } else {
-        let _flow =
-            MatchingUseCaseImpl::new().visit_regex_matches(
+            .visit_regex_captures(
                 regex,
-                text,
-                &mut |found| match emit_one(found.start, found.end, None) {
+                SearchText(text),
+                GroupName(name),
+                &mut |found, group| match emit_one(found, Some(group)) {
                     Ok(()) => ControlFlow::Continue(()),
                     Err(error) => {
                         failure = Some(error);
                         ControlFlow::Break(())
                     }
                 },
-            );
+            )
+            .map_err(|_| PortableOperatorFault::MissingCapture)?;
+    } else {
+        let _flow =
+            MatchingUseCaseImpl::new().visit_regex_matches(regex, SearchText(text), &mut |found| {
+                match emit_one(found, None) {
+                    Ok(()) => ControlFlow::Continue(()),
+                    Err(error) => {
+                        failure = Some(error);
+                        ControlFlow::Break(())
+                    }
+                }
+            });
     }
     if let Some(error) = failure {
         return Err(error);

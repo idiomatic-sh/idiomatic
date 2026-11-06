@@ -5,9 +5,9 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, FileNumber, FileSize, Glob, Hits, Nanoseconds,
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 
@@ -355,6 +355,7 @@ fn succeeds() {
 use ryo_execution::inbound::use_cases::metadata::{
     interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
 };
+use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
@@ -366,17 +367,22 @@ fn matcher(
     ryo_values::domain::files::types::GlobsMatcher,
     ryo_matching::inbound::use_cases::matching::errors::MatchingError,
 > {
-    let patterns: Vec<&str> = globs.iter().map(|glob| glob.0.as_ref()).collect();
+    let patterns: Vec<GlobPattern<'_>> = globs
+        .iter()
+        .map(|glob| GlobPattern(glob.0.as_ref()))
+        .collect();
     let compiled = MatchingUseCaseImpl::new().compile_globs(&patterns)?;
     Ok(ryo_values::domain::files::types::GlobsMatcher {
         matches: std::sync::Arc::new(
             move |path: ryo_values::domain::files::types::MatchCandidate<'_>,
                   hits: &mut ryo_values::domain::files::types::Hits| {
+                let mut found = GlobHits(std::mem::take(&mut hits.0));
                 MatchingUseCaseImpl::new().match_globs(
                     &compiled,
                     std::path::Path::new(path.0),
-                    &mut hits.0,
+                    &mut found,
                 );
+                hits.0 = found.0;
             },
         ),
     })

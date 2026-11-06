@@ -1,16 +1,146 @@
-//! Public text calls keep matcher construction at the edge and preserve exact delivery prefixes.
-use super::*;
-use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
-};
-use ryo_relations::domain::relations::types::{Offset, Span};
+//! Public source-match calls keep matcher construction at the edge and preserve exact delivery prefixes.
+use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use std::borrow::Cow;
 
+#[derive(Clone, Copy)]
+enum Scenario {
+    SourceLines,
+    SourceMissingCapture,
+    SourceMissingOptions,
+    SourceInterrupted,
+    SourceOrdinary,
+    SourceOrdinaryInterrupted,
+    SourceNoLine,
+    SourceSpanOnly,
+}
+#[derive(Debug, PartialEq)]
+enum Observation {
+    Cells(Cow<'static, [Cell]>),
+}
+type Input = Scenario;
+type Value = Observation;
+type Failure = PortableOperatorFault;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("source_dispatch_preserves_crlf_and_capture_line_numbers"),
+        word: Word::Succeeds,
+        input: || Scenario::SourceLines,
+        expect: Expect::Value(Observation::Cells(Cow::Borrowed(&[
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(3)),
+        ]))),
+    },
+    Case {
+        name: CaseName("source_unknown_capture_fails_even_when_regex_matches_nothing"),
+        word: Word::Refuses,
+        input: || Scenario::SourceMissingCapture,
+        expect: Expect::Error(Failure::MissingCapture),
+    },
+    Case {
+        name: CaseName("source_capture_outputs_require_named_capture"),
+        word: Word::Refuses,
+        input: || Scenario::SourceMissingOptions,
+        expect: Expect::Error(Failure::WrongOperation),
+    },
+    Case {
+        name: CaseName("source_second_sink_failure_stops_later_interns_and_delivery"),
+        word: Word::Fails,
+        input: || Scenario::SourceInterrupted,
+        expect: Expect::Error(Failure::Interrupted),
+    },
+    Case {
+        name: CaseName("source_ordinary_matches_keep_exact_rows_without_capture_outputs"),
+        word: Word::Succeeds,
+        input: || Scenario::SourceOrdinary,
+        expect: Expect::Value(Observation::Cells(Cow::Borrowed(&[
+            Cell::Number(Integer(7)),
+            Cell::Span(Span {
+                start: Offset(3),
+                end: Offset(4),
+            }),
+            Cell::Number(Integer(7)),
+            Cell::Span(Span {
+                start: Offset(5),
+                end: Offset(6),
+            }),
+        ]))),
+    },
+    Case {
+        name: CaseName("source_ordinary_second_sink_refusal_keeps_prefix_and_stops"),
+        word: Word::Fails,
+        input: || Scenario::SourceOrdinaryInterrupted,
+        expect: Expect::Error(Failure::Interrupted),
+    },
+    Case {
+        name: CaseName("source_named_capture_without_line_metadata_keeps_exact_output_shape"),
+        word: Word::Succeeds,
+        input: || Scenario::SourceNoLine,
+        expect: Expect::Value(Observation::Cells(Cow::Borrowed(&[
+            Cell::Number(Integer(7)),
+            Cell::Span(Span {
+                start: Offset(3),
+                end: Offset(4),
+            }),
+            Cell::Span(Span {
+                start: Offset(3),
+                end: Offset(4),
+            }),
+            Cell::Symbol(Symbol(1)),
+            Cell::Number(Integer(7)),
+            Cell::Span(Span {
+                start: Offset(5),
+                end: Offset(6),
+            }),
+            Cell::Span(Span {
+                start: Offset(5),
+                end: Offset(6),
+            }),
+            Cell::Symbol(Symbol(2)),
+        ]))),
+    },
+    Case {
+        name: CaseName("source_span_only_capture_omits_text_and_capture_line_outputs"),
+        word: Word::Succeeds,
+        input: || Scenario::SourceSpanOnly,
+        expect: Expect::Value(Observation::Cells(Cow::Borrowed(&[
+            Cell::Number(Integer(7)),
+            Cell::Span(Span {
+                start: Offset(3),
+                end: Offset(4),
+            }),
+            Cell::Number(Integer(2)),
+            Cell::Span(Span {
+                start: Offset(3),
+                end: Offset(4),
+            }),
+            Cell::Number(Integer(7)),
+            Cell::Span(Span {
+                start: Offset(5),
+                end: Offset(6),
+            }),
+            Cell::Number(Integer(3)),
+            Cell::Span(Span {
+                start: Offset(5),
+                end: Offset(6),
+            }),
+        ]))),
+    },
+];
+fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
+    assert_eq!(
+        fixtures::operators().operators(call)?,
+        OperatorAnswer::Written
+    );
+    Ok(())
+}
 fn regex(pattern: &str) -> ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex {
-    MatchingUseCaseImpl::new()
-        .compile_regex(pattern)
-        .expect("valid acceptance pattern")
+    fixtures::regex(pattern)
 }
 fn span(start: u32, end: u32) -> Cell {
     Cell::Span(Span {
@@ -45,7 +175,7 @@ impl TextRowDriver for Delivery {
         Ok(())
     }
 }
-fn source_optional(input: Scenario) -> Result<Observation, Failure> {
+fn source_optional(input: Input) -> Result<Value, Failure> {
     let interrupted = matches!(input, Scenario::SourceOrdinaryInterrupted);
     let ordinary = matches!(
         input,
@@ -129,7 +259,7 @@ fn source_optional(input: Scenario) -> Result<Observation, Failure> {
         delivery.rows.into_iter().flatten().collect(),
     )))
 }
-fn source(input: Scenario) -> Result<Observation, Failure> {
+fn source(input: Input) -> Result<Value, Failure> {
     let source = if matches!(input, Scenario::SourceInterrupted) {
         "a\r\nb\rc\nd"
     } else {
@@ -223,105 +353,8 @@ fn source(input: Scenario) -> Result<Observation, Failure> {
         delivery.rows.iter().map(|row| row[1]).collect(),
     )))
 }
-pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::Words | Scenario::WordsEmpty => {
-            let text = if matches!(input, Scenario::Words) {
-                "HTTPServer2Go_ÜberName"
-            } else {
-                "_- ."
-            };
-            let mut word = String::with_capacity(64);
-            let original = word.as_ptr();
-            let mut words = Vec::new();
-            written(OperatorCall::Words {
-                text,
-                word: &mut word,
-                each: &mut |word: &str| words.push(word.to_owned()),
-            })?;
-            assert!(
-                word.is_empty(),
-                "the engine-owned word scratch has no retained logical contents"
-            );
-            assert_eq!(
-                word.as_ptr(),
-                original,
-                "the borrowed scratch keeps its capacity"
-            );
-            Ok(Observation::Text(Cow::Owned(words.join("|"))))
-        }
-        Scenario::CaptureUtf8 | Scenario::CaptureSlash => {
-            let (pattern, text) = if matches!(input, Scenario::CaptureUtf8) {
-                ("{a}{b}", "éab")
-            } else {
-                ("{a}.rs", "a/b.rs")
-            };
-            let mut slots = Vec::with_capacity(8);
-            let original = slots.as_ptr();
-            let mut captures: Vec<Vec<String>> = Vec::new();
-            written(OperatorCall::Capture {
-                pattern,
-                text,
-                slots: &mut slots,
-                each: &mut |ranges: &[std::ops::Range<usize>]| {
-                    captures.push(
-                        ranges
-                            .iter()
-                            .map(|range| {
-                                text.get(range.clone())
-                                    .expect("capture is on UTF-8 boundaries")
-                                    .to_owned()
-                            })
-                            .collect(),
-                    );
-                },
-            })?;
-            assert!(
-                slots.is_empty(),
-                "capture unwinds its borrowed range scratch"
-            );
-            assert_eq!(slots.as_ptr(), original);
-            Ok(Observation::Text(Cow::Owned(
-                captures
-                    .iter()
-                    .map(|slots| slots.join(","))
-                    .collect::<Vec<_>>()
-                    .join("|"),
-            )))
-        }
-        Scenario::RankFirst | Scenario::RankAbsent => {
-            let layers = [
-                vec![LiteralText("same".into())],
-                vec![LiteralText("same".into()), LiteralText("other".into())],
-            ];
-            let text = if matches!(input, Scenario::RankFirst) {
-                "same"
-            } else {
-                "absent"
-            };
-            let answer = OperatorsUseCaseImpl::new().operators(OperatorCall::Rank {
-                text,
-                layers: &layers,
-            })?;
-            let OperatorAnswer::Rank(rank) = answer else {
-                panic!("rank must return its selected layer")
-            };
-            Ok(Observation::Rank(rank.map(|rank| rank.0)))
-        }
-        Scenario::ReplaceLiteral => {
-            let regex = regex("a");
-            let mut output = String::with_capacity(32);
-            output.push_str("stale");
-            let original = output.as_ptr();
-            written(OperatorCall::Replace {
-                regex: &regex,
-                text: "aaé",
-                replacement: "$1",
-                target: &mut output,
-            })?;
-            assert_eq!(output.as_ptr(), original);
-            Ok(Observation::Text(Cow::Owned(output)))
-        }
         Scenario::SourceLines
         | Scenario::SourceMissingCapture
         | Scenario::SourceMissingOptions
@@ -330,6 +363,18 @@ pub(super) fn subject(input: Scenario) -> Result<Observation, Failure> {
         | Scenario::SourceOrdinaryInterrupted
         | Scenario::SourceNoLine
         | Scenario::SourceSpanOnly => source_optional(input),
-        _ => unreachable!("text fixture receives only text scenarios"),
     }
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

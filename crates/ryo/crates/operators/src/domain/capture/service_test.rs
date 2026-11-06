@@ -1,5 +1,6 @@
 //! Enumerates UTF-8 character boundaries, nonempty slots and crossing policy.
 use super::service::matches;
+use super::types::{CaptureSlots, SlotPattern, SlotSubject};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 type Input = (&'static str, &'static str);
 type Value = std::borrow::Cow<'static, str>;
@@ -34,10 +35,10 @@ fn subject((pattern, text): Input) -> Result<Value, Failure> {
     let mut slots = Vec::new();
     let mut output: Vec<Vec<String>> = Vec::new();
     matches(
-        pattern,
-        text,
-        text,
-        &mut slots,
+        SlotPattern(pattern),
+        SlotSubject(text),
+        SlotSubject(text),
+        CaptureSlots(&mut slots),
         &mut |slots: &[std::ops::Range<usize>]| {
             output.push(
                 slots

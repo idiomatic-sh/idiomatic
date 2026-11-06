@@ -103,7 +103,9 @@ const REGEX: &[Case<Input, Value, Failure>] = &[
 
 fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
     use ryo_matching::inbound::use_cases::matching::{
-        interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+        interface::MatchingUseCase,
+        types::{MatchOutcome, RegexSource, SearchText},
+        use_case::MatchingUseCaseImpl,
     };
     use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
     use ryo_values::domain::plans::types::Operation;
@@ -133,9 +135,9 @@ fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
     );
     let matcher = MatchingUseCaseImpl::new();
     let compiled = matcher
-        .compile_regex(&patterns[0].0)
+        .compile_regex(RegexSource(&patterns[0].0))
         .expect("the query contains a valid regular expression");
-    Ok(matcher.matches_regex(&compiled, "\tnoqa"))
+    Ok(matcher.matches_regex(&compiled, SearchText("\tnoqa")) == MatchOutcome::Matches)
 }
 
 /// The rows of the examples the operators print: no input, and the count of examples that do not compile as the value.

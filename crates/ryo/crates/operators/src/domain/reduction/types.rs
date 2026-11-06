@@ -72,3 +72,32 @@ pub trait StreamingReduction {
 }
 
 use crate::domain::contract::types::SemanticInterrupted;
+
+/// Whether two rows belong to the same group.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GroupMembership {
+    /// The rows share their group key.
+    Together,
+    /// The rows differ in their group key.
+    Apart,
+}
+
+/// The stable hash of one resolved value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ValueHash(pub u64);
+
+/// The engine-owned scratch the distinct value hashes of one group are collected in.
+pub(crate) struct HashScratch<'a>(pub &'a mut Vec<u64>);
+
+/// The row count each group of a streamed reduction reached, in group order.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct GroupCounts<'a>(pub &'a [usize]);
+
+/// What a streamed reduction finishes into.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Finishing {
+    /// Each group keeps its counted rows.
+    Counted,
+    /// Each group keeps its folded value hashes.
+    Digested,
+}
