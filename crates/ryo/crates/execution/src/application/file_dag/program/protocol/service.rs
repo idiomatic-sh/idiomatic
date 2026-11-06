@@ -29,7 +29,9 @@ impl ObservedPublication {
                 ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
             ) if !files.is_empty() => Ok(()),
             _ => Err(OperatingError::ObservationIncomplete {
-                reason: "packed readiness disagrees with the admitted producer coverage".into(),
+                reason:
+                    crate::application::file_dag::program::constants::PACKED_READINESS_DISAGREES
+                        .into(),
             }),
         }
     }

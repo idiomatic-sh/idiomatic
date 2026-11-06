@@ -38,3 +38,8 @@ pub(super) const FILE_STREAM_CONSUMER: &str = "file_stream";
 pub(super) const FILE_RULE_CONSUMER: &str = "file_rule";
 pub(super) const SYNTAX_UNDETERMINED: &str = "syntax acceptance undetermined";
 pub(super) const METADATA_UNAVAILABLE: &str = "applicability metadata unavailable";
+pub(super) const NO_EXECUTABLE_QUERY: &str = "named producer has no executable query";
+pub(super) const PACKED_READINESS_DISAGREES: &str =
+    "packed readiness disagrees with the admitted producer coverage";
+pub(super) const RESTORED_FRAME_REJECTED: &str =
+    "restored semantic frame belongs to a currently syntax-rejected producer partition";

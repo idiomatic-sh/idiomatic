@@ -49,7 +49,10 @@ pub(in crate::application) fn validate_restored_frontier(
             .iter()
             .any(|skipped| &skipped.rule == rule_id && &skipped.path == path)
         {
-            return Err(OperatingError::ObservationIncomplete { reason: "restored semantic frame belongs to a currently syntax-rejected producer partition".into() });
+            return Err(OperatingError::ObservationIncomplete {
+                reason: crate::application::file_dag::program::constants::RESTORED_FRAME_REJECTED
+                    .into(),
+            });
         }
     }
     let coverage = crate::application::file_dag::frontiers::service::validate_bucket(
