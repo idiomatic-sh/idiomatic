@@ -77,7 +77,7 @@ pub(crate) fn open_project<'a>(
     } else {
         let execution = ProgramExecution::open(
             Arc::clone(program.program()),
-            Partition::Project(required.clone()),
+            Partition::Project(required.identity()),
             Rc::clone(&owner),
         );
         scope

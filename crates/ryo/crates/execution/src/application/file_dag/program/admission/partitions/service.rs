@@ -104,6 +104,13 @@ impl RequiredPartitions {
     pub(in crate::application) fn inapplicable(&self) -> &[FileId] {
         &self.inapplicable
     }
+    /// The project identity alone, as a shared execution holds it: no rule's evidence.
+    pub(in crate::application::file_dag::program) fn identity(&self) -> Self {
+        Self {
+            inapplicable: Box::new([]),
+            ..self.clone()
+        }
+    }
 }
 
 impl Partition {
@@ -137,19 +144,8 @@ impl Partition {
     }
 }
 impl RequiredPartitions {
-    /// Whether both describe one project request. The files a rule has no frame for are that rule's
-    /// own evidence, so one project execution serves rules whose inapplicable files differ.
-    pub(in crate::application::file_dag) fn same_project(&self, other: &Self) -> Agreement {
-        if self.request == other.request
-            && self.files == other.files
-            && self.covered == other.covered
-            && self.skipped == other.skipped
-        {
-            Agreement::Same
-        } else {
-            Agreement::Different
-        }
-    }
+    /// Whether both name one project identity; the files a rule has no frame for are that rule's
+    /// own evidence and are not compared.
     pub(in crate::application::file_dag) fn same_request(&self, other: &Self) -> Agreement {
         if self == other {
             Agreement::Same

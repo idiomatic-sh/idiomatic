@@ -26,7 +26,10 @@ pub(super) struct FileGeneration {
     file: FileId,
     generation: Arc<()>,
 }
-#[derive(Clone, PartialEq, Eq)]
+/// The project identity is the request and its files, coverage and skips. `inapplicable` is one
+/// rule's own evidence beside that identity: equality never reads it, so every identity check
+/// (open, supplies, materialize, the frontier cache key) agrees across rules.
+#[derive(Clone)]
 pub(crate) struct RequiredPartitions {
     pub(super) request: Arc<super::request_identity::RequestIdentity>,
     pub(super) files: Box<[FileId]>,
@@ -34,6 +37,15 @@ pub(crate) struct RequiredPartitions {
     pub(super) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
     pub(super) inapplicable: Box<[FileId]>,
 }
+impl PartialEq for RequiredPartitions {
+    fn eq(&self, other: &Self) -> bool {
+        self.request == other.request
+            && self.files == other.files
+            && self.covered == other.covered
+            && self.skipped == other.skipped
+    }
+}
+impl Eq for RequiredPartitions {}
 #[derive(Clone)]
 pub(super) enum Partition {
     RequestInvariant,

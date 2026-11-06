@@ -79,7 +79,34 @@ fn current_project_relation_coverage_precedes_rekeying_and_survives_named_handov
     }
 }
 
+/// Rules A (rule 1, no inapplicable files) and B (rule 2, `inapplicable`) share one project
+/// execution; B reads the restored bound observation. The expectations below are the same with
+/// and without B's set, so a run whose rules differ in it answers exactly as one whose rules do not.
+#[test]
+fn a_rule_with_inapplicable_files_reads_a_restored_observation_as_a_rule_without() {
+    for mode in [
+        Mode::PartialRight,
+        Mode::PartialLeft { difference: false },
+        Mode::Rekey { file_key: true },
+        Mode::Current,
+    ] {
+        for inapplicable in [&[][..], &[FileId(0)][..]] {
+            exercise_with(true, false, false, mode, inapplicable);
+        }
+    }
+}
+
 fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mode) {
+    exercise_with(empty, project_away_file, stale_complete, mode, &[]);
+}
+
+fn exercise_with(
+    empty: bool,
+    project_away_file: bool,
+    stale_complete: bool,
+    mode: Mode,
+    inapplicable: &[FileId],
+) {
     let engine = engine();
     let mut authored = authored_request(3);
     authored.rules[0].applicability = RuleApplicability::AcceptedSyntax;
@@ -625,7 +652,9 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles(
+                inapplicable.to_vec(),
+            ),
         )
         .unwrap();
     let bound = stage.bindings(RuleIndex(2)).unwrap();
