@@ -94,7 +94,8 @@ fn exercise(refusal: Refusal, fused: bool) {
             .collect(),
     );
     let recorded = Arc::new(
-        crate::application::file_dag::derived::owner::resource_fixture::RecordedDerived::default(),
+        crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived::default(
+        ),
     );
     let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(

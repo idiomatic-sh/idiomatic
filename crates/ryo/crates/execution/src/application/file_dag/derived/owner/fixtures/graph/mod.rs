@@ -1,5 +1,4 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
-use super::*;
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
@@ -7,6 +6,7 @@ use crate::application::file_dag::derived::owner::graphs::{
         roots::value::DemandAnswers,
     },
 };
+use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::{
     relations::{RelationOwner, handle::service::PublishedInput},
     workspace::InvocationWorkspace,
@@ -121,13 +121,15 @@ impl GraphFixture {
             .wanted
             .iter()
             .copied()
-            .map(super::fixtures::source_plan)
+            .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
             .collect::<Vec<_>>();
         if !self.wanted.is_empty() {
             plans.push(self.request());
         }
-        let prepared =
-            super::fixtures::prepared_sources(&plans, Arc::clone(&self.owner.derived.semantic));
+        let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
+            &plans,
+            Arc::clone(&self.owner.derived.semantic),
+        );
         self.owner
             .derived
             .prepare_program_file(
@@ -202,7 +204,7 @@ impl GraphFixture {
         endpoints: [ColumnIndex; 2],
         keys: &[ColumnIndex],
     ) -> Result<Option<GraphHandle>, OperatingError> {
-        let plan = super::fixtures::prepare_view(
+        let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
             Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Adjacency {
                 endpoints,
@@ -241,7 +243,7 @@ impl GraphFixture {
         rows: &Rows<'_>,
         column: ColumnIndex,
     ) -> Result<Option<DomainHandle>, OperatingError> {
-        let plan = super::fixtures::prepare_view(
+        let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
             Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Membership { column },
             rows,
@@ -303,7 +305,7 @@ impl GraphFixture {
         crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
-        let plan = super::fixtures::prepare_view(
+        let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
             Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Equality {
                 columns: columns.to_vec(),

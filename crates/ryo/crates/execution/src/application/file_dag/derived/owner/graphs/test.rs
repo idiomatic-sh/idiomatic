@@ -1,7 +1,7 @@
 //! Generation-local sharing, exact identity and bounded admission through the real owner.
 
 use crate::application::file_dag::derived::owner::{
-    graph_fixture::GraphFixture, index::service::LIMIT,
+    fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
 use crate::domain::table_model::types::{Rows, SelectedRows, SelectionIdentity, StoredSelection};

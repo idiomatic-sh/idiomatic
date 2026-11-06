@@ -2,7 +2,7 @@
 
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::application::file_dag::derived::owner::{
-    graph_fixture::GraphFixture, index::service::LIMIT,
+    fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::stored_selection::fixtures::program;

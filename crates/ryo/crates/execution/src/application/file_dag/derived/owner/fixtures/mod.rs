@@ -107,3 +107,8 @@ pub(in crate::application::file_dag) fn prepare_view(
         .unwrap(),
     )
 }
+
+// Shared test support stays behind the owner's single cfg(test) fixture gate.
+pub(in crate::application::file_dag) mod graph;
+mod observations;
+pub(in crate::application::file_dag) mod resources;

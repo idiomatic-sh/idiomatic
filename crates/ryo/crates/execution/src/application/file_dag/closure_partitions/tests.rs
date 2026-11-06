@@ -146,7 +146,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
     assert!(cursor.advance().unwrap());
     let owner = std::rc::Rc::clone(&scope);
     let first_backing =
-        crate::application::file_dag::derived::owner::resource_fixture::weak_storage(
+        crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
             cursor.current.as_ref().unwrap(),
         );
     let first_charge = owner.derived.publication_ownership_bytes().0;
@@ -157,7 +157,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         "advance releases the previous physical backing"
     );
     let second_backing =
-        crate::application::file_dag::derived::owner::resource_fixture::weak_storage(
+        crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
             cursor.current.as_ref().unwrap(),
         );
     assert_eq!(

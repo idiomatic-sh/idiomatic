@@ -1,7 +1,7 @@
 //! Exact sharing keys, physical partiality, bounded retention and generation-local lifetimes.
 use super::service::LIMIT;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use crate::application::file_dag::derived::owner::graph_fixture::GraphFixture;
+use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::DerivedView;
 fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> GraphFixture {

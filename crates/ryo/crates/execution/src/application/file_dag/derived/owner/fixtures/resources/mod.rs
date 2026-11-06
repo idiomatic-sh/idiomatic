@@ -1,5 +1,5 @@
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
-use super::*;
+use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
@@ -27,12 +27,15 @@ impl ResourceFixture {
         let plans = wanted
             .iter()
             .copied()
-            .map(super::fixtures::source_plan)
+            .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
             .collect::<Vec<_>>();
         owner
             .derived
             .prepare_program_file(
-                &super::fixtures::prepared_sources(&plans, Arc::clone(&owner.derived.semantic)),
+                &crate::application::file_dag::derived::owner::fixtures::prepared_sources(
+                    &plans,
+                    Arc::clone(&owner.derived.semantic),
+                ),
                 &(0..plans.len())
                     .map(crate::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
@@ -57,7 +60,7 @@ impl ResourceFixture {
         crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
-        let plan = super::fixtures::prepare_view(
+        let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
             Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Equality {
                 columns: columns.to_vec(),

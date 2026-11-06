@@ -89,7 +89,7 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
 }
 #[test]
 fn producer_scope_rebinding_refuses_before_registering_an_alias() {
-    use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
+    use crate::application::file_dag::derived::owner::fixtures::resources::ResourceFixture;
     use ryo_values::domain::rows::types::Table;
 
     let fixture = ResourceFixture::new(&[], &[], 0).unwrap();
@@ -132,7 +132,7 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
 fn qualified_producers_release_only_their_actual_population() {
     use crate::application::file_dag::derived::owner::{
         ViewContext,
-        resource_fixture::{ResourceFixture, weak_storage},
+        fixtures::resources::{ResourceFixture, weak_storage},
     };
     use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
     use ryo_relations::domain::relations::types::{Integer, Value};

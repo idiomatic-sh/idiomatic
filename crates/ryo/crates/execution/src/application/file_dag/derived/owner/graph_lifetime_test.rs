@@ -4,7 +4,7 @@ use crate::domain::{
     stored_graph::types::{GraphWalk, Orientation},
     table_model::types::Rows,
 };
-use graph_fixture::GraphFixture;
+use fixtures::graph::GraphFixture;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };

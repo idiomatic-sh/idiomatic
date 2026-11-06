@@ -658,7 +658,7 @@ impl FileRun<'_> {
     #[cfg(test)]
     pub(crate) fn resource_fixture_counts(
         &self,
-    ) -> crate::application::file_dag::derived::owner::resource_fixture::Snapshot {
+    ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
         self.owner.derived.resource_fixture_counts()
     }
     #[cfg(test)]

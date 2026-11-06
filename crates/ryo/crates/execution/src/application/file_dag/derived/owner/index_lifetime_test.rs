@@ -1,6 +1,6 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
 use super::*;
-use resource_fixture::ResourceFixture;
+use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,

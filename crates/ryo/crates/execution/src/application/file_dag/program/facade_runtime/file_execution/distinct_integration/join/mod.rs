@@ -181,7 +181,7 @@ enum SourceAttempt {
     Available(usize),
     Refused(usize, OperatingError),
 }
-use crate::application::file_dag::derived::owner::resource_fixture::RecordedDerived;
+use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 struct Observation {
     result: Result<Table, OperatingError>,
     prefix: Vec<Vec<Cell>>,

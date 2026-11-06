@@ -1,5 +1,5 @@
 //! Root keys carry orientation and positive reach cannot invent a missing root.
-use crate::application::file_dag::derived::owner::graph_fixture::GraphFixture;
+use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
 use crate::domain::stored_graph::types::GraphWalk;
 use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Relation, Value};

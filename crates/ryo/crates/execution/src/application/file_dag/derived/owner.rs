@@ -17,8 +17,6 @@ mod diagnostics;
 mod footprint;
 mod graph;
 #[cfg(test)]
-pub(crate) mod graph_fixture;
-#[cfg(test)]
 mod graph_lifetime_test;
 mod graph_policy;
 mod graph_retention;
@@ -29,8 +27,6 @@ mod leases;
 #[path = "owner/lifetime.rs"]
 mod lifetime;
 mod observations;
-#[cfg(test)]
-pub(crate) mod resource_fixture;
 mod setup;
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
