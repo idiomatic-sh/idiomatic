@@ -36,10 +36,7 @@ pub(crate) struct ProjectRun<'a> {
     ordinary: Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
-    cache: Vec<(
-        crate::domain::executable_program::types::InputSource,
-        AvailableInput,
-    )>,
+    cache: Vec<crate::application::file_dag::program::facade_runtime::types::CachedInput>,
     transport: ryo_language::domain::symbols::types::TransportPermit,
     context: super::super::context::RunContext<'a>,
     publication: &'a PublicationScope,

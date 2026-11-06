@@ -88,12 +88,11 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             },
         ],
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )?;
+        None)?;
     // Required views still have to live until their published producer's last
     // consumer when optional retention is unavailable.
     file.owner.derived.set_optional_limit(0)?;

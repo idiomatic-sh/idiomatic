@@ -17,7 +17,11 @@ impl KernelPermit<'_> {
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
         match self.partition {
-            Partition::File(actual) if actual.matches(expected, self.generation) => Ok(()),
+            Partition::File(actual)
+                if actual.matches(expected, self.generation) == crate::application::file_dag::program::admission::Agreement::Same =>
+            {
+                Ok(())
+            }
             _ => Err(OperatingError::NotRead),
         }
     }

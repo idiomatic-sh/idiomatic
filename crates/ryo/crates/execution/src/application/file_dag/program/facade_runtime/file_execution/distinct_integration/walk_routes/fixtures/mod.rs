@@ -100,12 +100,11 @@ impl Program {
             },
             &self.intents,
             self.services.clone(),
-            b"",
-            matches!(self.residency, Residency::Stable),
+            ryo_values::domain::files::types::SourceView(b""),
+            if matches!(self.residency, Residency::Stable) { crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible } else { crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible },
             symbols,
             None,
-            None,
-        )
+            None)
     }
     pub(super) fn read(&self, relation: Relation) -> Result<Rows<'_>, OperatingError> {
         self.reads.fetch_add(1, Ordering::Relaxed);

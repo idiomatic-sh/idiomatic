@@ -99,9 +99,19 @@ pub struct ObservedPublication {
 pub struct LogicalCounts {
     pub fed: Box<[RowsFed]>,
 }
+/// What became of one declared output of a rule.
+pub struct OutputOutcome {
+    pub output: ObservationIndex,
+    pub outcome: RootOutcome,
+}
+/// What became of one declared output of a project rule.
+pub struct ProjectOutputOutcome {
+    pub output: ObservationIndex,
+    pub outcome: ProjectObservation,
+}
 pub struct RuleOutcome {
     pub emit: RootOutcome,
-    pub observations: Vec<(ObservationIndex, RootOutcome)>,
+    pub observations: Vec<OutputOutcome>,
     pub counts: LogicalCounts,
 }
 /// A project named root can be Complete only with the admitted owner proof.
@@ -124,7 +134,7 @@ pub enum ProjectBatch<T, E> {
 }
 pub struct ProjectRuleOutcome {
     pub emit: RootOutcome,
-    pub observations: Vec<(ObservationIndex, ProjectObservation)>,
+    pub observations: Vec<ProjectOutputOutcome>,
     pub counts: LogicalCounts,
 }
 

@@ -570,7 +570,7 @@ pub(crate) fn restore_frontiers(
             .ok_or(OperatingError::NotRun)?
             .consumers
             .iter()
-            .any(|consumer| selected.get(*consumer).copied().unwrap_or(false));
+            .any(|consumer| selected.get(consumer.0).copied().unwrap_or(false));
         if !needed {
             continue;
         }

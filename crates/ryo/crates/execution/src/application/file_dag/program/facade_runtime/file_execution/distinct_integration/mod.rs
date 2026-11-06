@@ -253,12 +253,11 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
             capture: CaptureIntent::Disabled,
         }],
         services,
-        SMALL_SOURCE,
-        true,
+        ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )?;
+        None)?;
     let function = function_rows(match scenario {
         Scenario::ReachDuplicate => &[0, 0],
         _ => &[0, 0, 2],

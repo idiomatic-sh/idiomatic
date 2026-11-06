@@ -207,12 +207,11 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
             })
             .collect::<Vec<_>>(),
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )
+        None)
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     for index in 0..consumer {
@@ -228,7 +227,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
             )
             .unwrap();
         assert!(
-            matches!(outcome.observations[0].1, RootOutcome::Complete(_)),
+            matches!(outcome.observations[0].outcome, RootOutcome::Complete(_)),
             "the actual producer publishes its named root"
         );
     }
@@ -257,7 +256,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         );
         assert_eq!(table.count.0, expected.len());
         assert_eq!(
-            file.observation_routes(0).unwrap().registered_calls,
+            file.observation_routes(ryo_values::domain::observations::types::ObservationIndex(0)).unwrap().registered_calls,
             registered_calls,
             "the top union dispatches once per input row, including singleton duplication"
         );
@@ -269,7 +268,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
             }
         ));
     }
-    let registered = file.observation_routes(0).unwrap().registered_calls;
+    let registered = file.observation_routes(ryo_values::domain::observations::types::ObservationIndex(0)).unwrap().registered_calls;
     let readiness = file.readiness_counts();
     let repeated = file
         .rule(
@@ -303,7 +302,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         )),
     }
     assert_eq!(
-        file.observation_routes(0).unwrap().registered_calls,
+        file.observation_routes(ryo_values::domain::observations::types::ObservationIndex(0)).unwrap().registered_calls,
         registered
     );
     assert_eq!(file.readiness_counts(), readiness);

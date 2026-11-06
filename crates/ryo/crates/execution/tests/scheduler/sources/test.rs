@@ -171,7 +171,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             assert_eq!(table.count, RowCount(1));
             assert_eq!(table.cells, expected);
             assert_eq!(output.observations.len(), 1);
-            let RootOutcome::Complete(observed) = &output.observations[0].1 else {
+            let RootOutcome::Complete(observed) = &output.observations[0].outcome else {
                 panic!("complete named union observation")
             };
             assert_eq!(observed.cells, expected);
@@ -285,7 +285,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     ));
     assert_eq!(first.observations.len(), 1);
     assert!(matches!(
-        first.observations[0].1,
+        first.observations[0].outcome,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
     ));
     let work = file.readiness_counts();
@@ -296,7 +296,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     ));
     assert_eq!(second.observations.len(), 1);
     assert!(matches!(
-        second.observations[0].1,
+        second.observations[0].outcome,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
     ));
     assert_eq!(

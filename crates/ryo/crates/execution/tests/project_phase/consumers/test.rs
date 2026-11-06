@@ -129,7 +129,10 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         };
         let mut produced = produced.pop().unwrap().unwrap();
         assert!(matches!(produced.emit, RootOutcome::NoQuery));
-        let (output, root) = produced.observations.pop().unwrap();
+        let ProjectOutputOutcome {
+            output,
+            outcome: root,
+        } = produced.observations.pop().unwrap();
         let ProjectObservation::Complete {
             mut table,
             publication,

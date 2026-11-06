@@ -3,6 +3,7 @@ use super::super::{ProjectSources, observation_slot};
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
+use crate::application::file_dag::program::facade_runtime::types::{CachedInput, OrdinaryPlace, Provision};
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -12,20 +13,21 @@ impl ProjectSources<'_> {
     pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn ordinary_place(
         &self,
         source: crate::domain::executable_program::types::InputSource,
-    ) -> Option<usize> {
+    ) -> Option<OrdinaryPlace> {
         self.ordinary
             .iter()
             .position(|input| matches!(input.source(), Ok(actual) if *actual == source))
+            .map(OrdinaryPlace)
     }
 
     pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn provides(
         &self,
         source: crate::domain::executable_program::types::InputSource,
-    ) -> bool {
-        matches!(
+    ) -> Provision {
+        if matches!(
             source,
             crate::domain::executable_program::types::InputSource::ObservationMember { .. }
-        ) || self.cache.iter().any(|(root, _)| *root == source)
+        ) || self.cache.iter().any(|cached| cached.source == source)
             || self.ordinary_place(source).is_some()
             || self.refused.iter().any(|refused| {
                 self.sources.iter().any(|binding| {
@@ -33,6 +35,11 @@ impl ProjectSources<'_> {
                         && matches!(&binding.root, Ok(actual) if *actual == source)
                 })
             })
+        {
+            Provision::Provided
+        } else {
+            Provision::Absent
+        }
     }
     /// Called only by an actual DemandAction::Admit. Raw source handles and
     /// errors remain untouched when a branch does not demand them.
@@ -44,8 +51,8 @@ impl ProjectSources<'_> {
         owner: &Rc<RelationOwner>,
     ) -> Option<Result<AvailableInput, OperatingError>> {
         use crate::domain::executable_program::types::InputSource;
-        if let Some((_, admitted)) = self.cache.iter().find(|(key, _)| *key == source) {
-            return Some(Ok(admitted.clone()));
+        if let Some(cached) = self.cache.iter().find(|cached| cached.source == source) {
+            return Some(Ok(cached.input.clone()));
         }
         let program = self.program;
         let rule = self.rule;
@@ -57,9 +64,12 @@ impl ProjectSources<'_> {
             if let Err(error) = actual_partition.require_supply(partition) {
                 return Some(Err(error));
             }
-            let result = self.ordinary[at].supply(owner, actual_partition);
+            let result = self.ordinary[at.0].supply(owner, actual_partition);
             if let Ok(input) = &result {
-                self.cache.push((source, input.clone()));
+                self.cache.push(CachedInput {
+                    source,
+                    input: input.clone(),
+                });
             }
             return Some(result);
         }
@@ -76,7 +86,7 @@ impl ProjectSources<'_> {
                 let Some(binding) = bound.as_mut() else {
                     continue;
                 };
-                if !matches!(observation_slot(program, rule, binding.input), Ok(found) if found == slot)
+                if !matches!(observation_slot(program, rule, binding.input), Ok(found) if found.0 == slot)
                 {
                     continue;
                 }
@@ -107,8 +117,8 @@ impl ProjectSources<'_> {
                     };
                     crate::application::file_dag::program::admission::alias_member(
                         program,
-                        slot,
-                        member,
+                        crate::application::file_dag::program::admission::AliasSlot(slot),
+                        crate::application::file_dag::program::admission::AliasMember(member),
                         producer.admitted(),
                         partition,
                         owner,
@@ -116,7 +126,10 @@ impl ProjectSources<'_> {
                 })();
                 let result = result.map(AvailableInput::published);
                 if let Ok(input) = &result {
-                    self.cache.push((source, input.clone()));
+                    self.cache.push(CachedInput {
+                    source,
+                    input: input.clone(),
+                });
                 }
                 return Some(result);
             }

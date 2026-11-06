@@ -3,6 +3,12 @@
 use ryo_values::domain::files::types::CorpusInput;
 use std::sync::Arc;
 
+/// Whether a file is one of the listed corpus.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CorpusMembership {
+    Listed,
+    Unlisted,
+}
 pub(super) struct RequestIdentity {
     corpus: Box<[CorpusInput]>,
     paths: Box<[ryo_language::domain::files::types::FilePath]>,
@@ -60,8 +66,8 @@ impl RequestIdentity {
     pub(super) fn paths(&self) -> &[ryo_language::domain::files::types::FilePath] {
         &self.paths
     }
-    pub(super) fn matches_corpus(&self, corpus: &[CorpusInput]) -> bool {
-        self.corpus.as_ref() == corpus
+    pub(super) fn corpus(&self) -> &[CorpusInput] {
+        &self.corpus
     }
     pub(super) fn path(
         &self,
@@ -72,8 +78,12 @@ impl RequestIdentity {
             CorpusInput::Unreadable { path, .. } => path,
         })
     }
-    pub(super) fn contains(&self, file: ryo_relations::domain::relations::types::FileId) -> bool {
-        (file.0 as usize) < self.corpus.len()
+    pub(super) fn contains(&self, file: ryo_relations::domain::relations::types::FileId) -> CorpusMembership {
+        if (file.0 as usize) < self.corpus.len() {
+            CorpusMembership::Listed
+        } else {
+            CorpusMembership::Unlisted
+        }
     }
 }
 impl PartialEq for RequestIdentity {
@@ -82,36 +92,3 @@ impl PartialEq for RequestIdentity {
     }
 }
 impl Eq for RequestIdentity {}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ryo_language::domain::files::types::FilePath;
-    use ryo_values::domain::files::types::InputReadFailure;
-    const EDGE_REFUSAL: &str = "actual edge refusal";
-    const FIRST: &str = "first";
-    const SECOND: &str = "second";
-    const SAME: &str = "same";
-    fn corpus(path: FilePath) -> Vec<CorpusInput> {
-        vec![CorpusInput::Unreadable {
-            path,
-            reason: InputReadFailure(EDGE_REFUSAL.into()),
-        }]
-    }
-    #[test]
-    fn equal_inventory_size_does_not_authorize_corpus_substitution() {
-        let first = corpus(FilePath(FIRST.into()));
-        let identity = RequestIdentity::new(&first);
-        assert!(identity.matches_corpus(&first));
-        assert!(!identity.matches_corpus(&corpus(FilePath(SECOND.into()))));
-    }
-    #[test]
-    fn each_run_has_a_distinct_generation_even_with_identical_metadata() {
-        let corpus = corpus(FilePath(SAME.into()));
-        let first = Arc::new(RequestIdentity::new(&corpus));
-        let same = Arc::clone(&first);
-        let later = Arc::new(RequestIdentity::new(&corpus));
-        assert!(first == same);
-        assert!(first != later);
-    }
-}

@@ -81,7 +81,7 @@ fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedE
 }
 
 #[test]
-fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
+fn two_declared_roots_of_one_population_read_the_provider_once_and_join_real_captured_rows() {
     for relation in [
         Relation::ProjectNamespaceMembership,
         Relation::ModuleIdentity,
@@ -243,26 +243,24 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .unwrap();
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
-        // Two declared roots of the one rule; each root prepares (and so acquires) its own frontier.
-        let prepare = |symbols: &mut Symbols| {
-            request
-                .prepare_frontiers(
-                    FrontierRequest {
-                        demand: FrontierDemand::Diagnostic,
-                        scope: &scope,
-                        rule: RuleIndex(0),
-                        first: Bucket(0),
-                        facts: &stored,
-                        project: &project,
-                        project_symbols: &project_symbols,
-                    },
-                    symbols,
-                )
-                .expect("admit real file frontier and project facts")
-        };
-        let (first, second) = (prepare(&mut symbols), prepare(&mut symbols));
-        assert_eq!(stored.reads.load(Ordering::SeqCst), 2);
-        assert_eq!(project.reads.load(Ordering::SeqCst), 2);
+        // One acquisition of the frontier sources serves both declared roots of the one population.
+        let prepared = request
+            .prepare_frontiers(
+                FrontierRequest {
+                    demand: FrontierDemand::Diagnostic,
+                    scope: &scope,
+                    rule: RuleIndex(0),
+                    first: Bucket(0),
+                    facts: &stored,
+                    project: &project,
+                    project_symbols: &project_symbols,
+                },
+                &mut symbols,
+            )
+            .expect("admit real file frontier and project facts");
+        let (first, second) = (prepared.clone(), prepared);
+        assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         let partials = Partials::default();
         let input = |ordinary| ProjectInput {
             scope: &scope,
@@ -310,8 +308,8 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
         phase.finish().expect("release project publications");
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
-            2,
-            "evaluating the roots rereads no project facts beyond the two frontier acquisitions"
+            1,
+            "two declared roots of one population read the provider once"
         );
         request.finish();
         assert_eq!(
@@ -935,7 +933,10 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     )
     .unwrap();
     assert!(matches!(result.emit, RootOutcome::NoQuery));
-    let (output, observed) = result.observations.pop().unwrap();
+    let ProjectOutputOutcome {
+        output,
+        outcome: observed,
+    } = result.observations.pop().unwrap();
     assert_eq!(output, ObservationIndex(0));
     let ProjectObservation::Complete {
         mut table,

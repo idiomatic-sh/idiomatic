@@ -112,11 +112,12 @@ impl ProjectRun<'_> {
                         )
                     })
                     .map(|input| input.with_coverage(completion.coverage(&root.reads)));
-                observations.push((
-                    ryo_values::domain::observations::types::ObservationIndex(
+                observations.push(
+                    crate::application::file_dag::program::protocol::types::ProjectOutputOutcome {
+                    output: ryo_values::domain::observations::types::ObservationIndex(
                         u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                     ),
-                    match result {
+                    outcome: match result {
                         Ok(input) => match table_of(&self.owner, &input, &unavailable)
                             .and_then(|table| Ok((table, input.coverage()?)))
                         {
@@ -138,7 +139,7 @@ impl ProjectRun<'_> {
                         },
                         Err(error) => ProjectObservation::Other(classify(error)),
                     },
-                ));
+                });
             }
         }
         Ok(ProjectRuleOutcome {

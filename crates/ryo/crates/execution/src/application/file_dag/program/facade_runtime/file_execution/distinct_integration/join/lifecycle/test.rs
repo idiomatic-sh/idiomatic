@@ -169,12 +169,11 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             },
         ],
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         Some(&lookup),
-        None,
-    )?;
+        None)?;
     let owner = Rc::clone(&file.owner);
     let outer_root = file
         .program

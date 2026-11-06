@@ -10,7 +10,9 @@ use crate::application::file_dag::program::facade_runtime::file_execution::FileR
 use crate::application::file_dag::program::facade_runtime::file_execution::classify;
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::facade_runtime::types::FileRoot;
+use crate::application::file_dag::program::facade_runtime::types::{
+    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, WalkPreparation,
+};
 use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::protocol::types::ApplicabilityRefusal;
 use crate::application::file_dag::program::protocol::types::CaptureIntent;
@@ -94,11 +96,11 @@ impl FileRun<'_> {
                 && compiled.outputs.0 != 0
             {
                 self.roots.insert(
-                    index,
+                    rule,
                     (0..compiled.outputs.0)
                         .map(|_| FileRoot {
                             readiness: None,
-                            committed_frontier: false,
+                            commit: FrontierCommit::Pending,
                             publication: None,
                             skipped: None,
                         })
@@ -107,9 +109,18 @@ impl FileRun<'_> {
             }
             for &output in &plan.observations {
                 let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
-                let ready = crate::domain::trust::service::blocked(&root.reads, publication)
-                    == crate::domain::trust::types::Blocking::Free;
-                self.prepared_named.push((index, output.0 as usize, ready));
+                let readiness = if crate::domain::trust::service::blocked(&root.reads, publication)
+                    == crate::domain::trust::types::Blocking::Free
+                {
+                    NamedReadiness::Ready
+                } else {
+                    NamedReadiness::Blocked
+                };
+                self.prepared_named.push(PreparedNamed {
+                    rule,
+                    output,
+                    readiness,
+                });
             }
             for root in &plan.roots {
                 let id = match root {
@@ -135,7 +146,7 @@ impl FileRun<'_> {
             match intent {
                 FileRuleIntent::Skipped(reason) => {
                     let proof = ApplicabilityProof::for_file(rule, self.file, reason, &self.owner);
-                    if let Some(roots) = self.roots.get_mut(&index) {
+                    if let Some(roots) = self.roots.get_mut(&rule) {
                         for root in roots {
                             root.readiness = Some(
                                 ryo_values::domain::observations::types::ProducerReadiness::Skipped,
@@ -149,7 +160,7 @@ impl FileRun<'_> {
                         ApplicabilityRefusal::SyntaxUndetermined => SYNTAX_UNDETERMINED,
                         ApplicabilityRefusal::MetadataUnavailable => METADATA_UNAVAILABLE,
                     };
-                    if let Some(roots) = self.roots.get_mut(&index) {
+                    if let Some(roots) = self.roots.get_mut(&rule) {
                         for root in roots {
                             root.readiness = Some(
                                 ryo_values::domain::observations::types::ProducerReadiness::Unknown(
@@ -170,13 +181,17 @@ impl FileRun<'_> {
     pub(in crate::application::file_dag::program::facade_runtime::file_execution) fn declared(
         &self,
         rule: RuleIndex,
-    ) -> Result<(DiagnosticDelivery, ObservationDemand, CaptureIntent), OperatingError> {
+    ) -> Result<DeclaredIntent, OperatingError> {
         match self.intents.get(rule.0) {
             Some(FileRuleIntent::Run {
                 diagnostic,
                 observations,
                 capture,
-            }) => Ok((*diagnostic, *observations, *capture)),
+            }) => Ok(DeclaredIntent {
+                diagnostic: *diagnostic,
+                observations: *observations,
+                capture: *capture,
+            }),
             _ => Err(OperatingError::NotRun),
         }
     }
@@ -187,11 +202,11 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<(), OperatingError> {
-        if self.walk_prepared {
+        if self.walk_prepared == WalkPreparation::Prepared {
             return Ok(());
         }
         let Some(first) = self.prepared_roots.first() else {
-            self.walk_prepared = true;
+            self.walk_prepared = WalkPreparation::Prepared;
             return Ok(());
         };
         let rule = self.program.program().regions()[first.0].producer;
@@ -233,11 +248,15 @@ impl FileRun<'_> {
         // Named roots have their own declared demand. Publish their readiness
         // through the same evaluation contract before delivering any diagnostic.
         let mut named = Vec::new();
-        for &(index, output, ready) in &self.prepared_named {
-            let rule = RuleIndex(index);
-            let root = &self.program.rule_metadata(rule)?.observations[output];
+        for &PreparedNamed {
+            rule,
+            output,
+            readiness,
+        } in &self.prepared_named
+        {
+            let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
             sources.bind_rule(rule);
-            let result = if ready {
+            let result = if readiness == NamedReadiness::Ready {
                 root.source.clone().and_then(|source| {
                     sources.admit_source(
                         source,
@@ -251,7 +270,7 @@ impl FileRun<'_> {
                 })
             };
             let result = result.and_then(|input| {
-                if input.observation_ready()? {
+                if input.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Ready {
                     Ok(input)
                 } else {
                     Err(OperatingError::ObservationIncomplete {
@@ -259,11 +278,12 @@ impl FileRun<'_> {
                     })
                 }
             });
-            named.push((index, output, result));
+            named.push((rule, output, result));
         }
         drop(sources);
         for (rule, output, result) in named {
-            let root = &mut self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output];
+            let root =
+                &mut self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize];
             match result {
                 Ok(input) => {
                     root.publication = Some(input);
@@ -275,7 +295,7 @@ impl FileRun<'_> {
                 }
             }
         }
-        self.walk_prepared = true;
+        self.walk_prepared = WalkPreparation::Prepared;
         Ok(())
     }
 }

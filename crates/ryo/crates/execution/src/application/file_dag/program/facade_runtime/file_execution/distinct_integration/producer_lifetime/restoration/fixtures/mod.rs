@@ -226,12 +226,11 @@ impl CapturedProject {
             },
             &intents,
             Arc::clone(&services),
-            b"",
-            true,
+            ryo_values::domain::files::types::SourceView(b""),
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             symbols,
             None,
-            None,
-        )?;
+            None)?;
         let mut arena = vec![];
         let mut places = vec![];
         let mut words = ryo_relations::domain::relations::types::Words::default();
@@ -310,7 +309,7 @@ impl CapturedProject {
         )?;
         assert!(matches!(produced.emit, RootOutcome::NoQuery));
         assert_eq!(produced.observations.len(), 1);
-        let (_, observed) = produced.observations.pop().unwrap();
+        let crate::application::file_dag::program::protocol::types::ProjectOutputOutcome { outcome: observed, .. } = produced.observations.pop().unwrap();
         let ProjectObservation::Complete { table, publication } = observed else {
             panic!("real empty project member must publish successfully")
         };

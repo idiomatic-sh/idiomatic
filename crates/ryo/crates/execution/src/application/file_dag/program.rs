@@ -9,6 +9,8 @@ pub(super) mod runtime;
 pub(crate) mod restored;
 
 mod request_identity;
+#[cfg(test)]
+mod request_identity_test;
 
 mod context;
 pub(in crate::application::file_dag) mod native_walk;

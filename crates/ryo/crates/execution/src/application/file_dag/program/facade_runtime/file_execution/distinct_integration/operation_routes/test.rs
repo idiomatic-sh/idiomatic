@@ -331,12 +331,11 @@ fn execute_fixture(
             capture: CaptureIntent::Disabled,
         }],
         services,
-        fixtures::SOURCE,
-        true,
+        ryo_values::domain::files::types::SourceView(fixtures::SOURCE),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut case.symbols,
         Some(&semantic),
-        None,
-    )?;
+        None)?;
     let read = |relation| {
         sources
             .providers

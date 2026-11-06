@@ -8,6 +8,7 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::outcome_of;
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
 use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
 use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
 use crate::application::file_dag::program::protocol::types::EmitDemand;
@@ -43,7 +44,11 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
-        let (diagnostic, observations, _) = self.declared(rule)?;
+        let DeclaredIntent {
+            diagnostic,
+            observations,
+            ..
+        } = self.declared(rule)?;
         let emit = match diagnostic {
             DiagnosticDelivery::Disabled => EmitDemand::Disabled,
             DiagnosticDelivery::Collected => EmitDemand::Enabled,
@@ -158,21 +163,23 @@ impl FileRun<'_> {
                     },
                     Err(error) => classify(error),
                 };
-                observations.push((
-                    ryo_values::domain::observations::types::ObservationIndex(
-                        u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
-                    ),
-                    outcome,
-                ));
+                observations.push(
+                    crate::application::file_dag::program::protocol::types::OutputOutcome {
+                        output: ryo_values::domain::observations::types::ObservationIndex(
+                            u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
+                        ),
+                        outcome,
+                    },
+                );
             }
         }
         drop(sources);
         for (index, input) in published {
-            self.roots.get_mut(&rule.0).ok_or(OperatingError::NotRun)?[index].publication =
+            self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[index].publication =
                 Some(input);
         }
-        for (output, outcome) in &observations {
-            self.roots.get_mut(&rule.0).ok_or(OperatingError::NotRun)?[output.0 as usize]
+        for crate::application::file_dag::program::protocol::types::OutputOutcome { output, outcome } in &observations {
+            self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize]
                 .readiness = readiness_of(outcome);
         }
         Ok(RuleOutcome {

@@ -138,7 +138,8 @@ impl ValidatedFrontier {
     ) -> Result<ObservedPublication, OperatingError> {
         if !Arc::ptr_eq(&self.program, scope.program())
             || !scope.owner().matches_generation(&self.generation)
-            || !self.partition.same_request(required)
+            || self.partition.same_request(required)
+                == crate::application::file_dag::program::admission::Agreement::Different
         {
             return Err(OperatingError::NotRead);
         }

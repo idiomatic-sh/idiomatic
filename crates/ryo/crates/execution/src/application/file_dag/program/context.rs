@@ -19,7 +19,7 @@ use {
 pub(super) struct RunContext<'a> {
     phase: crate::domain::operating::types::AfterTheFiles,
     request: Arc<RequestIdentity>,
-    source: &'a [u8],
+    source: SourceView<'a>,
     symbols: TransportPermit,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
@@ -30,7 +30,7 @@ pub(super) struct RunContext<'a> {
 impl<'a> RunContext<'a> {
     pub(super) fn file(
         services: &ProgramServices,
-        source: &'a [u8],
+        source: SourceView<'a>,
         symbols: &mut Symbols,
         semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
         kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
@@ -54,7 +54,7 @@ impl<'a> RunContext<'a> {
     ) -> Self {
         Self {
             request: Arc::clone(services.request()),
-            source: &[],
+            source: SourceView(&[]),
             symbols,
             semantic: None,
             kinds: None,
@@ -80,7 +80,7 @@ impl<'a> RunContext<'a> {
             prepared_matchers: Some(program.matchers().as_ref()),
             bindings: program.bindings(rule)?,
             symbols: symbols.into(),
-            source: SourceView(self.source),
+            source: self.source,
             paths: self.request.paths(),
             arenas: self.arenas,
             memo: &mut self.memo,

@@ -1,5 +1,6 @@
 //! Warm replay closure is observed through the actual prepared facade, not a copied graph algorithm.
 
+use crate::application::file_dag::program::preparation::types::ReplayClosure;
 use crate::domain::{
     operating::errors::OperatingError,
     prepared_request::{service::assemble, types::ObservationIdentity},
@@ -149,19 +150,19 @@ fn warm_consumer_selects_transitive_cross_producers_and_changed_producer_selects
     let first = [Bucket(10), Bucket(20), Bucket(30), Bucket(40)];
     assert_eq!(
         prepared.replay_closure(selection(&[2]), &first).unwrap(),
-        (selection(&[0, 1, 2]), vec![])
+        ReplayClosure { reuse: selection(&[0, 1, 2]), buckets: vec![] }
     );
     assert_eq!(
         prepared.replay_closure(selection(&[0]), &first).unwrap(),
-        (selection(&[0, 1, 2]), vec![])
+        ReplayClosure { reuse: selection(&[0, 1, 2]), buckets: vec![] }
     );
     assert_eq!(
         prepared.replay_closure(selection(&[3]), &first).unwrap(),
-        (selection(&[3]), vec![])
+        ReplayClosure { reuse: selection(&[3]), buckets: vec![] }
     );
     assert_eq!(
         prepared.replay_closure(selection(&[]), &first).unwrap(),
-        (selection(&[]), vec![])
+        ReplayClosure { reuse: selection(&[]), buckets: vec![] }
     );
     assert!(matches!(
         prepared.replay_closure(selection(&[4]), &first),
@@ -178,7 +179,7 @@ fn per_file_producer_is_not_reexecuted_in_the_consumer_cross_phase() {
                 &[Bucket(10), Bucket(20), Bucket(30), Bucket(40)]
             )
             .unwrap(),
-        (selection(&[1, 2]), vec![Bucket(10)]),
+        ReplayClosure { reuse: selection(&[1, 2]), buckets: vec![Bucket(10)] },
         "actual captured file frontier is read instead of rerunning its producer"
     );
 }

@@ -70,12 +70,11 @@ pub(in super::super) fn execute(
             capture: CaptureIntent::Disabled,
         }],
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         symbols,
         None,
-        None,
-    )
+        None)
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let outcome = file

@@ -79,12 +79,11 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
                 capture: CaptureIntent::Disabled,
             }],
             Arc::clone(&services),
-            b"",
-            true,
+            ryo_values::domain::files::types::SourceView(b""),
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None,
-        )
+            None)
         .unwrap();
         let weak = Rc::downgrade(&file.owner);
         let mut prefix = vec![];
@@ -178,12 +177,11 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             capture: CaptureIntent::Disabled,
         }],
         Arc::clone(&services),
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )
+        None)
     .unwrap();
     let mut rows = vec![];
     assert!(matches!(

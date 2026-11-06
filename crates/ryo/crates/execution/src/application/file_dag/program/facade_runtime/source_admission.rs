@@ -6,7 +6,10 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::constants::PRODUCER_COVERAGE_INCOMPLETE;
+use crate::application::file_dag::program::facade_runtime::types::CachedInput;
 use crate::application::file_dag::program::facade_runtime::types::FileRoot;
+use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
+use crate::application::file_dag::program::facade_runtime::types::Provision;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
@@ -34,10 +37,7 @@ pub(super) struct ProjectSources<'a> {
     pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
-    pub(super) cache: &'a mut Vec<(
-        crate::domain::executable_program::types::InputSource,
-        AvailableInput,
-    )>,
+    pub(super) cache: &'a mut Vec<CachedInput>,
     pub(super) transport: &'a ryo_language::domain::symbols::types::TransportPermit,
     pub(super) publication: &'a PublicationScope,
 }
@@ -53,8 +53,8 @@ pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) completion: CompletionPolicy,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    pub(super) observations: &'a mut HashMap<usize, AdmittedInput>,
-    pub(super) file_outputs: Option<&'a HashMap<usize, Vec<FileRoot>>>,
+    pub(super) observations: &'a mut HashMap<ObservationKey, AdmittedInput>,
+    pub(super) file_outputs: Option<&'a HashMap<RuleIndex, Vec<FileRoot>>>,
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
     pub(super) project: Option<ProjectSources<'a>>,
@@ -88,12 +88,12 @@ impl Inputs for SourceInputs<'_, '_> {
         if self
             .project
             .as_ref()
-            .is_some_and(|project| project.provides(source))
+            .is_some_and(|project| project.provides(source) == Provision::Provided)
         {
             return Ok(None);
         }
         if let InputSource::Observation(slot) = source {
-            if self.observations.contains_key(&slot) {
+            if self.observations.contains_key(&ObservationKey(slot)) {
                 return Ok(None);
             }
         }
@@ -131,7 +131,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     } => {
                         if self
                             .file_outputs
-                            .and_then(|outputs| outputs.get(&rule.0))
+                            .and_then(|outputs| outputs.get(rule))
                             .and_then(|roots| roots.get(output.0 as usize))
                             .is_some_and(|root| {
                                 root.publication.is_some() || root.readiness.is_some()
@@ -280,7 +280,7 @@ pub(super) fn observation_table<'facts>(
     input: &AdmittedInput,
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<Table, OperatingError> {
-    if !input.observation_ready()? {
+    if input.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Waiting {
         return Err(OperatingError::ObservationIncomplete {
             reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
         });
@@ -292,7 +292,8 @@ pub(super) fn observation_slot(
     program: &PreparedProgram,
     rule: RuleIndex,
     input: ryo_values::domain::observations::types::ObservationBindingId,
-) -> Result<usize, OperatingError> {
+
+) -> Result<ObservationKey, OperatingError> {
     let slots = &program
         .observation_metadata()
         .ok_or(OperatingError::NotRun)?
@@ -305,5 +306,5 @@ pub(super) fn observation_slot(
     if matching.next().is_some() {
         return Err(OperatingError::WrongOperation);
     }
-    Ok(index)
+    Ok(ObservationKey(index))
 }

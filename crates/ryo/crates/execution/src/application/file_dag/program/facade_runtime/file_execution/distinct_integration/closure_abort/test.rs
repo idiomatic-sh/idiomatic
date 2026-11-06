@@ -155,12 +155,11 @@ fn exercise(refusal: Refusal, fused: bool) {
             capture: CaptureIntent::Disabled,
         }],
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )
+        None)
     .unwrap();
     let owner = Rc::clone(&file.owner);
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);

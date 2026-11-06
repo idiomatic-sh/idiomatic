@@ -47,12 +47,11 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         },
         &intents,
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )?;
+        None)?;
     file.owner.derived.set_optional_limit(0)?;
     assert_eq!(
         file.prepared_roots

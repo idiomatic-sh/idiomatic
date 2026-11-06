@@ -388,12 +388,11 @@ pub(super) fn observe(omit: bool) -> Coverage {
             },
             &[intent; 5],
             services,
-            SMALL_SOURCE,
-            true,
+            ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None,
-        )
+            None)
         .unwrap();
         let function = function_rows(&[0, 2]);
         let read = |relation| match relation {

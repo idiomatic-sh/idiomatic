@@ -153,12 +153,11 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
             capture: CaptureIntent::Disabled,
         }],
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )?;
+        None)?;
     let left = edges(&[(99, 7)]);
     let right = edges(&[(3, 7), (1, 7), (3, 7)]);
     let read = |relation| match relation {

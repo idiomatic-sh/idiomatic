@@ -148,12 +148,11 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 },
             ],
             services,
-            b"",
-            true,
+            ryo_values::domain::files::types::SourceView(b""),
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None,
-        )
+            None)
         .unwrap();
         let table = function_rows(&[0]);
         let read = |relation| {
@@ -175,13 +174,13 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             )
             .unwrap();
         assert_eq!(outcome.observations.len(), 1);
-        assert_eq!(outcome.observations[0].0, ObservationIndex(0));
+        assert_eq!(outcome.observations[0].output, ObservationIndex(0));
         if failed_emit {
             assert!(matches!(
                 outcome.emit,
                 RootOutcome::Failed(OperatingError::WrongOperation)
             ));
-            let RootOutcome::Complete(observed) = &outcome.observations[0].1 else {
+            let RootOutcome::Complete(observed) = &outcome.observations[0].outcome else {
                 panic!("independent named root must publish despite emit refusal")
             };
             assert_eq!(observed.count.0, 1);
@@ -190,7 +189,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 [Cell::Node(node_id(FileId(0), Position(0)))]
             );
             assert_eq!(
-                file.roots[&0][0].readiness,
+                file.roots[&RuleIndex(0)][0].readiness,
                 Some(ProducerReadiness::Complete)
             );
         } else {
@@ -200,14 +199,14 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             assert_eq!(emitted.count.0, 1);
             assert_eq!(emitted.cells, [Cell::Node(node_id(FileId(0), Position(0)))]);
             assert!(matches!(
-                &outcome.observations[0].1,
+                &outcome.observations[0].outcome,
                 RootOutcome::Failed(OperatingError::WrongOperation)
             ));
             assert!(matches!(
-                &file.roots[&0][0].readiness,
+                &file.roots[&RuleIndex(0)][0].readiness,
                 Some(ProducerReadiness::Unknown(_))
             ));
-            assert!(file.roots[&0][0].publication.is_none());
+            assert!(file.roots[&RuleIndex(0)][0].publication.is_none());
         }
         file.finish().unwrap();
     }

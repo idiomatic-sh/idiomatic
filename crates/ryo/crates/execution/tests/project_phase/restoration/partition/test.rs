@@ -537,7 +537,10 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         &mut symbols,
     )
     .unwrap();
-    let (output, observed) = outcome.observations.pop().unwrap();
+    let ProjectOutputOutcome {
+        output,
+        outcome: observed,
+    } = outcome.observations.pop().unwrap();
     let (table, publication, readiness) = match (mode, observed) {
         (
             Mode::Current | Mode::CurrentRekey { .. },
@@ -617,26 +620,28 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             .get(&ObservationBindingId(0)),
         Some(&true)
     );
-    // Two declared roots of the one rule share the invocation; each prepares its own frontier.
-    let inputs = (0..2)
-        .map(|_| ProjectInput {
+    // One acquisition of the frontier sources serves both declared roots of the one population.
+    let prepared = request
+        .prepare_frontiers(
+            FrontierRequest {
+                demand: FrontierDemand::Diagnostic,
+                scope: &scope,
+                rule: RuleIndex(2),
+                first: Bucket(20),
+                facts: &stored,
+                project: &project_facts,
+                project_symbols: &project_symbols,
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    let inputs = [prepared.clone(), prepared]
+        .into_iter()
+        .map(|ordinary| ProjectInput {
             scope: &scope,
             evaluation: &partials,
             publication: &partials,
-            ordinary: request
-                .prepare_frontiers(
-                    FrontierRequest {
-                    demand: FrontierDemand::Diagnostic,
-                    scope: &scope,
-                    rule: RuleIndex(2),
-                    first: Bucket(20),
-                    facts: &stored,
-                    project: &project_facts,
-                    project_symbols: &project_symbols,
-                },
-                    &mut symbols,
-                )
-                .unwrap(),
+            ordinary,
             bound: &bound,
             arenas: stage.arenas(),
         })
@@ -689,8 +694,8 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
     }
     assert_eq!(
         project_facts.reads.load(Ordering::SeqCst),
-        2 * usize::from(matches!(mode, Mode::Current | Mode::CurrentRekey { .. })),
-        "one project read per prepared frontier, none while evaluating the roots"
+        usize::from(matches!(mode, Mode::Current | Mode::CurrentRekey { .. })),
+        "two declared roots of one population read the provider once"
     );
     drop(bound);
     drop(scope);

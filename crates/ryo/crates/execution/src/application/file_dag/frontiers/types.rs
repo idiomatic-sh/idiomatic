@@ -23,6 +23,7 @@ pub struct BoundInput {
 }
 
 /// Admission preserves independent input successes and explicit refusal causes.
+#[derive(Clone)]
 pub(in crate::application::file_dag) struct FrontierSource {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub root: Result<
@@ -30,6 +31,9 @@ pub(in crate::application::file_dag) struct FrontierSource {
         crate::domain::operating::errors::OperatingError,
     >,
 }
+/// One acquisition of the frontier sources. Roots of one population submit clones of it,
+/// so the provider is read once per cohort, never once per root.
+#[derive(Clone)]
 pub struct PreparedFrontiers {
     pub(in crate::application::file_dag) producer: crate::domain::coverage::types::RuleIndex,
     pub(in crate::application::file_dag) sources: Box<[FrontierSource]>,
@@ -44,6 +48,7 @@ pub struct PreparedFrontiers {
 
 /// Admitted phase inputs. Compact sources have schemas/name mappings but no
 /// decoded cell allocation; the same graph owner materializes them on demand.
+#[derive(Clone)]
 pub(crate) enum FrontierInput {
     Decoded {
         frontier: crate::domain::table_model::types::Frontier,
@@ -63,7 +68,8 @@ impl PreparedFrontiers {
         program: &std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
     ) -> Result<(), crate::domain::operating::errors::OperatingError> {
-        if !std::sync::Arc::ptr_eq(&self.program, program) || !self.required.same_request(required)
+        if !std::sync::Arc::ptr_eq(&self.program, program) || self.required.same_request(required)
+            == crate::application::file_dag::program::admission::Agreement::Different
         {
             return Err(crate::domain::operating::errors::OperatingError::NotRead);
         }

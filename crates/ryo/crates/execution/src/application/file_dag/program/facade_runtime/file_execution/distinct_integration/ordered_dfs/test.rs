@@ -194,12 +194,11 @@ fn execute_request(
             capture: CaptureIntent::Disabled,
         }],
         services,
-        source,
-        true,
+        ryo_values::domain::files::types::SourceView(source),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         symbols,
         None,
-        None,
-    )?;
+        None)?;
     let read = |relation| {
         providers
             .iter()
@@ -959,12 +958,11 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
             capture: CaptureIntent::Disabled,
         }; 4],
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )
+        None)
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let mut outputs = Vec::new();

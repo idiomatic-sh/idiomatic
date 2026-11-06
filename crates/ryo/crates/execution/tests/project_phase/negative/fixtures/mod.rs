@@ -99,7 +99,7 @@ impl Held<'_> {
 }
 
 /// The prepared program of `rule_count` rules; the stage entry declares one closed named binding.
-fn program(engine: &ExecutionUseCaseImpl, entry: Entry, rule_count: usize) -> PreparedProgram {
+fn program(engine: &ExecutionUseCaseImpl, entry: Entry, rule_count: usize) -> PreparedExecutionProgram {
     let mut authored = crate::boundary_fixture::authored_request(rule_count);
     if matches!(entry, Entry::Stage) {
         // A named request needs a dependency schedule: rule 0 declares one closed empty binding.
@@ -326,5 +326,13 @@ pub(crate) fn foreign_phase_outcome(
     match batch {
         ProjectBatch::Complete(mut done) => done.remove(0),
         ProjectBatch::Refused { error, .. } => Err(error),
+    }
+}
+
+/// A compiled rule with no file frontier to fetch.
+pub(crate) struct NoFileFrontiers;
+impl facts::FactsFinish for NoFileFrontiers {
+    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+        panic!("this compiled rule has no file frontier to fetch")
     }
 }

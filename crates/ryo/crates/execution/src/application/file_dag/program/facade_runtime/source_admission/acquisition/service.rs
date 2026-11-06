@@ -10,6 +10,7 @@ use crate::application::file_dag::program::constants::{
     OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, PRODUCER_ROOT_INCOMPLETE,
     PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
 };
+use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::operating::errors::OperatingError;
@@ -89,7 +90,7 @@ impl SourceInputs<'_, '_> {
                 .published(self.state, id)?
                 .ok_or(OperatingError::NotRun),
             InputSource::Observation(slot) => {
-                if let Some(input) = self.observations.get(&slot) {
+                if let Some(input) = self.observations.get(&ObservationKey(slot)) {
                     return Ok(AvailableInput::published(input.clone()));
                 }
                 let union = *self
@@ -106,11 +107,11 @@ impl SourceInputs<'_, '_> {
                     .ok_or(OperatingError::NotRun)?;
                 let admitted = crate::application::file_dag::program::admission::alias_observation(
                     self.program.program(),
-                    slot,
+                    crate::application::file_dag::program::admission::AliasSlot(slot),
                     &input,
                     &self.owner,
                 )?;
-                self.observations.insert(slot, admitted.clone());
+                self.observations.insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
             }
             InputSource::EmptyObservation(slot) => {
@@ -178,12 +179,12 @@ impl SourceInputs<'_, '_> {
                     });
                 };
                 let published = outputs
-                    .get(&rule.0)
+                    .get(rule)
                     .and_then(|roots| roots.get(output.0 as usize))
                     .and_then(|root| root.publication.clone());
                 if published.is_none()
                     && outputs
-                        .get(&rule.0)
+                        .get(rule)
                         .and_then(|roots| roots.get(output.0 as usize))
                         .is_some_and(|root| root.readiness.is_some())
                 {
@@ -217,15 +218,15 @@ impl SourceInputs<'_, '_> {
                         admitted?
                     }
                 };
-                if !admitted.observation_ready()? {
+                if admitted.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Waiting {
                     return Err(OperatingError::ObservationIncomplete {
                         reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
                     });
                 }
                 crate::application::file_dag::program::admission::alias_member(
                     self.program,
-                    slot,
-                    member,
+                    crate::application::file_dag::program::admission::AliasSlot(slot),
+                    crate::application::file_dag::program::admission::AliasMember(member),
                     &admitted,
                     partition,
                     &self.owner,

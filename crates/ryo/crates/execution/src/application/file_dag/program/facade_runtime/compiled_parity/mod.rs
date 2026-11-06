@@ -383,12 +383,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             capture: CaptureIntent::Disabled,
         }],
         services,
-        SMALL_SOURCE,
-        true,
+        ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )?;
+        None)?;
     let function = Table {
         kinds: kinds(Relation::Function).to_vec(),
         cells: kinds(Relation::Function)

@@ -332,12 +332,11 @@ fn execute(
             capture: CaptureIntent::DiagnosticAndObservations,
         }],
         services,
-        source,
-        true,
+        ryo_values::domain::files::types::SourceView(source),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         symbols,
         None,
-        None,
-    )?;
+        None)?;
     if let Some(limit) = faults.optional_limit {
         file.owner.derived.set_optional_limit(limit)?;
     }

@@ -6,6 +6,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::contributor_readiness;
 use crate::application::file_dag::program::context::RunContext;
+use ryo_values::domain::files::types::SourceView;
 use crate::application::file_dag::program::kernel_session::KernelSession;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
@@ -235,7 +236,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             rule: RuleIndex(0),
             project: None,
         };
-    let mut run_context = RunContext::file(&services, SMALL_SOURCE, &mut symbols, None, None);
+    let mut run_context = RunContext::file(&services, SourceView(SMALL_SOURCE), &mut symbols, None, None);
     let mut context = run_context.borrow(&mut symbols, &prepared, RuleIndex(0))?;
     if matches!(
         case,

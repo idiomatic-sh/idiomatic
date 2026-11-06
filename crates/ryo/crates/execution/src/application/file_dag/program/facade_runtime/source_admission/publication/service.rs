@@ -44,7 +44,9 @@ impl SourceInputs<'_, '_> {
                 .ok_or(OperatingError::NotRun)?;
             let column = code.column.as_ref().filter(|_| inputs.len() == 2);
             let ordered = code.ordered_existence.as_ref().filter(|shape| {
-                inputs.len() == 1 && inputs[0].has_root(ProducerRoot::Region(shape.source))
+                inputs.len() == 1
+                    && inputs[0].has_root(ProducerRoot::Region(shape.source))
+                        == crate::application::file_dag::program::admission::Agreement::Same
             });
             // Alternatives certify their original semantic operands, not the
             // unary Project/Select that owns the final publication boundary.

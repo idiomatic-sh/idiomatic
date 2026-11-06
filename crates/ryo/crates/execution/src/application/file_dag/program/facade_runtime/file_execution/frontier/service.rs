@@ -3,6 +3,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
+use crate::application::file_dag::program::facade_runtime::types::{DeclaredIntent, FrontierCommit};
 use crate::application::file_dag::program::protocol::types::CaptureIntent;
 use crate::application::file_dag::program::protocol::types::CaptureScope;
 use crate::application::file_dag::program::protocol::types::CapturedFrontier;
@@ -36,9 +37,12 @@ impl FileRun<'_> {
         first: Bucket,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        capture: CaptureContext<'_>,
+        capture: CaptureScope<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        let (_, _, capture_intent) = self.declared(rule)?;
+        let DeclaredIntent {
+            capture: capture_intent,
+            ..
+        } = self.declared(rule)?;
         if capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);
         }
@@ -92,7 +96,7 @@ impl FileRun<'_> {
         let crate::domain::finish::types::Retained { arena, places: _ } = retained;
         for (index, source) in sources.into_iter().enumerate() {
             if capture_intent == CaptureIntent::Observations
-                && !self.program.captures_observation(rule, index)?
+                && self.program.frontier_purpose(rule, InputNumber(index))? != crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation
             {
                 continue;
             }
@@ -163,20 +167,20 @@ impl FileRun<'_> {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<(), OperatingError> {
-        let (_, _, capture) = self.declared(rule)?;
+        let DeclaredIntent { capture, .. } = self.declared(rule)?;
         if capture == CaptureIntent::Disabled
             || (capture == CaptureIntent::Observations
-                && !self.program.captures_observation(rule, input.0)?)
+                && self.program.frontier_purpose(rule, input)? != crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)
             || input.0 >= self.program.frontiers(rule)?.len()
         {
             return Err(OperatingError::NotRun);
         }
-        for &output in self.program.file_frontier_outputs(rule, input.0)? {
+        for &output in self.program.file_frontier_outputs(rule, input)? {
             self.roots
-                .get_mut(&rule.0)
-                .and_then(|outputs| outputs.get_mut(output))
+                .get_mut(&rule)
+                .and_then(|outputs| outputs.get_mut(output.0 as usize))
                 .ok_or(OperatingError::NotRun)?
-                .committed_frontier = true;
+                .commit = FrontierCommit::Committed;
         }
         Ok(())
     }

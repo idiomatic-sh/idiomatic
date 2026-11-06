@@ -175,12 +175,11 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         },
         &intents,
         services,
-        b"",
-        true,
+        ryo_values::domain::files::types::SourceView(b""),
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None,
-    )
+        None)
     .unwrap();
     assert_eq!(
         file.roots.len(),
@@ -246,7 +245,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         vec![Cell::Node(node_id(FileId(0), Position(2)))]
     );
     assert!(matches!(
-        outcome.observations[0].1,
+        outcome.observations[0].outcome,
         RootOutcome::Complete(_)
     ));
     assert!(

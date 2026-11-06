@@ -1,7 +1,10 @@
 //! Every public submission route, enumerated from its source inventory, refuses an
 //! incomplete or extra root set; per-rule metadata is reachable only through its counted accessor.
 use super::fixtures::{Compilation, Expectation, Probe};
-mod test;
+mod controls;
+mod inventory;
+mod routes;
+mod witness;
 const PROGRAM: &str = "src/application/file_dag/program.rs";
 pub(super) fn controls() -> Vec<Probe> {
     vec![

@@ -29,7 +29,7 @@ pub(crate) fn collected(
         RootOutcome::Skipped(_) | RootOutcome::NoQuery | RootOutcome::Deferred { .. } => {}
     }
     let mut publications = Vec::new();
-    for (output, outcome) in outcome.observations {
+    for ryo_execution::inbound::use_cases::execution::types::ProjectOutputOutcome { output, outcome } in outcome.observations {
         let (table, readiness) = match outcome {
             ProjectObservation::Complete { table, publication } => {
                 publications.push((output, publication));

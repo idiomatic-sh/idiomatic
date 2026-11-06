@@ -154,12 +154,11 @@ pub(super) fn run(
                 capture: CaptureIntent::Disabled,
             }],
             services,
-            source,
-            true,
+            ryo_values::domain::files::types::SourceView(source),
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             symbols,
             None,
-            None,
-        )?;
+            None)?;
         let read = |relation| {
             providers
                 .iter()

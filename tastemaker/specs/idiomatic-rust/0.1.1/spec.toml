@@ -542,3 +542,46 @@ use super::schemas::Shown;
 pub fn run(_shown: Shown) {}
 '''
 then.only = ['idiomatic.arch/import-directions']
+
+[[scenarios]]
+id = 'literal-rules-hold-production-not-test-roles'
+scenario = 'A product that lists its test roles as allowed paths: a bare integer in a production file is reported, the same field in a test role is not.'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/test.rs", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod size;
+'''
+given.files.'demo/src/size/mod.rs' = '''
+//! The size.
+
+pub mod types;
+#[cfg(test)]
+mod test;
+'''
+given.files.'demo/src/size/types.rs' = '''
+//! The size values.
+
+/// A size.
+pub struct Size {
+    /// A bare count.
+    pub count: usize,
+}
+'''
+given.files.'demo/src/size/test.rs' = '''
+//! The size test.
+
+struct Probe {
+    count: usize,
+}
+'''
+then.only = ['idiomatic.arch/idiomatic-rust/no-bare-integers']
+then.findings = [
+  { rule = 'idiomatic.arch/idiomatic-rust/no-bare-integers', path = 'demo/src/size/types.rs', line = 6 },
+]

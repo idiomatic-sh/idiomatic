@@ -124,9 +124,14 @@ impl ExecutionRequest for RequestExecution {
             },
             input.intents,
             Arc::clone(&self.services),
-            input.source,
-            matches!(input.language, SourceLanguage::Recognized)
-                && input.resident_stability == facts::ResidentStability::Stable,
+            ryo_values::domain::files::types::SourceView(input.source),
+            if matches!(input.language, SourceLanguage::Recognized)
+                && input.resident_stability == facts::ResidentStability::Stable
+            {
+                crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible
+            } else {
+                crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible
+            },
             symbols,
             input.semantic,
             vocabulary,
@@ -349,13 +354,24 @@ impl PreparedExecution for PreparedExecutionProgram {
         self.inner.observation_batches()
     }
     fn rule_count(&self) -> usize {
-        self.inner.rule_count()
+        self.inner.rule_count().0
     }
     fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
         self.inner.rule_order()
     }
     fn demanded_rules(&self, governs: impl Fn(usize) -> bool) -> Vec<bool> {
-        self.inner.demanded_rules(governs)
+        use crate::application::file_dag::program::preparation::types::Demand;
+        self.inner
+            .demanded_rules(|rule| {
+                if governs(rule.0) {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            })
+            .into_iter()
+            .map(|demand| demand == Demand::Demanded)
+            .collect()
     }
     fn emit(
         &self,
@@ -376,10 +392,13 @@ impl PreparedExecution for PreparedExecutionProgram {
         self.inner.frontiers(rule)
     }
     fn captures_observation(&self, rule: RuleIndex, input: usize) -> Result<bool, OperatingError> {
-        self.inner.captures_observation(rule, input)
+        Ok(self
+            .inner
+            .frontier_purpose(rule, ryo_values::domain::plan_parts::types::InputNumber(input))?
+            == crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)
     }
     fn semantic_needed(&self) -> bool {
-        self.inner.semantic_needed()
+        self.inner.semantic_needed() == crate::application::file_dag::program::preparation::types::SemanticNeed::Required
     }
     fn observation_layout(
         &self,
@@ -387,13 +406,16 @@ impl PreparedExecution for PreparedExecutionProgram {
         ryo_values::domain::observations::types::ObservationReadinessLayout,
         &[ObservedFrontierRoot],
     )> {
-        self.inner.observation_layout()
+        self.inner
+            .observation_layout()
+            .map(|named| (named.layout, named.frontiers))
     }
     fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError> {
         self.inner.observation_reads(rule)
     }
     fn has_observation_contract(&self, rule: RuleIndex) -> Result<bool, OperatingError> {
-        self.inner.has_observation_contract(rule)
+        Ok(self.inner.has_observation_contract(rule)?
+            == crate::application::file_dag::program::preparation::types::ObservationContract::Declared)
     }
     fn frontier_dependencies(
         &self,
@@ -577,6 +599,7 @@ impl PreparedReporting for PreparedExecutionProgram {
         again: ryo_values::domain::stores::types::Reuse,
         first: &[Bucket],
     ) -> Result<(ryo_values::domain::stores::types::Reuse, Vec<Bucket>), OperatingError> {
-        self.inner.replay_closure(again, first)
+        let closure = self.inner.replay_closure(again, first)?;
+        Ok((closure.reuse, closure.buckets))
     }
 }

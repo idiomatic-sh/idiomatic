@@ -11,9 +11,65 @@ use crate::domain::operating::errors::OperatingError;
 use crate::outbound::derived::interface::DerivedPort;
 use std::{rc::Rc, sync::Arc};
 
+/// Whether the frontier a file root publishes has been committed by its owner.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum FrontierCommit {
+    Pending,
+    Committed,
+}
+/// Whether the resident source of a file may serve a later request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ReuseEligibility {
+    Eligible,
+    Ineligible,
+}
+/// Whether the native walk of a file has bound its roots.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum WalkPreparation {
+    Pending,
+    Prepared,
+}
+/// Whether the sources a named root reads are free of blocking coverage.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NamedReadiness {
+    Ready,
+    Blocked,
+}
+/// A named observation output of one rule, prepared for admission.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct PreparedNamed {
+    pub(super) rule: crate::domain::coverage::types::RuleIndex,
+    pub(super) output: ryo_values::domain::observations::types::ObservationIndex,
+    pub(super) readiness: NamedReadiness,
+}
+/// The delivery, observation and capture a file declared for one rule.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct DeclaredIntent {
+    pub(super) diagnostic: crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
+    pub(super) observations: crate::application::file_dag::program::protocol::types::ObservationDemand,
+    pub(super) capture: crate::application::file_dag::program::protocol::types::CaptureIntent,
+}
+/// The slot of a bound observation among the observation regions of a program.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct ObservationKey(pub(super) usize);
+/// Where an ordinary project frontier sits among those a run was given.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct OrdinaryPlace(pub(super) usize);
+/// Whether a run already holds the input a source names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Provision {
+    Provided,
+    Absent,
+}
+/// A project source admitted once for the run, with the source it answers.
+pub(super) struct CachedInput {
+    pub(super) source: crate::domain::executable_program::types::InputSource,
+    pub(super) input: AvailableInput,
+}
+
 pub(super) struct FileRoot {
     pub(super) readiness: Option<ryo_values::domain::observations::types::ProducerReadiness>,
-    pub(super) committed_frontier: bool,
+    pub(super) commit: FrontierCommit,
     pub(super) publication: Option<AdmittedInput>,
     pub(super) skipped: Option<ApplicabilityProof>,
 }

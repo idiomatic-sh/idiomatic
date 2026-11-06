@@ -1,5 +1,6 @@
 //! Public preparation must reject structurally mismatched request inputs.
 use super::{interface::ExecutionUseCase, types::*, use_case::ExecutionUseCaseImpl};
+use crate::application::file_dag::program::facade_runtime::types::ReuseEligibility;
 use std::sync::Arc;
 #[test]
 fn rejects_binding_population_without_a_rule() {
@@ -80,17 +81,17 @@ fn file_owner_reuses_only_recognized_stable_sources() {
         (
             SourceLanguage::Recognized,
             facts::ResidentStability::Stable,
-            true,
+            ReuseEligibility::Eligible,
         ),
         (
             SourceLanguage::Recognized,
             facts::ResidentStability::Unstable,
-            false,
+            ReuseEligibility::Ineligible,
         ),
         (
             SourceLanguage::Unrecognized,
             facts::ResidentStability::Stable,
-            false,
+            ReuseEligibility::Ineligible,
         ),
     ] {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();

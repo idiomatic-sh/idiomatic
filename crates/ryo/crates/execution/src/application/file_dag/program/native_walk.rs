@@ -13,6 +13,13 @@ use crate::{
     },
 };
 use lease::service::PermittedWalk;
+
+/// Whether the admitted source joined the shared walk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Submission {
+    Submitted,
+    Declined,
+}
 use ryo_relations::domain::relations::types::Relation;
 use std::{
     cell::{Cell, Ref, RefCell},
@@ -49,14 +56,14 @@ impl WalkPartition<'_> {
         inputs: &[super::admission::AdmittedInput],
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<Submission, OperatingError> {
         self.validate(ready.permit())?;
         let Self::File(walk) = self else {
-            return Ok(false);
+            return Ok(Submission::Declined);
         };
         let permit = ready.permit();
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
-            return Ok(false);
+            return Ok(Submission::Declined);
         };
         let [input] = inputs else {
             return Err(OperatingError::WrongOperation);
@@ -64,7 +71,7 @@ impl WalkPartition<'_> {
         let rows = input.rows(owner, read)?;
         let relation = walk.relation(prepared, permit)?;
         let submitted = walk.submit(prepared, ready, relation, &rows)?;
-        if !submitted {
+        if submitted == Submission::Declined {
             tracing::trace!(target: super::constants::WALK_TARGET,
                 event = super::constants::WALK_REFUSED,
                 logical = permit.descriptor().logical.0, relation = ?relation,
@@ -190,14 +197,14 @@ impl FileWalk {
         ready: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
         relation: Relation,
         rows: &Rows<'_>,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<Submission, OperatingError> {
         let permit = ready.permit();
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
-            return Ok(false);
+            return Ok(Submission::Declined);
         };
         permit.validate_program(prepared.program().as_ref())?;
         let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
-            return Ok(false);
+            return Ok(Submission::Declined);
         };
         if matches!(rows, Rows::Tree(tree) if tree.file != self.generation.file()) {
             return Err(OperatingError::NotRead);
@@ -214,7 +221,7 @@ impl FileWalk {
         if source.batch.class(class).is_none() {
             source.ready.extend([class]);
         }
-        Ok(true)
+        Ok(Submission::Submitted)
     }
 
     fn prepare<'walk>(

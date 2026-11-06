@@ -40,7 +40,7 @@ impl FileRun<'_> {
         ) -> Result<(), OperatingError>,
     ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
     {
-        if self.declared(rule)?.0 != DiagnosticDelivery::Forwarded {
+        if self.declared(rule)?.diagnostic != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
         }
         let id = *self

@@ -276,7 +276,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
         .unwrap();
     assert!(matches!(produced.emit, RootOutcome::NoQuery));
     assert!(matches!(
-        produced.observations[0].1,
+        produced.observations[0].outcome,
         RootOutcome::Complete(_)
     ));
     let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
