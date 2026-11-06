@@ -1,5 +1,5 @@
 description = "Every module declares its actual Rust children, through either X.rs or X/mod.rs, with exactly one supported file form and the required test/support gating."
-why = "Rust supports both a namespace file beside its directory (X.rs) and the conventional directory module (X/mod.rs). Both forms must declare the actual child files and nested directory modules they compile; a mod.rs file is not an exemption from registration, missing-child checks, or namespace ownership. lib.rs declares the source directory. Having both X.rs and X/mod.rs for one child is ambiguous and refused. A normal namespace (inbound, use_cases, outbound, domain, application, collections, adapters, and their architecture members) contains declarations rather than logic. Test proof directory modules outside those namespace-owner positions may retain their existing proof items while declaring children normally. An ordinary test role is test.rs or X_test.rs and its declaration must name test in cfg; fixtures and cases must name both test and the fixtures feature. Existing X_test.rs sibling self-declaration with an exact #[path] remains recognized; arbitrary #[path] remains refused. Module declarations with bodies are not external child registrations. A directory containing Rust source without either supported module file remains uncompiled, and a directory module that is never declared by its parent remains uncompiled. Cargo-explicit targets keep their existing exact manifest recognition; src/bin and crate entry roots retain their existing handling."
+why = "Rust supports both a namespace file beside its directory (X.rs) and the conventional directory module (X/mod.rs). Both forms must declare the actual child files and nested directory modules they compile; a mod.rs file is not an exemption from registration, missing-child checks, or namespace ownership. lib.rs declares the source directory. Having both X.rs and X/mod.rs for one child is ambiguous and refused. A normal namespace (inbound, use_cases, outbound, domain, application, collections, adapters, and their architecture members) contains declarations rather than logic. Test proof directory modules outside those namespace-owner positions may retain their existing proof items while declaring children normally. An ordinary test role is test.rs or X_test.rs and its declaration must name test in cfg; fixtures and cases must use exact cfg(test) or name both test and the fixtures feature. Existing X_test.rs sibling self-declaration with an exact #[path] remains recognized; arbitrary #[path] remains refused. Module declarations with bodies are not external child registrations. A directory containing Rust source without either supported module file remains uncompiled, and a directory module that is never declared by its parent remains uncompiled. Cargo-explicit targets keep their existing exact manifest recognition; src/bin and crate entry roots retain their existing handling."
 
 query = '''
 let listed-files = select l."path" as "file" from "filesystem.file" as l where not glob_any(l."path", "**/src/inbound/{use_cases,contracts}/*/acceptance.rs");
@@ -128,7 +128,9 @@ let fixtures-hits = select l."meta" as "meta" from atom-edges as l join fixtures
 let test-cfgs = project(from=test-hits, columns=["meta", "decl"]);
 let fixtures-cfgs = project(from=fixtures-hits, columns=["meta"]);
 let test-gated = project(from=test-cfgs, columns=["decl"]);
-let fixtures-gated = select l."decl" as "decl" from test-cfgs as l join fixtures-cfgs as r on l."meta" = r."meta";
+let shared-fixtures-gated = select l."decl" as "decl" from test-cfgs as l join fixtures-cfgs as r on l."meta" = r."meta";
+let private-test-support = select l."declaration" as "decl" from "decorates" as l where l."target" = "cfg" and l."arguments" = "test";
+let fixtures-gated = union(left=shared-fixtures-gated, right=private-test-support);
 let test-named = select * from plain-decls where glob_any(name, "{*_test,test}");
 let ungated-tests = antijoin(left=test-named, right=test-gated, left-on=["id"], right-on=["decl"]);
 let support-named = select * from plain-decls where glob_any(name, "{fixtures,cases}");
@@ -139,7 +141,7 @@ let ungated-test-findings = extend(from=ungated-test-rows, values={"problem": "i
 let ungated-self-rows = project(from=ungated-selves, columns=["file", "span", "name"]);
 let ungated-self-findings = extend(from=ungated-self-rows, values={"problem": "is a test module declared without a `#[cfg(...)]` that names `test`"});
 let ungated-support-rows = project(from=ungated-support, columns=["file", "span", "name"]);
-let ungated-support-findings = extend(from=ungated-support-rows, values={"problem": "is test support declared without a `#[cfg(...)]` that names `test` and the `fixtures` feature"});
+let ungated-support-findings = extend(from=ungated-support-rows, values={"problem": "is test support declared without exact `#[cfg(test)]` or a cfg naming `test` and the `fixtures` feature"});
 let child-form-pairs = select l."module-path" as "file", l."child" as "name", l."child-path" as "first", r."child-path" as "second" from declarable as l join declarable as r on l."module-path" = r."module-path" and l."child" = r."child";
 let ambiguous-children = select * from child-form-pairs where first < second;
 let ambiguous-nodes = select l."file" as "file", r."span" as "span", l."name" as "name" from ambiguous-children as l join source-files as r on l."file" = r."file";
@@ -192,7 +194,7 @@ emit all-10 subject "file" key("span", "name", "problem");
 [diagnostic]
 primary = "span"
 message = "`{name}` {problem}"
-help = "Declare every actual child once through normal Rust mod declarations. Both `<child>.rs` and `<child>/mod.rs` are supported, but having both is ambiguous. A directory mod.rs must be declared by its parent and must declare its own children; existence alone does not make tests executable. Gate test.rs and *_test.rs declarations with cfg(test); gate fixtures/cases with test and the fixtures feature. Keep existing exact sibling X_test.rs self-declarations; do not use arbitrary #[path] to evade normal registration. Namespace owners still contain declarations rather than logic."
+help = "Declare every actual child once through normal Rust mod declarations. Both `<child>.rs` and `<child>/mod.rs` are supported, but having both is ambiguous. A directory mod.rs must be declared by its parent and must declare its own children; existence alone does not make tests executable. Gate test.rs and *_test.rs declarations with cfg(test); gate fixtures/cases with exact cfg(test), or test and the fixtures feature. Keep existing exact sibling X_test.rs self-declarations; do not use arbitrary #[path] to evade normal registration. Namespace owners still contain declarations rather than logic."
 
 [given]
 include = ['src/**']
@@ -922,7 +924,7 @@ then.findings = [
 ]
 
 [[scenarios]]
-id = 'ungated-fixtures'
+id = 'private-fixtures'
 scenario = 'Test support gated by test alone.'
 given.files.'src/cases.rs' = '''
 //! The case table the tests share.
@@ -987,12 +989,9 @@ given.files.'src/outbound/names/fixtures/fake.rs' = '''
 given.files.'src/outbound/names/interface.rs' = '''
 //! What `names` asks.
 '''
-then.findings = [
-  { path = 'src/outbound/names.rs', line = 4 },
-]
 
 [[scenarios]]
-id = 'ungated-cases'
+id = 'private-cases'
 scenario = 'The case table gated by test alone.'
 given.files.'src/cases.rs' = '''
 //! The case table the tests share.
@@ -1057,9 +1056,6 @@ given.files.'src/outbound/names/fixtures/fake.rs' = '''
 given.files.'src/outbound/names/interface.rs' = '''
 //! What `names` asks.
 '''
-then.findings = [
-  { path = 'src/lib.rs', line = 5 },
-]
 
 [[scenarios]]
 id = 'mod-rs'
@@ -1614,3 +1610,26 @@ given.files."src/program.rs" = "mod project_population;\n"
 given.files."src/program/project_population/mod.rs" = "//! A directory module without the service declaration.\n"
 given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
 then.findings = [{ path = "src/program/project_population/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "private-directory-fixtures"
+scenario = "private directory fixtures"
+given.files.'src/lib.rs' = "#[cfg(test)] mod fixtures;"
+given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+
+[[scenarios]]
+id = "ungated-directory-fixtures"
+scenario = "ungated directory fixtures"
+given.files.'src/lib.rs' = "mod fixtures;"
+given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+then.findings = [{ path = "src/lib.rs", line = 1 }]
+
+[[scenarios]]
+id = "negated-directory-fixtures"
+scenario = "negated directory fixtures"
+given.files.'src/lib.rs' = "#[cfg(not(test))] mod fixtures;"
+given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+then.findings = [{ path = "src/lib.rs", line = 1 }]

@@ -11,3 +11,7 @@ Placement: a root `rules` entry of the product's tastemaker.toml (the starter wr
 A namespace file holds declarations and no code: an item in `inbound.rs`, `use_cases.rs`, `outbound.rs`, `domain.rs`, `collections.rs`, `adapters.rs` or the module file of a part beside them is a finding.
 
 a port's and a collection's contract and fake live in the part's own `fixtures/` directory, so the contract special case is gone: the only gating roles left are `test` on a `*_test` module and `test` plus the `fixtures` feature on `fixtures` and `cases`.
+
+## Test-only syntax scope
+
+Exact `#[cfg(test)]` is sufficient for private fixtures/cases modules, including directory modules. Cross-crate shared fixture support may continue to use the existing test plus fixtures feature cfg. Unguarded and negated-test fixture declarations remain findings; no production feature is required for test-only authority.

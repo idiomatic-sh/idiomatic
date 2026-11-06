@@ -20,3 +20,7 @@ when it is. The rule's text states its reasons itself and cites no design ids.
 A `fixtures` qualified by `domain` (`crate::domain::fixtures::…`, a domain concept of that name) is not a finding, in a path of code, of an import or of a type: a product whose subject is test cases (a linter's fixtures of its rules) names its own domain, not test support. Fixtures `domain-concept-named-fixtures` and `domain-concept-in-a-type`.
 
 A `fixtures` that is the whole of an expression's path (a binding: `fixtures.first()`) is no longer read as the module: a module is named by a path that goes on past it or by an import (fixture `binding-named-fixtures`).
+
+## Test-only syntax scope
+
+Exact `#[cfg(test)]` items and their syntax descendants are test-only. This includes nested inline modules and aliased fixture imports. Test-only `include!` sites no longer invalidate otherwise registered generic `test.rs` roles; production include/redirection controls remain conservative. Negated test cfgs remain production.
