@@ -100,7 +100,8 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
         crate::application::inventory_receipts::service::validate_with_artifacts(
             &[fixture.document.clone()],
             &captured.records,
-            &captured.artifacts
+            &captured.artifacts,
+            &captured.invocations
         ),
         Ok(
             crate::application::inventory_receipts::types::ReceiptCounts {

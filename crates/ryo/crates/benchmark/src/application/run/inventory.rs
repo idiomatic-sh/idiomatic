@@ -176,6 +176,7 @@ pub fn verify(
                     &entry.cases,
                     &captured.records,
                     &captured.artifacts,
+                    &captured.invocations,
                 )?
             };
             super::registered_context::verify(entry, store)?;

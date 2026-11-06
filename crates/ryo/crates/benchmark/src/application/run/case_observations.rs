@@ -118,12 +118,18 @@ pub(super) fn write(
         constants::CONTEXT_MANIFEST: context_identity,
         constants::PROJECT_CONTEXT: report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
         constants::EXPECTED: expected,
-        constants::REFERENCE_EXPECTED: super::discrepancy::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
+        constants::REFERENCE_EXPECTED: crate::domain::discrepancy::service::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
         constants::DOCUMENTED_REFERENCE_DISCREPANCY: case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect),
         constants::DOCUMENTED_TOOL_CONTRACT_DIFFERENCE: case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract),
         constants::DISCREPANCY_VALIDATION: validation,
-        constants::RAW_PARITY_MATCHES_INTENDED: report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        constants::DIAGNOSTICS_MATCH_INTENDED: report.map(|actual| super::discrepancy::matches_intended(case, actual)),
+        constants::RAW_PARITY_MATCHES_INTENDED: report.map(|actual| {
+            crate::domain::discrepancy::service::matches_intended(case, actual)
+                == crate::domain::discrepancy::types::IntentMatch::Matches
+        }),
+        constants::DIAGNOSTICS_MATCH_INTENDED: report.map(|actual| {
+            crate::domain::discrepancy::service::matches_intended(case, actual)
+                == crate::domain::discrepancy::types::IntentMatch::Matches
+        }),
         constants::SOURCE_SHA256: source_sha256,
         constants::PROJECT_INPUTS_SHA256: project_inputs_sha256,
         constants::ERROR: recorded_error,
@@ -155,7 +161,7 @@ pub(super) fn write(
             constants::ACTUAL_REQUEST_ROOT:invocation[constants::ACTUAL_REQUEST_ROOT], constants::OBSERVER_NO_DEADLINE:invocation[constants::OBSERVER_NO_DEADLINE],
             constants::EXECUTABLE_SHA256:invocation[constants::EXECUTABLE_SHA256], constants::SETTINGS_SHA256:invocation[constants::SETTINGS_SHA256],
             constants::METADATA_ERROR:invocation.get(constants::METADATA_ERROR),
-            constants::TEMPLATE_SHA256:super::process_discrepancy::expected(case).map(|process| super::process_discrepancy::output_digest(process).0),
+            constants::TEMPLATE_SHA256:crate::domain::process_failure::service::expected(case).map(|process| crate::domain::process_failure::service::output_digest(process).0),
         });
         record[constants::RAW_PARITY_MATCHES_INTENDED] = serde_json::json!(false);
     }

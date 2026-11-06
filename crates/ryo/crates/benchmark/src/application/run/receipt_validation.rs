@@ -82,6 +82,7 @@ pub fn validate(
             std::slice::from_ref(case),
             &rows,
             &captured.artifacts,
+            &captured.invocations,
         ) {
             Ok(counts) => {
                 let recomputed = crate::domain::registered_inputs::service::metadata_digest(

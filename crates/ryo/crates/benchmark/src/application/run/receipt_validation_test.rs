@@ -32,6 +32,7 @@ fn offline_entry_emits_a_recomputed_witness_and_never_echoes_a_stale_declared_di
     let case = cases[0].clone();
     let captured = CapturedObservation {
         artifacts: Default::default(),
+        invocations: Default::default(),
         records,
         sha256: Some("raw-receipt".into()),
     };

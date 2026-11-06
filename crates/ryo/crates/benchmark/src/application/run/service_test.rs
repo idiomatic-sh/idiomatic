@@ -604,11 +604,11 @@ fn discrepancy_suite() -> SuiteFake {
     reference.diagnostics.clear();
     let profile_hash = ArtifactDigest("a".repeat(64));
     let binary_hash = ArtifactDigest("b".repeat(64));
-    let settings = super::discrepancy::json_digest(&serde_json::json!({
+    let settings = crate::domain::canonical_text::service::text_digest(&crate::domain::canonical_text::types::Document(serde_json::json!({
         "arguments": [], "environment": {}, "directory": "$ROOT",
         "parser_configuration": "python-target=3.10", "project_context_mode": "Isolated",
         "performance": crate::outbound::worker::schemas::OptionsSchema::from(case.request.performance),
-    }));
+    }).to_string()));
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
         basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
         identity: ReferenceDiscrepancyIdentity {
@@ -619,8 +619,10 @@ fn discrepancy_suite() -> SuiteFake {
             profile_sha256: profile_hash.clone(),
             settings_sha256: settings,
             source_sha256: ArtifactDigest("c".repeat(64)),
-            intended_output_sha256: super::discrepancy::output_digest(&case.expected),
-            reference_output_sha256: super::discrepancy::output_digest(&reference),
+            intended_output_sha256: crate::domain::discrepancy::service::output_digest(
+                &case.expected,
+            ),
+            reference_output_sha256: crate::domain::discrepancy::service::output_digest(&reference),
         },
         expected:
             ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
@@ -734,13 +736,14 @@ fn native_both_sides_require_intended_behavior_even_when_wrong_oracle_matches() 
         "agreement with incorrect oracle must fail intended contract"
     );
     let mut canonical = suite.prepared.clone();
-    super::discrepancy::attach(&suite, rules, &mut canonical)
+    crate::application::discrepancy_attachment::service::attach(&suite, rules, &mut canonical)
         .expect("application owns wire conversion");
     assert!(
-        !super::discrepancy::matches_intended(
+        crate::domain::discrepancy::service::matches_intended(
             &canonical[0],
-            super::discrepancy::reference_expected(&canonical[0]).expect("diagnostic expectation")
-        ),
+            crate::domain::discrepancy::service::reference_expected(&canonical[0])
+                .expect("diagnostic expectation")
+        ) == crate::domain::discrepancy::types::IntentMatch::Differs,
         "JSONL retains raw reference mismatch"
     );
 }
