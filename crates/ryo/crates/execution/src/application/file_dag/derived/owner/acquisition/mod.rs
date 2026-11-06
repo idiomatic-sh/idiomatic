@@ -2,6 +2,12 @@
 pub(in crate::application::file_dag) mod semantics;
 pub(in crate::application::file_dag) mod service;
 
+pub(in crate::application::file_dag::derived::owner) mod build;
+
+pub(in crate::application::file_dag::derived::owner) mod scoped;
+
+pub(in crate::application::file_dag::derived::owner) mod shared;
+
 pub(in crate::application::file_dag::derived::owner) mod graph;
 
 pub(in crate::application::file_dag::derived::owner) mod selection;
