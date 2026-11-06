@@ -1,11 +1,8 @@
-//! The `validation` service: free functions that check a program against ryo's own relations,
-//! with no IO and no ports. It checks that every name a query writes names something; the types
-//! are checked where the names are resolved, in `lowering`.
+//! The `validation` service: free functions that check a program against ryo's own relations, with no IO and no
+//! ports: every name a query writes names something. The types are checked where the names are resolved, in `lowering`.
 
 use ryo_relations::domain::relations::service::relation_named;
-use ryo_relations::domain::relations::types::NameRef;
-use ryo_relations::domain::relations::types::Relation;
-
+use ryo_relations::domain::relations::types::{NameRef, Relation};
 use ryo_values::domain::hosted::types::HostedName;
 
 use super::errors::ValidationError;
@@ -19,9 +16,7 @@ use ryo_values::domain::program::types::{
 };
 use std::collections::BTreeSet;
 
-/// Checks that every relation, step, parameter and operation a program names exists, and that every call has its
-/// required arguments, admitting the declared typed named inputs and no other unknown step names. The first thing
-/// wrong is answered, with the place it is written.
+/// Checks that every name a program writes exists and every call has its required arguments; the first fault is answered.
 pub(crate) fn validate_with_observations(
     program: &WrittenProgram,
     catalog: &[Relation],
