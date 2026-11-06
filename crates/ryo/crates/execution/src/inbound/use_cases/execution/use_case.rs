@@ -2,7 +2,7 @@
 use super::{interface::*, types::*};
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime;
-use crate::application::file_dag::program::facade_runtime::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::scope::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
@@ -108,7 +108,7 @@ impl ExecutionRequest for RequestExecution {
             symbols,
             ryo_values::domain::files::types::SourceView(input.source),
         );
-        let inner = facade_runtime::open_file(
+        let inner = facade_runtime::file_execution::open_file(
             &self.program,
             input.file,
             ScopePartials::File {
@@ -135,7 +135,7 @@ impl ExecutionRequest for RequestExecution {
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
         Ok(ProjectPhase {
             request: self,
-            publication: std::rc::Rc::new(facade_runtime::publication_owner(
+            publication: std::rc::Rc::new(facade_runtime::service::publication_owner(
                 &self.program,
                 &self.services,
             )?),
@@ -146,12 +146,13 @@ impl ExecutionRequest for RequestExecution {
         input: ProjectInput<'a>,
         symbols: &mut Symbols,
     ) -> Result<ProjectSession<'a>, OperatingError> {
-        let frontiers = crate::application::file_dag::program::facade_runtime::ProjectFrontiers {
-            publication: &input.scope.publication,
-            ordinary: input.ordinary,
-            bound_inputs: input.bound,
-        };
-        let inner = facade_runtime::open_project(
+        let frontiers =
+            crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers {
+                publication: &input.scope.publication,
+                ordinary: input.ordinary,
+                bound_inputs: input.bound,
+            };
+        let inner = facade_runtime::project_execution::open_project(
             &self.program,
             input.scope.required.clone(),
             ScopePartials::Project {
@@ -258,7 +259,7 @@ impl ProjectRootExecution for ProjectPhase<'_> {
         let mut opened = Vec::with_capacity(tasks.len());
         let mut declarations = Vec::with_capacity(tasks.len());
         for task in tasks {
-            declarations.push(facade_runtime::ProjectRootDeclaration {
+            declarations.push(facade_runtime::project_execution::ProjectRootDeclaration {
                 rule: task.rule,
                 demand: task.demand,
             });
@@ -272,7 +273,7 @@ impl ProjectRootExecution for ProjectPhase<'_> {
                     .map(|session| session.inner),
             );
         }
-        facade_runtime::evaluate_roots(opened, &declarations, symbols, guard)
+        facade_runtime::project_execution::evaluate_roots(opened, &declarations, symbols, guard)
     }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.publication.readiness_counts()
@@ -289,7 +290,7 @@ impl ProjectStage for ProjectPhase<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
     ) -> Result<ProjectScope, OperatingError> {
-        let required = facade_runtime::required_partitions(
+        let required = facade_runtime::service::required_partitions(
             &self.request.program,
             rule,
             corpus,

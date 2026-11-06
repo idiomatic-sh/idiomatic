@@ -1,8 +1,8 @@
 //! Binding identity and file generations through the actual compiled request API.
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::facade_runtime::FileRun;
-use crate::application::file_dag::program::facade_runtime::ProgramServices;
-use crate::application::file_dag::program::facade_runtime::open_file;
+use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
+use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
+use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::protocol::types::CaptureIntent;
 use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
 use crate::application::file_dag::program::protocol::types::EmitDemand;

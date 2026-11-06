@@ -7,10 +7,12 @@ mod binding;
 pub(in crate::application::file_dag) mod native;
 use native::service::NativeJoinLease;
 mod groups;
-mod index;
+pub(in crate::application::file_dag) mod index;
+mod prepared_use;
 mod views;
 use groups::groups;
-pub(super) use index::IndexResource;
+use index::IndexResource;
+use prepared_use::service::prepared;
 #[cfg(test)]
 mod observation;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
@@ -416,17 +418,6 @@ impl<'f> InvocationResources<'f> {
         }
         Ok(resources)
     }
-}
-
-pub(super) fn prepared(
-    contract: &OperatorContract,
-    kind: ryo_derived::domain::contract::types::DerivedKind,
-) -> Result<&crate::domain::derived_views::types::PreparedViewUse, OperatingError> {
-    let slots = &contract.derived.slots;
-    slots[crate::domain::derived_views::service::slot(kind)]
-        .as_ref()
-        .map(|group| group.primary.as_ref())
-        .ok_or(OperatingError::NotRun)
 }
 
 fn partitioned<'f>(

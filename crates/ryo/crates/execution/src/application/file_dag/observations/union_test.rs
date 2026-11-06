@@ -1,7 +1,7 @@
 //! Named producer populations use the actual prepared union and common file scheduler.
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::facade_runtime::ProgramServices;
-use crate::application::file_dag::program::facade_runtime::open_file;
+use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
+use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::protocol::types::CaptureIntent;
 use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
 use crate::application::file_dag::program::protocol::types::EmitDemand;

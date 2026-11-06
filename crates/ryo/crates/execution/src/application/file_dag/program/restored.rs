@@ -5,48 +5,24 @@ use super::admission::Partition;
 use super::admission::ProducerRoot;
 use super::admission::Readiness;
 use super::admission::RequiredPartitions;
-use super::facade_runtime::PublicationScope;
+use super::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::protocol::types::ObservedPublication;
-use crate::{
-    domain::completion::types::CoverageState,
-    domain::{
-        coverage::types::RuleIndex,
-        executable_program::types::{ExecutableProgram, InputSource},
-        operating::{errors::OperatingError, types::OperatorContext},
-        operator::contract::views::BorrowedRows,
-    },
+use crate::domain::{
+    completion::types::CoverageState,
+    coverage::types::RuleIndex,
+    executable_program::types::InputSource,
+    operating::{errors::OperatingError, types::OperatorContext},
+    operator::contract::views::BorrowedRows,
 };
-use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,
     stored_facts::types::{Bucket, KeptWords},
 };
 use std::sync::Arc;
 
-#[derive(Clone)]
-pub(crate) struct ValidatedFrontier {
-    program: Arc<ExecutableProgram>,
-    generation: Arc<()>,
-    root: ProducerRoot,
-    partition: RequiredPartitions,
-    coverage: CoverageState,
-    kinds: Box<[CellKind]>,
-    payload: Arc<crate::outbound::facts::types::KeptBucket>,
-}
-
-impl PartialEq for ValidatedFrontier {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.program, &other.program)
-            && Arc::ptr_eq(&self.generation, &other.generation)
-            && self.root == other.root
-            && self.partition == other.partition
-            && self.coverage == other.coverage
-            && self.kinds == other.kinds
-            && self.payload == other.payload
-    }
-}
-impl Eq for ValidatedFrontier {}
+pub(crate) mod types;
+use types::ValidatedFrontier;
 
 pub(in crate::application) fn validate_restored_frontier(
     prepared: &Arc<PreparedProgram>,

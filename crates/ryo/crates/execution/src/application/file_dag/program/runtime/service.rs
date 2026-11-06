@@ -2,6 +2,14 @@
 use super::types::*;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AdmittedWalkSource;
+use crate::application::file_dag::program::constants::{
+    EXECUTION_TARGET, INPUT_ADMISSION_REFUSED, OUTCOME_FAILED, OUTCOME_MISSING, OUTCOME_PUBLISHED,
+    OUTCOME_READY, OUTCOME_RETIRED, OUTCOME_RETRY, OUTCOME_RUNNING, OUTCOME_SUSPENDED,
+    PHASE_AVAILABILITY, PHASE_DEPENDENCY, PHASE_PHYSICAL, READINESS_QUEUE, REGION_FAILURE,
+    REGION_POLL,
+};
+#[cfg(test)]
+use crate::application::file_dag::program::constants::{LIFECYCLE_OBSERVER, OBSERVED_PRODUCER};
 
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::FileGeneration;
@@ -344,13 +352,13 @@ impl AdmissionProgress {
             return Ok(());
         }
         if let Some(dependency) = inputs.dependency(source).inspect_err(|error| {
-            tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "dependency", action = self.action, ?source, ?error);
+            tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_DEPENDENCY, action = self.action, ?source, ?error);
         })? {
             self.waiting = Some(dependency);
             return Err(OperatingError::NotRun);
         }
         let available = inputs.supply(source, partition, context).inspect_err(|error| {
-            tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "availability", action = self.action, ?source, ?error);
+            tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_AVAILABILITY, action = self.action, ?source, ?error);
         })?;
         self.acquired
             .push((source, InputStage::Available(available)));
@@ -373,7 +381,7 @@ impl AdmissionProgress {
             InputStage::Admitted(input) => Ok(input.clone()),
             InputStage::Available(available) => {
                 let admitted = inputs.admit(available, partition, context).inspect_err(|error| {
-                    tracing::trace!(target: "ryo::diagnostic::execution", event = "input_admission_refused", input_phase = "physical", action = self.action, ?source, ?error);
+                    tracing::trace!(target: EXECUTION_TARGET, event = INPUT_ADMISSION_REFUSED, input_phase = PHASE_PHYSICAL, action = self.action, ?source, ?error);
                 })?;
                 *stage = InputStage::Admitted(admitted.clone());
                 Ok(admitted)
@@ -619,7 +627,7 @@ impl ProgramExecution {
         };
         let checkpoint = self
             .retry_checkpoint(state, probe.producer)
-            .expect("observed actual producer");
+            .expect(OBSERVED_PRODUCER);
         let index = self
             .owner
             .producer_view_witness(
@@ -650,7 +658,7 @@ impl ProgramExecution {
             .producer_lease_probe
             .borrow_mut()
             .take()
-            .expect("installed read-only lifecycle observer");
+            .expect(LIFECYCLE_OBSERVER);
         assert_eq!(probe.scope, state.scope);
         probe.events
     }
@@ -1104,7 +1112,7 @@ impl ProgramExecution {
         })();
         let counts = queue.counts();
         *self.readiness_counts.borrow_mut() += counts;
-        tracing::trace!(target: "ryo::diagnostic::execution", event = "readiness_queue",
+        tracing::trace!(target: EXECUTION_TARGET, event = READINESS_QUEUE,
             preparations = counts.preparations.0, evaluations = counts.evaluations.0,
             suspensions = counts.suspensions.0, wakeups = counts.wakeups.0);
         result
@@ -1251,9 +1259,8 @@ impl ProgramExecution {
                 State::Retired => return Err(OperatingError::NotRun),
                 State::Dormant | State::Suspended | State::Ready => {}
             }
-            started =
-                tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
-                    .then(std::time::Instant::now);
+            started = tracing::enabled!(target: EXECUTION_TARGET, tracing::Level::TRACE)
+                .then(std::time::Instant::now);
             let fresh = matches!(slot.state, State::Dormant);
             slot.state = State::Running;
             if slot.scratch.is_empty() {
@@ -1724,7 +1731,7 @@ impl ProgramExecution {
             }
             Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
                 if let Some(admission) = cleanup.admission.as_ref() {
-                    tracing::trace!(target: "ryo::diagnostic::execution", event = "region_failure", region = id.0, producer = region.producer.0, phase = ?region.phase, logical = ?first.map(|first| first.logical.0), action = admission.action, ?error);
+                    tracing::trace!(target: EXECUTION_TARGET, event = REGION_FAILURE, region = id.0, producer = region.producer.0, phase = ?region.phase, logical = ?first.map(|first| first.logical.0), action = admission.action, ?error);
                 }
                 cleanup.terminal = Terminal::Failed(error.clone());
                 let _cleanup = self.release_inputs(state, id);
@@ -1798,7 +1805,7 @@ impl Emit for Continue<'_> {
 impl Drop for Invocation<'_> {
     fn drop(&mut self) {
         let mut slots = self.state.slots.borrow_mut();
-        let mut committed_outcome = "missing";
+        let mut committed_outcome = OUTCOME_MISSING;
         if let Some(slot) = slots.get_mut(&self.id.0) {
             slot.scratch = self.scratch.take().unwrap_or_default();
             slot.admission = match self.terminal {
@@ -1840,13 +1847,13 @@ impl Drop for Invocation<'_> {
                 Terminal::Failed(error) => State::Failed(error.clone()),
             };
             committed_outcome = match slot.state {
-                State::Dormant => "retry",
-                State::Suspended => "suspended",
-                State::Ready => "ready",
-                State::Running => "running",
-                State::Published(_) => "published",
-                State::Retired => "retired",
-                State::Failed(_) => "failed",
+                State::Dormant => OUTCOME_RETRY,
+                State::Suspended => OUTCOME_SUSPENDED,
+                State::Ready => OUTCOME_READY,
+                State::Running => OUTCOME_RUNNING,
+                State::Published(_) => OUTCOME_PUBLISHED,
+                State::Retired => OUTCOME_RETIRED,
+                State::Failed(_) => OUTCOME_FAILED,
             };
         }
         drop(slots);
@@ -1857,7 +1864,7 @@ impl Drop for Invocation<'_> {
         ) {
             // Each segment excludes scheduler wait and cached publication reads.
             // The committed slot outcome is not a claim about the caller's final result.
-            tracing::trace!(target: "ryo::diagnostic::execution", event = "region_poll", region = self.id.0,
+            tracing::trace!(target: EXECUTION_TARGET, event = REGION_POLL, region = self.id.0,
                 producer = region.producer.0, phase = ?region.phase,
                 logical = ?region.instructions.first().map(|instruction| instruction.logical.0),
                 operation = ?region.instructions.first().map(|instruction| ryo_values::domain::plans::service::kind_of(&instruction.operation)),

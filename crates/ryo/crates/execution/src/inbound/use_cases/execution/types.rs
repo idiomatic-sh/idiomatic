@@ -114,7 +114,7 @@ pub struct RequestExecution {
     pub(super) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(super) services:
-        Arc<crate::application::file_dag::program::facade_runtime::ProgramServices>,
+        Arc<crate::application::file_dag::program::facade_runtime::types::ProgramServices>,
 }
 pub enum SourceLanguage {
     Recognized,
@@ -138,7 +138,8 @@ pub struct FileInput<'a, 'facts> {
     pub kinds: Option<Arc<PreparedVocabulary>>,
 }
 pub struct FileSession<'a, 'facts> {
-    pub(super) inner: crate::application::file_dag::program::facade_runtime::FileRun<'a>,
+    pub(super) inner:
+        crate::application::file_dag::program::facade_runtime::file_execution::FileRun<'a>,
     pub(super) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(super) file: ryo_relations::domain::relations::types::FileId,
@@ -151,12 +152,12 @@ pub struct FileSession<'a, 'facts> {
 pub struct ProjectPhase<'a> {
     pub(super) request: &'a RequestExecution,
     pub(super) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::PublicationScope>,
+        std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
 }
 pub struct ProjectScope {
     pub(super) required: crate::application::file_dag::program::admission::RequiredPartitions,
     pub(super) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::PublicationScope>,
+        std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
 }
 pub struct ProjectInput<'a> {
     pub scope: &'a ProjectScope,
@@ -174,7 +175,8 @@ pub struct ProjectTask<'a> {
 }
 pub use crate::application::file_dag::program::protocol::types::ProjectBatch;
 pub struct ProjectSession<'a> {
-    pub(super) inner: crate::application::file_dag::program::facade_runtime::ProjectRun<'a>,
+    pub(super) inner:
+        crate::application::file_dag::program::facade_runtime::project_execution::ProjectRun<'a>,
 }
 
 pub struct FileFinished {

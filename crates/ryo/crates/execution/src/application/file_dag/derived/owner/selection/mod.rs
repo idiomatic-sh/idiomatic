@@ -150,10 +150,6 @@ fn make<'a>(
 #[cfg(test)]
 mod retention;
 
-/// Admit the trait's immutable positions before transferring the same owned buffer
-/// to the legacy compact handle. Registered predicate/distinct kernels establish
-/// the ordered admitted-position invariant; first/last checks here are constant-time
-/// cardinality/edge guards, not validation of arbitrary untrusted position vectors.
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 #[cfg(test)]

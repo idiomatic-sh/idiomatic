@@ -11,7 +11,7 @@ let callable-dependencies = antijoin(left="source-dependency", right=visibility-
 let paths = capture(from=callable-dependencies, path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,protocol/types.rs,protocol/service.rs,facade_runtime.rs,admission.rs,restored.rs}");
+let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,protocol/types.rs,protocol/service.rs,facade_runtime.rs,facade_runtime/file_execution.rs,facade_runtime/project_execution.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission.rs,restored.rs,restored/types.rs}");
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
 let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/capability/service.rs}");
 let bridges = select * from ordinary-bridges where source-tail != "application/file_dag/executor.rs" or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
@@ -475,8 +475,16 @@ given.files.'src/application/caller.rs' = 'use super::file_dag::program::admissi
 [[scenarios]]
 id = "caller-may-name-opaque-validated-frontier"
 scenario = "The actual validated frontier handover remains available without exposing runtime state or a second evaluator."
-given.files.'src/application/file_dag/program/restored.rs' = 'pub struct ValidatedFrontier { proof: () }'
-given.files.'src/application/caller.rs' = 'use super::file_dag::program::restored::ValidatedFrontier; fn handover(_: &ValidatedFrontier) {}'
+given.files.'src/application/file_dag/program/restored.rs' = 'pub mod types;'
+given.files.'src/application/file_dag/program/restored/types.rs' = 'pub struct ValidatedFrontier { proof: () }'
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::restored::types::ValidatedFrontier; fn handover(_: &ValidatedFrontier) {}'
+
+[[scenarios]]
+id = "caller-may-name-the-owning-run-module"
+scenario = "File runs are named at their owning module; the facade keeps no forwarding alias, and the other implementation modules stay protected."
+given.files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission; pub mod file_execution;'
+given.files.'src/application/file_dag/program/facade_runtime/file_execution.rs' = 'pub struct FileRun;'
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::facade_runtime::file_execution::FileRun; fn run(_: &FileRun) {}'
 
 [[scenarios]]
 id = "raw-scope-owner-borrows-required-runtime-capability"

@@ -3,9 +3,14 @@ use super::super::super::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, PreparedFrontiers};
 use crate::application::file_dag::program::admission::RequiredPartitions;
-use crate::application::file_dag::program::facade_runtime::{
-    ProjectFrontiers, ProjectRun, PublicationScope, open_project, publication_owner,
-    required_partitions,
+use crate::application::file_dag::program::facade_runtime::project_execution::{
+    ProjectRun, open_project,
+};
+use crate::application::file_dag::program::facade_runtime::service::{
+    publication_owner, required_partitions,
+};
+use crate::application::file_dag::program::facade_runtime::types::{
+    ProjectFrontiers, PublicationScope,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::domain::coverage::types::Partials;

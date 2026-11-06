@@ -191,8 +191,8 @@ pub(crate) fn schema_of(
     }
 }
 
-/// Pilot metadata contracts live beside the legacy schema algebra while the
-/// remaining operators are migrated. No row or source payload is read here.
+/// Select's metadata contract lives beside the other operations' schema algebra.
+/// No row or source payload is read here.
 pub(crate) fn select_schema(
     operation: &Operation,
     inputs: &[InputShape<'_>],
