@@ -7,7 +7,8 @@ let targets = capture(from=paths, path="target", pattern="{*target-root}/applica
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,protocol/types.rs,protocol/service.rs,facade_runtime.rs,admission.rs,restored.rs}");
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
-let bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs,native_walk.rs,native_join.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/capability/service.rs}");
+let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/capability/service.rs}");
+let bridges = select * from ordinary-bridges where source-tail != "application/file_dag/executor.rs" or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
 let forbidden = select * from bridges where implementation-tail != "runtime/service.rs" or not glob_any(source-tail, "{application/file_dag/derived/owner/raw_scope.rs,application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs}");
 let program-violations = select file, span from forbidden;
 let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
@@ -658,3 +659,81 @@ given.files.'src/domain/operator/collections/operators/select/item_test.rs' = "u
 given.files.'tastemaker.toml' = "workspace = { name = \"proof\", dependencies = [{ package = \"idiomatic.ryo\", path = \"../../..\" }, { package = \"foreign\", path = \"../../../../../tastemaker/cli/tests/fixtures/replay/roles\" }] }\nrules = [{ rule = \"idiomatic.ryo/program-implementation-boundary\", include = [\"src/**\"] }]\ntemplates = [{ template = \"foreign/item-test\", file = \"src/domain/operator/collections/operators/select/item_test.rs\" }]\n"
 then.only = ["idiomatic.ryo/program-implementation-boundary"]
 then.findings = [{path="src/domain/operator/collections/operators/select/item_test.rs", line=1}]
+
+[[scenarios]]
+id = "executor-borrows-issued-native-leaf-types"
+scenario = "The executor names only the actual private native request data contracts."
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
+given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
+given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
+given.files.'src/application/file_dag/executor.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {} use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk; use crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin; fn borrowed(_: &PermittedWalk, _: &PermittedNativeJoin) {}"
+
+[[scenarios]]
+id = "executor-cannot-borrow-old-walk-owner"
+scenario = "Moving issued data does not leave obsolete walk owner permission."
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
+given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
+given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
+given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_walk::FileWalk; fn bypass(_: &FileWalk) {}"
+then.findings = [{path="src/application/file_dag/executor.rs",line=1}]
+
+[[scenarios]]
+id = "executor-cannot-borrow-old-join-owner"
+scenario = "Moving issued data does not leave obsolete native join owner permission."
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
+given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
+given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
+given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_join::Eligibility; fn bypass(_: &Eligibility) {}"
+then.findings = [{path="src/application/file_dag/executor.rs",line=1}]
+
+[[scenarios]]
+id = "foreign-alias-of-issued-walk-refused"
+scenario = "Only the executor bridge may borrow the issued walk data type."
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
+given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
+given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
+given.files.'src/application/caller.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk as Alternate;"
+then.findings = [{path="src/application/caller.rs",line=1}]
+
+[[scenarios]]
+id = "foreign-qualified-issued-join-refused"
+scenario = "Qualified access to issued join data does not grant a new bridge."
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
+given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
+given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
+given.files.'src/application/caller.rs' = "pub fn bypass(_: &crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin) {}"
+then.findings = [{path="src/application/caller.rs",line=1}]
+
+[[scenarios]]
+id = "new-module-issued-native-leaf-refused"
+scenario = "A new application module cannot acquire executor-only issued native data."
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
+given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
+given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
+given.files.'src/application.rs' = "pub mod file_dag; pub mod caller; pub mod new_route;"
+given.files.'src/application/new_route.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk;"
+then.findings = [{path="src/application/new_route.rs",line=1}]
