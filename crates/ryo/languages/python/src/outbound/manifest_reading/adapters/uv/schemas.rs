@@ -25,6 +25,13 @@ struct ManifestSchema {
     uv: UvSchema,
 }
 
+/// A `[tool]`: only its `uv` table is read, as it is written, then read as the table of its own shape.
+#[derive(Debug, Default, Deserialize)]
+struct ToolSchema {
+    /// The `[tool.uv]` table.
+    uv: Option<toml::Value>,
+}
+
 /// A `[tool.uv]`.
 #[derive(Debug, Default, Deserialize)]
 struct UvSchema {
@@ -163,8 +170,12 @@ pub(super) fn declared(
         reason: error.message().to_owned(),
     };
     let pyproject: toml::Table = toml::from_str(text).map_err(unreadable)?;
-    let uv = match pyproject.get("tool").and_then(|tool| tool.get("uv")) {
-        Some(table) => table.clone().try_into::<UvSchema>().map_err(unreadable)?,
+    let tool = match pyproject.get("tool") {
+        Some(table) => table.clone().try_into::<ToolSchema>().map_err(unreadable)?,
+        None => ToolSchema::default(),
+    };
+    let uv = match tool.uv {
+        Some(table) => table.try_into::<UvSchema>().map_err(unreadable)?,
         None => UvSchema::default(),
     };
     Ok(ManifestSchema {

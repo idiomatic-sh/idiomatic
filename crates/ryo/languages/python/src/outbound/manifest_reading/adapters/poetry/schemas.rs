@@ -33,6 +33,13 @@ struct ManifestSchema {
     poetry: PoetrySchema,
 }
 
+/// A `[tool]`: only its `poetry` table is read, as it is written, then read as the table of its own shape.
+#[derive(Debug, Default, Deserialize)]
+struct ToolSchema {
+    /// The `[tool.poetry]` table.
+    poetry: Option<toml::Value>,
+}
+
 /// A `[tool.poetry]`.
 #[derive(Debug, Default, Deserialize)]
 struct PoetrySchema {
@@ -208,11 +215,12 @@ pub(super) fn declared(
         reason: error.message().to_owned(),
     };
     let pyproject: toml::Table = toml::from_str(text).map_err(unreadable)?;
-    let poetry = match pyproject.get("tool").and_then(|tool| tool.get("poetry")) {
-        Some(table) => table
-            .clone()
-            .try_into::<PoetrySchema>()
-            .map_err(unreadable)?,
+    let tool = match pyproject.get("tool") {
+        Some(table) => table.clone().try_into::<ToolSchema>().map_err(unreadable)?,
+        None => ToolSchema::default(),
+    };
+    let poetry = match tool.poetry {
+        Some(table) => table.try_into::<PoetrySchema>().map_err(unreadable)?,
         None => PoetrySchema::default(),
     };
     Ok(ManifestSchema {

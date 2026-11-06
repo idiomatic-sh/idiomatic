@@ -2,7 +2,7 @@
 //! optionality, its marker and its directory.
 
 use super::super::adapter::ManifestReadingPoetryAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::fixtures::shown::{Files, declared_by};
 
@@ -120,7 +120,41 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             " |  |  |  | a Normal Required <^1>, b Normal Required @libs/b Path, c Normal Required Git, d Normal Required Url",
         ),
     },
+    Case {
+        name: CaseName("a_tool_that_is_not_a_table_is_a_malformed_manifest_the_reader_refuses"),
+        word: Word::Refuses,
+        input: || &[("pyproject.toml", "tool = 1\n")],
+        expect: Expect::Refusal(names_the_tool_shape),
+    },
+    Case {
+        name: CaseName(
+            "a_poetry_entry_that_is_not_a_table_is_a_malformed_manifest_the_reader_refuses",
+        ),
+        word: Word::Refuses,
+        input: || &[("pyproject.toml", "[tool]\npoetry = 1\n")],
+        expect: Expect::Refusal(names_the_poetry_shape),
+    },
 ];
+
+/// Whether the refusal is the typed `Unreadable` that names the shape of `[tool]` the manifest broke.
+fn names_the_tool_shape(failure: &Failure) -> Selection {
+    match failure {
+        ManifestReadingError::Unreadable { reason } if reason.contains("ToolSchema") => {
+            Selection::Matches
+        }
+        ManifestReadingError::Unreadable { .. } => Selection::Differs,
+    }
+}
+
+/// Whether the refusal is the typed `Unreadable` that names the shape of `[tool.poetry]` the manifest broke.
+fn names_the_poetry_shape(failure: &Failure) -> Selection {
+    match failure {
+        ManifestReadingError::Unreadable { reason } if reason.contains("PoetrySchema") => {
+            Selection::Matches
+        }
+        ManifestReadingError::Unreadable { .. } => Selection::Differs,
+    }
+}
 
 fn subject(files: Input) -> Result<Value, Failure> {
     declared_by(|_| ManifestReadingPoetryAdapter, files)
@@ -130,4 +164,9 @@ fn subject(files: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
