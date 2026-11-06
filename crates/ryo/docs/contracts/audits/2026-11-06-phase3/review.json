@@ -1,0 +1,83 @@
+{
+ "schema": "contract-review-verdict/v1",
+ "source": {
+  "base": "d92fce4796120d2ad9ba982917f1e554b6a1b353",
+  "head": "51aeb2cf4bd1dd8a590bfa88a7d24af9937d436c",
+  "tree": "43c6cc9226e210bd574374a102ae8d46d35d07be",
+  "validated_source_claimed": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
+  "validated_source_raw_identity": "7bc0a25cc16a0bece5bb69238e4415bcfa922434 (/tmp/ryo-contract-validation312-20261106/identity.json); ruff_sharing.log line refs match 29b1f027c4",
+  "validated_to_head_diff": "29b1f027c4..51aeb2cf4b docs only; 7bc0a25cc1..29b1f027c4 only languages/python/benchmarks/linters/ruff/sharing/test.rs"
+ },
+ "reviewer": {
+  "model": "claude-opus-5-5",
+  "transport": "Claude Code subagent (contract-review)",
+  "note": "Astra unavailable; single independent reviewer (Opus through Claude Code). Read-only: git read commands only, no build/test/source mutation; scratch worktree /workspaces/ryo-review-p3 clean before and after, then removed."
+ },
+ "scope": "Phase 3 claim (a) actual-413 sharing with independent expected coverage; (b) ready-gate, source/barrier and result-lease enforcement (FileWalk last-consumer retirement, derived_barrier and distinct_gate controls). Accepted deferrals: RowSemantics ops 2-9 and Rows/Hosted route controls (ryo-c01b, Phase 5); cross-rule Extend dedup Calls(2) (Phase 5); test-only lease_any (ryo-74uu).",
+ "grades": {
+  "enforced_boundaries": "FAIL",
+  "ownership_and_flow": "PASS",
+  "proof": "FAIL"
+ },
+ "verdict": "blocking",
+ "findings": [
+  {
+   "id": 1,
+   "axis": "proof",
+   "location": "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/walk/service.rs:72-85; frontier/service.rs:28-31; rule/service.rs:34-37,50; distinct_integration/walk_routes/fixtures/plans/mod.rs:250-256,270-274; crates/ryo/crates/core/src/application/file_analysis/service.rs:426-438,490,587",
+   "failure": "The only production caller (core) always runs observations Required + capture enabled, so every rule owes Deliveries(2) and calls rule() then capture_frontiers(). No lifetime control uses a capture intent (all fixtures are CaptureIntent::Disabled). Mutating usize::from(capture != Disabled) to 0 passes every lifetime test yet releases batches after rule() and before capture_frontiers() in production. A refused wrong-entry-point call (rule() on a Forwarded rule returns NotRun at rule/service.rs:50, still decrementing) consumes the debt, and retry of a cancelled Forwarded delivery after retirement is untested.",
+   "owner": "Phase 3 walk agent (execution FileRun/FileWalk)",
+   "required_enforcement": "Lifetime control on the production intent shape (Collected or Disabled diagnostic, observations Required, capture enabled): batch retained after rule(), released after capture_frontiers(), pass count 1. Control that a refused misuse call does not consume a delivery (or a typed per-entry-point obligation). Retry-after-retirement control asserting outcome and pass counter."
+  },
+  {
+   "id": 2,
+   "axis": "proof",
+   "location": "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs:315-331; walk_routes/fixtures/plans/mod.rs:228-281; walk_routes/lifetime/test.rs",
+   "failure": "Retirement is relation-keyed (!pending.contains(&identity.relation)), but every lifetime fixture has one relation (LanguageTarget) and one class (all heads compare GreaterThan 1). The mutations 'release only when owed is empty' and 'class-keyed pending' both survive. A shared-source-relation batch with two classes, one still owed by another rule, is never tested, and neither is partial release of relation A while a rule owing relation B remains.",
+   "owner": "Phase 3 walk agent",
+   "required_enforcement": "Fixture with two relations and two distinct classes on one relation. Assert A's batch retires while B is owed, and that the shared-relation batch stays while a distinct-class consumer still owes."
+  },
+  {
+   "id": 3,
+   "axis": "proof",
+   "location": "crates/ryo/docs/contracts/README.md:76; crates/ryo/languages/python/benchmarks/linters/ruff/sharing/test.rs:53-76,175,204,212-214; crates/ryo/crates/execution/src/application/file_dag/program/preparation/service.rs:396-411; coverage/heads/service.rs:51",
+   "failure": "The row is checked [x] for 'actual413 sharing with independent expected coverage', but the ruff proof covers only heads reached on two small files (the test says so at :212-214). For the 413 program, the shared/barrier split and observed.heads come from the same walk census (shared_walk_class), so the check is self-consistency. The independent expected() runs only on the synthetic corpus. shared_cohort (>1 class in one dispatch) does not show that any class is shared by two or more rules. P3.12 stays unchecked, so the [x] overstates the evidence.",
+   "owner": "Phase 3 coverage agent / integrator",
+   "required_enforcement": "Apply the catalog-independent expected() to the compiled 413 program (expected heads == census shared heads, plus a removed-head negative). Emit rule membership per class and assert that one class or cohort spans two or more rules. Otherwise uncheck the row and scope it to reached heads."
+  },
+  {
+   "id": 4,
+   "axis": "proof",
+   "location": "crates/ryo/docs/contracts/evidence/checkpoint/validation.json (checks.libraries/boundary/tm_*.source, evidence_reuse); README.md:9,23-29,243,246,248",
+   "failure": "validation.json labels libraries, boundary and the TM checks as source 29b1f027c4 with evidence_reuse [], but raw identity.json is 7bc0a25cc1. The reuse is valid (the diff touches only the ruff test target) but unrecorded. build and project_boundary (4067e8e93a, 2307 files earlier) are also reused without a record. The matrix is stale: P3.7 and P3.10 cite a 481-test run (312 has 484). P3.12 says 'Authored, unexecuted ... per-generation population disjointness', but the test is now executed and that premise was replaced. The checkpoint table still says 459/459, 90/90 and reviewed source 293ca1a9a2. Phase 3 is VERIFIED-PENDING-REVIEW while P3.7, P3.10, P3.11 and P3.12 are unchecked.",
+   "owner": "integrator",
+   "required_enforcement": "Record each reuse with source, postimage and the diff proof. Update the P3.* rows and the checkpoint table to the 312 results. Keep the phase status consistent with the unchecked rows."
+  },
+  {
+   "id": 5,
+   "axis": "enforced_boundaries",
+   "location": "/tmp/ryo-contract-validation312-20261106/commands.json (tm_source, 131 hand-listed paths); crates/ryo/tastemaker.toml:233-234",
+   "failure": "TM never checked the Phase 3 sources. tm_source covers none of coverage/**, walk_routes/{lifetime,derived_barrier,distinct_gate}, shared_walk prepared_walk/value.rs, step_classes/service.rs or file_execution/{rule,emission,frontier,walk}/service.rs. tastemaker.toml:233-234 still place the deleted coverage/fixtures.rs and coverage/test.rs. The new heads/service.rs, heads/test.rs, routes/test.rs and fixtures/{catalog,meaning,operations}/mod.rs are unplaced. Phase 2 finding 5 (self-selected TM scope) recurs.",
+   "owner": "integrator with the TM specialist",
+   "required_enforcement": "Derive TM scope mechanically (the diff, or a glob over crates/execution/src), update the placements, run tm check and tm validate, and resolve the in-scope findings. Add a check that fails on placements naming missing files."
+  }
+ ],
+ "verified": [
+  "meaning(OperationKind) and kind_of are exhaustive with no wildcard; OperationKind::ALL is macro-generated from the same variant list, so a 27th variant fails to compile or fails the ALL-count check",
+  "Route expectation independent of the walk census: meaning/head_route/route read only the Operation, region inputs and logical_regions; expected()/supported_head read only the program and the relation catalog",
+  "Classifier and compiled-corpus route controls plus Extend/Rows/Join relabel negatives exist and passed (routes_succeed, routes_reject, every_catalog_kind_has_a_head_in_the_corpus); heads::test includes a project-phase head negative",
+  "All matrix-named tests exist and pass in 312 libraries.log (484/0 execution); boundary 95/0; ruff_sharing 1/1 matches 29b1f027c4 source by warning line references",
+  "No removed assertions in test files base..head: coverage changes are moves; the integrator's two-file replacement drops a false premise (population ids are program-level), and generation-keyed coverage plus the silent-generation negative still reject cross-file batch reuse",
+  "delivered() is reached on success, error and cancel: each entry point wraps deliver_* and decrements unconditionally; owe() runs in bind_intents before any delivery; retire_all at finish; retired counters preserved",
+  "Trie built once: retention filters prefixes/needed by remap, and predicates own their comparison; keyed maps in merge and prepare_predicates match the old linear-scan predicates",
+  "distinct_gate controls cover Project selection offered, GroupCount/Extend absent, and empty primary declines with Calls(0), closing Phase 2 finding 6 part 2"
+ ],
+ "manual_judgment_remaining": [
+  "Delivery debt is computed from intent under an assumed caller protocol; current core matches it (2 calls), but the engine trusts call counts rather than issuing obligations.",
+  "Held-lease/reentrant control uses test-only lease_any; the permit path of a real nested demand is unproven (ryo-74uu, accepted).",
+  "Phase 2 finding 6 part 1 (runtime fault crossing a fused row continuation) is answered only at classification level by the corpus' fused continuation; cross-rule Extend dedup deferred to Phase 5.",
+  "verify_program's needed-route list omits Observation; it is covered by verify_classifier and the observation-union census test, not by the compiled corpus.",
+  "ruff test.rs:134-143 message 'no key is shared across generations' is tautological (generation is in both keys); the real cross-generation guard is the generation-keyed coverage equality."
+ ],
+ "dispositions": []
+}
