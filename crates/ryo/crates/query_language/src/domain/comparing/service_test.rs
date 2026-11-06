@@ -142,6 +142,16 @@ fn a_word_the_column_does_not_hold_is_refused() {
     ));
 }
 
+fn more_origins_than_the_id_space_holds_are_refused() {
+    assert!(matches!(
+        super::service::comparison_origin_id(
+            crate::domain::lowering::types::OriginCount(usize::MAX),
+            lowering_builder().span
+        ),
+        Err(LoweringError::TooManyComparisonOrigins { .. })
+    ));
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("typed_comparison_keeps_operands_and_test"),
@@ -183,6 +193,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_word_the_column_does_not_hold_is_refused"),
         word: Word::Succeeds,
         input: || a_word_the_column_does_not_hold_is_refused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("more_origins_than_the_id_space_holds_are_refused"),
+        word: Word::Succeeds,
+        input: || more_origins_than_the_id_space_holds_are_refused,
         expect: Expect::Value(()),
     },
 ];

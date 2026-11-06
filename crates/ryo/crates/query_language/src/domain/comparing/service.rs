@@ -9,7 +9,7 @@ use ryo_relations::domain::terms::types::Vocabulary;
 use super::constants::{ENDS_WITH, MATCHES, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
-    Addressable, Builder, Compatibility, PlannedColumn, ResolvedOperand, SearchMatch, Typed,
+    Addressable, Builder, Compatibility, OriginCount, PlannedColumn, ResolvedOperand, SearchMatch, Typed,
 };
 use crate::domain::resolving::service::{column_of, find_parameter, parameter_of, position};
 use ryo_values::domain::plan_parts::types as parts;
@@ -305,9 +305,10 @@ pub(crate) fn comparison_of(
     }
     let origin = if let Some(mut origin) = builder.origin.clone() {
         origin.span = filter.span;
-        let id = u32::try_from(builder.comparison_origins.len())
-            .map(ComparisonOriginId)
-            .map_err(|_overflow| LoweringError::TooManyComparisonOrigins { span: filter.span })?;
+        let id = comparison_origin_id(
+            OriginCount(builder.comparison_origins.len()),
+            filter.span,
+        )?;
         builder.comparison_origins.push(origin);
         Some(id)
     } else {
@@ -319,6 +320,16 @@ pub(crate) fn comparison_of(
         right,
         origin,
     })
+}
+
+/// The id the next comparison origin is interned under, when `held` are interned already.
+pub(crate) fn comparison_origin_id(
+    held: OriginCount,
+    span: syntax::QuerySpan,
+) -> Result<ComparisonOriginId, LoweringError> {
+    u32::try_from(held.0)
+        .map(ComparisonOriginId)
+        .map_err(|_overflow| LoweringError::TooManyComparisonOrigins { span })
 }
 
 /// That a word compared with a column of a closed set of words is one of them: `kind = "headline"` is refused when the query is compiled,

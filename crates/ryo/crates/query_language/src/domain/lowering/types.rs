@@ -80,6 +80,10 @@ pub(crate) struct ScopedInput {
     pub fields: Vec<PlannedColumn>,
 }
 
+/// How many comparison origins a plan has interned.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OriginCount(pub usize);
+
 /// What a source reads, and the columns it has.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Sourced {
