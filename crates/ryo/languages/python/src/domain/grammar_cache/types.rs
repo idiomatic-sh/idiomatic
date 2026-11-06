@@ -82,14 +82,6 @@ pub(crate) struct GrammarMemo<V> {
     pub scratch: Scratch,
 }
 
-impl<V> GrammarMemo<V> {
-    /// How many entries the memo holds.
-    #[must_use]
-    pub(crate) fn len(&self) -> EntryCount {
-        EntryCount(self.entries.len())
-    }
-}
-
 /// A number of memo entries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct EntryCount(pub usize);

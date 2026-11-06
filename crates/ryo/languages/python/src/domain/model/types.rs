@@ -205,14 +205,6 @@ pub(crate) struct CandidateRange {
     pub end: CandidateIndex,
 }
 
-impl CandidateRange {
-    /// The candidates of this range among the arena's, when the arena holds them.
-    #[must_use]
-    pub(crate) fn within<'a>(&self, arena: &'a [Position]) -> Option<&'a [Position]> {
-        arena.get(self.start.0..self.end.0)
-    }
-}
-
 /// The number of binding frames belonging to the current source revision.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FrameCount(pub usize);

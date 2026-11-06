@@ -75,15 +75,15 @@ pub(crate) struct KeyRecordIndex(pub usize);
 
 /// A position in the retained key-word arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WordIndex(pub usize);
+pub(crate) struct KeyWordIndex(pub usize);
 
 /// The words of one complete key in the retained arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct WordRange {
     /// The first word of the key.
-    pub start: WordIndex,
+    pub start: KeyWordIndex,
     /// One past the last word of the key.
-    pub end: WordIndex,
+    pub end: KeyWordIndex,
 }
 
 /// Whether an occurrence is a synthetic literal segment inside an interpolated string.

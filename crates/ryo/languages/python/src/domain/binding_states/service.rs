@@ -56,15 +56,17 @@ pub(crate) fn lookup(
     }
 }
 
+/// The candidates of a range among the arena's, when the arena holds them.
+fn within(range: CandidateRange, arena: &[Position]) -> Option<&[Position]> {
+    arena.get(range.start.0..range.end.0)
+}
+
 /// The real declaration candidates carried by an established state.
 pub(crate) fn candidates<'a>(
     state: &'a BindingEnvironments,
     alternatives: &BindingAlternatives,
 ) -> &'a [Position] {
-    alternatives
-        .candidates
-        .within(&state.candidates)
-        .unwrap_or_default()
+    within(alternatives.candidates, &state.candidates).unwrap_or_default()
 }
 
 /// Replace one sparse entry, retaining the mutation key only once per frame.
@@ -194,10 +196,7 @@ pub(crate) fn join(
         let mut knowledge = BindingKnowledge::Known;
         for arm in arms {
             if let Some(value) = lookup(state, *arm, key).cloned() {
-                let values = value
-                    .candidates
-                    .within(&state.candidates)
-                    .unwrap_or_default();
+                let values = within(value.candidates, &state.candidates).unwrap_or_default();
                 state.union.extend_from_slice(values);
                 if value.absence == BindingAbsence::Possible {
                     absence = BindingAbsence::Possible;

@@ -5,7 +5,7 @@ use ryo::languages::{FileId, FilePath};
 
 use super::types::{
     EntryKind, EntryName, EntryShape, FilesystemPath, ImportPath, ImportedRoot, MembershipState,
-    NamespaceMembership, NamespaceMemberships, Prefix, Presence,
+    NamespaceMembership, NamespaceMemberships, Prefix, Presence, Probe,
 };
 use crate::domain::fact_notes::types::Note;
 
@@ -58,26 +58,18 @@ fn prefixes(path: &ImportPath) -> Vec<Prefix> {
     result
 }
 
-fn entry_paths(search: &FilePath, filesystem: &FilesystemPath) -> [(FilePath, EntryShape); 5] {
+fn entry_paths(search: &FilePath, filesystem: &FilesystemPath) -> [Probe; 5] {
     let filesystem = &filesystem.0;
+    let probe = |name: String, shape: EntryShape| Probe {
+        path: beneath(search, &EntryName(name)),
+        shape,
+    };
     [
-        (
-            beneath(search, &EntryName(format!("{filesystem}.py"))),
-            true,
-        ),
-        (
-            beneath(search, &EntryName(format!("{filesystem}.pyi"))),
-            true,
-        ),
-        (beneath(search, &EntryName(filesystem.clone())), false),
-        (
-            beneath(search, &EntryName(format!("{filesystem}/__init__.py"))),
-            true,
-        ),
-        (
-            beneath(search, &EntryName(format!("{filesystem}/__init__.pyi"))),
-            true,
-        ),
+        probe(format!("{filesystem}.py"), EntryShape::File),
+        probe(format!("{filesystem}.pyi"), EntryShape::File),
+        probe(filesystem.clone(), EntryShape::Directory),
+        probe(format!("{filesystem}/__init__.py"), EntryShape::File),
+        probe(format!("{filesystem}/__init__.pyi"), EntryShape::File),
     ]
 }
 
@@ -110,8 +102,8 @@ pub(crate) fn candidates(
     let mut candidates = BTreeSet::new();
     for search in search_roots {
         for name in &names {
-            for (path, _) in entry_paths(search, name) {
-                candidates.insert(path);
+            for probe in entry_paths(search, name) {
+                candidates.insert(probe.path);
             }
         }
     }
@@ -132,7 +124,7 @@ fn classify(
     let mut unknown = false;
     for search in search_roots {
         let [module, stub, directory, initializer, stub_initializer] =
-            entry_paths(search, filesystem).map(|(path, file)| candidate(&path, file));
+            entry_paths(search, filesystem).map(|probe| candidate(&probe.path, probe.shape));
         module_present |= module == Some(Presence::Present) || stub == Some(Presence::Present);
         package_present |= directory == Some(Presence::Present)
             && (initializer == Some(Presence::Present)

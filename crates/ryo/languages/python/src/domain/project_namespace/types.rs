@@ -138,3 +138,12 @@ impl From<bool> for Presence {
         if exists { Self::Present } else { Self::Absent }
     }
 }
+
+/// One candidate path below a search root and the shape it is asked to have.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Probe {
+    /// The candidate's path.
+    pub path: ryo::languages::FilePath,
+    /// The shape it is asked to have.
+    pub shape: EntryShape,
+}

@@ -2,7 +2,7 @@
 
 use crate::domain::constant_keys::types::RetainedKeyIndex;
 use crate::domain::constant_keys::types::{
-    Binary64, ExactInteger, FloatPayload, Fragment, WordIndex, WordRange,
+    Binary64, ExactInteger, FloatPayload, Fragment, KeyWordIndex, WordRange,
 };
 use crate::domain::constant_keys::types::{
     BuiltKey, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
@@ -418,8 +418,8 @@ pub(super) fn intern_with_hash(
     let place = KeyRecordIndex(index.records.len());
     index.records.push(KeyRecord {
         words: WordRange {
-            start: WordIndex(start),
-            end: WordIndex(index.words.len()),
+            start: KeyWordIndex(start),
+            end: KeyWordIndex(index.words.len()),
         },
         representative: at,
         previous: index.buckets.get(&hash).copied(),

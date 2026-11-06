@@ -81,8 +81,8 @@ pub(super) fn intern(
     index.words.extend_from_slice(&index.scratch);
     let record = KeyRecord {
         words: crate::domain::constant_keys::types::WordRange {
-            start: crate::domain::constant_keys::types::WordIndex(start),
-            end: crate::domain::constant_keys::types::WordIndex(index.words.len()),
+            start: crate::domain::constant_keys::types::KeyWordIndex(start),
+            end: crate::domain::constant_keys::types::KeyWordIndex(index.words.len()),
         },
         representative: at,
         previous: index.buckets.get(&hash).copied(),

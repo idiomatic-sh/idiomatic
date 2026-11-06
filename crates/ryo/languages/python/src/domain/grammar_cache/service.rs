@@ -3,9 +3,15 @@ use super::constants::{
     KEY_CAPACITY, MAP_CAPACITY, MEMO_ENTRIES, SCRATCH_CAPACITY, VECTOR_CAPACITY,
 };
 use super::types::{
-    DialectName, Entry, GrammarMemo, GrammarState, Lookup, MemoGrammar, MemoKey, ParserName,
+    DialectName, Entry, EntryCount, GrammarMemo, GrammarState, Lookup, MemoGrammar, MemoKey, ParserName,
     Reservation, Scratch, Taken,
 };
+
+/// How many entries the memo holds.
+#[must_use]
+pub(crate) fn len<V>(memo: &GrammarMemo<V>) -> EntryCount {
+    EntryCount(memo.entries.len())
+}
 
 /// Discard unmatched previous-source contents; retain only a bounded empty table and scratch.
 pub(crate) fn empty<V>(memo: &mut GrammarMemo<V>) {
