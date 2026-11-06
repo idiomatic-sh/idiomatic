@@ -10,7 +10,7 @@ pub(crate) struct Entry<V> {
 }
 /// A byte-budgeted, single-previous-source memo, separate from active file outputs.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Memo<V> {
+pub(crate) struct GrammarMemo<V> {
     /// Exact input text; a memo belongs to one dialect and parser type.
     pub entries: HashMap<String, Entry<V>>,
     /// Sum of owned entry capacities.
@@ -20,7 +20,7 @@ pub(crate) struct Memo<V> {
     /// Reusable input assembly storage, bounded independently of active file data.
     pub scratch: String,
 }
-impl<V> Default for Memo<V> {
+impl<V> Default for GrammarMemo<V> {
     fn default() -> Self {
         Self {
             entries: HashMap::new(),

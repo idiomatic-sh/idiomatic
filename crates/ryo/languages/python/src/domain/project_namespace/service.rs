@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ryo::languages::{FileId, FilePath};
 
-use super::types::{EntryKind, ImportedRoot, Membership, MembershipState, NamespaceMemberships};
+use super::types::{EntryKind, ImportedRoot, NamespaceMembership, MembershipState, NamespaceMemberships};
 use crate::domain::fact_notes::types::Note;
 
 /// First components of absolute imports, retaining the importing file's identity.
@@ -206,7 +206,7 @@ pub(crate) fn memberships(
                     EntryKind::Absent => MembershipState::Absent,
                     EntryKind::Unknown => MembershipState::Unknown,
                 };
-                Membership {
+                NamespaceMembership {
                     file,
                     root: root.clone(),
                     path: path.clone().into_boxed_str(),

@@ -24,7 +24,7 @@ fn state(index: &ConstantKeyIndex) -> KeyState {
 ryo::reads! {
     ConstantKeyItem => languages::ConstantKey, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        given index = prepare(tree, model, symbols);
+        given index = prepare(tree, &model.constant_keys, symbols, |at, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols) == Visibility::Visible).into());
         each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
             require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
             given key = key_of(&index, expression)?;

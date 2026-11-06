@@ -111,3 +111,18 @@ pub(crate) struct ConstantKeyIndex {
     /// Whether this index belongs to the current source revision.
     pub state: KeyState,
 }
+
+/// Whether a candidate expression belongs to the caller's semantic projection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum KeyVisibility {
+    /// The source occurrence participates in the relation.
+    Visible,
+    /// The source occurrence is outside the selected semantic syntax.
+    Hidden,
+}
+
+impl From<bool> for KeyVisibility {
+    fn from(visible: bool) -> Self {
+        if visible { Self::Visible } else { Self::Hidden }
+    }
+}

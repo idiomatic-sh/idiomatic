@@ -1,7 +1,7 @@
 //! Retained per-node summaries for the lazy function terminal reader.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// Pinned structured terminal state before relation-vocabulary collapsing.
-pub(crate) enum Outcome {
+pub(crate) enum TerminalOutcome {
     /// A body falls through without a recognized terminal statement.
     Implicit,
     /// Every represented path raises.
@@ -21,9 +21,9 @@ pub(crate) enum Outcome {
 /// Bottom-up analysis retained for one syntax node.
 pub(crate) struct NodeSummary {
     /// Terminal effect when the node is a statement.
-    pub terminal: Outcome,
+    pub terminal: TerminalOutcome,
     /// Terminal result when the node defines a function.
-    pub function_terminal: Outcome,
+    pub function_terminal: TerminalOutcome,
     /// Whether a `break` can leave the active loop through this statement.
     pub sometimes_breaks: bool,
     /// Whether a match pattern is an unguarded wildcard or capture.

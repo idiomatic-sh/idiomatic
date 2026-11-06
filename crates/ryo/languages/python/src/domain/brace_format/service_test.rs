@@ -4,8 +4,8 @@ use super::types::BraceFormatState;
 use crate::domain::format_parsing::service::prepare as prepare_percent;
 use crate::domain::model::types::Declarations;
 use crate::fixtures::reading::{initialize_model, parsed};
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::RuffLiteralBraceFormat;
-use crate::outbound::format_syntax::adapters::ruff_literal_cformat::RuffLiteralCFormat;
+use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat;
 use ryo::languages::{ByteSlice, Tree};
 
 fn percent_only_demand_never_prepares_brace_grammar() {

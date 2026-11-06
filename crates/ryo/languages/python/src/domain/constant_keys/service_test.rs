@@ -5,7 +5,7 @@ use super::service::{clear, intern_with_hash, key_of, prepare};
 use crate::domain::{
     constant_keys::types::{ConstantKeyIndex, KeyState, KeyWord, LiteralKind},
     model::types::Declarations,
-    semantic_syntax::service::positions,
+    semantic_syntax::{service::{positions, visibility}, types::Visibility},
     syntax::service::{kind, written},
     syntax::types::Kind,
 };
@@ -23,7 +23,7 @@ fn supported_numeric_keys_normalize_and_unsupported_expressions_are_absent() {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model, &mut symbols);
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| (visibility(&tree, &model, at, symbols) == Visibility::Visible).into());
     assert_eq!(
         index.state,
         KeyState::Complete,
@@ -83,7 +83,7 @@ fn float_boundaries_and_huge_integer_structural_keys_are_retained() {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model, &mut symbols);
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| (visibility(&tree, &model, at, symbols) == Visibility::Visible).into());
     let values: Vec<_> = positions(&tree)
         .filter(|at| {
             matches!(
@@ -140,7 +140,7 @@ fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads()
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model, &mut symbols);
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| (visibility(&tree, &model, at, symbols) == Visibility::Visible).into());
     let occurrences: Vec<_> = positions(&tree)
         .filter(|at| {
             matches!(
@@ -187,7 +187,7 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
         model.constant_keys.borrow().records.is_empty(),
         "parsing is lazy"
     );
-    let first_index = prepare(&first_tree, &model, &mut first_symbols);
+    let first_index = prepare(&first_tree, &model.constant_keys, &mut first_symbols, |at, symbols| (visibility(&first_tree, &model, at, symbols) == Visibility::Visible).into());
     let first_words = first_index.words.clone();
     assert!(!first_index.records.is_empty());
     drop(first_index);
@@ -201,7 +201,7 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
     };
     let mut second_symbols = second.symbols;
     initialize_model(&second_tree, &mut model);
-    let second_index = prepare(&second_tree, &model, &mut second_symbols);
+    let second_index = prepare(&second_tree, &model.constant_keys, &mut second_symbols, |at, symbols| (visibility(&second_tree, &model, at, symbols) == Visibility::Visible).into());
     assert!(!second_index.records.is_empty());
     assert_ne!(second_index.words, first_words);
 }

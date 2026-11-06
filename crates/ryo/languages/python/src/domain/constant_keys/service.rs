@@ -1,8 +1,8 @@
 //! Lazily build full, parser-derived constant keys for supported Python expressions.
 
 use crate::domain::constant_keys::types::{
-    ConstantKeyIndex, KeyClass, KeyRecord, KeyRecordIndex, KeyState, KeyWord, LiteralKind,
-    NumberKey, NumericState, RealKey,
+    ConstantKeyIndex, KeyClass, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
+    LiteralKind, NumberKey, NumericState, RealKey,
 };
 use crate::domain::{
     fields::service::field_of,
@@ -19,7 +19,7 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Symbols, Tree};
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
 
 /// The numeric payload retained alongside a successfully constructed full key.
@@ -375,12 +375,13 @@ pub(super) fn intern_with_hash(
 }
 
 /// Prepare supported classes once, retaining complete rows even when another occurrence is unknown.
+/// Candidate visibility comes from the caller's semantic projection.
 pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
-    model: &'a crate::domain::model::types::Declarations,
+    held: &'a RefCell<ConstantKeyIndex>,
     symbols: &mut Symbols,
+    mut visible: impl FnMut(Position, &mut Symbols) -> KeyVisibility,
 ) -> Ref<'a, ConstantKeyIndex> {
-    let held = &model.constant_keys;
     if held.borrow().state == KeyState::Fresh {
         let mut index = held.borrow_mut();
         let count = usize::try_from(languages::end_of(tree.elements).0).unwrap_or(usize::MAX);
@@ -399,9 +400,7 @@ pub(crate) fn prepare<'a>(
                 continue;
             };
             let at = Position(position);
-            if crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols)
-                != crate::domain::semantic_syntax::types::Visibility::Visible
-            {
+            if visible(at, symbols) != KeyVisibility::Visible {
                 continue;
             }
             if !matches!(

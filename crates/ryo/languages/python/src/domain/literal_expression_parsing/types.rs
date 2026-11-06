@@ -45,7 +45,7 @@ pub(crate) struct LiteralParseOccurrence {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct LiteralParseIndex {
     /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::Memo<LiteralParseOutcome>,
+    pub memo: crate::domain::grammar_cache::types::GrammarMemo<LiteralParseOutcome>,
     /// Reusable current-source lookup of already parsed embedded carriers.
     pub embedded: std::collections::HashSet<Position>,
     /// Complete quoted/prefixed token spelling, with token boundaries and dialect preserved.
@@ -54,4 +54,19 @@ pub(crate) struct LiteralParseIndex {
     pub occurrences: Vec<LiteralParseOccurrence>,
     /// Whether demand has established complete current-source knowledge.
     pub state: LiteralParseState,
+}
+
+/// Whether a candidate string carrier belongs to the caller's semantic projection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CarrierVisibility {
+    /// The source occurrence participates in the relation.
+    Visible,
+    /// The source occurrence is outside the selected semantic syntax.
+    Hidden,
+}
+
+impl From<bool> for CarrierVisibility {
+    fn from(visible: bool) -> Self {
+        if visible { Self::Visible } else { Self::Hidden }
+    }
 }

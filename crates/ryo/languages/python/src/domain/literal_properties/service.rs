@@ -29,7 +29,7 @@ pub(crate) struct Properties {
 
 /// A constant that is not a primitive occurrence, has a complete primitive payload, or lacks one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Classification {
+pub(crate) enum LiteralClassification {
     /// Not a primitive literal row, including synthetic interpolation fragments.
     NotPrimitive,
     /// A complete parser-derived result.
@@ -78,8 +78,8 @@ fn payload<'a>(
 }
 
 /// Build a complete primitive classification from its parsed category and predicates.
-fn flag(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Classification {
-    Classification::Known(Properties {
+fn flag(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> LiteralClassification {
+    LiteralClassification::Known(Properties {
         kind,
         zero,
         empty,
@@ -89,36 +89,36 @@ fn flag(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Classific
 
 /// Classify one native or enabled embedded primitive occurrence. No spelling is parsed again.
 #[must_use]
-pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
+pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
     if kind(tree, at) != Kind::Node(Node::Constant) || interpolation_fragment(tree, at) {
-        return Classification::NotPrimitive;
+        return LiteralClassification::NotPrimitive;
     }
 
     // Keep typed bytes separate from decoded text, even though both are constant expressions.
     let scalar_kind = payload(tree, at, SCALAR_KIND);
     if scalar_kind == Some(BYTES_SCALAR) {
-        return payload(tree, at, SCALAR_VALUE).map_or(Classification::MissingPayload, |value| {
+        return payload(tree, at, SCALAR_VALUE).map_or(LiteralClassification::MissingPayload, |value| {
             flag("bytes", false, value.is_empty(), false)
         });
     }
 
     if literal(tree, at) == Literal::String {
-        return decoded_string_empty(tree, at).map_or(Classification::MissingPayload, |empty| {
+        return decoded_string_empty(tree, at).map_or(LiteralClassification::MissingPayload, |empty| {
             flag("string", false, empty, false)
         });
     }
 
     let Some(scalar_kind) = scalar_kind else {
-        return Classification::MissingPayload;
+        return LiteralClassification::MissingPayload;
     };
     match scalar_kind {
         INTEGER_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .map_or(Classification::MissingPayload, |value| {
+            .map_or(LiteralClassification::MissingPayload, |value| {
                 flag("integer", value == "0", false, false)
             }),
         FLOAT_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|bits| bits.parse::<u64>().ok())
-            .map_or(Classification::MissingPayload, |bits| {
+            .map_or(LiteralClassification::MissingPayload, |bits| {
                 flag("float", f64::from_bits(bits) == 0.0_f64, false, false)
             }),
         COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
@@ -127,7 +127,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
                 payload(tree, at, SCALAR_IMAGINARY)
                     .and_then(|imaginary| imaginary.parse::<u64>().ok()),
             )
-            .map_or(Classification::MissingPayload, |(real, imaginary)| {
+            .map_or(LiteralClassification::MissingPayload, |(real, imaginary)| {
                 flag(
                     "complex",
                     f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64,
@@ -137,11 +137,11 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
             }),
         BOOLEAN_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|value| value.parse::<bool>().ok())
-            .map_or(Classification::MissingPayload, |boolean| {
+            .map_or(LiteralClassification::MissingPayload, |boolean| {
                 flag("boolean", false, false, boolean)
             }),
         NONE_SCALAR => flag("null", false, false, false),
         ELLIPSIS_SCALAR => flag("ellipsis", false, false, false),
-        _ => Classification::MissingPayload,
+        _ => LiteralClassification::MissingPayload,
     }
 }

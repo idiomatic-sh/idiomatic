@@ -2,14 +2,12 @@
 use super::{
     interface::LiteralExpressionSyntax,
     types::{
-        LiteralDialect, LiteralParseIndex, LiteralParseOccurrence, LiteralParseOutcome,
+        CarrierVisibility, LiteralDialect, LiteralParseIndex, LiteralParseOccurrence, LiteralParseOutcome,
         LiteralParseState,
     },
 };
 use crate::domain::{
-    model::types::Declarations,
     nodes::types::Node,
-    semantic_syntax::types::Visibility,
     syntax::{
         service::{below, kind, literal, standing},
         types::{Kind, Literal, Standing},
@@ -17,7 +15,7 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Symbols, Tree};
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
 
 /// Missing logical carriers must remain observable through a partial relation read.
@@ -119,25 +117,28 @@ where
 }
 
 /// A relation-level demand scans eligible carriers once; no query host pushdown is assumed.
+/// Source order and candidate visibility come from the caller's semantic projection.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    model: &'a Declarations,
+    held: &'a RefCell<LiteralParseIndex>,
     symbols: &mut Symbols,
+    positions: impl Iterator<Item = Position>,
+    mut visibility: impl FnMut(Position, &mut Symbols) -> CarrierVisibility,
 ) -> Ref<'a, LiteralParseIndex>
 where
     P: LiteralExpressionSyntax,
 {
     if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
-        &model.literal_expression_parsing.borrow().memo,
-        "python-string-annotation-carrier-v1",
+        &held.borrow().memo,
+        P::GRAMMAR.0,
     ) {
-        clear(&mut model.literal_expression_parsing.borrow_mut());
+        clear(&mut held.borrow_mut());
     }
-    if model.literal_expression_parsing.borrow().state == LiteralParseState::Fresh {
-        let mut index = model.literal_expression_parsing.borrow_mut();
+    if held.borrow().state == LiteralParseState::Fresh {
+        let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(
             &mut index.memo,
-            "python-string-annotation-carrier-v1",
+            P::GRAMMAR.0,
         );
         index.state = if languages::has_incomplete_syntax(tree.elements)
             || languages::has_incomplete_lexical_stream(tree.elements)
@@ -156,12 +157,11 @@ where
             }
             let _new_host = index.embedded.insert(expression.host);
         }
-        for node in crate::domain::semantic_syntax::service::positions(tree) {
+        for node in positions {
             if kind(tree, node) != Kind::Node(Node::Constant)
                 || literal(tree, node) != Literal::String
                 || standing(tree, node) != Standing::Own
-                || crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols)
-                    != Visibility::Visible
+                || visibility(node, symbols) != CarrierVisibility::Visible
             {
                 continue;
             }
@@ -187,7 +187,7 @@ where
         }
         crate::domain::grammar_cache::service::empty(&mut index.memo);
     }
-    model.literal_expression_parsing.borrow()
+    held.borrow()
 }
 
 /// Translate an application-owned outcome into the stable relation vocabulary.

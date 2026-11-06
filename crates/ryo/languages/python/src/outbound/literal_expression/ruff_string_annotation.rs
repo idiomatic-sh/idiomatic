@@ -8,6 +8,9 @@ use crate::domain::literal_expression_parsing::{
 pub(crate) struct RuffStringAnnotation;
 
 impl LiteralExpressionSyntax for RuffStringAnnotation {
+    const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::literal_expression_parsing::constants::GRAMMAR;
+
     fn parse(carrier: &str, dialect: LiteralDialect) -> LiteralParseOutcome {
         match dialect {
             LiteralDialect::PythonStringAnnotation => {}

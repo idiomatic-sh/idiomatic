@@ -1,7 +1,7 @@
 //! Parser-owned literal values classify without inferring runtime truthiness.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::service::{Classification, Properties, classify};
+use super::service::{LiteralClassification, Properties, classify};
 use crate::domain::{
     nodes::types::Node,
     semantic_syntax::service::positions,
@@ -20,9 +20,9 @@ fn properties(source: &'static str) -> Vec<Properties> {
     positions(&tree)
         .filter(|at| kind(&tree, *at) == Kind::Node(Node::Constant))
         .filter_map(|at| match classify(&tree, at) {
-            Classification::Known(properties) => Some(properties),
-            Classification::NotPrimitive => None,
-            Classification::MissingPayload => panic!("a primitive literal has complete payload"),
+            LiteralClassification::Known(properties) => Some(properties),
+            LiteralClassification::NotPrimitive => None,
+            LiteralClassification::MissingPayload => panic!("a primitive literal has complete payload"),
         })
         .collect()
 }

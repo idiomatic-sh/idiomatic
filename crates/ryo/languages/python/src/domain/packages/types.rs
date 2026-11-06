@@ -76,7 +76,7 @@ pub(crate) enum Naming {
 
 /// A directory of the repository, relative to its root and normalized (no `.`, no `..`); empty for the root.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Location(pub Box<str>);
+pub(crate) struct PackageLocation(pub Box<str>);
 
 /// Where a requirement says the package it needs is.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,7 +84,7 @@ pub(crate) enum Reference {
     /// By its name, which the written requirement holds.
     Named,
     /// In a directory of the repository.
-    Located(Location),
+    Located(PackageLocation),
     /// Somewhere the manifest does not let the repository name: a URL, a path outside the repository. It matches no package.
     Unresolvable,
 }
@@ -96,7 +96,7 @@ pub(crate) struct Redirect {
     /// The package it is about, as written.
     pub name: PackageName,
     /// The directory it is found in; none when the source is no path, or a path outside the repository, which matches no package of it.
-    pub location: Option<Location>,
+    pub location: Option<PackageLocation>,
     /// Where the source says the package comes from.
     pub origin: languages::DependencyOrigin,
     /// The condition under which the source is the one used, as written; empty when it carries none.
@@ -205,7 +205,7 @@ pub(crate) struct Dependency {
 
 /// A package a workspace holds.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Membership {
+pub(crate) struct PackageMembership {
     /// The manifest of the workspace.
     pub workspace: ManifestPath,
     /// The manifest of the member.
@@ -226,7 +226,7 @@ pub(crate) struct Parsed {
 /// Where a requirement sends its package: a package of the repository, or none, with the condition its source adds to the requirement's
 /// own and where that source says the package comes from.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Target<'a> {
+pub(crate) struct PackageTarget<'a> {
     /// The package of the repository the requirement resolves to; none for one outside it.
     pub package: Option<&'a Package>,
     /// The environment marker the source adds to the requirement's own, when it adds one.

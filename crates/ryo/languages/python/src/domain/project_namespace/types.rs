@@ -26,7 +26,7 @@ pub(crate) enum EntryKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Membership {
+pub(crate) struct NamespaceMembership {
     pub file: FileId,
     pub root: Box<str>,
     pub path: Box<str>,
@@ -36,6 +36,6 @@ pub(crate) struct Membership {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NamespaceMemberships {
-    pub rows: Vec<Membership>,
+    pub rows: Vec<NamespaceMembership>,
     pub incomplete_notes: Vec<FileId>,
 }

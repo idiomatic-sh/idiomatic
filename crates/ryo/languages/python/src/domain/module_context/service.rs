@@ -1,39 +1,39 @@
 //! Module identity preserves raw package directories and strips only the source extension.
-use super::types::{Decision, Markers, PackageModule};
+use super::types::{ModuleDecision, Markers, PackageModule};
 use std::{
     collections::BTreeSet,
     path::{Component, Path, PathBuf},
 };
 
 /// Derive a dotted identity only within a fully observed package ancestry.
-fn module_path(file: &Path, package: Option<&Path>) -> Decision {
+fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
     let Some(package) = package else {
-        return Decision::Known(None);
+        return ModuleDecision::Known(None);
     };
     let Some(parent) = package.parent() else {
-        return Decision::Unknown;
+        return ModuleDecision::Unknown;
     };
     let Ok(relative) = file.strip_prefix(parent) else {
-        return Decision::Unknown;
+        return ModuleDecision::Unknown;
     };
     let mut parts = Vec::new();
     for component in relative.parent().into_iter().flat_map(Path::components) {
         let Component::Normal(component) = component else {
-            return Decision::Unknown;
+            return ModuleDecision::Unknown;
         };
         let Some(directory) = component.to_str() else {
-            return Decision::Unknown;
+            return ModuleDecision::Unknown;
         };
         parts.push(directory);
     }
     let Some((module, _package)) = basenames(file) else {
-        return Decision::Unknown;
+        return ModuleDecision::Unknown;
     };
     parts.push(module);
     let Some(root_name) = package.file_name().and_then(|name| name.to_str()) else {
-        return Decision::Unknown;
+        return ModuleDecision::Unknown;
     };
-    Decision::Known(Some(PackageModule {
+    ModuleDecision::Known(Some(PackageModule {
         path: parts.join("."),
         package_root_name: root_name.to_owned(),
     }))
@@ -50,29 +50,29 @@ pub(crate) fn basenames(file: &Path) -> Option<(&str, &str)> {
 }
 
 /// Resolve an absolute disk source using only supplied marker observations.
-pub(crate) fn disk(file: &Path, markers: &Markers) -> Decision {
+pub(crate) fn disk(file: &Path, markers: &Markers) -> ModuleDecision {
     let Some(mut directory) = file.parent() else {
-        return Decision::Unknown;
+        return ModuleDecision::Unknown;
     };
     let mut package = None;
     loop {
         let marker = directory.join("__init__.py");
         match markers.0.get(&marker) {
-            None => return Decision::Need(marker),
+            None => return ModuleDecision::Need(marker),
             Some(false) => return module_path(file, package),
             Some(true) => package = Some(directory),
         }
         let Some(parent) = directory.parent() else {
-            return Decision::Unknown;
+            return ModuleDecision::Unknown;
         };
         directory = parent;
     }
 }
 
 /// Given inventories never name their root directory and never permit external lookup.
-pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> Decision {
+pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> ModuleDecision {
     let Some(mut directory) = file.parent() else {
-        return Decision::Unknown;
+        return ModuleDecision::Unknown;
     };
     let mut package = None;
     loop {
@@ -80,11 +80,11 @@ pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> Decision {
             return module_path(file, package);
         }
         if directory.as_os_str().is_empty() {
-            return Decision::Unknown;
+            return ModuleDecision::Unknown;
         }
         package = Some(directory);
         let Some(parent) = directory.parent() else {
-            return Decision::Unknown;
+            return ModuleDecision::Unknown;
         };
         directory = parent;
     }

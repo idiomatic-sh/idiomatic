@@ -18,7 +18,7 @@ fn is_lazy_retained_and_invalidated_between_files() {
     let mut model = Declarations::default();
     initialize_model(&first_tree, &mut model);
     assert_eq!(model.terminal_flow.borrow().state, IndexState::Fresh);
-    let index = prepare(&first_tree, &model);
+    let index = prepare(&first_tree, &model.terminal_flow);
     assert_eq!(index.state, IndexState::Complete);
     let function = (0..index.nodes.len()).find_map(|slot| {
         let position = languages::Position(u32::try_from(slot).ok()?);
@@ -36,13 +36,13 @@ fn is_lazy_retained_and_invalidated_between_files() {
     };
     initialize_model(&second_tree, &mut model);
     assert_eq!(model.terminal_flow.borrow().state, IndexState::Fresh);
-    let replacement = prepare(&second_tree, &model);
+    let replacement = prepare(&second_tree, &model.terminal_flow);
     assert!(replacement.nodes.capacity() >= capacity);
     assert!(
         replacement
             .nodes
             .iter()
-            .any(|summary| summary.function_terminal == super::types::Outcome::Implicit)
+            .any(|summary| summary.function_terminal == super::types::TerminalOutcome::Implicit)
     );
 }
 

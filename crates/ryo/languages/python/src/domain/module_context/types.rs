@@ -38,7 +38,7 @@ pub(crate) struct PackageModule {
 }
 /// Next outcome while resolving one file against known marker observations.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Decision {
+pub(crate) enum ModuleDecision {
     /// A module identity or a proven standalone file.
     Known(Option<PackageModule>),
     /// The next marker that must be observed before a conclusion is possible.

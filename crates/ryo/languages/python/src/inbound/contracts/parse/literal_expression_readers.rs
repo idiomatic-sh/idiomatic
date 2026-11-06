@@ -17,7 +17,7 @@ pub(super) struct LiteralExpressionParseItem;
 ryo::reads! {
     LiteralExpressionParseItem => languages::LiteralExpressionParse, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        given index = prepare::<RuffStringAnnotation>(tree, model, symbols);
+        given index = prepare::<RuffStringAnnotation>(tree, &model.literal_expression_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             given dialect = languages::intern_derived(symbols, tree.source, languages::NameText("python-string-annotation"));
             given outcome = languages::intern_derived(symbols, tree.source, languages::NameText(outcome_name(occurrence.outcome)));

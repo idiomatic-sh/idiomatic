@@ -39,7 +39,7 @@ fn classification(
 ryo::reads! {
     ExpressionTypeItem => languages::ExpressionType, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        given index = prepare(tree, model);
+        given index = prepare(tree, &model.expression_types);
         when state(&index) {
             ExpressionTypeState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             ExpressionTypeState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }

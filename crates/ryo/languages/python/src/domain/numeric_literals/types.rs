@@ -18,7 +18,7 @@ pub(crate) enum NumericValue<'a> {
 
 /// No numeric occurrence, one complete occurrence, or a missing required parser property.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Classification<'a> {
+pub(crate) enum NumericClassification<'a> {
     /// This element is not a supported integer or float occurrence.
     NotNumeric,
     /// Complete parser-owned numeric data.

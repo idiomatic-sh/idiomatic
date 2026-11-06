@@ -5,7 +5,7 @@ use crate::domain::{
     nodes::types::Node,
     numeric_literals::{
         service::{classify, intern_value},
-        types::Classification,
+        types::NumericClassification,
     },
     semantic_syntax::types::Visibility,
     syntax::{service::kind_bits, types::Kind},
@@ -24,11 +24,11 @@ ryo::reads! {
         each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
             require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
             when classify(tree, expression) {
-                Classification::NotNumeric => {}
-                Classification::MissingPayload => {
+                NumericClassification::NotNumeric => {}
+                NumericClassification::MissingPayload => {
                     partial INCOMPLETE => languages::Missing::Any;
                 }
-                Classification::Known(numeric) => {
+                NumericClassification::Known(numeric) => {
                     given kind = languages::intern_derived(symbols, tree.source, languages::NameText(numeric.kind));
                     given value = intern_value(symbols, tree.source, &numeric);
                     row { id: node(expression), kind: value(kind), value: value(value), file: file, span: span(expression), }

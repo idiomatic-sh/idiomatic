@@ -21,7 +21,7 @@ pub(crate) const IF: Word<'static> = Word("if");
 pub(crate) const IN: Word<'static> = Word("in");
 
 /// The keyword of an asynchronous comprehension, its `is_async`.
-pub(crate) const ASYNC: Word<'static> = Word(crate::domain::definitions::constants::ASYNC);
+pub(crate) const ASYNC: Word<'static> = Word(crate::domain::syntax::constants::ASYNC);
 
 /// The punctuation before a type variable's `bound`.
 pub(crate) const COLON: Word<'static> = Word(":");

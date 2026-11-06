@@ -1,6 +1,6 @@
 //! Optional decoded bytes; source spelling is never parsed by this reader.
 use crate::domain::{
-    literal_properties::service::{Classification, classify},
+    literal_properties::service::{LiteralClassification, classify},
     model::types::Declarations,
     nodes::types::Node,
     scopes::service::owner,
@@ -29,15 +29,15 @@ fn decoded<'a>(tree: &'a languages::Tree<'_>, at: languages::Position) -> Decode
     // The shared primitive classifier excludes synthetic interpolation fragments.
     // Missing primitive payload stays unknown, without mistaking literal text for bytes.
     match classify(tree, at) {
-        Classification::NotPrimitive => Decoded::Other,
-        Classification::MissingPayload => Decoded::Missing,
-        Classification::Known(properties) if properties.kind == "bytes" => {
+        LiteralClassification::NotPrimitive => Decoded::Other,
+        LiteralClassification::MissingPayload => Decoded::Missing,
+        LiteralClassification::Known(properties) if properties.kind == "bytes" => {
             match languages::property_at(tree.elements, at, SCALAR_VALUE) {
                 Some(value) if canonical(value.0) => Decoded::Bytes(value.0),
                 Some(_) | None => Decoded::Missing,
             }
         }
-        Classification::Known(_) => Decoded::Other,
+        LiteralClassification::Known(_) => Decoded::Other,
     }
 }
 ryo::reads! {

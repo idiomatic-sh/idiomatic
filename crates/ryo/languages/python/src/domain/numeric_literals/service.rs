@@ -1,6 +1,6 @@
 //! Normalize existing parser-owned payloads; never parse Python source spelling again.
 
-use super::types::{Classification, NumericLiteral, NumericValue};
+use super::types::{NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
     nodes::types::Node,
     syntax::{
@@ -92,30 +92,30 @@ fn canonical_integer(value: &str) -> bool {
 }
 
 /// Read one primitive occurrence. Unary signs and arithmetic are not constant-folded.
-pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> Classification<'a> {
+pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassification<'a> {
     if kind(tree, at) != Kind::Node(Node::Constant) {
-        return Classification::NotNumeric;
+        return NumericClassification::NotNumeric;
     }
     let scalar_kind = languages::property_at(tree.elements, at, SCALAR_KIND).map(|text| text.0);
     let value = languages::property_at(tree.elements, at, SCALAR_VALUE).map(|text| text.0);
     match scalar_kind {
         Some(INTEGER_SCALAR) => match value.filter(|value| canonical_integer(value)) {
-            Some(value) => Classification::Known(NumericLiteral {
+            Some(value) => NumericClassification::Known(NumericLiteral {
                 kind: "integer",
                 value: NumericValue::Integer(value),
             }),
-            None => Classification::MissingPayload,
+            None => NumericClassification::MissingPayload,
         },
         Some(FLOAT_SCALAR) => match value.and_then(|value| value.parse::<u64>().ok()) {
-            Some(bits) => Classification::Known(NumericLiteral {
+            Some(bits) => NumericClassification::Known(NumericLiteral {
                 kind: "float",
                 value: NumericValue::Float(bits),
             }),
-            None => Classification::MissingPayload,
+            None => NumericClassification::MissingPayload,
         },
         // The literal discriminator remains available when scalar properties are missing.
-        Some(COMPLEX_SCALAR) => Classification::NotNumeric,
-        Some(_) | None if literal(tree, at) == Literal::Number => Classification::MissingPayload,
-        Some(_) | None => Classification::NotNumeric,
+        Some(COMPLEX_SCALAR) => NumericClassification::NotNumeric,
+        Some(_) | None if literal(tree, at) == Literal::Number => NumericClassification::MissingPayload,
+        Some(_) | None => NumericClassification::NotNumeric,
     }
 }

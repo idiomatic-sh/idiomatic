@@ -15,7 +15,7 @@ pub(crate) enum LinkKind {
 
 /// One edge between existing native token identities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Link {
+pub(crate) struct TokenLink {
     /// Existing source token identity.
     pub source: Position,
     /// Existing target token identity.
@@ -27,7 +27,7 @@ pub(crate) struct Link {
 /// A streaming result or explicit incomplete pairing knowledge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Event {
-    Link(Link),
+    Link(TokenLink),
     Incomplete,
 }
 
@@ -42,7 +42,7 @@ pub(crate) struct Scan<'tree, 'source> {
     /// Unmatched typed opening delimiters in nesting order.
     pub stack: Vec<(Token, Position)>,
     /// At most two remaining edges from the current token.
-    pub pending: [Option<Link>; 2],
+    pub pending: [Option<TokenLink>; 2],
     /// Pairing knowledge was lost or could not be fully built.
     pub incomplete: bool,
     /// The incomplete coverage event has already been emitted.

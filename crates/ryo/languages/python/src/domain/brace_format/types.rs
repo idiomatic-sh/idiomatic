@@ -124,7 +124,7 @@ pub(crate) struct BraceFormatOccurrence {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BraceFormatIndex {
     /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::Memo<BraceFormatResult>,
+    pub memo: crate::domain::grammar_cache::types::GrammarMemo<BraceFormatResult>,
     /// Decoded input to cached parse result.
     pub by_input: IndexMap<FormatCacheInput, FormatResultIndex>,
     /// Distinct decoded input results.

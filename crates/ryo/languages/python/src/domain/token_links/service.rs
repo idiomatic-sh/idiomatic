@@ -1,5 +1,5 @@
 //! Linear links over the completed native token prefix, never a second lexer.
-use super::types::{Event, Link, LinkKind, Scan};
+use super::types::{Event, TokenLink, LinkKind, Scan};
 use crate::domain::{
     syntax::{service::kind, types::Kind},
     tokens::types::Token,
@@ -75,7 +75,7 @@ impl Iterator for Scan<'_, '_> {
             } else if matches!(token, Token::Rpar | Token::Rsqb | Token::Rbrace) {
                 match self.stack.pop() {
                     Some((open, source)) if closing(open) == Some(token) => {
-                        paired = Some(Link {
+                        paired = Some(TokenLink {
                             source,
                             target: at,
                             kind: LinkKind::Matching,
@@ -89,14 +89,14 @@ impl Iterator for Scan<'_, '_> {
                     }
                 }
             }
-            let enclosed = enclosing.map(|target| Link {
+            let enclosed = enclosing.map(|target| TokenLink {
                 source: at,
                 target,
                 kind: LinkKind::Enclosing,
             });
             if let Some(source) = self.previous.replace(at) {
                 self.pending = [paired.or(enclosed), paired.and(enclosed)];
-                return Some(Event::Link(Link {
+                return Some(Event::Link(TokenLink {
                     source,
                     target: at,
                     kind: LinkKind::Next,

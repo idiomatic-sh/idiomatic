@@ -29,7 +29,7 @@ pub(crate) enum Location {
 }
 /// One metadata diagnostic and its original detail.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Diagnostic {
+pub(crate) struct ManifestDiagnostic {
     /// Parsing and metadata failures remain distinguishable.
     pub phase: Phase,
     /// Source mapping, without fabricated AST nodes.
@@ -41,7 +41,7 @@ pub(crate) struct Diagnostic {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Validation {
     /// Actual diagnostics, including syntax rejection before metadata validation could run.
-    pub diagnostics: Vec<Diagnostic>,
+    pub diagnostics: Vec<ManifestDiagnostic>,
     /// A validator/mapping failure makes absence of further diagnostics unknown.
     pub incomplete: Option<Reason>,
 }

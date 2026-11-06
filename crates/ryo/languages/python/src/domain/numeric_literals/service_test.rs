@@ -3,7 +3,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{classify, float_text},
-    types::{Classification, NumericValue},
+    types::{NumericClassification, NumericValue},
 };
 use crate::domain::semantic_syntax::service::positions;
 use crate::fixtures::reading::parsed;
@@ -23,15 +23,15 @@ fn literals(source: &'static str) -> Vec<NumericLiteral> {
     };
     positions(&tree)
         .filter_map(|at| match classify(&tree, at) {
-            Classification::Known(value) => Some(NumericLiteral {
+            NumericClassification::Known(value) => Some(NumericLiteral {
                 kind: value.kind,
                 value: match value.value {
                     NumericValue::Integer(text) => text.to_owned(),
                     NumericValue::Float(bits) => float_text(bits),
                 },
             }),
-            Classification::NotNumeric => None,
-            Classification::MissingPayload => panic!("the parser supplied a numeric payload"),
+            NumericClassification::NotNumeric => None,
+            NumericClassification::MissingPayload => panic!("the parser supplied a numeric payload"),
         })
         .collect()
 }

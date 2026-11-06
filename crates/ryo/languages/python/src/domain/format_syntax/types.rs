@@ -156,7 +156,7 @@ pub(crate) struct FormatOccurrence {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FormatParseIndex {
     /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::Memo<FormatParseResult>,
+    pub memo: crate::domain::grammar_cache::types::GrammarMemo<FormatParseResult>,
     /// Input text to one cached result, avoiding duplicate grammar work.
     pub by_input: indexmap::IndexMap<FormatCacheInput, FormatResultIndex>,
     /// Parsed or malformed results, one per distinct decoded input.

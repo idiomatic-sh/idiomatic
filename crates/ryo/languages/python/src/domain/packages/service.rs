@@ -9,7 +9,7 @@ use super::constants::{
 };
 use super::constants::{EXTRAS, EXTRAS_END, PARENTHESES};
 use super::types::{
-    Cause, FilePlacement, Location, ManifestPath, Marker, Membership, Normalized, PackageName,
+    Cause, FilePlacement, PackageLocation, ManifestPath, Marker, PackageMembership, Normalized, PackageName,
     Packages, Parsed, Reference, Specifier, Wired, WorkspaceMembership, Written,
 };
 use crate::domain::patterns::constants::{HERE, SEPARATOR};
@@ -160,7 +160,7 @@ pub(crate) fn locating(directory: Directory<'_>, relative: Part<'_>) -> Referenc
         }
         location.push_str(part);
     }
-    Reference::Located(Location(location.into()))
+    Reference::Located(PackageLocation(location.into()))
 }
 
 /// The path `directory` has from `base`, when it is inside it.
@@ -178,7 +178,7 @@ fn within<'a>(base: Directory<'_>, directory: Directory<'a>) -> Option<Directory
 /// The packages the workspaces hold: those whose directory a pattern of `members` names, less those a pattern of `excludes` names,
 /// patterns taken from the directory of the workspace's manifest.
 #[must_use]
-pub(crate) fn members_of(packages: &Packages) -> Vec<Membership> {
+pub(crate) fn members_of(packages: &Packages) -> Vec<PackageMembership> {
     let mut found = Vec::new();
     for workspace in &packages.packages {
         if workspace.declared.members.is_empty() {
@@ -198,7 +198,7 @@ pub(crate) fn members_of(packages: &Packages) -> Vec<Membership> {
                     .any(|pattern| matches_directory(pattern, inside) == Matching::Matches)
             };
             if named_by(&workspace.declared.members) && !named_by(&workspace.declared.excludes) {
-                found.push(Membership {
+                found.push(PackageMembership {
                     workspace: workspace.manifest.clone(),
                     package: member.manifest.clone(),
                 });

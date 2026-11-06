@@ -1,6 +1,6 @@
 //! Budget, content, grammar identity and current-source occurrence regressions.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::{service, types::Memo};
+use super::{service, types::GrammarMemo};
 use crate::domain::format_syntax::{
     interface::FormatSyntax,
     types::{
@@ -13,7 +13,7 @@ struct FirstGrammar;
 struct SecondGrammar;
 
 fn byte_budget_rejects_large_keys_and_owned_results() {
-    let mut memo = Memo::default();
+    let mut memo = GrammarMemo::default();
     service::grammar::<FirstGrammar, _>(&mut memo, "first-dialect-v1");
     service::admit(&mut memo, "small".into(), 7_u32, 0);
     assert_eq!(service::take(&mut memo, "small"), Some(("small".into(), 7)));
@@ -27,7 +27,7 @@ fn byte_budget_rejects_large_keys_and_owned_results() {
 }
 
 fn parser_identity_and_exact_content_prevent_stale_reuse() {
-    let mut memo = Memo::default();
+    let mut memo = GrammarMemo::default();
     service::grammar::<FirstGrammar, _>(&mut memo, "first-dialect-v1");
     service::admit(&mut memo, "original".into(), 1_u32, 0);
     assert_eq!(service::take(&mut memo, "edited"), None);
@@ -53,8 +53,8 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
     use crate::fixtures::reading::{initialize_model, parsed};
     use crate::outbound::{
         format_syntax::adapters::{
-            ruff_literal_braceformat::RuffLiteralBraceFormat,
-            ruff_literal_cformat::RuffLiteralCFormat,
+            ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
+            ruff_literal_cformat::grammar::RuffLiteralCFormat,
         },
         literal_expression::ruff_string_annotation::RuffStringAnnotation,
     };
@@ -136,7 +136,15 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
         drop(brace);
         let literal = crate::domain::literal_expression_parsing::service::prepare::<
             RuffStringAnnotation,
-        >(&tree, &model, &mut file.symbols);
+        >(
+            &tree, &model.literal_expression_parsing, &mut file.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
+        );
         assert_eq!(
             usize::try_from(languages::start_at(tree.elements, literal.occurrences[0].node).0)
                 .expect("source offset fits usize"),
@@ -151,8 +159,8 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
     use crate::fixtures::reading::{initialize_model, parsed};
     use crate::outbound::{
         format_syntax::adapters::{
-            ruff_literal_braceformat::RuffLiteralBraceFormat,
-            ruff_literal_cformat::RuffLiteralCFormat,
+            ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
+            ruff_literal_cformat::grammar::RuffLiteralCFormat,
         },
         literal_expression::ruff_string_annotation::RuffStringAnnotation,
     };
@@ -215,8 +223,14 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
         drop(
             crate::domain::literal_expression_parsing::service::prepare::<RuffStringAnnotation>(
                 &tree,
-                &model,
+                &model.literal_expression_parsing,
                 &mut file.symbols,
+                crate::domain::semantic_syntax::service::positions(&tree),
+                |at, symbols| {
+            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                == crate::domain::semantic_syntax::types::Visibility::Visible)
+                .into()
+        },
             ),
         );
     }

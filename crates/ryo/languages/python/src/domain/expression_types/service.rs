@@ -6,8 +6,7 @@ use crate::domain::{
     },
     fields::service::field_of,
     labels::types::Field,
-    literal_properties::service::{Classification, classify as classify_literal},
-    model::types::Declarations,
+    literal_properties::service::{LiteralClassification, classify as classify_literal},
     nodes::types::{Category, Node},
     syntax::{
         service::{category, kind, written},
@@ -16,7 +15,7 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Tree};
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 
 /// Reset the retained classifications before a fresh tree is processed.
 pub(crate) fn clear(index: &mut ExpressionTypeIndex) {
@@ -279,11 +278,11 @@ fn classify_expression(
         Kind::Node(Node::GeneratorExp) => Resolution::Atom(BasicType::Generator),
         Kind::Node(Node::JoinedStr) => Resolution::Atom(BasicType::String),
         Kind::Node(Node::Constant) => match classify_literal(tree, at) {
-            Classification::Known(properties) => Resolution::Atom(super::constants::literal_type(
+            LiteralClassification::Known(properties) => Resolution::Atom(super::constants::literal_type(
                 languages::NameText(properties.kind),
             )),
-            Classification::MissingPayload => return ExpressionClassification::MissingPayload,
-            Classification::NotPrimitive => {
+            LiteralClassification::MissingPayload => return ExpressionClassification::MissingPayload,
+            LiteralClassification::NotPrimitive => {
                 return ExpressionClassification::Complete(Resolution::Unknown);
             }
         },
@@ -391,10 +390,10 @@ fn build(tree: &Tree<'_>, retained: &mut ExpressionTypeIndex) {
 /// Lazily compute and borrow the retained expression classifications.
 pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
-    model: &'a Declarations,
+    held: &'a RefCell<ExpressionTypeIndex>,
 ) -> Ref<'a, ExpressionTypeIndex> {
-    if model.expression_types.borrow().state == ExpressionTypeState::Fresh {
-        build(tree, &mut model.expression_types.borrow_mut());
+    if held.borrow().state == ExpressionTypeState::Fresh {
+        build(tree, &mut held.borrow_mut());
     }
-    Ref::map(model.expression_types.borrow(), |index| index)
+    Ref::map(held.borrow(), |index| index)
 }

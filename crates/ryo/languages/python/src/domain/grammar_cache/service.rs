@@ -1,5 +1,5 @@
 //! Move grammar results across one reset without retaining a corpus of input strings.
-use super::types::{Entry, Memo};
+use super::types::{Entry, GrammarMemo};
 /// Reusable storage admission policy per optional grammar index (four indexes total).
 pub(crate) const BUDGET: usize = 16 * 1024;
 /// Half of the index allowance is available to content memo entries and assembly scratch.
@@ -9,7 +9,7 @@ pub(crate) const ARENA_BUDGET: usize = BUDGET / 8;
 /// Conservative map accounting: buckets plus control bytes, rounded upward twofold.
 /// Allocator bookkeeping/rounding is implementation dependent; this is a capacity budget.
 #[must_use]
-pub(crate) fn retained<V>(memo: &Memo<V>) -> usize {
+pub(crate) fn retained<V>(memo: &GrammarMemo<V>) -> usize {
     memo.bytes
         .saturating_add(memo.scratch.capacity())
         .saturating_add(
@@ -20,7 +20,7 @@ pub(crate) fn retained<V>(memo: &Memo<V>) -> usize {
         )
 }
 /// Discard unmatched previous-source contents; retain only a budgeted empty table/scratch.
-pub(crate) fn empty<V>(memo: &mut Memo<V>) {
+pub(crate) fn empty<V>(memo: &mut GrammarMemo<V>) {
     memo.entries.clear();
     memo.bytes = 0;
     if retained(memo) > MEMO_BUDGET {
@@ -32,11 +32,11 @@ pub(crate) fn empty<V>(memo: &mut Memo<V>) {
 }
 /// Whether a current index was produced by this exact parser implementation and dialect.
 #[must_use]
-pub(crate) fn is_grammar<P, V>(memo: &Memo<V>, dialect: &'static str) -> bool {
+pub(crate) fn is_grammar<P, V>(memo: &GrammarMemo<V>, dialect: &'static str) -> bool {
     memo.grammar == (std::any::type_name::<P>(), dialect)
 }
 /// A parser implementation change invalidates reuse, even for identical text.
-pub(crate) fn grammar<P, V>(memo: &mut Memo<V>, dialect: &'static str) {
+pub(crate) fn grammar<P, V>(memo: &mut GrammarMemo<V>, dialect: &'static str) {
     let identity = (std::any::type_name::<P>(), dialect);
     if memo.grammar != identity {
         empty(memo);
@@ -44,7 +44,7 @@ pub(crate) fn grammar<P, V>(memo: &mut Memo<V>, dialect: &'static str) {
     }
 }
 /// Admit an owned result only when all its key/result capacity fits the reusable budget.
-pub(crate) fn admit<V>(memo: &mut Memo<V>, key: String, value: V, child_bytes: usize) {
+pub(crate) fn admit<V>(memo: &mut GrammarMemo<V>, key: String, value: V, child_bytes: usize) {
     let bytes = key.capacity().saturating_add(child_bytes);
     if bytes > MEMO_BUDGET || retained(memo).saturating_add(bytes) > MEMO_BUDGET {
         return;
@@ -63,13 +63,13 @@ pub(crate) fn admit<V>(memo: &mut Memo<V>, key: String, value: V, child_bytes: u
     memo.bytes = memo.bytes.saturating_add(bytes);
 }
 /// Transfer a content-identical value into the new file's active index.
-pub(crate) fn take<V>(memo: &mut Memo<V>, key: &str) -> Option<(String, V)> {
+pub(crate) fn take<V>(memo: &mut GrammarMemo<V>, key: &str) -> Option<(String, V)> {
     let (key, entry) = memo.entries.remove_entry(key)?;
     memo.bytes = memo.bytes.saturating_sub(entry.bytes);
     Some((key, entry.value))
 }
 /// Keep only modest assembly capacity; a large input is active data, not a permanent pool.
-pub(crate) fn scratch<V>(memo: &mut Memo<V>, mut text: String) {
+pub(crate) fn scratch<V>(memo: &mut GrammarMemo<V>, mut text: String) {
     text.clear();
     if text.capacity() <= ARENA_BUDGET
         && retained(memo).saturating_add(text.capacity()) <= MEMO_BUDGET

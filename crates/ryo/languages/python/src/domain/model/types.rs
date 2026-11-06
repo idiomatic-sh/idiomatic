@@ -372,7 +372,7 @@ pub(crate) struct BindingAnalysisIndex {
     /// Mutation identities indexed by namespace/name for conservative repeated and exceptional regions.
     pub mutations: Vec<BindingMutation>,
     /// Evaluation-ordered events.
-    pub events: Vec<crate::domain::binding_results::types::Event>,
+    pub events: Vec<crate::domain::binding_results::types::BindingResultEvent>,
     /// Explicit state for every analyzed reference.
     pub reads: Vec<crate::domain::binding_results::types::Read>,
     /// Real declaration associations.

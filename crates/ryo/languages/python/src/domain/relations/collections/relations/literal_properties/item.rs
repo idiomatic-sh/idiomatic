@@ -1,7 +1,7 @@
 //! Emit optional primitive-literal properties from parser-owned payloads.
 
 use crate::domain::{
-    literal_properties::service::{Classification, classify},
+    literal_properties::service::{LiteralClassification, classify},
     model::types::Declarations,
     nodes::types::Node,
     semantic_syntax::types::Visibility,
@@ -21,11 +21,11 @@ ryo::reads! {
         each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
             require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
             when classify(tree, expression) {
-                Classification::NotPrimitive => {}
-                Classification::MissingPayload => {
+                LiteralClassification::NotPrimitive => {}
+                LiteralClassification::MissingPayload => {
                     partial INCOMPLETE => languages::Missing::Any;
                 }
-                Classification::Known(properties) => {
+                LiteralClassification::Known(properties) => {
                     given kind = languages::intern_derived(symbols, tree.source, languages::NameText(properties.kind));
                     given zero = if properties.zero { languages::Flag::Raised } else { languages::Flag::Lowered };
                     given empty = if properties.empty { languages::Flag::Raised } else { languages::Flag::Lowered };

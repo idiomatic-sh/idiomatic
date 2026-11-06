@@ -57,7 +57,7 @@ pub(crate) enum ShadowRelationship {
 }
 /// One event in language evaluation order; declaration occurrences reuse defines identities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Event {
+pub(crate) struct BindingResultEvent {
     /// Actual declaration, reference, or cleanup syntax node.
     pub occurrence: Position,
     /// Canonical identifier.
