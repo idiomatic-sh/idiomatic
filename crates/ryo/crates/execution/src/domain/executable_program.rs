@@ -13,8 +13,6 @@ pub(crate) mod selection;
 
 pub(crate) mod native;
 
-pub(crate) mod route;
-
 #[cfg(test)]
 mod service_test;
 

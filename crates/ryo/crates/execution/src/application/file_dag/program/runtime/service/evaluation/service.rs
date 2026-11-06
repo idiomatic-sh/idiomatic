@@ -8,7 +8,7 @@ use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::Representation;
 use crate::application::file_dag::program::runtime::types::Attempt;
-use crate::domain::executable_program::route::Route;
+use crate::domain::executable_program::types::Route;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::{

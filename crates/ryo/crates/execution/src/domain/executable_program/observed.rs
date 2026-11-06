@@ -65,7 +65,7 @@ pub(super) fn compile_unions(
                         inputs: pair.to_vec().into_boxed_slice(),
                         consumers: 0,
                         dependencies: Box::new([]),
-                        route: super::route::Route::Generic,
+                        route: super::types::Route::Generic,
                         instructions: vec![Instruction {
                             logical,
                             producer: rule,

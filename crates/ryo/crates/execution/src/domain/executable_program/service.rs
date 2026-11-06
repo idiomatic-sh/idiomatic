@@ -262,12 +262,12 @@ pub(crate) fn compile(
             inputs: inputs.into_boxed_slice(),
             consumers: consumers[logical],
             dependencies: Box::new([]),
-            route: super::route::Route::Generic,
+            route: super::types::Route::Generic,
         });
     }
     // Every family leaves what it found eligible here; one rule keeps one route per region below.
-    let mut candidates: Vec<super::route::Candidates> =
-        vec![super::route::Candidates::default(); regions.len()];
+    let mut candidates: Vec<super::types::RouteOffers> =
+        vec![super::types::RouteOffers::default(); regions.len()];
     for column in column_candidates.lower(&logical_regions) {
         let target = column.target();
         if candidates[target.0].column.is_some() {
@@ -396,10 +396,10 @@ pub(crate) fn compile(
     }
     super::native::offer(&regions, &native_shapes, &mut candidates);
     for (at, candidate) in candidates.into_iter().enumerate() {
-        let route = candidate.route();
+        let route = choose(candidate);
         match &route {
-            super::route::Route::OrderedExistence(shape) => regions[shape.source.0].consumers += 1,
-            super::route::Route::Column(shape) => regions[shape.left().0].consumers += 1,
+            super::types::Route::OrderedExistence(shape) => regions[shape.source.0].consumers += 1,
+            super::types::Route::Column(shape) => regions[shape.left().0].consumers += 1,
             _ => {}
         }
         regions[at].route = route;
@@ -425,11 +425,11 @@ pub(crate) fn compile(
             }
         }
         match &region.route {
-            super::route::Route::OrderedExistence(ordered) => dependencies.push(ordered.source),
-            super::route::Route::Column(column) => dependencies.push(column.left()),
-            super::route::Route::Generic
-            | super::route::Route::Selection(_)
-            | super::route::Route::NativePositions(_) => {}
+            super::types::Route::OrderedExistence(ordered) => dependencies.push(ordered.source),
+            super::types::Route::Column(column) => dependencies.push(column.left()),
+            super::types::Route::Generic
+            | super::types::Route::Selection(_)
+            | super::types::Route::NativePositions(_) => {}
         }
         region.dependencies = dependencies.into_boxed_slice();
     }
@@ -477,4 +477,61 @@ pub(crate) fn compile(
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
     })
+}
+
+/// The one selection rule: ordered existence, then the column kernel, then the stored
+/// selection, then native positions; the generic route when no family offered one. A route
+/// that cannot run declines before any observable work and the generic evaluation of the
+/// instruction then runs once; no second specialised route is ever tried.
+pub(crate) fn choose(offers: super::types::RouteOffers) -> super::types::Route {
+    use super::types::Route;
+    if let Some(shape) = offers.ordered {
+        Route::OrderedExistence(shape)
+    } else if let Some(shape) = offers.column {
+        Route::Column(shape)
+    } else if let Some(shape) = offers.selection {
+        Route::Selection(shape)
+    } else if let Some(shape) = offers.native {
+        Route::NativePositions(shape)
+    } else {
+        Route::Generic
+    }
+}
+pub(crate) fn kind(route: &super::types::Route) -> super::types::RouteKind {
+    use super::types::{Route, RouteKind};
+    match route {
+        Route::Generic => RouteKind::Generic,
+        Route::OrderedExistence(_) => RouteKind::OrderedExistence,
+        Route::Column(_) => RouteKind::Column,
+        Route::Selection(_) => RouteKind::Selection,
+        Route::NativePositions(_) => RouteKind::NativePositions,
+    }
+}
+pub(crate) fn ordered_existence(route: &super::types::Route) -> Option<&OrderedExistence> {
+    match route {
+        super::types::Route::OrderedExistence(shape) => Some(shape),
+        _ => None,
+    }
+}
+pub(crate) fn column(route: &super::types::Route) -> Option<&super::column::ColumnAlternative> {
+    match route {
+        super::types::Route::Column(shape) => Some(shape),
+        _ => None,
+    }
+}
+pub(crate) fn selection(
+    route: &super::types::Route,
+) -> Option<&super::selection::SelectionAlternative> {
+    match route {
+        super::types::Route::Selection(shape) => Some(shape),
+        _ => None,
+    }
+}
+pub(crate) fn native_positions(
+    route: &super::types::Route,
+) -> Option<&std::sync::Arc<crate::domain::lowering::types::LoweredShape>> {
+    match route {
+        super::types::Route::NativePositions(shape) => Some(shape),
+        _ => None,
+    }
 }

@@ -305,7 +305,3 @@ mod source_proof_test {
         assert!(!exact_required_files(&required, &[0, 1, 2].into()));
     }
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

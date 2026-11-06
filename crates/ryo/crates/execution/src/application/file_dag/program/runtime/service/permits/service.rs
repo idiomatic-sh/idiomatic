@@ -6,7 +6,7 @@ use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::executable_program::route::RouteKind;
+use crate::domain::executable_program::types::RouteKind;
 use crate::domain::executable_program::types::InputId;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
@@ -72,10 +72,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = code
-            .route
-            .ordered_existence()
-            .ok_or(OperatingError::WrongOperation)?;
+        let shape = crate::domain::executable_program::service::ordered_existence(&code.route).ok_or(OperatingError::WrongOperation)?;
         input.validate_for(
             &execution.owner,
             &execution.generation,
@@ -102,7 +99,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = code.route.column().ok_or(OperatingError::WrongOperation)?;
+        let shape = crate::domain::executable_program::service::column(&code.route).ok_or(OperatingError::WrongOperation)?;
         left.validate_for(
             &execution.owner,
             &execution.generation,
@@ -152,9 +149,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn native_shape(
         &self,
     ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
-        self.program.regions()[self.region.0]
-            .route
-            .native_positions()
+        crate::domain::executable_program::service::native_positions(&self.program.regions()[self.region.0].route)
             .ok_or(OperatingError::WrongOperation)
     }
     pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
@@ -185,9 +180,7 @@ impl<'scope> KernelPermit<'scope> {
         shape: &Arc<crate::domain::lowering::types::LoweredShape>,
     ) -> Result<SemanticPermit<'_>, OperatingError> {
         self.validate_registered(self.operation())?;
-        let actual = self.program.regions()[self.region.0]
-            .route
-            .native_positions()
+        let actual = crate::domain::executable_program::service::native_positions(&self.program.regions()[self.region.0].route)
             .ok_or(OperatingError::WrongOperation)?;
         if !Arc::ptr_eq(actual, shape) {
             return Err(OperatingError::WrongOperation);

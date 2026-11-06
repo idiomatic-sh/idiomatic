@@ -76,10 +76,7 @@ impl KernelPermit<'_> {
     ) -> Result<&'a AdmittedInput, OperatingError> {
         self.validate_live()?;
         let region = &self.program.regions()[self.region.0];
-        let declared = region
-            .route
-            .selection()
-            .ok_or(OperatingError::WrongOperation)?;
+        let declared = crate::domain::executable_program::service::selection(&region.route).ok_or(OperatingError::WrongOperation)?;
         if shape.target() != self.region
             || shape.logical() != region.instructions[self.instruction.0].logical
             || !Arc::ptr_eq(shape.selector(), declared.selector())

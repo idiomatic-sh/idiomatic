@@ -11,7 +11,7 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::executable_program::route::RouteKind;
+use crate::domain::executable_program::types::RouteKind;
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::executable_program::types::Instruction;
 use crate::domain::executable_program::types::Region;

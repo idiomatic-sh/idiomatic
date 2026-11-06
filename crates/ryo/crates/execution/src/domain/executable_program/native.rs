@@ -1,9 +1,6 @@
 //! Request preparation preserves native tuple geometry, never the old evaluator.
 use crate::domain::{
-    executable_program::{
-        route::Candidates,
-        types::{LogicalInstruction, Region},
-    },
+    executable_program::types::{LogicalInstruction, Region, RouteOffers},
     file_program::types::RequestGraph,
     lowering::types::LoweredShape,
 };
@@ -21,7 +18,7 @@ pub(super) fn capture(graph: &RequestGraph) -> Vec<Option<Arc<LoweredShape>>> {
 pub(super) fn offer(
     regions: &[Region],
     shapes: &[Option<Arc<LoweredShape>>],
-    candidates: &mut [Candidates],
+    candidates: &mut [RouteOffers],
 ) {
     for (region, candidate) in regions.iter().zip(candidates) {
         let [instruction] = region.instructions.as_ref() else {

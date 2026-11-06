@@ -61,9 +61,7 @@ impl ProgramExecution {
             .needs
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        if let Some(shape) = region
-            .route
-            .ordered_existence()
+        if let Some(shape) = crate::domain::executable_program::service::ordered_existence(&region.route)
             .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
@@ -162,9 +160,7 @@ impl ProgramExecution {
             .needs
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        if let Some(shape) = region
-            .route
-            .column()
+        if let Some(shape) = crate::domain::executable_program::service::column(&region.route)
             .filter(|_| progress.column_done == StageProgress::Pending)
         {
             use crate::domain::executable_program::types::InputSource;

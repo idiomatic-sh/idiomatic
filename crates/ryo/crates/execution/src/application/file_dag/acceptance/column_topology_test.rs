@@ -3,9 +3,8 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::{
         column::ColumnCandidates,
-        route::RouteKind,
-        service::compile,
-        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions},
+        service::{self, compile},
+        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions, RouteKind},
     },
     file_program::types::{NodeId, RequestGraph},
     operating::errors::OperatingError,
@@ -170,15 +169,15 @@ fn assert_one_route(program: &ExecutableProgram) {
     for region in program.regions() {
         let route = &region.route;
         let named = [
-            route.ordered_existence().is_some(),
-            route.column().is_some(),
-            route.selection().is_some(),
-            route.native_positions().is_some(),
+            service::ordered_existence(route).is_some(),
+            service::column(route).is_some(),
+            service::selection(route).is_some(),
+            service::native_positions(route).is_some(),
         ];
         assert!(named.iter().filter(|each| **each).count() <= 1);
         assert_eq!(
             named.iter().any(|each| *each),
-            route.kind() != RouteKind::Generic
+            service::kind(route) != RouteKind::Generic
         );
     }
 }
@@ -188,7 +187,7 @@ fn column_count(program: &ExecutableProgram) -> usize {
     program
         .regions()
         .iter()
-        .filter(|region| region.route.kind() == RouteKind::Column)
+        .filter(|region| service::kind(&region.route) == RouteKind::Column)
         .count()
 }
 
@@ -199,10 +198,10 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let compiled = program(&single, &operators, request);
     assert_eq!(column_count(&compiled), 1);
     assert!(
-        compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0]
-            .route
-            .column()
-            .is_some()
+        service::column(
+            &compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route
+        )
+        .is_some()
     );
 
     let duplicate = vec![ordinary_plan(), ordinary_plan()];
