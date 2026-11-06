@@ -94,7 +94,14 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
         &prepared, &services,
     )?;
     let owner = Rc::clone(phase.owner());
-    owner.derived.set_optional_limit(0)?;
+    // A project phase has no file-cache backend. Required derived views still
+    // use this real owner; optional retention requires an installed file cache.
+    // Configuring its absent backend would refuse before any root is submitted.
+    assert!(
+        !owner.derived.index_observation().available,
+        "project phase must not install a file-only optional cache for this proof"
+    );
+    assert_eq!(owner.derived.retained_bytes(), 0);
     let required = crate::application::file_dag::program::facade_runtime::required_partitions(
         &prepared,
         RuleIndex(0),
@@ -223,6 +230,15 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
     let counts = phase.readiness_counts();
     let builds = owner.derived.counts();
     let live = owner.derived.working_bytes();
+    assert_eq!(
+        owner.derived.retained_bytes(),
+        0,
+        "project acquisition cannot retain optional views without a file backend"
+    );
+    assert!(
+        !owner.derived.index_observation().available,
+        "actual project execution must preserve its backend-free ownership boundary"
+    );
     let backing = owner
         .derived
         .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality);
