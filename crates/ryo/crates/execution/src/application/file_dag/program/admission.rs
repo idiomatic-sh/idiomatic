@@ -318,21 +318,65 @@ impl AdmittedInput {
         self
     }
 
-    fn validate_for(
+    pub(in crate::application::file_dag::program) fn validate_for(
         &self,
-        execution: &super::runtime::ProgramExecution,
+        owner: &Rc<RelationOwner>,
+        generation: &Arc<()>,
+        required: &Partition,
         expected: ProducerRoot,
     ) -> Result<(), OperatingError> {
-        if !execution.owner.matches_generation(&execution.generation)
-            || !Rc::ptr_eq(&execution.owner, &self.proof.owner)
-            || !Arc::ptr_eq(&self.proof.generation, &execution.generation)
+        if !owner.matches_generation(generation)
+            || !Rc::ptr_eq(owner, &self.proof.owner)
+            || !Arc::ptr_eq(&self.proof.generation, generation)
             || self.root != expected
-            || !self.partition.supplies(execution.partition())
+            || !self.partition.supplies(required)
         {
             return Err(OperatingError::NotRead);
         }
-        self.publication(&execution.owner)?;
+        self.publication(owner)?;
         Ok(())
+    }
+    pub(in crate::application::file_dag::program) fn validate_publication(
+        &self,
+    ) -> Result<(), OperatingError> {
+        self.publication(&self.proof.owner).map(|_| ())
+    }
+    pub(in crate::application::file_dag::program) fn walk_source<'call>(
+        &'call self,
+        relation: ryo_relations::domain::relations::types::Relation,
+        rows: &'call crate::domain::table_model::types::Rows<'call>,
+        generation: &Arc<()>,
+    ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
+        use crate::domain::{
+            operator::contract::views::BorrowedRows,
+            table_model::{service::kinds_of, types::Rows},
+        };
+        if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
+            return Err(OperatingError::WrongOperation);
+        }
+        if !Arc::ptr_eq(&self.proof.generation, generation) {
+            return Err(OperatingError::NotRead);
+        }
+        let publication = self.publication(&self.proof.owner)?;
+        let admitted = self
+            .proof
+            .owner
+            .admit(publication.as_ref(), BorrowedRows::from(rows))?;
+        let (population, actual_relation) = admitted.identity(&self.proof.owner)?;
+        if population != self.proof.population || actual_relation != Some(relation) {
+            return Err(OperatingError::NotRead);
+        }
+        if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation)
+            || matches!(rows,Rows::Tree(tree) if crate::domain::table_cells::service::native_form(relation) != Some(tree.form))
+        {
+            return Ok(None);
+        }
+        Ok(Some(AdmittedWalkSource {
+            source: self,
+            rows,
+            relation,
+            population,
+        }))
     }
     /// Only a real generation-checked admission can issue this required input.
     pub(in crate::application::file_dag::program) fn from_publication(
@@ -373,6 +417,15 @@ impl AdmittedInput {
     }
 }
 impl FileGeneration {
+    pub(in crate::application::file_dag::program) fn matches(
+        &self,
+        expected: &Self,
+        generation: &Arc<()>,
+    ) -> bool {
+        self.file == expected.file
+            && Arc::ptr_eq(&self.generation, &expected.generation)
+            && Arc::ptr_eq(generation, &expected.generation)
+    }
     pub(super) fn file(&self) -> FileId {
         self.file
     }
@@ -396,6 +449,14 @@ pub(super) struct AdmittedWalkSource<'a> {
     population: PopulationId,
 }
 impl<'a> AdmittedWalkSource<'a> {
+    pub(in crate::application::file_dag::program) fn require_input(
+        &self,
+        input: &AdmittedInput,
+    ) -> Result<(), OperatingError> {
+        std::ptr::eq(self.source, input)
+            .then_some(())
+            .ok_or(OperatingError::NotRead)
+    }
     pub(super) fn rows(&self) -> &crate::domain::table_model::types::Rows<'a> {
         self.rows
     }
@@ -408,413 +469,6 @@ impl<'a> AdmittedWalkSource<'a> {
 }
 /// A borrowed semantic call can be made only under an admitted program invocation.
 /// Its fields/issuance are inaccessible to raw evaluator or provider callers.
-#[derive(Clone, Copy)]
-enum KernelStrategy {
-    Registered,
-    Positions,
-    Ordered,
-    Column,
-}
-#[derive(Clone, Copy)]
-enum BoundInputs<'a> {
-    Ordinary(&'a [AdmittedInput]),
-    Ordered(&'a AdmittedInput),
-    Column {
-        left: &'a AdmittedInput,
-        right: &'a AdmittedInput,
-    },
-}
-pub(crate) struct KernelPermit<'scope> {
-    program: &'scope crate::domain::executable_program::types::ExecutableProgram,
-    region: RegionId,
-    instruction: usize,
-    generation: &'scope Arc<()>,
-    partition: &'scope Partition,
-    live: &'scope Arc<super::super::relations::GenerationLease>,
-    bindings: BoundInputs<'scope>,
-    strategy: KernelStrategy,
-}
-impl<'scope> KernelPermit<'scope> {
-    fn code(
-        execution: &super::runtime::ProgramExecution,
-        region: RegionId,
-    ) -> Result<&crate::domain::executable_program::types::Region, OperatingError> {
-        if !execution.owner.matches_generation(&execution.generation) {
-            return Err(OperatingError::NotRead);
-        }
-        let code = execution
-            .program
-            .regions()
-            .get(region.0)
-            .ok_or(OperatingError::NotRun)?;
-        if code.instructions.is_empty() {
-            return Err(OperatingError::NotRun);
-        }
-        Ok(code)
-    }
-    pub(in crate::application::file_dag::program) fn admitted(
-        authority: super::runtime::KernelAdmission<'scope>,
-        inputs: &'scope [AdmittedInput],
-    ) -> Result<Self, OperatingError> {
-        let execution = authority.execution();
-        let region = authority.region();
-        let code = Self::code(execution, region)?;
-        if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
-            return Err(OperatingError::WrongOperation);
-        }
-        for (source, input) in code.inputs.iter().zip(inputs) {
-            let expected = match source {
-                InputSource::Region(id) => ProducerRoot::Region(*id),
-                other => ProducerRoot::Input(*other),
-            };
-            input.validate_for(execution, expected)?;
-        }
-        Ok(Self {
-            program: &execution.program,
-            region,
-            instruction: 0,
-            generation: &execution.generation,
-            partition: execution.partition(),
-            live: &execution.generation_live,
-            bindings: BoundInputs::Ordinary(inputs),
-            strategy: KernelStrategy::Registered,
-        })
-    }
-    pub(super) fn ordered(
-        authority: super::runtime::KernelAdmission<'scope>,
-        input: &'scope AdmittedInput,
-    ) -> Result<Self, OperatingError> {
-        let execution = authority.execution();
-        let region = authority.region();
-        let code = Self::code(execution, region)?;
-        let shape = code
-            .ordered_existence
-            .as_ref()
-            .ok_or(OperatingError::WrongOperation)?;
-        input.validate_for(execution, ProducerRoot::Region(shape.source))?;
-        Ok(Self {
-            program: &execution.program,
-            region,
-            instruction: 0,
-            generation: &execution.generation,
-            partition: execution.partition(),
-            live: &execution.generation_live,
-            bindings: BoundInputs::Ordered(input),
-            strategy: KernelStrategy::Ordered,
-        })
-    }
-    pub(super) fn column(
-        authority: super::runtime::KernelAdmission<'scope>,
-        left: &'scope AdmittedInput,
-        right: &'scope AdmittedInput,
-    ) -> Result<Self, OperatingError> {
-        let execution = authority.execution();
-        let region = authority.region();
-        let code = Self::code(execution, region)?;
-        let shape = code.column.as_ref().ok_or(OperatingError::WrongOperation)?;
-        left.validate_for(execution, ProducerRoot::Region(shape.left()))?;
-        right.validate_for(
-            execution,
-            ProducerRoot::Input(InputSource::Relation(shape.chain().right)),
-        )?;
-        Ok(Self {
-            program: &execution.program,
-            region,
-            instruction: 0,
-            generation: &execution.generation,
-            partition: execution.partition(),
-            live: &execution.generation_live,
-            bindings: BoundInputs::Column { left, right },
-            strategy: KernelStrategy::Column,
-        })
-    }
-    /// A continuation borrows the already admitted invocation; no refcount,
-    /// population walk, room or ledger operation occurs here.
-    pub(in crate::application::file_dag::program) fn instruction(
-        &self,
-        at: usize,
-    ) -> Result<Self, OperatingError> {
-        self.program.regions()[self.region.0]
-            .instructions
-            .get(at)
-            .ok_or(OperatingError::NotRun)?;
-        Ok(Self {
-            program: self.program,
-            region: self.region,
-            instruction: at,
-            generation: self.generation,
-            partition: self.partition,
-            live: self.live,
-            bindings: self.bindings,
-            strategy: self.strategy,
-        })
-    }
-    pub(super) fn native_shape(
-        &self,
-    ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
-        self.program.regions()[self.region.0]
-            .native_positions
-            .as_ref()
-            .ok_or(OperatingError::WrongOperation)
-    }
-    pub(super) fn region(&self) -> RegionId {
-        self.region
-    }
-    pub(super) fn validate_program(
-        &self,
-        program: &crate::domain::executable_program::types::ExecutableProgram,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        if std::ptr::eq(self.program, program) {
-            Ok(())
-        } else {
-            Err(OperatingError::WrongOperation)
-        }
-    }
-    pub(super) fn descriptor(&self) -> &crate::domain::executable_program::types::Instruction {
-        &self.program.regions()[self.region.0].instructions[self.instruction]
-    }
-    pub(super) fn position_semantics(
-        &self,
-        shape: &Arc<crate::domain::lowering::types::LoweredShape>,
-    ) -> Result<SemanticPermit<'_>, OperatingError> {
-        self.validate_registered(self.operation())?;
-        let actual = self.program.regions()[self.region.0]
-            .native_positions
-            .as_ref()
-            .ok_or(OperatingError::WrongOperation)?;
-        if !Arc::ptr_eq(actual, shape) {
-            return Err(OperatingError::WrongOperation);
-        }
-        let mut permit = self.semantics();
-        permit.strategy = KernelStrategy::Positions;
-        Ok(permit)
-    }
-    pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
-        SemanticPermit {
-            program: self.program,
-            region: self.region,
-            instruction: self.instruction,
-            live: self.live,
-            strategy: self.strategy,
-        }
-    }
-    pub(super) fn bound_input(&self, at: usize) -> Result<&AdmittedInput, OperatingError> {
-        match self.bindings {
-            BoundInputs::Ordinary(inputs) => inputs.get(at),
-            BoundInputs::Ordered(input) => (at == 0).then_some(input),
-            BoundInputs::Column { left, right } => match at {
-                0 => Some(left),
-                1 => Some(right),
-                _ => None,
-            },
-        }
-        .ok_or(OperatingError::MissingInput { position: at + 1 })
-    }
-    pub(super) fn validate_live(&self) -> Result<(), OperatingError> {
-        if self.live.is_live() {
-            Ok(())
-        } else {
-            Err(OperatingError::NotRead)
-        }
-    }
-    pub(super) fn require_file_walk(
-        &self,
-        expected: &FileGeneration,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        match self.partition {
-            Partition::File(actual)
-                if actual.file == expected.file
-                    && Arc::ptr_eq(&actual.generation, &expected.generation)
-                    && Arc::ptr_eq(self.generation, &expected.generation) =>
-            {
-                Ok(())
-            }
-            _ => Err(OperatingError::NotRead),
-        }
-    }
-    pub(super) fn require_project_walk(&self) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        match self.partition {
-            Partition::Project(_) => Ok(()),
-            _ => Err(OperatingError::NotRead),
-        }
-    }
-    pub(super) fn admit_walk_source<'call>(
-        &'call self,
-        relation: ryo_relations::domain::relations::types::Relation,
-        rows: &'call crate::domain::table_model::types::Rows<'call>,
-    ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
-        use crate::domain::{
-            operator::contract::views::BorrowedRows,
-            table_model::{service::kinds_of, types::Rows},
-        };
-        self.validate_live()?;
-        let source = self.bound_input(0)?;
-        if source.root != ProducerRoot::Input(InputSource::Relation(relation)) {
-            return Err(OperatingError::WrongOperation);
-        }
-        use ryo_values::domain::{
-            plan_parts::types::{Input, RepeatedRows},
-            plans::types::Operation,
-        };
-        let authored = match &self.descriptor().operation {
-            Operation::Select {
-                from: Input::Relation(authored),
-                ..
-            }
-            | Operation::Project {
-                from: Input::Relation(authored),
-                distinct: RepeatedRows::Kept,
-                ..
-            } => authored,
-            _ => return Err(OperatingError::WrongOperation),
-        };
-        if *authored != relation {
-            return Err(OperatingError::WrongOperation);
-        }
-        if !Arc::ptr_eq(&source.proof.generation, self.generation) {
-            return Err(OperatingError::NotRead);
-        }
-        let publication = source.publication(&source.proof.owner)?;
-        let admitted = source
-            .proof
-            .owner
-            .admit(publication.as_ref(), BorrowedRows::from(rows))?;
-        let (population, actual_relation) = admitted.identity(&source.proof.owner)?;
-        if population != source.proof.population || actual_relation != Some(relation) {
-            return Err(OperatingError::NotRead);
-        }
-        // Identity failures are terminal; physical optimization eligibility is not.
-        if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation)
-            || matches!(rows, Rows::Tree(tree) if crate::domain::table_cells::service::native_form(relation) != Some(tree.form))
-        {
-            return Ok(None);
-        }
-        Ok(Some(AdmittedWalkSource {
-            source,
-            rows,
-            relation,
-            population,
-        }))
-    }
-    pub(super) fn validate_walk_source(
-        &self,
-        source: &AdmittedWalkSource<'_>,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        if !std::ptr::eq(source.source, self.bound_input(0)?) {
-            return Err(OperatingError::NotRead);
-        }
-        Ok(())
-    }
-    pub(super) fn selection_input<'a>(
-        &'a self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
-    ) -> Result<&'a AdmittedInput, OperatingError> {
-        self.validate_live()?;
-        let region = &self.program.regions()[self.region.0];
-        let declared = region
-            .selection
-            .as_ref()
-            .ok_or(OperatingError::WrongOperation)?;
-        if shape.target() != self.region
-            || shape.logical() != region.instructions[self.instruction].logical
-            || !Arc::ptr_eq(shape.selector(), declared.selector())
-        {
-            return Err(OperatingError::NotRead);
-        }
-        let source = self.bound_input(0)?;
-        source.publication(&source.proof.owner)?;
-        Ok(source)
-    }
-    pub(super) fn output_kinds(
-        &self,
-    ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
-        self.program.regions()[self.region.0].instructions[self.instruction]
-            .contract
-            .output_kinds
-            .as_deref()
-            .map_err(Clone::clone)
-    }
-    pub(super) fn validate_native_join(
-        &self,
-        native: &super::super::invocation::NativeJoinLease<'_>,
-        owner: &Rc<RelationOwner>,
-        left: &crate::domain::table_model::types::Rows<'_>,
-    ) -> Result<(), OperatingError> {
-        self.validate_registered(self.operation())?;
-        if !matches!(
-            self.native_join_eligibility(),
-            super::native_join::Eligibility::Native
-        ) {
-            return Err(OperatingError::WrongOperation);
-        }
-        let region = &self.program.regions()[self.region.0];
-        if region.instructions.len() != 1 || region.inputs.len() != 2 {
-            return Err(OperatingError::WrongOperation);
-        }
-        let left_input = self.bound_input(0)?;
-        let right_input = self.bound_input(1)?;
-        let expected = region.instructions[self.instruction].contract.derived.slots
-            [ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
-        .as_ref()
-        .ok_or(OperatingError::WrongOperation)?;
-        if !std::ptr::eq(expected.primary.plan.as_ref(), native.contract()) {
-            return Err(OperatingError::NotRead);
-        }
-        owner.admit(
-            left_input.publication(owner)?.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(left),
-        )?;
-        owner.admit(
-            right_input.publication(owner)?.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Tree(native.tree()),
-        )?;
-        native.finding()?;
-        Ok(())
-    }
-    pub(super) fn native_join_eligibility(&self) -> super::native_join::Eligibility {
-        let region = &self.program.regions()[self.region.0];
-        if region.instructions.len() == 1
-            && matches!(
-                self.operation(),
-                ryo_values::domain::plans::types::Operation::Join { reach: None, filter, .. } if filter.is_empty()
-            )
-            && region.instructions[self.instruction]
-                .contract
-                .schema
-                .is_ok()
-            && region.instructions[self.instruction]
-                .contract
-                .row_error
-                .is_none()
-        {
-            super::native_join::Eligibility::Native
-        } else {
-            super::native_join::Eligibility::Ordinary
-        }
-    }
-    pub(in crate::application::file_dag) fn validate_registered(
-        &self,
-        operation: &ryo_values::domain::plans::types::Operation,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        if !matches!(self.strategy, KernelStrategy::Registered) || self.operation() != operation {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(())
-    }
-    pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
-        self.program.regions()[self.region.0].instructions[self.instruction]
-            .contract
-            .kind
-    }
-    pub(crate) fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions()[self.region.0].instructions[self.instruction].operation
-    }
-}
 
 impl RequiredPartitions {
     pub(in crate::application::file_dag::program) fn from_request(
@@ -849,7 +503,7 @@ impl RequiredPartitions {
     /// Missing, unreadable, or unknown files cannot acquire this evidence.
     pub(in crate::application::file_dag) fn skipped_files(
         &self,
-        program: &super::facade::PreparedProgram,
+        program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
         rule: RuleIndex,
     ) -> Result<std::collections::BTreeSet<FileId>, OperatingError> {
         use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
@@ -936,7 +590,7 @@ pub(super) fn contributor_readiness(
 /// Give a real producer publication its request-qualified member alias. The
 /// binding is resolved from prepared metadata; callers cannot choose a producer.
 pub(super) fn alias_member(
-    prepared: &super::facade::PreparedProgram,
+    prepared: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     slot: usize,
     member: usize,
     input: &AdmittedInput,
@@ -1023,88 +677,6 @@ impl ApplicabilityProof {
             file: FileGeneration::from_owner(file, owner),
             reason,
         }
-    }
-}
-
-/// Pure borrowed semantic authority. It exposes neither worker ownership nor
-/// dependency acquisition, and cannot outlive its admitted invocation permit.
-pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
-    program: &'scope crate::domain::executable_program::types::ExecutableProgram,
-    region: RegionId,
-    instruction: usize,
-    live: &'scope Arc<super::super::relations::GenerationLease>,
-    strategy: KernelStrategy,
-}
-impl<'scope> SemanticPermit<'scope> {
-    fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions()[self.region.0].instructions[self.instruction].operation
-    }
-    fn validate_live(&self) -> Result<(), OperatingError> {
-        if self.live.is_live() {
-            Ok(())
-        } else {
-            Err(OperatingError::NotRead)
-        }
-    }
-    pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
-        &'call self,
-        binding: &crate::domain::executable_program::physical::PhysicalBinding<'_>,
-        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
-    ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
-        self.validate_live()?;
-        use crate::domain::executable_program::physical::{self, PhysicalRoute};
-        let route = match self.strategy {
-            KernelStrategy::Registered => PhysicalRoute::Registered,
-            KernelStrategy::Positions => PhysicalRoute::Positions(
-                self.program.regions()[self.region.0]
-                    .native_positions
-                    .as_ref()
-                    .ok_or(OperatingError::WrongOperation)?,
-            ),
-            KernelStrategy::Ordered => PhysicalRoute::Ordered(
-                self.program.regions()[self.region.0]
-                    .ordered_existence
-                    .as_ref()
-                    .ok_or(OperatingError::WrongOperation)?,
-            ),
-            KernelStrategy::Column => PhysicalRoute::Column(
-                self.program.regions()[self.region.0]
-                    .column
-                    .as_ref()
-                    .ok_or(OperatingError::WrongOperation)?,
-            ),
-        };
-        let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
-        Ok(PermittedPhysical {
-            permit: self,
-            meaning,
-            authority,
-        })
-    }
-}
-
-/// The request and its validated authority cannot be separated or rewritten.
-pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
-    permit: &'permit SemanticPermit<'scope>,
-    meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
-    authority: crate::domain::executable_program::physical::PhysicalAuthorization,
-}
-impl PermittedPhysical<'_, '_, '_> {
-    pub(in crate::application::file_dag) fn dispatch(
-        self,
-        port: &dyn crate::outbound::operators::interface::OperatorsPort,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        super::super::executor::KernelFault,
-    > {
-        if !self.permit.live.is_live() {
-            return Err(super::super::executor::KernelFault::Refused(
-                OperatingError::NotRead,
-            ));
-        }
-        let _authority = self.authority;
-        port.operators(self.meaning)
-            .map_err(super::super::executor::KernelFault::Portable)
     }
 }
 

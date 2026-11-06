@@ -1,7 +1,8 @@
 //! Compiled program lifecycle proof with a real owner.
 //! Distinct state survives repeated left rows and resets after a failed delivery.
 use super::*;
-use crate::application::file_dag::program::runtime::{AttemptCheckpoint, DependencyCheckpoint};
+use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
+use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 use crate::application::file_dag::{execution::CommonOperatorEngine, scope::ScopePartials};
 use crate::domain::{
     file_program::types::RuleSchedule,
@@ -213,7 +214,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         mut symbols,
     } = small_tree();
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
@@ -360,8 +361,6 @@ mod replay;
 mod scratch_owner;
 
 mod execution_boundary;
-
-use crate::application::file_dag::program::facade;
 
 mod independent_roots;
 

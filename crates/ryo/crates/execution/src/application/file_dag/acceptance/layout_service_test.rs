@@ -1,6 +1,5 @@
 //! Schema, publication and refusal controls through production request preparation.
 
-use crate::application::file_dag::program::facade;
 use crate::domain::{
     file_program::{
         service::compile_prepared_observations,
@@ -85,7 +84,12 @@ fn native_plan(cross: bool) -> Plan {
         },
     )
 }
-fn prepared(plan: Plan) -> Result<Arc<facade::PreparedProgram>, OperatingError> {
+fn prepared(
+    plan: Plan,
+) -> Result<
+    Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
+    OperatingError,
+> {
     let rule = RuleSpec {
         id: RuleId("prepared-layout".into()),
         query: QueryBundle {
@@ -102,7 +106,7 @@ fn prepared(plan: Plan) -> Result<Arc<facade::PreparedProgram>, OperatingError> 
         include: vec![],
         exclude: vec![],
     };
-    facade::prepare(
+    crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

@@ -25,7 +25,7 @@ use {
 /// The executable lease belongs to the application invocation owner. A pure
 /// borrowed context cannot be promoted into a registered call by a sibling.
 pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
-    permit: &'call super::super::program::admission::KernelPermit<'scope>,
+    permit: &'call crate::application::file_dag::program::runtime::types::KernelPermit<'scope>,
     context: &'call mut PrimitiveLease<'resources>,
     operation: &'call ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'call>,
@@ -33,7 +33,7 @@ pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
     fn new(
-        permit: &'call super::super::program::admission::KernelPermit<'scope>,
+        permit: &'call crate::application::file_dag::program::runtime::types::KernelPermit<'scope>,
         context: &'call mut PrimitiveLease<'resources>,
         operation: &'call ryo_values::domain::plans::types::Operation,
         input: PreparedInputs<'call>,
@@ -63,7 +63,7 @@ impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
 pub(in crate::application::file_dag) fn evaluate(
     operators: &dyn PrimitiveExecutor,
     contract: &OperatorContract,
-    permit: &super::super::program::admission::KernelPermit<'_>,
+    permit: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
     operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
@@ -94,7 +94,7 @@ pub(in crate::application::file_dag) fn evaluate(
 fn evaluate_once(
     operators: &dyn PrimitiveExecutor,
     contract: &OperatorContract,
-    permit: &super::super::program::admission::KernelPermit<'_>,
+    permit: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
     operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,

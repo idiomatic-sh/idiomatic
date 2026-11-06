@@ -104,7 +104,7 @@ fn edges(pairs: &[(u64, u64)]) -> Vec<FactColumn> {
 fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
 -> Result<(), OperatingError> {
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

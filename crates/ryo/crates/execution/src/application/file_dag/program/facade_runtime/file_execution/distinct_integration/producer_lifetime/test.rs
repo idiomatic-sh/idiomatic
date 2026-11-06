@@ -13,7 +13,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let derived = crate::application::file_dag::testing::program_derived_port();
     let mut second = rule();
     second.id = RuleId("second-derived-consumer".into());
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![], vec![]],
@@ -120,7 +120,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
     };
-    use crate::application::file_dag::program::runtime::ConsumerReleasePoint;
+    use crate::application::file_dag::program::runtime::types::ConsumerReleasePoint;
     let consumer = |rule: RuleIndex, step: StepId| {
         let logical = prepared.program().rules()[rule.0].original_steps[step.0 as usize]
             .as_ref()

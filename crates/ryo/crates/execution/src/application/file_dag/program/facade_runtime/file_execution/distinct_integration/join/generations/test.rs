@@ -8,7 +8,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     let payload = schema_column(Relation::SequenceElement, CellKind::Number, 1);
     let recorded = Arc::new(RecordedDerived::default());
     let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![request(&[left], &[right], &[(Side::Right, payload)])],
             bindings: vec![vec![]],

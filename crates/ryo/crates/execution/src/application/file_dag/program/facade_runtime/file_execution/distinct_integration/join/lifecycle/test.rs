@@ -114,7 +114,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
     let derived = crate::application::file_dag::testing::program_derived_port();
     let mut second = rule();
     second.id = RuleId("nested-join".into());
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![outer, inner],
             bindings: vec![vec![], vec![]],

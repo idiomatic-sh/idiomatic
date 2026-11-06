@@ -3,12 +3,15 @@ why = "The application service owns one request's preparation, admission, invoca
 closed      = false
 
 templates = [
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "cross_execution.rs", description = "Project execution coordination owned by file DAG." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "crossing.rs", description = "Project crossing entry owned by file DAG." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program.rs", description = "The executable-program module boundary." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/admission.rs", description = "Owner-issued source admission and lineage." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/context.rs", description = "Owner-bound run context and symbol generation." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade.rs", description = "The supported prepared-program caller surface." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/preparation/mod.rs", description = "Private registration of immutable request preparation roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/preparation/types.rs", description = "Immutable prepared program and request metadata, independent of run orchestration." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/preparation/service.rs", description = "Request compilation, identity preparation and immutable metadata access." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/protocol/mod.rs", description = "Private registration of neutral execution protocol roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/protocol/types.rs", description = "Neutral run intents, output DTOs and opaque admitted handovers." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/protocol/service.rs", description = "Validation of admitted handovers without execution policy." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime.rs", description = "Outer file and project execution orchestration." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/file_execution.rs", description = "File-owned frontier capture and commit." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/project_execution.rs", description = "Project-owned deferred source admission." },
@@ -24,7 +27,9 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_join.rs", description = "Permit-bound native traversal kernel delivery." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "relations/positioned.rs", description = "Relation-owner native tuple validation and immutable population issuance." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "relations/selection.rs", description = "Relation-owner selected population validation and resource ownership." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime.rs", description = "Single owner of dependency scheduling and release." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime/mod.rs", description = "Private registration of the sole invocation runtime owner." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime/types.rs", description = "Runtime-owned state, contracts and unforgeable authority with owner-scoped representations." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime/service.rs", description = "Sole admission interpreter, authority issuance, semantic dispatch and release." },
 ]
 rules = []
 
@@ -34,10 +39,15 @@ scenario = "The exact declared owner parts are placed."
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod protocol; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
-given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/preparation/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/preparation/types.rs" = "pub struct PreparedProgram;"
+given.files."src/application/file_dag/program/preparation/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/protocol/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/protocol/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/protocol/service.rs" = "pub fn owned() {}"
 given.files."src/application/file_dag/program/facade_runtime.rs" = "mod file_execution; mod project_execution; mod source_admission; pub fn run() {}"
 given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
 given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
@@ -50,7 +60,9 @@ given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {
 given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
 given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
-given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/runtime/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/runtime/types.rs" = "pub struct KernelAdmission { execution: (), region: usize }"
+given.files."src/application/file_dag/program/runtime/service.rs" = "pub fn execute() {}"
 given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
 
@@ -68,10 +80,15 @@ scenario = 'The canonical population service remains a required owner part.'
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod protocol; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
-given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/preparation/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/preparation/types.rs" = "pub struct PreparedProgram;"
+given.files."src/application/file_dag/program/preparation/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/protocol/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/protocol/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/protocol/service.rs" = "pub fn owned() {}"
 given.files."src/application/file_dag/program/facade_runtime.rs" = "mod file_execution; mod project_execution; mod source_admission; pub fn run() {}"
 given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
 given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
@@ -84,7 +101,9 @@ given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {
 given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
 given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
-given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/runtime/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/runtime/types.rs" = "pub struct KernelAdmission { execution: (), region: usize }"
+given.files."src/application/file_dag/program/runtime/service.rs" = "pub fn execute() {}"
 given.files."src/application/file_dag/program/project_population/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 
 given.files."src/application/file_dag/program/project_population/types.rs" = "pub(super) struct ProjectInvocationKey { identity: usize }"
@@ -97,10 +116,15 @@ scenario = "A canonical population implementation retains its required directory
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod facade; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod protocol; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
-given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/preparation/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/preparation/types.rs" = "pub struct PreparedProgram;"
+given.files."src/application/file_dag/program/preparation/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/protocol/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/protocol/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/protocol/service.rs" = "pub fn owned() {}"
 given.files."src/application/file_dag/program/facade_runtime.rs" = "mod file_execution; mod project_execution; mod source_admission; pub fn run() {}"
 given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
 given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
@@ -113,7 +137,9 @@ given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {
 given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
 given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
-given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+given.files."src/application/file_dag/program/runtime/mod.rs" = "pub(super) mod service; pub(super) mod types;"
+given.files."src/application/file_dag/program/runtime/types.rs" = "pub struct KernelAdmission { execution: (), region: usize }"
+given.files."src/application/file_dag/program/runtime/service.rs" = "pub fn execute() {}"
 given.files."src/application/file_dag/program/project_population/service.rs" = "pub(super) struct ProjectPopulations { count: usize }"
 
 given.files."src/application/file_dag/program/project_population/types.rs" = "pub(super) struct ProjectInvocationKey { identity: usize }"

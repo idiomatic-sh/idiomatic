@@ -36,14 +36,14 @@ pub enum PreparationError {
 }
 
 pub(crate) fn prepare(
-    program: &crate::application::file_dag::program::facade::PreparedProgram,
+    program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     rule: crate::domain::coverage::types::RuleIndex,
     first: Bucket,
     facts: &dyn FactsFinish,
     project: &dyn FactsWorker,
     project_symbols: &Symbols,
     symbols: &mut Symbols,
-    required: &crate::application::file_dag::program::facade::RequiredPartitions,
+    required: &crate::application::file_dag::program::admission::RequiredPartitions,
     policy: PreparationPolicy<'_>,
 ) -> Result<PreparedFrontiers, PreparationError> {
     let roots = &program
@@ -203,12 +203,12 @@ pub(crate) fn prepare(
 /// program. The file number comes from the current run's admitted handover;
 /// a stored owner token is never trusted or reconstructed.
 pub(crate) fn validate_bucket(
-    program: &crate::application::file_dag::program::facade::PreparedProgram,
+    program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     rule: crate::domain::coverage::types::RuleIndex,
     input: usize,
     first: Bucket,
     bucket: Bucket,
-    required: &crate::application::file_dag::program::facade::RequiredPartitions,
+    required: &crate::application::file_dag::program::admission::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
 ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};

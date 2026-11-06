@@ -1,8 +1,8 @@
 //! Run-bound invocation data. Callers lend only the original symbol pool again;
 //! paths, source bytes, semantic lookup and scratch cannot be replaced per rule.
-use super::{
-    facade::PreparedProgram, facade_runtime::ProgramServices, request_identity::RequestIdentity,
-};
+use super::facade_runtime::ProgramServices;
+use super::request_identity::RequestIdentity;
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use ryo_language::domain::symbols::{
     service::{same_transport_generation, transport_permit},
     types::{Symbols, TransportPermit},

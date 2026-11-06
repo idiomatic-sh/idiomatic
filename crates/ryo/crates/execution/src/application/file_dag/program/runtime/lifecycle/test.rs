@@ -1,10 +1,14 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::{DependencyCheckpoint, InvocationOutcome, OperatingError, Slot, State};
 use super::fixtures::{
     EvaluationCount, Reentry, RuntimeProbe, RuntimeProbeMode, Sink, SinkMode, context,
 };
 use super::inputs::fixtures::{CompiledCase, TestInputs, compiled};
+use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
+use crate::application::file_dag::program::runtime::types::InvocationOutcome;
+use crate::application::file_dag::program::runtime::types::Slot;
+use crate::application::file_dag::program::runtime::types::State;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::{coverage::types::RuleIndex, table_scratch::types::OperatorScratch};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;

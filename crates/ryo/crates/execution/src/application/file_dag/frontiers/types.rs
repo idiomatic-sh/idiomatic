@@ -10,8 +10,8 @@ pub enum PublicationSlot {
 /// Each named member carries its own admission source, never just decoded words.
 #[derive(Clone)]
 pub(crate) enum BoundMember {
-    Current(crate::application::file_dag::program::facade::ObservedPublication),
-    Restored(crate::application::file_dag::program::facade::ValidatedFrontier),
+    Current(crate::application::file_dag::program::protocol::types::ObservedPublication),
+    Restored(crate::application::file_dag::program::restored::ValidatedFrontier),
 }
 
 /// Application-only named binding. The producer schema remains pure metadata;
@@ -72,7 +72,7 @@ impl PreparedFrontiers {
 }
 
 pub(in crate::application::file_dag) fn validate_consumer_sources(
-    prepared: &crate::application::file_dag::program::facade::PreparedProgram,
+    prepared: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     producer: crate::domain::coverage::types::RuleIndex,
     sources: &[FrontierSource],
     consumer: crate::domain::coverage::types::RuleIndex,

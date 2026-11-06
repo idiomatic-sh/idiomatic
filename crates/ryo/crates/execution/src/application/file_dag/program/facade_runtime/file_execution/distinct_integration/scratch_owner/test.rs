@@ -31,7 +31,7 @@ pub(in super::super) fn execute(
     };
     plan.steps[1].operation = operation;
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

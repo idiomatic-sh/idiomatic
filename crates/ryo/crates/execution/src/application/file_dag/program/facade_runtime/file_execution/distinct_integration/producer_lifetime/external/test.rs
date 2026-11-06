@@ -30,7 +30,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     for (at, rule) in rules.iter_mut().enumerate() {
         rule.id = RuleId(format!("external-root-{at}").into());
     }
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; 4],

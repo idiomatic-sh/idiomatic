@@ -1,147 +1,39 @@
-//! Sole region invocation lifecycle. Internal continuations have no publication,
-//! room, dependency ledger or separate scheduler state.
-use super::admission::{AdmittedInput, AvailableInput, Inputs, Partition};
-use crate::domain::{
-    executable_program::types::{
-        DemandAction, ExecutableProgram, InputId, Instruction, Region, RegionId,
-    },
-    operating::{
-        errors::OperatingError,
-        types::{Emit, OperatorContext},
-    },
-};
-use ryo_relations::domain::relations::types::Value;
-use std::{cell::RefCell, sync::Arc};
+//! The sole admitted-program interpreter, authority issuance and physical dispatch.
+use super::types::*;
+use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::AdmittedWalkSource;
 
-pub(super) enum InvocationFailure {
-    Semantic(OperatingError),
-    Delivery(OperatingError),
-}
-/// No held inputs/publication or dependency accounting at internal instructions.
-#[derive(Default)]
-pub(super) struct KernelScratch {
-    pub positions: crate::domain::native_positions::types::PositionWork,
-    pub workspace: Option<super::super::workspace::InvocationWorkspace>,
-    pub ordered_row: Vec<Value>,
-    pub ordered: ryo_operators::inbound::use_cases::operators::interface::OrderedExistenceScratch,
-}
-pub(super) enum KernelInput<'a> {
-    Admitted(&'a [AdmittedInput]),
-    Continuation(&'a [Value]),
-}
-#[derive(Default)]
-pub(super) struct ColumnCounters {
-    pub join: crate::domain::operator::contract::types::WorkCounters,
-    pub filter: crate::domain::operator::contract::types::WorkCounters,
-    pub project: crate::domain::operator::contract::types::WorkCounters,
-}
-/// Only this runtime can construct authority to issue a kernel permit.
-/// A sibling owning a ProgramExecution reference still cannot skip admission.
-pub(super) struct KernelAdmission<'a> {
-    execution: &'a ProgramExecution,
-    region: RegionId,
-}
+use crate::application::file_dag::program::admission::FileGeneration;
+use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::relations::RelationOwner;
+use crate::domain::executable_program::types::DemandAction;
+use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::InputId;
+use crate::domain::executable_program::types::InputSource;
+use crate::domain::executable_program::types::Region;
+use crate::domain::executable_program::types::RegionId;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::Emit;
+use crate::domain::operating::types::OperatorContext;
+use ryo_relations::domain::relations::types::Value;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
+
 impl<'a> KernelAdmission<'a> {
-    pub(super) fn execution(&self) -> &'a ProgramExecution {
+    pub(in crate::application::file_dag::program) fn execution(&self) -> &'a ProgramExecution {
         self.execution
     }
-    pub(super) fn region(&self) -> RegionId {
+    pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
         self.region
     }
 }
-
-/// Only the completed admission interpreter can issue a ready selection head.
-pub(super) struct ReadySelection<'call, 'scope> {
-    permit: &'call super::admission::KernelPermit<'scope>,
-}
 impl ReadySelection<'_, '_> {
-    pub(super) fn permit(&self) -> &super::admission::KernelPermit<'_> {
+    pub(in crate::application::file_dag::program) fn permit(&self) -> &KernelPermit<'_> {
         self.permit
     }
-}
-/// Application-owned preparation/acquisition supplies the borrowed semantic call.
-/// All implementations are required; no missing-capability or fallback path.
-pub(super) trait KernelInvocation {
-    fn ready(
-        &self,
-        _ready: &ReadySelection<'_, '_>,
-        _inputs: &[AdmittedInput],
-        _context: &mut OperatorContext<'_>,
-    ) -> Result<bool, OperatingError> {
-        Ok(false)
-    }
-
-    fn ordered(
-        &self,
-        shape: &crate::domain::executable_program::types::OrderedExistence,
-        permit: &super::admission::KernelPermit<'_>,
-        input: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        output: &mut dyn Emit,
-    ) -> Result<StrategyOutcome, InvocationFailure>;
-    fn positions(
-        &self,
-        permit: &super::admission::KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>;
-    fn selected(
-        &self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
-        permit: &super::admission::KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>;
-    fn column(
-        &self,
-        shape: &crate::domain::executable_program::column::ColumnAlternative,
-        permit: &super::admission::KernelPermit<'_>,
-        left: &AdmittedInput,
-        right: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        counts: &ColumnCounters,
-        rows: &mut ryo_values::domain::rows::types::Table,
-    ) -> Result<StrategyOutcome, InvocationFailure>;
-    fn evaluate(
-        &self,
-        instruction: &Instruction,
-        permit: &super::admission::KernelPermit<'_>,
-        input: KernelInput<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        output: &mut dyn Emit,
-    ) -> Result<(), InvocationFailure>;
-}
-pub(super) enum StrategyOutcome {
-    Executed,
-    Declined,
-}
-#[derive(Default)]
-struct AdmissionProgress {
-    action: usize,
-    availability_action: usize,
-    schema_done: bool,
-    ordered_done: bool,
-    column_done: bool,
-    ready: bool,
-    preflight_done: bool,
-    inputs: Vec<AdmittedInput>,
-    acquired: Vec<(
-        crate::domain::executable_program::types::InputSource,
-        InputStage,
-    )>,
-    waiting: Option<RegionId>,
-    emptiness: Vec<(
-        crate::domain::executable_program::types::InputSource,
-        crate::domain::operator::contract::types::EmptyRepresentation,
-        bool,
-    )>,
-}
-enum InputStage {
-    Available(AvailableInput),
-    Admitted(AdmittedInput),
 }
 fn schema_first(region: &Region) -> bool {
     region.instructions.first().is_some_and(|instruction| {
@@ -234,87 +126,6 @@ impl AdmissionProgress {
         }
     }
 }
-enum State {
-    Dormant,
-    Suspended,
-    Ready,
-    Running,
-    Published(AdmittedInput),
-    Retired,
-    Failed(OperatingError),
-}
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum AttemptCheckpoint {
-    Dormant,
-    Running,
-    Published,
-    Terminal,
-}
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum DependencyCheckpoint {
-    Pending,
-    Consumed,
-}
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct ReaderCount(pub(super) usize);
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct RetryCheckpoint {
-    pub(super) attempt: AttemptCheckpoint,
-    pub(super) remaining: ReaderCount,
-    pub(super) dependencies: DependencyCheckpoint,
-}
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum ConsumerReleasePoint {
-    Before,
-    After,
-}
-#[cfg(test)]
-pub(super) struct ProducerLeaseEvent {
-    pub consumer: RegionId,
-    pub point: ConsumerReleasePoint,
-    pub checkpoint: RetryCheckpoint,
-    pub working_bytes: usize,
-    pub index_live: bool,
-    pub index:
-        Option<std::sync::Weak<crate::application::file_dag::derived::storage::DerivedStorage>>,
-}
-#[cfg(test)]
-struct ProducerLeaseProbe {
-    producer: RegionId,
-    consumers: Box<[RegionId]>,
-    events: Vec<ProducerLeaseEvent>,
-}
-struct Slot {
-    #[cfg(test)]
-    observed: crate::domain::operating::types::ExecutionObservation,
-    #[cfg(test)]
-    native_positions: usize,
-    #[cfg(test)]
-    registered_calls: usize,
-    state: State,
-    scratch: Vec<KernelScratch>,
-    admission: AdmissionProgress,
-    fed: Box<[crate::domain::operator::types::RowsFed]>,
-    remaining: usize,
-    dependencies_consumed: bool,
-    waiting_on: Option<RegionId>,
-    completion:
-        Option<crate::domain::completion::types::completion_policy::value::CompletionPolicy>,
-}
-/// Reused scope-local planning buffers. No per-row allocation or mutation of
-/// reader counts occurs until the entire cancellation cascade validates.
-struct RetirementWork {
-    simulated: std::collections::HashMap<RegionId, usize>,
-    touched: Vec<RegionId>,
-    pending: Vec<RegionId>,
-    waiters: std::collections::HashMap<RegionId, Vec<RegionId>>,
-    retired: Vec<(State, Vec<KernelScratch>)>,
-}
 impl RetirementWork {
     fn reset(&mut self) {
         self.simulated.clear();
@@ -322,26 +133,8 @@ impl RetirementWork {
         self.pending.clear();
     }
 }
-pub(crate) struct ProgramExecution {
-    pub(super) program: Arc<ExecutableProgram>,
-    pub(super) owner: std::rc::Rc<super::super::relations::RelationOwner>,
-    pub(super) generation: Arc<()>,
-    pub(super) generation_live: Arc<super::super::relations::GenerationLease>,
-    partition: Partition,
-    file_state: RuntimeState,
-    project_states: RefCell<
-        Vec<(
-            super::super::derived::owner::PopulationId,
-            std::rc::Rc<RuntimeState>,
-        )>,
-    >,
-    cleanup_failure: RefCell<Option<OperatingError>>,
-    readiness_counts: RefCell<crate::domain::readiness::types::ReadinessCounts>,
-    #[cfg(test)]
-    producer_lease_probe: RefCell<Option<ProducerLeaseProbe>>,
-}
 impl Slot {
-    fn touched<'a>(
+    pub(super) fn touched<'a>(
         state: &RuntimeState,
         slots: &'a mut std::collections::HashMap<usize, Slot>,
         program: &ExecutableProgram,
@@ -387,28 +180,11 @@ impl Slot {
         }))
     }
 }
-/// Qualified state for the same interpreter; never an independent execution owner.
-enum RootReaders {
-    Declared,
-    Selected(
-        std::collections::HashMap<
-            RegionId,
-            crate::domain::executable_program::types::ReaderMultiplicity,
-        >,
-    ),
-}
-pub(super) struct RuntimeState {
-    generation: Arc<()>,
-    scope: super::super::relations::ProducerScope,
-    roots: RefCell<RootReaders>,
-    slots: RefCell<std::collections::HashMap<usize, Slot>>,
-    dormant: RefCell<std::collections::HashMap<RegionId, usize>>,
-    retirement: RefCell<RetirementWork>,
-    #[cfg(test)]
-    reader_initializations: std::cell::Cell<usize>,
-}
 impl RuntimeState {
-    fn new(scope: super::super::relations::ProducerScope, generation: Arc<()>) -> Self {
+    fn new(
+        scope: crate::application::file_dag::relations::ProducerScope,
+        generation: Arc<()>,
+    ) -> Self {
         Self {
             generation,
             scope,
@@ -450,16 +226,18 @@ impl RuntimeState {
             }
         }
     }
-    pub(super) fn population_scope(&self) -> super::super::relations::ProducerScope {
+    pub(in crate::application::file_dag::program) fn population_scope(
+        &self,
+    ) -> crate::application::file_dag::relations::ProducerScope {
         self.scope
     }
-    pub(super) fn bind(
+    pub(in crate::application::file_dag::program) fn bind(
         &self,
-        owner: &super::super::relations::RelationOwner,
-        root: super::admission::ProducerRoot,
-        publication: &super::super::relations::PublishedInput,
+        owner: &crate::application::file_dag::relations::RelationOwner,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
+        publication: &crate::application::file_dag::relations::PublishedInput,
     ) -> Result<(), OperatingError> {
-        if let super::admission::ProducerRoot::Region(id) = root {
+        if let crate::application::file_dag::program::admission::ProducerRoot::Region(id) = root {
             owner.bind_producer(self.scope, id, publication.as_ref())?;
         }
         Ok(())
@@ -471,12 +249,12 @@ impl ProgramExecution {
     pub(in crate::application::file_dag::program) fn open(
         program: Arc<ExecutableProgram>,
         partition: Partition,
-        owner: std::rc::Rc<super::super::relations::RelationOwner>,
+        owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
     ) -> Self {
         let generation = owner.generation_guard();
         let generation_live = owner.generation_liveness();
         let file_state = RuntimeState::new(
-            super::super::relations::ProducerScope::File,
+            crate::application::file_dag::relations::ProducerScope::File,
             Arc::clone(&generation),
         );
         Self {
@@ -494,7 +272,10 @@ impl ProgramExecution {
         }
     }
     /// Bind the immutable declared file intents before any region is touched.
-    pub(super) fn activate_file_roots(&self, readers: &[RegionId]) -> Result<(), OperatingError> {
+    pub(in crate::application::file_dag::program) fn activate_file_roots(
+        &self,
+        readers: &[RegionId],
+    ) -> Result<(), OperatingError> {
         if !matches!(self.partition, Partition::File(_))
             || !self.file_state.slots.borrow().is_empty()
             || !self.file_state.dormant.borrow().is_empty()
@@ -544,7 +325,7 @@ impl ProgramExecution {
     }
     /// Observe actual release boundaries without retaining a producer or a backing lease.
     #[cfg(test)]
-    pub(super) fn observe_producer_releases(
+    pub(in crate::application::file_dag::program) fn observe_producer_releases(
         &self,
         state: &RuntimeState,
         producer: RegionId,
@@ -599,7 +380,10 @@ impl ProgramExecution {
         });
     }
     #[cfg(test)]
-    pub(super) fn take_producer_releases(&self, state: &RuntimeState) -> Vec<ProducerLeaseEvent> {
+    pub(in crate::application::file_dag::program) fn take_producer_releases(
+        &self,
+        state: &RuntimeState,
+    ) -> Vec<ProducerLeaseEvent> {
         self.producer_lease_probe
             .borrow_mut()
             .take()
@@ -608,7 +392,7 @@ impl ProgramExecution {
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
     #[cfg(test)]
-    pub(super) fn route_observation(
+    pub(in crate::application::file_dag::program) fn route_observation(
         &self,
         state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
@@ -630,7 +414,7 @@ impl ProgramExecution {
         self.region_observation(state, *region)
     }
     #[cfg(test)]
-    pub(super) fn region_observation(
+    pub(in crate::application::file_dag::program) fn region_observation(
         &self,
         state: &RuntimeState,
         region: RegionId,
@@ -651,7 +435,7 @@ impl ProgramExecution {
         })
     }
     #[cfg(test)]
-    pub(super) fn retry_checkpoint(
+    pub(in crate::application::file_dag::program) fn retry_checkpoint(
         &self,
         state: &RuntimeState,
         id: RegionId,
@@ -698,7 +482,9 @@ impl ProgramExecution {
     }
     /// Consume the generation once no invocation can remain active. Dropping
     /// its slots releases only engine-held storage; transferred leases own theirs.
-    pub(super) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {
+    pub(in crate::application::file_dag::program) fn state_counts(
+        &self,
+    ) -> crate::domain::readiness::types::InvocationStateCounts {
         use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
         let states = self.project_states.borrow();
         let mut found = InvocationStateCounts {
@@ -716,25 +502,25 @@ impl ProgramExecution {
         }
         found
     }
-    pub(super) fn file_state(&self) -> &RuntimeState {
+    pub(in crate::application::file_dag::program) fn file_state(&self) -> &RuntimeState {
         &self.file_state
     }
-    pub(super) fn project_state(
+    pub(in crate::application::file_dag::program) fn project_state(
         &self,
-        id: super::super::derived::owner::PopulationId,
+        id: crate::application::file_dag::derived::owner::PopulationId,
     ) -> std::rc::Rc<RuntimeState> {
         let mut states = self.project_states.borrow_mut();
         if let Some((_, state)) = states.iter().find(|(key, _)| *key == id) {
             return std::rc::Rc::clone(state);
         }
         let state = std::rc::Rc::new(RuntimeState::new(
-            super::super::relations::ProducerScope::Project(id),
+            crate::application::file_dag::relations::ProducerScope::Project(id),
             Arc::clone(&self.generation),
         ));
         states.push((id, std::rc::Rc::clone(&state)));
         state
     }
-    pub(super) fn finish(self) -> Result<(), OperatingError> {
+    pub(in crate::application::file_dag::program) fn finish(self) -> Result<(), OperatingError> {
         if self
             .file_state
             .slots
@@ -757,11 +543,12 @@ impl ProgramExecution {
         self.owner.release_population();
         failure.map_or(Ok(()), Err)
     }
-    pub(super) fn logical_counts(
+    pub(in crate::application::file_dag::program) fn logical_counts(
         &self,
         state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
-    ) -> Result<super::facade::LogicalCounts, OperatingError> {
+    ) -> Result<crate::application::file_dag::program::protocol::types::LogicalCounts, OperatingError>
+    {
         self.validate_state(state)?;
         let rule = self
             .program
@@ -797,23 +584,27 @@ impl ProgramExecution {
             let total = *slot.fed.get(at).ok_or(OperatingError::NotRun)?;
             fed.push(total);
         }
-        Ok(super::facade::LogicalCounts {
-            fed: fed.into_boxed_slice(),
-        })
+        Ok(
+            crate::application::file_dag::program::protocol::types::LogicalCounts {
+                fed: fed.into_boxed_slice(),
+            },
+        )
     }
     /// Producer truth comes from the compiled declaration and this run's actual
     /// source scope. The consumer's requested partition is never an input.
-    pub(super) fn source_partition(
+    pub(in crate::application::file_dag::program) fn source_partition(
         &self,
-        root: super::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
         use crate::domain::executable_program::types::{InputSource, PartitionRequirement};
         if !self.owner.matches_generation(&self.generation) || !self.generation_live.is_live() {
             return Err(OperatingError::NotRead);
         }
         let source = match root {
-            super::admission::ProducerRoot::Input(source) => source,
-            super::admission::ProducerRoot::Region(id) => InputSource::Region(id),
+            crate::application::file_dag::program::admission::ProducerRoot::Input(source) => source,
+            crate::application::file_dag::program::admission::ProducerRoot::Region(id) => {
+                InputSource::Region(id)
+            }
         };
         let declaration = self.program.source_partition(source)?;
         match (declaration, &self.partition) {
@@ -828,12 +619,12 @@ impl ProgramExecution {
             _ => Err(OperatingError::NotRead),
         }
     }
-    pub(super) fn partition(&self) -> &Partition {
+    pub(in crate::application::file_dag::program) fn partition(&self) -> &Partition {
         &self.partition
     }
     /// A prepared consumer obligation can finish once. The whole transitive
     /// cancellation is preflighted before any slot, count or lease changes.
-    fn release_inputs(
+    pub(super) fn release_inputs(
         &self,
         state: &RuntimeState,
         consumer: RegionId,
@@ -850,7 +641,11 @@ impl ProgramExecution {
         self.observe_consumer_release(state, consumer, ConsumerReleasePoint::After);
         result
     }
-    fn retire(&self, state: &RuntimeState, consumer: RegionId) -> Result<(), OperatingError> {
+    pub(super) fn retire(
+        &self,
+        state: &RuntimeState,
+        consumer: RegionId,
+    ) -> Result<(), OperatingError> {
         let mut work = state.retirement.borrow_mut();
         work.reset();
         let mut slots = state.slots.borrow_mut();
@@ -975,9 +770,9 @@ impl ProgramExecution {
         }
         Ok(())
     }
-    pub(super) fn project_partition_matches(
+    pub(in crate::application::file_dag::program) fn project_partition_matches(
         &self,
-        required: &super::admission::RequiredPartitions,
+        required: &crate::application::file_dag::program::admission::RequiredPartitions,
     ) -> bool {
         matches!(&self.partition, Partition::Project(actual) if actual.same_request(required))
     }
@@ -1043,7 +838,9 @@ impl ProgramExecution {
             suspensions = counts.suspensions.0, wakeups = counts.wakeups.0);
         result
     }
-    pub(super) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
+    pub(in crate::application::file_dag::program) fn readiness_counts(
+        &self,
+    ) -> crate::domain::readiness::types::ReadinessCounts {
         *self.readiness_counts.borrow()
     }
     pub(in crate::application::file_dag::program) fn published(
@@ -1233,7 +1030,7 @@ impl ProgramExecution {
                     .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
                 let input = inputs
                     .publish_empty(
-                        super::admission::ProducerRoot::Region(id),
+                        crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                         &self.partition,
                         &[],
                         last.contract.output_kinds.clone(),
@@ -1267,7 +1064,7 @@ impl ProgramExecution {
                         context,
                     )
                     .map_err(InvocationFailure::Semantic)?;
-                let permit = super::admission::KernelPermit::ordered(
+                let permit = KernelPermit::ordered(
                     KernelAdmission {
                         execution: self,
                         region: id,
@@ -1313,7 +1110,9 @@ impl ProgramExecution {
                     let coverage = source.coverage().map_err(InvocationFailure::Semantic)?;
                     let publication = inputs
                         .publish(
-                            super::admission::ProducerRoot::Region(id),
+                            crate::application::file_dag::program::admission::ProducerRoot::Region(
+                                id,
+                            ),
                             &self.partition,
                             &[source],
                             rows,
@@ -1363,7 +1162,7 @@ impl ProgramExecution {
                         context,
                     )
                     .map_err(InvocationFailure::Semantic)?;
-                let permit = super::admission::KernelPermit::column(
+                let permit = KernelPermit::column(
                     KernelAdmission {
                         execution: self,
                         region: id,
@@ -1396,7 +1195,9 @@ impl ProgramExecution {
                     );
                     let publication = inputs
                         .publish(
-                            super::admission::ProducerRoot::Region(id),
+                            crate::application::file_dag::program::admission::ProducerRoot::Region(
+                                id,
+                            ),
                             &self.partition,
                             &[left, right],
                             rows,
@@ -1468,7 +1269,7 @@ impl ProgramExecution {
                     {
                         let publication = inputs
                             .publish_empty(
-                                super::admission::ProducerRoot::Region(id),
+                                crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                                 &self.partition,
                                 &admitted,
                                 empty_output_kinds(region, gate),
@@ -1484,7 +1285,7 @@ impl ProgramExecution {
                 .check_schema(region)
                 .map_err(InvocationFailure::Semantic)?;
             progress.preflight_done = true;
-            let permit = super::admission::KernelPermit::admitted(
+            let permit = KernelPermit::admitted(
                 KernelAdmission {
                     execution: self,
                     region: id,
@@ -1519,7 +1320,7 @@ impl ProgramExecution {
                     if let Some(produced) = kernels.positions(&permit, context, frame)? {
                         let publication = inputs
                             .publish_positions(
-                                super::admission::ProducerRoot::Region(id),
+                                crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                                 &self.partition,
                                 &admitted,
                                 produced,
@@ -1537,7 +1338,9 @@ impl ProgramExecution {
                 if let Some(produced) = kernels.selected(shape, &permit, context, frame)? {
                     let publication = inputs
                         .publish_selected(
-                            super::admission::ProducerRoot::Region(id),
+                            crate::application::file_dag::program::admission::ProducerRoot::Region(
+                                id,
+                            ),
                             &self.partition,
                             &admitted,
                             produced,
@@ -1574,7 +1377,7 @@ impl ProgramExecution {
             );
             let published = inputs
                 .publish(
-                    super::admission::ProducerRoot::Region(id),
+                    crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                     &self.partition,
                     &admitted,
                     rows,
@@ -1629,7 +1432,7 @@ impl ProgramExecution {
     }
 }
 fn continuation(
-    invocation: &super::admission::KernelPermit<'_>,
+    invocation: &KernelPermit<'_>,
     region: &Region,
     at: usize,
     input: KernelInput<'_>,
@@ -1661,14 +1464,6 @@ fn continuation(
     };
     kernels.evaluate(instruction, &permit, input, context, frame, &mut next)
 }
-struct Continue<'a> {
-    invocation: &'a super::admission::KernelPermit<'a>,
-    region: &'a Region,
-    at: usize,
-    kernels: &'a dyn KernelInvocation,
-    scratch: &'a mut [KernelScratch],
-    output: &'a mut dyn Emit,
-}
 impl Emit for Continue<'_> {
     fn row(
         &mut self,
@@ -1689,28 +1484,6 @@ impl Emit for Continue<'_> {
             InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error) => error,
         })
     }
-}
-pub(super) enum InvocationOutcome {
-    Suspended(RegionId),
-    Ready,
-    Published(AdmittedInput),
-}
-enum Terminal {
-    Retry,
-    Suspended,
-    Ready,
-    Published(AdmittedInput),
-    Failed(OperatingError),
-}
-struct Invocation<'a> {
-    execution: &'a ProgramExecution,
-    state: &'a RuntimeState,
-    id: RegionId,
-    scratch: Option<Vec<KernelScratch>>,
-    terminal: Terminal,
-    admission: Option<AdmissionProgress>,
-    started: Option<std::time::Instant>,
-    prepare_only: bool,
 }
 impl Drop for Invocation<'_> {
     fn drop(&mut self) {
@@ -1784,9 +1557,6 @@ impl Drop for Invocation<'_> {
     }
 }
 
-#[cfg(test)]
-mod lifecycle;
-
 fn empty_output_kinds(
     region: &Region,
     gate: &crate::domain::operator::contract::types::EmptyResult,
@@ -1799,4 +1569,442 @@ fn empty_output_kinds(
         )?;
     }
     Ok(kinds)
+}
+impl<'scope> KernelPermit<'scope> {
+    fn code(
+        execution: &ProgramExecution,
+        region: RegionId,
+    ) -> Result<&crate::domain::executable_program::types::Region, OperatingError> {
+        if !execution.owner.matches_generation(&execution.generation) {
+            return Err(OperatingError::NotRead);
+        }
+        let code = execution
+            .program
+            .regions()
+            .get(region.0)
+            .ok_or(OperatingError::NotRun)?;
+        if code.instructions.is_empty() {
+            return Err(OperatingError::NotRun);
+        }
+        Ok(code)
+    }
+    pub(in crate::application::file_dag::program) fn admitted(
+        authority: KernelAdmission<'scope>,
+        inputs: &'scope [AdmittedInput],
+    ) -> Result<Self, OperatingError> {
+        let execution = authority.execution();
+        let region = authority.region();
+        let code = Self::code(execution, region)?;
+        if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
+            return Err(OperatingError::WrongOperation);
+        }
+        for (source, input) in code.inputs.iter().zip(inputs) {
+            let expected = match source {
+                InputSource::Region(id) => ProducerRoot::Region(*id),
+                other => ProducerRoot::Input(*other),
+            };
+            input.validate_for(
+                &execution.owner,
+                &execution.generation,
+                execution.partition(),
+                expected,
+            )?;
+        }
+        Ok(Self {
+            program: &execution.program,
+            region,
+            instruction: 0,
+            generation: &execution.generation,
+            partition: execution.partition(),
+            live: &execution.generation_live,
+            bindings: BoundInputs::Ordinary(inputs),
+            strategy: KernelStrategy::Registered,
+        })
+    }
+    pub(in crate::application::file_dag::program) fn ordered(
+        authority: KernelAdmission<'scope>,
+        input: &'scope AdmittedInput,
+    ) -> Result<Self, OperatingError> {
+        let execution = authority.execution();
+        let region = authority.region();
+        let code = Self::code(execution, region)?;
+        let shape = code
+            .ordered_existence
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)?;
+        input.validate_for(
+            &execution.owner,
+            &execution.generation,
+            execution.partition(),
+            ProducerRoot::Region(shape.source),
+        )?;
+        Ok(Self {
+            program: &execution.program,
+            region,
+            instruction: 0,
+            generation: &execution.generation,
+            partition: execution.partition(),
+            live: &execution.generation_live,
+            bindings: BoundInputs::Ordered(input),
+            strategy: KernelStrategy::Ordered,
+        })
+    }
+    pub(in crate::application::file_dag::program) fn column(
+        authority: KernelAdmission<'scope>,
+        left: &'scope AdmittedInput,
+        right: &'scope AdmittedInput,
+    ) -> Result<Self, OperatingError> {
+        let execution = authority.execution();
+        let region = authority.region();
+        let code = Self::code(execution, region)?;
+        let shape = code.column.as_ref().ok_or(OperatingError::WrongOperation)?;
+        left.validate_for(
+            &execution.owner,
+            &execution.generation,
+            execution.partition(),
+            ProducerRoot::Region(shape.left()),
+        )?;
+        right.validate_for(
+            &execution.owner,
+            &execution.generation,
+            execution.partition(),
+            ProducerRoot::Input(InputSource::Relation(shape.chain().right)),
+        )?;
+        Ok(Self {
+            program: &execution.program,
+            region,
+            instruction: 0,
+            generation: &execution.generation,
+            partition: execution.partition(),
+            live: &execution.generation_live,
+            bindings: BoundInputs::Column { left, right },
+            strategy: KernelStrategy::Column,
+        })
+    }
+    /// A continuation borrows the already admitted invocation; no refcount,
+    /// population walk, room or ledger operation occurs here.
+    pub(in crate::application::file_dag::program) fn instruction(
+        &self,
+        at: usize,
+    ) -> Result<Self, OperatingError> {
+        self.program.regions()[self.region.0]
+            .instructions
+            .get(at)
+            .ok_or(OperatingError::NotRun)?;
+        Ok(Self {
+            program: self.program,
+            region: self.region,
+            instruction: at,
+            generation: self.generation,
+            partition: self.partition,
+            live: self.live,
+            bindings: self.bindings,
+            strategy: self.strategy,
+        })
+    }
+    pub(in crate::application::file_dag::program) fn native_shape(
+        &self,
+    ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
+        self.program.regions()[self.region.0]
+            .native_positions
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)
+    }
+    pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
+        self.region
+    }
+    pub(in crate::application::file_dag::program) fn validate_program(
+        &self,
+        program: &crate::domain::executable_program::types::ExecutableProgram,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        if std::ptr::eq(self.program, program) {
+            Ok(())
+        } else {
+            Err(OperatingError::WrongOperation)
+        }
+    }
+    pub(in crate::application::file_dag::program) fn descriptor(
+        &self,
+    ) -> &crate::domain::executable_program::types::Instruction {
+        &self.program.regions()[self.region.0].instructions[self.instruction]
+    }
+    pub(in crate::application::file_dag::program) fn position_semantics(
+        &self,
+        shape: &Arc<crate::domain::lowering::types::LoweredShape>,
+    ) -> Result<SemanticPermit<'_>, OperatingError> {
+        self.validate_registered(self.operation())?;
+        let actual = self.program.regions()[self.region.0]
+            .native_positions
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)?;
+        if !Arc::ptr_eq(actual, shape) {
+            return Err(OperatingError::WrongOperation);
+        }
+        let mut permit = self.semantics();
+        permit.strategy = KernelStrategy::Positions;
+        Ok(permit)
+    }
+    pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
+        SemanticPermit {
+            program: self.program,
+            region: self.region,
+            instruction: self.instruction,
+            live: self.live,
+            strategy: self.strategy,
+        }
+    }
+    pub(in crate::application::file_dag::program) fn bound_input(
+        &self,
+        at: usize,
+    ) -> Result<&AdmittedInput, OperatingError> {
+        match self.bindings {
+            BoundInputs::Ordinary(inputs) => inputs.get(at),
+            BoundInputs::Ordered(input) => (at == 0).then_some(input),
+            BoundInputs::Column { left, right } => match at {
+                0 => Some(left),
+                1 => Some(right),
+                _ => None,
+            },
+        }
+        .ok_or(OperatingError::MissingInput { position: at + 1 })
+    }
+    pub(in crate::application::file_dag::program) fn validate_live(
+        &self,
+    ) -> Result<(), OperatingError> {
+        if self.live.is_live() {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    }
+    pub(in crate::application::file_dag::program) fn require_file_walk(
+        &self,
+        expected: &FileGeneration,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        match self.partition {
+            Partition::File(actual) if actual.matches(expected, self.generation) => Ok(()),
+            _ => Err(OperatingError::NotRead),
+        }
+    }
+    pub(in crate::application::file_dag::program) fn require_project_walk(
+        &self,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        match self.partition {
+            Partition::Project(_) => Ok(()),
+            _ => Err(OperatingError::NotRead),
+        }
+    }
+    pub(in crate::application::file_dag::program) fn admit_walk_source<'call>(
+        &'call self,
+        relation: ryo_relations::domain::relations::types::Relation,
+        rows: &'call crate::domain::table_model::types::Rows<'call>,
+    ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
+        self.validate_live()?;
+        let source = self.bound_input(0)?;
+        use ryo_values::domain::{
+            plan_parts::types::{Input, RepeatedRows},
+            plans::types::Operation,
+        };
+        let authored = match &self.descriptor().operation {
+            Operation::Select {
+                from: Input::Relation(authored),
+                ..
+            }
+            | Operation::Project {
+                from: Input::Relation(authored),
+                distinct: RepeatedRows::Kept,
+                ..
+            } => authored,
+            _ => return Err(OperatingError::WrongOperation),
+        };
+        if *authored != relation {
+            return Err(OperatingError::WrongOperation);
+        }
+        source.walk_source(relation, rows, self.generation)
+    }
+
+    pub(in crate::application::file_dag::program) fn validate_walk_source(
+        &self,
+        source: &AdmittedWalkSource<'_>,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        source.require_input(self.bound_input(0)?)
+    }
+    pub(in crate::application::file_dag::program) fn selection_input<'a>(
+        &'a self,
+        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+    ) -> Result<&'a AdmittedInput, OperatingError> {
+        self.validate_live()?;
+        let region = &self.program.regions()[self.region.0];
+        let declared = region
+            .selection
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)?;
+        if shape.target() != self.region
+            || shape.logical() != region.instructions[self.instruction].logical
+            || !Arc::ptr_eq(shape.selector(), declared.selector())
+        {
+            return Err(OperatingError::NotRead);
+        }
+        let source = self.bound_input(0)?;
+        source.validate_publication()?;
+        Ok(source)
+    }
+    pub(in crate::application::file_dag::program) fn output_kinds(
+        &self,
+    ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
+        self.program.regions()[self.region.0].instructions[self.instruction]
+            .contract
+            .output_kinds
+            .as_deref()
+            .map_err(Clone::clone)
+    }
+    pub(in crate::application::file_dag::program) fn validate_native_join(
+        &self,
+        native: &crate::application::file_dag::invocation::NativeJoinLease<'_>,
+        owner: &Rc<RelationOwner>,
+        left: &crate::domain::table_model::types::Rows<'_>,
+    ) -> Result<(), OperatingError> {
+        self.validate_registered(self.operation())?;
+        if !matches!(
+            self.native_join_eligibility(),
+            crate::application::file_dag::program::native_join::Eligibility::Native
+        ) {
+            return Err(OperatingError::WrongOperation);
+        }
+        let region = &self.program.regions()[self.region.0];
+        if region.instructions.len() != 1 || region.inputs.len() != 2 {
+            return Err(OperatingError::WrongOperation);
+        }
+        let left_input = self.bound_input(0)?;
+        let right_input = self.bound_input(1)?;
+        let expected = region.instructions[self.instruction].contract.derived.slots
+            [ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
+        .as_ref()
+        .ok_or(OperatingError::WrongOperation)?;
+        if !std::ptr::eq(expected.primary.plan.as_ref(), native.contract()) {
+            return Err(OperatingError::NotRead);
+        }
+        owner.admit(
+            left_input.publication(owner)?.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::from(left),
+        )?;
+        owner.admit(
+            right_input.publication(owner)?.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::Tree(native.tree()),
+        )?;
+        native.finding()?;
+        Ok(())
+    }
+    pub(in crate::application::file_dag::program) fn native_join_eligibility(
+        &self,
+    ) -> crate::application::file_dag::program::native_join::Eligibility {
+        let region = &self.program.regions()[self.region.0];
+        if region.instructions.len() == 1
+            && matches!(
+                self.operation(),
+                ryo_values::domain::plans::types::Operation::Join { reach: None, filter, .. } if filter.is_empty()
+            )
+            && region.instructions[self.instruction]
+                .contract
+                .schema
+                .is_ok()
+            && region.instructions[self.instruction]
+                .contract
+                .row_error
+                .is_none()
+        {
+            crate::application::file_dag::program::native_join::Eligibility::Native
+        } else {
+            crate::application::file_dag::program::native_join::Eligibility::Ordinary
+        }
+    }
+    pub(in crate::application::file_dag) fn validate_registered(
+        &self,
+        operation: &ryo_values::domain::plans::types::Operation,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        if !matches!(self.strategy, KernelStrategy::Registered) || self.operation() != operation {
+            return Err(OperatingError::WrongOperation);
+        }
+        Ok(())
+    }
+    pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
+        self.program.regions()[self.region.0].instructions[self.instruction]
+            .contract
+            .kind
+    }
+    pub(crate) fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
+        &self.program.regions()[self.region.0].instructions[self.instruction].operation
+    }
+}
+impl<'scope> SemanticPermit<'scope> {
+    fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
+        &self.program.regions()[self.region.0].instructions[self.instruction].operation
+    }
+    fn validate_live(&self) -> Result<(), OperatingError> {
+        if self.live.is_live() {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    }
+    pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
+        &'call self,
+        binding: &crate::domain::executable_program::physical::PhysicalBinding<'_>,
+        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
+    ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
+        self.validate_live()?;
+        use crate::domain::executable_program::physical::{self, PhysicalRoute};
+        let route = match self.strategy {
+            KernelStrategy::Registered => PhysicalRoute::Registered,
+            KernelStrategy::Positions => PhysicalRoute::Positions(
+                self.program.regions()[self.region.0]
+                    .native_positions
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
+            KernelStrategy::Ordered => PhysicalRoute::Ordered(
+                self.program.regions()[self.region.0]
+                    .ordered_existence
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
+            KernelStrategy::Column => PhysicalRoute::Column(
+                self.program.regions()[self.region.0]
+                    .column
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
+        };
+        let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
+        Ok(PermittedPhysical {
+            permit: self,
+            meaning,
+            authority,
+        })
+    }
+}
+impl PermittedPhysical<'_, '_, '_> {
+    pub(in crate::application::file_dag) fn dispatch(
+        self,
+        port: &dyn crate::outbound::operators::interface::OperatorsPort,
+    ) -> Result<
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        crate::application::file_dag::executor::KernelFault,
+    > {
+        if !self.permit.live.is_live() {
+            return Err(
+                crate::application::file_dag::executor::KernelFault::Refused(
+                    OperatingError::NotRead,
+                ),
+            );
+        }
+        let _authority = self.authority;
+        port.operators(self.meaning)
+            .map_err(crate::application::file_dag::executor::KernelFault::Portable)
+    }
 }

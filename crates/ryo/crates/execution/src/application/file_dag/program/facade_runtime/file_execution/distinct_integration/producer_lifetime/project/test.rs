@@ -1,13 +1,13 @@
 //! Real publication scopes retain and release project batch leases.
 use super::super::super::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
-use crate::application::file_dag::{
-    frontiers::types::{FrontierInput, FrontierSource, PreparedFrontiers},
-    program::{
-        facade::{ProjectBatch, ProjectFrontiers},
-        facade_runtime::{ProjectRootDeclaration, evaluate_roots},
-    },
-};
+use crate::application::file_dag::frontiers::types::FrontierInput;
+use crate::application::file_dag::frontiers::types::FrontierSource;
+use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+use crate::application::file_dag::program::facade_runtime::ProjectFrontiers;
+use crate::application::file_dag::program::facade_runtime::ProjectRootDeclaration;
+use crate::application::file_dag::program::facade_runtime::evaluate_roots;
+use crate::application::file_dag::program::protocol::types::ProjectBatch;
 use crate::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
@@ -49,7 +49,7 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
         rule.id = RuleId(format!("phase-reader-{at}").into());
     }
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; 4],
@@ -75,11 +75,19 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
         derived,
         &corpus,
     ));
-    let phase = facade::publication_owner(&prepared, &services)?;
+    let phase = crate::application::file_dag::program::facade_runtime::publication_owner(
+        &prepared, &services,
+    )?;
     let owner = Rc::clone(phase.owner());
     owner.derived.set_optional_limit(0)?;
-    let required =
-        facade::required_partitions(&prepared, RuleIndex(0), &corpus, &[], &[], &services)?;
+    let required = crate::application::file_dag::program::facade_runtime::required_partitions(
+        &prepared,
+        RuleIndex(0),
+        &corpus,
+        &[],
+        &[],
+        &services,
+    )?;
     let source = PlanInput::Relation(Relation::LanguageTarget);
     let source_root = prepared.program().rules()[0].frontier[0].clone();
     let partials = Partials::default();
@@ -99,39 +107,41 @@ fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
             ],
             count: RowCount(2),
         };
-        runs.push(facade::open_project(
-            &prepared,
-            required.clone(),
-            ScopePartials::Project {
-                evaluation: &partials,
-                publication: &partials,
-            },
-            ProjectFrontiers {
-                publication: &phase,
-                ordinary: PreparedFrontiers {
-                    producer: RuleIndex(at),
-                    sources: vec![FrontierSource {
-                        input: source,
-                        root: source_root.clone(),
-                    }]
-                    .into_boxed_slice(),
-                    rows: vec![FrontierInput::Decoded {
-                        frontier: Frontier {
-                            input: source,
-                            table,
-                        },
-                        coverage: CoverageState::Complete,
-                    }],
-                    program: Arc::clone(prepared.program()),
-                    required: required.clone(),
-                    refused: vec![],
+        runs.push(
+            crate::application::file_dag::program::facade_runtime::open_project(
+                &prepared,
+                required.clone(),
+                ScopePartials::Project {
+                    evaluation: &partials,
+                    publication: &partials,
                 },
-                bound_inputs: &[],
-            },
-            &mut symbols,
-            &[],
-            Arc::clone(&services),
-        ));
+                ProjectFrontiers {
+                    publication: &phase,
+                    ordinary: PreparedFrontiers {
+                        producer: RuleIndex(at),
+                        sources: vec![FrontierSource {
+                            input: source,
+                            root: source_root.clone(),
+                        }]
+                        .into_boxed_slice(),
+                        rows: vec![FrontierInput::Decoded {
+                            frontier: Frontier {
+                                input: source,
+                                table,
+                            },
+                            coverage: CoverageState::Complete,
+                        }],
+                        program: Arc::clone(prepared.program()),
+                        required: required.clone(),
+                        refused: vec![],
+                    },
+                    bound_inputs: &[],
+                },
+                &mut symbols,
+                &[],
+                Arc::clone(&services),
+            ),
+        );
     }
     assert!(
         runs.iter().all(Result::is_ok),

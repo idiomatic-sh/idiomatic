@@ -1,9 +1,13 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::super::{
-    AdmittedInput, Emit, Inputs, OperatingError, OperatorContext, Partition, ProgramExecution,
-    RegionId,
-};
+use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::runtime::types::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
+use crate::domain::executable_program::types::RegionId;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::Emit;
+use crate::domain::operating::types::OperatorContext;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},

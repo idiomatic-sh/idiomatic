@@ -58,7 +58,8 @@ pub struct PreparedRequest {
 pub struct PreparedProgram {
     pub(super) kernels: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send>,
     pub(super) derived: Arc<dyn DerivedPort>,
-    pub(super) inner: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    pub(super) inner:
+        Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
 }
 
 pub use crate::application::file_dag::frontiers::types::{
@@ -83,14 +84,22 @@ pub mod matching {
 
 // These are the deliberate data/error signatures of the inbound run protocol;
 // no execution owner, permit, source proof constructor or mutable program escapes.
-pub use crate::application::file_dag::program::admission::{
-    ApplicabilityProof, ApplicabilityReason,
-};
-pub use crate::application::file_dag::program::facade::{
-    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand,
-    FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation,
-    ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
-};
+pub use crate::application::file_dag::program::admission::ApplicabilityProof;
+pub use crate::application::file_dag::program::admission::ApplicabilityReason;
+pub use crate::application::file_dag::program::protocol::types::ApplicabilityRefusal;
+pub use crate::application::file_dag::program::protocol::types::CaptureIntent;
+pub use crate::application::file_dag::program::protocol::types::CapturedFrontier;
+pub use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+pub use crate::application::file_dag::program::protocol::types::EmitDemand;
+pub use crate::application::file_dag::program::protocol::types::FileRuleIntent;
+pub use crate::application::file_dag::program::protocol::types::FrontierCapture;
+pub use crate::application::file_dag::program::protocol::types::LogicalCounts;
+pub use crate::application::file_dag::program::protocol::types::ObservationDemand;
+pub use crate::application::file_dag::program::protocol::types::ProjectObservation;
+pub use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
+pub use crate::application::file_dag::program::protocol::types::RootOutcome;
+pub use crate::application::file_dag::program::protocol::types::RuleDemand;
+pub use crate::application::file_dag::program::protocol::types::RuleOutcome;
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
 pub use crate::domain::operating::errors::OperatingError;
@@ -102,7 +111,8 @@ pub enum SourceRows<'a> {
     Computed(&'a ryo_values::domain::rows::types::Table),
 }
 pub struct RequestExecution {
-    pub(super) program: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    pub(super) program:
+        Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(super) services:
         Arc<crate::application::file_dag::program::facade_runtime::ProgramServices>,
 }
@@ -129,7 +139,8 @@ pub struct FileInput<'a, 'facts> {
 }
 pub struct FileSession<'a, 'facts> {
     pub(super) inner: crate::application::file_dag::program::facade_runtime::FileRun<'a>,
-    pub(super) program: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    pub(super) program:
+        Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(super) file: ryo_relations::domain::relations::types::FileId,
     pub(super) elements: &'a ryo_language::domain::elements::types::Elements,
     pub(super) read: &'a dyn Fn(
@@ -161,7 +172,7 @@ pub struct ProjectTask<'a> {
     pub demand: RuleDemand,
     pub input: ProjectInput<'a>,
 }
-pub use crate::application::file_dag::program::facade::ProjectBatch;
+pub use crate::application::file_dag::program::protocol::types::ProjectBatch;
 pub struct ProjectSession<'a> {
     pub(super) inner: crate::application::file_dag::program::facade_runtime::ProjectRun<'a>,
 }
@@ -211,7 +222,7 @@ pub struct ObservationStage<'a> {
     pub(super) publications:
         crate::application::file_dag::observations::cross::CrossPublications<'a>,
 }
-pub use crate::application::file_dag::program::facade::ObservedPublication;
+pub use crate::application::file_dag::program::protocol::types::ObservedPublication;
 
 /// Output storage only; source file and rule digest come from the bound session.
 pub struct CaptureContext<'a> {
@@ -235,4 +246,4 @@ pub use crate::domain::coverage::types::{FilePartial, Lacking, LackingKind};
 pub use crate::domain::file_program::errors::FileProgramError;
 pub use crate::domain::spelling::errors::SpellingError;
 
-pub use crate::application::file_dag::program::facade::RowEmission;
+pub use crate::application::file_dag::program::protocol::types::RowEmission;

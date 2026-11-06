@@ -1,5 +1,5 @@
 //! Warm replay closure is observed through the actual prepared facade, not a copied graph algorithm.
-use crate::application::file_dag::program::facade;
+
 use crate::domain::{
     operating::errors::OperatingError,
     prepared_request::{service::assemble, types::ObservationIdentity},
@@ -46,7 +46,9 @@ fn rule(index: usize) -> RuleSpec {
         exclude: vec![],
     }
 }
-fn fixture(per_file: bool) -> Arc<facade::PreparedProgram> {
+fn fixture(
+    per_file: bool,
+) -> Arc<crate::application::file_dag::program::preparation::types::PreparedProgram> {
     let mut rules = (0..4).map(rule).collect::<Vec<_>>();
     let mut plans = Vec::new();
     for index in 0..4 {
@@ -126,7 +128,7 @@ fn fixture(per_file: bool) -> Arc<facade::PreparedProgram> {
             ryo_relations::domain::relations::types::Integer(1),
         )])],
     }];
-    facade::prepare(
+    crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         &rules,
         &[Digest([0; 16]); 4],

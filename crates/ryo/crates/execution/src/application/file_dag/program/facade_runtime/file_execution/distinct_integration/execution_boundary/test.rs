@@ -19,7 +19,7 @@ fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         kept: vec![],
     };
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
@@ -168,7 +168,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
             .collect(),
     );
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
@@ -289,7 +289,10 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
 fn output_requests(
     counts: &[usize],
     bad_first: bool,
-) -> (Arc<facade::PreparedProgram>, Arc<ProgramServices>) {
+) -> (
+    Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
+    Arc<ProgramServices>,
+) {
     use ryo_values::domain::hosted::types::{
         HostColumn, HostColumnName, HostName, HostRelation, HostRow,
     };
@@ -333,7 +336,7 @@ fn output_requests(
         })
         .collect::<Vec<_>>();
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; counts.len()],

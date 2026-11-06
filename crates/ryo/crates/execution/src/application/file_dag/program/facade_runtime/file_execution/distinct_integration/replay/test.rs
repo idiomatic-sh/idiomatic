@@ -125,7 +125,7 @@ fn projected(column: u32) -> Plan {
 }
 fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingError> {
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
@@ -286,7 +286,7 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
         hosted("left", 1, &[&[key]]),
         hosted("right", 2, &[&[1, 10], &[2, 20], &[1, 30]]),
     ];
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

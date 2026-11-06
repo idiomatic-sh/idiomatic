@@ -42,7 +42,7 @@ fn run(
     calls: Arc<MeaningCalls>,
 ) -> RootOutcome {
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![plan],
             bindings: vec![vec![]],

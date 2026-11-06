@@ -1,247 +1,30 @@
-//! Application request preparation and compact root metadata; original plans are transient.
-pub(crate) use super::admission::ApplicabilityReason;
-pub(crate) use super::restored::ValidatedFrontier;
-pub(in crate::application) use super::restored::validate_restored_frontier;
-use crate::domain::prepared_request::types::{Compiled, ObservationIdentity};
+//! Immutable request preparation, physical metadata and compilation ownership.
+use super::types::*;
+use crate::domain::coverage::types::RuleIndex;
+use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::InputSource;
+use crate::domain::file_program::types::ObservedFrontierRoot;
+use crate::domain::file_program::types::RuleSchedule;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operator::contract::types::RequestOperators;
+use crate::domain::prepared_request::types::Compiled;
+use crate::domain::prepared_request::types::ObservationIdentity;
 use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
-use crate::domain::{
-    coverage::types::RuleIndex,
-    executable_program::types::{ExecutableProgram, InputSource, RegionId},
-    file_program::types::{
-        ObservationSlot, ObservedFrontierRoot, ResolvedObservationBinding, RuleSchedule,
-    },
-    operating::errors::OperatingError,
-    operator::{contract::types::RequestOperators, types::RowsFed},
-    trust::types::RelationRead,
-};
+use crate::domain::trust::types::RelationRead;
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_relations::domain::relations::types::{CellKind, Words};
-use ryo_values::domain::{
-    hosted::types::HostRelation,
-    observations::types::{ObservationIndex, ObservationReadinessLayout},
-    plan_parts::types::{Input, StepId},
-    plans::types::{Emit, StepScope},
-    rows::types::Table,
-};
+
+use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::observations::types::ObservationReadinessLayout;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
 
-pub(crate) use super::super::scope::ScopePartials;
-pub(crate) use super::admission::RequiredPartitions;
-pub(crate) use super::facade_runtime::{
-    FileRun, ProgramServices, ProjectRun, PublicationScope, open_file, open_project,
-    publication_owner, required_partitions,
-};
-pub struct CaptureContext<'a> {
-    pub file: ryo_relations::domain::relations::types::FileId,
-    /// Current rule identity validated by the store before warm replay.
-    pub rule_digest: ryo_values::domain::stored_facts::types::Digest,
-    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    pub retained: crate::domain::finish::types::Retained<'a>,
-    pub words: &'a mut Words,
-}
-pub(crate) struct ProjectFrontiers<'a> {
-    pub publication: &'a PublicationScope,
-    pub ordinary: crate::application::file_dag::frontiers::types::PreparedFrontiers,
-    pub bound_inputs: &'a [crate::application::file_dag::frontiers::types::BoundInput],
-}
-pub struct FrontierCapture {
-    pub input: ryo_values::domain::plan_parts::types::InputNumber,
-    pub outcome: Result<CapturedFrontier, OperatingError>,
-}
-pub struct CapturedFrontier {
-    pub input: ryo_values::domain::plan_parts::types::InputNumber,
-    pub bucket: ryo_values::domain::stored_facts::types::Bucket,
-    /// Source-bound root and physical coverage retained with the packed words.
-    pub proof: ryo_values::domain::records::types::FrontierProof,
-    pub words: ryo_values::domain::stored_facts::types::PackedWords,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EmitDemand {
-    Enabled,
-    Disabled,
-}
-/// Diagnostic output delivery, fixed before admission. Every diagnostic,
-/// observation and frontier uses the same semantic evaluation contract.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DiagnosticDelivery {
-    Disabled,
-    Collected,
-    Forwarded,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObservationDemand {
-    Required,
-    NotRequired,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RuleDemand {
-    pub emit: EmitDemand,
-    pub observations: ObservationDemand,
-}
-/// Frontier roots admitted by this file generation. Observation-only producers
-/// cannot acquire diagnostic-only frontiers through a later capture call.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CaptureIntent {
-    Disabled,
-    Observations,
-    DiagnosticAndObservations,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ApplicabilityRefusal {
-    SyntaxUndetermined,
-    MetadataUnavailable,
-}
-/// Complete per-rule intent, frozen before any file source can be walked.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FileRuleIntent {
-    Undemanded,
-    Skipped(ApplicabilityReason),
-    Refused(ApplicabilityRefusal),
-    Run {
-        diagnostic: DiagnosticDelivery,
-        observations: ObservationDemand,
-        capture: CaptureIntent,
-    },
-}
-pub enum RootOutcome {
-    Complete(Table),
-    /// Usable diagnostic rows and the exact physical partitions still uncertain.
-    Partial {
-        table: Table,
-        affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,
-    },
-    Skipped(super::admission::ApplicabilityProof),
-    Unknown(OperatingError),
-    Failed(OperatingError),
-    NoQuery,
-    /// This compiled root belongs to another execution phase and has not run.
-    Deferred {
-        phase: StepScope,
-    },
-}
-/// Opaque application handover of the actual admitted population. Packed bytes
-/// may accompany it, but never substitute for its owner/generation evidence.
-#[derive(Clone)]
-pub struct ObservedPublication {
-    admitted: super::admission::AdmittedInput,
-}
-impl ObservedPublication {
-    pub(super) fn from_admitted(admitted: super::admission::AdmittedInput) -> Self {
-        Self { admitted }
-    }
-    pub(super) fn admitted(&self) -> &super::admission::AdmittedInput {
-        &self.admitted
-    }
-    pub(in crate::application::file_dag) fn validate_transfer_readiness(
-        &self,
-        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-        readiness: &ryo_values::domain::observations::types::ProducerReadiness,
-    ) -> Result<(), OperatingError> {
-        self.admitted.publication(owner)?;
-        match (self.admitted.coverage()?, readiness) {
-            (
-                crate::domain::completion::types::CoverageState::Complete,
-                ryo_values::domain::observations::types::ProducerReadiness::Complete,
-            ) => Ok(()),
-            (
-                crate::domain::completion::types::CoverageState::Partial { files },
-                ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
-            ) if !files.is_empty() => Ok(()),
-            _ => Err(OperatingError::ObservationIncomplete {
-                reason: "packed readiness disagrees with the admitted producer coverage".into(),
-            }),
-        }
-    }
-}
-pub struct LogicalCounts {
-    pub fed: Box<[RowsFed]>,
-}
-pub struct RuleOutcome {
-    pub emit: RootOutcome,
-    pub observations: Vec<(ObservationIndex, RootOutcome)>,
-    pub counts: LogicalCounts,
-}
-/// A project named root can be Complete only with the admitted owner proof.
-pub enum ProjectObservation {
-    Complete {
-        table: Table,
-        publication: ObservedPublication,
-    },
-    /// Known rows whose exact uncertainty remains in the admitted publication.
-    Partial {
-        table: Table,
-        publication: ObservedPublication,
-    },
-    Other(RootOutcome),
-}
-/// Completed results retain declaration order if the required host guard refuses advancement.
-pub enum ProjectBatch<T, E> {
-    Complete(Vec<T>),
-    Refused { completed: Vec<T>, error: E },
-}
-pub struct ProjectRuleOutcome {
-    pub emit: RootOutcome,
-    pub observations: Vec<(ObservationIndex, ProjectObservation)>,
-    pub counts: LogicalCounts,
-}
-pub(super) struct RootMetadata {
-    pub source: Result<InputSource, OperatingError>,
-    pub phase: StepScope,
-    pub reads: Box<[RelationRead]>,
-}
-pub(super) struct RuleMetadata {
-    pub emit: Emit,
-    pub emit_root: Result<RegionId, OperatingError>,
-    pub frontiers: Box<[Input]>,
-    pub observations: Box<[RootMetadata]>,
-    pub observation_frontiers: Box<[bool]>,
-    pub semantic_needed: bool,
-    pub frontier_dependencies: Result<
-        Vec<Vec<ryo_values::domain::observations::types::ObservationBindingId>>,
-        OperatingError,
-    >,
-}
-#[derive(Clone, Copy)]
-pub(in crate::application) enum OutputRoot {
-    PerFile,
-    CrossFile,
-    Unavailable,
-}
-pub(in crate::application) struct OutputMetadata {
-    pub root: OutputRoot,
-    pub consumers: Vec<usize>,
-}
-pub(crate) struct ObservationMetadata {
-    pub(in crate::application) layout: ObservationReadinessLayout,
-    pub(in crate::application) slots: Box<[ObservationSlot]>,
-    pub(in crate::application) frontiers: Box<[ObservedFrontierRoot]>,
-    pub(in crate::application) bindings: Vec<Vec<ResolvedObservationBinding>>,
-    pub(in crate::application) consumers: Vec<Vec<Vec<usize>>>,
-    pub(in crate::application) outputs: Vec<Vec<OutputMetadata>>,
-    pub(in crate::application) retire:
-        Vec<Vec<crate::domain::file_program::types::ObservationRetirement>>,
-}
-/// Immutable executable state has no RequestGraph, Plan, layout or old executor.
-pub(crate) struct PreparedProgram {
-    program: Arc<ExecutableProgram>,
-    rule_ids: Box<[ryo_values::domain::runs::types::RuleId]>,
-    applicability: Box<[ryo_values::domain::runs::types::RuleApplicability]>,
-    rule_digests: Box<[ryo_values::domain::stored_facts::types::Digest]>,
-    bindings: Box<[Box<[ParameterBinding]>]>,
-    rules: Box<[RuleMetadata]>,
-    file_demands: Box<[crate::domain::executable_program::file_demand::types::FileRuleDemand]>,
-    file_frontier_outputs: Box<[Box<[Box<[usize]>]>]>,
-    observations: Option<ObservationMetadata>,
-    schedule: RuleSchedule,
-    semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
-    hosted: Box<[HostRelation]>,
-    matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    derived: super::super::derived::prepared::PreparedDerived,
-    native_orders: Box<[Option<Arc<ryo_derived::domain::contract::types::PreparedDerived>>]>,
-    walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
-}
 impl PreparedProgram {
-    pub(super) fn file_demand(
+    pub(in crate::application::file_dag::program) fn file_demand(
         &self,
         rule: RuleIndex,
     ) -> Result<
@@ -250,7 +33,7 @@ impl PreparedProgram {
     > {
         self.file_demands.get(rule.0).ok_or(OperatingError::NotRun)
     }
-    pub(super) fn file_frontier_outputs(
+    pub(in crate::application::file_dag::program) fn file_frontier_outputs(
         &self,
         rule: RuleIndex,
         input: usize,
@@ -261,7 +44,7 @@ impl PreparedProgram {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(super) fn native_order(
+    pub(in crate::application::file_dag::program) fn native_order(
         &self,
         region: crate::domain::executable_program::types::RegionId,
     ) -> Result<Option<Arc<ryo_derived::domain::contract::types::PreparedDerived>>, OperatingError>
@@ -272,27 +55,29 @@ impl PreparedProgram {
             .ok_or(OperatingError::NotRun)
     }
 
-    pub(super) fn walk(
+    pub(in crate::application::file_dag::program) fn walk(
         &self,
     ) -> &crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
         &self.walk
     }
-    pub(super) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
+    pub(in crate::application::file_dag::program) fn all_bindings(
+        &self,
+    ) -> &[Box<[ParameterBinding]>] {
         &self.bindings
     }
-    pub(super) fn walk_class(
+    pub(in crate::application::file_dag::program) fn walk_class(
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<crate::domain::positions::types::ClassPlace> {
         self.walk.class_for(instruction)
     }
-    pub(super) fn rule_id(
+    pub(in crate::application::file_dag::program) fn rule_id(
         &self,
         rule: RuleIndex,
     ) -> Result<&ryo_values::domain::runs::types::RuleId, OperatingError> {
         self.rule_ids.get(rule.0).ok_or(OperatingError::NotRun)
     }
-    pub(super) fn applicability(
+    pub(in crate::application::file_dag::program) fn applicability(
         &self,
         rule: RuleIndex,
     ) -> Result<ryo_values::domain::runs::types::RuleApplicability, OperatingError> {
@@ -313,10 +98,12 @@ impl PreparedProgram {
     pub(in crate::application::file_dag) fn program(&self) -> &Arc<ExecutableProgram> {
         &self.program
     }
-    pub(super) fn derived(&self) -> &super::super::derived::prepared::PreparedDerived {
+    pub(in crate::application::file_dag::program) fn derived(
+        &self,
+    ) -> &crate::application::file_dag::derived::prepared::PreparedDerived {
         &self.derived
     }
-    pub(super) fn hosted(&self) -> &[HostRelation] {
+    pub(in crate::application::file_dag::program) fn hosted(&self) -> &[HostRelation] {
         &self.hosted
     }
     pub(crate) fn matchers(
@@ -330,7 +117,10 @@ impl PreparedProgram {
             .map(Box::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(super) fn rule_metadata(&self, rule: RuleIndex) -> Result<&RuleMetadata, OperatingError> {
+    pub(in crate::application::file_dag::program) fn rule_metadata(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&RuleMetadata, OperatingError> {
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
@@ -597,9 +387,10 @@ pub(crate) fn prepare(
         &operators,
     )?);
     walk.retain_program_consumers(&program, &bindings)?;
-    if tracing::enabled!(target: super::constants::WALK_TARGET, tracing::Level::TRACE) {
+    if tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
+    {
         let census = walk.census();
-        tracing::trace!(target: super::constants::WALK_TARGET, event = super::constants::WALK_CENSUS,
+        tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = crate::application::file_dag::program::constants::WALK_CENSUS,
             rules = ?rules.iter().map(|rule| rule.id.0.as_ref()).collect::<Vec<_>>(),
             instructions = census.instructions.0, shared = census.shared.0,
             classes = census.classes.len(), representation = census.representation.0,
@@ -607,7 +398,7 @@ pub(crate) fn prepare(
             row = census.row.0, derived = census.derived.0, request = census.request.0,
             continuation = census.continuation.0);
         for class in census.classes {
-            tracing::trace!(target: super::constants::WALK_TARGET, event = super::constants::WALK_CLASS,
+            tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = crate::application::file_dag::program::constants::WALK_CLASS,
                 class = class.0, relation = ?walk.classes()[class.0].source);
         }
     }
@@ -643,7 +434,9 @@ pub(crate) fn prepare(
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
-    let derived = super::super::derived::prepared::PreparedDerived::compile(&program, &operators)?;
+    let derived = crate::application::file_dag::derived::prepared::PreparedDerived::compile(
+        &program, &operators,
+    )?;
     let mut metadata = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter().enumerate() {
         let reads = crate::domain::trust::service::physical_reads(plan);
@@ -804,20 +597,4 @@ fn source(
             .map(InputSource::Observation)
             .ok_or(OperatingError::NotRun),
     }
-}
-
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-
-use ryo_values::domain::rule_requests::types::RuleSpec;
-
-/// Successful row delivery preserves physical uncertainty rather than fabricating an empty table.
-pub enum RowEmission {
-    /// No rows were delivered: the compiled root belongs to this later phase.
-    Deferred {
-        phase: StepScope,
-    },
-    Complete,
-    Partial {
-        affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,
-    },
 }

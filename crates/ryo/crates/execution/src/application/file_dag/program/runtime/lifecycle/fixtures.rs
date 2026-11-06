@@ -1,11 +1,19 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::{
-    AdmittedInput, ColumnCounters, Emit, Instruction, InvocationFailure, KernelInput,
-    KernelInvocation, KernelScratch, OperatingError, OperatorContext, ProgramExecution, RegionId,
-    StrategyOutcome,
-};
 use super::inputs::fixtures::{TestInputs, value};
+use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::runtime::types::ColumnCounters;
+use crate::application::file_dag::program::runtime::types::InvocationFailure;
+use crate::application::file_dag::program::runtime::types::KernelInput;
+use crate::application::file_dag::program::runtime::types::KernelInvocation;
+use crate::application::file_dag::program::runtime::types::KernelScratch;
+use crate::application::file_dag::program::runtime::types::ProgramExecution;
+use crate::application::file_dag::program::runtime::types::StrategyOutcome;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
+use crate::domain::executable_program::types::Instruction;
+use crate::domain::executable_program::types::RegionId;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::Emit;
+use crate::domain::operating::types::OperatorContext;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
 use ryo_values::domain::rows::types::Table;
@@ -55,7 +63,7 @@ impl KernelInvocation for RuntimeProbe {
     fn ordered(
         &self,
         _: &crate::domain::executable_program::types::OrderedExistence,
-        _: &super::super::super::admission::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
         _: &AdmittedInput,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
@@ -65,7 +73,7 @@ impl KernelInvocation for RuntimeProbe {
     }
     fn positions(
         &self,
-        _: &super::super::super::admission::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
@@ -75,7 +83,7 @@ impl KernelInvocation for RuntimeProbe {
     fn selected(
         &self,
         _: &crate::domain::executable_program::selection::SelectionAlternative,
-        _: &super::super::super::admission::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
@@ -85,7 +93,7 @@ impl KernelInvocation for RuntimeProbe {
     fn column(
         &self,
         _: &crate::domain::executable_program::column::ColumnAlternative,
-        _: &super::super::super::admission::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
         _: &AdmittedInput,
         _: &AdmittedInput,
         _: &mut OperatorContext<'_>,
@@ -98,7 +106,7 @@ impl KernelInvocation for RuntimeProbe {
     fn evaluate(
         &self,
         instruction: &Instruction,
-        _: &super::super::super::admission::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
         _: KernelInput<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,

@@ -1,5 +1,5 @@
-description = "Runtime admission authority is sealed to its declaring owner."
-why = "KernelAdmission is the unforgeable input required by all three KernelPermit constructors. Private record fields keep program siblings from issuing it even when they already hold a ProgramExecution reference. KernelPermit, AdmittedInput and RuntimeState likewise retain private representation. This AST rule rejects visibility widening, misplaced declarations and written KernelAdmission record construction outside runtime.rs. Rust privacy independently resolves aliases and rejects sibling field construction. This rule does not prove constructor signatures, facade reexports, macro expansion, unsafe code or runtime admission correctness; those remain compiler and production execution obligations."
+description = "Runtime admission authority is sealed to its declaring owner concept."
+why = "The runtime concept owns invocation state, permits, and semantic/physical authority. Runtime types retain fields visible only inside that concept; runtime/service.rs alone constructs them. The program source/proof admission module retains private admitted-input fields, while the separately qualified relation AdmittedInput proof remains scoped to its own relations owner and validates explicit owner, generation, partition and root requirements, never an interpreter object. KernelAdmission remains the unforgeable prerequisite of all three KernelPermit constructors. This AST rule rejects moved/widened representations and written authority construction outside runtime/service.rs. Rust privacy independently resolves aliases and rejects sibling program construction or field retargeting. Constructor contracts, macro expansion and runtime admission behavior remain compiler/production obligations."
 query = '''
 let nodes = select id, kind, file, span from "syntax-tree" where text = "";
 let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
@@ -9,30 +9,33 @@ let struct-children = select l.id as id, l.file as file, l.span as span, r.child
 let struct-names = select l.id as id, l.file as file, l.span as span, l.child as node from struct-children as l join names as r on l.child = r.id;
 let name-children = select l.id as id, l.file as file, l.span as span, r.child as token from struct-names as l join "syntax-child" as r on l.node = r.parent;
 let named-structs = select l.id as id, l.file as file, l.span as span, r.text as name from name-children as l join tokens as r on l.token = r.id;
-let sealed = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,AdmittedInput,RuntimeState}");
-let placed = capture(from=sealed, path="file", pattern="{*root}/application/file_dag/program/{part}.rs", captures=["root", "part"]);
-let wrong-runtime = select file, span from placed where glob_any(name, "{KernelAdmission,RuntimeState}") and part != "runtime";
-let wrong-admission = select file, span from placed where glob_any(name, "{KernelPermit,AdmittedInput}") and part != "admission";
-let unplaced = antijoin(left=sealed, right=placed, left-on=["id"], right-on=["id"]);
-let wrong-unplaced = project(from=unplaced, columns=["file", "span"]);
+let sealed = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,AdmittedInput,RuntimeState}");
+let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/types.rs");
+let wrong-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/{program/admission.rs,relations/admission.rs}");
 let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
 let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
 let fields = select * from nodes where glob_any(kind, "{record-field,tuple-field}");
 let sealed-fields = select r.id as id, r.file as file, r.span as span from field-edges as l join fields as r on l.field = r.id;
 let visibilities = select * from nodes where kind = "visibility";
-let visible-owners = select l.parent as id from "syntax-child" as l join visibilities as r on l.child = r.id;
-let widened = select l.file as file, l.span as span from sealed-fields as l join visible-owners as r on l.id = r.id;
+let visible-owners = select l.parent as id, r.id as visibility from "syntax-child" as l join visibilities as r on l.child = r.id;
+let visible-fields = select l.id as id, l.file as file, l.span as span, r.visibility as visibility from sealed-fields as l join visible-owners as r on l.id = r.id;
+let visibility-tokens = axis(from=visibilities, relation="syntax-child", direction=descendant, domain=tokens);
+let super-scopes = select l.id as visibility from visibility-tokens as l join tokens as r on l.related = r.id where r.text = "super";
+let wider-scopes = select l.id as visibility from visibility-tokens as l join tokens as r on l.related = r.id where glob_any(r.text, "{crate,in}");
+let owner-scopes = antijoin(left=super-scopes, right=wider-scopes, left-on=["visibility"], right-on=["visibility"]);
+let owner-fields = select l.id as id from visible-fields as l join owner-scopes as r on l.visibility = r.visibility where glob_any(l.file, "{src,**/src}/application/file_dag/{program/runtime/types.rs,relations/admission.rs}");
+let widened-fields = antijoin(left=visible-fields, right=owner-fields, left-on=["id"], right-on=["id"]);
+let widened = project(from=widened-fields, columns=["file", "span"]);
 let records = select * from nodes where kind = "record-expr";
 let paths = select * from nodes where kind = "path";
 let record-children = select l.id as id, l.file as file, l.span as span, r.child as child from records as l join "syntax-child" as r on l.id = r.parent;
 let record-paths = select l.id as id, l.file as file, l.span as span, l.child as path from record-children as l join paths as r on l.child = r.id;
 let path-names = axis(from=paths, relation="syntax-child", direction=descendant, domain=tokens);
-let authority-names = select l.id as path from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and r.text = "KernelAdmission";
+let authority-names = select l.id as path from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and glob_any(r.text, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,RuntimeState}");
 let authority-records = select l.file as file, l.span as span from record-paths as l join authority-names as r on l.path = r.path;
-let foreign-issuers = select file, span from authority-records where not glob_any(file, "{src,**/src}/application/file_dag/program/runtime.rs");
+let foreign-issuers = select file, span from authority-records where not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/service.rs");
 let wrong-placement = union(left=wrong-runtime, right=wrong-admission);
-let all-placement = union(left=wrong-placement, right=wrong-unplaced);
-let sealed-placement = union(left=all-placement, right=widened);
+let sealed-placement = union(left=wrong-placement, right=widened);
 let violations = union(left=sealed-placement, right=foreign-issuers);
 emit violations subject file key(span);
 '''
@@ -40,7 +43,7 @@ emit violations subject file key(span);
 [diagnostic]
 primary = "span"
 message = "runtime admission authority escapes its sealed owner"
-help = "Keep KernelAdmission and RuntimeState in runtime.rs, KernelPermit and AdmittedInput in admission.rs, every representation field private, and KernelAdmission issuance inside runtime.rs. Other modules receive admitted capabilities through the production interpreter."
+help = "Keep runtime state and capability records in runtime/types.rs with private or pub(super) fields scoped to that owner concept. Only runtime/service.rs issues them. Keep AdmittedInput in admission.rs with private fields. Sibling program modules receive live admitted capabilities through the sole interpreter."
 
 [given]
 include = ["src/**"]
@@ -54,16 +57,17 @@ files.'src/lib.rs' = 'mod application;'
 files.'src/application.rs' = 'mod file_dag;'
 files.'src/application/file_dag.rs' = 'mod program;'
 files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session;'
-files.'src/application/file_dag/program/runtime.rs' = '''
-pub(super) struct KernelAdmission { execution: (), region: usize }
-pub(super) struct RuntimeState { generation: (), slots: () }
-fn issue() -> KernelAdmission { KernelAdmission { execution: (), region: 0 } }
+files.'src/application/file_dag/program/runtime/types.rs' = '''
+pub(in crate::application::file_dag::program) struct KernelAdmission { pub(super) execution: (), pub(super) region: usize }
+pub(in crate::application::file_dag::program) struct RuntimeState { pub(super) generation: (), pub(super) slots: () }
+pub(in crate::application::file_dag::program) struct KernelPermit { pub(super) region: usize }
 '''
 files.'src/application/file_dag/program/admission.rs' = '''
-pub(super) struct KernelPermit { region: usize }
 pub(super) struct AdmittedInput { proof: () }
 '''
-files.'src/application/file_dag/program/kernel_session.rs' = 'fn consume(_: &super::admission::KernelPermit) {}'
+files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service;'
+files.'src/application/file_dag/program/runtime/service.rs' = 'use super::types::KernelAdmission; fn issue() -> KernelAdmission { KernelAdmission { execution: (), region: 0 } }'
+files.'src/application/file_dag/program/kernel_session.rs' = 'fn consume(_: &super::runtime::types::KernelPermit) {}'
 
 [[scenarios]]
 id = "private-owner-issuance"
@@ -72,20 +76,20 @@ scenario = "The runtime issues sealed authority and a sibling only borrows an ex
 [[scenarios]]
 id = "sibling-cannot-issue"
 scenario = "A real program sibling writing the authority record is rejected."
-given.files.'src/application/file_dag/program/kernel_session.rs' = 'fn bypass() { let _ = super::runtime::KernelAdmission { execution: (), region: 0 }; }'
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'fn bypass() { let _ = super::runtime::types::KernelAdmission { execution: (), region: 0 }; }'
 then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
 
 [[scenarios]]
-id = "authority-field-super-is-not-private"
-scenario = "Widening a field to pub(super) makes sibling construction possible and is rejected."
-given.files.'src/application/file_dag/program/runtime.rs' = 'pub(super) struct KernelAdmission { pub(super) execution: (), region: usize }'
-then.findings = [{ path = "src/application/file_dag/program/runtime.rs", line = 1 }]
+id = "authority-field-program-is-not-owner-private"
+scenario = "Widening an owner field to the whole program permits sibling construction and is rejected."
+given.files.'src/application/file_dag/program/runtime/types.rs' = 'pub(super) struct KernelAdmission { pub(in crate::application::file_dag::program) execution: (), region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "permit-field-crate-is-not-private"
 scenario = "Permit representation cannot be widened to the crate."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct KernelPermit { pub(crate) region: usize }'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+given.files.'src/application/file_dag/program/runtime/types.rs' = 'pub(super) struct KernelPermit { pub(crate) region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "input-field-public-is-not-private"
@@ -95,9 +99,9 @@ then.findings = [{ path = "src/application/file_dag/program/admission.rs", line 
 
 [[scenarios]]
 id = "state-field-super-is-not-private"
-scenario = "Runtime slot state cannot be fabricated by a program sibling."
-given.files.'src/application/file_dag/program/runtime.rs' = 'pub(super) struct RuntimeState { pub(super) generation: (), slots: () }'
-then.findings = [{ path = "src/application/file_dag/program/runtime.rs", line = 1 }]
+scenario = "Runtime slot state cannot be widened beyond its owner concept."
+given.files.'src/application/file_dag/program/runtime/types.rs' = 'pub(super) struct RuntimeState { pub(crate) generation: (), slots: () }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "authority-declaration-cannot-move"
@@ -111,5 +115,32 @@ scenario = "A comment or string mentioning record syntax is not a construction."
 given.files.'src/application/file_dag/program/kernel_session.rs' = '''
 // KernelAdmission { execution: (), region: 0 }
 const NOTE: &str = "KernelAdmission { execution: (), region: 0 }";
-fn consume(_: &super::admission::KernelPermit) {}
+fn consume(_: &super::runtime::types::KernelPermit) {}
 '''
+[[scenarios]]
+id = "nested-runtime-helper-cannot-issue-authority"
+scenario = "A new helper inside the runtime concept cannot become an independent authority issuer."
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; mod rogue;'
+given.files.'src/application/file_dag/program/runtime/rogue.rs' = 'fn bypass() { let _ = super::types::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/rogue.rs", line = 1 }]
+
+[[scenarios]]
+id = "execution-owner-generation-cannot-be-widened"
+scenario = "The program execution owner cannot expose its generation for caller retargeting."
+given.files.'src/application/file_dag/program/runtime/types.rs' = 'pub(crate) struct ProgramExecution { pub(in crate::application::file_dag::program) generation: () }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-keeps-its-own-qualified-owner"
+scenario = "The relation owner's distinct admitted representation proof may expose fields only inside its own concept."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) population: () }'
+
+[[scenarios]]
+id = "relation-proof-cannot-widen-to-crate"
+scenario = "Qualifying the relation proof separately does not allow its representation to escape its own owner."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct AdmittedInput { pub(crate) population: () }'
+then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]

@@ -164,7 +164,7 @@ fn admit_published(
 /// to a generation-checked publication. It has no second scheduler.
 pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) execution: &'a ProgramExecution,
-    pub(super) state: &'a super::super::runtime::RuntimeState,
+    pub(super) state: &'a crate::application::file_dag::program::runtime::types::RuntimeState,
     pub(super) completion: CompletionPolicy,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,

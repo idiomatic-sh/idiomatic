@@ -1,6 +1,7 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, PublicationSlot};
-use crate::application::file_dag::program::facade::{ObservationMetadata, OutputRoot};
+use crate::application::file_dag::program::preparation::types::ObservationMetadata;
+use crate::application::file_dag::program::preparation::types::OutputRoot;
 use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
@@ -19,12 +20,12 @@ enum CrossRoot {
     Pending,
     FileFrontier {
         publication: crate::application::file_dag::relations::PackedPublication,
-        token: crate::application::file_dag::program::facade::ValidatedFrontier,
+        token: crate::application::file_dag::program::restored::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
         publication: crate::application::file_dag::relations::PackedPublication,
-        admitted: crate::application::file_dag::program::facade::ObservedPublication,
+        admitted: crate::application::file_dag::program::protocol::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
     Unavailable,
@@ -39,7 +40,7 @@ pub(crate) struct FrontierPopulation<'a> {
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
     publication: crate::application::file_dag::relations::PackedPublication,
-    token: crate::application::file_dag::program::facade::ValidatedFrontier,
+    token: crate::application::file_dag::program::restored::ValidatedFrontier,
     arenas: Vec<WorkerNumber>,
 }
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
@@ -56,7 +57,7 @@ pub(crate) struct CrossPublications<'a> {
 impl<'a> CrossPublications<'a> {
     pub(crate) fn new(
         metadata: &'a ObservationMetadata,
-        scope: &crate::application::file_dag::program::facade::PublicationScope,
+        scope: &crate::application::file_dag::program::facade_runtime::PublicationScope,
         arenas: &'a mut Vec<ArenaBytes>,
     ) -> Self {
         let inherited = arenas.len();
@@ -98,7 +99,7 @@ impl<'a> CrossPublications<'a> {
     /// Decode and retain one actual physical bucket through the common publication owner.
     pub(crate) fn prepare_frontier(
         &self,
-        token: crate::application::file_dag::program::facade::ValidatedFrontier,
+        token: crate::application::file_dag::program::restored::ValidatedFrontier,
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
         let backing = std::sync::Arc::new(token.words().clone());
@@ -256,7 +257,7 @@ impl<'a> CrossPublications<'a> {
         transfer: CrossPublicationTransfer,
         admitted: Vec<(
             ObservationIndex,
-            crate::application::file_dag::program::facade::ObservedPublication,
+            crate::application::file_dag::program::protocol::types::ObservedPublication,
         )>,
     ) -> Result<(), OperatingError> {
         let count = admitted.len();
@@ -527,9 +528,11 @@ fn frontier_compatible(
 /// Restore demanded file roots through the same request owner, once per physical bucket.
 pub(crate) fn restore_frontiers(
     publications: &mut CrossPublications<'_>,
-    program: &std::sync::Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    program: &std::sync::Arc<
+        crate::application::file_dag::program::preparation::types::PreparedProgram,
+    >,
     services: &crate::application::file_dag::program::facade_runtime::ProgramServices,
-    publication: &crate::application::file_dag::program::facade::PublicationScope,
+    publication: &crate::application::file_dag::program::facade_runtime::PublicationScope,
     facts: &dyn crate::outbound::facts::interface::FactsFinish,
     corpus: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[crate::domain::coverage::types::Covered],
@@ -538,7 +541,7 @@ pub(crate) fn restore_frontiers(
     first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
     selected: &[bool],
 ) -> Result<(), OperatingError> {
-    use crate::application::file_dag::program::{facade, facade_runtime};
+    use crate::application::file_dag::program::facade_runtime;
     use ryo_values::domain::stored_facts::types::Bucket;
 
     use crate::application::file_dag::observations::cross::{PreparedFrontier, frontier_readiness};
@@ -591,17 +594,18 @@ pub(crate) fn restore_frontiers(
                     .map_err(|error| OperatingError::ObservationIncomplete {
                         reason: error.to_string(),
                     })?;
-            let restored = facade::validate_restored_frontier(
-                program,
-                root.producer,
-                root.frontier,
-                first,
-                bucket,
-                &required,
-                payload,
-                publication,
-            )
-            .and_then(|token| publications.prepare_frontier(token));
+            let restored =
+                crate::application::file_dag::program::restored::validate_restored_frontier(
+                    program,
+                    root.producer,
+                    root.frontier,
+                    first,
+                    bucket,
+                    &required,
+                    payload,
+                    publication,
+                )
+                .and_then(|token| publications.prepare_frontier(token));
             entry.insert(restored);
         }
         match physical.get(&bucket).ok_or(OperatingError::NotRun)? {

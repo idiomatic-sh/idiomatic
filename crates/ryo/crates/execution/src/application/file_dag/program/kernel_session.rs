@@ -1,8 +1,9 @@
 //! Invocation-scoped resource acquisition followed by the mandatory semantic port.
-use super::{
-    admission::KernelPermit,
-    runtime::{InvocationFailure, KernelInput, KernelInvocation, KernelScratch},
-};
+use crate::application::file_dag::program::runtime::types::InvocationFailure;
+use crate::application::file_dag::program::runtime::types::KernelInput;
+use crate::application::file_dag::program::runtime::types::KernelInvocation;
+use crate::application::file_dag::program::runtime::types::KernelPermit;
+use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::{
     application::file_dag::{
         executor::PrimitiveExecutor, invocation::InvocationResources, relations::RelationOwner,
@@ -30,7 +31,7 @@ use std::rc::Rc;
 
 pub(super) struct KernelSession<'a, 'facts> {
     kernels: &'a dyn PrimitiveExecutor,
-    prepared: &'a super::facade::PreparedProgram,
+    prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
     owner: Rc<RelationOwner>,
     read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     walk: super::native_walk::WalkPartition<'a>,
@@ -38,7 +39,7 @@ pub(super) struct KernelSession<'a, 'facts> {
 impl<'a, 'facts> KernelSession<'a, 'facts> {
     pub(super) fn file(
         kernels: &'a dyn PrimitiveExecutor,
-        prepared: &'a super::facade::PreparedProgram,
+        prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         walk: &'a super::native_walk::FileWalk,
@@ -53,7 +54,7 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
     }
     pub(super) fn project(
         kernels: &'a dyn PrimitiveExecutor,
-        prepared: &'a super::facade::PreparedProgram,
+        prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     ) -> Self {
@@ -69,7 +70,7 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
 impl KernelInvocation for KernelSession<'_, '_> {
     fn ready(
         &self,
-        ready: &super::runtime::ReadySelection<'_, '_>,
+        ready: &crate::application::file_dag::program::runtime::types::ReadySelection<'_, '_>,
         inputs: &[super::admission::AdmittedInput],
         _context: &mut OperatorContext<'_>,
     ) -> Result<bool, OperatingError> {
@@ -85,7 +86,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
-    ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+    ) -> Result<
+        crate::application::file_dag::program::runtime::types::StrategyOutcome,
+        InvocationFailure,
+    > {
         self.walk
             .validate(permit)
             .map_err(InvocationFailure::Semantic)?;
@@ -122,7 +126,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
             )
             .map_err(InvocationFailure::Semantic)?
         else {
-            return Ok(super::runtime::StrategyOutcome::Declined);
+            return Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,
+            );
         };
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
@@ -157,7 +163,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             .into_inner()
             .map_or(result, Err)
             .map_err(InvocationFailure::Semantic)?;
-        Ok(super::runtime::StrategyOutcome::Executed)
+        Ok(crate::application::file_dag::program::runtime::types::StrategyOutcome::Executed)
     }
     fn positions(
         &self,
@@ -437,9 +443,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
         right: &super::admission::AdmittedInput,
         context: &mut OperatorContext<'_>,
         _scratch: &mut KernelScratch,
-        counts: &super::runtime::ColumnCounters,
+        counts: &crate::application::file_dag::program::runtime::types::ColumnCounters,
         rows: &mut ryo_values::domain::rows::types::Table,
-    ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+    ) -> Result<
+        crate::application::file_dag::program::runtime::types::StrategyOutcome,
+        InvocationFailure,
+    > {
         self.walk
             .validate(permit)
             .map_err(InvocationFailure::Semantic)?;
@@ -462,7 +471,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let context = &mut rebound;
         let chain = shape.chain();
         let Some(index_plan) = &chain.index else {
-            return Ok(super::runtime::StrategyOutcome::Declined);
+            return Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,
+            );
         };
         let left_publication = left
             .publication(&self.owner)
@@ -477,7 +488,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
             .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
         let Rows::Stored(right_source) = &right_rows else {
-            return Ok(super::runtime::StrategyOutcome::Declined);
+            return Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,
+            );
         };
         use crate::domain::table_model::collections::representations::types::PhysicalShape;
         if self
@@ -495,7 +508,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 .first()
                 .is_none_or(|schema| schema.as_slice() != right_source.kinds)
         {
-            return Ok(super::runtime::StrategyOutcome::Declined);
+            return Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,
+            );
         }
         crate::domain::derived_views::service::validate(
             ryo_derived::domain::contract::types::DerivedKind::Equality,
@@ -507,7 +522,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 rows,
                 &permit.output_kinds().map_err(InvocationFailure::Semantic)?,
             );
-            return Ok(super::runtime::StrategyOutcome::Executed);
+            return Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Executed,
+            );
         }
         let acquired = self
             .owner
@@ -552,8 +569,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
             return Err(InvocationFailure::Semantic(error.clone()));
         }
         match result.map_err(InvocationFailure::Semantic)? {
-            Some(_) => Ok(super::runtime::StrategyOutcome::Executed),
-            None => Ok(super::runtime::StrategyOutcome::Declined),
+            Some(_) => Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Executed,
+            ),
+            None => Ok(
+                crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,
+            ),
         }
     }
     fn evaluate(

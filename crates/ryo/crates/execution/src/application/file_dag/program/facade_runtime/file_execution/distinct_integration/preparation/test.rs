@@ -90,7 +90,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     )
     .unwrap();
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         &rules,
         &vec![Digest([0; 16]); rules.len()],

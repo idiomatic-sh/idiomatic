@@ -1,13 +1,9 @@
 //! Thin public orchestration over the one private execution owner.
 use super::{interface::*, types::*};
-use crate::application::file_dag::{
-    execution::CommonOperatorEngine,
-    program::{
-        facade,
-        facade_runtime::{self, ProgramServices},
-    },
-    scope::ScopePartials,
-};
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime;
+use crate::application::file_dag::program::facade_runtime::ProgramServices;
+use crate::application::file_dag::scope::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     files::types::CorpusInput, runs::types::Skipped, stored_facts::types::Bucket,
@@ -150,7 +146,7 @@ impl ExecutionRequest for RequestExecution {
         input: ProjectInput<'a>,
         symbols: &mut Symbols,
     ) -> Result<ProjectSession<'a>, OperatingError> {
-        let frontiers = facade::ProjectFrontiers {
+        let frontiers = crate::application::file_dag::program::facade_runtime::ProjectFrontiers {
             publication: &input.scope.publication,
             ordinary: input.ordinary,
             bound_inputs: input.bound,
@@ -213,7 +209,7 @@ impl FileExecution for FileSession<'_, '_> {
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        let bound = facade::CaptureContext {
+        let bound = crate::application::file_dag::program::protocol::types::CaptureContext {
             file: self.file,
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,
@@ -564,7 +560,7 @@ impl ExecutionUseCaseImpl {
         hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
         identity: ObservationIdentity,
     ) -> Result<PreparedProgram, OperatingError> {
-        let inner = facade::prepare(
+        let inner = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
             &digests,

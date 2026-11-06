@@ -333,7 +333,7 @@ impl ProjectRun<'_> {
     }
     fn deliver(
         &mut self,
-        state: &super::super::runtime::RuntimeState,
+        state: &crate::application::file_dag::program::runtime::types::RuntimeState,
         rule: RuleIndex,
         demand: RuleDemand,
         roots: &[crate::domain::executable_program::types::RegionId],
@@ -474,14 +474,17 @@ pub(crate) fn evaluate_roots<E>(
     declarations: &[ProjectRootDeclaration],
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     mut guard: impl FnMut(RuleIndex) -> Result<(), E>,
-) -> super::super::facade::ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+) -> crate::application::file_dag::program::protocol::types::ProjectBatch<
+    Result<ProjectRuleOutcome, OperatingError>,
+    E,
+> {
     use crate::domain::executable_program::types::RegionId;
     enum RootSet {
         Pending(Vec<RegionId>),
         Prepared,
     }
     struct Cohort {
-        state: Rc<super::super::runtime::RuntimeState>,
+        state: Rc<crate::application::file_dag::program::runtime::types::RuntimeState>,
         roots: RootSet,
     }
     let mut cohorts = Vec::new();
@@ -523,7 +526,7 @@ pub(crate) fn evaluate_roots<E>(
         };
         if requires_guard {
             if let Err(error) = guard(rule) {
-                return super::super::facade::ProjectBatch::Refused { completed, error };
+                return crate::application::file_dag::program::protocol::types::ProjectBatch::Refused { completed, error };
             }
         }
         let result = (|| {
@@ -537,5 +540,5 @@ pub(crate) fn evaluate_roots<E>(
         })();
         completed.push(result);
     }
-    super::super::facade::ProjectBatch::Complete(completed)
+    crate::application::file_dag::program::protocol::types::ProjectBatch::Complete(completed)
 }

@@ -152,7 +152,7 @@ fn execute_request(
 ) -> Result<Table, OperatingError> {
     let target = plan.emit.step.0 as usize;
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
@@ -919,7 +919,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         })
         .collect::<Vec<_>>();
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans,
             bindings: vec![vec![]; 4],

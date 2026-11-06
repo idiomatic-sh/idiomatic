@@ -1,15 +1,15 @@
 //! Named producer populations use the actual prepared union and common file scheduler.
-use crate::application::file_dag::{
-    execution::CommonOperatorEngine,
-    program::{
-        facade::{
-            self, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand,
-            RootOutcome, RuleDemand,
-        },
-        facade_runtime::{ProgramServices, open_file},
-    },
-    scope::ScopePartials,
-};
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::open_file;
+use crate::application::file_dag::program::protocol::types::CaptureIntent;
+use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+use crate::application::file_dag::program::protocol::types::EmitDemand;
+use crate::application::file_dag::program::protocol::types::FileRuleIntent;
+use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
@@ -162,7 +162,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         })
         .collect::<Vec<_>>();
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         &rules,
         &vec![Digest([0; 16]); rules.len()],

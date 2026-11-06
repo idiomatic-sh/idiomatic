@@ -1,15 +1,16 @@
 //! Binding identity and file generations through the actual compiled request API.
-use crate::application::file_dag::{
-    execution::CommonOperatorEngine,
-    program::{
-        facade::{
-            self, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand,
-            RootOutcome, RuleDemand,
-        },
-        facade_runtime::{FileRun, ProgramServices, open_file},
-    },
-    scope::ScopePartials,
-};
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::FileRun;
+use crate::application::file_dag::program::facade_runtime::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::open_file;
+use crate::application::file_dag::program::protocol::types::CaptureIntent;
+use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+use crate::application::file_dag::program::protocol::types::EmitDemand;
+use crate::application::file_dag::program::protocol::types::FileRuleIntent;
+use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::{
     coverage::types::RuleIndex,
     file_program::types::RuleSchedule,
@@ -106,10 +107,13 @@ fn rule(index: usize) -> RuleSpec {
 }
 fn prepare(
     bindings: Vec<Vec<ParameterBinding>>,
-) -> (Arc<facade::PreparedProgram>, Arc<ProgramServices>) {
+) -> (
+    Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
+    Arc<ProgramServices>,
+) {
     let count = bindings.len();
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; count],

@@ -1,11 +1,14 @@
 //! Producer declarations and actual source scope govern ordinary admission.
 use super::super::*;
-use crate::application::file_dag::program::{
-    admission::{FileGeneration, Inputs, Partition, ProducerRoot, contributor_readiness},
-    context::RunContext,
-    kernel_session::KernelSession,
-    runtime::{InvocationOutcome, ProgramExecution},
-};
+use crate::application::file_dag::program::admission::FileGeneration;
+use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::admission::contributor_readiness;
+use crate::application::file_dag::program::context::RunContext;
+use crate::application::file_dag::program::kernel_session::KernelSession;
+use crate::application::file_dag::program::runtime::types::InvocationOutcome;
+use crate::application::file_dag::program::runtime::types::ProgramExecution;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::{
@@ -93,7 +96,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         ])]));
     }
     let derived = crate::application::file_dag::testing::program_derived_port();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

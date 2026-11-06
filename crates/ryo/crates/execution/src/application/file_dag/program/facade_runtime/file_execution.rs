@@ -801,7 +801,8 @@ impl FileRun<'_> {
         each: &mut dyn FnMut(
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
-    ) -> Result<super::super::facade::RowEmission, OperatingError> {
+    ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
+    {
         if self.declared(rule)?.0 != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
         }
@@ -816,7 +817,11 @@ impl FileRun<'_> {
             .map_err(Clone::clone)?;
         let phase = self.program.program().regions()[id.0].phase;
         if phase != ryo_values::domain::plans::types::StepScope::PerFile {
-            return Ok(super::super::facade::RowEmission::Deferred { phase });
+            return Ok(
+                crate::application::file_dag::program::protocol::types::RowEmission::Deferred {
+                    phase,
+                },
+            );
         }
         self.prepare_walk(read, symbols)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
@@ -885,10 +890,12 @@ impl FileRun<'_> {
         sources.replay(&published, context, &mut ForwardRows(each))?;
         Ok(match coverage {
             crate::domain::completion::types::CoverageState::Complete => {
-                super::super::facade::RowEmission::Complete
+                crate::application::file_dag::program::protocol::types::RowEmission::Complete
             }
             crate::domain::completion::types::CoverageState::Partial { files } => {
-                super::super::facade::RowEmission::Partial { affected: files }
+                crate::application::file_dag::program::protocol::types::RowEmission::Partial {
+                    affected: files,
+                }
             }
         })
     }

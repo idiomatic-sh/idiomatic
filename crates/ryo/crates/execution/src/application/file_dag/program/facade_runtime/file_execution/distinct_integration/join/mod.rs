@@ -261,7 +261,7 @@ fn execute(
     let target = request.emit.step;
     let has_frontier = !request.frontier.is_empty();
     let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = faults.derived.clone();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![request],
             bindings: vec![vec![]],
@@ -390,7 +390,7 @@ fn execute(
             ryo_values::domain::stored_facts::types::Bucket(0),
             &read,
             symbols,
-            super::super::super::super::facade::CaptureContext {
+            crate::application::file_dag::program::protocol::types::CaptureContext {
                 file: FileId(0),
                 rule_digest: Digest([0; 16]),
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),

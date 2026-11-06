@@ -1,10 +1,13 @@
 //! Engine-issued lazy restored input: immutable bytes retain their validated
 //! root, coverage, partition set and owning generation until actual demand.
-use super::{
-    admission::{AdmittedInput, Partition, ProducerRoot, Readiness, RequiredPartitions},
-    facade::{ObservedPublication, PreparedProgram},
-    facade_runtime::PublicationScope,
-};
+use super::admission::AdmittedInput;
+use super::admission::Partition;
+use super::admission::ProducerRoot;
+use super::admission::Readiness;
+use super::admission::RequiredPartitions;
+use super::facade_runtime::PublicationScope;
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::protocol::types::ObservedPublication;
 use crate::{
     domain::completion::types::CoverageState,
     domain::{

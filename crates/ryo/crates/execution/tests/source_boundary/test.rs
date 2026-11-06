@@ -95,22 +95,28 @@ fn manifest(source: &Path) -> toml::Table {
 }
 
 const PROGRAM: &str = "src/application/file_dag/program.rs";
-const RUNTIME: &str = "src/application/file_dag/program/runtime.rs";
+const RUNTIME: &str = "src/application/file_dag/program/runtime/service.rs";
 const AUTHORIZED: &str = r#"
 mod boundary_probe {
     use super::*;
     fn authorized<'a>(execution: &'a ProgramExecution, region: RegionId, inputs: &'a [AdmittedInput], left: &'a AdmittedInput, right: &'a AdmittedInput) {
         let authority = || KernelAdmission { execution, region };
-        let _ = super::super::admission::KernelPermit::admitted(authority(), inputs);
-        let _ = super::super::admission::KernelPermit::ordered(authority(), left);
-        let _ = super::super::admission::KernelPermit::column(authority(), left, right);
+        let _ = crate::application::file_dag::program::runtime::types::KernelPermit::admitted(authority(), inputs);
+        let _ = crate::application::file_dag::program::runtime::types::KernelPermit::ordered(authority(), left);
+        let _ = crate::application::file_dag::program::runtime::types::KernelPermit::column(authority(), left, right);
     }
     const _: for<'a> fn(&'a ProgramExecution, RegionId, &'a [AdmittedInput], &'a AdmittedInput, &'a AdmittedInput) = authorized;
+    fn assert_owned_result<T: Send + Sync + 'static>() {}
+    fn owned_walk_result() { assert_owned_result::<crate::application::file_dag::program::native_walk::WalkResult>(); }
+    const _: fn() = owned_walk_result;
 }
 "#;
 const SIBLING: &str = r#"
 mod boundary_probe {
-    use super::{admission::{AdmittedInput, KernelPermit}, runtime::{KernelAdmission, ProgramExecution}};
+    use super::admission::AdmittedInput;
+    use crate::application::file_dag::program::runtime::types::KernelPermit;
+    use crate::application::file_dag::program::runtime::types::KernelAdmission;
+    use crate::application::file_dag::program::runtime::types::ProgramExecution;
     use crate::domain::executable_program::types::RegionId;
 "#;
 
@@ -138,6 +144,13 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     let runtime = fs::read_to_string(source.join(RUNTIME)).unwrap();
     let probes = [
         (RUNTIME, AUTHORIZED.to_owned(), None),
+        (
+            PROGRAM,
+            format!(
+                "{SIBLING} fn rebind(execution: &mut ProgramExecution, owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>) {{ execution.owner = owner; }} const _: fn(&mut ProgramExecution, std::rc::Rc<crate::application::file_dag::relations::RelationOwner>) = rebind; }}"
+            ),
+            Some(("E0616", "owner", "private")),
+        ),
         (
             PROGRAM,
             format!(

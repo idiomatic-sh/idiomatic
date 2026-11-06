@@ -37,7 +37,7 @@ impl PrimitiveExecutor for CommonOperatorEngine {
 }
 pub(super) struct PrimitiveSemanticsBridge<'a> {
     pub(super) port: &'a dyn PrimitiveExecutor,
-    pub(super) permit: super::program::admission::SemanticPermit<'a>,
+    pub(super) permit: crate::application::file_dag::program::runtime::types::SemanticPermit<'a>,
     pub(super) binding: crate::domain::executable_program::physical::PhysicalBinding<'a>,
     pub(super) failure: &'a std::sync::OnceLock<crate::domain::operating::errors::OperatingError>,
 }

@@ -97,7 +97,7 @@ fn exercise(refusal: Refusal, fused: bool) {
         crate::application::file_dag::derived::owner::resource_fixture::RecordedDerived::default(),
     );
     let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
-    let prepared = facade::prepare(
+    let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

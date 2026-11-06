@@ -108,7 +108,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
         )
         .unwrap();
         let derived = crate::application::file_dag::testing::program_derived_port();
-        let prepared = facade::prepare(
+        let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
             &[Digest([0; 16]); 2],

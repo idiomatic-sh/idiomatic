@@ -1,18 +1,35 @@
 //! The application owns one execution and its admitted populations for each file
 //! or project phase. Kernel code receives borrowed rows only after admission.
-use super::{
-    admission::{
-        AdmittedInput, ApplicabilityProof, ApplicabilityReason, AvailableInput, FileGeneration,
-        Inputs, Partition, ProducerRoot, Readiness, RequiredPartitions,
-    },
-    facade::{
-        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery,
-        EmitDemand, FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand,
-        ObservedPublication, PreparedProgram, ProjectFrontiers, ProjectObservation,
-        ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
-    },
-    runtime::{InvocationOutcome, KernelInvocation, ProgramExecution},
-};
+use super::admission::AdmittedInput;
+use super::admission::ApplicabilityProof;
+use super::admission::ApplicabilityReason;
+use super::admission::AvailableInput;
+use super::admission::FileGeneration;
+use super::admission::Inputs;
+use super::admission::Partition;
+use super::admission::ProducerRoot;
+use super::admission::Readiness;
+use super::admission::RequiredPartitions;
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::protocol::types::ApplicabilityRefusal;
+use crate::application::file_dag::program::protocol::types::CaptureContext;
+use crate::application::file_dag::program::protocol::types::CaptureIntent;
+use crate::application::file_dag::program::protocol::types::CapturedFrontier;
+use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+use crate::application::file_dag::program::protocol::types::EmitDemand;
+use crate::application::file_dag::program::protocol::types::FileRuleIntent;
+use crate::application::file_dag::program::protocol::types::FrontierCapture;
+use crate::application::file_dag::program::protocol::types::LogicalCounts;
+use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::application::file_dag::program::protocol::types::ObservedPublication;
+use crate::application::file_dag::program::protocol::types::ProjectObservation;
+use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::application::file_dag::program::protocol::types::RuleOutcome;
+use crate::application::file_dag::program::runtime::types::InvocationOutcome;
+use crate::application::file_dag::program::runtime::types::KernelInvocation;
+use crate::application::file_dag::program::runtime::types::ProgramExecution;
 use ryo_relations::domain::relations::types::{FileId, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
@@ -61,6 +78,12 @@ impl ProgramServices {
     pub(super) fn derived(&self) -> &Arc<dyn DerivedPort> {
         &self.derived
     }
+}
+
+pub(crate) struct ProjectFrontiers<'a> {
+    pub publication: &'a PublicationScope,
+    pub ordinary: crate::application::file_dag::frontiers::types::PreparedFrontiers,
+    pub bound_inputs: &'a [crate::application::file_dag::frontiers::types::BoundInput],
 }
 
 /// A named project phase and its bound inputs must use the very same owner.

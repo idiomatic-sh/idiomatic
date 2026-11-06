@@ -1,5 +1,5 @@
 //! One admitted native Join instruction; this adapter never resolves dependencies.
-use super::admission::KernelPermit;
+use crate::application::file_dag::program::runtime::types::KernelPermit;
 use crate::application::file_dag::{
     executor::PrimitiveExecutor, invocation::NativeJoinLease, relations::RelationOwner,
 };

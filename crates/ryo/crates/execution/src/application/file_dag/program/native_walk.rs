@@ -1,5 +1,6 @@
 //! One admitted source population is scanned only after ordinary input admission.
-use super::{admission::KernelPermit, facade::PreparedProgram};
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::runtime::types::KernelPermit;
 use crate::{
     application::file_dag::derived::owner::PopulationId,
     domain::{
@@ -41,7 +42,7 @@ impl WalkPartition<'_> {
     pub(super) fn submit<'facts>(
         &self,
         prepared: &PreparedProgram,
-        ready: &super::runtime::ReadySelection<'_, '_>,
+        ready: &crate::application::file_dag::program::runtime::types::ReadySelection<'_, '_>,
         inputs: &[super::admission::AdmittedInput],
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
@@ -149,7 +150,7 @@ impl FileWalk {
     fn submit(
         &self,
         prepared: &PreparedProgram,
-        ready: &super::runtime::ReadySelection<'_, '_>,
+        ready: &crate::application::file_dag::program::runtime::types::ReadySelection<'_, '_>,
         relation: Relation,
         rows: &Rows<'_>,
     ) -> Result<bool, OperatingError> {
