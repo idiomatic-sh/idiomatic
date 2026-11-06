@@ -5,8 +5,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     observations::types::{BoundObservationInput, ObservationBindingName},
     plan_parts::types::{
-        ColumnIndex, PlanComparison, Direction, Input as PlanInput, LiteralText, ObservationBindingId,
-        Operand, QueryLiteral, RepeatedRows, StepId, StepScope, Test,
+        ColumnIndex, Direction, Input as PlanInput, LiteralText, ObservationBindingId, Operand,
+        PlanComparison, QueryLiteral, RepeatedRows, StepId, StepScope, Test,
     },
     plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep},
 };

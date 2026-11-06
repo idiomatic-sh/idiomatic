@@ -4,6 +4,10 @@ The value objects ryo's crates name across their boundaries: the files of a run,
 
 ## Domains
 
+### `compact_table`
+
+The values domain's `compact_table` concept: a table of packed words read in place, never decoded whole.
+
 ### descriptions
 
 The values domain's `descriptions` concept: what ryo says of the relations and the operators it owns.

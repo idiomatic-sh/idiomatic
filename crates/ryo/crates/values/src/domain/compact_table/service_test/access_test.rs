@@ -1,6 +1,7 @@
 //! Exercise the compact backing directly: leases, random access, mixed widths and cross-file symbol identities.
-use super::compact_test::{differential, packed, place, same, table};
+use super::{differential, packed, place, same, table};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::compact_table::service as compact;
 use crate::domain::plan_parts::types::ColumnIndex;
 use crate::domain::rows::types::RowIndex;
 use crate::domain::rows::types::{RowCount, Table};
@@ -14,14 +15,14 @@ use types::{Admitted, DecodeMode, WordSlice};
 fn compact_lease_pins_backing_until_metadata_is_retired() {
     let input = packed(&[table()]);
     let weak = Arc::downgrade(&input);
-    let Admitted { table: meta, .. } = service::admit_compact(
+    let Admitted { table: meta, .. } = compact::admit_compact(
         crate::domain::table_words::types::CompactBacking(Arc::clone(&input)),
         &mut vec![],
         DecodeMode::Complete,
     )
     .unwrap();
-    assert!(Arc::ptr_eq(&service::compact_backing(&meta).0, &input));
-    let storage = service::compact_storage(&meta);
+    assert!(Arc::ptr_eq(&compact::compact_backing(&meta).0, &input));
+    let storage = compact::compact_storage(&meta);
     assert_eq!(
         storage.words,
         types::StoragePart {
@@ -164,7 +165,7 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         let Admitted {
             table: compact,
             names,
-        } = service::admit_compact(
+        } = compact::admit_compact(
             crate::domain::table_words::types::CompactBacking(Arc::clone(&input)),
             &mut compact_places,
             mode,
@@ -173,14 +174,14 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         let compact_cells = (0..2)
             .flat_map(|row| (0..2).map(move |column| (row, column)))
             .map(|(row, column)| {
-                service::compact_cell(&compact, RowIndex(row), ColumnIndex(column)).unwrap()
+                compact::compact_cell(&compact, RowIndex(row), ColumnIndex(column)).unwrap()
             })
             .collect::<Vec<_>>();
         let mut compact_rows = Vec::new();
         let mut row_scratch = [Cell::Number(Integer(0)); 2];
         for row in 0..2 {
             compact_rows.extend_from_slice(
-                service::compact_read(&compact, RowIndex(row), &mut row_scratch).unwrap(),
+                compact::compact_read(&compact, RowIndex(row), &mut row_scratch).unwrap(),
             );
         }
         let identities = |cells: &[Cell]| {

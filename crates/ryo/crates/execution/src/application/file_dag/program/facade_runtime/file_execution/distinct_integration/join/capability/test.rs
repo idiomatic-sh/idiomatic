@@ -124,7 +124,7 @@ fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = admit_compact(
+    } = ryo_values::domain::compact_table::service::admit_compact(
         ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
             WordSlice(&words.0),
         )))),

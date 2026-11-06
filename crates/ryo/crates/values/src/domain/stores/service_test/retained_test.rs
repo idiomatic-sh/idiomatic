@@ -1,7 +1,7 @@
 //! Retained bytes of the record, stored and staged owners: exact component capacities.
-use crate::domain::stores::types::retention::value::RetainedBytes;
-use super::{bytes, notes, observed, proof};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::stores::types::retention::value::RetainedBytes;
+use crate::domain::stores::types::retention::value_test::{bytes, notes, observed, proof};
 use crate::domain::{
     files::types::{FileNumber, FileSize, Nanoseconds},
     records::types::{

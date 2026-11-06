@@ -2,7 +2,7 @@
 use super::super::cases::test::table_of;
 use super::super::*;
 use crate::domain::operating::types::Memo;
-use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 
 struct Callback<'a>(
     &'a mut dyn FnMut(&mut OperatorContext<'_>, &[Cell]) -> Result<(), OperatingError>,

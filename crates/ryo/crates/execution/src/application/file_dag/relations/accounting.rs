@@ -64,7 +64,7 @@ impl RelationOwner {
             }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
             RelationBody::Compact(table) => {
-                let words = ryo_values::domain::table_words::service::compact_backing(table);
+                let words = ryo_values::domain::compact_table::service::compact_backing(table);
                 output.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(22),

@@ -2,4 +2,4 @@
 pub mod value;
 
 #[cfg(test)]
-mod value_test;
+pub(in crate::domain::stores) mod value_test;

@@ -43,7 +43,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = service::admit_compact(
+    } = ryo_values::domain::compact_table::service::admit_compact(
         ryo_values::domain::table_words::types::CompactBacking(Arc::clone(&words)),
         &mut Vec::new(),
         DecodeMode::Complete,
@@ -51,7 +51,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     .unwrap();
     assert!(names.is_empty());
     assert_eq!(
-        service::compact_rectangular(&compact),
+        ryo_values::domain::compact_table::service::compact_rectangular(&compact),
         ryo_values::domain::table_words::types::TableShape::Rectangular
     );
     let compact = Arc::new(compact);

@@ -71,7 +71,7 @@ impl RelationOwner {
             RelationBody::Positioned { kinds, .. } => kinds,
             RelationBody::Computed(table) => &table.kinds,
             RelationBody::Compact(table) => {
-                ryo_values::domain::table_words::service::compact_kinds(table)
+                ryo_values::domain::compact_table::service::compact_kinds(table)
             }
         })
     }

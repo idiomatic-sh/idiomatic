@@ -1,5 +1,5 @@
 //! Owned portable query bindings, independent of execution state.
-use crate::domain::plan_parts::types::{WholeNumber, FlagState, LiteralText};
+use crate::domain::plan_parts::types::{FlagState, LiteralText, WholeNumber};
 /// What a parameter is bound to when a query runs: text that came from the host.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ParameterBinding {
@@ -31,4 +31,3 @@ pub struct BindingCell {
     /// The text.
     pub value: LiteralText,
 }
-

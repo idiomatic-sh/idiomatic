@@ -2,18 +2,18 @@
 
 use crate::domain::descriptions::types::ColumnDescription;
 use crate::domain::descriptions::types::ColumnKind;
+use crate::domain::descriptions::types::ColumnName;
 use crate::domain::descriptions::types::KindWord;
 use crate::domain::descriptions::types::RelationDescription;
 use crate::domain::descriptions::types::RelationName;
 use crate::domain::descriptions::types::RelationSummary;
-use crate::domain::descriptions::types::ColumnName;
-use ryo_relations::domain::relations::service::vocabulary_of;
 use ryo_relations::domain::relations::constants::kind_name;
 use ryo_relations::domain::relations::service::column_name;
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::service::kind;
 use ryo_relations::domain::relations::service::name;
 use ryo_relations::domain::relations::service::summary;
+use ryo_relations::domain::relations::service::vocabulary_of;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::service::words_of;
 use ryo_relations::domain::terms::types::Vocabulary;

@@ -53,12 +53,12 @@ struct NoteOwner {
     tag: [u64; 3],
     notes: FileNotes,
 }
-fn bytes(capacity: usize, live: usize) -> Vec<u8> {
+pub(in crate::domain::stores) fn bytes(capacity: usize, live: usize) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(capacity);
     bytes.resize(live, 1);
     bytes
 }
-fn table(
+pub(in crate::domain::stores) fn table(
     kind_capacity: usize,
     cell_capacity: usize,
     width: usize,
@@ -74,13 +74,13 @@ fn table(
         count: RowCount(rows),
     }
 }
-fn notes(capacity: usize, live: usize) -> FileNotes {
+pub(in crate::domain::stores) fn notes(capacity: usize, live: usize) -> FileNotes {
     FileNotes {
         language: LanguageNumber(0),
         notes: NoteBytes(bytes(capacity, live)),
     }
 }
-fn proof() -> FrontierProof {
+pub(in crate::domain::stores) fn proof() -> FrontierProof {
     FrontierProof {
         rule: crate::domain::records::types::ProducerRule(0),
         input: crate::domain::records::types::FrontierOrdinal(0),
@@ -88,7 +88,7 @@ fn proof() -> FrontierProof {
         coverage: FrontierCoverage::Complete,
     }
 }
-fn observed(bytes: RetainedBytes) -> Value {
+pub(in crate::domain::stores) fn observed(bytes: RetainedBytes) -> Value {
     [
         u64::try_from(bytes.objects.0).unwrap(),
         u64::try_from(bytes.rows.0).unwrap(),
@@ -275,6 +275,3 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-
-#[cfg(test)]
-mod stored_test;

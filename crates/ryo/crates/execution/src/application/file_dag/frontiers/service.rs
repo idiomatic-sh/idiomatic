@@ -17,7 +17,6 @@ use {
     crate::domain::frontiers::service::project_input,
     crate::domain::frontiers::service::project_relation,
     crate::domain::operating::errors::OperatingError, crate::domain::table_model::types::Frontier,
-    ryo_values::domain::table_words::service::admit_compact,
     ryo_values::domain::table_words::service::decode_complete,
     ryo_values::domain::table_words::types::DecodeMode,
 };
@@ -139,7 +138,7 @@ pub(crate) fn prepare(
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { table, .. } => {
-                    ryo_values::domain::table_words::service::compact_rows(table).0
+                    ryo_values::domain::compact_table::service::compact_rows(table).0
                 }
                 FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
@@ -206,7 +205,7 @@ pub(crate) fn admit(
             },
         };
     if matches!(input, Input::Step(_)) {
-        return admit_compact(
+        return ryo_values::domain::compact_table::service::admit_compact(
             ryo_values::domain::table_words::types::CompactBacking(words),
             places_mut(symbols),
             mode,

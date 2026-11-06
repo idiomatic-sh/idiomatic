@@ -105,7 +105,8 @@ impl<'a> CrossPublications<'a> {
         let backing = std::sync::Arc::new(token.words().clone());
         let ryo_values::domain::table_words::types::Admitted {
             table: metadata, ..
-        } = ryo_values::domain::table_words::service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(std::sync::Arc::clone(&backing)),
+        } = ryo_values::domain::compact_table::service::admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(std::sync::Arc::clone(&backing)),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
             ryo_values::domain::table_words::types::DecodeMode::Complete,
         )
@@ -273,7 +274,12 @@ impl<'a> CrossPublications<'a> {
             != transfer
                 .roots
                 .iter()
-                .filter(|root| matches!(root.words, ryo_values::domain::records::types::RootWords::Published(_)))
+                .filter(|root| {
+                    matches!(
+                        root.words,
+                        ryo_values::domain::records::types::RootWords::Published(_)
+                    )
+                })
                 .count()
         {
             return Err(incomplete());
@@ -312,8 +318,10 @@ impl<'a> CrossPublications<'a> {
             } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }
-            if matches!(root.words, ryo_values::domain::records::types::RootWords::Published(_))
-                != admitted.contains_key(&root.output.0)
+            if matches!(
+                root.words,
+                ryo_values::domain::records::types::RootWords::Published(_)
+            ) != admitted.contains_key(&root.output.0)
             {
                 return Err(incomplete());
             }

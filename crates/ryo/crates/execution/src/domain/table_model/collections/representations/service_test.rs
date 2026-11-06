@@ -40,14 +40,17 @@ fn compact(table: &Table) -> ryo_values::domain::table_words::types::CompactTabl
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(service::pack(WordSlice(&words.0))))),
+    } = ryo_values::domain::compact_table::service::admit_compact(
+        ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(service::pack(
+            WordSlice(&words.0),
+        )))),
         &mut Vec::new(),
         DecodeMode::Complete,
     )
     .unwrap();
     assert!(names.is_empty());
     assert_eq!(
-        service::compact_rectangular(&compact),
+        ryo_values::domain::compact_table::service::compact_rectangular(&compact),
         ryo_values::domain::table_words::types::TableShape::Rectangular
     );
     compact

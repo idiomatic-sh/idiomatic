@@ -11,7 +11,7 @@ use ryo_language::domain::{
 };
 use ryo_relations::domain::{relations::types::KindBits, terms::types::NameText};
 use ryo_values::domain::{
-    plan_parts::types::{PlanComparison, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
     rows::service::{push_row, row_in},
 };
 pub(in super::super) fn node(at: u32) -> Cell {

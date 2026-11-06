@@ -50,7 +50,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
             ..
         }) => &ELEMENT_KINDS,
         Rows::Computed(table) => &table.kinds,
-        Rows::Compact(table) => ryo_values::domain::table_words::service::compact_kinds(table),
+        Rows::Compact(table) => ryo_values::domain::compact_table::service::compact_kinds(table),
     }
 }
 
@@ -69,7 +69,7 @@ pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
         ),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
-        Rows::Compact(table) => ryo_values::domain::table_words::service::compact_rows(table),
+        Rows::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
         Rows::Tree(tree) => RowCount(
             real_count(tree.elements)
                 .0

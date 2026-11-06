@@ -25,7 +25,7 @@ pub(in super::super) fn encoded(
         let ryo_values::domain::table_words::types::Admitted {
             table: compact,
             names,
-        } = admit_compact(
+        } = ryo_values::domain::compact_table::service::admit_compact(
             ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
                 WordSlice(&words.0),
             )))),

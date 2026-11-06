@@ -129,10 +129,4 @@ fn refuses() {
 use crate::domain::rows::types::Table;
 
 #[cfg(test)]
-mod compact_test;
-
-#[cfg(test)]
-mod compact_access_test;
-
-#[cfg(test)]
 mod packing_test;

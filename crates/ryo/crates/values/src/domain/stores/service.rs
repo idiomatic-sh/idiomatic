@@ -42,9 +42,9 @@ pub fn carry_proofs(current: &mut StoredHanded, old: &StoredHanded, kept: &KeptR
             Err(_) => None,
         }
         .map(|again| super::types::StoredFrontierProof {
-                file: again.now,
-                ..row.clone()
-            })
+            file: again.now,
+            ..row.clone()
+        })
     }));
     current.proofs.sort_by_key(|row| (row.file.0, row.bucket.0));
 }

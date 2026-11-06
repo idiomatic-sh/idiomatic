@@ -31,7 +31,7 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
         }
         BorrowedRows::Compact(table) => (
             {
-                let storage = ryo_values::domain::table_words::service::compact_storage(table);
+                let storage = ryo_values::domain::compact_table::service::compact_storage(table);
                 vec![
                     (storage.words.address.0, storage.words.length.0),
                     (storage.offsets.address.0, storage.offsets.length.0),
@@ -113,7 +113,7 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> boo
                 && equal_columns(view.columns, &source.storage[1..])
         }
         BorrowedRows::Compact(table) => {
-            let storage = ryo_values::domain::table_words::service::compact_storage(table);
+            let storage = ryo_values::domain::compact_table::service::compact_storage(table);
             source.storage
                 == [
                     (storage.words.address.0, storage.words.length.0),

@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::errors::ProgramError;
 use super::types::{
-    ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, QuerySourceText,
+    ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText, QuerySpelling,
 };
 
 /// Validate and construct a stable source identifier.

@@ -89,18 +89,21 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = ryo_values::domain::table_words::service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
-            ryo_values::domain::table_words::service::pack(
-                ryo_values::domain::table_words::types::WordSlice(&words.0),
+    } = ryo_values::domain::compact_table::service::admit_compact(
+        ryo_values::domain::table_words::types::CompactBacking(Arc::new(
+            ryo_values::domain::stored_facts::types::KeptWords(
+                ryo_values::domain::table_words::service::pack(
+                    ryo_values::domain::table_words::types::WordSlice(&words.0),
+                ),
             ),
-        ))),
+        )),
         &mut Vec::new(),
         ryo_values::domain::table_words::types::DecodeMode::Complete,
     )
     .unwrap();
     assert!(names.is_empty());
     assert_eq!(
-        ryo_values::domain::table_words::service::compact_rectangular(&compact),
+        ryo_values::domain::compact_table::service::compact_rectangular(&compact),
         ryo_values::domain::table_words::types::TableShape::Rectangular
     );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -272,7 +275,10 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         let ryo_values::domain::table_words::types::Admitted {
             table: compact,
             names,
-        } = codec::admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(codec::pack(WordSlice(&words.0))))),
+        } = ryo_values::domain::compact_table::service::admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
+                codec::pack(WordSlice(&words.0)),
+            ))),
             &mut Vec::new(),
             if refused {
                 DecodeMode::Permissive
@@ -283,7 +289,7 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         .unwrap();
         assert!(names.is_empty());
         assert_eq!(
-            codec::compact_rectangular(&compact)
+            ryo_values::domain::compact_table::service::compact_rectangular(&compact)
                 == ryo_values::domain::table_words::types::TableShape::Rectangular,
             !refused
         );

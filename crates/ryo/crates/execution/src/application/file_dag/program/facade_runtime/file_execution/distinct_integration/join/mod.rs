@@ -15,7 +15,7 @@ use ryo_relations::{
 use ryo_values::domain::{
     stored_facts::types::KeptWords,
     table_words::{
-        service::{admit_compact, encode_table, pack},
+        service::{encode_table, pack},
         types::{CompactTable, DecodeMode, WordSlice},
     },
 };
@@ -144,11 +144,15 @@ fn provider<'a>(
     let compact = if representation == RepresentationKind::Compact {
         let mut words = ryo_relations::domain::relations::types::Words::default();
         encode_table(&table, &[], &mut words);
-        let ryo_values::domain::table_words::types::Admitted { table, names } = admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(WordSlice(&words.0))))),
-            &mut Vec::new(),
-            DecodeMode::Complete,
-        )
-        .unwrap();
+        let ryo_values::domain::table_words::types::Admitted { table, names } =
+            ryo_values::domain::compact_table::service::admit_compact(
+                ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
+                    WordSlice(&words.0),
+                )))),
+                &mut Vec::new(),
+                DecodeMode::Complete,
+            )
+            .unwrap();
         assert!(names.is_empty());
         Some(table)
     } else {
@@ -417,7 +421,10 @@ fn execute(
                 }
             };
             let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
-                admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(capture.words))),
+                ryo_values::domain::compact_table::service::admit_compact(
+                    ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
+                        capture.words,
+                    ))),
                     &mut vec![],
                     DecodeMode::Complete,
                 )
