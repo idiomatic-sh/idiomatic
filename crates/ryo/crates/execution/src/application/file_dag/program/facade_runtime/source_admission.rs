@@ -1,19 +1,15 @@
 //! Demand-triggered source admission, publication, and replay for one program generation.
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AvailableInput;
+use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::admission::Readiness;
-use crate::application::file_dag::program::constants::{
-    BOUND_PRODUCER_UNAVAILABLE, OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE,
-    PRODUCER_ROOT_INCOMPLETE, PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
-};
+use crate::application::file_dag::program::constants::PRODUCER_COVERAGE_INCOMPLETE;
 use crate::application::file_dag::program::facade_runtime::types::FileRoot;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
@@ -24,7 +20,6 @@ use crate::domain::table_model::service::count_of;
 use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -46,148 +41,9 @@ pub(super) struct ProjectSources<'a> {
     pub(super) transport: &'a ryo_language::domain::symbols::types::TransportPermit,
     pub(super) publication: &'a PublicationScope,
 }
-impl ProjectSources<'_> {
-    fn ordinary_place(
-        &self,
-        source: crate::domain::executable_program::types::InputSource,
-    ) -> Option<usize> {
-        self.ordinary
-            .iter()
-            .position(|input| matches!(input.source(), Ok(actual) if *actual == source))
-    }
-
-    fn provides(&self, source: crate::domain::executable_program::types::InputSource) -> bool {
-        matches!(
-            source,
-            crate::domain::executable_program::types::InputSource::ObservationMember { .. }
-        ) || self.cache.iter().any(|(root, _)| *root == source)
-            || self.ordinary_place(source).is_some()
-            || self.refused.iter().any(|refused| {
-                self.sources.iter().any(|binding| {
-                    binding.input == refused.input
-                        && matches!(&binding.root, Ok(actual) if *actual == source)
-                })
-            })
-    }
-    /// Called only by an actual DemandAction::Admit. Raw source handles and
-    /// errors remain untouched when a branch does not demand them.
-    fn supply(
-        &mut self,
-        source: crate::domain::executable_program::types::InputSource,
-        partition: &Partition,
-        context: &mut OperatorContext<'_>,
-        owner: &Rc<RelationOwner>,
-    ) -> Option<Result<AvailableInput, OperatingError>> {
-        use crate::domain::executable_program::types::InputSource;
-        if let Some((_, admitted)) = self.cache.iter().find(|(key, _)| *key == source) {
-            return Some(Ok(admitted.clone()));
-        }
-        let program = self.program;
-        let rule = self.rule;
-        if let Some(at) = self.ordinary_place(source) {
-            let actual_partition = match self.publication.execution.get() {
-                Some(execution) => execution.partition(),
-                None => return Some(Err(OperatingError::NotRead)),
-            };
-            if let Err(error) = actual_partition.require_supply(partition) {
-                return Some(Err(error));
-            }
-            let result = self.ordinary[at].supply(owner, actual_partition);
-            if let Ok(input) = &result {
-                self.cache.push((source, input.clone()));
-            }
-            return Some(result);
-        }
-        for refused in self.refused {
-            if self.sources.iter().any(|binding| {
-                binding.input == refused.input
-                    && matches!(&binding.root, Ok(actual) if *actual == source)
-            }) {
-                return Some(Err(refused.error.clone()));
-            }
-        }
-        if let InputSource::ObservationMember { slot, member } = source {
-            for bound in &mut *self.bound {
-                let Some(binding) = bound.as_mut() else {
-                    continue;
-                };
-                if !matches!(observation_slot(program, rule, binding.input), Ok(found) if found == slot)
-                {
-                    continue;
-                }
-                let result = (|| {
-                    let proof = binding
-                        .members
-                        .as_ref()
-                        .map_err(Clone::clone)?
-                        .get(member)
-                        .ok_or(OperatingError::NotRun)?;
-                    let producer = match proof {
-                        crate::application::file_dag::frontiers::types::BoundMember::Current(
-                            actual,
-                        ) => actual.clone(),
-                        crate::application::file_dag::frontiers::types::BoundMember::Restored(
-                            token,
-                        ) => {
-                            let Partition::Project(required) = partition else {
-                                return Err(OperatingError::WrongOperation);
-                            };
-                            token.materialize(
-                                self.publication,
-                                required,
-                                self.transport,
-                                context,
-                            )?
-                        }
-                    };
-                    super::super::admission::alias_member(
-                        program,
-                        slot,
-                        member,
-                        producer.admitted(),
-                        partition,
-                        owner,
-                    )
-                })();
-                let result = result.map(AvailableInput::published);
-                if let Ok(input) = &result {
-                    self.cache.push((source, input.clone()));
-                }
-                return Some(result);
-            }
-            return Some(Err(OperatingError::ObservationIncomplete {
-                reason: BOUND_PRODUCER_UNAVAILABLE.into(),
-            }));
-        }
-        None
-    }
-}
-fn admit_published(
-    owner: &Rc<RelationOwner>,
-    publication: PublishedInput,
-    source: crate::domain::executable_program::types::InputSource,
-    partition: &Partition,
-) -> Result<AdmittedInput, OperatingError> {
-    let unavailable = |_| Err(OperatingError::NotRead);
-    let rows = owner.resolve(publication.as_ref(), &unavailable)?;
-    let checked = owner.admit(
-        publication.as_ref(),
-        crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-    )?;
-    AdmittedInput::from_publication(
-        Rc::clone(owner),
-        publication.clone(),
-        &checked,
-        match source {
-            crate::domain::executable_program::types::InputSource::Region(id) => {
-                ProducerRoot::Region(id)
-            }
-            _ => ProducerRoot::Input(source),
-        },
-        partition.clone(),
-        Readiness::Complete,
-    )
-}
+mod acquisition;
+mod project;
+mod publication;
 
 /// The application admission port is the only bridge from an executable source
 /// to a generation-checked publication. It has no second scheduler.
@@ -328,223 +184,13 @@ impl Inputs for SourceInputs<'_, '_> {
             _ => Ok(None),
         }
     }
-
     fn supply(
         &mut self,
         source: crate::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError> {
-        use crate::domain::executable_program::types::InputSource;
-        if let Some(project) = &mut self.project {
-            if let Some(provided) = project.supply(source, partition, context, &self.owner) {
-                return provided.map(|input| match source {
-                    // Shared project facts need the same physical certificate
-                    // as a direct provider, before any operator can re-key them.
-                    InputSource::Relation(relation) => {
-                        input.with_coverage(self.completion.coverage(&[
-                            crate::domain::trust::types::RelationRead {
-                                relation,
-                                kinds: vec![],
-                            },
-                        ]))
-                    }
-                    _ => input,
-                });
-            }
-        }
-        let admitted = match source {
-            InputSource::Relation(relation) => {
-                let actual_partition = self
-                    .execution
-                    .source_partition(ProducerRoot::Input(source))?;
-                actual_partition.require_supply(partition)?;
-                let rows = (self.read)(relation)?;
-                let publication = self.owner.source(relation, &rows)?;
-                return AvailableInput::source(
-                    Rc::clone(&self.owner),
-                    publication,
-                    ProducerRoot::Input(source),
-                    actual_partition,
-                    self.completion
-                        .coverage(&[crate::domain::trust::types::RelationRead {
-                            relation,
-                            kinds: vec![],
-                        }]),
-                    rows,
-                );
-            }
-            InputSource::Hosted { rule, relation } => {
-                let actual_partition = self
-                    .execution
-                    .source_partition(ProducerRoot::Input(source))?;
-                actual_partition.require_supply(partition)?;
-                // The compiler owns the request-source declaration. Admission uses
-                // the immutable prepared snapshot and the current numbered corpus.
-                self.program.rule_metadata(rule)?;
-                let hosted = self
-                    .program
-                    .hosted()
-                    .get(relation.0 as usize)
-                    .ok_or(OperatingError::NotRun)?;
-                let table = crate::domain::hosted::service::table_of_query(
-                    hosted,
-                    crate::domain::hosted::types::NumberedFiles(context.paths),
-                    &mut context.symbols,
-                    context.phase,
-                );
-                let publication = self.owner.computed(table)?;
-                admit_published(&self.owner, publication, source, &actual_partition)
-            }
-            InputSource::Region(id) => self
-                .execution
-                .published(self.state, id)?
-                .ok_or(OperatingError::NotRun),
-            InputSource::Observation(slot) => {
-                if let Some(input) = self.observations.get(&slot) {
-                    return Ok(AvailableInput::published(input.clone()));
-                }
-                let union = *self
-                    .program
-                    .program()
-                    .observation_regions()
-                    .get(slot)
-                    .ok_or(OperatingError::NotRun)?
-                    .as_ref()
-                    .map_err(Clone::clone)?;
-                let input = self
-                    .execution
-                    .published(self.state, union)?
-                    .ok_or(OperatingError::NotRun)?;
-                let admitted = super::super::admission::alias_observation(
-                    self.program.program(),
-                    slot,
-                    &input,
-                    &self.owner,
-                )?;
-                self.observations.insert(slot, admitted.clone());
-                Ok(admitted)
-            }
-            InputSource::EmptyObservation(slot) => {
-                let named = self
-                    .program
-                    .observation_metadata()
-                    .ok_or(OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                if declaration.rule != self.rule.0 {
-                    return Err(OperatingError::NotRead);
-                }
-                let binding = named
-                    .bindings
-                    .get(declaration.rule)
-                    .and_then(|bindings| bindings.get(declaration.input.0 as usize))
-                    .ok_or(OperatingError::NotRun)?;
-                if !binding.producers.is_empty() {
-                    return Err(OperatingError::NotRead);
-                }
-                let actual_partition = self
-                    .execution
-                    .source_partition(ProducerRoot::Input(source))?;
-                actual_partition.require_supply(partition)?;
-                let publication = self
-                    .owner
-                    .computed(ryo_values::domain::rows::types::Table {
-                        kinds: binding
-                            .schema
-                            .columns
-                            .iter()
-                            .map(|column| column.kind)
-                            .collect(),
-                        count: ryo_values::domain::rows::types::RowCount(0),
-                        cells: vec![],
-                    })?;
-                admit_published(&self.owner, publication, source, &actual_partition)
-            }
-            InputSource::ObservationMember { slot, member } => {
-                let outputs =
-                    self.file_outputs
-                        .ok_or_else(|| OperatingError::ObservationIncomplete {
-                            reason: OBSERVATION_UNAVAILABLE.into(),
-                        })?;
-                let named = self
-                    .program
-                    .observation_metadata()
-                    .ok_or(OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                if declaration.rule != self.rule.0 {
-                    return Err(OperatingError::NotRead);
-                }
-                let producer = named
-                    .bindings
-                    .get(declaration.rule)
-                    .and_then(|bindings| bindings.get(declaration.input.0 as usize))
-                    .and_then(|binding| binding.producers.get(member))
-                    .ok_or(OperatingError::NotRun)?;
-                let crate::domain::file_program::types::ResolvedObservationProducer::Output {
-                    rule,
-                    output,
-                } = producer
-                else {
-                    return Err(OperatingError::ObservationIncomplete {
-                        reason: PRODUCER_WITHOUT_QUERY.into(),
-                    });
-                };
-                let published = outputs
-                    .get(&rule.0)
-                    .and_then(|roots| roots.get(output.0 as usize))
-                    .and_then(|root| root.publication.clone());
-                if published.is_none()
-                    && outputs
-                        .get(&rule.0)
-                        .and_then(|roots| roots.get(output.0 as usize))
-                        .is_some_and(|root| root.readiness.is_some())
-                {
-                    return Err(OperatingError::ObservationIncomplete {
-                        reason: PRODUCER_ROOT_INCOMPLETE.into(),
-                    });
-                }
-                let admitted = match published {
-                    Some(input) => input,
-                    None => {
-                        let metadata = self.program.rule_metadata(*rule)?;
-                        let root = metadata
-                            .observations
-                            .get(output.0 as usize)
-                            .ok_or(OperatingError::NotRun)?;
-                        if self
-                            .completion
-                            .for_rule(*rule)
-                            .observation_admission(&root.reads)
-                            != crate::domain::completion::types::ObservationAdmission::Ready
-                        {
-                            return Err(OperatingError::ObservationIncomplete {
-                                reason: SOURCE_FACTS_INCOMPLETE.into(),
-                            });
-                        }
-                        let source = *root.source.as_ref().map_err(Clone::clone)?;
-                        let previous = self.rule;
-                        self.bind_rule(*rule);
-                        let admitted = self.admit_source(source, partition, context);
-                        self.bind_rule(previous);
-                        admitted?
-                    }
-                };
-                if !admitted.observation_ready()? {
-                    return Err(OperatingError::ObservationIncomplete {
-                        reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
-                    });
-                }
-                super::super::admission::alias_member(
-                    self.program,
-                    slot,
-                    member,
-                    &admitted,
-                    partition,
-                    &self.owner,
-                )
-            }
-        }?;
-        Ok(AvailableInput::published(admitted))
+        self.supply_source(source, partition, context)
     }
     fn admit(
         &mut self,
@@ -577,127 +223,9 @@ impl Inputs for SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        mut rows: Table,
+        rows: Table,
     ) -> Result<AdmittedInput, OperatingError> {
-        let actual_partition = self.execution.source_partition(root)?;
-        actual_partition.require_supply(partition)?;
-        let mut readiness =
-            super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
-        if let ProducerRoot::Region(region) = root
-            && matches!(
-                readiness,
-                super::super::admission::Readiness::Partial { .. }
-            )
-        {
-            // A region starts with the admitted operands, then contains only
-            // pure unary continuations. Absence operations publish before any
-            // continuation can erase their completeness key.
-            let code = self
-                .program
-                .program()
-                .regions()
-                .get(region.0)
-                .ok_or(OperatingError::NotRun)?;
-            let column = code.column.as_ref().filter(|_| inputs.len() == 2);
-            let ordered = code.ordered_existence.as_ref().filter(|shape| {
-                inputs.len() == 1 && inputs[0].has_root(ProducerRoot::Region(shape.source))
-            });
-            // Alternatives certify their original semantic operands, not the
-            // unary Project/Select that owns the final publication boundary.
-            let semantic = if let Some(shape) = column {
-                self.program
-                    .program()
-                    .regions()
-                    .get(shape.join().0)
-                    .ok_or(OperatingError::NotRun)?
-            } else {
-                code
-            };
-            let instruction = semantic
-                .instructions
-                .first()
-                .ok_or(OperatingError::NotRun)?;
-            let contributions = inputs
-                .iter()
-                .enumerate()
-                .map(|(ordinal, input)| {
-                    let kinds = if let Some(shape) = ordered {
-                        self.program
-                            .program()
-                            .regions()
-                            .get(shape.source.0)
-                            .and_then(|source| source.instructions.last())
-                            .ok_or(OperatingError::NotRun)?
-                            .contract
-                            .output_kinds
-                            .as_ref()
-                            .map_err(Clone::clone)?
-                    } else {
-                        instruction
-                            .contract
-                            .input_kinds
-                            .get(ordinal)
-                            .ok_or(OperatingError::NotRun)?
-                    };
-                    Ok(crate::domain::completion::types::InputCoverage {
-                        ordinal,
-                        kinds,
-                        coverage: input.coverage()?,
-                    })
-                })
-                .collect::<Result<Vec<_>, OperatingError>>()?;
-            crate::domain::completion::service::filter_contributor_rows(
-                &instruction.operation,
-                instruction.contract.absence_inputs,
-                &contributions,
-                &mut rows,
-            );
-            let coverage = match &instruction.contract.output_kinds {
-                Ok(kinds) => {
-                    if let Some(shape) = ordered {
-                        crate::domain::completion::service::ordered_output_coverage(
-                            &shape.partition,
-                            kinds,
-                            &contributions[0],
-                        )
-                    } else {
-                        crate::domain::completion::service::output_coverage(
-                            &instruction.operation,
-                            kinds,
-                            &contributions,
-                        )?
-                    }
-                }
-                // An intentionally undemanded row fault must stay deferred.
-                // No precise lineage can be certified from a refused schema.
-                Err(_) => {
-                    crate::domain::completion::types::CoverageState::Partial { files: vec![None] }
-                }
-            };
-            readiness = match coverage {
-                crate::domain::completion::types::CoverageState::Complete => {
-                    super::super::admission::Readiness::Complete
-                }
-                crate::domain::completion::types::CoverageState::Partial { files } => {
-                    super::super::admission::Readiness::Partial { files }
-                }
-            };
-        }
-        let publication = self.owner.computed(rows)?;
-        self.state.bind(&self.owner, root, &publication)?;
-        let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
-        let checked = self.owner.admit(
-            publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&resolved),
-        )?;
-        AdmittedInput::from_publication(
-            Rc::clone(&self.owner),
-            publication.clone(),
-            &checked,
-            root,
-            actual_partition,
-            readiness,
-        )
+        self.publish_source(root, partition, inputs, rows)
     }
     fn publish_positions(
         &mut self,
@@ -706,24 +234,7 @@ impl Inputs for SourceInputs<'_, '_> {
         inputs: &[AdmittedInput],
         publication: PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
-        let actual_partition = self.execution.source_partition(root)?;
-        actual_partition.require_supply(partition)?;
-        let readiness =
-            super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
-        self.state.bind(&self.owner, root, &publication)?;
-        let rows = self.owner.resolve(publication.as_ref(), self.read)?;
-        let checked = self.owner.admit(
-            publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-        )?;
-        AdmittedInput::from_publication(
-            Rc::clone(&self.owner),
-            publication.clone(),
-            &checked,
-            root,
-            actual_partition,
-            readiness,
-        )
+        self.publish_positions_source(root, partition, inputs, publication)
     }
     fn publish_selected(
         &mut self,
@@ -732,24 +243,7 @@ impl Inputs for SourceInputs<'_, '_> {
         inputs: &[AdmittedInput],
         publication: PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
-        let actual_partition = self.execution.source_partition(root)?;
-        actual_partition.require_supply(partition)?;
-        let readiness =
-            super::super::admission::contributor_readiness(&actual_partition, inputs, &self.owner)?;
-        self.state.bind(&self.owner, root, &publication)?;
-        let rows = self.owner.resolve(publication.as_ref(), self.read)?;
-        let checked = self.owner.admit(
-            publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-        )?;
-        AdmittedInput::from_publication(
-            Rc::clone(&self.owner),
-            publication.clone(),
-            &checked,
-            root,
-            actual_partition,
-            readiness,
-        )
+        self.publish_selected_source(root, partition, inputs, publication)
     }
     fn publish_empty(
         &mut self,
@@ -758,9 +252,7 @@ impl Inputs for SourceInputs<'_, '_> {
         inputs: &[AdmittedInput],
         schema: Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError>,
     ) -> Result<AdmittedInput, OperatingError> {
-        let mut rows = Table::default();
-        reset(&mut rows, &schema?);
-        self.publish(root, partition, inputs, rows)
+        self.publish_empty_source(root, partition, inputs, schema)
     }
     fn replay(
         &self,
@@ -768,8 +260,7 @@ impl Inputs for SourceInputs<'_, '_> {
         context: &mut OperatorContext<'_>,
         output: &mut dyn crate::domain::operating::types::Emit,
     ) -> Result<(), OperatingError> {
-        let rows = input.rows(&self.owner, self.read)?;
-        crate::application::file_dag::execution::output::replay(&rows, context, output)
+        self.replay_source(input, context, output)
     }
 }
 
