@@ -134,6 +134,31 @@ fn ordered_lookup_releases_large_dense_and_hash_storage_on_reset() {
     assert_eq!(map.capacity(), 0);
 }
 
+fn the_memo_refuses_at_the_entry_bound_and_releases_oversized_capacity() {
+    let mut memo = GrammarMemo::default();
+    service::grammar::<FirstGrammar, _>(&mut memo, DialectName("first-dialect-v1"));
+    for item in 0..MEMO_ENTRIES {
+        service::admit(&mut memo, MemoKey(format!("held-{item}")), item);
+    }
+    assert_eq!(service::len(&memo), EntryCount(MEMO_ENTRIES));
+    service::admit(&mut memo, MemoKey("past-the-bound".into()), MEMO_ENTRIES);
+    assert_eq!(service::len(&memo), EntryCount(MEMO_ENTRIES));
+    assert!(service::take(&mut memo, Lookup("past-the-bound")).is_none());
+    assert_eq!(
+        service::take(&mut memo, Lookup("held-0")),
+        Some(Taken {
+            key: MemoKey("held-0".into()),
+            value: 0
+        })
+    );
+    assert_eq!(service::len(&memo), EntryCount(MEMO_ENTRIES - 1));
+    memo.entries.reserve(MEMO_ENTRIES * 8);
+    assert!(memo.entries.capacity() > MEMO_ENTRIES);
+    service::empty(&mut memo);
+    assert_eq!(service::len(&memo), EntryCount(0));
+    assert!(memo.entries.capacity() <= MEMO_ENTRIES);
+}
+
 /// Each check below states its own source and asserts its own outcome.
 const CASES: &[Case<fn(), (), ()>] = &[
     Case {
@@ -158,6 +183,12 @@ const CASES: &[Case<fn(), (), ()>] = &[
         name: CaseName("ordered_lookup_releases_large_dense_and_hash_storage_on_reset"),
         word: Word::Succeeds,
         input: || ordered_lookup_releases_large_dense_and_hash_storage_on_reset,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("the_memo_refuses_at_the_entry_bound_and_releases_oversized_capacity"),
+        word: Word::Succeeds,
+        input: || the_memo_refuses_at_the_entry_bound_and_releases_oversized_capacity,
         expect: Expect::Value(()),
     },
 ];
