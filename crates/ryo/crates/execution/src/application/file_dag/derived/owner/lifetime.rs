@@ -3,28 +3,28 @@ use super::*;
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn pin(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
-        *state.pins.entry(population).or_default() += 1;
+        *state.pins.entry(population).or_default() += 1_usize;
     }
     pub(in crate::application::file_dag) fn release(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
         let Some(count) = state.pins.get_mut(&population) else {
             return;
         };
-        *count = count.saturating_sub(1);
-        if *count != 0 {
+        count.0 = count.0.saturating_sub(1);
+        if count.0 != 0 {
             return;
         }
         state.pins.remove(&population);
-        let mut released = 0;
-        let mut released_overlap = 0;
-        let mut released_views = 0;
-        let mut released_backend = 0;
+        let mut released = ByteCount(0);
+        let mut released_overlap = ByteCount(0);
+        let mut released_views = 0_usize;
+        let mut released_backend = ByteCount(0);
         // Keep this population's reverse list for later re-pins. Taking its
         // buffer releases the map borrow without allocating or scanning other populations.
         if let Some(keys) = state.dependents.get_mut(&population).map(std::mem::take) {
             for key in &keys {
-                state.released_entries += 1;
-                let still_required = key.populations[..usize::from(key.len)]
+                state.released_entries += 1_u64;
+                let still_required = key.populations[..usize::from(key.len.0)]
                     .iter()
                     .any(|id| state.pins.contains_key(id));
                 if still_required {
@@ -34,29 +34,34 @@ impl DerivedOwner {
                     if entry.required.take().is_some() {
                         released += entry.working;
                         released_backend += entry.backend;
-                        released_overlap += usize::from(entry.retained.is_some()) * entry.bytes;
-                        released_views += 1;
+                        if entry.retained.is_some() {
+                            released_overlap += entry.bytes;
+                        }
+                        released_views += 1_usize;
                     }
                 }
             }
             *state
                 .dependents
                 .get_mut(&population)
-                .expect("known population") = keys;
+                .expect(constants::EXPECT_KNOWN_POPULATION) = keys;
         }
-        state.required_bytes = state.required_bytes.saturating_sub(released);
-        state.overlap_bytes = state.overlap_bytes.saturating_sub(released_overlap);
-        state.required_views = state.required_views.saturating_sub(released_views);
-        state.required_backend_bytes = state
-            .required_backend_bytes
-            .saturating_sub(released_backend);
+        state.required_bytes = ByteCount(state.required_bytes.0.saturating_sub(released.0));
+        state.overlap_bytes = ByteCount(state.overlap_bytes.0.saturating_sub(released_overlap.0));
+        state.required_views = ViewCount(state.required_views.0.saturating_sub(released_views));
+        state.required_backend_bytes = ByteCount(
+            state
+                .required_backend_bytes
+                .0
+                .saturating_sub(released_backend.0),
+        );
     }
     /// Population mutation ends every identity and every owned view before provider refill.
     pub(in crate::application::file_dag) fn clear(&self) {
-        self.file_prepared.set(false);
+        self.file_prepared.set(FilePreparation::Unprepared);
         let mut state = self.state.borrow_mut();
         state.entries.clear();
-        state.next_admission = 0;
+        state.next_admission = AdmissionOrder(0);
         state.pins.clear();
         let mut recycled = std::mem::take(&mut state.spare_dependencies);
         for (_, mut keys) in state.dependents.drain() {
@@ -64,12 +69,12 @@ impl DerivedOwner {
             recycled.push(keys);
         }
         state.spare_dependencies = recycled;
-        state.required_bytes = 0;
-        state.retained_bytes = 0;
-        state.retained_predicates = 0;
-        state.overlap_bytes = 0;
-        state.required_views = 0;
-        state.required_backend_bytes = 0;
+        state.required_bytes = ByteCount(0);
+        state.retained_bytes = ByteCount(0);
+        state.retained_predicates = PredicateCount(0);
+        state.overlap_bytes = ByteCount(0);
+        state.required_views = ViewCount(0);
+        state.required_backend_bytes = ByteCount(0);
         drop(state);
         // Population mutation invalidates every backend identity, including
         // adjacency and memo records, not only the common view-key table.

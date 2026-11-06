@@ -1,4 +1,5 @@
 //! Canonical metadata from an admitted original row view; no source admission or row scan here.
+use super::types::{PopulationScope, ProvenPopulation};
 use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::stored_graph::types::{self as graph, GraphIdentity};
 use crate::domain::table_model::{service::count_of, types::Rows};
@@ -11,7 +12,10 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn sour
     keys: &[ColumnIndex],
     eligible: &[ryo_relations::domain::relations::types::Relation],
 ) -> Option<graph::GraphSource> {
-    let (population, columns) = population(input, eligible, false)?;
+    let ProvenPopulation {
+        population,
+        columns,
+    } = population(input, eligible, PopulationScope::Stored)?;
     let mapped = |column: ColumnIndex| columns.get(column.0 as usize).copied();
     let first = mapped(endpoints[0])?;
     let second = mapped(endpoints[1])?;
@@ -48,7 +52,10 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     column: ColumnIndex,
     eligible: &[ryo_relations::domain::relations::types::Relation],
 ) -> Option<graph::DomainIdentity> {
-    let (population, columns) = population(input, eligible, true)?;
+    let ProvenPopulation {
+        population,
+        columns,
+    } = population(input, eligible, PopulationScope::Native)?;
     Some(graph::DomainIdentity {
         population,
         column: *columns.get(column.0 as usize)?,
@@ -59,8 +66,8 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
 fn population(
     input: &GraphInput<'_>,
     eligible: &[ryo_relations::domain::relations::types::Relation],
-    native: bool,
-) -> Option<(graph::Population, Vec<ColumnIndex>)> {
+    scope: PopulationScope,
+) -> Option<ProvenPopulation> {
     use crate::domain::table_cells::types::TreeForm;
     use ryo_relations::domain::relations::{service::kinds, types::Relation};
     let relation = input.relation()?;
@@ -96,7 +103,7 @@ fn population(
                 view.selection.columns.clone(),
             )
         }
-        Rows::Tree(tree) if native => {
+        Rows::Tree(tree) if scope == PopulationScope::Native => {
             let native_relation = match tree.form {
                 TreeForm::Elements => Relation::SyntaxTree,
                 TreeForm::Edges => Relation::SyntaxChild,
@@ -119,8 +126,8 @@ fn population(
         }
         Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_) => return None,
     };
-    Some((
-        graph::Population {
+    Some(ProvenPopulation {
+        population: graph::Population {
             relation,
             kinds,
             rows: count,
@@ -129,5 +136,5 @@ fn population(
             positions,
         },
         columns,
-    ))
+    })
 }

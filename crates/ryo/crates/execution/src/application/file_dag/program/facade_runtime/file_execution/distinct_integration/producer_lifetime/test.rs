@@ -95,7 +95,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         None)?;
     // Required views still have to live until their published producer's last
     // consumer when optional retention is unavailable.
-    file.owner.derived.set_optional_limit(0)?;
+    file.owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(0))?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 2]),
         FactColumn(vec![

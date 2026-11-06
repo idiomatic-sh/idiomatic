@@ -1,4 +1,6 @@
 //! Real owner handles remain valid/accounted across clear and cannot poison refill.
+use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::types::PopulationCount;
 use crate::application::file_dag::derived::owner::*;
 use crate::domain::{
     stored_graph::types::{GraphWalk, Orientation},
@@ -10,8 +12,8 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use std::hash::BuildHasher;
-fn number(value: i64) -> Value {
-    Value::Number(Integer(value))
+fn number(value: Integer) -> Value {
+    Value::Number(value)
 }
 fn rows(columns: &[FactColumn]) -> Rows<'_> {
     Rows::Stored(ColumnsView {
@@ -31,7 +33,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
         .acquire(SOURCE, &input, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!first.shared());
+    assert_eq!(first.sharing(), GraphSharing::Local);
     let live = fixture.snapshot();
     assert_eq!(live.optional_bytes, 0);
     assert_eq!(live.graph_backings, 1);
@@ -48,7 +50,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
     let mut walk = GraphWalk::default();
     assert!(
         fixture
-            .reach(&reverse, &[], number(3), &mut walk)
+            .reach(&reverse, &[], number(Integer(3)), &mut walk)
             .unwrap()
             .is_none()
     );
@@ -57,7 +59,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
             .iter()
             .map(|vertex| reverse.graph().vertices()[*vertex as usize])
             .collect::<Vec<_>>(),
-        [number(1), number(2)]
+        [number(Integer(1)), number(Integer(2))]
     );
     drop(first);
     assert_eq!(fixture.snapshot().graph_backings, 1);
@@ -100,7 +102,10 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         .unwrap()
         .unwrap();
     let mut walk = GraphWalk::default();
-    let root = graph.graph().vertex(0, number(1)).expect("prepared vertex");
+    let root = graph
+        .graph()
+        .vertex(0, number(Integer(1)))
+        .expect("prepared vertex");
     let nearest = fixture
         .nearest(
             &graph,
@@ -112,9 +117,12 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         )
         .unwrap()
         .unwrap();
-    assert_eq!(graph.graph().vertices()[nearest as usize], number(3));
+    assert_eq!(
+        graph.graph().vertices()[nearest as usize],
+        number(Integer(3))
+    );
     let answer = fixture
-        .reach(&graph, &[], number(1), &mut walk)
+        .reach(&graph, &[], number(Integer(1)), &mut walk)
         .unwrap()
         .unwrap();
     let weak = answer.weak();
@@ -124,13 +132,13 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap(),
-        [number(2), number(3)]
+        [number(Integer(2)), number(Integer(3))]
     );
     let alias = fixture
-        .reach(&graph, &[], number(1), &mut walk)
+        .reach(&graph, &[], number(Integer(1)), &mut walk)
         .unwrap()
         .unwrap();
-    assert!(answer.same_data(&alias));
+    assert_eq!(answer.data_identity(), alias.data_identity());
     let live = fixture.snapshot();
     assert_eq!(live.graph_backings, 1);
     assert_eq!(
@@ -148,7 +156,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         .unwrap()
         .unwrap();
     let fresh = fixture
-        .reach(&next, &[], number(1), &mut walk)
+        .reach(&next, &[], number(Integer(1)), &mut walk)
         .unwrap()
         .unwrap();
     assert_eq!(
@@ -157,7 +165,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap(),
-        [number(90)]
+        [number(Integer(90))]
     );
     assert_eq!(fixture.snapshot().counts.builds, 1);
     assert_eq!(fixture.snapshot().graph_backings, 2);
@@ -167,7 +175,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap(),
-        [number(2), number(3)]
+        [number(Integer(2)), number(Integer(3))]
     );
     assert!(matches!(
         fixture.domain(
@@ -194,7 +202,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap(),
-        [number(2), number(3)]
+        [number(Integer(2)), number(Integer(3))]
     );
     assert!(weak.upgrade().is_some());
     drop(answer);
@@ -216,7 +224,7 @@ fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
     let key = Key {
         plan: RequirementIdentity::Graph(Arc::new(GraphViewIdentity::Adjacency(requirement))),
         populations: [PopulationId(7), PopulationId(usize::MAX)],
-        len: 1,
+        len: PopulationCount(1),
         context: ViewContext::default(),
     };
     let mut map = hashbrown::HashMap::new();
@@ -239,7 +247,7 @@ fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
         })));
     assert_ne!(key.plan, next);
     assert!(
-        !key.plan.compatible(&next),
+        key.plan.compatible(&next) == IdentityCompatibility::Incompatible,
         "expired metadata cannot authorize reuse for a new allocation"
     );
 }
@@ -309,10 +317,13 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         .acquire(SOURCE, &selected, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!first.shared());
+    assert_eq!(first.sharing(), GraphSharing::Local);
     assert_eq!(
         first.graph().vertices(),
-        vec![1, 2, 3].into_iter().map(number).collect::<Vec<_>>()
+        vec![1, 2, 3]
+            .into_iter()
+            .map(|n| number(Integer(n)))
+            .collect::<Vec<_>>()
     );
     let cost = fixture.graph_cost(&first);
     fixture.set_limit(before.bytes + cost - before.retained_view_bytes / 2);
@@ -321,7 +332,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         .unwrap()
         .unwrap();
     assert!(
-        !second.shared(),
+        second.sharing() == GraphSharing::Local,
         "a repeated refusal cannot destructively reclaim unrelated cache entries"
     );
     assert!(Arc::ptr_eq(first.raw_graph(), second.raw_graph()));
@@ -334,57 +345,4 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
     assert_eq!(after.counts.builds, 1);
 }
 
-#[test]
-fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates() {
-    let fixture = GraphFixture::with_identity(
-        &[Relation::Function, Relation::Identifier],
-        &[],
-        crate::application::file_dag::derived::owner::index::service::LIMIT,
-        true,
-        1,
-    );
-    let edges = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
-    let graph = fixture
-        .acquire(SOURCE, &rows(&edges), ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    assert!(graph.shared());
-    let domain_columns = [FactColumn(vec![2, 3]), FactColumn(vec![0, 0])];
-    let input = rows(&domain_columns);
-    let mut walk = GraphWalk::default();
-    let mut local = Vec::new();
-    for _ in 0..2 {
-        let domain = fixture
-            .domain(
-                &graph,
-                Input::Relation(Relation::Identifier),
-                &input,
-                ColumnIndex(0),
-            )
-            .unwrap()
-            .unwrap();
-        assert!(
-            domain.raw_domain().identity.is_none(),
-            "an exhausted source publication cannot grant stable membership identity"
-        );
-        let nearest = fixture
-            .nearest(
-                &graph,
-                &domain,
-                graph.graph().vertex(0, number(1)).expect("prepared vertex"),
-                Orientation::Forward,
-                &mut local,
-                &mut walk,
-            )
-            .unwrap();
-        assert_eq!(
-            nearest.map(|at| graph.graph().vertices()[at as usize]),
-            Some(number(2))
-        );
-    }
-    let observed = fixture.snapshot();
-    assert_eq!(observed.graphs, 1);
-    assert_eq!(observed.domains, 0);
-    assert_eq!(observed.nearest, 0);
-    assert_eq!(observed.counts.builds, 1);
-}
+mod exhausted;

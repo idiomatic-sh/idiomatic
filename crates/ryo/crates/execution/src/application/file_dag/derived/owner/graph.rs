@@ -1,10 +1,10 @@
 //! Graph preparation and row memo acquisition are scoped inside the same owner.
 use super::*;
-use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::derived::owner::cache::types::{CacheBackend, GraphAdmission};
 use crate::{
     application::file_dag::{cached_graph::CachedGraph, workspace::InvocationWorkspace},
     domain::{
-        operating::types::OperatorContext,
         operator::contract::{
             graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
         },
@@ -29,7 +29,10 @@ impl DerivedOwner {
             return Err(OperatingError::NotRead);
         }
         let mut backend = self.backend.borrow_mut();
-        let Some(cache) = backend.as_mut().filter(|cache| cache.graph_enabled) else {
+        let Some(cache) = backend
+            .as_mut()
+            .filter(|cache| cache.graph_enabled == GraphAdmission::Enabled)
+        else {
             return Ok(None);
         };
         CachedGraph::prepare(contract, admission, program, rows, Some(cache))
@@ -77,10 +80,10 @@ impl DerivedOwner {
     pub(in crate::application::file_dag::derived::owner) fn graph_backings(
         &self,
         storage: &Arc<DerivedStorage>,
-    ) -> Result<Arc<[super::super::ledger::Backing]>, OperatingError> {
+    ) -> Result<Arc<[super::super::ledger::types::Backing]>, OperatingError> {
         super::backings::view(storage)
     }
-    /// Compatibility is an owner lookup guard, never HashMap key equality.
+    /// IdentityCompatibility is an owner lookup guard, never HashMap key equality.
     /// Only the matching stable hash bucket is visited; expired matching views
     /// are unlinked before retry, without retaining position payloads in keys.
     pub(in crate::application::file_dag::derived::owner) fn canonical_graph_requirement(
@@ -95,7 +98,7 @@ impl DerivedOwner {
         let probe = Key {
             plan: requested.clone(),
             populations: ids,
-            len: populations.len() as u8,
+            len: PopulationCount(populations.len() as u8),
             context: ViewContext::default(),
         };
         let mut state = self.state.borrow_mut();
@@ -110,7 +113,7 @@ impl DerivedOwner {
                     key.populations == probe.populations
                         && key.len == probe.len
                         && key.context == probe.context
-                        && key.plan.same_header(&probe.plan)
+                        && key.plan.same_header(&probe.plan) == IdentityCompatibility::Compatible
                         && entries
                             .get(key)
                             .is_some_and(|entry| entry.weak.strong_count() == 0)
@@ -118,7 +121,7 @@ impl DerivedOwner {
                 .map(|(key, _)| key.clone());
             if let Some(key) = expired {
                 state.entries.remove(&key);
-                for population in &key.populations[..usize::from(key.len)] {
+                for population in &key.populations[..usize::from(key.len.0)] {
                     if let Some(keys) = state.dependents.get_mut(population) {
                         keys.retain(|known| known != &key);
                     }
@@ -132,7 +135,7 @@ impl DerivedOwner {
                     key.populations == probe.populations
                         && key.len == probe.len
                         && key.context == probe.context
-                        && key.plan.compatible(&probe.plan)
+                        && key.plan.compatible(&probe.plan) == IdentityCompatibility::Compatible
                 })
                 .map(|(key, entry)| (key.clone(), entry.weak.strong_count() != 0));
             let Some((key, live)) = found else {
@@ -142,7 +145,7 @@ impl DerivedOwner {
                 return key.plan;
             }
             state.entries.remove(&key);
-            for population in &key.populations[..usize::from(key.len)] {
+            for population in &key.populations[..usize::from(key.len.0)] {
                 if let Some(keys) = state.dependents.get_mut(population) {
                     keys.retain(|known| known != &key);
                 }
@@ -153,51 +156,57 @@ impl DerivedOwner {
     /// remains a bounded capacity charge, never a scan of retained populations.
     pub(in crate::application::file_dag::derived::owner) fn graph_retention_cost(
         &self,
-        backings: &[super::super::ledger::Backing],
-        metadata: usize,
-    ) -> Result<usize, OperatingError> {
+        backings: &[super::super::ledger::types::Backing],
+        metadata: ByteCount,
+    ) -> Result<ByteCount, OperatingError> {
         self.ledger
             .borrow()
             .incremental_optional_bytes(backings)?
-            .checked_add(metadata)
+            .0
+            .checked_add(metadata.0)
+            .map(ByteCount)
             .ok_or(OperatingError::ShapeMismatch)
     }
     pub(in crate::application::file_dag::derived::owner) fn graph_room(
         &self,
         cache: &CacheBackend,
-        cost: usize,
-        memo: bool,
-    ) -> bool {
-        cache
-            .bytes
-            .checked_add(cost)
-            .is_some_and(|n| n <= cache.limit)
-            && (!memo
-                || cache.memo_bytes.checked_add(cost).is_some_and(|n| {
-                    n <= crate::application::file_dag::derived::owner::graphs::service::MEMO_LIMIT
-                }))
+        cost: ByteCount,
+        memo: MemoBudget,
+    ) -> Room {
+        Room::from(
+            cache
+                .bytes
+                .checked_add(cost.0)
+                .is_some_and(|n| n <= cache.limit)
+                && (memo == MemoBudget::Exempt
+                    || cache.memo_bytes.checked_add(cost.0).is_some_and(|n| {
+                        n <= crate::application::file_dag::derived::owner::graphs::service::MEMO_LIMIT
+                    })),
+        )
     }
     /// Graph, domain and successful memo admissions use the same authority.
     pub(in crate::application::file_dag::derived::owner) fn try_graph_lease(
         &self,
         cache: &CacheBackend,
-        backings: &[super::super::ledger::Backing],
-        cost: usize,
-        memo: bool,
-    ) -> Result<Option<Arc<super::super::ledger::ResourceLease>>, OperatingError> {
-        if !self.graph_room(cache, cost, memo) {
+        backings: &[super::super::ledger::types::Backing],
+        cost: ByteCount,
+        memo: MemoBudget,
+    ) -> Result<Option<Arc<super::super::ledger::types::ResourceLease>>, OperatingError> {
+        if self.graph_room(cache, cost, memo) == Room::Full {
             return Ok(None);
         }
         let ledger = self.ledger.borrow();
-        let extra = ledger.incremental_optional_bytes(backings)?;
-        let units = ledger.incremental_optional_units(backings)?;
+        let extra = ledger.incremental_optional_bytes(backings)?.0;
+        let units = ledger.incremental_optional_units(backings)?.0;
         let snapshot = ledger.snapshot();
         let fits = snapshot
             .view_optional_bytes
+            .0
             .checked_add(extra)
             .is_some_and(|n| n <= cache.limit)
             && snapshot
                 .optional_units
+                .0
                 .checked_add(units)
                 .is_some_and(|n| n <= crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY);
         drop(ledger);

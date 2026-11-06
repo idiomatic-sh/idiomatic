@@ -154,8 +154,12 @@ impl FileRun<'_> {
         self.observed.clear();
         self.walk.retire_all();
         self.owner.derived.report(self.file);
-        let (builds, hits, refusals) = self.owner.derived.counts();
-        tracing::trace!(target: RESOURCE_ROUTES_TARGET, file = self.file.0, builds, hits, refusals, event = FILE_OWNER_FINISH);
+        let crate::application::file_dag::derived::owner::types::BuildCounts(
+            builds,
+            hits,
+            refusals,
+        ) = self.owner.derived.counts();
+        tracing::trace!(target: RESOURCE_ROUTES_TARGET, file = self.file.0, builds = builds.0, hits = hits.0, refusals = refusals.0, event = FILE_OWNER_FINISH);
         self.execution.finish()?;
         drop(self.routes);
         Ok(readiness)

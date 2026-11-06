@@ -1,17 +1,5 @@
-//! Finite scoped semantic access; no owner, ledger or scheduler crosses this boundary.
+//! Portable meaning of derived faults.
 use crate::domain::operating::errors::OperatingError;
-use ryo_derived::domain::contract::types::RawOrder;
-
-/// The engine holds the required payload lease until the callback returns, including error paths.
-/// A borrowed order cannot escape the callback or retain upstream input authority.
-pub(crate) trait ScopedDerived: std::fmt::Debug {
-    fn with_raw_order(
-        &mut self,
-        keys: &[u64],
-        stride: usize,
-        body: &mut dyn FnMut(&RawOrder) -> Result<(), OperatingError>,
-    ) -> Result<(), OperatingError>;
-}
 
 pub(crate) fn portable_fault(
     fault: ryo_derived::domain::contract::types::DerivedFault,

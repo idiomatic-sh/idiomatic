@@ -104,7 +104,7 @@ impl PreparedProgram {
     }
     pub(in crate::application::file_dag::program) fn derived(
         &self,
-    ) -> &crate::application::file_dag::derived::prepared::PreparedDerived {
+    ) -> &crate::application::file_dag::derived::prepared::RequestDerived {
         &self.derived
     }
     pub(in crate::application::file_dag::program) fn hosted(&self) -> &[HostRelation] {
@@ -302,7 +302,7 @@ pub(crate) fn prepare(
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
     let native_orders = orders::service::prepare(&program, &derived)?;
-    let derived = crate::application::file_dag::derived::prepared::PreparedDerived::compile(
+    let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(
         &program, &operators,
     )?;
     let metadata =

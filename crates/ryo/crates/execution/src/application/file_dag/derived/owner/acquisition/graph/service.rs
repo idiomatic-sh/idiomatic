@@ -3,25 +3,30 @@ use super::{
     construction::service as build,
     identity::service::{domain_identity, source},
 };
-use crate::application::file_dag::derived::ledger::append_backing;
+use crate::application::file_dag::derived::ledger::lease::append_backing;
+use crate::application::file_dag::derived::ledger::types::{
+    BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
+};
+use crate::application::file_dag::derived::owner::acquisition::population::types::{
+    Acquisition, BackendRetention, InvocationStorage, OptionalRetention, StoredObservation,
+};
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
     DomainHandle, GraphHandle,
 };
+use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
-    DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, ViewContext,
+    GraphRequirement, GraphSelection, GraphViewIdentity, ViewContext,
 };
-use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::{
     operating::errors::OperatingError,
     stored_graph::types::GraphDomain,
     table_model::{
-        service::{check_columns, count_of, kinds_of},
+        service::{check_columns, kinds_of},
         types::Rows,
     },
 };
-use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 pub(in crate::application::file_dag::derived::owner) fn acquire(
     plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
@@ -43,7 +48,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     else {
         return Err(OperatingError::WrongOperation);
     };
-    let Some(backend) = cache.as_ref().filter(|cache| cache.graph_enabled) else {
+    let Some(backend) = cache.as_ref().filter(|cache| cache.graph_enabled == crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled) else {
         return Ok(None);
     };
     let Some(source) = source(input, *endpoints, keys, &backend.eligible) else {
@@ -62,12 +67,17 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
         plan,
         &admitted,
         ViewContext::default(),
-        false,
+        StoredObservation::Unobserved,
         cache.as_deref_mut(),
         |cache| {
             invoked.set(true);
             let built = build::adjacency(owner, population, &admitted, plan, source, rows, cache)?;
-            Ok(built.map(|built| (Arc::clone(&built.storage), built.built, true, false)))
+            Ok(built.map(|built| Acquisition {
+                storage: Arc::clone(&built.storage),
+                construction: built.construction,
+                backend: BackendRetention::Accounted,
+                optional: OptionalRetention::Refused,
+            }))
         },
     )?;
     let Some(acquired) = acquired else {
@@ -98,10 +108,15 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
                 acquired.storage(),
                 acquired.backings(),
                 &graph,
-            )?;
+            )? == GraphSharing::Shared;
         }
     }
-    GraphHandle::new(owner, acquired, orientation, shared).map(Some)
+    let sharing = if shared {
+        GraphSharing::Shared
+    } else {
+        GraphSharing::Local
+    };
+    GraphHandle::new(owner, acquired, orientation, sharing).map(Some)
 }
 pub(super) fn graph_requirement(
     identity: &crate::domain::stored_graph::types::GraphIdentity,
@@ -178,7 +193,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
             plan,
             &admitted,
             ViewContext::default(),
-            false,
+            StoredObservation::Unobserved,
             cache.as_deref_mut(),
             |cache| {
                 invoked.set(true);
@@ -192,7 +207,12 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
                     rows,
                     cache,
                 )?;
-                Ok((built.storage, built.built, true, false))
+                Ok(Acquisition {
+                    storage: built.storage,
+                    construction: built.construction,
+                    backend: BackendRetention::Accounted,
+                    optional: OptionalRetention::Refused,
+                })
             },
         )?
     } else {
@@ -208,7 +228,10 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
                 rows,
                 cache.as_deref_mut(),
             )?;
-            Ok((built.storage, built.built))
+            Ok(InvocationStorage {
+                storage: built.storage,
+                construction: built.construction,
+            })
         })?
     };
     let ryo_derived::domain::contract::types::DerivedView::Membership(
@@ -252,24 +275,29 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     {
         append_backing(
             &mut backings,
-            crate::application::file_dag::derived::ledger::Backing {
-                key: (1, Arc::as_ptr(rows) as usize),
-                bytes: size_of::<Vec<u32>>()
-                    + 2 * size_of::<usize>()
-                    + rows.capacity() * size_of::<u32>(),
-                retention_units: rows.capacity(),
+            crate::application::file_dag::derived::ledger::types::Backing {
+                key: BackingKey {
+                    tag: BackingTag(1),
+                    address: BackingAddress(Arc::as_ptr(rows) as usize),
+                },
+                bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(rows),
+                retention_units: UnitCount(rows.capacity()),
             },
         )?;
     }
     append_backing(
         &mut backings,
-        crate::application::file_dag::derived::ledger::Backing {
-            key: (19, Arc::as_ptr(&domain) as usize),
-            bytes: size_of::<GraphDomain>() + 2 * size_of::<usize>(),
-            retention_units: 0,
+        crate::application::file_dag::derived::ledger::types::Backing {
+            key: BackingKey {
+                tag: BackingTag(19),
+                address: BackingAddress(Arc::as_ptr(&domain) as usize),
+            },
+            bytes: ByteCount(size_of::<GraphDomain>() + 2 * size_of::<usize>()),
+            retention_units: UnitCount(0),
         },
     )?;
-    let backings: Arc<[crate::application::file_dag::derived::ledger::Backing]> = backings.into();
+    let backings: Arc<[crate::application::file_dag::derived::ledger::types::Backing]> =
+        backings.into();
     if !invoked.get()
         && let Some(cache) = cache.as_deref_mut()
     {

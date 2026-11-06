@@ -1,4 +1,5 @@
 //! Standalone application preparation uses the same required declarations as request preparation.
+mod identity;
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 
 /// All preparation routes delegate semantic metadata to the injected capability.
@@ -97,9 +98,6 @@ pub(in crate::application::file_dag) fn view(
         meaning,
         schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
     );
-    let metadata = prepared
-        .validate()
-        .map_err(crate::domain::operator::contract::derived::portable_fault);
     // The engine's identity descriptor must describe the canonical literal slots produced by
     // semantic preparation, including duplicate elimination and ordering.
     let request = match (request, prepared.request()) {
@@ -121,14 +119,12 @@ pub(in crate::application::file_dag) fn view(
         .map(|schema| schema.kinds.to_vec())
         .collect::<Vec<_>>();
     schemas.hash(&mut identity);
-    super::request::identity::hash_request(&request, &mut identity);
-    Ok(DerivedContract {
-        identity_hash: identity.finish(),
-        kind: crate::domain::derived_views::service::kind(&request),
+    identity::hash_request(&request, &mut identity);
+    Ok(DerivedContract::issue(
+        identity.finish(),
+        prepared,
         request,
         schemas,
-        metadata,
         needed,
-        semantic: prepared,
-    })
+    ))
 }

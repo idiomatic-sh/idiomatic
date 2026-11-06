@@ -1,15 +1,23 @@
 //! Pure traversals feed completed answers to the common resource owner.
 use super::super::{
-    handles::service::{DomainHandle, GraphHandle, RootAnswer},
+    handles::{
+        service::{DomainHandle, GraphHandle, RootAnswer},
+        types::GraphSharing,
+    },
+    reserve::types::Reserve,
     retained::types::{GraphEntry, NearestMemo, RootMemo},
 };
+use super::completed::service::completed;
 use crate::application::file_dag::derived::{
-    ledger::Backing,
-    owner::DerivedOwner,
-    owner::cache::types::CacheBackend,
-    owner::graphs::{
-        service::{replace, slot},
-        types::footprint::value::{arc_bytes, vector},
+    constants,
+    ledger::{
+        capacity::{arc_bytes, vector},
+        types::{Backing, BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount},
+    },
+    owner::{
+        DerivedOwner,
+        cache::types::CacheBackend,
+        graphs::service::{replace, slot},
     },
 };
 use crate::domain::{
@@ -51,14 +59,17 @@ impl<'a> DemandAnswers<'a> {
         if let Some(cache) = self.cache.as_mut() {
             cache.graph_counts.roots += 1;
         }
-        crate::application::file_dag::route_counts::event("reach_request", "graph");
+        crate::application::file_dag::route_counts::event(
+            constants::REACH_REQUEST,
+            constants::ROUTE_GRAPH,
+        );
         let Some(partition) = access.graph().partition(partition) else {
             return Ok(None);
         };
         let Some(root) = access.graph().vertex(partition, root) else {
             return Ok(None);
         };
-        if access.shared()
+        if access.sharing() == GraphSharing::Shared
             && let Some(cache) = self.cache.as_mut()
             && let Some(entry) = cache
                 .graphs
@@ -69,11 +80,17 @@ impl<'a> DemandAnswers<'a> {
                 .iter()
                 .find(|answer| answer.root == root && answer.orientation == access.orientation())
         {
-            crate::application::file_dag::route_counts::event("reach_memo_hit", "graph");
+            crate::application::file_dag::route_counts::event(
+                constants::REACH_MEMO_HIT,
+                constants::ROUTE_GRAPH,
+            );
             cache.graph_counts.memo_hits += 1;
             return completed(self.owner, entry, Arc::clone(&answer.reached)).map(Some);
         }
-        crate::application::file_dag::route_counts::event("reach_traversal", "graph");
+        crate::application::file_dag::route_counts::event(
+            constants::REACH_TRAVERSAL,
+            constants::ROUTE_GRAPH,
+        );
         let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
         let stopped = traversal.breadth(root, access.orientation(), None);
         traversal.sort();
@@ -83,10 +100,42 @@ impl<'a> DemandAnswers<'a> {
             cache.graph_counts.examined += walk.examined;
         }
         // A stopped traversal has not completed the requested closure.
-        if stopped || !access.shared() {
+        if stopped || access.sharing() == GraphSharing::Local {
             return Ok(None);
         }
         self.admit(access, root, walk)
+    }
+    /// One-step or closure traversal for an axis row; the owner alone records its walk work.
+    pub(in crate::application::file_dag) fn axis(
+        &mut self,
+        access: &GraphHandle,
+        root: u32,
+        orientation: Orientation,
+        direction: ryo_values::domain::plan_parts::types::Direction,
+        walk: &mut GraphWalk,
+    ) -> Result<(), OperatingError> {
+        access.validate_owner(self.owner)?;
+        let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
+        if matches!(
+            direction,
+            ryo_values::domain::plan_parts::types::Direction::Parent
+                | ryo_values::domain::plan_parts::types::Direction::Child
+        ) {
+            traversal.direct(root, orientation);
+        } else {
+            let _ = traversal.breadth(root, orientation, None);
+        }
+        if let Some(cache) = self.cache.as_mut() {
+            cache.observe_graph_walk(
+                crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(
+                    walk.expanded,
+                ),
+                crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(
+                    walk.examined,
+                ),
+            );
+        }
+        Ok(())
     }
     pub(in crate::application::file_dag) fn nearest(
         &mut self,
@@ -100,13 +149,19 @@ impl<'a> DemandAnswers<'a> {
         access.validate_owner(self.owner)?;
         domain.validate_owner(self.owner, access)?;
         let domain = domain.raw_domain();
-        crate::application::file_dag::route_counts::event("nearest_request", "graph");
+        crate::application::file_dag::route_counts::event(
+            constants::NEAREST_REQUEST,
+            constants::ROUTE_GRAPH,
+        );
         if access
             .graph()
             .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
             .is_none()
         {
-            crate::application::file_dag::route_counts::event("nearest_traversal", "graph");
+            crate::application::file_dag::route_counts::event(
+                constants::NEAREST_TRAVERSAL,
+                constants::ROUTE_GRAPH,
+            );
             let stopped = GraphTraversal::new(access.raw_graph(), walk).breadth(
                 root,
                 orientation,
@@ -117,7 +172,12 @@ impl<'a> DemandAnswers<'a> {
                 cache.graph_counts.expanded += walk.expanded;
                 cache.graph_counts.examined += walk.examined;
             }
-            return Ok(stopped.then(|| *walk.reached.last().expect("a qualifying encounter")));
+            return Ok(stopped.then(|| {
+                *walk
+                    .reached
+                    .last()
+                    .expect(constants::EXPECT_QUALIFYING_ENCOUNTER)
+            }));
         }
         let shared = self.forest_context(access, domain, orientation)?;
         let (answer, hit) = if let (Some(index), Some(cache)) = (shared, self.cache.as_mut()) {
@@ -138,11 +198,11 @@ impl<'a> DemandAnswers<'a> {
         if let Some(cache) = self.cache.as_mut() {
             crate::application::file_dag::route_counts::event(
                 if hit {
-                    "nearest_memo_hit"
+                    constants::NEAREST_MEMO_HIT
                 } else {
-                    "nearest_traversal"
+                    constants::NEAREST_TRAVERSAL
                 },
-                "graph",
+                constants::ROUTE_GRAPH,
             );
             cache.graph_counts.forest_hits += u64::from(hit);
             cache.graph_counts.expanded += walk.expanded;
@@ -171,17 +231,29 @@ impl<'a> DemandAnswers<'a> {
                 .reached
                 .len()
                 .checked_mul(size_of::<u32>())?
-                .checked_add(arc_bytes::<Vec<u32>>())?
+                .checked_add(arc_bytes::<Vec<u32>>().0)?
                 .checked_add(size_of::<RootMemo>())?;
-            if !self.owner.graph_room(cache, minimum, true) {
+            if self.owner.graph_room(
+                cache,
+                ByteCount(minimum),
+                crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
+            ) == crate::application::file_dag::derived::owner::types::Room::Full
+            {
                 return None;
             }
-            let (replacement, metadata) = slot(&cache.graphs[index].roots)?;
+            let Reserve {
+                replacement,
+                metadata,
+            } = slot(&cache.graphs[index].roots)?;
+            let metadata = metadata.0;
             let mut reached = Vec::new();
-            reached.try_reserve_exact(walk.reached.len()).ok()?;
+            if reached.try_reserve_exact(walk.reached.len()).is_err() {
+                return None;
+            }
             reached.extend_from_slice(&walk.reached);
             let cost = arc_bytes::<Vec<u32>>()
-                .checked_add(vector(&reached))?
+                .0
+                .checked_add(vector(&reached).0)?
                 .checked_add(metadata)?;
             Some((replacement, cost, Arc::new(reached)))
         })();
@@ -190,11 +262,20 @@ impl<'a> DemandAnswers<'a> {
         };
         // Dense vertex IDs are memo data, not retained physical row positions.
         let backing = Backing {
-            key: (20, Arc::as_ptr(&reached) as usize),
-            retention_units: 0,
-            bytes: arc_bytes::<Vec<u32>>() + vector(&reached),
+            key: BackingKey {
+                tag: BackingTag(20),
+                address: BackingAddress(Arc::as_ptr(&reached) as usize),
+            },
+            retention_units: UnitCount(0),
+            bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&reached).0),
         };
-        let Some(lease) = self.owner.try_graph_lease(cache, &[backing], cost, true)? else {
+        let Some(lease) = self.owner.try_graph_lease(
+            cache,
+            &[backing],
+            ByteCount(cost),
+            crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
+        )?
+        else {
             return Ok(None);
         };
         replace(&mut cache.graphs[index].roots, replacement);
@@ -221,7 +302,7 @@ impl<'a> DemandAnswers<'a> {
         let Some(cache) = self.cache.as_mut() else {
             return Ok(None);
         };
-        if !access.shared() {
+        if access.sharing() == GraphSharing::Local {
             return Ok(None);
         }
         let Some(domain_index) = cache.graph_domains.iter().position(|entry| {
@@ -243,16 +324,28 @@ impl<'a> DemandAnswers<'a> {
                 .len()
                 .checked_mul(size_of::<u32>())?
                 .checked_add(size_of::<NearestMemo>())?;
-            if !self.owner.graph_room(cache, minimum, true) {
+            if self.owner.graph_room(
+                cache,
+                ByteCount(minimum),
+                crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
+            ) == crate::application::file_dag::derived::owner::types::Room::Full
+            {
                 return None;
             }
-            let (replacement, metadata) = slot(&cache.nearest)?;
+            let Reserve {
+                replacement,
+                metadata,
+            } = slot(&cache.nearest)?;
+            let metadata = metadata.0;
             let mut answers = Vec::new();
-            answers
+            if answers
                 .try_reserve_exact(access.graph().vertices().len())
-                .ok()?;
+                .is_err()
+            {
+                return None;
+            }
             answers.resize(access.graph().vertices().len(), UNKNOWN);
-            let cost = vector(&answers).checked_add(metadata)?;
+            let cost = vector(&answers).0.checked_add(metadata)?;
             Some((replacement, cost, answers))
         })();
         let Some((replacement, cost, answers)) = prepared else {
@@ -260,11 +353,20 @@ impl<'a> DemandAnswers<'a> {
         };
         let mut backings = cache.graph_domains[domain_index].backings.to_vec();
         backings.push(Backing {
-            key: (21, answers.as_ptr() as usize),
+            key: BackingKey {
+                tag: BackingTag(21),
+                address: BackingAddress(answers.as_ptr() as usize),
+            },
             bytes: vector(&answers),
-            retention_units: 0,
+            retention_units: UnitCount(0),
         });
-        let Some(lease) = self.owner.try_graph_lease(cache, &backings, cost, true)? else {
+        let Some(lease) = self.owner.try_graph_lease(
+            cache,
+            &backings,
+            ByteCount(cost),
+            crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
+        )?
+        else {
             return Ok(None);
         };
         replace(&mut cache.nearest, replacement);
@@ -283,19 +385,4 @@ impl<'a> DemandAnswers<'a> {
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
         Ok(Some(cache.nearest.len() - 1))
     }
-}
-
-fn completed(
-    owner: &DerivedOwner,
-    graph: &GraphEntry,
-    rows: Arc<Vec<u32>>,
-) -> Result<RootAnswer, OperatingError> {
-    let mut backings = graph.backings.to_vec();
-    backings.push(Backing {
-        key: (20, Arc::as_ptr(&rows) as usize),
-        bytes: arc_bytes::<Vec<u32>>() + vector(&rows),
-        retention_units: 0,
-    });
-    let lease = owner.required_lease(&backings)?;
-    Ok(RootAnswer::new(rows, Arc::clone(&graph.storage), lease))
 }

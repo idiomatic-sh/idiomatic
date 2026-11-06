@@ -1,24 +1,39 @@
 //! Read-only preflight of optional handles; it never mutates ownership or payloads.
-use super::*;
-use std::sync::Arc;
+use super::types::{
+    Backing, BackingKey, ByteCount, Credit, Dormancy, HoldCount, LeaseClass, Ledger, ResourceLease,
+    UnitCount,
+};
+use crate::domain::operating::errors::OperatingError;
+use std::{collections::HashMap, sync::Arc};
+
+/// A handle being released, with how many of its clones are being released with it.
+struct Dropping<'a> {
+    lease: &'a Arc<ResourceLease>,
+    handles: HoldCount,
+}
+
 impl Ledger {
     /// A live required consumer is not dormant optional payload, even
     /// when a different representation owns the same physical allocation.
     pub(in crate::application::file_dag::derived) fn optional_payload_only(
         &self,
         backings: &[Backing],
-    ) -> bool {
-        backings.iter().all(|backing| {
+    ) -> Dormancy {
+        if backings.iter().all(|backing| {
             self.entries
                 .get(&backing.key)
-                .is_some_and(|entry| entry.required == 0)
-        })
+                .is_some_and(|entry| entry.required == HoldCount(0))
+        }) {
+            Dormancy::Dormant
+        } else {
+            Dormancy::Live
+        }
     }
     pub(in crate::application::file_dag::derived) fn optional_release_credit(
         &self,
         leases: &[&Arc<ResourceLease>],
-    ) -> Result<Option<(usize, usize)>, OperatingError> {
-        let mut handles = HashMap::<usize, (&Arc<ResourceLease>, usize)>::new();
+    ) -> Result<Option<Credit>, OperatingError> {
+        let mut handles = HashMap::<usize, Dropping<'_>>::new();
         if handles.try_reserve(leases.len()).is_err() {
             return Ok(None);
         }
@@ -29,30 +44,35 @@ impl Ledger {
             }
             let entry = handles
                 .entry(Arc::as_ptr(lease) as usize)
-                .or_insert((lease, 0));
-            entry.1 = entry
-                .1
-                .checked_add(1)
+                .or_insert(Dropping {
+                    lease,
+                    handles: HoldCount(0),
+                });
+            entry.handles = entry
+                .handles
+                .checked_add(HoldCount(1))
                 .ok_or(OperatingError::ShapeMismatch)?;
             keys = keys
                 .checked_add(lease.keys.len())
                 .ok_or(OperatingError::ShapeMismatch)?;
         }
-        let mut references = HashMap::<Key, usize>::new();
+        let mut references = HashMap::<BackingKey, HoldCount>::new();
         if references.try_reserve(keys).is_err() {
             return Ok(None);
         }
-        for (lease, dropping_handles) in handles.values() {
-            if Arc::strong_count(lease) != *dropping_handles {
+        for dropping in handles.values() {
+            if Arc::strong_count(dropping.lease) != dropping.handles.0 {
                 continue;
             }
-            for key in &lease.keys {
+            for key in &dropping.lease.keys {
                 let count = references.entry(*key).or_default();
-                *count = count.checked_add(1).ok_or(OperatingError::ShapeMismatch)?;
+                *count = count
+                    .checked_add(HoldCount(1))
+                    .ok_or(OperatingError::ShapeMismatch)?;
             }
         }
-        let mut bytes = 0usize;
-        let mut units = 0usize;
+        let mut bytes = ByteCount(0);
+        let mut units = UnitCount(0);
         for (key, releasing) in references {
             let entry = self
                 .entries
@@ -66,12 +86,12 @@ impl Ledger {
                     .checked_add(entry.retention_units)
                     .ok_or(OperatingError::ShapeMismatch)?;
             }
-            if releasing == entry.optional && entry.required == 0 {
+            if releasing == entry.optional && entry.required == HoldCount(0) {
                 bytes = bytes
                     .checked_add(entry.bytes)
                     .ok_or(OperatingError::ShapeMismatch)?;
             }
         }
-        Ok(Some((bytes, units)))
+        Ok(Some(Credit { bytes, units }))
     }
 }

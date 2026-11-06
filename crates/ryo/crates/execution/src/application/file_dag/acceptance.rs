@@ -2,6 +2,7 @@
 #[cfg(test)]
 pub(crate) mod column_topology_test;
 pub(crate) mod layout_service_test;
+pub(crate) mod operator_collections_operators_source_matches_gate_test;
 pub(crate) mod operator_collections_operators_source_matches_item_test;
 pub(crate) mod operator_collections_operators_span_between_item_test;
 pub(crate) mod operator_collections_operators_span_bounds_item_test;

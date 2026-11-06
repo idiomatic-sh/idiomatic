@@ -120,7 +120,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             }
         );
         let counts = file.owner.derived.counts();
-        total_builds += counts.0;
+        total_builds += counts.0.0;
         assert_eq!(
             total_builds, expected_builds,
             "real constructions accumulate1→1→2 under the same request/services"

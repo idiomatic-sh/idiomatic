@@ -13,10 +13,9 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     coverage::types::Partial,
-    operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
-    stored_graph::types::{GraphCounts, GraphWalk, Orientation},
-    table_model::{service::kinds_of, types::Rows},
+    stored_graph::types::{GraphWalk, Orientation},
+    table_model::types::Rows,
 };
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
@@ -26,31 +25,10 @@ use ryo_values::domain::{
 use std::rc::Rc;
 
 pub(in crate::application::file_dag) struct GraphFixture {
-    owner: Rc<RelationOwner>,
+    pub(in crate::application::file_dag::derived::owner::fixtures) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,
     partials: Vec<Partial>,
     limit: usize,
-}
-pub(in crate::application::file_dag) struct Snapshot {
-    pub counts: GraphCounts,
-    pub bytes: usize,
-    pub limit: usize,
-    pub memo_bytes: usize,
-    pub graphs: usize,
-    pub domains: usize,
-    pub nearest: usize,
-    pub indexes: usize,
-    pub owner_entries_capacity: usize,
-    pub index_payloads: Vec<usize>,
-    pub index_columns: Vec<Vec<ColumnIndex>>,
-    pub required_bytes: usize,
-    pub optional_bytes: usize,
-    pub unique_bytes: usize,
-    pub overlap_bytes: usize,
-    pub graph_backings: usize,
-    pub retained_view_bytes: usize,
-    pub selections: usize,
-    pub retained_positions: usize,
 }
 impl GraphFixture {
     pub(in crate::application::file_dag) fn new(
@@ -140,7 +118,12 @@ impl GraphFixture {
                 &self.partials,
             )
             .unwrap();
-        self.owner.derived.set_optional_limit(self.limit).unwrap();
+        self.owner
+            .derived
+            .set_optional_limit(
+                crate::application::file_dag::derived::owner::index::types::ByteLimit(self.limit),
+            )
+            .unwrap();
     }
     /// Attach observation/policy access to an existing real selection owner;
     /// request declaration enables graph demand without replacing its backend.
@@ -163,7 +146,8 @@ impl GraphFixture {
                 .borrow()
                 .as_ref()
                 .unwrap()
-                .graph_enabled,
+                .graph_enabled
+                == crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled,
             "the shared selection owner must declare graph demand before any publication"
         );
         fixture
@@ -328,12 +312,19 @@ impl GraphFixture {
             ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
-            Some((relation, *source)),
+            Some(crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns {
+                relation,
+            }),
         )
     }
     pub(in crate::application::file_dag) fn set_limit(&mut self, limit: usize) {
         self.limit = limit;
-        self.owner.derived.set_optional_limit(limit).unwrap();
+        self.owner
+            .derived
+            .set_optional_limit(
+                crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
+            )
+            .unwrap();
     }
     pub(in crate::application::file_dag) fn clear(&self) {
         self.owner.release_population();
@@ -343,80 +334,25 @@ impl GraphFixture {
         let mut backend = self.owner.derived.backend.borrow_mut();
         self.owner
             .derived
-            .prepare_graph_room(backend.as_mut().unwrap(), cost, &[])
+            .prepare_graph_room(
+                backend.as_mut().unwrap(),
+                crate::application::file_dag::derived::ledger::types::ByteCount(cost),
+                &[],
+            )
             .unwrap()
+            == Room::Fits
     }
     pub(in crate::application::file_dag) fn graph_cost(&self, graph: &GraphHandle) -> usize {
         let backend = self.owner.derived.backend.borrow();
         let cache = backend.as_ref().unwrap();
-        let (_, metadata) = slot(&cache.graphs).unwrap();
+        let metadata = slot(&cache.graphs).unwrap().metadata.0;
         // Measure a cold admission: this probe already owns optional leases,
         // so its ledger incremental cost would exclude the graph payload.
         graph
             .backings()
             .iter()
-            .map(|backing| backing.bytes)
+            .map(|backing| backing.bytes.0)
             .sum::<usize>()
             + metadata
-    }
-    pub(in crate::application::file_dag) fn snapshot(&self) -> Snapshot {
-        let backend = self.owner.derived.backend.borrow();
-        let cache = backend.as_ref().unwrap();
-        let c = &cache.graph_counts;
-        let ledger = self.owner.derived.ledger.borrow();
-        let s = ledger.snapshot();
-        let state = self.owner.derived.state.borrow();
-        let mut indexes: Vec<_> = state
-            .entries
-            .values()
-            .filter(|entry| {
-                entry.retained.is_some()
-                    && matches!(entry._plan.request, ViewRequest::Equality { .. })
-            })
-            .collect();
-        indexes.sort_by_key(|entry| entry.admission);
-        Snapshot {
-            counts: GraphCounts {
-                reclaimed_indexes: c.reclaimed_indexes,
-                reclaimed_selections: c.reclaimed_selections,
-                reclaimed_bytes: c.reclaimed_bytes,
-                pinned_refusals: c.pinned_refusals,
-                peak_bytes: c.peak_bytes,
-                builds: c.builds,
-                reuses: c.reuses,
-                refusals: c.refusals,
-                roots: c.roots,
-                traversals: c.traversals,
-                memo_hits: c.memo_hits,
-                expanded: c.expanded,
-                examined: c.examined,
-                early_stops: c.early_stops,
-                forest_hits: c.forest_hits,
-            },
-            bytes: cache.bytes,
-            limit: cache.limit,
-            memo_bytes: cache.memo_bytes,
-            graphs: cache.graphs.len(),
-            domains: cache.graph_domains.len(),
-            nearest: cache.nearest.len(),
-            indexes: indexes.len(),
-            owner_entries_capacity: state.entries.capacity(),
-            index_payloads: indexes.iter().map(|entry| entry.bytes).collect(),
-            index_columns: indexes
-                .iter()
-                .map(|entry| match &entry._plan.request {
-                    ViewRequest::Equality { columns } => columns.clone(),
-                    _ => unreachable!("filtered equality entry"),
-                })
-                .collect(),
-            required_bytes: s.required_bytes,
-            optional_bytes: s.view_optional_bytes,
-            unique_bytes: s.unique_bytes,
-            overlap_bytes: s.overlap_bytes,
-            graph_backings: ledger.backing_count(9),
-            retained_view_bytes: self.owner.derived.state.borrow().retained_bytes,
-            selections: self.owner.derived.state.borrow().retained_predicates,
-            retained_positions: s.optional_units,
-        }
     }
 }

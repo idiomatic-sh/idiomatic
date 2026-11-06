@@ -1,5 +1,6 @@
 //! Borrow a producer-proven selection after reacquiring its declared source.
 use super::*;
+use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 impl RelationOwner {
     #[cfg(test)]
     pub(in crate::application::file_dag) fn selected_rows<'f>(
@@ -39,7 +40,9 @@ impl RelationOwner {
             Default::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
-            Some((relation, source)),
+            Some(StoredColumns {
+                relation,
+            }),
         )
     }
 }

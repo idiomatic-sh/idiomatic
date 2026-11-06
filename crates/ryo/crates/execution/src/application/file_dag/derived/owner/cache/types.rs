@@ -1,22 +1,60 @@
 //! Private application backend storage. Only derived-owner algorithms can access mutable fields.
 
+use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
+
+/// The address of the installed request descriptors, kept to prove a descriptor is not rebuilt.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DescriptorAddress(pub usize);
+
+/// A request-prepared predicate group whose repetitions are counted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct RepetitionGroup(pub usize);
+
+/// How many active selectors of one group repeat the same descriptor.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Repetitions(pub u8);
+
+/// Whether an eligible graph consumer may request bounded adjacency admission.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GraphAdmission {
+    Disabled,
+    Enabled,
+}
+
+/// Whether repetition counts could be recorded for every active group.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RepetitionTracking {
+    Tracked,
+    Failed,
+}
+
+/// Graph vertices expanded by one walk.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ExpandedVertices(pub u64);
+
+/// Graph vertices examined by one walk.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ExaminedVertices(pub u64);
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct CacheBackend {
     #[cfg(test)]
-    pub(in crate::application::file_dag::derived::owner) selector_descriptor: Option<usize>,
+    pub(in crate::application::file_dag::derived::owner) selector_descriptor:
+        Option<DescriptorAddress>,
     /// Sparse active repetition counts keyed by request-prepared predicate group.
     pub(in crate::application::file_dag::derived::owner) selector_repetition:
-        std::collections::HashMap<usize, u8>,
-    pub(in crate::application::file_dag::derived::owner) selector_repetition_failed: bool,
+        std::collections::HashMap<RepetitionGroup, Repetitions>,
+    pub(in crate::application::file_dag::derived::owner) selector_repetition_failed:
+        RepetitionTracking,
     /// Immutable request-owned selector requirements, never file-owned payload.
     pub(in crate::application::file_dag::derived::owner) selection_views:
         Option<Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,
     /// An active eligible graph consumer may request bounded adjacency admission.
-    pub(in crate::application::file_dag::derived::owner) graph_enabled: bool,
+    pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.
     pub(in crate::application::file_dag::derived::owner) graph_bytes: usize,
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
@@ -57,11 +95,11 @@ pub(in crate::application::file_dag) struct CacheBackend {
     /// Maximum retained cache bytes for this file and worker.
     pub(in crate::application::file_dag::derived::owner) limit: usize,
     /// Physical stored-key builds, including invocation-local admission refusals.
-    pub(in crate::application::file_dag::derived::owner) builds: u64,
+    pub(in crate::application::file_dag::derived::owner) builds: BuildCount,
     /// Successful immutable index reuse.
-    pub(in crate::application::file_dag::derived::owner) reuses: u64,
+    pub(in crate::application::file_dag::derived::owner) reuses: ReuseCount,
     /// Eligible requests whose index could not be retained within the bound.
-    pub(in crate::application::file_dag::derived::owner) refusals: u64,
+    pub(in crate::application::file_dag::derived::owner) refusals: RefusalCount,
 }
 
 #[derive(Debug)]
@@ -73,18 +111,18 @@ pub(in crate::application::file_dag::derived::owner) struct ActivePostings {
 
 impl CacheBackend {
     /// Install immutable request descriptors without exposing their catalog to a caller.
-    pub(in crate::application::file_dag::derived) fn bind_request_views(
+    pub(in crate::application::file_dag::derived::owner) fn bind_request_views(
         &mut self,
         views: Arc<crate::domain::stored_selection::types::PreparedSelectionViews>,
     ) {
         self.selection_views = Some(views);
     }
-    pub(in crate::application::file_dag) fn observe_graph_walk(
+    pub(in crate::application::file_dag::derived::owner) fn observe_graph_walk(
         &mut self,
-        expanded: u64,
-        examined: u64,
+        expanded: ExpandedVertices,
+        examined: ExaminedVertices,
     ) {
-        self.graph_counts.expanded += expanded;
-        self.graph_counts.examined += examined;
+        self.graph_counts.expanded += expanded.0;
+        self.graph_counts.examined += examined.0;
     }
 }

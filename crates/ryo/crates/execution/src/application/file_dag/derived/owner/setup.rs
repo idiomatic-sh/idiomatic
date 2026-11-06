@@ -1,7 +1,8 @@
 //! File setup carries request metadata; demanded representation admission remains separate.
-use super::super::prepared::PreparedDerived;
+use super::super::prepared::RequestDerived;
 use super::*;
 use crate::application::file_dag::derived::constants as activation;
+use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
 use crate::domain::coverage::types::{Partial, RuleIndex};
 use ryo_relations::domain::relations::types::Relation;
 impl DerivedOwner {
@@ -9,11 +10,11 @@ impl DerivedOwner {
     #[cfg(test)]
     pub(in crate::application::file_dag) fn set_optional_limit(
         &self,
-        limit: usize,
+        limit: crate::application::file_dag::derived::owner::index::types::ByteLimit,
     ) -> Result<(), OperatingError> {
         let mut backend = self.backend.borrow_mut();
         let backend = backend.as_mut().ok_or(OperatingError::NotRun)?;
-        backend.limit = limit;
+        backend.limit = limit.0;
         Ok(())
     }
 }
@@ -21,11 +22,11 @@ impl DerivedOwner {
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn prepare_program_file(
         &self,
-        prepared: &PreparedDerived,
+        prepared: &RequestDerived,
         demanded: &[crate::domain::coverage::types::RuleIndex],
         partial: &[Partial],
     ) -> Result<(), OperatingError> {
-        if self.file_prepared.get() {
+        if self.file_prepared.get() == FilePreparation::Prepared {
             return Err(OperatingError::NotRun);
         }
         tracing::trace!(target: activation::TARGET, event = activation::BEGIN);
@@ -33,15 +34,17 @@ impl DerivedOwner {
         let mut backend = crate::application::file_dag::derived::owner::index::service::new(
             &wanted,
             partial,
-            crate::application::file_dag::derived::owner::index::service::LIMIT,
+            crate::application::file_dag::derived::owner::index::types::ByteLimit(
+                crate::application::file_dag::derived::owner::index::service::LIMIT,
+            ),
         );
         if let Some(cache) = backend.as_mut() {
-            prepared.bind_views(cache);
+            cache.bind_request_views(prepared.views());
             // Request-wide graph eligibility is indexed once. File activation
             // examines only its demanded roots, never the full graph-rule inventory.
             for rule in demanded {
-                if prepared.graph_for(*rule)? {
-                    cache.graph_enabled = true;
+                if prepared.graph_for(*rule)? == GraphAdmission::Enabled {
+                    cache.graph_enabled = crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled;
                     break;
                 }
             }
@@ -50,13 +53,13 @@ impl DerivedOwner {
             )?;
         }
         *self.backend.borrow_mut() = backend;
-        self.file_prepared.set(true);
+        self.file_prepared.set(FilePreparation::Prepared);
         tracing::trace!(target: activation::TARGET, event = activation::END);
         Ok(())
     }
 }
 
-impl PreparedDerived {
+impl RequestDerived {
     pub(in crate::application::file_dag) fn wanted(
         &self,
         demanded: &[RuleIndex],

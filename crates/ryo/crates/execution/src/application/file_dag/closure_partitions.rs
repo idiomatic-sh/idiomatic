@@ -58,7 +58,7 @@ impl<'f> PartitionedClosure<'f> {
             .derived
             .admit_partition(&closure_plan, &owner, &proof, &ordered)?;
         #[cfg(test)]
-        let ordering_capacity = ordered.partition_order_capacity()?;
+        let ordering_capacity = ordered.partition_order_capacity()?.0;
         Ok(Self {
             input,
             proof,

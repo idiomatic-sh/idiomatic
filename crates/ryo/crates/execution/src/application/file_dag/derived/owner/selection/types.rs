@@ -29,21 +29,84 @@ pub(in crate::application::file_dag::derived::owner) enum SelectionPath {
     FanoutReused = 8,
 }
 
+/// Row positions this selection owns outright.
+pub(in crate::application::file_dag::derived::owner) struct CandidatePositions(pub Vec<u32>);
+
+/// Row positions shared through an admitted derived view.
+#[derive(Clone)]
+pub(in crate::application::file_dag::derived::owner) struct SelectedPositions(pub Arc<Vec<u32>>);
+
+/// Borrowed candidate row positions.
+pub(in crate::application::file_dag::derived::owner) struct CandidateSlice<'a>(pub &'a [u32]);
+
 pub(in crate::application::file_dag::derived::owner) enum CandidateRows {
-    Owned(Vec<u32>),
+    Owned(CandidatePositions),
     Shared {
-        rows: Arc<Vec<u32>>,
+        rows: SelectedPositions,
         _resource: crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     },
 }
 
 impl CandidateRows {
-    pub(in crate::application::file_dag::derived::owner) fn as_slice(&self) -> &[u32] {
+    pub(in crate::application::file_dag::derived::owner) fn as_slice(&self) -> CandidateSlice<'_> {
         match self {
-            Self::Owned(rows) => rows,
-            Self::Shared { rows, .. } => rows.as_ref().as_slice(),
+            Self::Owned(rows) => CandidateSlice(&rows.0),
+            Self::Shared { rows, .. } => CandidateSlice(rows.0.as_ref().as_slice()),
         }
     }
+}
+
+/// The candidate rows chosen for a selector, if any, and why that path was taken.
+pub(in crate::application::file_dag::derived::owner) struct CandidateChoice {
+    pub rows: Option<CandidateRows>,
+    pub path: SelectionPath,
+}
+
+/// Candidates a single fanout pass produced, with the view that keeps them alive.
+pub(in crate::application::file_dag::derived::owner) struct FanoutHit {
+    pub rows: SelectedPositions,
+    pub resource:
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
+    pub path: SelectionPath,
+}
+
+/// Whether an index could be retained within the cache budget.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::application::file_dag::derived::owner) enum Retainability {
+    Retainable,
+    Unretainable,
+}
+
+/// Whether two selectors share relation, ordered predicates and bindings.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::application::file_dag::derived::owner) enum SelectorMatch {
+    Same,
+    Different,
+}
+
+/// Whether a bounded sample shows a discriminator selects few enough rows to index.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::application::file_dag::derived::owner) enum Selectivity {
+    Selective,
+    Dense,
+}
+
+/// Rows of the physical population a selector reads.
+#[derive(Clone, Copy)]
+pub(in crate::application::file_dag::derived::owner) struct RowPopulation(pub usize);
+
+/// Retained bytes the cache accounts to one prepared structure.
+#[derive(Clone, Copy)]
+pub(in crate::application::file_dag::derived::owner) struct PostingBytes(pub usize);
+
+/// The authored text of a first-literal equality.
+#[derive(Clone, Copy)]
+pub(in crate::application::file_dag::derived::owner) struct LiteralSpelling<'a>(pub &'a str);
+
+/// A total first-literal equality: its column and authored text.
+pub(in crate::application::file_dag::derived::owner) struct FirstLiteral<'a> {
+    pub column: ColumnIndex,
+    pub text: LiteralSpelling<'a>,
 }
 
 /// An absent authored symbol spelling can rule out every row without building an index.

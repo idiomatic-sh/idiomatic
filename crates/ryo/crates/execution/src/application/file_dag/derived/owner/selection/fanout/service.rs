@@ -1,54 +1,43 @@
 //! Active literal metadata is prepared once; only the common owner retains completed postings.
 use crate::application::file_dag::derived::constants as activation;
-use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
-    derived_views::types::{DerivedContract, ViewRequest},
+    derived_views::types::DerivedContract,
     operating::{errors::OperatingError, types::OperatorContext},
-    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
-    table_model::service::matching_stored,
+    stored_selection::types::Selector,
     table_texts::types::Texts,
 };
-use ryo_language::domain::symbols::{
-    service::{find_hashed, hash_of},
-    types::ByteSlice,
-};
-use ryo_relations::domain::relations::{
-    service::from_bits,
-    types::{Bits, CellKind, ColumnsView, Integer, Value},
-};
-use ryo_relations::domain::terms::service::symbols_with_text;
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
-    query_bindings::types::ParameterBinding,
-};
+use ryo_relations::domain::relations::types::ColumnsView;
+use ryo_values::domain::plan_parts::types::LiteralText;
 use std::sync::Arc;
 
 use crate::application::file_dag::derived::owner::cache::types::ActivePostings;
-fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
-    active
-        .capacity()
-        .checked_mul(size_of::<ActivePostings>())
-        .and_then(|base| {
-            active.iter().try_fold(base, |total, group| {
-                let strings = group
-                    .literals
-                    .iter()
-                    .try_fold(0_usize, |n, text| n.checked_add(text.0.len()))?;
-                total
-                    .checked_add(group.literals.len().checked_mul(size_of::<LiteralText>())?)?
-                    .checked_add(2 * size_of::<usize>())?
-                    .checked_add(strings)
-            })
+fn active_bytes(active: &Vec<ActivePostings>) -> Option<PostingBytes> {
+    crate::application::file_dag::derived::ledger::capacity::checked::<ActivePostings>(
+        crate::application::file_dag::derived::ledger::types::SlotCount(active.capacity()),
+    )
+    .and_then(|base| {
+        active.iter().try_fold(base.0, |total, group| {
+            let strings = group
+                .literals
+                .iter()
+                .try_fold(0_usize, |n, text| n.checked_add(text.0.len()))?;
+            total
+                .checked_add(group.literals.len().checked_mul(size_of::<LiteralText>())?)?
+                .checked_add(2 * size_of::<usize>())?
+                .checked_add(strings)
         })
+    })
+    .map(PostingBytes)
 }
 pub(in crate::application::file_dag::derived::owner::selection) fn prepare_active(
     cache: &mut CacheBackend,
 ) {
     let previous = std::mem::take(&mut cache.active_postings);
-    let Some(base) = active_bytes(&previous).and_then(|bytes| cache.bytes.checked_sub(bytes))
+    let Some(base) = active_bytes(&previous).and_then(|bytes| cache.bytes.checked_sub(bytes.0))
     else {
         return;
     };
@@ -66,13 +55,13 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
         let Some(kinds) = prepared.postings.schemas.first() else {
             continue;
         };
-        let Some((column, text)) = first_literal(selector, kinds) else {
+        let Some(FirstLiteral { column, text }) = first_literal(selector, kinds) else {
             continue;
         };
         groups
             .entry((selector.relation, column))
             .or_default()
-            .push(LiteralText(text.into()));
+            .push(LiteralText(text.0.into()));
     }
     let mut active = Vec::new();
     for ((relation, column), mut literals) in groups {
@@ -86,7 +75,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
     }
     let bytes = active_bytes(&active);
     if let Some(bytes) = bytes
-        .and_then(|bytes| cache.bytes.checked_add(bytes))
+        .and_then(|bytes| cache.bytes.checked_add(bytes.0))
         .filter(|bytes| *bytes <= cache.limit)
     {
         cache.bytes = bytes;
@@ -101,17 +90,15 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
     plan: &Arc<DerivedContract>,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
-) -> Result<
-    Option<(
-        Arc<Vec<u32>>,
-        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
-        SelectionPath,
-    )>,
-    OperatingError,
-> {
-    let Some((column, wanted)) = first_literal(program, source.kinds) else {
+) -> Result<Option<FanoutHit>, OperatingError> {
+    let Some(FirstLiteral {
+        column,
+        text: wanted,
+    }) = first_literal(program, source.kinds)
+    else {
         return Ok(None);
     };
+    let wanted = wanted.0;
     let population = source.columns.first().map_or(0, |column| column.0.len());
     if !(32..=MAX_FANOUT_POPULATION).contains(&population) {
         return Ok(None);
@@ -146,13 +133,17 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
         .payload()
         .share_posting_positions(wanted)
         .ok_or(OperatingError::WrongOperation)?;
-    if acquired.was_built() {
+    if acquired.construction() == Construction::Built {
         cache.selection_counts.scanned += population as u64;
     }
-    let path = if acquired.was_built() {
+    let path = if acquired.construction() == Construction::Built {
         SelectionPath::FanoutBuilt
     } else {
         SelectionPath::FanoutReused
     };
-    Ok(Some((Arc::clone(rows.backing()), acquired, path)))
+    Ok(Some(FanoutHit {
+        rows: SelectedPositions(Arc::clone(rows.backing())),
+        resource: acquired,
+        path,
+    }))
 }

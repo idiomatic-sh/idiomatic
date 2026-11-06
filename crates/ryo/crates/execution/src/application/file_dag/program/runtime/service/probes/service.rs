@@ -76,7 +76,7 @@ impl ProgramExecution {
             consumer,
             point,
             checkpoint,
-            working_bytes: WorkingBytes(self.owner.derived.working_bytes()),
+            working_bytes: WorkingBytes(self.owner.derived.working_bytes().0),
             index,
             index_liveness,
         });

@@ -1,6 +1,8 @@
 //! All thirteen real families reach the common admitted owner or actual native invocation.
 use super::super::fixtures::{RawCase, observe};
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::exercise;
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
+    Scenario, exercise,
+};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::operating::errors::OperatingError,
@@ -94,7 +96,7 @@ fn subject(kind: DerivedKind) -> Result<DerivedKind, OperatingError> {
         observe(RawCase::Complete)?;
         return Ok(DerivedKind::RawKeyOrder);
     }
-    exercise(kind)
+    exercise(kind, Scenario::Succeeds)
 }
 #[test]
 fn succeeds() {

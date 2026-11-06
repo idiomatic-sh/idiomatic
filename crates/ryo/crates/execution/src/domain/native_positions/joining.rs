@@ -13,12 +13,11 @@ use crate::domain::{
         types::{NameCount, OperatorContext},
     },
     operator::contract::{
-        derived::ScopedDerived,
         types::{PrimitiveSemantics, WorkCounters, join_result},
     },
     positions::{
         service::{count, followed, in_tree, key_into, row, value},
-        types::{FoundPositions, Keys, Positions, RowPositions, Slots},
+        types::{FoundPositions, Positions, RowPositions, Slots},
     },
     table_cells::types::TreeRows,
     table_model::types::Verdict,
@@ -179,7 +178,7 @@ impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
 
 pub(super) fn join(
     semantics: &dyn PrimitiveSemantics,
-    derived: &mut dyn ScopedDerived,
+    order: Option<&RawOrder>,
     operation: &Operation,
     tree: &TreeRows<'_>,
     inputs: &[PositionInput<'_>],
@@ -219,50 +218,33 @@ pub(super) fn join(
                 .get(1)
                 .copied()
                 .ok_or(OperatingError::MissingInput { position: 2 })?;
-            let PositionWork { keys, probe, .. } = work;
-            let mut keyed = Keys::default();
-            for at in positions(count(right.rows)) {
-                key_into(
-                    tree,
-                    &right.shape.columns,
-                    row(right.rows, at),
-                    right_on,
-                    &mut keyed,
-                );
+            let order = order.ok_or(OperatingError::WrongOperation)?;
+            let PositionWork { probe, .. } = work;
+            for at in positions(count(left.rows)) {
+                counts.found(0, 1);
+                let each = row(left.rows, at);
+                probe.0.clear();
+                key_into(tree, &left.shape.columns, each, left_on, probe);
+                let hits = order.hits(&probe.0);
+                let mut driver = StepMatches {
+                    right: right.rows,
+                    order,
+                    place: RowIndex(hits.start),
+                    end: RowIndex(hits.end),
+                    current: None,
+                    counts,
+                };
+                join_result(
+                    semantics.operators(OperatorCall::EqualityJoin {
+                        input: JoinInput::Positions {
+                            left: each.0,
+                            driver: &mut driver,
+                            target: &mut slots.0,
+                        },
+                    }),
+                    None,
+                )?;
             }
-            std::mem::swap(&mut keys.0, &mut keyed.0);
-            let mut probe_keys = std::mem::take(probe);
-            let result =
-                derived.with_raw_order(&keys.0, right_on.len(), &mut |order: &RawOrder| {
-                    for at in positions(count(left.rows)) {
-                        counts.found(0, 1);
-                        let each = row(left.rows, at);
-                        probe_keys.0.clear();
-                        key_into(tree, &left.shape.columns, each, left_on, &mut probe_keys);
-                        let hits = order.hits(&probe_keys.0);
-                        let mut driver = StepMatches {
-                            right: right.rows,
-                            order,
-                            place: RowIndex(hits.start),
-                            end: RowIndex(hits.end),
-                            current: None,
-                            counts,
-                        };
-                        join_result(
-                            semantics.operators(OperatorCall::EqualityJoin {
-                                input: JoinInput::Positions {
-                                    left: each.0,
-                                    driver: &mut driver,
-                                    target: &mut slots.0,
-                                },
-                            }),
-                            None,
-                        )?;
-                    }
-                    Ok(())
-                });
-            *probe = probe_keys;
-            result?;
         }
         Input::Relation(Relation::SyntaxTree) => {
             let mut admit = if filter.is_empty() {

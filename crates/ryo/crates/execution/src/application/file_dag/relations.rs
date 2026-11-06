@@ -135,7 +135,10 @@ impl RelationOwner {
         Self {
             #[cfg(test)]
             identity_checks: Cell::new(0),
-            derived: super::derived::owner::DerivedOwner::new(max_derived, semantic),
+            derived: super::derived::owner::DerivedOwner::new(
+                super::derived::owner::types::EntryLimit(max_derived),
+                semantic,
+            ),
             next_population: Cell::new(0),
             producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),

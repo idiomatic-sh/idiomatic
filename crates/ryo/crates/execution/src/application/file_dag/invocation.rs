@@ -399,7 +399,9 @@ impl<'f> InvocationResources<'f> {
                                 .primary
                                 .as_ref(),
                             super::derived::owner::ViewContext {
-                                membership_order: Some(1),
+                                membership_order: Some(
+                                    crate::application::file_dag::derived::owner::types::MembershipOrder(1),
+                                ),
                                 ..Default::default()
                             },
                             super::workspace::ViewInputs::MembershipNative,

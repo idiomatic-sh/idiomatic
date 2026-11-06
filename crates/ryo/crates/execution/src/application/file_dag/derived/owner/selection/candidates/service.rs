@@ -1,16 +1,15 @@
 //! Candidate choice and immutable equality-cache acquisition remain application policy.
-use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
+use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::fanout::service::fanout_candidates;
-use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
-    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
+    stored_selection::types::{PreparedSelectorViews, Selector},
     table_model::service::matching_stored,
-    table_texts::types::Texts,
 };
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::{
@@ -23,10 +22,9 @@ use ryo_relations::domain::relations::{
 };
 use ryo_relations::domain::terms::service::symbols_with_text;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{ColumnIndex, Operand, QueryLiteral, Test},
     query_bindings::types::ParameterBinding,
 };
-use std::sync::Arc;
 
 /// Use a column index only when multiple active descriptors can amortize its build.
 pub(in crate::application::file_dag::derived::owner) fn candidates(
@@ -36,19 +34,22 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
-) -> Result<(Option<CandidateRows>, SelectionPath), OperatingError> {
+) -> Result<CandidateChoice, OperatingError> {
     let population = source.columns.first().map_or(0, |column| column.0.len());
-    if let Some((rows, acquired, path)) =
-        fanout_candidates(cache, resources, program, &views.postings, source, context)?
+    if let Some(FanoutHit {
+        rows,
+        resource,
+        path,
+    }) = fanout_candidates(cache, resources, program, &views.postings, source, context)?
     {
-        cache.selection_counts.candidates += rows.len() as u64;
-        return Ok((
-            Some(CandidateRows::Shared {
+        cache.selection_counts.candidates += rows.0.len() as u64;
+        return Ok(CandidateChoice {
+            rows: Some(CandidateRows::Shared {
                 rows,
-                _resource: acquired,
+                _resource: resource,
             }),
             path,
-        ));
+        });
     }
     let mut path = SelectionPath::NoDiscriminator;
     for (number, comparison) in program.identity.comparisons.iter().enumerate() {
@@ -56,10 +57,10 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             // holds_all evaluates in order. Only the first impossible comparison
             // may bypass rows without hiding an earlier comparison's error.
             Discriminator::Impossible if number == 0 => {
-                return Ok((
-                    Some(CandidateRows::Owned(Vec::new())),
-                    SelectionPath::NoDiscriminator,
-                ));
+                return Ok(CandidateChoice {
+                    rows: Some(CandidateRows::Owned(CandidatePositions(Vec::new()))),
+                    path: SelectionPath::NoDiscriminator,
+                });
             }
             Discriminator::Indexable(column, value) => (column, value),
             Discriminator::Impossible | Discriminator::Unsupported => continue,
@@ -75,7 +76,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             path = path.max(SelectionPath::SmallPopulation);
             continue;
         }
-        if !selective(source, column, value, population) {
+        if selective(source, column, value, RowPopulation(population)) == Selectivity::Dense {
             path = path.max(SelectionPath::DenseSample);
             continue;
         }
@@ -84,7 +85,9 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             .get(&column)
             .cloned()
             .ok_or(OperatingError::NotRun)?;
-        if !resources.can_retain_equality(cache, program.relation, source, &[column]) {
+        if resources.can_retain_equality(cache, program.relation, source, &[column])
+            == Retainability::Unretainable
+        {
             path = path.max(SelectionPath::BudgetRefused);
             continue;
         }
@@ -95,9 +98,11 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             crate::application::file_dag::derived::owner::ViewContext::default(),
             DerivedInputs::Rows(&[BorrowedRows::Stored(source)]),
             &mut DerivedScratch::default(),
-            Some((program.relation, source)),
+            Some(StoredColumns {
+                relation: program.relation,
+            }),
         )?;
-        if acquired.was_built() {
+        if acquired.construction() == Construction::Built {
             cache.selection_counts.scanned += population as u64;
         }
         let DerivedView::Equality(order) = acquired.view()? else {
@@ -111,19 +116,19 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             #[cfg(feature = "diagnostic-row-progress")]
             crate::application::file_dag::route_counts::progress,
         )
-        .filter_map(|index| u32::try_from(index.0).ok())
+        .flat_map(|index| u32::try_from(index.0))
         .collect();
         cache.selection_counts.candidates += result.len() as u64;
-        return Ok((
-            Some(CandidateRows::Owned(result)),
-            if acquired.was_built() {
+        return Ok(CandidateChoice {
+            rows: Some(CandidateRows::Owned(CandidatePositions(result))),
+            path: if acquired.construction() == Construction::Built {
                 SelectionPath::IndexBuilt
             } else {
                 SelectionPath::IndexReused
             },
-        ));
+        });
     }
-    Ok((None, path))
+    Ok(CandidateChoice { rows: None, path })
 }
 
 /// Route all active texts for one physical column in one pass. This is a
@@ -134,13 +139,14 @@ fn selective(
     source: ColumnsView<'_>,
     column: ColumnIndex,
     value: Value,
-    population: usize,
-) -> bool {
+    population: RowPopulation,
+) -> Selectivity {
+    let population = population.0;
     let Some(kind) = source.kinds.get(column.0 as usize) else {
-        return false;
+        return Selectivity::Dense;
     };
     let Some(values) = source.columns.get(column.0 as usize) else {
-        return false;
+        return Selectivity::Dense;
     };
     let samples = population.min(64);
     let matches = (0..samples)
@@ -151,7 +157,11 @@ fn selective(
                 .is_some_and(|bits| from_bits(*kind, Bits(*bits)) == value)
         })
         .count();
-    matches.saturating_mul(4) < samples
+    if matches.saturating_mul(4) < samples {
+        Selectivity::Selective
+    } else {
+        Selectivity::Dense
+    }
 }
 
 /// Equality lookup never interns query text and verifies symbol hashes by exact text.

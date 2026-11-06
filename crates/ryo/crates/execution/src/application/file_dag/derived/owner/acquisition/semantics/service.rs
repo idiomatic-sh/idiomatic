@@ -6,184 +6,22 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     derived::portable_fault, failure::FailureLatch, views::BorrowedRows,
 };
-use crate::domain::stored_graph::types::GraphIdentity;
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::{self as semantic, RowCells};
-use ryo_derived::domain::contract::types::{DerivedPayload, DerivedView, PreparedDerived};
-use ryo_language::domain::symbols::{
-    service::query_intern_derived,
-    types::{ByteSlice, QuerySymbols, Symbols},
-};
-use ryo_relations::domain::{
-    relations::types::{CellKind, Value},
-    terms::types::NameText,
-};
-use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
+use ryo_derived::domain::contract::types::{self as semantic};
+use ryo_language::domain::symbols::types::ByteSlice;
 use std::{cell::RefCell, sync::Arc};
-use {
-    crate::domain::table_texts::service::datum, crate::domain::table_texts::service::name_text,
-    crate::domain::table_texts::service::symbol_text, crate::domain::table_texts::types::Datum,
-    crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
-};
 
-struct Rows<'a, 'f> {
-    rows: BorrowedRows<'f>,
-    failure: &'a RefCell<FailureLatch>,
-}
-impl RowCells for Rows<'_, '_> {
-    fn bulk(&self) -> Option<semantic::BulkRows<'_>> {
-        if self.failure.borrow().failed() {
-            return None;
-        }
-        let rows = self.failure.borrow_mut().run(|| self.rows.bulk()).ok()?;
-        match rows {
-            BorrowedRows::Stored(source) => Some(semantic::BulkRows::Stored(source)),
-            BorrowedRows::Selected {
-                source,
-                positions,
-                columns,
-                ..
-            } => Some(semantic::BulkRows::Selected {
-                source,
-                positions,
-                columns,
-            }),
-            BorrowedRows::Computed(table) => Some(semantic::BulkRows::Computed(table)),
-            BorrowedRows::Tree(_) | BorrowedRows::Compact(_) | BorrowedRows::Positioned(_) => None,
-        }
-    }
-    fn kinds(&self) -> &[CellKind] {
-        self.rows.kinds()
-    }
-    fn count(&self) -> usize {
-        self.rows.count()
-    }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
-        if self.failure.borrow().failed() {
-            return None;
-        }
-        self.rows.cell(RowIndex(row), column)
-    }
-    fn validate(&self) -> Result<(), semantic::DerivedFault> {
-        self.failure
-            .borrow_mut()
-            .run(|| self.rows.validate())
-            .map_err(|()| semantic::DerivedFault::Interrupted)
-    }
-    fn read_row<'a>(&'a self, row: usize, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
-        if self.failure.borrow().failed() {
-            return None;
-        }
-        self.rows.read(RowIndex(row), buffer)
-    }
-}
-struct Predicate<'a, 'f> {
-    rows: BorrowedRows<'f>,
-    program: &'a mut dyn crate::domain::operator::contract::types::PredicateProgram,
-    symbols: &'a Symbols,
-    needed: &'a crate::domain::table_cells::types::ColumnPlaces,
-    row: &'a mut Vec<Value>,
-    failure: &'a RefCell<FailureLatch>,
-}
-impl semantic::PredicateRows for Predicate<'_, '_> {
-    fn count(&self) -> usize {
-        self.rows.count()
-    }
-    fn holds(&mut self, at: usize) -> Result<bool, semantic::DerivedFault> {
-        let Self {
-            rows,
-            program,
-            symbols,
-            needed,
-            row,
-            failure,
-        } = self;
-        failure
-            .borrow_mut()
-            .run(|| {
-                let row = if let BorrowedRows::Stored(source) = rows {
-                    row.resize(
-                        source.kinds.len(),
-                        Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
-                    );
-                    if crate::domain::table_cells::service::read_cells(
-                        source,
-                        RowIndex(at),
-                        row,
-                        needed,
-                    ) != crate::domain::table_cells::types::CellsRead::Read
-                    {
-                        return Err(OperatingError::ShapeMismatch);
-                    }
-                    row.as_slice()
-                } else {
-                    rows.read(RowIndex(at), row)
-                        .ok_or(OperatingError::ShapeMismatch)?
-                };
-                Ok(program.holds(row, symbols)?
-                    == crate::domain::table_model::types::Verdict::Holds)
-            })
-            .map_err(|()| semantic::DerivedFault::Interrupted)
-    }
-}
-impl semantic::ValueTexts for Texts<'_> {
-    fn text(&self, value: Value) -> Option<&str> {
-        match datum(value, self) {
-            Datum::Text(text) => Some(text.0),
-            _ => None,
-        }
-    }
-}
-struct CanonicalTexts<'a, 's> {
-    failure: &'a RefCell<FailureLatch>,
-    symbols: &'a mut QuerySymbols<'s>,
-    source: SourceView<'a>,
-    paths: &'a [ryo_language::domain::files::types::FilePath],
-    arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
-}
-impl semantic::ValueTexts for CanonicalTexts<'_, '_> {
-    fn text(&self, value: Value) -> Option<&str> {
-        if self.failure.borrow().failed() {
-            return None;
-        }
-        let texts = Texts {
-            symbols: self.symbols.as_ref(),
-            source: self.source,
-            paths: self.paths,
-            arenas: self.arenas,
-        };
-        match value {
-            Value::Symbol(symbol) => symbol_text(&texts, symbol).map(|text| text.0),
-            Value::Name(name) => name_text(&texts, name).map(|text| text.0),
-            _ => None,
-        }
-    }
-}
-impl semantic::CanonicalTexts for CanonicalTexts<'_, '_> {
-    fn intern(&mut self, text: &str) -> Result<Value, semantic::DerivedFault> {
-        let Self {
-            failure,
-            symbols,
-            source,
-            ..
-        } = self;
-        failure
-            .borrow_mut()
-            .run(|| {
-                Ok(Value::Symbol(query_intern_derived(
-                    symbols,
-                    ByteSlice(source.0),
-                    NameText(text),
-                )))
-            })
-            .map_err(|()| semantic::DerivedFault::Interrupted)
-    }
-}
+use super::semantic_rows::{AdmittedRows, CanonicalTexts, Predicate};
+use super::storage::DerivedStorage;
+use super::types::InputPosition;
 
-fn first<'a>(rows: &[BorrowedRows<'a>], at: usize) -> Result<BorrowedRows<'a>, OperatingError> {
-    rows.get(at)
+fn first<'a>(
+    rows: &[BorrowedRows<'a>],
+    at: InputPosition,
+) -> Result<BorrowedRows<'a>, OperatingError> {
+    rows.get(at.0)
         .copied()
-        .ok_or(OperatingError::MissingInput { position: at + 1 })
+        .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
 }
 
 /// Decline is a readable unsupported strategy, not an error or optional-retention decision.
@@ -208,7 +46,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
         ),
         DerivedInputs::Rows(inputs) => {
             if let ViewRequest::NativeLookup { .. } = &plan.request {
-                let BorrowedRows::Tree(tree) = first(inputs, 1)? else {
+                let BorrowedRows::Tree(tree) = first(inputs, InputPosition(1))? else {
                     return Err(OperatingError::WrongOperation);
                 };
                 let form = match tree.form {
@@ -226,8 +64,8 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                     recycled,
                 )
             } else {
-                let source = Rows {
-                    rows: first(inputs, 0)?,
+                let source = AdmittedRows {
+                    rows: first(inputs, InputPosition(0))?,
                     failure: &failure,
                 };
                 port.build(
@@ -263,7 +101,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             )
         }
         DerivedInputs::Distinct { rows, positions } => {
-            let source = Rows {
+            let source = AdmittedRows {
                 rows,
                 failure: &failure,
             };
@@ -282,7 +120,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             texts,
             active,
         } => {
-            let source = Rows {
+            let source = AdmittedRows {
                 rows,
                 failure: &failure,
             };
@@ -299,8 +137,8 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             )
         }
         DerivedInputs::Text { rows, texts } => {
-            let left = Rows {
-                rows: first(rows, 0)?,
+            let left = AdmittedRows {
+                rows: first(rows, InputPosition(0))?,
                 failure: &failure,
             };
             match &plan.request {
@@ -316,8 +154,8 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                     recycled,
                 ),
                 ViewRequest::OrderedKeys { .. } => {
-                    let right = Rows {
-                        rows: first(rows, 1)?,
+                    let right = AdmittedRows {
+                        rows: first(rows, InputPosition(1))?,
                         failure: &failure,
                     };
                     port.build(
@@ -335,7 +173,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             }
         }
         DerivedInputs::Membership { rows, space } => {
-            let source = Rows {
+            let source = AdmittedRows {
                 rows,
                 failure: &failure,
             };
@@ -368,7 +206,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             positions,
             key,
         } => {
-            let source = Rows {
+            let source = AdmittedRows {
                 rows,
                 failure: &failure,
             };
@@ -391,11 +229,11 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             paths,
             arenas,
         } => {
-            let roots = Rows {
+            let roots = AdmittedRows {
                 rows: roots,
                 failure: &failure,
             };
-            let edges = Rows {
+            let edges = AdmittedRows {
                 rows: edges,
                 failure: &failure,
             };
@@ -431,7 +269,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 return Err(OperatingError::ShapeMismatch);
             }
             graph_identity = Some(Arc::new(source.identity));
-            let rows = Rows {
+            let rows = AdmittedRows {
                 rows,
                 failure: &failure,
             };
@@ -467,102 +305,5 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             graph_identity,
         ))),
         semantic::BuildOutcome::Declined => Ok(None),
-    }
-}
-
-#[derive(Debug)]
-pub(in crate::application::file_dag) struct DerivedStorage {
-    port: Arc<dyn DerivedPort>,
-    plan: Arc<PreparedDerived>,
-    payload: Arc<DerivedPayload>,
-    graph_identity: Option<Arc<GraphIdentity>>,
-}
-
-impl DerivedStorage {
-    fn new(
-        port: Arc<dyn DerivedPort>,
-        plan: Arc<PreparedDerived>,
-        payload: DerivedPayload,
-        graph_identity: Option<Arc<GraphIdentity>>,
-    ) -> Self {
-        Self {
-            port,
-            plan,
-            payload: Arc::new(payload),
-            graph_identity,
-        }
-    }
-    pub(in crate::application::file_dag::derived::owner) fn view(
-        &self,
-    ) -> Result<DerivedView<'_>, OperatingError> {
-        self.port
-            .view(&self.plan, &self.payload)
-            .map_err(portable_fault)
-    }
-    pub(in crate::application::file_dag::derived::owner) fn payload(&self) -> &DerivedPayload {
-        &self.payload
-    }
-    pub(in crate::application::file_dag::derived::owner) fn graph_identity(
-        &self,
-    ) -> Option<&Arc<GraphIdentity>> {
-        self.graph_identity.as_ref()
-    }
-    /// Describe the exact physical allocations; admission and lease classes remain with the owner.
-    pub(in crate::application::file_dag::derived::owner) fn backings(
-        this: &Arc<Self>,
-    ) -> Result<Arc<[crate::application::file_dag::derived::ledger::Backing]>, OperatingError> {
-        use crate::application::file_dag::derived::ledger::Backing;
-        let facts = this.payload.footprint().map_err(portable_fault)?;
-        let mut output: Vec<Backing> = facts
-            .shared
-            .into_iter()
-            .map(|fact| Backing {
-                key: (fact.tag, fact.allocation_key),
-                bytes: fact.bytes,
-                retention_units: fact.position_capacity,
-            })
-            .collect();
-        let bytes = (size_of::<Self>() + 2 * size_of::<usize>())
-            .checked_add(facts.owned_bytes)
-            .ok_or(OperatingError::ShapeMismatch)?;
-        output.push(Backing {
-            key: (8, Arc::as_ptr(this) as usize),
-            bytes,
-            retention_units: 0,
-        });
-        if let Some(identity) = &this.graph_identity {
-            let keys = identity
-                .keys
-                .capacity()
-                .checked_mul(size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>())
-                .ok_or(OperatingError::ShapeMismatch)?;
-            output.push(Backing {
-                key: (34, Arc::as_ptr(identity) as usize),
-                bytes: (size_of::<GraphIdentity>() + 2 * size_of::<usize>())
-                    .checked_add(keys)
-                    .ok_or(OperatingError::ShapeMismatch)?,
-                retention_units: 0,
-            });
-            if let Some(rows) = &identity.population.positions {
-                let capacity_bytes = rows
-                    .capacity()
-                    .checked_mul(size_of::<u32>())
-                    .ok_or(OperatingError::ShapeMismatch)?;
-                output.push(Backing {
-                    key: (1, Arc::as_ptr(rows) as usize),
-                    bytes: (size_of::<Vec<u32>>() + 2 * size_of::<usize>())
-                        .checked_add(capacity_bytes)
-                        .ok_or(OperatingError::ShapeMismatch)?,
-                    retention_units: rows.capacity(),
-                });
-            }
-        }
-        Ok(output.into())
-    }
-    fn into_recycled(self) -> Option<DerivedPayload> {
-        match Arc::try_unwrap(self.payload) {
-            Ok(payload) => Some(payload),
-            Err(_shared) => None,
-        }
     }
 }

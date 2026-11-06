@@ -1,29 +1,16 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
+use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::constants as activation;
-use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
     derived_views::types::{DerivedContract, ViewRequest},
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::errors::OperatingError,
     stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
-    table_model::service::matching_stored,
-    table_texts::types::Texts,
 };
-use ryo_language::domain::symbols::{
-    service::{find_hashed, hash_of},
-    types::ByteSlice,
-};
-use ryo_relations::domain::relations::{
-    service::from_bits,
-    types::{Bits, CellKind, ColumnsView, Integer, Value},
-};
-use ryo_relations::domain::terms::service::symbols_with_text;
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
-    query_bindings::types::ParameterBinding,
-};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText, Operand, Test};
 use std::sync::Arc;
 
 use crate::domain::operation_schema::types::InputShape;
@@ -38,11 +25,13 @@ pub(crate) fn prepare_views_with_schemas<'s>(
     let selectors = selectors.into_iter().collect::<Vec<_>>();
     let mut literals = HashMap::<(Relation, ColumnIndex), Vec<LiteralText>>::new();
     for selector in &selectors {
-        if let Some((column, text)) = first_literal(selector, resolver(selector.relation)) {
+        if let Some(FirstLiteral { column, text }) =
+            first_literal(selector, resolver(selector.relation))
+        {
             literals
                 .entry((selector.relation, column))
                 .or_default()
-                .push(LiteralText(text.into()));
+                .push(LiteralText(text.0.into()));
         }
     }
     for values in literals.values_mut() {
@@ -65,7 +54,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         }
         let group = groups
             .iter()
-            .position(|previous| same(previous, selector))
+            .position(|previous| same(previous, selector) == SelectorMatch::Same)
             .unwrap_or_else(|| {
                 let at = groups.len();
                 groups.push((selector).clone());
@@ -87,7 +76,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             prepared
         };
         let column = first_literal(selector, resolver(selector.relation))
-            .map_or(ColumnIndex(0), |(column, _)| column);
+            .map_or(ColumnIndex(0), |literal| literal.column);
         let key = (selector.relation, column);
         let candidate = if let Some(plan) = postings.get(&key) {
             (plan).clone()
@@ -153,7 +142,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
 
 pub(in crate::application::file_dag::derived::owner) fn activate_program(
     cache: &mut CacheBackend,
-    prepared: &crate::application::file_dag::derived::prepared::PreparedDerived,
+    prepared: &crate::application::file_dag::derived::prepared::RequestDerived,
     demanded: &[crate::domain::coverage::types::RuleIndex],
 ) -> Result<(), OperatingError> {
     let mut selectors = Vec::new();
@@ -171,6 +160,7 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
                     > crate::application::file_dag::derived::owner::index::service::non_graph_limit(
                         cache,
                     )
+                    .0
                 })
             {
                 break 'active;
@@ -178,17 +168,17 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
             selectors.push(Arc::clone(&use_.selector));
         }
     }
-    if let Some(bytes) = selectors
-        .capacity()
-        .checked_mul(size_of::<Arc<Selector>>())
-        .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .filter(|bytes| {
-            *bytes
-                <= crate::application::file_dag::derived::owner::index::service::non_graph_limit(
-                    cache,
-                )
-        })
-    {
+    if let Some(bytes) = crate::application::file_dag::derived::ledger::capacity::checked::<
+        Arc<Selector>,
+    >(
+        crate::application::file_dag::derived::ledger::types::SlotCount(selectors.capacity()),
+    )
+    .and_then(|bytes| cache.bytes.checked_add(bytes.0))
+    .filter(|bytes| {
+        *bytes
+            <= crate::application::file_dag::derived::owner::index::service::non_graph_limit(cache)
+                .0
+    }) {
         cache.bytes = bytes;
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
         cache.selectors = selectors;
@@ -211,7 +201,8 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
     // Active request bookkeeping is mandatory working metadata, independent of
     // optional retained payload capacity. No rows or derived payload live here.
     cache.selector_repetition.clear();
-    cache.selector_repetition_failed = false;
+    cache.selector_repetition_failed =
+        crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Tracked;
     if cache
         .selector_repetition
         .try_reserve(cache.selectors.len())
@@ -224,22 +215,38 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
                     cache.selector_repetition.clear();
                     break;
                 }
-                let count = cache.selector_repetition.entry(prepared.group).or_insert(0);
-                *count = count.saturating_add(1).min(2);
+                let count = cache
+                    .selector_repetition
+                    .entry(
+                        crate::application::file_dag::derived::owner::cache::types::RepetitionGroup(
+                            prepared.group,
+                        ),
+                    )
+                    .or_default();
+                count.0 = count.0.saturating_add(1).min(2);
             }
         }
     } else {
-        cache.selector_repetition_failed = true;
+        cache.selector_repetition_failed =
+            crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Failed;
     }
-    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(usize, u8)>()));
+    tracing::trace!(target:constants::TARGET_LIFECYCLE_MEMORY,phase=constants::PHASE_SELECTOR_ACTIVATION,request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(
+            crate::application::file_dag::derived::owner::cache::types::RepetitionGroup,
+            crate::application::file_dag::derived::owner::cache::types::Repetitions,
+        )>()));
     cache.selection_views = Some(views);
     super::super::fanout::service::prepare_active(cache);
 }
 
 /// Prepare request-specific metadata once per worker, without evaluating any relation.
 /// Exact ordered predicates and referenced binding values; origins/projections are not result identity.
-fn same(left: &Selector, right: &Selector) -> bool {
-    left.relation == right.relation
+fn same(left: &Selector, right: &Selector) -> SelectorMatch {
+    if left.relation == right.relation
         && left.identity.comparisons == right.identity.comparisons
         && left.identity.bindings == right.identity.bindings
+    {
+        SelectorMatch::Same
+    } else {
+        SelectorMatch::Different
+    }
 }
