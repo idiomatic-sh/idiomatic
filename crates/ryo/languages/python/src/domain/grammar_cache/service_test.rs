@@ -56,7 +56,7 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
             ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
             ruff_literal_cformat::grammar::RuffLiteralCFormat,
         },
-        literal_expression::ruff_string_annotation::RuffStringAnnotation,
+        literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation,
     };
     use ryo::languages::{self, ByteSlice, Tree};
     let mut model = Declarations::default();
@@ -162,7 +162,7 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
             ruff_literal_cformat::grammar::RuffLiteralCFormat,
         },
-        literal_expression::ruff_string_annotation::RuffStringAnnotation,
+        literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation,
     };
     use ryo::languages::{self, ByteSlice, Tree};
     let mut model = Declarations::default();

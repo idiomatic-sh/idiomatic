@@ -15,7 +15,7 @@ use crate::outbound::{
     format_syntax::adapters::{
         ruff_literal_braceformat::grammar::RuffLiteralBraceFormat, ruff_literal_cformat::grammar::RuffLiteralCFormat,
     },
-    literal_expression::ruff_string_annotation::RuffStringAnnotation,
+    literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation,
 };
 use ryo::languages::{self, ByteSlice, Tree};
 use std::cell::Cell;

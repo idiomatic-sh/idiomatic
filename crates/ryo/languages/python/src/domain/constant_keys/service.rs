@@ -1,7 +1,7 @@
 //! Lazily build full, parser-derived constant keys for supported Python expressions.
 
 use crate::domain::constant_keys::types::{
-    ConstantKeyIndex, KeyClass, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
+    BuiltKey, ConstantKeyIndex, KeyClass, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
     LiteralKind, NumberKey, NumericState, RealKey,
 };
 use crate::domain::{
@@ -21,12 +21,6 @@ use crate::domain::{
 use ryo::languages::{self, Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
-
-/// The numeric payload retained alongside a successfully constructed full key.
-struct BuiltKey {
-    /// Numeric value when this is a primitive or normalized numeric expression.
-    number: Option<NumericState>,
-}
 
 /// Invalidate file-local keys while retaining reusable allocations.
 pub(crate) fn clear(index: &mut ConstantKeyIndex) {

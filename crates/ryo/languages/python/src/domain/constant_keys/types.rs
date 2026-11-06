@@ -126,3 +126,9 @@ impl From<bool> for KeyVisibility {
         if visible { Self::Visible } else { Self::Hidden }
     }
 }
+
+/// The numeric payload retained alongside a successfully constructed full key.
+pub(crate) struct BuiltKey {
+    /// Numeric value when this is a primitive or normalized numeric expression.
+    pub number: Option<NumericState>,
+}

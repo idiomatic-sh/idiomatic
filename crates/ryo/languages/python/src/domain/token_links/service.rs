@@ -7,7 +7,9 @@ use crate::domain::{
 use ryo::languages::{self, Position, Tree};
 
 /// Native root extent excludes separately adopted embedded expressions.
-pub(crate) fn scan<'tree, 'source>(tree: &'tree Tree<'source>) -> Scan<'tree, 'source> {
+pub(crate) fn scan<'tree, 'source>(
+    tree: &'tree Tree<'source>,
+) -> impl Iterator<Item = Event> + use<'tree, 'source> {
     let end = if languages::end_of(tree.elements).0 == 0 {
         0
     } else {
@@ -15,7 +17,7 @@ pub(crate) fn scan<'tree, 'source>(tree: &'tree Tree<'source>) -> Scan<'tree, 's
             .0
             .saturating_add(1)
     };
-    Scan {
+    let mut state = Scan {
         tree,
         positions: 0..end,
         previous: None,
@@ -23,7 +25,8 @@ pub(crate) fn scan<'tree, 'source>(tree: &'tree Tree<'source>) -> Scan<'tree, 's
         pending: [None; 2],
         incomplete: false,
         reported: false,
-    }
+    };
+    std::iter::from_fn(move || next_event(&mut state))
 }
 
 /// Public vocabulary belongs to the structural fact, not a linter.
@@ -44,80 +47,78 @@ fn closing(open: Token) -> Option<Token> {
     }
 }
 
-impl Iterator for Scan<'_, '_> {
-    type Item = Event;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(link) = self.pending[0].take() {
-            self.pending[0] = self.pending[1].take();
+/// The next link or coverage event of the scan, in source order.
+fn next_event(scan: &mut Scan<'_, '_>) -> Option<Event> {
+    if let Some(link) = scan.pending[0].take() {
+        scan.pending[0] = scan.pending[1].take();
+        return Some(Event::Link(link));
+    }
+    for raw in scan.positions.by_ref() {
+        let at = Position(raw);
+        let Kind::Token(token) = kind(scan.tree, at) else {
+            continue;
+        };
+        if token == Token::Errortoken {
+            scan.incomplete = true;
+            scan.previous = None;
+            scan.stack.clear();
+            continue;
+        }
+        let mut paired = None;
+        let mut enclosing = scan.stack.last().map(|(_, opener)| *opener);
+        if closing(token).is_some() {
+            if scan.stack.try_reserve(1).is_err() {
+                scan.incomplete = true;
+                scan.previous = None;
+                scan.stack.clear();
+                continue;
+            }
+            scan.stack.push((token, at));
+        } else if matches!(token, Token::Rpar | Token::Rsqb | Token::Rbrace) {
+            match scan.stack.pop() {
+                Some((open, source)) if closing(open) == Some(token) => {
+                    paired = Some(TokenLink {
+                        source,
+                        target: at,
+                        kind: LinkKind::Matching,
+                    });
+                    enclosing = scan.stack.last().map(|(_, opener)| *opener);
+                }
+                Some(_) | None => {
+                    scan.incomplete = true;
+                    scan.stack.clear();
+                    enclosing = None;
+                }
+            }
+        }
+        let enclosed = enclosing.map(|target| TokenLink {
+            source: at,
+            target,
+            kind: LinkKind::Enclosing,
+        });
+        if let Some(source) = scan.previous.replace(at) {
+            scan.pending = [paired.or(enclosed), paired.and(enclosed)];
+            return Some(Event::Link(TokenLink {
+                source,
+                target: at,
+                kind: LinkKind::Next,
+            }));
+        }
+        if let Some(link) = paired {
+            scan.pending[0] = enclosed;
             return Some(Event::Link(link));
         }
-        for raw in self.positions.by_ref() {
-            let at = Position(raw);
-            let Kind::Token(token) = kind(self.tree, at) else {
-                continue;
-            };
-            if token == Token::Errortoken {
-                self.incomplete = true;
-                self.previous = None;
-                self.stack.clear();
-                continue;
-            }
-            let mut paired = None;
-            let mut enclosing = self.stack.last().map(|(_, opener)| *opener);
-            if closing(token).is_some() {
-                if self.stack.try_reserve(1).is_err() {
-                    self.incomplete = true;
-                    self.previous = None;
-                    self.stack.clear();
-                    continue;
-                }
-                self.stack.push((token, at));
-            } else if matches!(token, Token::Rpar | Token::Rsqb | Token::Rbrace) {
-                match self.stack.pop() {
-                    Some((open, source)) if closing(open) == Some(token) => {
-                        paired = Some(TokenLink {
-                            source,
-                            target: at,
-                            kind: LinkKind::Matching,
-                        });
-                        enclosing = self.stack.last().map(|(_, opener)| *opener);
-                    }
-                    Some(_) | None => {
-                        self.incomplete = true;
-                        self.stack.clear();
-                        enclosing = None;
-                    }
-                }
-            }
-            let enclosed = enclosing.map(|target| TokenLink {
-                source: at,
-                target,
-                kind: LinkKind::Enclosing,
-            });
-            if let Some(source) = self.previous.replace(at) {
-                self.pending = [paired.or(enclosed), paired.and(enclosed)];
-                return Some(Event::Link(TokenLink {
-                    source,
-                    target: at,
-                    kind: LinkKind::Next,
-                }));
-            }
-            if let Some(link) = paired {
-                self.pending[0] = enclosed;
-                return Some(Event::Link(link));
-            }
-            if let Some(link) = enclosed {
-                return Some(Event::Link(link));
-            }
+        if let Some(link) = enclosed {
+            return Some(Event::Link(link));
         }
-        if !self.stack.is_empty() {
-            self.incomplete = true;
-            self.stack.clear();
-        }
-        if self.incomplete && !self.reported {
-            self.reported = true;
-            return Some(Event::Incomplete);
-        }
-        None
     }
+    if !scan.stack.is_empty() {
+        scan.incomplete = true;
+        scan.stack.clear();
+    }
+    if scan.incomplete && !scan.reported {
+        scan.reported = true;
+        return Some(Event::Incomplete);
+    }
+    None
 }

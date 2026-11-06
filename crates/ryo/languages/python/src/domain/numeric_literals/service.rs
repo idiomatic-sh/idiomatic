@@ -1,5 +1,6 @@
 //! Normalize existing parser-owned payloads; never parse Python source spelling again.
 
+use super::constants::FLOAT_TEXT_BYTES;
 use super::types::{NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
     nodes::types::Node,
@@ -10,39 +11,7 @@ use crate::domain::{
     },
 };
 use ryo::languages::{self, ByteSlice, NameText, Position, Symbol, Symbols, Tree};
-use std::fmt::Write as _;
-
-/// `Display`'s longest finite binary64 spelling fits without a heap allocation.
-struct FloatTextBuffer {
-    bytes: [u8; 350],
-    len: usize,
-}
-
-impl std::fmt::Write for FloatTextBuffer {
-    fn write_str(&mut self, text: &str) -> std::fmt::Result {
-        let end = self.len.checked_add(text.len()).ok_or(std::fmt::Error)?;
-        let Some(space) = self.bytes.get_mut(self.len..end) else {
-            return Err(std::fmt::Error);
-        };
-        space.copy_from_slice(text.as_bytes());
-        self.len = end;
-        Ok(())
-    }
-}
-
-impl FloatTextBuffer {
-    fn new() -> Self {
-        Self {
-            bytes: [0; 350],
-            len: 0,
-        }
-    }
-
-    fn text(&self) -> &str {
-        std::str::from_utf8(&self.bytes[..self.len])
-            .unwrap_or_else(|_| panic!("numeric Display only writes ASCII"))
-    }
-}
+use std::io::Write as _;
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
 pub(crate) fn intern_value(
@@ -53,34 +22,42 @@ pub(crate) fn intern_value(
     match numeric.value {
         NumericValue::Integer(text) => languages::intern_derived(symbols, source, NameText(text)),
         NumericValue::Float(bits) => {
-            let mut buffer = FloatTextBuffer::new();
-            write_float(bits, &mut buffer);
-            languages::intern_derived(symbols, source, NameText(buffer.text()))
+            let mut buffer = [0; FLOAT_TEXT_BYTES];
+            let text = write_float(bits, &mut buffer);
+            languages::intern_derived(symbols, source, NameText(text))
         }
     }
 }
 
-/// Write a round-trip binary64 spelling into bounded stack storage.
-fn write_float(bits: u64, buffer: &mut FloatTextBuffer) {
+/// Write a round-trip binary64 spelling into bounded stack storage and borrow its text.
+fn write_float(bits: u64, buffer: &mut [u8; FLOAT_TEXT_BYTES]) -> &str {
     let value = f64::from_bits(bits);
+    let mut rest: &mut [u8] = &mut buffer[..];
     assert!(
-        write!(buffer, "{value}").is_ok(),
+        write!(rest, "{value}").is_ok(),
         "binary64 text fits the fixed buffer"
     );
-    if value.is_finite() && !buffer.text().contains(['.', 'e', 'E']) {
+    let mut written = FLOAT_TEXT_BYTES - rest.len();
+    if value.is_finite()
+        && !buffer[..written]
+            .iter()
+            .any(|byte| matches!(byte, b'.' | b'e' | b'E'))
+    {
+        let mut rest: &mut [u8] = &mut buffer[written..];
         assert!(
-            buffer.write_str(".0").is_ok(),
+            rest.write_all(b".0").is_ok(),
             "binary64 suffix fits the fixed buffer"
         );
+        written = FLOAT_TEXT_BYTES - rest.len();
     }
+    std::str::from_utf8(&buffer[..written]).expect("numeric Display only writes ASCII")
 }
 
 /// The same stack formatter is observed by the payload tests.
 #[cfg(test)]
 pub(crate) fn float_text(bits: u64) -> String {
-    let mut buffer = FloatTextBuffer::new();
-    write_float(bits, &mut buffer);
-    buffer.text().to_owned()
+    let mut buffer = [0; FLOAT_TEXT_BYTES];
+    write_float(bits, &mut buffer).to_owned()
 }
 
 /// Validate a parser-normalized integer payload, without imposing a machine-width bound.

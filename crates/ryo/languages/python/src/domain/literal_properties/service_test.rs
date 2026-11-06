@@ -1,7 +1,8 @@
 //! Parser-owned literal values classify without inferring runtime truthiness.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::service::{LiteralClassification, Properties, classify};
+use super::service::classify;
+use super::types::{LiteralClassification, Properties};
 use crate::domain::{
     nodes::types::Node,
     semantic_syntax::service::positions,

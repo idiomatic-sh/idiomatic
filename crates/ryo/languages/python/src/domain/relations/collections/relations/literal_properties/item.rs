@@ -1,7 +1,7 @@
 //! Emit optional primitive-literal properties from parser-owned payloads.
 
 use crate::domain::{
-    literal_properties::service::{LiteralClassification, classify},
+    literal_properties::{service::classify, types::LiteralClassification},
     model::types::Declarations,
     nodes::types::Node,
     semantic_syntax::types::Visibility,

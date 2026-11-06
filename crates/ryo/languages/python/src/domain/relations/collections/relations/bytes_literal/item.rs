@@ -1,6 +1,6 @@
 //! Optional decoded bytes; source spelling is never parsed by this reader.
 use crate::domain::{
-    literal_properties::service::{LiteralClassification, classify},
+    literal_properties::{service::classify, types::LiteralClassification},
     model::types::Declarations,
     nodes::types::Node,
     scopes::service::owner,

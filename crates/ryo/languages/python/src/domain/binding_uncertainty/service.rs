@@ -1,4 +1,5 @@
 //! Bound uncertainty to relevant namespace mutations, not all reads or whole-file capability absence.
+use super::types::UncertaintyRefinement;
 use crate::domain::{
     binding_results::types::{Candidate, ReadState},
     definitions::service::definition,
@@ -101,26 +102,6 @@ fn protected_body(tree: &Tree<'_>, mut at: Position, handler: Position) -> bool 
         }
         at = above;
     }
-}
-
-/// Read-site state and mutable candidate destination for one uncertainty refinement.
-pub(crate) struct UncertaintyRefinement<'tree, 'source> {
-    /// Parsed source and native syntax relationships.
-    pub tree: &'tree Tree<'source>,
-    /// File-local indexes used to identify lexical scopes.
-    pub model: &'tree Declarations,
-    /// The reference occurrence being refined.
-    pub reference: Position,
-    /// Evaluation phase containing the read.
-    pub phase: Position,
-    /// Normalized name being read.
-    pub name: Symbol,
-    /// Result of resolving against the scheduled environment.
-    pub state: ReadState,
-    /// Ordered mutations in this file.
-    pub mutations: &'tree [BindingMutation],
-    /// Candidate declarations to extend when control flow may repeat.
-    pub candidates: &'tree mut Vec<Candidate>,
 }
 
 /// Preserve candidates from loop iterations or exceptional prefixes without pretending that

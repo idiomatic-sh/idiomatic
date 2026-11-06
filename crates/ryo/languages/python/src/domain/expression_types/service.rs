@@ -6,7 +6,7 @@ use crate::domain::{
     },
     fields::service::field_of,
     labels::types::Field,
-    literal_properties::service::{LiteralClassification, classify as classify_literal},
+    literal_properties::{service::classify as classify_literal, types::LiteralClassification},
     nodes::types::{Category, Node},
     syntax::{
         service::{category, kind, written},

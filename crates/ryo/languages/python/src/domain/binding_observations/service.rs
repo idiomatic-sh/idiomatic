@@ -71,7 +71,7 @@ fn read(
         &mut index.candidates,
     );
     let state = crate::domain::binding_uncertainty::service::refine(
-        crate::domain::binding_uncertainty::service::UncertaintyRefinement {
+        crate::domain::binding_uncertainty::types::UncertaintyRefinement {
             tree,
             model,
             reference: step.occurrence,
