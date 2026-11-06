@@ -45,7 +45,7 @@ pub(crate) fn open_project<'a>(
     program: &'a Arc<PreparedProgram>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
-    frontiers: ProjectFrontiers<'a>,
+    mut frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     services: Arc<ProgramServices>,

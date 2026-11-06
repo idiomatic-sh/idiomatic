@@ -152,15 +152,19 @@ impl PreparedFrontiers {
         &mut self,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) {
-        for row in std::mem::take(&mut self.rows) {
+        let mut rows = Vec::with_capacity(self.rows.len());
+        let mut refused = self.refused.to_vec();
+        for row in self.rows.iter().cloned() {
             match row {
                 FrontierInput::Packed(packed) => match super::service::admit(packed, symbols) {
-                    Ok(admitted) => self.rows.push(admitted),
-                    Err(refused) => self.refused.push(refused),
+                    Ok(admitted) => rows.push(admitted),
+                    Err(error) => refused.push(error),
                 },
-                admitted => self.rows.push(admitted),
+                admitted => rows.push(admitted),
             }
         }
+        self.rows = rows.into();
+        self.refused = refused.into();
     }
     pub(in crate::application::file_dag) fn validate_scope(
         &self,
