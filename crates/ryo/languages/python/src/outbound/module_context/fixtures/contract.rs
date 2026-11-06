@@ -97,11 +97,11 @@ pub(crate) fn check(adapter: &impl ModuleContextPort) {
         };
         let contexts = adapter.resolve(&request(repository, files))?;
         let silent = contexts.consulted.is_empty();
-        Ok(match (contexts.rows.is_empty(), contexts.partial, silent) {
+        Ok(match (contexts.rows.is_empty(), contexts.partial.0, silent) {
             (true, false, true) => Settled::Standalone,
             (true, true, true) => Settled::UnknownRoot,
             (false, false, true) => {
-                assert_eq!(contexts.rows[1].path, PACKAGE_MODULE_NAME);
+                assert_eq!(contexts.rows[1].path.0, PACKAGE_MODULE_NAME);
                 Settled::Named
             }
             _ => Settled::Unexpected,

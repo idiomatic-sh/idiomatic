@@ -2,8 +2,9 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{disk, given, relative_to},
-    types::{ModuleDecision, Markers, PackageModule},
+    types::{Basenames, Markers, ModuleDecision, ModuleDottedPath, PackageModule, PackageRootName},
 };
+use ryo::languages::NameText;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
@@ -27,8 +28,8 @@ fn disk_requests_every_marker_then_retains_initializer_component() {
     assert_eq!(
         disk(source, &markers),
         ModuleDecision::Known(Some(PackageModule {
-            path: "pkg.sub.__init__".into(),
-            package_root_name: "pkg".into()
+            path: ModuleDottedPath("pkg.sub.__init__".into()),
+            package_root_name: PackageRootName("pkg".into())
         }))
     );
 }
@@ -49,8 +50,8 @@ fn given_knows_nested_packages_but_never_an_unnamed_root_package() {
     assert_eq!(
         given(Path::new("pkg/mod.py"), &files),
         ModuleDecision::Known(Some(PackageModule {
-            path: "pkg.mod".into(),
-            package_root_name: "pkg".into()
+            path: ModuleDottedPath("pkg.mod".into()),
+            package_root_name: PackageRootName("pkg".into())
         }))
     );
     let _inserted = files.insert("__init__.py".into());
@@ -69,7 +70,10 @@ fn paths_above_root_remain_real_relative_dependencies() {
 fn raw_basenames_and_directory_components_are_not_filename_stems() {
     use super::service::basenames;
     let source = Path::new("/boundary/pkg.with.dot/nested.name/mod.with.dot.pyi");
-    assert_eq!(basenames(source), Some(("mod.with.dot", "nested.name")));
+    assert_eq!(basenames(source), Some(Basenames {
+        module: NameText("mod.with.dot"),
+        package: NameText("nested.name"),
+    }));
     let markers = Markers(BTreeMap::from([
         (
             "/boundary/pkg.with.dot/nested.name/__init__.py".into(),
@@ -81,13 +85,16 @@ fn raw_basenames_and_directory_components_are_not_filename_stems() {
     assert_eq!(
         disk(source, &markers),
         ModuleDecision::Known(Some(PackageModule {
-            path: "pkg.with.dot.nested.name.mod.with.dot".into(),
-            package_root_name: "pkg.with.dot".into()
+            path: ModuleDottedPath("pkg.with.dot.nested.name.mod.with.dot".into()),
+            package_root_name: PackageRootName("pkg.with.dot".into())
         }))
     );
     assert_eq!(
         basenames(Path::new("/boundary/pkg.with.dot/__init__.py")),
-        Some(("__init__", "pkg.with.dot"))
+        Some(Basenames {
+            module: NameText("__init__"),
+            package: NameText("pkg.with.dot"),
+        })
     );
     assert_eq!(basenames(Path::new("/boundary/pkg/mod.txt")), None);
 }
@@ -127,9 +134,9 @@ fn root_basename_preserves_contiguous_boundary_and_namespace_prefix() {
         let ModuleDecision::Known(Some(module)) = disk(Path::new(source), &markers) else {
             panic!("the complete contiguous ancestry has a module identity");
         };
-        assert_eq!(module.package_root_name, "pkg.root");
-        assert!(module.path.starts_with("pkg.root.sub.name."));
-        assert!(!module.path.contains("namespace"));
+        assert_eq!(module.package_root_name.0, "pkg.root");
+        assert!(module.path.0.starts_with("pkg.root.sub.name."));
+        assert!(!module.path.0.contains("namespace"));
     }
 }
 

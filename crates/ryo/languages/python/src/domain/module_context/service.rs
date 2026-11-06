@@ -1,5 +1,6 @@
 //! Module identity preserves raw package directories and strips only the source extension.
-use super::types::{ModuleDecision, Markers, PackageModule};
+use super::types::{Basenames, Markers, ModuleDecision, ModuleDottedPath, PackageModule, PackageRootName};
+use ryo::languages::NameText;
 use std::{
     collections::BTreeSet,
     path::{Component, Path, PathBuf},
@@ -27,27 +28,30 @@ fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
         };
         parts.push(directory);
     }
-    let Some((module, _package)) = basenames(file) else {
+    let Some(names) = basenames(file) else {
         return ModuleDecision::Unknown;
     };
-    parts.push(module);
+    parts.push(names.module.0);
     let Some(root_name) = package.file_name().and_then(|name| name.to_str()) else {
         return ModuleDecision::Unknown;
     };
     ModuleDecision::Known(Some(PackageModule {
-        path: parts.join(constants::DOT),
-        package_root_name: root_name.to_owned(),
+        path: ModuleDottedPath(parts.join(constants::DOT)),
+        package_root_name: PackageRootName(root_name.to_owned()),
     }))
 }
 
 /// Raw names are separate from dotted qualified identity; no absolute path is exposed.
-pub(crate) fn basenames(file: &Path) -> Option<(&str, &str)> {
+pub(crate) fn basenames(file: &Path) -> Option<Basenames<'_>> {
     let name = file.file_name()?.to_str()?;
     let module = name
         .strip_suffix(constants::STUB_SUFFIX)
         .or_else(|| name.strip_suffix(constants::MODULE_SUFFIX))?;
     let package = file.parent()?.file_name()?.to_str()?;
-    Some((module, package))
+    Some(Basenames {
+        module: NameText(module),
+        package: NameText(package),
+    })
 }
 
 /// Resolve an absolute disk source using only supplied marker observations.

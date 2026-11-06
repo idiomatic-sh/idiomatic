@@ -6,7 +6,10 @@ use super::constants::{
 };
 use crate::domain::module_context::{
     service,
-    types::{Markers, ModuleContexts, ModuleDecision, ModuleIdentity},
+    types::{
+        Markers, ModuleContexts, ModuleDecision, ModuleIdentity, ModuleName, PackageDirectoryName,
+        PartialContext,
+    },
 };
 use crate::outbound::module_context::interface::ModuleContextPort;
 use ryo::languages::{FileId, FilePath, ProjectError, ProjectRequest, Repository, ToolMessage};
@@ -18,14 +21,12 @@ use std::{
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ModuleContextFilesystemAdapter;
 /// Preserve a context lookup failure as an owned diagnostic.
-fn failed(reason: String) -> ProjectError {
-    ProjectError::Context {
-        reason: ToolMessage(reason.into_boxed_str()),
-    }
+fn failed(reason: ToolMessage) -> ProjectError {
+    ProjectError::Context { reason }
 }
 /// Normalize an absolute path without accessing filesystem contents.
 fn absolute(path: &Path) -> Result<PathBuf, ProjectError> {
-    let path = std::path::absolute(path).map_err(|error| failed(error.to_string()))?;
+    let path = std::path::absolute(path).map_err(|error| failed(ToolMessage(error.to_string().into_boxed_str())))?;
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {
@@ -73,7 +74,7 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
             ) {
                 continue;
             }
-            let file_id = FileId(u32::try_from(number).map_err(|error| failed(error.to_string()))?);
+            let file_id = FileId(u32::try_from(number).map_err(|error| failed(ToolMessage(error.to_string().into_boxed_str())))?);
             let decision = if let Some(root) = &root {
                 let full = absolute(&root.join(file_path))?;
                 loop {
@@ -83,20 +84,20 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                                 Ok(metadata) => metadata.is_file(),
                                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
                                 Err(error) => {
-                                    return Err(failed(format!(
-                                        "cannot inspect {}: {error}",
-                                        marker.display()
+                                    return Err(failed(ToolMessage(
+                                        format!("cannot inspect {}: {error}", marker.display())
+                                            .into_boxed_str(),
                                     )));
                                 }
                             };
                             let relative =
                                 service::relative_to(root, &marker).ok_or_else(|| {
-                                    failed(MODULE_MARKER_CANNOT_BE_EXPRESSED_FROM_RUN_ROOT.into())
+                                    failed(ToolMessage(MODULE_MARKER_CANNOT_BE_EXPRESSED_FROM_RUN_ROOT.into()))
                                 })?;
                             result.consulted.push(FilePath(
                                 relative
                                     .to_str()
-                                    .ok_or_else(|| failed(MODULE_MARKER_PATH_IS_NOT_UTF_8.into()))?
+                                    .ok_or_else(|| failed(ToolMessage(MODULE_MARKER_PATH_IS_NOT_UTF_8.into())))?
                                     .into(),
                             ));
                             let _previous = markers.0.insert(marker, present);
@@ -115,22 +116,22 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                         Some(root) => absolute(&root.join(file_path))?,
                         None => file_path.to_path_buf(),
                     };
-                    let (module_name, package_name) =
+                    let names =
                         service::basenames(&source).ok_or_else(|| {
-                            failed(KNOWN_MODULE_LACKS_SOURCE_PACKAGE_BASENAMES.into())
+                            failed(ToolMessage(KNOWN_MODULE_LACKS_SOURCE_PACKAGE_BASENAMES.into()))
                         })?;
                     result.rows.push(ModuleIdentity {
                         file: file_id,
                         path: module.path,
-                        module_name: module_name.to_owned(),
-                        package_name: package_name.to_owned(),
+                        module_name: ModuleName(names.module.0.to_owned()),
+                        package_name: PackageDirectoryName(names.package.0.to_owned()),
                         package_root_name: module.package_root_name,
                     });
                 }
                 ModuleDecision::Known(None) => {}
-                ModuleDecision::Unknown => result.partial = true,
+                ModuleDecision::Unknown => result.partial = PartialContext(true),
                 ModuleDecision::Need(_) => {
-                    return Err(failed(UNRESOLVED_MODULE_CONTEXT_OBSERVATION.into()));
+                    return Err(failed(ToolMessage(UNRESOLVED_MODULE_CONTEXT_OBSERVATION.into())));
                 }
             }
         }

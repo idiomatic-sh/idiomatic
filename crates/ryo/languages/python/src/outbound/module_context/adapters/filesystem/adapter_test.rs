@@ -40,7 +40,7 @@ fn rows(
     files: &[&str],
 ) -> Result<Vec<crate::domain::module_context::types::ModuleIdentity>, ProjectError> {
     let contexts = ModuleContextFilesystemAdapter.resolve(&request(Repository::Given, files))?;
-    assert!(!contexts.partial);
+    assert!(!contexts.partial.0);
     Ok(contexts.rows)
 }
 
@@ -60,10 +60,10 @@ fn subject(given: Given) -> Result<Value, Failure> {
                     format!(
                         "{} {} {} {} {}",
                         row.file.0,
-                        row.path,
-                        row.module_name,
-                        row.package_name,
-                        row.package_root_name
+                        row.path.0,
+                        row.module_name.0,
+                        row.package_name.0,
+                        row.package_root_name.0
                     )
                 })
                 .collect::<Vec<_>>();
@@ -76,9 +76,9 @@ fn subject(given: Given) -> Result<Value, Failure> {
                     "3 pkg.with.dot.sub.package.worker worker sub.package pkg.with.dot",
                 ]
             );
-            assert!(rows.iter().all(|row| !row.module_name.contains('/')
-                && !row.package_name.contains('/')
-                && !row.package_root_name.contains('/')));
+            assert!(rows.iter().all(|row| !row.module_name.0.contains('/')
+                && !row.package_name.0.contains('/')
+                && !row.package_root_name.0.contains('/')));
             Ok(rows.len())
         }
         Given::NamespacePrefix => {
@@ -89,12 +89,12 @@ fn subject(given: Given) -> Result<Value, Failure> {
                 "namespace/pkg.root/worker.pyi",
             ])?;
             for row in &rows {
-                assert_eq!(row.package_root_name, "pkg.root");
-                assert!(row.path.starts_with("pkg.root."));
-                assert!(!row.path.contains("namespace"));
+                assert_eq!(row.package_root_name.0, "pkg.root");
+                assert!(row.path.0.starts_with("pkg.root."));
+                assert!(!row.path.0.contains("namespace"));
             }
-            assert_eq!(rows[2].package_name, "child.name");
-            assert_eq!(rows[2].module_name, "__main__");
+            assert_eq!(rows[2].package_name.0, "child.name");
+            assert_eq!(rows[2].module_name.0, "__main__");
             Ok(rows.len())
         }
     }
