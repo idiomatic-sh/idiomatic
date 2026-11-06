@@ -40,6 +40,16 @@ pub(super) fn acquire(
     {
         return Ok(None);
     }
+    // An empty primary has no representatives to acquire: the ordinary route
+    // answers it without building any derived payload.
+    if shape.selector().distinct
+        && columns
+            .columns
+            .first()
+            .is_none_or(|column| column.0.is_empty())
+    {
+        return Ok(None);
+    }
     if proof.physical_shape()
         != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete
     {
