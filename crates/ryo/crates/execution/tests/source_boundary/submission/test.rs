@@ -253,8 +253,14 @@ const ALL: [Method; 17] = [
     Method::ObservedFinish,
     Method::ObservedFinishStage,
 ];
-/// Never constructed: implementing every method of each entry trait is what the compiler checks.
+/// Its methods never run: implementing every method of each entry trait is what the compiler checks.
 struct Witness;
+fn implements_every_entry_trait<
+    W: ExecutionRequest + ProjectRootExecution + ProjectStage + ObservationExecution,
+>(
+    _: &W,
+) {
+}
 fn witness(method: Method) -> ! {
     unreachable!("{method:?} is a compile-time witness only")
 }
@@ -444,6 +450,7 @@ fn observed_undeclared_rule() {
 #[test]
 fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    implements_every_entry_trait(&Witness);
     assert_eq!(
         ALL.iter().collect::<BTreeSet<_>>().len(),
         ALL.len(),
