@@ -5,13 +5,13 @@ use super::super::errors::ParseError;
 use super::super::service::read;
 use super::super::types::ParseEngine;
 use super::super::types::{FieldRequest, NoteRequest, ParseRequest, SampleText};
-use super::contract::Collect;
-use super::expected::{Wanted, kept};
+use super::collect::Collect;
 use super::rows::{Read, rows_of_relation};
+use super::wanted::{Wanted, kept};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::types::{FileId, Relation};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_relations::domain::terms::types::UnknownName;
 
 /// What a language wrote of one relation for a source.

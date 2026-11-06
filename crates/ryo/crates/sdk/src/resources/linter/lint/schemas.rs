@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - one wire format: the request `linter lint` is given, the report it answers and the errors it fails with are converted together between the caller's types and the core's, and the entry spec places one schemas.rs for them, as it does for an adapter's.
 //! The shape of the data this entry does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
 
 use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;

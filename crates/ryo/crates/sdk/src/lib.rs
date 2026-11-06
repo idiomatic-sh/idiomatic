@@ -12,11 +12,12 @@
     reason = "the SDK's one surface: each resource is named at the crate root"
 )]
 
+#[cfg(any(test, feature = "fixtures"))]
+#[macro_use]
+pub mod cases;
+
 mod domain;
 mod resources;
 
 // The resources are the crate's own names, `ryo::query::validate`, as the command line says `ryo query validate`.
 pub use resources::{languages, linter, operator, query, relation};
-
-#[cfg(any(test, feature = "fixtures"))]
-pub mod cases;

@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - one row for each rail a language must hold, over the one fixture language written for them, read top to bottom
 //! The rails' cases: a file whose tokens do not spell it, a tree that is not the library's, and one that is.
 
 use super::super::expected::{Leafness, ReferenceRefusal, Shape, Walked};
@@ -10,8 +9,8 @@ use super::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{diagnose, enter_node, leave_node, table_builder, token};
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 
 /// What a row of the cases asks.
 #[derive(Clone, Copy)]

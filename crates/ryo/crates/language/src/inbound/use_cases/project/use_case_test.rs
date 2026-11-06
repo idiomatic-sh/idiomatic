@@ -7,7 +7,7 @@ use super::interface::ProjectUseCase;
 use super::types::ProjectEngine;
 use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
@@ -77,8 +77,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Broken,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ProjectError::Manifest { reason }
-                if &*reason.0 == "the tool could not run"))
+            selects!(error, ProjectError::Manifest { reason }
+                if &*reason.0 == "the tool could not run")
         }),
     },
 ];

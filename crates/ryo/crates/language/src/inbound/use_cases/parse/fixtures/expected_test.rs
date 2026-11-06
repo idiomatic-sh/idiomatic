@@ -1,6 +1,7 @@
 //! The typed cells' cases: a row is shown as the test writes it.
 
-use super::{Cell, name, node, shown, span, unknown};
+use super::super::rendered::shown;
+use super::{Cell, name, node, span, unknown};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
 

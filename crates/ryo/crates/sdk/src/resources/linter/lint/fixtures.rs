@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - the entry's one fixtures file: its fake language provider and the scenarios that run over it; the entry places no fixtures directory to split it into
 //! The test data of `linter lint`, compiled only for tests and under the `fixtures` feature.
 #![cfg(any(test, feature = "fixtures"))]
 

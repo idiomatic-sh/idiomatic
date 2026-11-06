@@ -2,7 +2,7 @@
 
 use super::entry::validate;
 use super::types::ValidateRequest;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::host::types::{
     HostColumn, HostColumnName, HostDeclaration, HostKind, HostRelationName,
 };
@@ -90,37 +90,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("returns_the_error_with_its_span"),
         word: Word::Refuses,
         input: || Asked::Text(MISSPELLED),
-        expect: Expect::Refusal(|error| selects(matches!(error, ValidateError::Syntax { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, ValidateError::Syntax { .. })),
     },
     Case {
         name: CaseName("an_undeclared_observation_is_refused_in_the_root_query"),
         word: Word::Refuses,
         input: || Asked::Observing(READS_PUBLISHED, Declared::No),
-        expect: Expect::Refusal(|error| {
-            selects(
-                matches!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
-            )
-        }),
+        expect: Expect::Refusal(
+            |error| selects!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
+        ),
     },
     Case {
         name: CaseName("an_undeclared_observation_is_refused_in_a_fragment_call"),
         word: Word::Refuses,
         input: || Asked::Observing(FORWARDS_PUBLISHED, Declared::No),
-        expect: Expect::Refusal(|error| {
-            selects(
-                matches!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
-            )
-        }),
+        expect: Expect::Refusal(
+            |error| selects!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
+        ),
     },
     Case {
         name: CaseName("a_query_cannot_redefine_a_declared_observation"),
         word: Word::Refuses,
         input: || Asked::Observing(REDEFINES_PUBLISHED, Declared::Yes),
-        expect: Expect::Refusal(|error| {
-            selects(
-                matches!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
-            )
-        }),
+        expect: Expect::Refusal(
+            |error| selects!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
+        ),
     },
 ];
 

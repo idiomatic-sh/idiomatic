@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - the build and the walk dispatch every relation of the catalog through one private table traversal, so the dispatch is read in one place
 //! Drive a provider's parse contract, then dispatch each requested relation through its own reader.
 //! The table is traversed once; optional capability promises gate both absence answers and reads.
 

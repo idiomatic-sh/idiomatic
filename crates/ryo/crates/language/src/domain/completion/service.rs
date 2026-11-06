@@ -65,8 +65,11 @@ pub(crate) fn intern_decoded_from(
             .decoded_text
             .0
             .get(from..to)
-            // ignore: idiomatic.arch/no-ok-on-result - the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
-            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+            // The bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value.
+            .and_then(|bytes| match std::str::from_utf8(bytes) {
+                Ok(text) => Some(text),
+                Err(_) => None,
+            })
             .map(|value| intern_derived(symbols, source, NameText(value)));
         if let Some(symbol) = symbol {
             *crate::domain::elements::service::number_mut(&mut elements.text, decoded.element) =

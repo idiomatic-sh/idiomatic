@@ -3,7 +3,7 @@
 use super::entry::describe;
 use super::errors::DescribeError;
 use super::types::DescribeRequest;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::types::OperatorName;
 
 type Input = &'static str;
@@ -23,9 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_operator_is_refused"),
         word: Word::Refuses,
         input: || "sort",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, DescribeError::UnknownOperator { .. }))
-        }),
+        expect: Expect::Refusal(|error| selects!(error, DescribeError::UnknownOperator { .. })),
     },
 ];
 

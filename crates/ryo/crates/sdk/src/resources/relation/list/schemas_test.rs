@@ -6,7 +6,7 @@ use ryo_core::outbound::language::errors::LanguageError;
 use super::super::entry::list;
 use super::super::errors::ListError;
 use super::ListRelationsErrorSchema;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row offers the schemas.
 enum Offered {
@@ -39,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 reason: String::new(),
             }))
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, ListError::Language { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, ListError::Language { .. })),
     },
 ];
 

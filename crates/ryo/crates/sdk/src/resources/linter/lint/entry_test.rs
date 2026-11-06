@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - one row of the table for each promise the entry makes to its caller, read top to bottom; the entry places no second test file to split the rows into
 //! What `linter lint` promises its caller, one row of `CASES` for each case it has.
 
 use std::collections::BTreeMap;

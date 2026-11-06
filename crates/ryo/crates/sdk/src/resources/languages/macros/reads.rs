@@ -1,4 +1,3 @@
-// `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
 /// Declares how a language reads a relation, as data. It is the only way an item implements `ryo::languages::ReadItem` or
 /// `ryo::languages::ManifestItem`: both are sealed against an accidental hand-written impl: an impl that forgets the marker in `languages::declared` does not compile. A deliberate marker impl compiles, and the rule `readers-in-items` flags it.
 ///
@@ -111,8 +110,6 @@ macro_rules! reads {
     };
     (@syntax $item:ident $relation:ty [$tree:ident $at:ident $symbols:ident] [$model:ident : $model_type:ty] $expansions:expr, { $reads:expr } $($body:tt)*) => {
         impl $item {
-            // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - the literal is the reason of a lint attribute inside macro text, which no constant can name
-            #[allow(clippy::redundant_closure_call, reason = "the closure is the scope a failed `require` or `?` leaves")]
             fn rows_at(
                 $tree: &$crate::languages::Tree<'_>,
                 $model: &$model_type,
@@ -121,10 +118,11 @@ macro_rules! reads {
                 out: &mut dyn $crate::languages::Rows<<$relation as $crate::languages::CatalogRelation>::Row>,
             ) {
                 let _ = $model;
-                let _ = (|| -> Option<()> {
+                let mut scope = || -> Option<()> {
                     $crate::__reads_statements!([$tree $symbols out $relation] $($body)*);
                     Some(())
-                })();
+                };
+                let _ = scope();
             }
         }
 
@@ -171,18 +169,16 @@ macro_rules! reads {
                     Self::rows(&model, symbols, out);
                 }
             }
-
-            // ignore: idiomatic.arch/idiomatic-rust/no-string-literals - the literal is the reason of a lint attribute inside macro text, which no constant can name
-            #[allow(clippy::redundant_closure_call, reason = "the closure is the scope a failed `require` or `?` leaves")]
             pub(crate) fn rows(
                 $model: &$model_type,
                 $symbols: &mut $crate::languages::Symbols,
                 out: &mut dyn $crate::languages::Rows<<$relation as $crate::languages::CatalogRelation>::Row>,
             ) {
-                let _ = (|| -> Option<()> {
+                let mut scope = || -> Option<()> {
                     $crate::__reads_statements!([$model $symbols out $relation] $($body)*);
                     Some(())
-                })();
+                };
+                let _ = scope();
             }
         }
 
