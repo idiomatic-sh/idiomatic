@@ -24,5 +24,5 @@ if text.endswith(""):
 ```
 
 - Intended: none. Pinned Ruff observed: FURB188 case.py:0–42.
-- Basis: Exact known-empty-string suffix discrepancy: pinned rule documentation promises same-behavior replacement and the actual emitted fix is marked safe. Primary evidence: [exact_python_semantics.py](../../profiles/FURB188/evidence/exact_python_semantics.py), [exact-python-results.json](../../profiles/FURB188/evidence/exact-python-results.json).
+- Basis: Exact known-empty-string suffix discrepancy: pinned rule documentation promises same-behavior replacement and the actual emitted fix is marked safe. Primary evidence: [exact-source-controls.py](../../profiles/FURB188/evidence/exact-source-controls.py), [exact-python-results.json](../../profiles/FURB188/evidence/exact-python-results.json).
 - Reproduce: use the [profile](../../profiles/FURB188/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/furb188-target-supplement/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
