@@ -130,6 +130,7 @@ enum State {
 }
 #[cfg(test)]
 struct ProducerLeaseProbe {
+    scope: crate::application::file_dag::relations::publication::types::ProducerScope,
     producer: RegionId,
     consumers: Box<[RegionId]>,
     events: Vec<ProducerLeaseEvent>,
@@ -585,6 +586,7 @@ impl ProgramExecution {
         producer: RegionId,
         consumers: &[RegionId],
     ) -> Result<(), OperatingError> {
+        self.validate_state(state)?;
         if producer.0 >= self.program.regions().len()
             || consumers
                 .iter()
@@ -594,6 +596,7 @@ impl ProgramExecution {
             return Err(OperatingError::NotRun);
         }
         *self.producer_lease_probe.borrow_mut() = Some(ProducerLeaseProbe {
+            scope: state.scope,
             producer,
             consumers: consumers.into(),
             events: vec![],
@@ -610,7 +613,7 @@ impl ProgramExecution {
         let mut probe = self.producer_lease_probe.borrow_mut();
         let Some(probe) = probe
             .as_mut()
-            .filter(|probe| probe.consumers.contains(&consumer))
+            .filter(|probe| probe.scope == state.scope && probe.consumers.contains(&consumer))
         else {
             return;
         };
@@ -619,8 +622,12 @@ impl ProgramExecution {
             .expect("observed actual producer");
         let index = self
             .owner
-            .derived
-            .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality);
+            .producer_view_witness(
+                state.scope,
+                probe.producer,
+                ryo_derived::domain::contract::types::DerivedKind::Equality,
+            )
+            .expect("unique backing of the observed actual producer");
         let index_live = index
             .as_ref()
             .is_some_and(|index| index.liveness() == crate::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive);
@@ -638,11 +645,18 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
     ) -> Vec<ProducerLeaseEvent> {
-        self.producer_lease_probe
+        self.validate_state(state)
+            .expect("live observed population");
+        let probe = self
+            .producer_lease_probe
             .borrow_mut()
             .take()
-            .expect("installed read-only lifecycle observer")
-            .events
+            .expect("installed read-only lifecycle observer");
+        assert_eq!(
+            probe.scope, state.scope,
+            "read the actual observed population"
+        );
+        probe.events
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
     #[cfg(test)]

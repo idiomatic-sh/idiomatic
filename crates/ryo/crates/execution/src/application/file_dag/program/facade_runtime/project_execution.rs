@@ -273,6 +273,26 @@ impl ProjectRun<'_> {
             self.completion(rule)?.for_rule(RuleIndex(0)),
         )
     }
+    /// The existing runtime observer receives this run's actual bound identity.
+    #[cfg(test)]
+    pub(super) fn observe_producer_releases(
+        &self,
+        rule: RuleIndex,
+        producer: crate::domain::executable_program::types::RegionId,
+        consumers: &[crate::domain::executable_program::types::RegionId],
+    ) -> Result<(), OperatingError> {
+        let state = self.execution.project_state(self.identity(rule)?);
+        self.execution
+            .observe_producer_releases(&state, producer, consumers)
+    }
+    #[cfg(test)]
+    pub(super) fn take_producer_releases(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<Vec<super::super::runtime::types::ProducerLeaseEvent>, OperatingError> {
+        let state = self.execution.project_state(self.identity(rule)?);
+        Ok(self.execution.take_producer_releases(&state))
+    }
     fn completion(&self, rule: RuleIndex) -> Result<CompletionPolicy, OperatingError> {
         match &self.partials {
             ScopePartials::Project {

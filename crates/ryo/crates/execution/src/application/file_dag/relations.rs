@@ -513,6 +513,26 @@ impl RelationOwner {
             self.derived.pin(backing);
         }
     }
+    /// Read-only evidence for the actual producer in the actual population.
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn producer_view_witness(
+        &self,
+        scope: ProducerScope,
+        node: RegionId,
+        kind: ryo_derived::domain::contract::types::DerivedKind,
+    ) -> Result<Option<super::derived::owner::witness::service::BackingWitness>, OperatingError>
+    {
+        let Some((population, backing)) = self
+            .producer_populations
+            .borrow()
+            .get(&(scope, node.0))
+            .copied()
+        else {
+            return Ok(None);
+        };
+        self.derived
+            .population_view_witness(&[PopulationId(population), backing], kind)
+    }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
     pub(super) fn release_derived_producer(

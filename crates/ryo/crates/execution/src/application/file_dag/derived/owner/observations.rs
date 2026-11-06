@@ -117,6 +117,29 @@ impl DerivedOwner {
             state.unique_bytes,
         )
     }
+    /// The observation follows one qualified producer's admitted populations.
+    /// Ambiguous matching requirements are refused rather than picking a view.
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn population_view_witness(
+        &self,
+        populations: &[PopulationId],
+        kind: DerivedKind,
+    ) -> Result<Option<super::witness::service::BackingWitness>, OperatingError> {
+        let state = self.state.borrow();
+        let mut matching = state.entries.iter().filter(|(key, entry)| {
+            entry._plan.kind == kind
+                && key.populations[..usize::from(key.len)]
+                    .iter()
+                    .any(|population| populations.contains(population))
+        });
+        let witness = matching
+            .next()
+            .map(|(_, entry)| super::witness::service::BackingWitness::new(entry.weak.clone()));
+        if matching.next().is_some() {
+            return Err(OperatingError::WrongOperation);
+        }
+        Ok(witness)
+    }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn view_witness(
         &self,
