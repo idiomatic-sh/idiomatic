@@ -94,7 +94,12 @@ pub(crate) fn looks_like_constant(tree: &Tree<'_>, name: languages::Position) ->
         .0
         .get(from..to)
         // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
-        .and_then(|bytes| std::str::from_utf8(bytes).unwrap_or_default().chars().next())
+        .and_then(|bytes| {
+            std::str::from_utf8(bytes)
+                .unwrap_or_default()
+                .chars()
+                .next()
+        })
         .map_or(Constness::NotConstant, |first| {
             if first.is_uppercase() {
                 Constness::Constant

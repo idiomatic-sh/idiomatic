@@ -13,8 +13,8 @@ use super::schemas::kind_of;
 use super::schemas::repaired;
 use super::schemas::step_of;
 use super::types::{
-    ArgumentSpan, Child, Cursor, DecodedString, Expansion, HeldMacro, MacroArgument, MacroName, Open,
-    FragmentEntryPoint, RustText, Step, Stretch, StringLiteral, Triviality,
+    ArgumentSpan, Child, Cursor, DecodedString, Expansion, FragmentEntryPoint, HeldMacro,
+    MacroArgument, MacroName, Open, RustText, Step, Stretch, StringLiteral, Triviality,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::interface::SyntaxPort;

@@ -3,7 +3,7 @@
 use super::errors::WorkspacesError;
 use super::fixtures::{Files, answering};
 use super::service::{excluded, load, members_of, root_of};
-use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::paths::types::Section;
 use crate::domain::workspaces::types::Exclusion;
@@ -140,8 +140,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::MissingMember,
         expect: Expect::Refusal(|error| {
-            selects(Matched(matches!(error, WorkspacesError::Member { manifest, reason }
-                if &*manifest.0 == "lonely/gone/Cargo.toml" && &*reason.0 == "lonely/gone/Cargo.toml")))
+            selects(Matched(
+                matches!(error, WorkspacesError::Member { manifest, reason }
+                if &*manifest.0 == "lonely/gone/Cargo.toml" && &*reason.0 == "lonely/gone/Cargo.toml"),
+            ))
         }),
     },
     Case {
@@ -151,8 +153,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             selects(Matched(
                 matches!(error, WorkspacesError::Unreadable { manifest, reason }
-                if &*manifest.0 == "nowhere/Cargo.toml" && &*reason.0 == "nowhere/Cargo.toml")),
-            )
+                if &*manifest.0 == "nowhere/Cargo.toml" && &*reason.0 == "nowhere/Cargo.toml"),
+            ))
         }),
     },
 ];

@@ -368,7 +368,9 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, Sections>> {
+    fn standard_library_import(
+        &self,
+    ) -> Support<Reader<languages::StandardLibraryImport, Sections>> {
         // standard: mdast.md, Nodes: a link or an image names a resource by URL, and mdast defines no standard library of modules.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }

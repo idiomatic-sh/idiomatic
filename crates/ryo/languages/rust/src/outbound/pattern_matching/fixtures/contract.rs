@@ -2,7 +2,7 @@
 
 use super::super::errors::PatternMatchingError;
 use super::super::interface::PatternMatchingPort;
-use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::Matching;
 use crate::domain::targets::types::Pattern;
@@ -41,8 +41,8 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             selects(Matched(
                 matches!(error, PatternMatchingError::Invalid { pattern, reason }
-                if &*pattern.0 == "crates/[" && !reason.is_empty())),
-            )
+                if &*pattern.0 == "crates/[" && !reason.is_empty()),
+            ))
         }),
     },
 ];

@@ -2,7 +2,7 @@
 
 use super::super::errors::NotesError;
 use super::super::interface::NotesPort;
-use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::fact_notes::types::{Note, NoteFlag};
 use ryo::languages::Bytes;
 

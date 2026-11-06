@@ -1,7 +1,7 @@
 //! The `toml` adapter of the manifest port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::ManifestTomlAdapter;
-use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::paths::types::FileText;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::fixtures::contract::{check, shown};
@@ -47,8 +47,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "[package\nbroken",
         expect: Expect::Refusal(|error| {
             selects(Matched(
-                matches!(error, ManifestError::Unreadable { reason } if &*reason.0 == "unclosed table, expected `]`")),
-            )
+                matches!(error, ManifestError::Unreadable { reason } if &*reason.0 == "unclosed table, expected `]`"),
+            ))
         }),
     },
     Case {
@@ -57,8 +57,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "[dependencies]\n",
         expect: Expect::Refusal(|error| {
             selects(Matched(
-                matches!(error, ManifestError::Unreadable { reason } if &*reason.0 == "no `package` or `workspace` section")),
-            )
+                matches!(error, ManifestError::Unreadable { reason } if &*reason.0 == "no `package` or `workspace` section"),
+            ))
         }),
     },
 ];

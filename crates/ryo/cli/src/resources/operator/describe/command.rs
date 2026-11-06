@@ -18,7 +18,9 @@ pub struct DescribeArguments {
 
 /// Checks the arguments, composes the service, calls it once and shapes its answer; when it cannot
 /// answer, the error is said on stderr and the outcome the command ends with is returned.
-pub(super) fn answer(arguments: DescribeArguments) -> Result<impl crate::output::Encoded, CommandOutcome> {
+pub(super) fn answer(
+    arguments: DescribeArguments,
+) -> Result<impl crate::output::Encoded, CommandOutcome> {
     let request = super::schemas::request(arguments.name)
         .map_err(|error| crate::output::fail(&error, CommandOutcome::Failure))?;
     super::composition::build()

@@ -26,7 +26,7 @@ use crate::outbound::syntax::types::SourceText;
 
 use super::constants::{DIGIT_SEPARATOR, NESTING, NOT_UTF8};
 use super::schemas::{event_kind, reports, scalar_kind, string_kind};
-use super::types::{Decoded, Decoding, HeldSpace, Opened, Part, TableReadPhase, Scratch, TomlText};
+use super::types::{Decoded, Decoding, HeldSpace, Opened, Part, Scratch, TableReadPhase, TomlText};
 
 /// The `toml_parser` syntax adapter.
 #[derive(Debug)]

@@ -2,7 +2,7 @@
 //! writes, and what is nothing.
 
 use super::adapter::NotesPostcardAdapter;
-use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::fact_notes::service::{facts_of, note_of};
 use crate::domain::fact_notes::types::Naming;
 use crate::domain::module_tree::types::{
