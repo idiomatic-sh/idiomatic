@@ -47,17 +47,23 @@ pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
                 .to_le_bytes(),
         );
     }
-    fn text(out: &mut super::types::HostIdentity, value: &[u8]) {
-        tally(out, value);
-        out.0.extend_from_slice(value);
+    fn text(out: &mut super::types::HostIdentity, value: super::types::HostIdentityText<'_>) {
+        tally(out, value.0);
+        out.0.extend_from_slice(value.0);
     }
     let mut out = super::types::HostIdentity(super::constants::IDENTITY_TAG.to_vec());
     tally(&mut out, &relations);
     for relation in relations {
-        text(&mut out, relation.name.0.as_bytes());
+        text(
+            &mut out,
+            super::types::HostIdentityText(relation.name.0.as_bytes()),
+        );
         tally(&mut out, &relation.columns);
         for column in &relation.columns {
-            text(&mut out, column.name.0.as_bytes());
+            text(
+                &mut out,
+                super::types::HostIdentityText(column.name.0.as_bytes()),
+            );
             out.0.push(match column.kind {
                 HostKind::File => 0,
                 HostKind::Text => 1,
@@ -71,11 +77,11 @@ pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
                 match cell {
                     Cell::File(path) => {
                         out.0.push(0);
-                        text(&mut out, path.as_bytes());
+                        text(&mut out, super::types::HostIdentityText(path.as_bytes()));
                     }
                     Cell::Text(value) => {
                         out.0.push(1);
-                        text(&mut out, value.as_bytes());
+                        text(&mut out, super::types::HostIdentityText(value.as_bytes()));
                     }
                     Cell::Number(value) => {
                         out.0.push(2);

@@ -125,3 +125,7 @@ pub enum ReadinessBit {
     /// The slot is not marked.
     Clear,
 }
+
+/// Text bytes written into an identity, length first.
+#[derive(Clone, Copy, Debug)]
+pub struct ObservationText<'a>(pub &'a [u8]);

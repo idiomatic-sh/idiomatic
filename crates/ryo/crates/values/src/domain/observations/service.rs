@@ -1,7 +1,8 @@
 //! Canonical identity of declared named inputs, independent of formatting and arena state.
 use super::errors::ObservationsError;
 use super::types::{
-    ObservationBinding, ObservationIdentityBytes, ObservationProducer, ReadinessBit,
+    ObservationBinding, ObservationIdentityBytes, ObservationProducer, ObservationText,
+    ReadinessBit,
 };
 use ryo_relations::domain::relations::types::CellKind;
 
@@ -14,10 +15,10 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
     let mut bytes = ObservationIdentityBytes(super::constants::BINDINGS_TAG.to_vec());
     tally(&mut bytes, &bindings);
     for binding in bindings {
-        text(&mut bytes, binding.name.0.as_bytes());
+        text(&mut bytes, ObservationText(binding.name.0.as_bytes()));
         tally(&mut bytes, &binding.columns);
         for column in &binding.columns {
-            text(&mut bytes, column.name.0.as_bytes());
+            text(&mut bytes, ObservationText(column.name.0.as_bytes()));
             bytes.0.push(match column.kind {
                 CellKind::Node => 0,
                 CellKind::Symbol => 1,
@@ -32,12 +33,12 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
             match producer {
                 ObservationProducer::Output { rule, output } => {
                     bytes.0.push(0);
-                    text(&mut bytes, rule.0.as_bytes());
-                    text(&mut bytes, output.0.as_bytes());
+                    text(&mut bytes, ObservationText(rule.0.as_bytes()));
+                    text(&mut bytes, ObservationText(output.0.as_bytes()));
                 }
                 ObservationProducer::NoQuery { rule } => {
                     bytes.0.push(1);
-                    text(&mut bytes, rule.0.as_bytes());
+                    text(&mut bytes, ObservationText(rule.0.as_bytes()));
                 }
             }
         }
@@ -54,9 +55,9 @@ where
             .to_le_bytes(),
     );
 }
-fn text(bytes: &mut ObservationIdentityBytes, value: &[u8]) {
-    tally(bytes, value);
-    bytes.0.extend_from_slice(value);
+fn text(bytes: &mut ObservationIdentityBytes, value: ObservationText<'_>) {
+    tally(bytes, value.0);
+    bytes.0.extend_from_slice(value.0);
 }
 
 /// Allocate compact state only when a request has demanded persistent frontier slots.
@@ -256,7 +257,7 @@ pub fn frontier_identity(
             ProducerReadiness::Complete => bytes.0.push(0),
             ProducerReadiness::Unknown(reason) => {
                 bytes.0.push(1);
-                text(&mut bytes, reason.0.as_bytes());
+                text(&mut bytes, ObservationText(reason.0.as_bytes()));
             }
             ProducerReadiness::Skipped => bytes.0.push(2),
             ProducerReadiness::NoQuery => bytes.0.push(3),
@@ -275,14 +276,14 @@ pub fn output_identity(outputs: &[super::types::PlanObservation]) -> Observation
     let mut bytes = ObservationIdentityBytes(super::constants::DEMANDED_ROOTS_TAG.to_vec());
     tally(&mut bytes, &outputs);
     for output in outputs {
-        text(&mut bytes, output.name.0.as_bytes());
+        text(&mut bytes, ObservationText(output.name.0.as_bytes()));
         bytes.0.push(match output.scope {
             StepScope::PerFile => 0,
             StepScope::CrossFile => 1,
         });
         tally(&mut bytes, &output.columns);
         for column in &output.columns {
-            text(&mut bytes, column.name.0.as_bytes());
+            text(&mut bytes, ObservationText(column.name.0.as_bytes()));
             bytes.0.push(match column.kind {
                 CellKind::Node => 0,
                 CellKind::Symbol => 1,
@@ -302,7 +303,7 @@ pub fn layout_identity(layout: &[super::types::ObservationRuleLayout]) -> Observ
     let mut bytes = ObservationIdentityBytes(super::constants::REQUEST_LAYOUT_TAG.to_vec());
     tally(&mut bytes, &layout);
     for rule in layout {
-        text(&mut bytes, rule.rule.0.as_bytes());
+        text(&mut bytes, ObservationText(rule.rule.0.as_bytes()));
         bytes.0.extend_from_slice(&rule.frontiers.0.to_le_bytes());
         match &rule.outputs {
             super::types::ObservationOutputLayout::NoPersistentRoots => bytes.0.push(0),
