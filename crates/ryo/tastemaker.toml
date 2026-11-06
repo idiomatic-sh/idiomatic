@@ -48,13 +48,9 @@ rules = [
   { rule = "idiomatic.ryo/shared-walk-owner", include = ["crates/execution/src/**"], description = "Every execution layer respects the required private file-walk owner; only its semantic service and exact registered unit proof may use raw walk semantics." },
 ]
 templates = [
-  { template = "idiomatic.ryo/program-runtime-proof", file = "languages/python/benchmarks/linters/ruff/mod.rs", description = "Normal isolated Cargo target roots the shared configured inventory proof and canonical frontend vocabulary." },
   { template = "idiomatic.arch/constants", file = "crates/execution/src/application/file_dag/program/constants.rs", description = "Diagnostic vocabulary of the existing program owner, with no behavioral switches." },
 
 
-  { template = "idiomatic.ryo/program-runtime-proof", file = "languages/python/benchmarks/linters/ruff/sharing/mod.rs", description = "Isolated normal Rust test target for real configured inventory diagnostics." },
-  { template = "idiomatic.ryo/program-runtime-proof", file = "languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs", description = "Actual suite, candidate worker and SDK preparation for the canonical configured inventory." },
-  { template = "idiomatic.arch/unit-test", file = "languages/python/benchmarks/linters/ruff/sharing/test.rs", params = { kind = "use-case", part = "sharing" }, description = "Real configured source-class census and actual common-owner dispatch accounting." },
 
   { alias = "lint-project-budget-module", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/mod.rs", description = "Normal module registration for real lint project budget controls." },
   { alias = "lint-project-budget-fixtures", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/fixtures/mod.rs", description = "Injected memory pressure follows actual portable reduction work through the production lint fixture." },

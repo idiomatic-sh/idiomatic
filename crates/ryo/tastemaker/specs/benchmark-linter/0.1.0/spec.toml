@@ -2,6 +2,10 @@ description = "The language-local artifacts and entry points of one benchmark li
 why = "Placed beside the standard adapter spec, this existing artifact spec owns thin Cargo registration/composition, pinned inventory and canonical rules/<id>/query.ryoql with cases.toml. The shared benchmark application owns execution, continuation and PASS/FAIL publication. Canonical cold/warm/edit measurements require exact equality with the immutable declared complete rule inventory, captured before projection; an explicit diagnostic mode may narrow selection but cannot publish headline benchmark metrics; a linter supplies inventory and its external adapter. The adapter spec retains adapter, settings and schemas roles. Archived profiles preserve exact historical bytes and never become a second active source. Imports and AST capability checks are structural rails, not proof that runtime policy is shared; the shared runner must pass its two-provider behavioral contract."
 specs = []
 templates = [
+  { alias = "sharing-target", template = "source", file = "mod.rs", count = { min = 0, max = 1 }, description = "A normal isolated Cargo test target for configured inventory proofs." },
+  { alias = "sharing-module", template = "source", file = "sharing/mod.rs", count = { min = 0, max = 1 }, description = "Configured inventory proof registration, shared by linter benchmarks." },
+  { alias = "sharing-fixtures", template = "source", file = "sharing/fixtures/mod.rs", count = { min = 0, max = 1 }, description = "Production suite and SDK inputs and typed observations for the inventory proof." },
+  { alias = "sharing-test", template = "idiomatic.arch/unit-test@0.1.0", file = "sharing/test.rs", count = { min = 0, max = 1 }, params = { kind = "use-case", part = "sharing" }, description = "Configured inventory and shared engine work assertions through public APIs." },
   { alias = "frontend-projection-module", template = "source", file = "frontend_projection/mod.rs", count = { min = 0, max = 1 }, description = "Normal namespace of the canonical provider diagnostic projection." },
   { alias = "frontend-projection-constants", template = "source", file = "frontend_projection/constants.rs", count = { min = 0, max = 1 }, description = "One shared canonical query used by the production worker and independent normal tests." },
 
@@ -665,7 +669,7 @@ templates = [
   { template = "cases", file = "rules/{implemented}/cases.toml", description = "The correctness cases of each actually implemented canonical rule, using the same rule capture as query.ryoql." },
 ]
 rules = [
-  { alias = "test-public-boundary", rule = "idiomatic.arch/import-directions@0.1.0", include = ["tests.rs", "engine_test.rs", "engine_test/**/*.rs", "compiler_feature_test.rs", "project_context_test.rs", "worker_request_input.rs", "worker_request_input_constants.rs"], params = { forbidden = ["ryo_core", "ryo_core::*", "ryo_execution::application", "ryo_execution::application::*", "ryo_execution::domain", "ryo_execution::domain::*", "ryo_operators::application", "ryo_operators::application::*", "ryo_operators::domain", "ryo_operators::domain::*", "ryo_matching::application", "ryo_matching::application::*", "ryo_matching::domain", "ryo_matching::domain::*"] }, description = "Real public API controls do not bypass private semantic or engine owners. Unlike entry imports, this existing AST/reference rule is explicitly applied to the test roles too; Rust privacy and actual runtime controls remain required." },
+  { alias = "test-public-boundary", rule = "idiomatic.arch/import-directions@0.1.0", include = ["mod.rs", "sharing/**", "frontend_projection/**", "tests.rs", "engine_test.rs", "engine_test/**/*.rs", "compiler_feature_test.rs", "project_context_test.rs", "worker_request_input.rs", "worker_request_input_constants.rs"], params = { forbidden = ["ryo_core", "ryo_core::*", "ryo_execution::application", "ryo_execution::application::*", "ryo_execution::domain", "ryo_execution::domain::*", "ryo_operators::application", "ryo_operators::application::*", "ryo_operators::domain", "ryo_operators::domain::*", "ryo_matching::application", "ryo_matching::application::*", "ryo_matching::domain", "ryo_matching::domain::*"] }, description = "Real public API controls do not bypass private semantic or engine owners. Unlike entry imports, this existing AST/reference rule is explicitly applied to the test roles too; Rust privacy and actual runtime controls remain required." },
 
   { rule = "idiomatic.arch/import-directions@0.1.0", include = ["host_policy.rs"], params = { forbidden = ["std::env", "std::env::*", "std::fs", "std::fs::*", "std::process", "std::process::*", "std::net", "std::net::*", "tokio::fs", "tokio::fs::*", "tokio::process", "tokio::process::*", "tokio::net", "tokio::net::*", "*::host", "*::host::*"] }, description = "The argument-based applicability policy does not obtain ambient host observations or call the probe; review still checks semantic purity and macro limits." },
   { rule = "idiomatic.arch/file-length@0.3.0", include = ["*.rs", "composition/**/*.rs", "verify_profiles.py"], params = { max-lines = { param = "source-line-limit" } }, description = "Apply the existing product file-length rule to active linter sources, including composition." },
@@ -1090,3 +1094,30 @@ scenario = "Sharing one canonical query does not admit an arbitrary sibling impl
 given.files."frontend_projection/future.rs" = "fn execute() {}"
 then.only = ["idiomatic.ryo/benchmark-linter#closed"]
 then.findings = [{ rule = "idiomatic.ryo/benchmark-linter#closed", path = "frontend_projection/future.rs" }]
+
+[[scenarios]]
+id = "sharing-fixture-cannot-alias-private-core"
+scenario = "A sharing fixture may not disguise a core implementation dependency as a public SDK call."
+given.files.'sharing/fixtures/mod.rs' = 'use ryo_core as hidden; pub fn bypass() { hidden::domain::operator::service::registered(); }'
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [{ rule = 'idiomatic.arch/import-directions', path = 'sharing/fixtures/mod.rs', line = 1 }]
+
+[[scenarios]]
+id = "frontend-projection-cannot-enter-private-engine"
+scenario = "Shared frontend vocabulary remains subject to the public engine boundary."
+given.files.'frontend_projection/constants.rs' = 'pub fn bypass() { ryo_execution::application::file_dag::execute(); }'
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [{ rule = 'idiomatic.arch/import-directions', path = 'frontend_projection/constants.rs', line = 1 }]
+
+[[scenarios]]
+id = "sharing-uses-public-sdk-boundaries"
+scenario = "The sharing fixture can name the same public inbound surface as every benchmark runner."
+given.files.'sharing/fixtures/mod.rs' = 'use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;'
+then.only = ['idiomatic.arch/import-directions']
+
+[[scenarios]]
+id = "sharing-does-not-authorize-extra-executor"
+scenario = "Standard sharing roles do not authorize a neighboring alternate executor."
+given.files.'sharing/executor.rs' = 'pub fn run() {}'
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'sharing/executor.rs' }]
