@@ -9,12 +9,15 @@ use crate::application::file_dag::program::facade_runtime::{
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::domain::coverage::types::Partials;
+use ryo_values::domain::hosted::types::{
+    HostColumn, HostColumnName, HostKind, HostName, HostRelation,
+};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
     ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
     ObservationReadinessLayout, PlanObservation,
 };
-use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_values::domain::plan_parts::types::{HostedNumber, InputNumber};
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 
 #[derive(Clone, Copy, Debug)]
@@ -60,11 +63,12 @@ impl CapturedProject {
             columns: columns.clone(),
             scope: StepScope::PerFile,
         }];
-        let mut rules = vec![rule(); 5];
+        let mut rules = vec![rule(); 6];
         for (at, rule) in rules.iter_mut().enumerate() {
             rule.id = RuleId(format!("restored-lifecycle-{at}").into());
         }
         let producer_id = rules[0].id.clone();
+        let project_producer_id = rules[5].id.clone();
         let mut plans = vec![producer.clone()];
         for at in 1..5 {
             let mut plan = if at < 3 {
@@ -96,15 +100,21 @@ impl CapturedProject {
             plan.observation_inputs = vec![BoundObservationInput {
                 name: ObservationBindingName("source".into()),
                 columns: columns.clone(),
-                scope: StepScope::PerFile,
+                scope: StepScope::CrossFile,
             }];
             rules[at].observations = vec![ObservationBinding {
                 name: ObservationBindingName("source".into()),
                 columns: columns.clone(),
-                producers: vec![ObservationProducer::Output {
-                    rule: producer_id.clone(),
-                    output: ObservationName("captured".into()),
-                }],
+                producers: vec![
+                    ObservationProducer::Output {
+                        rule: producer_id.clone(),
+                        output: ObservationName("captured".into()),
+                    },
+                    ObservationProducer::Output {
+                        rule: project_producer_id.clone(),
+                        output: ObservationName("project".into()),
+                    },
+                ],
             }];
             if at >= 3 {
                 // The actual named Union is also an external phase obligation.
@@ -118,6 +128,38 @@ impl CapturedProject {
             }
             plans.push(plan);
         }
+        // A per-file-only binding remains a file frontier: it cannot be
+        // evaluated in a project population. Include a real empty project
+        // producer so this mixed named union has the CrossFile contract used
+        // by the actual restored-member ProjectRun route.
+        let mut project_producer = producer.clone();
+        project_producer.steps = vec![PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Hosted {
+                relation: HostedNumber(0),
+            },
+        }];
+        project_producer.emit.step = StepId(0);
+        project_producer.frontier.clear();
+        project_producer.observations = vec![PlanObservation {
+            name: ObservationName("project".into()),
+            source: PlanInput::Step(StepId(0)),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        }];
+        plans.push(project_producer);
+        let hosted = [HostRelation {
+            name: HostName("empty-project-member".into()),
+            columns: [HostKind::File, HostKind::Number, HostKind::Number]
+                .into_iter()
+                .zip(["file", "left", "right"])
+                .map(|(kind, name)| HostColumn {
+                    name: HostColumnName(name.into()),
+                    kind,
+                })
+                .collect(),
+            rows: vec![],
+        }];
         let compiled = crate::domain::prepared_request::service::assemble(
             plans,
             vec![vec![]; rules.len()],
@@ -128,7 +170,7 @@ impl CapturedProject {
             compiled,
             &rules,
             &vec![Digest([0; 16]); rules.len()],
-            &[],
+            &hosted,
             Arc::clone(&derived),
             ObservationIdentity::Named(ObservationReadinessLayout(Digest([91; 16]))),
         )?;
@@ -145,7 +187,7 @@ impl CapturedProject {
             derived,
             &corpus,
         ));
-        let mut intents = [FileRuleIntent::Undemanded; 5];
+        let mut intents = [FileRuleIntent::Undemanded; 6];
         intents[0] = FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Disabled,
             observations: ObservationDemand::Required,
@@ -229,6 +271,50 @@ impl CapturedProject {
             },
             &phase,
         )?;
+        let partials = Partials::default();
+        let mut project_producer = open_project(
+            &prepared,
+            required.clone(),
+            ScopePartials::Project {
+                evaluation: &partials,
+                publication: &partials,
+            },
+            ProjectFrontiers {
+                publication: &phase,
+                ordinary: PreparedFrontiers {
+                    producer: RuleIndex(5),
+                    sources: Box::new([]),
+                    rows: vec![],
+                    program: Arc::clone(prepared.program()),
+                    required: required.clone(),
+                    refused: vec![],
+                },
+                bound_inputs: &[],
+            },
+            symbols,
+            &[],
+            Arc::clone(&services),
+        )?;
+        let mut produced = project_producer.rule(
+            RuleIndex(5),
+            RuleDemand {
+                emit: EmitDemand::Disabled,
+                observations: ObservationDemand::Required,
+            },
+            symbols,
+        )?;
+        assert!(matches!(produced.emit, RootOutcome::NoQuery));
+        assert_eq!(produced.observations.len(), 1);
+        let (_, observed) = produced.observations.pop().unwrap();
+        let ProjectObservation::Complete { table, publication } = observed else {
+            panic!("real empty project member must publish successfully")
+        };
+        assert_eq!(table.count, RowCount(0));
+        assert_eq!(
+            table.kinds,
+            [CellKind::File, CellKind::Number, CellKind::Number]
+        );
+        drop(project_producer);
         Ok(Self {
             prepared,
             phase,
@@ -236,7 +322,10 @@ impl CapturedProject {
             required,
             bound: vec![BoundInput {
                 input: ObservationBindingId(0),
-                members: Ok(vec![BoundMember::Restored(token)]),
+                members: Ok(vec![
+                    BoundMember::Restored(token),
+                    BoundMember::Current(publication),
+                ]),
             }],
             refused: vec![BoundInput {
                 input: ObservationBindingId(0),
