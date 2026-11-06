@@ -4,7 +4,7 @@
 use super::super::super::fixtures::{RawCase, observe};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
     Scenario, exercise,
-    route::{Entry, Exit, entry, leave},
+    route::{exit::{Entry, Exit, entry}, leave},
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_derived::domain::contract::types::DerivedKind;

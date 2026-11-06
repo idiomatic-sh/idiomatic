@@ -542,6 +542,13 @@ templates = [
   { template = "idiomatic.ryo/application-part", file = "crates/execution/src/application/file_dag/derived/owner/cached_graph/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "crates/execution/src/application/file_dag/derived/owner/cached_graph/types.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/cached_graph/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/refusing/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/route/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/route/exit/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/route/workspace/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/route/partition/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/route/graph/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/src/application/file_dag/derived/owner/acquisition/family/fixtures/route/selection/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
 ]
 specs = [
   { spec = "idiomatic.arch/crate", include = ["crates/matching"], params = { package = "idiomatic-sh-ryo-matching", library = "ryo_matching", binary = "absent", distribution = "absent" } },
