@@ -1,11 +1,20 @@
 //! Shared production-service controls over declared preparation and the real engine.
 #![cfg(test)]
-use crate::application::cross_file::service_test::{
-    ProjectCalls, counting_plan, crossing, frontier_rows, prepared_in, service, todo, world_with,
+use crate::application::cross_file::{
+    errors::CrossError,
+    preparation::{
+        errors::BatchPreparationError,
+        service::Preparation,
+        types::{Occurrence, PreparedProject},
+    },
+    service_test::{
+        ProjectCalls, counting_plan, crossing, frontier_rows, prepared_in, service, todo,
+        world_with,
+    },
 };
 use crate::domain::answering::types::Todo;
 use ryo_execution::inbound::use_cases::execution::{
-    interface::ProjectStage,
+    interface::{ExecutionRequest, ProjectRootExecution, ProjectStage, ReadinessCounts},
     types::{ProjectBatch, PublicationSlot, RuleIndex},
 };
 use ryo_language::domain::symbols::types::Symbols;
@@ -15,10 +24,7 @@ struct CountedProject<'a, T> {
     inner: &'a T,
     submissions: std::cell::Cell<usize>,
 }
-impl<T: ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution>
-    ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution
-    for CountedProject<'_, T>
-{
+impl<T: ProjectRootExecution> ProjectRootExecution for CountedProject<'_, T> {
     fn evaluate<E>(
         &self,
         tasks: Vec<ryo_execution::inbound::use_cases::execution::types::ProjectTask<'_>>,
@@ -34,9 +40,7 @@ impl<T: ryo_execution::inbound::use_cases::execution::interface::ProjectRootExec
         self.submissions.set(self.submissions.get() + 1);
         self.inner.evaluate(tasks, symbols, guard)
     }
-    fn readiness_counts(
-        &self,
-    ) -> ryo_execution::inbound::use_cases::execution::types::ReadinessCounts {
+    fn readiness_counts(&self) -> ReadinessCounts {
         self.inner.readiness_counts()
     }
 }
@@ -55,13 +59,7 @@ pub(in crate::application::cross_file::preparation) enum BatchControl {
 /// an invalid seal must refuse before that stage receives a submission.
 pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
     control: BatchControl,
-) -> Result<(), super::super::errors::BatchPreparationError> {
-    use super::super::super::errors::CrossError;
-    use super::super::{
-        service::Preparation,
-        types::{Occurrence, PreparedProject},
-    };
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+) -> Result<(), BatchPreparationError> {
     use ryo_execution::inbound::use_cases::execution::types::OperatingError;
     use std::sync::atomic::Ordering;
     let calls = Arc::new(ProjectCalls::default());
