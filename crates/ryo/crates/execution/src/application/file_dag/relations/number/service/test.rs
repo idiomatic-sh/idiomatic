@@ -132,7 +132,6 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
 fn qualified_producers_release_only_their_actual_population() {
     use crate::application::file_dag::derived::owner::{
         ViewContext,
-        graph_fixture::GraphFixture,
         resource_fixture::{ResourceFixture, weak_storage},
     };
     use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
@@ -174,11 +173,19 @@ fn qualified_producers_release_only_their_actual_population() {
             .admit(publication.as_ref(), BorrowedRows::from(&rows))
             .unwrap();
         let population = proof.identity(owner).unwrap().0;
-        let plan = GraphFixture::prepare(
-            ViewRequest::Equality {
-                columns: vec![ColumnIndex(0)],
-            },
-            &rows,
+        let plan = Arc::new(
+            owner
+                .derived
+                .prepare_view(
+                    &ViewRequest::Equality {
+                        columns: vec![ColumnIndex(0)],
+                    },
+                    &[crate::domain::operation_schema::types::InputShape {
+                        kinds: crate::domain::table_model::service::kinds_of(&rows),
+                        tree: None,
+                    }],
+                )
+                .unwrap(),
         );
         owner
             .derived

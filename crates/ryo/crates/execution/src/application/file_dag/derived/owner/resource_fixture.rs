@@ -15,82 +15,6 @@ pub(crate) struct Snapshot {
     pub graph_reuses: u64,
     pub graph_early_stops: u64,
 }
-/// Compile actual plans/declarations before installing the production file descriptors.
-pub(crate) fn prepared_sources(plans: &[Plan]) -> super::super::prepared::PreparedDerived {
-    use crate::domain::{
-        operator::contract::types::RequestOperators,
-        source_partitions::types::source_partitions::value::SourcePartitions,
-    };
-    use ryo_values::domain::{
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-        rule_requests::types::{RuleParameters, RuleSpec},
-        runs::types::{RuleApplicability, RuleId},
-    };
-    let rules = plans
-        .iter()
-        .enumerate()
-        .map(|(i, _)| RuleSpec {
-            id: RuleId(format!("derived-owner-{i}").into()),
-            query: QueryBundle {
-                root: QueryDocumentSource {
-                    id: QuerySourceId(format!("derived-owner-{i}").into()),
-                    text: "".into(),
-                },
-                modules: Default::default(),
-            },
-            applicability: RuleApplicability::Always,
-            given: vec![],
-            observations: vec![],
-            spelled: RuleParameters("".into()),
-            include: vec![],
-            exclude: vec![],
-        })
-        .collect::<Vec<_>>();
-    let bindings = vec![vec![]; plans.len()];
-    let semantic = crate::application::file_dag::testing::program_derived_port();
-    let request = RequestOperators::prepare(plans, &bindings, &[], semantic).unwrap();
-    let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
-    let partitions = SourcePartitions::new(
-        &rules,
-        &borrowed,
-        &bindings,
-        &[],
-        &vec![vec![]; plans.len()],
-    )
-    .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(plans, &request);
-    let program =
-        crate::domain::executable_program::service::compile(plans, graph, &partitions, &request)
-            .unwrap();
-    super::super::prepared::PreparedDerived::compile(&program, &request).unwrap()
-}
-pub(crate) fn source_plan(relation: Relation) -> Plan {
-    use ryo_values::domain::{
-        plan_parts::types::{Input, StepId},
-        plans::types::{Emit, Operation, PlanStep, StepScope},
-    };
-    Plan {
-        parameters: vec![],
-        observation_inputs: vec![],
-        observations: vec![],
-        frontier: vec![],
-        comparison_origins: vec![],
-        steps: vec![PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Select {
-                from: Input::Relation(relation),
-                comparisons: vec![],
-                kept: vec![],
-            },
-        }],
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-    }
-}
 pub(crate) struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }
@@ -100,11 +24,15 @@ impl ResourceFixture {
             true,
             crate::application::file_dag::testing::program_derived_port(),
         ));
-        let plans = wanted.iter().copied().map(source_plan).collect::<Vec<_>>();
+        let plans = wanted
+            .iter()
+            .copied()
+            .map(super::fixtures::source_plan)
+            .collect::<Vec<_>>();
         owner
             .derived
             .prepare_program_file(
-                &prepared_sources(&plans),
+                &super::fixtures::prepared_sources(&plans, Arc::clone(&owner.derived.semantic)),
                 &(0..plans.len())
                     .map(crate::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
@@ -129,7 +57,8 @@ impl ResourceFixture {
         crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
         OperatingError,
     > {
-        let plan = super::graph_fixture::GraphFixture::prepare(
+        let plan = super::fixtures::prepare_view(
+            Arc::clone(&self.owner.derived.semantic),
             ViewRequest::Equality {
                 columns: columns.to_vec(),
             },

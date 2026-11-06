@@ -476,10 +476,11 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         );
     }
     assert_eq!(owner.checks.get(), 1);
-    let plan =
-        crate::application::file_dag::derived::owner::resource_fixture::source_plan(relation);
-    let prepared =
-        crate::application::file_dag::derived::owner::resource_fixture::prepared_sources(&[plan]);
+    let plan = crate::application::file_dag::derived::owner::fixtures::source_plan(relation);
+    let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
+        &[plan],
+        crate::application::file_dag::testing::program_derived_port(),
+    );
     owner
         .derived
         .prepare_program_file(
