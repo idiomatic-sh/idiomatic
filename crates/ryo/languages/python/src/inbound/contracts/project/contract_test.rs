@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::contract::ProjectContract;
+use super::fixtures;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::language::service::reads;
 use crate::fixtures::projects::notes_of;
@@ -156,39 +157,29 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
     ))
 }
 
-/// The readers of a run whose only manifest tool is pep621.
-fn pep(_: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
-    vec![Arc::new(
-        crate::outbound::manifest_reading::factory::pep621(),
-    )]
-}
-
-#[derive(Default)]
-struct ReaderOutcome {
-    rows: usize,
-    partial: Vec<String>,
-}
-impl<Row> languages::Rows<Row> for ReaderOutcome {
-    fn write(&mut self, _row: Row) {
-        self.rows += 1;
-    }
-    fn partial(&mut self, cause: languages::ReportText<'_>, _missing: languages::Missing) {
-        self.partial.push(cause.0.to_owned());
-    }
-    fn partial_at(
-        &mut self,
-        _file: languages::FileId,
-        cause: languages::ReportText<'_>,
-        missing: languages::Missing,
-    ) {
-        <Self as languages::Rows<Row>>::partial(self, cause, missing);
-    }
-}
-
 /// A module context that counts the lookups it answers and checks the request it is given.
-struct ContextProbe {
+pub(super) struct ContextProbe {
     inner: Arc<dyn ModuleContextPort>,
     seen: Arc<AtomicUsize>,
+}
+/// How many lookups a probe has answered.
+pub(super) struct Lookups(Arc<AtomicUsize>);
+impl Lookups {
+    pub(super) fn count(&self) -> usize {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+impl ContextProbe {
+    pub(super) fn around(inner: Arc<dyn ModuleContextPort>) -> (Self, Lookups) {
+        let seen = Arc::new(AtomicUsize::new(0));
+        (
+            Self {
+                inner,
+                seen: Arc::clone(&seen),
+            },
+            Lookups(seen),
+        )
+    }
 }
 impl ModuleContextPort for ContextProbe {
     fn resolve(
@@ -204,346 +195,28 @@ impl ModuleContextPort for ContextProbe {
         self.inner.resolve(request)
     }
 }
-/// The readers of a run that must build none for a module identity request.
-fn no_projection(manifests: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
-    assert!(
-        manifests.is_empty(),
-        "only initial declared-name discovery may build these readers"
-    );
-    vec![Arc::new(ManifestReadingFake)]
-}
-
-fn primary_metadata_rejection_keeps_real_dependency_projection() {
-    let contract = ProjectContract::new(
-        pep,
-        Arc::new(postcard()),
-        Arc::new(crate::outbound::module_context::factory::filesystem()),
-    );
-    let text = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{email = 1}]\ndependencies = ['requests>=2']\n";
-    let request = languages::ProjectRequest {
-        search_scope: Default::default(),
-        given_inventory: Default::default(),
-        observed_entries: Default::default(),
-        repository: languages::Repository::Given,
-        root: languages::RootPath("".into()),
-        files: vec![languages::FilePath("pyproject.toml".into())],
-        manifests: vec![languages::ManifestFile {
-            path: languages::FilePath("pyproject.toml".into()),
-            text: languages::ManifestText(text.into()),
-        }],
-        notes: vec![],
-        wanted: vec![
-            languages::Relation::ManifestDiagnostic,
-            languages::Relation::PackageDependency,
-        ],
-    };
-    let resolved = contract
-        .resolve(&request)
-        .expect("pure manifest processing");
-    assert!(resolved.refused.is_empty());
-    assert_eq!(resolved.derived.packages.packages.len(), 1);
-    assert_eq!(
-        resolved.derived.packages.packages[0].declared.requirements[0]
-            .written
-            .0
-            .as_ref(),
-        "requests>=2"
-    );
-    assert_eq!(
-        resolved.derived.manifest_validation.files[0].file,
-        languages::FileId(0)
-    );
-    assert_eq!(
-        resolved.derived.manifest_validation.files[0]
-            .validation
-            .diagnostics
-            .len(),
-        1
-    );
-    assert!(resolved.derived.manifest_validation.incomplete.is_empty());
-}
-
-fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
-    let contract = ProjectContract::new(
-        pep,
-        Arc::new(postcard()),
-        Arc::new(crate::outbound::module_context::factory::filesystem()),
-    );
-    let mut request = languages::ProjectRequest {
-        search_scope: Default::default(),
-        given_inventory: Default::default(),
-        observed_entries: Default::default(),
-        repository: languages::Repository::Given,
-        root: languages::RootPath("".into()),
-        files: vec![languages::FilePath("pyproject.toml".into())],
-        manifests: vec![languages::ManifestFile {
-            path: languages::FilePath("pyproject.toml".into()),
-            text: languages::ManifestText(
-                "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n".into(),
-            ),
-        }],
-        notes: vec![],
-        wanted: vec![
-            languages::Relation::ManifestDiagnostic,
-            languages::Relation::SyntaxError,
-        ],
-    };
-    let metadata = contract
-        .resolve(&request)
-        .expect("metadata diagnostic is a completed observation");
-    assert!(metadata.refused.is_empty());
-    assert!(metadata.derived.packages.packages.is_empty());
-    assert!(
-        metadata.derived.packages.refused.is_empty(),
-        "undemanded dependencies are not read"
-    );
-    assert_eq!(
-        metadata.derived.manifest_validation.files[0]
-            .validation
-            .diagnostics
-            .len(),
-        1
-    );
-    request.wanted.push(languages::Relation::PackageDependency);
-    let both = contract
-        .resolve(&request)
-        .expect("dependency rejection remains partial");
-    assert_eq!(both.refused.len(), 1);
-    assert!(both.derived.packages.packages.is_empty());
-    assert_eq!(
-        both.derived.manifest_validation.files[0]
-            .validation
-            .diagnostics
-            .len(),
-        1
-    );
-    use languages::ManifestItem as _;
-    let mut symbols = languages::Symbols::default();
-    let input = languages::ManifestInput {
-        request: &request,
-        derived: &both.derived,
-    };
-    let mut dependencies = ReaderOutcome::default();
-    (crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem::READER.read)(&input, &mut symbols, &mut dependencies);
-    assert_eq!(dependencies.rows, 0);
-    assert!(
-        !dependencies.partial.is_empty(),
-        "rejected dependency output stays unknown"
-    );
-    let mut diagnostics = ReaderOutcome::default();
-    (crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem::READER.read)(&input, &mut symbols, &mut diagnostics);
-    assert_eq!(diagnostics.rows, 1);
-    assert!(
-        diagnostics.partial.is_empty(),
-        "actual schema diagnostic is completely observed"
-    );
-    request.wanted = vec![languages::Relation::SyntaxError];
-    let unrelated = contract
-        .resolve(&request)
-        .expect("unrequested projection cannot create a read failure");
-    assert!(unrelated.refused.is_empty());
-}
-
-fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
-    let seen = Arc::new(AtomicUsize::new(0));
-    let contract = ProjectContract::new(
-        no_projection,
-        Arc::new(postcard()),
-        Arc::new(ContextProbe {
-            inner: Arc::new(crate::outbound::module_context::factory::filesystem()),
-            seen: Arc::clone(&seen),
-        }),
-    );
-    let request = languages::ProjectRequest {
-        search_scope: Default::default(),
-        given_inventory: Default::default(),
-        observed_entries: Default::default(),
-        repository: languages::Repository::Given,
-        root: languages::RootPath("project".into()),
-        files: vec![languages::FilePath("module.py".into())],
-        notes: vec![],
-        manifests: vec![languages::ManifestFile {
-            path: languages::FilePath("pyproject.toml".into()),
-            text: languages::ManifestText("not TOML: projection must not be attempted".into()),
-        }],
-        wanted: vec![languages::Relation::ModuleIdentity],
-    };
-    let resolved = contract
-        .resolve(&request)
-        .expect("module context owns its original complete request");
-    assert_eq!(seen.load(Ordering::Relaxed), 1);
-    assert!(resolved.refused.is_empty());
-    assert!(resolved.derived.packages.packages.is_empty());
-    assert!(resolved.derived.manifest_validation.files.is_empty());
-    assert!(resolved.derived.manifest_validation.incomplete.is_empty());
-}
-
-fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() {
-    use crate::domain::project_namespace::{
-        constants::UNKNOWN_CONTEXT,
-        service::memberships,
-        types::{EntryKind, EntryShape, ImportedRoot, MembershipState, Presence},
-    };
-    use languages::ManifestItem as _;
-    for (module, directory, incomplete, expected) in [
-        (
-            false,
-            true,
-            true,
-            vec![EntryKind::Namespace, EntryKind::Unknown],
-        ),
-        (
-            true,
-            false,
-            true,
-            vec![EntryKind::Module, EntryKind::Unknown],
-        ),
-        (
-            true,
-            true,
-            false,
-            vec![EntryKind::Module, EntryKind::Namespace],
-        ),
-    ] {
-        let roots = [ImportedRoot {
-            file: languages::FileId(0),
-            root: "acme".into(),
-            path: "acme".into(),
-        }];
-        let search = [
-            languages::FilePath("src".into()),
-            languages::FilePath("lib".into()),
-        ];
-        let namespace_memberships =
-            memberships(Some(&search), &roots, vec![], |candidate, shape| {
-                let file = shape == EntryShape::File;
-                if candidate.0.starts_with("lib/") && incomplete {
-                    None
-                } else {
-                    Some(Presence::from(match candidate.0.as_ref() {
-                        "src/acme.py" => module && file,
-                        "src/acme" => directory && !file,
-                        _ => false,
-                    }))
-                }
-            });
-        let derived = crate::domain::links::types::Linked {
-            namespace_memberships,
-            ..Default::default()
-        };
-        let request = languages::ProjectRequest {
-            search_scope: Default::default(),
-            given_inventory: Default::default(),
-            observed_entries: Default::default(),
-            repository: languages::Repository::Given,
-            root: languages::RootPath("".into()),
-            files: vec![languages::FilePath("source.py".into())],
-            manifests: vec![],
-            notes: vec![notes_of("source.py", "import acme\n")],
-            wanted: vec![languages::Relation::ProjectNamespaceMembership],
-        };
-        assert_eq!(
-            derived
-                .namespace_memberships
-                .rows
-                .iter()
-                .map(|row| row.kind)
-                .collect::<Vec<_>>(),
-            expected
-        );
-        let positives = derived
-            .namespace_memberships
-            .rows
-            .iter()
-            .filter(|row| row.kind != EntryKind::Unknown)
-            .collect::<Vec<_>>();
-        assert!(!positives.is_empty());
-        assert!(
-            positives
-                .iter()
-                .all(|row| row.state == MembershipState::Present)
-        );
-        let mut output = ReaderOutcome::default();
-        let mut symbols = languages::Symbols::default();
-        let input = languages::ManifestInput {
-            request: &request,
-            derived: &derived,
-        };
-        (crate::domain::manifests::collections::manifests::project_namespace_membership::item::ProjectNamespaceMembershipItem::READER.read)(&input, &mut symbols, &mut output);
-        assert_eq!(output.rows, expected.len());
-        assert_eq!(
-            output.partial,
-            if incomplete {
-                vec![UNKNOWN_CONTEXT.to_owned()]
-            } else {
-                vec![]
-            }
-        );
-    }
-}
-
-/// Which of the file's cases a row runs.
-#[derive(Clone, Copy, Debug)]
-enum Body {
-    /// The case `primary_metadata_rejection_keeps_real_dependency_projection`.
-    PrimaryMetadataRejectionKeepsRealDependencyProjection,
-    /// The case `metadata_rejection_and_dependency_refusal_have_independent_applicability`.
-    MetadataRejectionAndDependencyRefusalHaveIndependentApplicability,
-    /// The case `module_identity_only_preserves_inputs_without_projecting_or_validating`.
-    ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating,
-    /// The case `positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots`.
-    PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
-}
-
-/// The rows of the cases whose bodies assert for themselves.
-const BODIES: &[Case<Body, (), ()>] = &[
-    Case {
-        name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
-        word: Word::Succeeds,
-        input: || Body::PrimaryMetadataRejectionKeepsRealDependencyProjection,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
-        word: Word::Succeeds,
-        input: || Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
-        word: Word::Succeeds,
-        input: || Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
-        word: Word::Succeeds,
-        input: || Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
-    match given {
-        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
-            primary_metadata_rejection_keeps_real_dependency_projection()
-        }
-        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => {
-            metadata_rejection_and_dependency_refusal_have_independent_applicability()
-        }
-        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => {
-            module_identity_only_preserves_inputs_without_projecting_or_validating()
-        }
-        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => {
-            positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots()
-        }
-    }
-    Ok(())
-}
 
 #[test]
 fn succeeds() {
-    run(BODIES, Word::Succeeds, body);
     run(CASES, Word::Succeeds, subject);
+    run(
+        fixtures::primary_metadata_rejection::CASES,
+        Word::Succeeds,
+        fixtures::primary_metadata_rejection::subject,
+    );
+    run(
+        fixtures::independent_applicability::CASES,
+        Word::Succeeds,
+        fixtures::independent_applicability::subject,
+    );
+    run(
+        fixtures::module_identity_only::CASES,
+        Word::Succeeds,
+        fixtures::module_identity_only::subject,
+    );
+    run(
+        fixtures::namespace_partial::CASES,
+        Word::Succeeds,
+        fixtures::namespace_partial::subject,
+    );
 }
