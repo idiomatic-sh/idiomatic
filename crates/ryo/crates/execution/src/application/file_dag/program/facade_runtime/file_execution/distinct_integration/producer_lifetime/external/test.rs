@@ -15,6 +15,9 @@ enum ExternalRootExit {
     ProviderRefusal,
     SkippedAlias,
     UndemandedAlias,
+    CaptureCallbackRefusal,
+    CaptureCollectedFailure,
+    CaptureCancelledAlias,
 }
 
 /// Two diagnostic obligations share an external Union root. Distinct Join
@@ -22,6 +25,13 @@ enum ExternalRootExit {
 /// Unlike an internal-only producer, the externally held Union must stay live
 /// after both Join readers release and until the file ends.
 fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
+    let capture_rule = match exit {
+        ExternalRootExit::CaptureCallbackRefusal | ExternalRootExit::CaptureCancelledAlias => {
+            Some(RuleIndex(0))
+        }
+        ExternalRootExit::CaptureCollectedFailure => Some(RuleIndex(3)),
+        _ => None,
+    };
     let derived = crate::application::file_dag::testing::program_derived_port();
     let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
     external.steps.truncate(2);
@@ -30,23 +40,29 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     for (at, rule) in rules.iter_mut().enumerate() {
         rule.id = RuleId(format!("external-root-{at}").into());
     }
+    let mut plans = vec![
+        external.clone(),
+        external,
+        shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes),
+        shared_plan(
+            ProjectionOrder::Reversed,
+            match exit {
+                ExternalRootExit::SemanticFailure | ExternalRootExit::CaptureCollectedFailure => {
+                    FinalConsumer::InvalidTerminal
+                }
+                ExternalRootExit::ProviderRefusal => FinalConsumer::RefusingProvider,
+                _ => FinalConsumer::Completes,
+            },
+        ),
+    ];
+    if let Some(rule) = capture_rule {
+        plans[rule.0].frontier = vec![PlanInput::Step(StepId(1))];
+    }
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; 4],
-            plans: vec![
-                external.clone(),
-                external,
-                shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes),
-                shared_plan(
-                    ProjectionOrder::Reversed,
-                    match exit {
-                        ExternalRootExit::SemanticFailure => FinalConsumer::InvalidTerminal,
-                        ExternalRootExit::ProviderRefusal => FinalConsumer::RefusingProvider,
-                        _ => FinalConsumer::Completes,
-                    },
-                ),
-            ],
+            plans,
             bindings: vec![vec![]; 4],
         },
         &rules,
@@ -86,7 +102,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         capture: CaptureIntent::Disabled,
     };
     match exit {
-        ExternalRootExit::SkippedAlias => {
+        ExternalRootExit::SkippedAlias | ExternalRootExit::CaptureCancelledAlias => {
             intents[1] = FileRuleIntent::Skipped(
                 crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable,
             );
@@ -94,14 +110,23 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         ExternalRootExit::UndemandedAlias => intents[1] = FileRuleIntent::Undemanded,
         _ => {}
     }
+    if let Some(rule) = capture_rule {
+        let FileRuleIntent::Run { capture, .. } = &mut intents[rule.0] else {
+            panic!("capture belongs to a declared live consumer")
+        };
+        *capture = CaptureIntent::DiagnosticAndObservations;
+    }
     let external_readers = if matches!(
         exit,
-        ExternalRootExit::SkippedAlias | ExternalRootExit::UndemandedAlias
+        ExternalRootExit::SkippedAlias
+            | ExternalRootExit::UndemandedAlias
+            | ExternalRootExit::CaptureCancelledAlias
     ) {
         1
     } else {
         2
     };
+    let retained_readers = external_readers + usize::from(capture_rule.is_some());
     let mut symbols = Symbols::default();
     let mut file = open_file(
         &prepared,
@@ -132,7 +157,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
             .retry_checkpoint(file.execution.file_state(), producer)?
             .remaining
             .0,
-        external_readers + 2,
+        retained_readers + 2,
         "both actual Join consumers and every selected alias count"
     );
     let columns = [
@@ -181,7 +206,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         .retry_checkpoint(file.execution.file_state(), producer)?;
     assert_eq!(checkpoint.attempt, AttemptCheckpoint::Published);
     assert_eq!(
-        checkpoint.remaining.0, external_readers,
+        checkpoint.remaining.0, retained_readers,
         "both internal readers released exactly once; external aliases remain live"
     );
     let required = file.owner.derived.working_bytes();
@@ -208,13 +233,19 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     let mut callbacks = 0;
     let delivered = file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |_| {
         callbacks += 1;
-        if matches!(exit, ExternalRootExit::RejectedDelivery) {
+        if matches!(
+            exit,
+            ExternalRootExit::RejectedDelivery | ExternalRootExit::CaptureCallbackRefusal
+        ) {
             Err(OperatingError::WrongBinding)
         } else {
             Ok(())
         }
     });
-    if matches!(exit, ExternalRootExit::RejectedDelivery) {
+    if matches!(
+        exit,
+        ExternalRootExit::RejectedDelivery | ExternalRootExit::CaptureCallbackRefusal
+    ) {
         assert!(matches!(delivered, Err(OperatingError::WrongBinding)));
         assert_eq!(callbacks, 1, "delivery refusal stops that sink");
         let mut repeated = 0;
@@ -247,12 +278,14 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     }
     let final_consumer = file.rule(RuleIndex(3), demand, &read, &mut symbols)?;
     match exit {
-        ExternalRootExit::SemanticFailure => assert!(matches!(
-            final_consumer.emit,
-            RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
-                index: 99
-            }))
-        )),
+        ExternalRootExit::SemanticFailure | ExternalRootExit::CaptureCollectedFailure => {
+            assert!(matches!(
+                final_consumer.emit,
+                RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                    index: 99
+                }))
+            ))
+        }
         ExternalRootExit::ProviderRefusal => assert!(matches!(
             final_consumer.emit,
             RootOutcome::Failed(OperatingError::NotRead)
@@ -276,6 +309,73 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
             .retry_checkpoint(file.execution.file_state(), producer)?,
         checkpoint
     );
+    if let Some(capture_rule) = capture_rule {
+        if matches!(exit, ExternalRootExit::CaptureCollectedFailure) {
+            for _ in 0..2 {
+                let failed = file.rule(capture_rule, demand, &read, &mut symbols)?;
+                assert!(
+                    matches!(
+                        failed.emit,
+                        RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                            index: 99
+                        }))
+                    ),
+                    "terminal semantic error survives repeated collected delivery"
+                );
+            }
+        }
+        let mut arena = vec![];
+        let mut places = vec![];
+        let mut words = ryo_relations::domain::relations::types::Words::default();
+        for _ in 0..2 {
+            let mut captures = file.capture_frontiers(
+                capture_rule,
+                ryo_values::domain::stored_facts::types::Bucket(0),
+                &read,
+                &mut symbols,
+                crate::application::file_dag::program::protocol::types::CaptureContext {
+                    file: FileId(0),
+                    rule_digest: Digest([0; 16]),
+                    worker: ryo_relations::domain::relations::types::WorkerNumber(0),
+                    retained: crate::domain::finish::types::Retained {
+                        arena: crate::domain::finish::types::Arena(&mut arena),
+                        places: &mut places,
+                    },
+                    words: &mut words,
+                },
+            )?;
+            assert_eq!(
+                captures.len(),
+                1,
+                "one declared physical frontier obligation"
+            );
+            let captured = captures.pop().unwrap();
+            let input = captured.input;
+            let captured = captured.outcome?;
+            let decoded = ryo_values::domain::table_words::service::decode_complete(
+                &captured.words.0,
+                &mut vec![],
+            )
+            .expect("actual captured canonical publication decodes");
+            assert_eq!(
+                decoded, transferred,
+                "failure/refusal cannot corrupt the independent frontier"
+            );
+            file.commit_frontier(capture_rule, input)?;
+            assert!(
+                backing.upgrade().is_some(),
+                "capture/commit cannot consume another external lease"
+            );
+            assert_eq!(file.owner.derived.working_bytes(), required);
+            assert_eq!(
+                file.readiness_counts(),
+                counts,
+                "capture replay never reschedules semantics"
+            );
+            assert_eq!(file.owner.derived.counts(), builds);
+            assert_eq!(reads.get(), source_reads);
+        }
+    }
     // Retain the owner solely to inspect real byte accounting after finish. A
     // Weak-only check would miss a stale cache retaining its required charge.
     let owner = Rc::clone(&file.owner);
@@ -310,6 +410,17 @@ fn deduplicated_external_roots_keep_real_leases_through_replay_failure_and_finis
         ExternalRootExit::ProviderRefusal,
         ExternalRootExit::SkippedAlias,
         ExternalRootExit::UndemandedAlias,
+    ] {
+        external_root_exit(exit).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
+    }
+}
+
+#[test]
+fn captured_frontier_survives_callback_refusal_collected_failure_and_alias_cancellation() {
+    for exit in [
+        ExternalRootExit::CaptureCallbackRefusal,
+        ExternalRootExit::CaptureCollectedFailure,
+        ExternalRootExit::CaptureCancelledAlias,
     ] {
         external_root_exit(exit).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
     }

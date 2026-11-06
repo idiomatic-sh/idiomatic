@@ -9,3 +9,6 @@ mod fixtures;
 
 #[cfg(test)]
 mod project;
+
+#[cfg(test)]
+mod restoration;
