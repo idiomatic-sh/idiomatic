@@ -9,8 +9,11 @@ let openings = select file, span from "static-call" where glob_any(target, "{ope
 let root-calls = union(left=evaluations, right=openings);
 let project-root-calls = select l.file as file, l.source-tail as source-tail, r.span as span from project-users as l join root-calls as r on l.file = r.file;
 let exposed-delivery = select source as file, source-tail from project-targets where glob_any(source-root, "{src,**/core/src}") and glob_any(part, "{interface,types}") and glob_any(written, "{ProjectExecution,*::ProjectExecution,ProjectSession,*::ProjectSession,*::ProjectExecution::*}");
+let delivery-imports = select file, span from "static-import" where glob_any(target, "{ProjectExecution,*::ProjectExecution,ProjectSession,*::ProjectSession}");
+let imported-delivery = select l.source as file, l.source-tail as source-tail from project-targets as l join delivery-imports as r on l.source = r.file and l.span = r.span where glob_any(l.source-root, "{src,**/core/src}") and glob_any(l.part, "{interface,types}");
+let named-delivery = union(left=exposed-delivery, right=imported-delivery);
 let opened-delivery = select l.file as file, l.source-tail as source-tail from project-users as l join openings as r on l.file = r.file;
-let delivery-users = union(left=exposed-delivery, right=opened-delivery);
+let delivery-users = union(left=named-delivery, right=opened-delivery);
 let deliveries = select file, span from "static-call" where glob_any(target, "{rule,*::rule}");
 let project-deliveries = select l.file as file, l.source-tail as source-tail, r.span as span from delivery-users as l join deliveries as r on l.file = r.file;
 let project-calls = union(left=project-root-calls, right=project-deliveries);
