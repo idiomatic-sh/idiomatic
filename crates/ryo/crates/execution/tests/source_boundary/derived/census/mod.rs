@@ -122,7 +122,7 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
     let family = |name: &str| kind::family_file(name);
     let mut routed = BTreeSet::new();
     let mut ordinals = BTreeSet::new();
-    for derived in DerivedKind::ALL {
+    for derived in DerivedKind::ALL.iter().copied() {
         assert!(ordinals.insert(derived.ordinal()), "{derived:?} listed once");
         let route = kind::route(derived);
         assert!(!route.entries.is_empty(), "{derived:?} has a production route");
