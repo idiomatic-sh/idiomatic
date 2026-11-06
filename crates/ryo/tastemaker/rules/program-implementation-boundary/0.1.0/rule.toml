@@ -185,7 +185,7 @@ files.'src/domain/table_model/collections/representations/stored/item.rs' = "use
 files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub fn registered(kind: Kind) -> &'static dyn super::super::super::interface::RepresentationsItem { match kind { Kind::Stored => &super::super::super::stored::item::StoredItem } }"
 
 files.'src/domain/table_model/collections/representations/types.rs' = 'pub mod registered_representation;'
-files.'src/domain/table_model/collections/representations/types/registered_representation.rs' = 'pub mod value;'
+files.'src/domain/table_model/collections/representations/types/registered_representation/mod.rs' = 'pub mod value;'
 
 [[scenarios]]
 id = "direct-internal-import"
