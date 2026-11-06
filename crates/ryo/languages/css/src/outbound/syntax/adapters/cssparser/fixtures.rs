@@ -3,3 +3,7 @@
 
 pub(crate) mod oracle;
 pub(crate) mod walk;
+mod tokens;
+mod components;
+#[cfg(test)]
+pub(super) mod projection;
