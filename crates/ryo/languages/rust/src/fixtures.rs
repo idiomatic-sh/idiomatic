@@ -3,6 +3,10 @@
 
 pub mod contracts;
 pub(crate) mod kinds;
+#[cfg(test)]
+pub(crate) mod project;
+#[cfg(test)]
+pub(crate) mod consulted_test;
 #[cfg(not(bless))]
 mod packages;
 #[cfg(not(bless))]
