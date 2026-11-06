@@ -2283,5 +2283,4 @@ impl PermittedPhysical<'_, '_, '_> {
 
 // Private-state proof lives beneath the issuer, never behind concept-wide record fields.
 #[cfg(test)]
-#[path = "lifecycle/mod.rs"]
 mod lifecycle;
