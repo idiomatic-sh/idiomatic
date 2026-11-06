@@ -1,4 +1,9 @@
 //! Disk package marker observations fed to the pure module context policy.
+use super::constants::{
+    KNOWN_MODULE_LACKS_SOURCE_PACKAGE_BASENAMES, MODULE_MARKER_CANNOT_BE_EXPRESSED_FROM_RUN_ROOT,
+    MODULE_MARKER_PATH_IS_NOT_UTF_8, PYTHON_EXTENSION, STUB_EXTENSION,
+    UNRESOLVED_MODULE_CONTEXT_OBSERVATION,
+};
 use crate::domain::module_context::{
     service,
     types::{Markers, ModuleContexts, ModuleDecision, ModuleIdentity},
@@ -42,7 +47,7 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                 Path::new(file.0.as_ref())
                     .extension()
                     .and_then(|extension| extension.to_str()),
-                Some("py" | "pyi")
+                Some(PYTHON_EXTENSION | STUB_EXTENSION)
             )
         }) {
             return Ok(ModuleContexts::default());
@@ -64,7 +69,7 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                 file_path
                     .extension()
                     .and_then(|extension| extension.to_str()),
-                Some("py" | "pyi")
+                Some(PYTHON_EXTENSION | STUB_EXTENSION)
             ) {
                 continue;
             }
@@ -86,14 +91,12 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                             };
                             let relative =
                                 service::relative_to(root, &marker).ok_or_else(|| {
-                                    failed("module marker cannot be expressed from run root".into())
+                                    failed(MODULE_MARKER_CANNOT_BE_EXPRESSED_FROM_RUN_ROOT.into())
                                 })?;
                             result.consulted.push(FilePath(
                                 relative
                                     .to_str()
-                                    .ok_or_else(|| {
-                                        failed("module marker path is not UTF-8".into())
-                                    })?
+                                    .ok_or_else(|| failed(MODULE_MARKER_PATH_IS_NOT_UTF_8.into()))?
                                     .into(),
                             ));
                             let _previous = markers.0.insert(marker, present);
@@ -114,7 +117,7 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                     };
                     let (module_name, package_name) =
                         service::basenames(&source).ok_or_else(|| {
-                            failed("known module lacks source/package basenames".into())
+                            failed(KNOWN_MODULE_LACKS_SOURCE_PACKAGE_BASENAMES.into())
                         })?;
                     result.rows.push(ModuleIdentity {
                         file: file_id,
@@ -127,7 +130,7 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                 ModuleDecision::Known(None) => {}
                 ModuleDecision::Unknown => result.partial = true,
                 ModuleDecision::Need(_) => {
-                    return Err(failed("unresolved module context observation".into()));
+                    return Err(failed(UNRESOLVED_MODULE_CONTEXT_OBSERVATION.into()));
                 }
             }
         }

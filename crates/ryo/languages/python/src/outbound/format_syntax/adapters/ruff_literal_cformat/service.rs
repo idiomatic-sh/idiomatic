@@ -91,7 +91,12 @@ fn quantity(cursor: &mut Cursor<'_>) -> Result<FormatQuantityMode, Failure> {
                 let digit = character.value.to_digit(10).ok_or(Failure::Unavailable)?;
                 amount = amount
                     .checked_mul(10)
-                    .and_then(|number| number.checked_add(i32::try_from(digit).ok()?))
+                    .and_then(|number| {
+                        let Ok(digit) = i32::try_from(digit) else {
+                            return None;
+                        };
+                        number.checked_add(digit)
+                    })
                     .ok_or_else(|| {
                         Failure::Malformed(error(
                             FormatErrorKind::WidthOrPrecisionTooLarge,

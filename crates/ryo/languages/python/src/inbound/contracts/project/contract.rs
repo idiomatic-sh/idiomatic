@@ -151,7 +151,9 @@ impl ProjectContract {
                     && !validation
                         .files
                         .iter()
-                        .any(|observed| usize::try_from(observed.file.0).ok() == Some(index))
+                        .any(|observed| {
+                            matches!(usize::try_from(observed.file.0), Ok(position) if position == index)
+                        })
                 {
                     validation.incomplete.push(Said(
                         format!("requested metadata validator did not observe {}", file.0).into(),
@@ -191,7 +193,12 @@ impl Project for ProjectContract {
         let notes: Vec<Option<Note>> = request
             .notes
             .iter()
-            .map(|bytes| self.notes.note_in(bytes).ok())
+            .map(|bytes| {
+                let Ok(note) = self.notes.note_in(bytes) else {
+                    return None;
+                };
+                Some(note)
+            })
             .collect();
         let roots = crate::domain::project_namespace::service::imported_roots(&notes);
         crate::domain::project_namespace::service::candidates(request.search_roots(), &roots)
@@ -220,7 +227,10 @@ impl Project for ProjectContract {
                 .iter()
                 .map(|bytes| {
                     // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
-                    self.notes.note_in(bytes).ok()
+                    let Ok(note) = self.notes.note_in(bytes) else {
+                        return None;
+                    };
+                    Some(note)
                 })
                 .collect();
             linked(&request.files, &notes, packages)

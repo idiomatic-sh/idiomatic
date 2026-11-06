@@ -51,10 +51,13 @@ impl PythonSemanticSession {
 
 fn source_slice<'a>(expr: &Expr, source: &'a str) -> Option<&'a str> {
     let range = expr.range();
-    source.get(
-        usize::try_from(range.start().to_u32()).ok()?
-            ..usize::try_from(range.end().to_u32()).ok()?,
-    )
+    let (Ok(start), Ok(end)) = (
+        usize::try_from(range.start().to_u32()),
+        usize::try_from(range.end().to_u32()),
+    ) else {
+        return None;
+    };
+    source.get(start..end)
 }
 
 fn target(expr: &Expr) -> bool {
