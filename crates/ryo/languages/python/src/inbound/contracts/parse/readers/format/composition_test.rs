@@ -126,8 +126,12 @@ enum Body {
     ErrorCharactersPreserveTwoAndFourByteUnicodeScalars,
 }
 
+type Input = Body;
+type Value = ();
+type Failure = ();
+
 /// The rows of the cases whose bodies assert for themselves.
-const CASES: &[Case<Body, (), ()>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs"),
         word: Word::Succeeds,
@@ -161,7 +165,7 @@ const CASES: &[Case<Body, (), ()>] = &[
 ];
 
 /// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
+fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Body::ParseRowsDistinguishZeroFieldsMalformedAndDynamicInputs => {
             parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs()
@@ -184,5 +188,5 @@ fn body(given: Body) -> Result<(), ()> {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
 }

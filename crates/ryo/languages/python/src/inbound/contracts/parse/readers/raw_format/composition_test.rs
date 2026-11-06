@@ -211,8 +211,12 @@ enum Body {
     RawFlagsDoNotDecodeEscapedFlagsOrInventFieldsFromPercentEscapes,
 }
 
+type Input = Body;
+type Value = ();
+type Failure = ();
+
 /// The rows of the cases whose bodies assert for themselves.
-const CASES: &[Case<Body, (), ()>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions"),
         word: Word::Succeeds,
@@ -278,7 +282,7 @@ const CASES: &[Case<Body, (), ()>] = &[
 ];
 
 /// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
+fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Body::RawFormatRowsKeepEmptySegmentsRepeatedKeysAndStarConversions => {
             raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions()
@@ -316,5 +320,5 @@ fn body(given: Body) -> Result<(), ()> {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
 }

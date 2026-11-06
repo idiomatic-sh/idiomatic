@@ -76,8 +76,12 @@ enum Body {
     OversizedPositionalSelectorKeepsExactDigitsAndOverflowFlag,
 }
 
+type Input = Body;
+type Value = ();
+type Failure = ();
+
 /// The rows of the cases whose bodies assert for themselves.
-const CASES: &[Case<Body, (), ()>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("parse_rows_preserve_empty_valid_malformed_and_dynamic_states"),
         word: Word::Succeeds,
@@ -99,7 +103,7 @@ const CASES: &[Case<Body, (), ()>] = &[
 ];
 
 /// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
+fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Body::ParseRowsPreserveEmptyValidMalformedAndDynamicStates => {
             parse_rows_preserve_empty_valid_malformed_and_dynamic_states()
@@ -116,5 +120,5 @@ fn body(given: Body) -> Result<(), ()> {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
 }

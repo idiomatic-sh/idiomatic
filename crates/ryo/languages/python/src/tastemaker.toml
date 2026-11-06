@@ -1,13 +1,1 @@
-closed = false
 imports-allow = ["ruff_python_parser::*", "ruff_python_ast::*", "ruff_text_size::*", "toml::*", "serde::*", "postcard::*", "indexmap::*", "unicode_properties::*"]
-templates = [
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers.rs", description = "The list of the readers' concepts, one module each." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers/{concept}.rs", description = "One reader concept's module file." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers/{concept}/composition.rs", description = "The concept's readers, bound to their grammar adapters at the composition." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers/{concept}/composition_test.rs", description = "The proof of the concept's readers." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers/{concept}/composition_test/{group}_test.rs", count = { min = 0 }, description = "A declared group of the proof's cases." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers/{concept}/constants.rs", count = { min = 0 }, description = "The names of the concept's readers." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers/{concept}/types.rs", count = { min = 0 }, description = "The plain types of the concept's readers." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/constants.rs", description = "The names of the parse contract." },
-  { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/service.rs", description = "The parse contract's own operations." },
-]

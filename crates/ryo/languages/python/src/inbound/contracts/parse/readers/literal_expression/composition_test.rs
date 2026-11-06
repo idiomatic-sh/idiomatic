@@ -141,8 +141,12 @@ enum Body {
     IncompleteSourcePreservesPartialKnowledge,
 }
 
+type Input = Body;
+type Value = ();
+type Failure = ();
+
 /// The rows of the cases whose bodies assert for themselves.
-const CASES: &[Case<Body, (), ()>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("rows_keep_empty_and_malformed_carriers_and_full_original_spans"),
         word: Word::Succeeds,
@@ -188,7 +192,7 @@ const CASES: &[Case<Body, (), ()>] = &[
 ];
 
 /// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
+fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Body::RowsKeepEmptyAndMalformedCarriersAndFullOriginalSpans => {
             rows_keep_empty_and_malformed_carriers_and_full_original_spans()
@@ -217,7 +221,7 @@ fn body(given: Body) -> Result<(), ()> {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[cfg(test)]

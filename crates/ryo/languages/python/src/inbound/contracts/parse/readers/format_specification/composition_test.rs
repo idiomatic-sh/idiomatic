@@ -100,8 +100,12 @@ enum Body {
     DynamicFstringValueRemainsUnknownAndNestedSpecsKeepAncestry,
 }
 
+type Input = Body;
+type Value = ();
+type Failure = ();
+
 /// The rows of the cases whose bodies assert for themselves.
-const CASES: &[Case<Body, (), ()>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("literals_without_method_calls_and_fstrings_have_independent_spec_facts"),
         word: Word::Succeeds,
@@ -129,7 +133,7 @@ const CASES: &[Case<Body, (), ()>] = &[
 ];
 
 /// Runs the body of one case.
-fn body(given: Body) -> Result<(), ()> {
+fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Body::LiteralsWithoutMethodCallsAndFstringsHaveIndependentSpecFacts => {
             literals_without_method_calls_and_fstrings_have_independent_spec_facts()
@@ -149,5 +153,5 @@ fn body(given: Body) -> Result<(), ()> {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
 }
