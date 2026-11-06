@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FileId, Integer, Relation, Value},
 };
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Operand, ParameterId, Test, WholeNumber,
+    ColumnIndex, Operand, ParameterId, PlanComparison, Test, WholeNumber,
 };
 use std::sync::Arc;
 use {

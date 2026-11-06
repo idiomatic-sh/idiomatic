@@ -88,14 +88,14 @@ pub(super) fn observed_memory(
     bytes: ryo_values::domain::stores::types::retention::value::RetainedBytes,
 ) {
     tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner,
-        objects = bytes.objects, metadata_capacity_bytes = bytes.metadata,
-        packed_live_bytes = bytes.packed_live, packed_capacity_bytes = bytes.packed_capacity,
-        staged_objects = bytes.staged_objects, staged_payload_bytes = bytes.staged_payload_bytes,
-        text_live_bytes = bytes.text_live, text_capacity_bytes = bytes.text_capacity,
-        notes_live_bytes = bytes.notes_live, notes_capacity_bytes = bytes.notes_capacity,
-        findings_capacity_bytes = bytes.findings_capacity,
-        decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity, decoded_rows = bytes.rows,
-        places_live_bytes = bytes.places_live, places_capacity_bytes = bytes.places_capacity);
+        objects = bytes.objects.0, metadata_capacity_bytes = bytes.metadata.0,
+        packed_live_bytes = bytes.packed_live.0, packed_capacity_bytes = bytes.packed_capacity.0,
+        staged_objects = bytes.staged_objects.0, staged_payload_bytes = bytes.staged_payload_bytes.0,
+        text_live_bytes = bytes.text_live.0, text_capacity_bytes = bytes.text_capacity.0,
+        notes_live_bytes = bytes.notes_live.0, notes_capacity_bytes = bytes.notes_capacity.0,
+        findings_capacity_bytes = bytes.findings_capacity.0,
+        decoded_live_bytes = bytes.cells_live.0, decoded_capacity_bytes = bytes.cells_capacity.0, decoded_rows = bytes.rows.0,
+        places_live_bytes = bytes.places_live.0, places_capacity_bytes = bytes.places_capacity.0);
 }
 
 /// Record capacity traversal is disabled on the normal lint path.
@@ -132,13 +132,13 @@ pub(super) fn observed_cross_symbols(
         let mut bytes =
             ryo_values::domain::stores::types::retention::value::RetainedBytes::default();
         let places = ryo_language::domain::symbols::service::places_mut(symbols);
-        bytes.places_live =
+        bytes.places_live.0 =
             places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
-        bytes.places_capacity =
+        bytes.places_capacity.0 =
             places.capacity() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
         let text = ryo_language::domain::symbols::service::derived_of(symbols);
-        bytes.text_live = text.0.len();
-        bytes.text_capacity = text.0.capacity();
+        bytes.text_live.0 = text.0.len();
+        bytes.text_capacity.0 = text.0.capacity();
         observed_memory(phase, "cross_symbols", bytes);
     }
 }

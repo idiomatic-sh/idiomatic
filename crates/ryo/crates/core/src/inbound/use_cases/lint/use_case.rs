@@ -932,7 +932,7 @@ impl LintUseCaseImpl {
         };
         self.within_budget(listing.budget, || vec![first_rule.id.clone()])?;
         let stage = run.services.project_phase().map_err(|error| {
-            LintError::from(crate::domain::rules::service::failed(
+            LintError::from(ryo_values::domain::rule_requests::service::failed(
                 &first_rule.id,
                 &error,
             ))
@@ -952,7 +952,7 @@ impl LintUseCaseImpl {
             }
             let _memory_rule = memory_rule(&each.id, each.rule.0);
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
-                CrossError::from(crate::domain::rules::service::failed(
+                CrossError::from(ryo_values::domain::rule_requests::service::failed(
                     &each.id,
                     &"missing frontier bucket",
                 ))
@@ -965,9 +965,9 @@ impl LintUseCaseImpl {
                     crossing.domain.skipped,
                     inapplicable.get(each.rule.0).ok_or(
                         ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
-                    ).map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?,
+                    ).map_err(|error| ryo_values::domain::rule_requests::service::failed(&each.id, &error))?,
                 )
-                .map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?;
+                .map_err(|error| ryo_values::domain::rule_requests::service::failed(&each.id, &error))?;
             let frontier = run
                 .services
                 .prepare_frontiers(
@@ -985,7 +985,7 @@ impl LintUseCaseImpl {
                 .map_err(|error| match error {
                     PreparationError::Facts(error) => CrossError::from(error),
                     PreparationError::Metadata(error) => {
-                        CrossError::from(crate::domain::rules::service::failed(&each.id, &error))
+                        CrossError::from(ryo_values::domain::rule_requests::service::failed(&each.id, &error))
                     }
                 })?;
             Ok(PreparedProject {
@@ -1036,7 +1036,7 @@ impl LintUseCaseImpl {
             return Err(error.into());
         }
         finished.map_err(|error| {
-            LintError::from(crate::domain::rules::service::failed(
+            LintError::from(ryo_values::domain::rule_requests::service::failed(
                 &first_rule.id,
                 &error,
             ))
@@ -1415,7 +1415,10 @@ impl LintUseCase for LintUseCaseImpl {
                     identities.observations,
                 )
                 .map_err(|error| {
-                    crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+                    ryo_values::domain::rule_requests::service::failed(
+                        &RuleId("<request>".into()),
+                        &error,
+                    )
                 })?,
         );
         let services = execution.begin(&program, &listing.files);
@@ -1461,7 +1464,10 @@ impl LintUseCase for LintUseCaseImpl {
             program
                 .replay_closure(again, &first_bucket)
                 .map_err(|error| {
-                    crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+                    ryo_values::domain::rule_requests::service::failed(
+                        &RuleId("<request>".into()),
+                        &error,
+                    )
                 })?;
         let reuse_now = again.clone();
         setting.reuse = &reuse_now;

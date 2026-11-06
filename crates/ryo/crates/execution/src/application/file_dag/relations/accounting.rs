@@ -83,8 +83,8 @@ impl RelationOwner {
                         address: BackingAddress(Arc::as_ptr(table) as usize),
                     },
                     retention_units: UnitCount(0),
-                    bytes: ByteCount(
-                        ryo_values::domain::table_words::service::compact_metadata_bytes(table).0,
+                    bytes: crate::application::file_dag::derived::ledger::capacity::compact_table(
+                        table,
                     ),
                 });
             }

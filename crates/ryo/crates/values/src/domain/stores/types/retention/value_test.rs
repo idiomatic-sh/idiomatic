@@ -117,11 +117,13 @@ fn proof() -> FrontierProof {
 }
 fn observed(bytes: RetainedBytes) -> Value {
     [
-        u64::try_from(bytes.objects).unwrap(),
-        u64::try_from(bytes.rows).unwrap(),
-        u64::try_from(bytes.cells_live + bytes.packed_live + bytes.text_live + bytes.notes_live)
-            .unwrap(),
-        bytes.staged_payload_bytes,
+        u64::try_from(bytes.objects.0).unwrap(),
+        u64::try_from(bytes.rows.0).unwrap(),
+        u64::try_from(
+            bytes.cells_live.0 + bytes.packed_live.0 + bytes.text_live.0 + bytes.notes_live.0,
+        )
+        .unwrap(),
+        bytes.staged_payload_bytes.0,
     ]
 }
 fn inputs() -> RetainedBytes {
@@ -143,14 +145,18 @@ fn inputs() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            objects: 2,
-            metadata: owner.capacity() * size_of::<InputOwner>()
-                + (owner[0].table.kinds.capacity() + owner[1].table.kinds.capacity())
-                    * size_of::<CellKind>(),
-            rows: 3,
-            cells_live: 4 * size_of::<Cell>(),
-            cells_capacity: (owner[0].table.cells.capacity() + owner[1].table.cells.capacity())
-                * size_of::<Cell>(),
+            objects: crate::domain::stores::types::ObjectCount(2),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                owner.capacity() * size_of::<InputOwner>()
+                    + (owner[0].table.kinds.capacity() + owner[1].table.kinds.capacity())
+                        * size_of::<CellKind>()
+            ),
+            rows: crate::domain::rows::types::RowCount(3),
+            cells_live: crate::domain::stores::types::LiveBytes(4 * size_of::<Cell>()),
+            cells_capacity: crate::domain::stores::types::CapacityBytes(
+                (owner[0].table.cells.capacity() + owner[1].table.cells.capacity())
+                    * size_of::<Cell>()
+            ),
             ..RetainedBytes::default()
         }
     );
@@ -186,10 +192,14 @@ fn worker_notes() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            objects: 2,
-            metadata: owner.capacity() * size_of::<NoteOwner>(),
-            notes_live: 7,
-            notes_capacity: owner[0].notes.notes.0.capacity() + owner[1].notes.notes.0.capacity(),
+            objects: crate::domain::stores::types::ObjectCount(2),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                owner.capacity() * size_of::<NoteOwner>()
+            ),
+            notes_live: crate::domain::stores::types::LiveBytes(7),
+            notes_capacity: crate::domain::stores::types::CapacityBytes(
+                owner[0].notes.notes.0.capacity() + owner[1].notes.notes.0.capacity()
+            ),
             ..RetainedBytes::default()
         }
     );
@@ -214,14 +224,18 @@ fn reserved_empty() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            metadata: inputs.capacity() * size_of::<InputOwner>(),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                inputs.capacity() * size_of::<InputOwner>()
+            ),
             ..RetainedBytes::default()
         }
     );
     assert_eq!(
         noted,
         RetainedBytes {
-            metadata: notes.capacity() * size_of::<NoteOwner>(),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                notes.capacity() * size_of::<NoteOwner>()
+            ),
             ..RetainedBytes::default()
         }
     );
@@ -234,10 +248,14 @@ fn payloads() -> RetainedBytes {
     assert_eq!(
         RetainedBytes::arenas(&arenas),
         RetainedBytes {
-            objects: 2,
-            metadata: arenas.capacity() * size_of::<ArenaBytes>(),
-            text_live: 7,
-            text_capacity: arenas[0].0.capacity() + arenas[1].0.capacity(),
+            objects: crate::domain::stores::types::ObjectCount(2),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                arenas.capacity() * size_of::<ArenaBytes>()
+            ),
+            text_live: crate::domain::stores::types::LiveBytes(7),
+            text_capacity: crate::domain::stores::types::CapacityBytes(
+                arenas[0].0.capacity() + arenas[1].0.capacity()
+            ),
             ..RetainedBytes::default()
         }
     );
@@ -246,9 +264,9 @@ fn payloads() -> RetainedBytes {
     assert_eq!(
         RetainedBytes::packed(&packed),
         RetainedBytes {
-            objects: 1,
-            packed_live: 5,
-            packed_capacity: packed.0.0.capacity(),
+            objects: crate::domain::stores::types::ObjectCount(1),
+            packed_live: crate::domain::stores::types::LiveBytes(5),
+            packed_capacity: crate::domain::stores::types::CapacityBytes(packed.0.0.capacity()),
             ..RetainedBytes::default()
         }
     );
@@ -258,11 +276,15 @@ fn payloads() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            objects: 1,
-            metadata: table.kinds.capacity() * size_of::<CellKind>(),
-            rows: 2,
-            cells_live: 4 * size_of::<Cell>(),
-            cells_capacity: table.cells.capacity() * size_of::<Cell>(),
+            objects: crate::domain::stores::types::ObjectCount(1),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                table.kinds.capacity() * size_of::<CellKind>()
+            ),
+            rows: crate::domain::rows::types::RowCount(2),
+            cells_live: crate::domain::stores::types::LiveBytes(4 * size_of::<Cell>()),
+            cells_capacity: crate::domain::stores::types::CapacityBytes(
+                table.cells.capacity() * size_of::<Cell>()
+            ),
             ..RetainedBytes::default()
         }
     );
@@ -306,7 +328,7 @@ fn records() -> RetainedBytes {
         digest: Digest([0; 16]),
         number: FileNumber(0),
         outcome: FileOutcome::Read(Ran {
-            rows: FindingRows::default(),
+            rows: crate::domain::rows::types::RowCount(FindingRows::default()),
             number: FileNumber(0),
             interface: Digest([0; 16]),
             frontier,
@@ -325,15 +347,17 @@ fn records() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            objects: 1,
-            metadata: owner.capacity() * size_of::<Record>() + nested_metadata,
-            packed_live: 5,
+            objects: crate::domain::stores::types::ObjectCount(1),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                owner.capacity() * size_of::<Record>() + nested_metadata
+            ),
+            packed_live: crate::domain::stores::types::LiveBytes(5),
             packed_capacity,
-            staged_objects: 1,
-            staged_payload_bytes: 11,
-            text_live: 3,
+            staged_objects: crate::domain::stores::types::ObjectCount(1),
+            staged_payload_bytes: crate::domain::records::types::PayloadLength(11),
+            text_live: crate::domain::stores::types::LiveBytes(3),
             text_capacity,
-            notes_live: 4,
+            notes_live: crate::domain::stores::types::LiveBytes(4),
             notes_capacity,
             ..RetainedBytes::default()
         }
@@ -381,19 +405,27 @@ fn stored() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            objects: 1,
-            metadata: owner.frontier.capacity() * size_of::<StoredWords>()
-                + owner.texts.capacity() * size_of::<StoredText>()
-                + owner.notes.capacity() * size_of::<StoredNotes>()
-                + owner.covered.capacity() * size_of::<StoredCovered>()
-                + owner.covered[0].governing.0.capacity() * size_of::<u32>()
-                + owner.covered[0].partials.capacity() * size_of::<StoredPartial>(),
-            packed_live: 5,
-            packed_capacity: owner.frontier[0].words.0.capacity(),
-            text_live: 3,
-            text_capacity: owner.texts[0].text.0.capacity(),
-            notes_live: 4,
-            notes_capacity: owner.notes[0].notes.notes.0.capacity(),
+            objects: crate::domain::stores::types::ObjectCount(1),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                owner.frontier.capacity() * size_of::<StoredWords>()
+                    + owner.texts.capacity() * size_of::<StoredText>()
+                    + owner.notes.capacity() * size_of::<StoredNotes>()
+                    + owner.covered.capacity() * size_of::<StoredCovered>()
+                    + owner.covered[0].governing.0.capacity() * size_of::<u32>()
+                    + owner.covered[0].partials.capacity() * size_of::<StoredPartial>()
+            ),
+            packed_live: crate::domain::stores::types::LiveBytes(5),
+            packed_capacity: crate::domain::stores::types::CapacityBytes(
+                owner.frontier[0].words.0.capacity()
+            ),
+            text_live: crate::domain::stores::types::LiveBytes(3),
+            text_capacity: crate::domain::stores::types::CapacityBytes(
+                owner.texts[0].text.0.capacity()
+            ),
+            notes_live: crate::domain::stores::types::LiveBytes(4),
+            notes_capacity: crate::domain::stores::types::CapacityBytes(
+                owner.notes[0].notes.notes.0.capacity()
+            ),
             ..RetainedBytes::default()
         }
     );
@@ -421,10 +453,12 @@ fn staged() -> RetainedBytes {
     assert_eq!(
         actual,
         RetainedBytes {
-            objects: 2,
-            metadata: owner.staged.capacity() * size_of::<StagedRow>(),
-            staged_objects: 2,
-            staged_payload_bytes: u64::MAX,
+            objects: crate::domain::stores::types::ObjectCount(2),
+            metadata: crate::domain::stores::types::CapacityBytes(
+                owner.staged.capacity() * size_of::<StagedRow>()
+            ),
+            staged_objects: crate::domain::stores::types::ObjectCount(2),
+            staged_payload_bytes: crate::domain::records::types::PayloadLength(u64::MAX),
             ..RetainedBytes::default()
         }
     );

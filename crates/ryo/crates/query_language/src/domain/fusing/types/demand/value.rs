@@ -1,13 +1,19 @@
 //! Conservatively fuse exclusively source-keyed closure consumers into physical demand joins.
 
-use crate::domain::fusing::types::{EmptyColumns, GraphInput, GraphSource, Purity, RootStep};
-use ryo_relations::domain::relations::types::Relation;
+use crate::domain::fusing::types::EmptyColumns;
+use crate::domain::fusing::types::RootStep;
+use crate::domain::fusing::types::pulled_graph::value::PulledGraph;
+use crate::domain::fusing::types::pulled_graph::value::graph_source;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::ReachLookup;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input, Operand, ReachLookup, RepeatedRows, StepId, Test,
-};
-use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::plans::service::inputs_of;
+use ryo_values::domain::plans::service::named;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plans::types::PlanStep;
 
 /// One closure and the pure projection map through which a consumer sees its logical RHS.
 #[derive(Clone)]
@@ -125,7 +131,7 @@ impl<'a> DemandClosure<'a> {
                 destination,
                 keys,
             } => {
-                let GraphSource {
+                let PulledGraph {
                     input: edges,
                     source,
                     destination,
@@ -254,176 +260,4 @@ fn project(root: &Rooted, columns: &[ColumnIndex], empty: EmptyColumns) -> Optio
             .collect::<Option<_>>()?;
     }
     Some(result)
-}
-
-/// Positive closure ignores parallel duplicate edges. Pull input views through only when every
-/// projected physical column is still validated by an endpoint/partition check. This is NOT a
-/// generic Project/Axis rewrite: direct axes and outer closure projections retain their bags.
-fn graph_source(
-    mut input: Input,
-    source: ColumnIndex,
-    destination: ColumnIndex,
-    keys: &[ColumnIndex],
-    steps: &[PlanStep],
-) -> Option<GraphSource> {
-    let mut used = keys.to_vec();
-    used.extend([source, destination]);
-    for _ in 0..=steps.len() {
-        let Input::Step(id) = input else {
-            break;
-        };
-        let step = steps.get(usize::try_from(id.0).unwrap_or(usize::MAX))?;
-        if step.scope != StepScope::PerFile {
-            return None;
-        }
-        let view = match &step.operation {
-            Operation::Project { from, columns, .. } => Some((*from, columns.as_slice())),
-            Operation::Select {
-                from,
-                comparisons,
-                kept,
-            } if comparisons.is_empty() => Some((*from, kept.as_slice())),
-            Operation::Select { .. }
-            | Operation::Extend { .. }
-            | Operation::Join { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Difference { .. }
-            | Operation::Antijoin { .. }
-            | Operation::GroupCount { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Replace { .. }
-            | Operation::OrderedMatch { .. }
-            | Operation::Words { .. }
-            | Operation::Axis { .. }
-            | Operation::Closure { .. }
-            | Operation::OrderedDfs { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. }
-            | Operation::SpanBounds { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
-            | Operation::SpanBetween { .. } => None,
-        };
-        let Some((from, columns)) = view else {
-            break;
-        };
-        if columns.is_empty() && matches!(step.operation, Operation::Select { .. }) {
-            input = from;
-            continue;
-        }
-        let mapped = used
-            .iter()
-            .map(|column| {
-                columns
-                    .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                    .copied()
-            })
-            .collect::<Option<Vec<_>>>()?;
-        if columns.iter().any(|column| !mapped.contains(column)) {
-            break;
-        }
-        used = mapped;
-        input = from;
-    }
-    if matches!(graph_input(input, steps), GraphInput::Unsupported) {
-        return None;
-    }
-    let destination = used.pop()?;
-    let source = used.pop()?;
-    Some(GraphSource {
-        input,
-        source,
-        destination,
-        keys: used,
-    })
-}
-
-/// Stored relations and the already supported pure selection/projection chains alone qualify.
-fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInput {
-    for _ in 0..=steps.len() {
-        match input {
-            Input::Relation(Relation::SyntaxTree | Relation::SyntaxChild)
-            | Input::BoundObservation(_) => return GraphInput::Unsupported,
-            Input::Relation(_) => return GraphInput::Stored,
-            Input::Step(id) => {
-                let Some(step) = steps
-                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                    .filter(|step| step.scope == StepScope::PerFile)
-                else {
-                    return GraphInput::Unsupported;
-                };
-                input = match &step.operation {
-                    Operation::Project {
-                        from,
-                        distinct: RepeatedRows::Kept,
-                        ..
-                    } => *from,
-                    Operation::Select {
-                        from, comparisons, ..
-                    } if comparisons
-                        .iter()
-                        .all(|comparison| matches!(purity(comparison), Purity::Pure)) =>
-                    {
-                        *from
-                    }
-                    Operation::Select { .. }
-                    | Operation::Project { .. }
-                    | Operation::Extend { .. }
-                    | Operation::Join { .. }
-                    | Operation::Union { .. }
-                    | Operation::Intersection { .. }
-                    | Operation::Difference { .. }
-                    | Operation::Antijoin { .. }
-                    | Operation::GroupCount { .. }
-                    | Operation::GroupDigest { .. }
-                    | Operation::Capture { .. }
-                    | Operation::Rank { .. }
-                    | Operation::Replace { .. }
-                    | Operation::OrderedMatch { .. }
-                    | Operation::Words { .. }
-                    | Operation::Axis { .. }
-                    | Operation::Closure { .. }
-                    | Operation::OrderedDfs { .. }
-                    | Operation::Cycles { .. }
-                    | Operation::Rows { .. }
-                    | Operation::Hosted { .. }
-                    | Operation::SpanBounds { .. }
-                    | Operation::SourceMatches { .. }
-                    | Operation::RenderSyntax { .. }
-                    | Operation::FitsRendered { .. }
-                    | Operation::SpanBetween { .. } => return GraphInput::Unsupported,
-                };
-            }
-        }
-    }
-    GraphInput::Unsupported
-}
-
-/// Error-sensitive functions/patterns stay in their original owner-local execution path.
-fn purity(comparison: &ryo_values::domain::plan_parts::types::PlanComparison) -> Purity {
-    let plain = !matches!(comparison.left, Operand::Function(_))
-        && !matches!(comparison.right, Operand::Function(_))
-        && matches!(
-            comparison.test,
-            Test::Equal
-                | Test::NotEqual
-                | Test::LessThan
-                | Test::LessThanOrEqual
-                | Test::GreaterThan
-                | Test::GreaterThanOrEqual
-                | Test::StartsWith
-                | Test::EndsWith
-                | Test::In
-                | Test::NotIn
-        );
-    if plain {
-        Purity::Pure
-    } else {
-        Purity::ErrorSensitive
-    }
 }

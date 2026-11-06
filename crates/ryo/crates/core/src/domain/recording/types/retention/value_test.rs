@@ -61,16 +61,16 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
     let before = RetainedBytes::records(&records);
     assert_eq!(
         (
-            before.packed_live,
-            before.packed_capacity,
-            before.text_live,
-            before.text_capacity,
-            before.notes_live,
-            before.notes_capacity
+            before.packed_live.0,
+            before.packed_capacity.0,
+            before.text_live.0,
+            before.text_capacity.0,
+            before.notes_live.0,
+            before.notes_capacity.0
         ),
         (5, packed_capacity, 3, text_capacity, 4, notes_capacity)
     );
-    assert!(before.metadata >= records.capacity() * size_of::<Record>());
+    assert!(before.metadata.0 >= records.capacity() * size_of::<Record>());
     let stored = stored_of(
         ToKeep {
             rules: vec![],
@@ -91,12 +91,12 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
     let after = RetainedBytes::stored(&stored.stored.handed);
     assert_eq!(
         (
-            after.packed_live,
-            after.packed_capacity,
-            after.text_live,
-            after.text_capacity,
-            after.notes_live,
-            after.notes_capacity
+            after.packed_live.0,
+            after.packed_capacity.0,
+            after.text_live.0,
+            after.text_capacity.0,
+            after.notes_live.0,
+            after.notes_capacity.0
         ),
         (5, packed_capacity, 3, text_capacity, 4, notes_capacity)
     );
@@ -125,10 +125,10 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
     let observed = RetainedBytes::inputs(&inputs, |input| input);
     assert_eq!(
         (
-            observed.objects,
-            observed.rows,
-            observed.cells_live,
-            observed.cells_capacity
+            observed.objects.0,
+            observed.rows.0,
+            observed.cells_live.0,
+            observed.cells_capacity.0
         ),
         (
             1,
@@ -138,7 +138,7 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
         )
     );
     assert_eq!(
-        observed.metadata,
+        observed.metadata.0,
         inputs.capacity() * size_of::<Table>() + kinds_capacity * size_of::<CellKind>()
     );
     assert_eq!(inputs[0].cells.as_ptr(), pointer);
@@ -146,11 +146,11 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
     arenas.push(ArenaBytes(bytes(31, 7)));
     let observed = RetainedBytes::arenas(&arenas);
     assert_eq!(
-        (observed.text_live, observed.text_capacity),
+        (observed.text_live.0, observed.text_capacity.0),
         (7, arenas[0].0.capacity())
     );
     assert_eq!(
-        observed.metadata,
+        observed.metadata.0,
         arenas.capacity() * size_of::<ArenaBytes>()
     );
     let packed = KeptWords(PackedWords(bytes(19, 2)));
@@ -186,7 +186,9 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
                         proof: crate::outbound::lint_store::fixtures::proof(),
                         words: RecordWords::Staged(StagedWords {
                             session: StagingSession(1),
-                            offset: ryo_values::domain::records::types::PayloadOffset(u64::from(number) * 1024 * 1024),
+                            offset: ryo_values::domain::records::types::PayloadOffset(
+                                u64::from(number) * 1024 * 1024,
+                            ),
                             length: ryo_values::domain::records::types::PayloadLength(1024 * 1024),
                         }),
                     }],
@@ -196,9 +198,9 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
         })
         .collect();
     let before = RetainedBytes::records(&records);
-    assert_eq!(before.packed_capacity, 0);
-    assert_eq!(before.staged_objects, 128);
-    assert_eq!(before.staged_payload_bytes, 128 * 1024 * 1024);
+    assert_eq!(before.packed_capacity.0, 0);
+    assert_eq!(before.staged_objects.0, 128);
+    assert_eq!(before.staged_payload_bytes.0, 128 * 1024 * 1024);
     let mut store = ryo_values::domain::stores::types::StoredHanded::default();
     let mut staged = Vec::new();
     for record in records.drain(..) {
@@ -222,11 +224,11 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
         ..Default::default()
     };
     let after = RetainedBytes::staged(&kept);
-    assert_eq!(after.packed_capacity, 0);
-    assert_eq!(after.staged_objects, 128);
-    assert_eq!(after.staged_payload_bytes, before.staged_payload_bytes);
+    assert_eq!(after.packed_capacity.0, 0);
+    assert_eq!(after.staged_objects.0, 128);
+    assert_eq!(after.staged_payload_bytes.0, before.staged_payload_bytes.0);
     assert!(
-        after.metadata < 128 * 1024,
+        after.metadata.0 < 128 * 1024,
         "metadata stays proportional to bucket count, not payload size"
     );
 }

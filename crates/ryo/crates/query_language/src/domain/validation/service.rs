@@ -104,11 +104,13 @@ pub(crate) fn validate_with_observations(
         };
         if let Some(error) = error {
             return Err(match output.origin.clone() {
-                Some(origin) => ValidationError::Located {
-                    origin,
-                    error: Box::new(error),
-                },
-                None => error,
+                ryo_values::domain::program::types::Attribution::Located(origin) => {
+                    ValidationError::Located {
+                        origin,
+                        error: Box::new(error),
+                    }
+                }
+                ryo_values::domain::program::types::Attribution::Unlocated => error,
             });
         }
     }
@@ -118,13 +120,13 @@ pub(crate) fn validate_with_observations(
             span: program.emit.span,
         };
         return Err(match program.emit_origin.clone() {
-            ryo_values::domain::program::types::EmitOrigin::Located(origin) => {
+            ryo_values::domain::program::types::Attribution::Located(origin) => {
                 ValidationError::Located {
                     origin,
                     error: Box::new(error),
                 }
             }
-            ryo_values::domain::program::types::EmitOrigin::Unlocated => error,
+            ryo_values::domain::program::types::Attribution::Unlocated => error,
         });
     }
     Ok(())

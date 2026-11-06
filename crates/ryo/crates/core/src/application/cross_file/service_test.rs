@@ -333,7 +333,9 @@ pub(super) fn prepared_in(
             },
             symbols,
         )
-        .map_err(|error| crate::domain::rules::service::failed(&world.ids[rule.0], &error))?;
+        .map_err(|error| {
+            ryo_values::domain::rule_requests::service::failed(&world.ids[rule.0], &error)
+        })?;
     Ok((scope, frontiers))
 }
 
@@ -763,7 +765,10 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
     match result {
         Err(error) => assert_eq!(
             error,
-            crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead)
+            ryo_values::domain::rule_requests::service::failed(
+                &rules.ids[0],
+                &OperatingError::NotRead
+            )
         ),
         Ok(_) => panic!("an unrelated request scope cannot admit the original frontiers"),
     }
@@ -900,7 +905,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &phase,
         );
         assert!(
-            matches!(result, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[1], &OperatingError::NotRead))
+            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[1], &OperatingError::NotRead))
         );
         let (changed_scope, changed_frontier) = prepared_in(
             &rules,
@@ -923,7 +928,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &phase,
         );
         assert!(
-            matches!(result, Err(error) if error == crate::domain::rules::service::failed(
+            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
             )),
             "one interpreter cannot replay a different declared physical partition"
@@ -965,7 +970,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &phase,
         );
         assert!(
-            matches!(failed, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead))
+            matches!(failed, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[0], &OperatingError::NotRead))
         );
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
         let (scope, frontier) = prepared_in(
@@ -1209,7 +1214,7 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
 
 #[test]
 fn many_distinct_project_populations_allocate_only_reached_region_state() {
-    use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
+    use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
     use std::sync::atomic::Ordering;
     const POPULATIONS: usize = 8;
     let calls = Arc::new(ProjectCalls::default());
@@ -1731,7 +1736,7 @@ fn evaluate_fixture(
         .map(|result| result.crossed)
         .map_err(|error| match error {
             super::errors::CrossError::Rules(error) => error,
-            error => crate::domain::rules::service::failed(&todo.id, &error),
+            error => ryo_values::domain::rule_requests::service::failed(&todo.id, &error),
         })
 }
 

@@ -501,7 +501,7 @@ impl FileAnalysis {
                             &mut tables.rendered,
                         )
                         .map_err(|error| {
-                            crate::domain::rules::service::failed(
+                            ryo_values::domain::rule_requests::service::failed(
                                 &visit.setting.ids[rule.0],
                                 &error,
                             )
@@ -537,7 +537,7 @@ impl FileAnalysis {
                         }
                     }
                     RootOutcome::Failed(error) => {
-                        return Err(crate::domain::rules::service::failed(
+                        return Err(ryo_values::domain::rule_requests::service::failed(
                             &visit.setting.ids[rule.0],
                             &error,
                         )
@@ -931,7 +931,10 @@ impl FileAnalysis {
         record: &Record,
     ) -> Result<(), FileAnalysisError> {
         let setting = &visit.setting;
-        if !matches!(setting.reuse, ryo_values::domain::stores::types::Reuse::Cross(_)) {
+        if !matches!(
+            setting.reuse,
+            ryo_values::domain::stores::types::Reuse::Cross(_)
+        ) {
             return Ok(());
         }
         let ran = match &record.outcome {
@@ -1050,7 +1053,9 @@ impl FileAnalysis {
                     &loaded
                 }
             };
-            Self::hand_words_again(worker, setting, number, bucket, proof, words, &map, &mut out)?;
+            Self::hand_words_again(
+                worker, setting, number, bucket, proof, words, &map, &mut out,
+            )?;
         }
         Ok(())
     }

@@ -13,7 +13,6 @@ use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
 };
 use crate::domain::reporting::service::order_found;
-use crate::domain::rules::service::failed;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
@@ -33,6 +32,7 @@ use ryo_values::domain::records::types::RowTotal;
 use ryo_values::domain::records::types::{Cell, CellText, TextRange};
 use ryo_values::domain::rows::service::cell;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
+use ryo_values::domain::rule_requests::service::failed;
 use {
     crate::domain::finish::types::Arenas, crate::domain::finish::types::FoundRow,
     crate::domain::finish::types::HeldFile, crate::domain::finish::types::Loaded,
@@ -313,11 +313,13 @@ impl CrossFile {
         let mut publications = evaluated.publications;
         if let Some(packed) = &observations {
             publications.retain(|(output, _)| {
-                packed
-                    .roots
-                    .iter()
-                    .any(|root| root.output == *output
-                        && matches!(root.words, ryo_values::domain::records::types::RootWords::Published(_)))
+                packed.roots.iter().any(|root| {
+                    root.output == *output
+                        && matches!(
+                            root.words,
+                            ryo_values::domain::records::types::RootWords::Published(_)
+                        )
+                })
             });
         } else {
             publications.clear();

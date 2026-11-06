@@ -2,9 +2,9 @@
 
 use super::super::contract::check;
 use super::{QueryLanguageFake, REFUSED};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort as _;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::plan_parts::types::QueryText;
 
 /// What a row of the cases asks of the fake.

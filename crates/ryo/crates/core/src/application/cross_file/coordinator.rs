@@ -166,8 +166,9 @@ fn prepare_frontiers(
     ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers,
     ryo_values::domain::rule_requests::errors::RuleRequestsError,
 > {
-    let failed =
-        |error: &dyn std::fmt::Display| crate::domain::rules::service::failed(&todo.id, error);
+    let failed = |error: &dyn std::fmt::Display| {
+        ryo_values::domain::rule_requests::service::failed(&todo.id, error)
+    };
     let first = *run
         .first_bucket
         .get(todo.rule.0)

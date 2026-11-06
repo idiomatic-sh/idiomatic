@@ -42,7 +42,7 @@ fn refused(kind: RefusedKind, start: u32, end: u32) -> RefusedQuery {
             start: Offset(start),
             end: Offset(end),
         },
-        origin: None,
+        origin: ryo_values::domain::program::types::Attribution::Unlocated,
     }
 }
 
@@ -85,7 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || CoreError::UnknownKind {
             reason: String::new(),
-            origin: None,
+            origin: ryo_values::domain::program::types::Attribution::Unlocated,
         },
         expect: Expect::Value(0),
     },

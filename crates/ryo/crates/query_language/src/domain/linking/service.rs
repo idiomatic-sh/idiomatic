@@ -1107,19 +1107,15 @@ fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId) {
         trace: Vec::new(),
     });
     for output in &mut program.observations {
-        output.origin = Some(QueryOrigin {
+        let origin = QueryOrigin {
             source_id: root.clone(),
             span: output.span,
             trace: Vec::new(),
-        });
-        program.origins.push(
-            output
-                .origin
-                .clone()
-                .expect(super::constants::ASSIGNED_ROOT_ORIGIN),
-        );
+        };
+        output.origin = ryo_values::domain::program::types::Attribution::Located(origin.clone());
+        program.origins.push(origin);
     }
-    program.emit_origin = ryo_values::domain::program::types::EmitOrigin::Located(QueryOrigin {
+    program.emit_origin = ryo_values::domain::program::types::Attribution::Located(QueryOrigin {
         source_id: root.clone(),
         span: program.emit.span,
         trace: Vec::new(),

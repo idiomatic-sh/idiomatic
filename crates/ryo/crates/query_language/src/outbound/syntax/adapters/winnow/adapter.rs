@@ -200,7 +200,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<WrittenProgram> {
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
                 observations,
-                emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
+                emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
                 parameters,
                 steps,
                 emit,
@@ -459,7 +459,7 @@ pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservat
             start: ByteOffset(span.start),
             end: ByteOffset(span.end),
         },
-        origin: None,
+        origin: ryo_values::domain::program::types::Attribution::Unlocated,
     })
 }
 

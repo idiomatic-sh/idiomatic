@@ -1,13 +1,12 @@
 //! The `rules` service's cases, on values alone.
 
-use super::service::{failed, governing, ids_of, owner_of, scopes_of};
-use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
+use super::service::{governing, ids_of, owner_of, scopes_of};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     GlobOwner, GlobSide, Mask, ScopePlacement,
 };
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::RuleNumber;
 
@@ -19,14 +18,13 @@ enum Scenario {
     OwnerOfOwned,
     OwnerOfNobody,
     Governing,
-    Failed,
 }
 
 /// What a row of the cases does with the rules of a run.
 type Input = Scenario;
 /// The answer as up to three numbers, the first byte of an id standing for the id; zero where there is nothing.
 type Value = [i64; 3];
-type Failure = RuleRequestsError;
+type Failure = std::convert::Infallible;
 
 fn byte(id: &str) -> i64 {
     i64::from(id.bytes().next().unwrap_or(0))
@@ -112,7 +110,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }
             read
         }
-        Scenario::Failed => return Err(failed(&RuleId("a".into()), &"boom")),
     })
 }
 
@@ -147,31 +144,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Governing,
         expect: Expect::Value([97, 99, 0]),
     },
-    Case {
-        name: CaseName("a_rule_that_could_not_run_fails_with_the_words_of_what_refused_it"),
-        word: Word::Fails,
-        input: || Scenario::Failed,
-        expect: Expect::Refusal(|error| {
-            if matches!(
-                error,
-                RuleRequestsError::Failed { id, reason } if &*id.0 == "a" && reason == "boom"
-            ) {
-                Selection::Matches
-            } else {
-                Selection::Differs
-            }
-        }),
-    },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn fails() {
-    run(CASES, Word::Fails, subject);
 }
 
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};

@@ -437,5 +437,17 @@ pub enum Reuse {
     Cross(MadeAgain),
 }
 
+/// How many records, arenas, frontiers, rows or packed inputs a retention measurement covers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ObjectCount(pub usize);
+
+/// Bytes of an owning allocation counted by its capacity, spare room included.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CapacityBytes(pub usize);
+
+/// Bytes of an owning allocation that hold data now.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LiveBytes(pub usize);
+
 /// Canonical read-only retention measurements over portable payloads.
 pub mod retention;

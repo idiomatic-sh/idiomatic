@@ -3,11 +3,11 @@ use super::constants::COMPILED_PLANS;
 use super::errors::RuleCompilationError;
 use super::types::{CachedPlan, CompiledPlans};
 use crate::domain::prepared_request::types::Compiled;
-use crate::domain::rules::service::{bind, check_ids};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::domain::hosted::service::declarations;
 use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::rule_requests::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::{Arc, PoisonError};
 

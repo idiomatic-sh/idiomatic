@@ -119,7 +119,7 @@ pub(crate) fn prepare(
             let bytes = ryo_values::domain::stores::types::retention::value::RetainedBytes::packed(
                 &words.words,
             );
-            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live, packed_capacity_bytes=bytes.packed_capacity);
+            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
         }
         let mode = match policy {
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
@@ -206,19 +206,23 @@ pub(crate) fn admit(
             },
         };
     if matches!(input, Input::Step(_)) {
-        return admit_compact(ryo_values::domain::table_words::types::CompactBacking(words), places_mut(symbols), mode)
-            .map(
-                |ryo_values::domain::table_words::types::Admitted {
-                     table,
-                     names: spelling,
-                 }| FrontierInput::Compact {
-                    input,
-                    table: std::sync::Arc::new(table),
-                    spelling,
-                    coverage,
-                },
-            )
-            .map_err(refuse);
+        return admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(words),
+            places_mut(symbols),
+            mode,
+        )
+        .map(
+            |ryo_values::domain::table_words::types::Admitted {
+                 table,
+                 names: spelling,
+             }| FrontierInput::Compact {
+                input,
+                table: std::sync::Arc::new(table),
+                spelling,
+                coverage,
+            },
+        )
+        .map_err(refuse);
     }
     // Non-Step borrowed relation/binding sources keep their existing representation.
     match mode {

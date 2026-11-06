@@ -49,7 +49,7 @@ fn only_a_kind_refusal_is_told_to_correct_the_kind() {
     assert_eq!(
         ValidateError::UnknownKind {
             reason: "no such kind".to_owned(),
-            origin: None,
+            origin: ryo_values::domain::program::types::Attribution::Unlocated,
         }
         .next(),
         Next::Fix("correct the kind the query text compares with".to_owned())
@@ -63,7 +63,7 @@ fn only_a_kind_refusal_is_told_to_correct_the_kind() {
                     start: Offset(0),
                     end: Offset(0),
                 },
-                origin: None,
+                origin: ryo_values::domain::program::types::Attribution::Unlocated,
             },
         }
         .next(),

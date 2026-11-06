@@ -38,7 +38,7 @@ fn program() -> syntax::WrittenProgram {
         origins: vec![],
         fragment_contracts: vec![],
         step_origins: Default::default(),
-        emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
+        emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
         parameters: vec![],
         observations: vec![],
         steps: vec![syntax::LetStep {
@@ -106,7 +106,7 @@ fn a_refusal_of_an_expanded_fragment_names_its_origin() {
         "missing".into(),
         ryo_values::domain::program::types::StepIdentified::Unassigned,
     );
-    program.emit_origin = ryo_values::domain::program::types::EmitOrigin::Located(origin_of(span));
+    program.emit_origin = ryo_values::domain::program::types::Attribution::Located(origin_of(span));
     assert!(matches!(
         super::service::lower(&program, &[Relation::Function], &[]),
         Err(LoweringError::Located { .. })

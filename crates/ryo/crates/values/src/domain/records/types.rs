@@ -471,7 +471,3 @@ pub enum ProducerReadiness {
     /// The configured producer has no executable query; it is never treated as complete-empty.
     NoQuery,
 }
-
-/// Bytes owned by a value, counted for a diagnostic.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct OwnedBytes(pub usize);

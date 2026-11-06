@@ -85,7 +85,7 @@ fn refused(
     mut error: ryo_query_language::inbound::use_cases::compile::errors::CompileError,
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::compile::errors::CompileError;
-    let mut origin = None;
+    let mut origin = ryo_values::domain::program::types::Attribution::Unlocated;
     let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
@@ -100,7 +100,7 @@ fn refused(
                 origin: found,
                 error: inner,
             } => {
-                origin = Some(found);
+                origin = ryo_values::domain::program::types::Attribution::Located(found);
                 error = *inner;
             }
             CompileError::Syntax { span: at, message } => {
@@ -136,7 +136,7 @@ fn invalid(
     mut error: ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError,
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError;
-    let mut origin = None;
+    let mut origin = ryo_values::domain::program::types::Attribution::Unlocated;
     let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
@@ -151,7 +151,7 @@ fn invalid(
                 origin: found,
                 error: inner,
             } => {
-                origin = Some(found);
+                origin = ryo_values::domain::program::types::Attribution::Located(found);
                 error = *inner;
             }
             TypecheckError::Syntax { span: at, message } => {

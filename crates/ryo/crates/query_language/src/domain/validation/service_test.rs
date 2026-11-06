@@ -188,7 +188,7 @@ fn observation(name: &str) -> WrittenObservation {
         ),
         name: ObservationName(name.into()),
         span: SPAN,
-        origin: None,
+        origin: ryo_values::domain::program::types::Attribution::Unlocated,
     }
 }
 
@@ -200,7 +200,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
+        emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: vec![source("function")],
         emit: WrittenEmit {

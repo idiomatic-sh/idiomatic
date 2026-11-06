@@ -9,12 +9,12 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::types::{
-    Admitted, CellCount, ColumnCount, CompactBacking, CompactCursor, CompactFrame, CompactStorage, CompactTable,
-    Completeness, DecodeMode, DecodePhase, DecodedTables, EncodedSize, Framing, PackedOffset,
-    PackedSlice, StorageAddress, StorageLength, StoragePart, TableShape, WordSlice, WordSpelling,
+    Admitted, CellCount, ColumnCount, CompactBacking, CompactCursor, CompactFrame, CompactStorage,
+    CompactTable, Completeness, DecodeMode, DecodePhase, DecodedTables, EncodedSize, Framing,
+    PackedOffset, PackedSlice, StorageAddress, StorageLength, StoragePart, TableShape, WordSlice,
+    WordSpelling,
 };
 use crate::domain::plan_parts::types::ColumnIndex;
-use crate::domain::records::types::OwnedBytes;
 use crate::domain::rows::types::RowIndex;
 
 use crate::domain::stored_facts::types::PackedWords;
@@ -151,8 +151,8 @@ fn observed_decode(at: DecodePhase, packed: &PackedWords, table: &Table, places:
         let place_width = size_of::<NamePlace>();
         tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase, owner = super::constants::DECODING_OWNER,
             packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),
-            decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity,
-            decoded_rows = bytes.rows, metadata_capacity_bytes = bytes.metadata,
+            decoded_live_bytes = bytes.cells_live.0, decoded_capacity_bytes = bytes.cells_capacity.0,
+            decoded_rows = bytes.rows.0, metadata_capacity_bytes = bytes.metadata.0,
             places_live_bytes = places.len() * place_width, places_capacity_bytes = places.capacity() * place_width);
     }
 }
@@ -543,17 +543,6 @@ pub fn compact_rectangular(input: &CompactTable) -> TableShape {
 pub fn compact_backing(input: &CompactTable) -> CompactBacking {
     CompactBacking(std::sync::Arc::clone(&input.words))
 }
-pub fn compact_metadata_bytes(input: &CompactTable) -> OwnedBytes {
-    OwnedBytes(
-        size_of::<CompactTable>()
-            + 2 * size_of::<usize>()
-            + input.frames.capacity() * size_of::<CompactFrame>()
-            + input.kinds.capacity()
-                * size_of::<ryo_relations::domain::relations::types::CellKind>()
-            + input.row_offsets.capacity() * size_of::<PackedOffset>(),
-    )
-}
-
 pub fn compact_storage(input: &CompactTable) -> CompactStorage {
     CompactStorage {
         words: StoragePart {

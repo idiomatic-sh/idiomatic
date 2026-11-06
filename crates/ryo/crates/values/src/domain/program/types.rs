@@ -189,10 +189,10 @@ pub struct BareWord<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QuerySpelling<'a>(pub &'a str);
 
-/// Whether the root emit statement has source attribution.
+/// Whether a statement or refusal has source attribution.
 #[derive(Clone, Debug, PartialEq)]
-pub enum EmitOrigin {
-    /// Where the root emit statement came from.
+pub enum Attribution {
+    /// Where it came from, through any hygienic fragment expansion.
     Located(QueryOrigin),
     /// No attribution was recorded.
     Unlocated,
@@ -221,7 +221,7 @@ pub struct WrittenProgram {
     /// Original source and call trace for each linked step definition.
     pub step_origins: BTreeMap<StepIdentity, QueryOrigin>,
     /// Original source for the root emit statement.
-    pub emit_origin: EmitOrigin,
+    pub emit_origin: Attribution,
     /// The `param` lines.
     pub parameters: Vec<ParameterDeclaration>,
     /// The `let` lines, in order.
@@ -666,7 +666,7 @@ pub struct WrittenObservation {
     /// The complete declaration's source range.
     pub span: QuerySpan,
     /// Attribution preserved through hygienic fragment expansion.
-    pub origin: Option<QueryOrigin>,
+    pub origin: Attribution,
 }
 
 impl From<QueryText> for QueryBundle {
@@ -711,7 +711,7 @@ pub struct RefusedQuery {
     /// Where in the text; empty for a fault that is not in the text.
     pub span: Span,
     /// The original query-module source and import/call path, when the refusal came from a fragment.
-    pub origin: Option<QueryOrigin>,
+    pub origin: Attribution,
 }
 
 impl std::fmt::Display for RefusedQuery {

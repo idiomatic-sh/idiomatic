@@ -43,7 +43,12 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::clone(&words)), &mut Vec::new(), DecodeMode::Complete).unwrap();
+    } = service::admit_compact(
+        ryo_values::domain::table_words::types::CompactBacking(Arc::clone(&words)),
+        &mut Vec::new(),
+        DecodeMode::Complete,
+    )
+    .unwrap();
     assert!(names.is_empty());
     assert_eq!(
         service::compact_rectangular(&compact),
@@ -82,7 +87,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     );
     assert_eq!(
         first_unique,
-        service::compact_metadata_bytes(&compact).0
+        crate::application::file_dag::derived::ledger::capacity::compact_table(&compact).0
             + size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
             + 2 * size_of::<usize>()
             + words.0.0.capacity()

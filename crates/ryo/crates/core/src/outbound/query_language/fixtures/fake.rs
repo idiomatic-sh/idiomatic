@@ -200,7 +200,7 @@ fn refused() -> QueryLanguageError {
                 start: Offset(0),
                 end: Offset(0),
             },
-            origin: None,
+            origin: ryo_values::domain::program::types::Attribution::Unlocated,
         },
     }
 }

@@ -88,7 +88,7 @@ fn program_with(filters: Vec<Filter>) -> WrittenProgram {
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
+        emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {

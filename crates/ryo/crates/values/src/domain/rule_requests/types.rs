@@ -1,9 +1,9 @@
 //! The types of the `rules` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::query_bindings::types::ParameterBinding;
 use crate::domain::files::types::Glob;
 use crate::domain::plan_parts::types::ParameterName;
 use crate::domain::program::types::QueryBundle;
+use crate::domain::query_bindings::types::ParameterBinding;
 use crate::domain::runs::types::{RuleApplicability, RuleId};
 
 /// A rule's parameters as they are written, for the digest of the configuration.
