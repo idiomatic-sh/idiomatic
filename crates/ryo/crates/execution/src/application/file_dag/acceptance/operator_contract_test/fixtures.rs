@@ -387,8 +387,8 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
                 texts: vec![ColumnIndex(0)],
                 literals: vec![LiteralText("".into()), LiteralText("".into())],
                 span: ColumnIndex(1),
-                max_line: 88,
-                tab_width: 4,
+                max_line: ryo_values::domain::plans::types::MaxLine(88),
+                tab_width: ryo_values::domain::plans::types::TabWidth(4),
             },
             vec![table(
                 &[CellKind::Symbol, CellKind::Span],

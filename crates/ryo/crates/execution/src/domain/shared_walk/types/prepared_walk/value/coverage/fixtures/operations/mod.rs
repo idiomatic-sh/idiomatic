@@ -248,8 +248,8 @@ pub(in super::super) fn operations() -> Vec<Operation> {
                 LiteralText(TEXT_EMPTY.into()),
             ],
             span: ColumnIndex(3),
-            max_line: 88,
-            tab_width: 4,
+            max_line: ryo_values::domain::plans::types::MaxLine(88),
+            tab_width: ryo_values::domain::plans::types::TabWidth(4),
         },
         Operation::SpanBounds {
             from: f,

@@ -360,9 +360,9 @@ pub enum Operation {
         /// Original physical statement span.
         span: ColumnIndex,
         /// Maximum physical display columns.
-        max_line: i64,
+        max_line: MaxLine,
         /// Physical tab stop width.
-        tab_width: u32,
+        tab_width: TabWidth,
     },
     /// Append checked byte offsets of an existing physical source span.
     SpanBounds {
@@ -526,3 +526,11 @@ pub enum QueryOperator {
     /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.
     OrderedDfs,
 }
+
+/// Maximum physical display columns of a source line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct MaxLine(pub i64);
+
+/// Physical tab stop width in display columns.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TabWidth(pub u32);

@@ -459,8 +459,11 @@ fn file_schema<'a>(strings: &mut StringsSchema<'a>, file: &'a StoredFile) -> Fil
             ryo_values::domain::files::types::ExecutablePermission::Unsupported => {
                 ExecutableSchema::Unsupported
             }
-            ryo_values::domain::files::types::ExecutablePermission::Posix(value) => {
-                ExecutableSchema::Posix(value)
+            ryo_values::domain::files::types::ExecutablePermission::PosixExecutable => {
+                ExecutableSchema::Posix(true)
+            }
+            ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable => {
+                ExecutableSchema::Posix(false)
             }
         },
         path: text(strings, &file.path.0),
@@ -482,8 +485,11 @@ fn file_from(strings: &[Cow<'_, str>], file: &FileSchema) -> Result<StoredFile, 
             ExecutableSchema::Unsupported => {
                 ryo_values::domain::files::types::ExecutablePermission::Unsupported
             }
-            ExecutableSchema::Posix(value) => {
-                ryo_values::domain::files::types::ExecutablePermission::Posix(value)
+            ExecutableSchema::Posix(true) => {
+                ryo_values::domain::files::types::ExecutablePermission::PosixExecutable
+            }
+            ExecutableSchema::Posix(false) => {
+                ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable
             }
         },
         path: FilePath(named(strings, file.path)?),
@@ -915,8 +921,8 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
             version: each.root.version.0,
             layout: each.root.layout.0.0,
             slots: each.root.slots.0,
-            complete: each.root.complete.clone(),
-            skipped: each.root.skipped.clone(),
+            complete: each.root.complete.0.clone(),
+            skipped: each.root.skipped.0.clone(),
             refusals: each
                 .root
                 .refusals
@@ -1027,8 +1033,8 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
                         version: ObservationReadinessVersion(each.version),
                         layout: ObservationReadinessLayout(Digest(each.layout)),
                         slots: ObservationReadinessCount(each.slots),
-                        complete: each.complete.clone(),
-                        skipped: each.skipped.clone(),
+                        complete: ryo_values::domain::records::types::ReadinessBits(each.complete.clone()),
+                        skipped: ryo_values::domain::records::types::ReadinessBits(each.skipped.clone()),
                         refusals: each
                             .refusals
                             .iter()

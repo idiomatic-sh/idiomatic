@@ -301,18 +301,18 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
         Scenario::InvalidCompleteBits => {
             let (mut map, layout, count) = blank();
-            map.complete[0] = 2;
+            map.complete.0[0] = 2;
             refused_by(&map, layout, count)
         }
         Scenario::CompleteAndSkipped => {
             let (mut map, layout, count) = blank();
-            map.complete[0] = 1;
-            map.skipped = vec![1];
+            map.complete.0[0] = 1;
+            map.skipped.0 = vec![1];
             refused_by(&map, layout, count)
         }
         Scenario::MissingBits => {
             let (mut map, layout, count) = blank();
-            map.complete.clear();
+            map.complete.0.clear();
             refused_by(&map, layout, count)
         }
         Scenario::DuplicateRefusals => {

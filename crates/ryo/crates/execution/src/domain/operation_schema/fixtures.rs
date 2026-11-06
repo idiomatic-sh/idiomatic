@@ -193,8 +193,8 @@ fn unary() -> Vec<Operation> {
             texts: vec![col(1)],
             literals: vec![LiteralText("".into()), LiteralText("".into())],
             span: col(3),
-            max_line: 88,
-            tab_width: 4,
+            max_line: ryo_values::domain::plans::types::MaxLine(88),
+            tab_width: ryo_values::domain::plans::types::TabWidth(4),
         },
         Operation::SpanBounds {
             from: FROM,

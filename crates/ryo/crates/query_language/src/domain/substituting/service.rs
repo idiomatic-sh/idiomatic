@@ -167,8 +167,8 @@ pub(crate) fn call_fits_rendered(
                 .map(|literal| LiteralText(literal.0))
                 .collect(),
             span,
-            max_line: max_line.0,
-            tab_width,
+            max_line: ryo_values::domain::plans::types::MaxLine(max_line.0),
+            tab_width: ryo_values::domain::plans::types::TabWidth(tab_width),
         },
         fields,
     );

@@ -137,8 +137,8 @@ impl OperatorsItem for FitsRenderedItem {
         if let Some(last) = literals.last() {
             rendered.push_str(&last.0);
         }
-        let maximum = usize::try_from(*max_line).map_err(|_| OperatingError::WrongBinding)?;
-        let tab_width = usize::try_from(*tab_width).map_err(|_| OperatingError::WrongBinding)?;
+        let maximum = usize::try_from(max_line.0).map_err(|_| OperatingError::WrongBinding)?;
+        let tab_width = usize::try_from(tab_width.0).map_err(|_| OperatingError::WrongBinding)?;
         if tab_width == 0 {
             return Err(OperatingError::WrongBinding);
         }
