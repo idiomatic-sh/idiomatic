@@ -36,7 +36,7 @@ use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{FileText, Settlement};
 use crate::domain::targets::types::Manifest as TargetManifest;
 use crate::domain::workspaces::service::settled;
-use crate::domain::workspaces::types::{WorkspaceConfiguration, Looking, Reason};
+use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
 use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
@@ -322,8 +322,11 @@ impl Project for ProjectContract {
         )
     }
 
-    fn project_entries(&self, _request: &ProjectRequest) -> Vec<ryo::languages::FilePath> {
-        Vec::new()
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo::languages::FilePath>,
+    ) {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {

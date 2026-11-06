@@ -126,8 +126,9 @@ impl<P: ProjectUseCase> ProjectEngine for P {
     fn project_entries(
         &self,
         request: &ProjectRequest,
-    ) -> Vec<crate::domain::files::types::FilePath> {
-        ProjectUseCase::project_entries(self, request)
+        entries: &mut Vec<crate::domain::files::types::FilePath>,
+    ) {
+        ProjectUseCase::project_entries(self, request, entries);
     }
 
     fn manifest_names(&self) -> &'static [ManifestName] {

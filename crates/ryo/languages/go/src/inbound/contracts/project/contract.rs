@@ -103,8 +103,11 @@ impl Project for ProjectContract {
         )
     }
 
-    fn project_entries(&self, _request: &ProjectRequest) -> Vec<ryo::languages::FilePath> {
-        Vec::new()
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo::languages::FilePath>,
+    ) {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {

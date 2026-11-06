@@ -275,11 +275,9 @@ impl LanguagePort for LanguageUseCaseAdapter {
     fn project_entries(&self, input: &ProjectInput<'_>) -> Vec<FilePath> {
         let mut entries = Vec::new();
         for (number, language) in self.languages.iter().enumerate() {
-            entries.extend(
-                language
-                    .project
-                    .project_entries(&project_request(input, number)),
-            );
+            language
+                .project
+                .project_entries(&project_request(input, number), &mut entries);
         }
         entries.sort();
         entries.dedup();

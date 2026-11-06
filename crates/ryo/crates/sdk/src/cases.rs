@@ -1,4 +1,3 @@
-// `selects` is given the result of a `matches!` over the error, the one boolean the selector of a row is made of
 //! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
 #![doc(hidden)]
 
@@ -28,6 +27,7 @@ pub enum Selection {
 
 /// Whether an error is the one a row picks, as a selector answers it.
 #[must_use]
+// ignore: idiomatic.arch/idiomatic-rust/no-bare-bool - `selects` is given the result of a `matches!` over the error, the one boolean the selector of a row is made of
 pub const fn selects(matched: bool) -> Selection {
     if matched {
         Selection::Matches

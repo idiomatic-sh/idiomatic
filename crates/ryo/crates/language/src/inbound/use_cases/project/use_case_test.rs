@@ -36,8 +36,8 @@ impl ProjectUseCase for Broken {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-    ) -> Vec<crate::domain::files::types::FilePath> {
-        Vec::new()
+        _entries: &mut Vec<crate::domain::files::types::FilePath>,
+    ) {
     }
 
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
