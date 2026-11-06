@@ -1,3 +1,4 @@
+closed = false
 imports-allow = ["ruff_python_parser::*", "ruff_python_ast::*", "ruff_text_size::*", "toml::*", "serde::*", "postcard::*", "indexmap::*", "unicode_properties::*"]
 templates = [
   { template = "idiomatic.arch/unchecked", file = "inbound/contracts/parse/readers.rs", description = "The list of the readers' concepts, one module each." },
