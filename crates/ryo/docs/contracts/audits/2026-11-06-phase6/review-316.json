@@ -1,0 +1,73 @@
+{
+ "schema": "contract-review-verdict/v1",
+ "scope": "Phase 6 first review (base d92fce4796): FrontierProof fixtures and stale-proof matrix, one replay path, GroupCount lease.found, cold/warm/edit parity in three stores, InapplicableFiles injection, Inapplicable coverage/readiness, drop_inapplicable, validate_bucket discharge, SyntaxRejected, list_relations 69, relocated core targets",
+ "source": {
+  "base": "d92fce4796120d2ad9ba982917f1e554b6a1b353",
+  "head": "1e3eba5c90a3de41b297676972c03d4187b2c6d0",
+  "tree": "02d22a77569b2fccdb9339a4def9dfe9534126ac",
+  "validated_source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+  "note": "dcfb869ef5..1e3eba5c90 is docs only (README.md, evidence/checkpoint/{identity,validation}.json)"
+ },
+ "reviewers": {
+  "lead": "unavailable: Astra not reachable in this session; this is the single independent review",
+  "independent": {
+   "model": "claude-opus-5-5",
+   "harness": "Claude Code subagent (contract-review)",
+   "session": "49097a8d-ede0-49a6-a00e-e5e13e0b95b9",
+   "round": "review-316-1e3eba5c90"
+  },
+  "mode": "read-only; git read commands only; no build, test or tm run",
+  "worktree": "/workspaces/ryo-review-316 detached at 1e3eba5c90a3de41b297676972c03d4187b2c6d0, status clean before and after, removed at end",
+  "evidence": "/tmp/ryo-contract-validation316-20261106/final3 (all 20 per-check json source=dcfb869ef5; run3.out BATCH COMPLETE; exits: ruff 101, core_allocation 101, tm_source 1, rest 0); committed evidence/checkpoint/validation.json (validation 316, raw_identity final3). Top-level raw files in that directory are from 46264ac52d and were not used."
+ },
+ "verdict": "blocking",
+ "axes": {
+  "enforced_boundaries": "FAIL",
+  "ownership_and_flow": "FAIL",
+  "proof": "FAIL"
+ },
+ "findings": [
+  {
+   "id": 1,
+   "axis": "ownership_and_flow",
+   "location": "crates/ryo/crates/execution/src/application/file_dag/program/admission.rs:30-36 (inapplicable inside RequiredPartitions); runtime/service/state/service.rs:253; partitions/service.rs:129; restored.rs:139-142",
+   "failure": "Applicability was added to the project identity instead of beside it, then the identity was split to make the ruff case pass: same_project for opening, full equality for supplies/materialize/cache. A rule whose inapplicable set differs from the phase's first opener is admitted but its restored bound members are refused NotRead (example in the Phase 2 verdict, finding 3). The identity test opens two rules and never evaluates or materializes, so it cannot fail on this.",
+   "owner": "Phase 6 builder (applicability) with Phase 2 agent",
+   "required_enforcement": "One identity: move inapplicable out of RequiredPartitions into per-rule evidence read only by validate_bucket and completion; delete same_project; control with two rules of different inapplicable sets reading restored bound observations, cold == warm, no NotRead."
+  },
+  {
+   "id": 2,
+   "axis": "proof",
+   "location": "crates/ryo/languages/python/benchmarks/linters/ruff/engine_test/i001_observation.rs:190-215 (final3/ruff.log: 'the valid file keeps its actual I001-derived answer' left 0 right 1); README:45,93",
+   "failure": "The production route falsifies a Phase 6 claim: with a syntax-rejected sibling, every rule is Unknown on every file (fresh and warm agree), while the unit control a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm passes. The failure is 'undiagnosed' yet assigned to Phase 1; the ruff target was never run in any validation before 316 (313-315 ran only ruff_sharing), so there is no evidence it predates the Phase 5/6 changes to skipped/inapplicable/project partitions.",
+   "owner": "Phase 6 builder",
+   "required_enforcement": "Diagnose before reassigning: run the ruff target at d92fce4796 (or bisect) and record it; if it passed there, fix in Phase 6; if not, record the baseline and keep the Phase 6 non-poisoning claim scoped to what the unit fixture proves."
+  },
+  {
+   "id": 3,
+   "axis": "enforced_boundaries",
+   "location": "final3/tm_source.json scope; crates/ryo/crates/core/src/**, crates/ryo/crates/execution/src/domain/{completion,coverage}, application/file_dag/frontiers, file_analysis",
+   "failure": "No TM evidence covers any Phase 6 source directory (core, completion, coverage, frontiers, file_analysis).",
+   "owner": "integrator",
+   "required_enforcement": "Extend tm_source to the Phase 6 directories, record zero production findings."
+  },
+  {
+   "id": 4,
+   "axis": "proof",
+   "location": "crates/ryo/cli/tests/replay/{cache,frontier,damage,finish}.rs via cli/tests/replay/main.rs",
+   "failure": "The CLI replay suites that exercise cold/warm/edit reuse through the real binary composition do not compile at dcfb869ef5 (Phase 5 verdict, finding 2) and are not in the command set; Phase 6 parity rests on core unit tables only.",
+   "owner": "integrator",
+   "required_enforcement": "Restore and run the CLI replay target on the validated source."
+  }
+ ],
+ "verified": [
+  "core lib 186/0 with the six deferred names and list_relations at 69; staged_replay_reads_only_selected_buckets..., a_selected_bucket_under_a_stale_proof... (digest, ordinal, coverage, capture flag), the three postcard controls, cold_warm_and_edited_runs_answer_the_same_in_every_store, a_syntax_rejected_file_is_skipped..., an_inapplicable_file_withholds_nothing... all ok in final3/libraries.log; MissingWhileAnotherFileIsInapplicable case in tests/project_phase/applicability ok in boundary.log.",
+  "Relocated core targets: executable_program_authority 3, owner_resource_capabilities 2, representation_capabilities 4 ok; derived_view_capabilities replaced by derived-crate compile_fail doctests (9 ok)."
+ ],
+ "dispositions": [],
+ "manual_judgment": [
+  "Answering::Rows still decides Decision::Whole because rows are not stored: a design decision the owner should confirm.",
+  "Core allocation target red (about 1880 blocks/file vs 1) is assigned to Phase 7 measurement; not judged here.",
+  "derived_view_capabilities' registry-arm completeness check has no direct successor in the doctests."
+ ]
+}
