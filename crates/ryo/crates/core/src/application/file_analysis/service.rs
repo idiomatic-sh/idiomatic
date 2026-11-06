@@ -1,7 +1,7 @@
 //! Bounded read, parse and per-file evaluation using injected ports.
 use crate::application::file_analysis::constants::{
     EXECUTION_DIAGNOSTIC, INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE,
-    PHYSICAL_SOURCE_FACTS_ARE_INCOMPLETE, PROVIDER_PARSE,
+    PROVIDER_PARSE,
     RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE, RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED,
     STORED_FRONTIER_PROOF_DOES_NOT_MATCH,
 };
@@ -466,7 +466,10 @@ impl FileAnalysis {
             let outcome = outcome?;
             // Named roots have already been published independently of diagnostic delivery.
             if emit {
-                let partial = matches!(&outcome.emit, RootOutcome::Partial { .. });
+                let affected = match &outcome.emit {
+                    RootOutcome::Partial { affected, .. } => Some(affected.clone()),
+                    _ => None,
+                };
                 match outcome.emit {
                     RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
                         let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
@@ -513,16 +516,16 @@ impl FileAnalysis {
                                 &error,
                             )
                         })?;
-                        if partial {
-                            tables
-                                .unknowns
-                                .push(ryo_execution::inbound::use_cases::metadata::interface::Unknown {
-                                    rule: visit.setting.ids[rule.0].clone(),
-                                    path: visit.setting.paths[file.0 as usize].clone(),
-                                    message: ryo_execution::inbound::use_cases::metadata::interface::Message(
-                                        PHYSICAL_SOURCE_FACTS_ARE_INCOMPLETE.into(),
-                                    ),
-                                });
+                        if let Some(affected) = &affected {
+                            crate::domain::recording::service::partial_root(
+                                &mut tables.unknowns,
+                                &tables.partials,
+                                &visit.setting,
+                                rule,
+                                file,
+                                &visit.setting.paths[file.0 as usize],
+                                affected,
+                            );
                         }
                     }
                     RootOutcome::Unknown(error) => {

@@ -255,6 +255,17 @@ impl CrossFile {
                 let path = crossing.paths.get(index).ok_or_else(|| {
                     refuse(&ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)
                 })?;
+                // The file's own relation read in part already gives the rule's unknown there, with the relation and why.
+                if crossing.covered.iter().any(|each| {
+                    usize::try_from(each.file.0).ok() == Some(index)
+                        && each.rules.contains(&todo.rule)
+                        && crate::domain::recording::service::names_at_file(
+                            &each.partial,
+                            crossing.needs.get(todo.rule.0),
+                        )
+                }) {
+                    continue;
+                }
                 unknowns.push(
                     ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                         rule: todo.id.clone(),
