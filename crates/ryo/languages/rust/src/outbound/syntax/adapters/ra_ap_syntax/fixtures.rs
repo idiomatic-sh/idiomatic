@@ -3,3 +3,9 @@
 
 pub(crate) mod oracle;
 pub(crate) mod walk;
+#[cfg(test)]
+pub(super) mod roles;
+#[cfg(test)]
+pub(super) mod unproduced;
+#[cfg(test)]
+pub(super) mod comparison;

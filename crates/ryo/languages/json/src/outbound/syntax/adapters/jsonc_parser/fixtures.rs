@@ -3,3 +3,5 @@
 
 pub(crate) mod oracle;
 pub(crate) mod walk;
+#[cfg(test)]
+pub(super) mod projection;
