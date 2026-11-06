@@ -1,13 +1,13 @@
 //! Sparse static environment operations. Joins preserve both real alternatives and possible absence.
 use crate::domain::model::types::{
     BindingAbsence, BindingAlternatives, BindingEnvironments, BindingFrame, BindingFrameId,
-    BindingFrameKey, BindingKey, BindingKnowledge,
+    BindingFrameKey, BindingKey, BindingKnowledge, CandidateIndex, CandidateRange, FrameCount,
 };
 use ryo::languages::Position;
 
 /// Reset source-dependent entries while retaining arena, map, and frame capacity.
 pub(crate) fn clear(state: &mut BindingEnvironments) {
-    state.active = 0;
+    state.active = FrameCount(0);
     state.slots.clear();
     state.candidates.clear();
     state.union.clear();
@@ -24,8 +24,8 @@ pub(crate) fn open(
     parent: Option<BindingFrameId>,
     phase: Position,
 ) -> BindingFrameId {
-    let id = BindingFrameId(state.active);
-    state.active += 1;
+    let id = BindingFrameId(state.active.0);
+    state.active.0 += 1;
     if let Some(frame) = state.frames.get_mut(id.0) {
         frame.parent = parent;
         frame.phase = phase;
@@ -61,9 +61,9 @@ pub(crate) fn candidates<'a>(
     state: &'a BindingEnvironments,
     alternatives: &BindingAlternatives,
 ) -> &'a [Position] {
-    state
+    alternatives
         .candidates
-        .get(alternatives.candidates.clone())
+        .within(&state.candidates)
         .unwrap_or_default()
 }
 
@@ -98,7 +98,10 @@ pub(crate) fn assign(
         frame,
         key,
         BindingAlternatives {
-            candidates: start..state.candidates.len(),
+            candidates: CandidateRange {
+                start: CandidateIndex(start),
+                end: CandidateIndex(state.candidates.len()),
+            },
             absence: BindingAbsence::Excluded,
             knowledge: BindingKnowledge::Known,
         },
@@ -113,7 +116,10 @@ pub(crate) fn delete(state: &mut BindingEnvironments, frame: BindingFrameId, key
         frame,
         key,
         BindingAlternatives {
-            candidates: end..end,
+            candidates: CandidateRange {
+                start: CandidateIndex(end),
+                end: CandidateIndex(end),
+            },
             absence: BindingAbsence::Possible,
             knowledge: BindingKnowledge::Known,
         },
@@ -126,7 +132,10 @@ pub(crate) fn uncertain(state: &mut BindingEnvironments, frame: BindingFrameId, 
     let value = lookup(state, frame, key)
         .cloned()
         .unwrap_or(BindingAlternatives {
-            candidates: state.candidates.len()..state.candidates.len(),
+            candidates: CandidateRange {
+                start: CandidateIndex(state.candidates.len()),
+                end: CandidateIndex(state.candidates.len()),
+            },
             absence: BindingAbsence::Possible,
             knowledge: BindingKnowledge::Known,
         });
@@ -185,7 +194,10 @@ pub(crate) fn join(
         let mut knowledge = BindingKnowledge::Known;
         for arm in arms {
             if let Some(value) = lookup(state, *arm, key).cloned() {
-                let values = state.candidates.get(value.candidates).unwrap_or_default();
+                let values = value
+                    .candidates
+                    .within(&state.candidates)
+                    .unwrap_or_default();
                 state.union.extend_from_slice(values);
                 if value.absence == BindingAbsence::Possible {
                     absence = BindingAbsence::Possible;
@@ -206,7 +218,10 @@ pub(crate) fn join(
             target,
             key,
             BindingAlternatives {
-                candidates: start..state.candidates.len(),
+                candidates: CandidateRange {
+                    start: CandidateIndex(start),
+                    end: CandidateIndex(state.candidates.len()),
+                },
                 absence,
                 knowledge,
             },

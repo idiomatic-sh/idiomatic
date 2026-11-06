@@ -61,14 +61,16 @@ pub(crate) struct Declarations {
     /// Lazy normalized constant-expression keys, invalidated between source revisions.
     pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
-    pub format_parsing: RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
+    pub format_parsing:
+        RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
     /// Lazy individual raw-token percent-format parses, independently demanded.
     pub raw_format: RefCell<crate::domain::raw_format::types::RawFormatIndex>,
     /// Independent lazy outcomes for original literal expression carriers.
     pub literal_expression_parsing:
         RefCell<crate::domain::literal_expression_parsing::types::LiteralParseIndex>,
     /// Lazy decoded brace-format parses, invalidated between source revisions.
-    pub brace_format: RefCell<RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>,
+    pub brace_format:
+        RefCell<RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>,
     /// Lazy basic expression types, invalidated between source revisions.
     pub expression_types: RefCell<ExpressionTypeIndex>,
     /// Lazy terminal function summaries, invalidated between source revisions.
@@ -190,11 +192,40 @@ pub(crate) enum BindingKnowledge {
     /// An unsupported or namespace-wide effect may supply additional candidates.
     Uncertain,
 }
+/// A position in the retained candidate arena.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct CandidateIndex(pub usize);
+
+/// The candidates of one set of alternatives in the retained arena.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CandidateRange {
+    /// The first candidate.
+    pub start: CandidateIndex,
+    /// One past the last candidate.
+    pub end: CandidateIndex,
+}
+
+impl CandidateRange {
+    /// The candidates of this range among the arena's, when the arena holds them.
+    #[must_use]
+    pub(crate) fn within<'a>(&self, arena: &'a [Position]) -> Option<&'a [Position]> {
+        arena.get(self.start.0..self.end.0)
+    }
+}
+
+/// The number of binding frames belonging to the current source revision.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FrameCount(pub usize);
+
+/// Where a completed-arm scratch segment begins.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ArmStart(pub usize);
+
 /// An arena-backed set of real declarations, with absence distinct from uncertainty.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BindingAlternatives {
     /// Real declaration occurrences in the retained candidate arena.
-    pub candidates: std::ops::Range<usize>,
+    pub candidates: CandidateRange,
     /// Whether an alternative can have no declaration.
     pub absence: BindingAbsence,
     /// Whether the known alternatives exhaust this static analysis.
@@ -218,7 +249,7 @@ pub(crate) struct BindingEnvironments {
     /// Frames are recycled between source revisions.
     pub frames: Vec<BindingFrame>,
     /// Number of frames belonging to the current source revision.
-    pub active: usize,
+    pub active: FrameCount,
     /// Only changed namespace keys are stored in each frame.
     pub slots: std::collections::HashMap<BindingFrameKey, BindingAlternatives>,
     /// Candidate identities are real definitions, never unknown-node sentinels.
@@ -324,7 +355,7 @@ pub(crate) struct BindingBranch {
     /// Entry environment receiving the joined result.
     pub target: BindingFrameId,
     /// Offset into retained completed-arm scratch.
-    pub start: usize,
+    pub start: ArmStart,
 }
 /// Capacity-retaining lazy binding analysis, shared by the four relation readers.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
