@@ -16,7 +16,7 @@ pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
         request: super::program::native_join::PermittedNativeJoin<'call, 'resources, 'invocation>,
     },
     Physical {
-        request: crate::application::file_dag::program::runtime::types::PermittedPhysical<
+        request: crate::application::file_dag::program::runtime::service::PermittedPhysical<
             'call,
             'resources,
             'invocation,

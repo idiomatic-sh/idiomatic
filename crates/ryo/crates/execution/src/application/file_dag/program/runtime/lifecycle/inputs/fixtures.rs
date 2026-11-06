@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::runtime::types::ProgramExecution;
+use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
@@ -110,7 +110,10 @@ pub(in super::super) fn compiled() -> CompiledCase {
     );
     let owner = Rc::new(RelationOwner::new(true, semantic));
     let partition = Partition::File(
-        super::super::super::super::admission::FileGeneration::from_owner(FileId(0), &owner),
+        crate::application::file_dag::program::admission::FileGeneration::from_owner(
+            FileId(0),
+            &owner,
+        ),
     );
     let execution = Rc::new(ProgramExecution::open(
         program,
@@ -170,12 +173,12 @@ impl TestInputs {
     }
     fn computed(
         &self,
-        root: super::super::super::super::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
         table: Table,
     ) -> Result<AdmittedInput, OperatingError> {
-        let readiness = super::super::super::super::admission::contributor_readiness(
+        let readiness = crate::application::file_dag::program::admission::contributor_readiness(
             partition,
             inputs,
             &self.owner,
@@ -206,17 +209,18 @@ impl Inputs for TestInputs {
         source: InputSource,
         partition: &Partition,
         _: &mut OperatorContext<'_>,
-    ) -> Result<super::super::super::super::admission::AvailableInput, OperatingError> {
+    ) -> Result<crate::application::file_dag::program::admission::AvailableInput, OperatingError>
+    {
         self.admitted.push(source);
         let InputSource::Relation(relation) = source else {
             return Err(OperatingError::NotRead);
         };
         let rows = self.read(relation)?;
         let publication = self.owner.source(relation, &rows)?;
-        super::super::super::super::admission::AvailableInput::source(
+        crate::application::file_dag::program::admission::AvailableInput::source(
             Rc::clone(&self.owner),
             publication,
-            super::super::super::super::admission::ProducerRoot::Input(source),
+            crate::application::file_dag::program::admission::ProducerRoot::Input(source),
             partition.clone(),
             crate::domain::completion::types::CoverageState::Complete,
             rows,
@@ -224,7 +228,7 @@ impl Inputs for TestInputs {
     }
     fn admit(
         &mut self,
-        input: &super::super::super::super::admission::AvailableInput,
+        input: &crate::application::file_dag::program::admission::AvailableInput,
         partition: &Partition,
         _: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
@@ -246,7 +250,7 @@ impl Inputs for TestInputs {
     }
     fn publish(
         &mut self,
-        root: super::super::super::super::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
         rows: Table,
@@ -255,12 +259,12 @@ impl Inputs for TestInputs {
     }
     fn publish_positions(
         &mut self,
-        root: super::super::super::super::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        publication: super::super::super::super::super::relations::PublishedInput,
+        publication: crate::application::file_dag::relations::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
-        let readiness = super::super::super::super::admission::contributor_readiness(
+        let readiness = crate::application::file_dag::program::admission::contributor_readiness(
             partition,
             inputs,
             &self.owner,
@@ -282,16 +286,16 @@ impl Inputs for TestInputs {
     }
     fn publish_selected(
         &mut self,
-        root: super::super::super::super::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        publication: super::super::super::super::super::relations::PublishedInput,
+        publication: crate::application::file_dag::relations::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
         self.publish_positions(root, partition, inputs, publication)
     }
     fn publish_empty(
         &mut self,
-        root: super::super::super::super::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
         schema: Result<Vec<CellKind>, OperatingError>,

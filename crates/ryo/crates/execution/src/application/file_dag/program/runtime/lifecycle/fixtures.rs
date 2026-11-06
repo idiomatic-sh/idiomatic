@@ -1,12 +1,12 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::inputs::fixtures::{TestInputs, value};
 use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::runtime::service::InvocationFailure;
+use crate::application::file_dag::program::runtime::service::KernelInvocation;
+use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::ColumnCounters;
-use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
-use crate::application::file_dag::program::runtime::types::KernelInvocation;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::program::runtime::types::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::StrategyOutcome;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::executable_program::types::Instruction;
@@ -63,7 +63,7 @@ impl KernelInvocation for RuntimeProbe {
     fn ordered(
         &self,
         _: &crate::domain::executable_program::types::OrderedExistence,
-        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &AdmittedInput,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
@@ -73,7 +73,7 @@ impl KernelInvocation for RuntimeProbe {
     }
     fn positions(
         &self,
-        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
@@ -83,7 +83,7 @@ impl KernelInvocation for RuntimeProbe {
     fn selected(
         &self,
         _: &crate::domain::executable_program::selection::SelectionAlternative,
-        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
@@ -93,7 +93,7 @@ impl KernelInvocation for RuntimeProbe {
     fn column(
         &self,
         _: &crate::domain::executable_program::column::ColumnAlternative,
-        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &AdmittedInput,
         _: &AdmittedInput,
         _: &mut OperatorContext<'_>,
@@ -106,7 +106,7 @@ impl KernelInvocation for RuntimeProbe {
     fn evaluate(
         &self,
         instruction: &Instruction,
-        _: &crate::application::file_dag::program::runtime::types::KernelPermit<'_>,
+        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: KernelInput<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,

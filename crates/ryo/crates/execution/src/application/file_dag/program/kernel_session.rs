@@ -1,8 +1,8 @@
 //! Invocation-scoped resource acquisition followed by the mandatory semantic port.
-use crate::application::file_dag::program::runtime::types::InvocationFailure;
+use crate::application::file_dag::program::runtime::service::InvocationFailure;
+use crate::application::file_dag::program::runtime::service::KernelInvocation;
+use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::KernelInput;
-use crate::application::file_dag::program::runtime::types::KernelInvocation;
-use crate::application::file_dag::program::runtime::types::KernelPermit;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::{
     application::file_dag::{
@@ -70,7 +70,7 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
 impl KernelInvocation for KernelSession<'_, '_> {
     fn ready(
         &self,
-        ready: &crate::application::file_dag::program::runtime::types::ReadySelection<'_, '_>,
+        ready: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
         inputs: &[super::admission::AdmittedInput],
         _context: &mut OperatorContext<'_>,
     ) -> Result<bool, OperatingError> {

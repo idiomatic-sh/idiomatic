@@ -329,7 +329,7 @@ impl ProjectRun<'_> {
     }
     fn deliver(
         &mut self,
-        state: &crate::application::file_dag::program::runtime::types::RuntimeState,
+        state: &crate::application::file_dag::program::runtime::service::RuntimeState,
         rule: RuleIndex,
         demand: RuleDemand,
         roots: &[crate::domain::executable_program::types::RegionId],
@@ -480,7 +480,7 @@ pub(crate) fn evaluate_roots<E>(
         Prepared,
     }
     struct Cohort {
-        state: Rc<crate::application::file_dag::program::runtime::types::RuntimeState>,
+        state: Rc<crate::application::file_dag::program::runtime::service::RuntimeState>,
         roots: RootSet,
     }
     let mut cohorts = Vec::new();

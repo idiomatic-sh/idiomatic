@@ -387,6 +387,7 @@ impl AdmittedInput {
         partition: Partition,
         readiness: Readiness,
     ) -> Result<Self, OperatingError> {
+        admitted.require_publication(owner.as_ref(), publication.as_ref())?;
         let (population, _) = admitted.identity(&owner)?;
         let generation = admitted.generation_guard();
 

@@ -27,9 +27,9 @@ use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
 use crate::application::file_dag::program::protocol::types::RootOutcome;
 use crate::application::file_dag::program::protocol::types::RuleDemand;
 use crate::application::file_dag::program::protocol::types::RuleOutcome;
-use crate::application::file_dag::program::runtime::types::InvocationOutcome;
-use crate::application::file_dag::program::runtime::types::KernelInvocation;
-use crate::application::file_dag::program::runtime::types::ProgramExecution;
+use crate::application::file_dag::program::runtime::service::InvocationOutcome;
+use crate::application::file_dag::program::runtime::service::KernelInvocation;
+use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_relations::domain::relations::types::{FileId, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},

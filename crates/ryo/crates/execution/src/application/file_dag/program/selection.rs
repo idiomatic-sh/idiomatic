@@ -1,6 +1,6 @@
 //! A compact selected publication can be minted only by its admitted producer.
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::application::file_dag::program::runtime::types::KernelPermit;
+use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
 use crate::domain::{
     executable_program::selection::SelectionAlternative,

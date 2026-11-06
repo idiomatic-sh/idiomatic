@@ -7,7 +7,8 @@ let targets = capture(from=paths, path="target", pattern="{*target-root}/applica
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,protocol/types.rs,protocol/service.rs,facade_runtime.rs,admission.rs,restored.rs}");
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
-let forbidden = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/types.rs,native_walk.rs,native_join.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs,native_walk.rs,native_join.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let forbidden = select * from bridges where implementation-tail != "runtime/service.rs" or not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/acquisition/admission/service.rs}");
 let program-violations = select file, span from forbidden;
 let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
 let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
@@ -75,8 +76,8 @@ files.'src/application/file_dag/program/protocol/mod.rs' = 'pub mod types; pub m
 files.'src/application/file_dag/program/protocol/types.rs' = 'pub struct LogicalCounts;'
 files.'src/application/file_dag/program/protocol/service.rs' = 'pub fn validate() {}'
 files.'src/application/file_dag/program/runtime/mod.rs' = 'pub mod types; pub mod service;'
-files.'src/application/file_dag/program/runtime/types.rs' = 'pub struct KernelPermit;'
-files.'src/application/file_dag/program/runtime/service.rs' = 'pub fn execute() {}'
+files.'src/application/file_dag/program/runtime/types.rs' = 'pub struct WorkCount;'
+files.'src/application/file_dag/program/runtime/service.rs' = 'pub struct KernelPermit; pub fn execute() {}'
 files.'src/application/file_dag/program/admission.rs' = 'pub struct Permit;'
 files.'src/application/file_dag/program/restored.rs' = 'pub fn restore() {}'
 files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() {}'
@@ -125,7 +126,7 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "renamed-relative-import"
 scenario = "A relative renamed admission import still resolves to the protected module."
-given.files.'src/application/caller.rs' = 'use super::file_dag::program::runtime::types::KernelPermit as Borrowed;'
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::runtime::service::KernelPermit as Borrowed;'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
@@ -155,7 +156,7 @@ then.findings = [{ path = "src/domain/operator/collections/operators/select/item
 [[scenarios]]
 id = "primitive-cannot-alias-permit"
 scenario = "An aliased permit import from a primitive still resolves from domain to application."
-given.files.'src/domain/operator/collections/operators/select/item.rs' = 'use crate::application::file_dag::program::runtime::types::KernelPermit as RawPermit;'
+given.files.'src/domain/operator/collections/operators/select/item.rs' = 'use crate::application::file_dag::program::runtime::service::KernelPermit as RawPermit;'
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
 
 [[scenarios]]
@@ -242,7 +243,7 @@ given.files.'src/application/file_dag/program/runtime/service.rs' = 'use super::
 [[scenarios]]
 id = "physical-bridge-is-supported"
 scenario = "The physical execution bridge may borrow an admission permit."
-given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::program::runtime::types::KernelPermit;'
+given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::program::runtime::service::KernelPermit;'
 
 [[scenarios]]
 id = "program-dispatch-is-supported"
@@ -325,7 +326,7 @@ then.findings = [{ path = "src/domain/operator/collections/operators/select/item
 [[scenarios]]
 id = "neutral-protocol-cannot-hold-runtime-owner"
 scenario = "Neutral output DTOs cannot regain a lifecycle dependency through an aliased runtime type."
-given.files.'src/application/file_dag/program/protocol/types.rs' = 'use crate::application::file_dag::program::runtime::types as owner; struct Output { permit: owner::KernelPermit }'
+given.files.'src/application/file_dag/program/protocol/types.rs' = 'use crate::application::file_dag::program::runtime::service as owner; struct Output { permit: owner::KernelPermit }'
 then.findings = [{ path = "src/application/file_dag/program/protocol/types.rs", line = 1 }]
 
 [[scenarios]]
@@ -338,7 +339,7 @@ then.findings = [{ path = "src/application/file_dag/program/preparation/service.
 [[scenarios]]
 id = "source-proofs-cannot-validate-interpreter-object"
 scenario = "Source admission depends on explicit owner and partition requirements rather than runtime state."
-given.files.'src/application/file_dag/program/admission.rs' = 'use crate::application::file_dag::program::runtime::types as execution; fn bypass(_: &execution::KernelPermit) {}'
+given.files.'src/application/file_dag/program/admission.rs' = 'use crate::application::file_dag::program::runtime::service as execution; fn bypass(_: &execution::KernelPermit) {}'
 then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
 
 [[scenarios]]
@@ -350,7 +351,7 @@ then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", l
 [[scenarios]]
 id = "physical-bridge-borrows-runtime-capability-type"
 scenario = "The physical bridge may borrow the actual runtime-issued type while issuance remains private to the runtime owner."
-given.files.'src/application/file_dag/executor.rs' = 'use super::program::runtime::types::KernelPermit; fn borrowed(_: &KernelPermit) {}'
+given.files.'src/application/file_dag/executor.rs' = 'use super::program::runtime::service::KernelPermit; fn borrowed(_: &KernelPermit) {}'
 
 [[scenarios]]
 id = "caller-may-name-public-partition-descriptor"
@@ -363,3 +364,23 @@ id = "caller-may-name-opaque-validated-frontier"
 scenario = "The actual validated frontier handover remains available without exposing runtime state or a second evaluator."
 given.files.'src/application/file_dag/program/restored.rs' = 'pub struct ValidatedFrontier { proof: () }'
 given.files.'src/application/caller.rs' = 'use super::file_dag::program::restored::ValidatedFrontier; fn handover(_: &ValidatedFrontier) {}'
+
+[[scenarios]]
+id = "derived-owner-borrows-required-runtime-capability"
+scenario = "The derived owner may require the actual invocation permit while acquisition validates the exact owner."
+given.files.'src/application/file_dag/derived/owner.rs' = 'use crate::application::file_dag::program::runtime::service::KernelPermit; fn required(_: &KernelPermit) {}'
+
+[[scenarios]]
+id = "derived-admission-borrows-required-runtime-capability"
+scenario = "Only the exact derived admission issuer role may borrow the required runtime capability."
+given.files.'src/application/file_dag/derived/owner.rs' = 'mod acquisition;'
+given.files.'src/application/file_dag/derived/owner/acquisition.rs' = 'mod admission;'
+given.files.'src/application/file_dag/derived/owner/acquisition/admission.rs' = 'mod service;'
+given.files.'src/application/file_dag/derived/owner/acquisition/admission/service.rs' = 'use crate::application::file_dag::program::runtime::service::KernelPermit; fn required(_: &KernelPermit) {}'
+
+[[scenarios]]
+id = "adjacent-derived-helper-cannot-enter-runtime"
+scenario = "The two admitted acquisition roles do not grant a whole derived subtree access to runtime implementation."
+given.files.'src/application/file_dag/derived/owner.rs' = 'mod rogue;'
+given.files.'src/application/file_dag/derived/owner/rogue.rs' = 'use crate::application::file_dag::program::runtime::service::KernelPermit; fn bypass(_: &KernelPermit) {}'
+then.findings = [{ path = "src/application/file_dag/derived/owner/rogue.rs", line = 1 }]

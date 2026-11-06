@@ -7,8 +7,8 @@ use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::contributor_readiness;
 use crate::application::file_dag::program::context::RunContext;
 use crate::application::file_dag::program::kernel_session::KernelSession;
-use crate::application::file_dag::program::runtime::types::InvocationOutcome;
-use crate::application::file_dag::program::runtime::types::ProgramExecution;
+use crate::application::file_dag::program::runtime::service::InvocationOutcome;
+use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::{
