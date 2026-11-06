@@ -1,7 +1,7 @@
 //! The `globset` adapter of the matching port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::PatternMatchingGlobsetAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::Matching;
 use crate::domain::targets::types::Pattern;
@@ -34,9 +34,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ("crates/[c", "crates/core"),
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 matches!(error, PatternMatchingError::Invalid { pattern, reason }
-                if &*pattern.0 == "crates/[c" && &*reason.0 == "unclosed character class; missing ']'"),
+                if &*pattern.0 == "crates/[c" && &*reason.0 == "unclosed character class; missing ']'")),
             )
         }),
     },

@@ -2,7 +2,7 @@
 //! writes, and what is nothing.
 
 use super::adapter::NotesPostcardAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Matched, Case, CaseName, Expect, Word, run, selects};
 use crate::domain::fact_notes::service::{facts_of, note_of};
 use crate::domain::fact_notes::types::Naming;
 use crate::domain::module_tree::types::{
@@ -116,7 +116,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("bytes_cut_short_are_no_note"),
         word: Word::Refuses,
         input: || cut_short,
-        expect: Expect::Refusal(|error| selects(matches!(error, NotesError::NotANote))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, NotesError::NotANote)))),
     },
     Case {
         name: CaseName("a_note_is_written_as_postcard_writes_it"),
@@ -128,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("bytes_followed_by_more_are_no_note"),
         word: Word::Refuses,
         input: || trailing,
-        expect: Expect::Refusal(|error| selects(matches!(error, NotesError::NotANote))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, NotesError::NotANote)))),
     },
 ];
 
