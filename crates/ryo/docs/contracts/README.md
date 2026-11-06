@@ -2,7 +2,7 @@
 
 **No full category is complete:** relations (69 catalog members plus framework routes), operators (26 kinds), and derived views (13 mechanisms). The inventories below define acceptance; code moved is not a checked boundary.
 
-**Order: 2 → 3 → 4 → 5 → 6 → 1 → 7.** Consolidate first; no more performance tuning or benchmark runs during phases 2–6. Engine ownership, required contracts, Rust boundaries and TM remain mandatory. Output-correctness repairs follow consolidation.
+**Order: 2 → 3 → 4 → 5 → 6 → 1 → 7.** Consolidate first; no performance fixes during phases 2–6. The next runnable checkpoint gets one full-Django single-rule measurement for direction only, then consolidation continues. Engine ownership, required contracts, Rust boundaries and TM remain mandatory. Output-correctness repairs follow consolidation.
 
 | Phase | Status | Current scope |
 |---|---|---|
@@ -26,7 +26,11 @@ The bounded 2/3 overlap keeps shared-walk work moving while scheduling finishes 
 - [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
 - [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
-### Current work by phase — source `36b0cdbea`, validation297
+### Current work by phase — combined source `c7fdb6589`, validation298
+
+**Build failed:** 10 compiler diagnostics in 5.09 seconds; runtime suites did not run. Nine concern remaining derived-owner callers, private re-exports and test placement; one is a moved observation-test inventory (source repaired in `21ec1b311`). Repair the complete batch before rebuilding. No new timing result. Behavioral results below remain historical validation297 on `36b0cdbea`.
+
+Integrated source includes sealed ordinary/named project batches (13 behavioral cases, eight compiler probes), pre-callback walk coverage controls, and opaque derived graph/storage handles. These changes are not runtime-verified. Author TM checks: new project-owner/proof scope 0 findings; graph scope 142; walk scope 102; all zero suppressed. Scopes differ and must not be summed or treated as full-product results.
 
 A checkbox requires the whole named item to pass; source progress is recorded separately.
 
@@ -35,13 +39,13 @@ A checkbox requires the whole named item to pass; source progress is recorded se
 | 2 ACTIVE | [ ] Seal every runtime/admission proof issuer against aliases and sibling construction. | Private issuer repair is integrated. Of 56 source probes, nine passed; probe ten failed its diagnostic contract and 46 did not run. |
 | 2 ACTIVE | [ ] Bind admitted proof to the exact publication. | Publication/proof substitution refusal passes on297. Full identity/route scope remains open. |
 | 2 ACTIVE | [ ] Complete batch release, cancellation and primary-error behavior. | Primary-error control passes; all four project exit controls pass on297 after repairing invalid file-cache setup. Broader cancellation/cleanup scope remains open. |
-| 2 ACTIVE | [ ] Require complete declared root submission; close sparse-work and all-route negative controls. | Queue/batched callers exist; structural and counter proof remains incomplete. |
+| 2 ACTIVE | [ ] Require complete declared root submission; close sparse-work and all-route negative controls. | Both core callers now require a sealed, fully accounted occurrence inventory. Thirteen behavioral controls and eight compiler probes are authored; the new TM guard validates. Combined execution and review remain pending. |
 | 2 ACTIVE | [ ] Close scheduling-owned cycles/TM findings and review exact combined source. | Preparation/protocol/runtime homes integrated; remaining context/publication/frontier/kernel coupling is open. |
 | 3 ACTIVE | [ ] Count every physical instruction, including synthetic observation unions. | Independent total and two synthetic unions pass. Consumer barriers are mislabeled after input normalization; a resolved-input classifier repair is authored. |
-| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Independent static catalog eligibility controls pass. Actual413 fixture fails before execution on missing supporting-rule applicability; omitted-submit proof remains open. |
+| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Historical static eligibility controls pass. Supporting-rule applicability is repaired in source; pre-callback readiness, independent compiled-root and deliberately omitted-submission controls are integrated but unrun. |
 | 3 ACTIVE | [ ] Close ready-gate, source/barrier and result-lease enforcement. | Shared owner/prefix/traversal code exists; full route, alias and reentrancy acceptance remains open. |
 | 4 ACTIVE | [ ] Require admitted acquisition across all13 derived kinds. | All13 ordinary acquisition positives pass, but specialized graph/axis paths fail. Review found raw-storage and graph-handle authority escapes. |
-| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | Raw success/fault controls pass. Held-view retirement semantics and raw payload escape require the current owner-boundary repair. |
+| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | Historical raw success/fault controls pass. Opaque issued graph handles and owner-private payload storage are integrated; remaining caller/privacy diagnostics prevent executing the new lifetime proofs. |
 | 4 ACTIVE | [ ] Migrate real fixtures, boundary tests and TM; integrate and execute. | Runtime cases execute; source-probe generator stops on unrelated dead-code diagnostics. Current structural scope remains unaccepted. |
 | 5 QUEUED | [ ] Consolidate legal fusion behind the common program. | Existing strategies are not complete phase acceptance. No active implementation wave. |
 | 5 QUEUED | [ ] Remove redundant intermediates, repeated scans and superseded machinery. | Await consolidated scheduling/walk/derived ownership. |
