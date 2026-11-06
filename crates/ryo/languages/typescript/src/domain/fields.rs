@@ -7,3 +7,24 @@ pub(crate) mod types;
 
 #[cfg(test)]
 mod service_test;
+
+#[cfg(test)]
+mod fixtures;
+
+#[cfg(test)]
+mod positions_test;
+
+#[cfg(test)]
+mod jsx_test;
+
+#[cfg(test)]
+mod modules_test;
+
+#[cfg(test)]
+mod control_test;
+
+#[cfg(test)]
+mod types_test;
+
+#[cfg(test)]
+mod classes_test;

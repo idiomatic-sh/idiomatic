@@ -4,3 +4,15 @@ pub(crate) mod service;
 
 #[cfg(test)]
 mod service_test;
+
+#[cfg(test)]
+mod fixtures;
+
+#[cfg(test)]
+mod identity_test;
+
+#[cfg(test)]
+mod lists_test;
+
+#[cfg(test)]
+mod bodies_test;
