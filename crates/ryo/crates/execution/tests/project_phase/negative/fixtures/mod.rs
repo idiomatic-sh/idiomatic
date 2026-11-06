@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName, ObservationColumn,
-        ObservationColumnName, ObservationReadinessLayout,
+        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
+        ObservationColumn, ObservationColumnName, ObservationReadinessLayout,
     },
     plan_parts::types::Input,
     plans::types::{Operation, PlanStep, StepScope},
@@ -140,7 +140,8 @@ pub(crate) fn submit(
             },
         }];
         authored.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
-        authored.observations = ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
+        authored.observations =
+            ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }
     let prepared = engine.prepare(authored).expect("valid public request");
     let corpus = corpus();

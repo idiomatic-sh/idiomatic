@@ -103,6 +103,35 @@ impl Authored {
             observations: ObservationIdentity::Independent,
         }
     }
+    /// A derived operation after a shared head, beside a plain head of the same class.
+    pub(in super::super) fn grouped() -> Self {
+        let mut grouped = head(
+            vec![ColumnIndex(1)],
+            vec![comparison(Test::GreaterThan, Integer(1))],
+        );
+        grouped.steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::GroupCount {
+                from: PlanInput::Step(StepId(0)),
+                keys: vec![ColumnIndex(0)],
+                distinct: None,
+            },
+        });
+        grouped.emit.step = StepId(1);
+        let plans = vec![
+            grouped,
+            head(
+                vec![ColumnIndex(1)],
+                vec![comparison(Test::GreaterThan, Integer(1))],
+            ),
+        ];
+        Self {
+            rules: rules(&plans),
+            intents: vec![collected(); plans.len()],
+            plans,
+            observations: ObservationIdentity::Independent,
+        }
+    }
     pub(in super::super) fn named() -> Self {
         let columns = vec![ObservationColumn {
             name: ObservationColumnName("number".into()),

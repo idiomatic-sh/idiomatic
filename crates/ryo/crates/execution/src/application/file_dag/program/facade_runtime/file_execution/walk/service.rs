@@ -11,6 +11,7 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::types::FileRoot;
+use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::protocol::types::ApplicabilityRefusal;
 use crate::application::file_dag::program::protocol::types::CaptureIntent;
 use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
@@ -67,6 +68,21 @@ impl FileRun<'_> {
             };
             if selected != FileDemand::NONE {
                 demanded.push(rule);
+            }
+            if let FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                capture,
+            } = intent
+            {
+                // One owed delivery per entry point the caller will use: rows (or
+                // collected rule) and frontier capture. The walk keeps shared
+                // batches until every owed delivery has finished.
+                let rows = diagnostic != DiagnosticDelivery::Disabled
+                    || observations == ObservationDemand::Required;
+                let deliveries =
+                    Deliveries(usize::from(rows) + usize::from(capture != CaptureIntent::Disabled));
+                self.walk.owe(self.program, rule, deliveries);
             }
             let plan = compiled.selected(selected);
             readers.extend_from_slice(&plan.readers);

@@ -29,7 +29,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::Valid => registered(OperationKind::Project).prepare(
             &project,
-            &[InputShape { kinds: &kinds, tree: None }],
+            &[InputShape {
+                kinds: &kinds,
+                tree: None,
+            }],
             &[],
         ),
         Scenario::Foreign => registered(OperationKind::Project).prepare(

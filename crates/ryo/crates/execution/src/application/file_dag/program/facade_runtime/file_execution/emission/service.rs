@@ -26,6 +26,20 @@ impl FileRun<'_> {
         ) -> Result<(), OperatingError>,
     ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
     {
+        let emission = self.deliver_rows(rule, read, symbols, each);
+        self.walk.delivered(self.program, rule);
+        emission
+    }
+    fn deliver_rows<'facts>(
+        &mut self,
+        rule: RuleIndex,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        each: &mut dyn FnMut(
+            &[ryo_relations::domain::relations::types::Value],
+        ) -> Result<(), OperatingError>,
+    ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
+    {
         if self.declared(rule)?.0 != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
         }

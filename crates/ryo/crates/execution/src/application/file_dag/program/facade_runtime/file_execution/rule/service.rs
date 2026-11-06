@@ -24,7 +24,19 @@ use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
 impl FileRun<'_> {
+    /// One delivery of the rule: whatever its outcome, the walk learns it is done.
     pub(crate) fn rule<'facts>(
+        &mut self,
+        rule: RuleIndex,
+        demand: RuleDemand,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<RuleOutcome, OperatingError> {
+        let outcome = self.deliver_rule(rule, demand, read, symbols);
+        self.walk.delivered(self.program, rule);
+        outcome
+    }
+    fn deliver_rule<'facts>(
         &mut self,
         rule: RuleIndex,
         demand: RuleDemand,

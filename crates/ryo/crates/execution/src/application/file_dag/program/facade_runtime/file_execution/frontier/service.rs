@@ -26,6 +26,18 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
+        let captured = self.deliver_frontiers(rule, first, read, symbols, capture);
+        self.walk.delivered(self.program, rule);
+        captured
+    }
+    fn deliver_frontiers<'facts>(
+        &mut self,
+        rule: RuleIndex,
+        first: Bucket,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        capture: CaptureContext<'_>,
+    ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let (_, _, capture_intent) = self.declared(rule)?;
         if capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);

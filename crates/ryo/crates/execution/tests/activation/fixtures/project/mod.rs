@@ -108,9 +108,9 @@ pub(crate) fn measure_project(
                     },
                 })
                 .collect();
-            let ProjectBatch::Complete(outcomes) =
-                phase.evaluate(tasks, &mut symbols, |_| Ok::<(), std::convert::Infallible>(()))
-            else {
+            let ProjectBatch::Complete(outcomes) = phase.evaluate(tasks, &mut symbols, |_| {
+                Ok::<(), std::convert::Infallible>(())
+            }) else {
                 panic!("an infallible guard cannot refuse")
             };
             assert_eq!(outcomes.len(), demanded.len());
