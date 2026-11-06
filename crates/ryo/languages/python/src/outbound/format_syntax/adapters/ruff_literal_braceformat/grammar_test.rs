@@ -6,9 +6,10 @@ use crate::domain::brace_format::interface::BraceFormatSyntax as _;
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceSelector,
 };
+use crate::domain::format_syntax::types::FormatInput;
 
 fn preserves_selector_kinds_duplicates_and_nested_order() {
-    let parsed = parse("{{{key!r:{width}} {} {2} {2}").expect("valid format");
+    let parsed = parse(FormatInput("{{{key!r:{width}} {} {2} {2}")).expect("valid format");
     assert_eq!(parsed.automatic_count.0, 1);
     assert_eq!(parsed.indexed_count.0, 2);
     assert_eq!(parsed.keyword_count.0, 2);
@@ -58,7 +59,7 @@ fn preserves_selector_kinds_duplicates_and_nested_order() {
 }
 
 fn retains_decoded_spec_text_and_explicit_empty_colon() {
-    let parsed = parse("{thing:.{width}q} {plain:} {absent}").expect("valid format");
+    let parsed = parse(FormatInput("{thing:.{width}q} {plain:} {absent}")).expect("valid format");
     assert_eq!(
         parsed.fields[0]
             .format_spec
@@ -121,15 +122,15 @@ fn distinguishes_valid_empty_from_malformed_and_digit_keyword() {
 
 fn reports_nesting_and_unmatched_braces() {
     assert!(matches!(
-        parse("{x:{y:{z}}}"),
+        parse(FormatInput("{x:{y:{z}}}")),
         Err(BraceFormatError::PlaceholderRecursionExceeded)
     ));
     assert!(matches!(
-        parse("{x"),
+        parse(FormatInput("{x")),
         Err(BraceFormatError::UnmatchedBracket)
     ));
     assert!(matches!(
-        parse("x}"),
+        parse(FormatInput("x}")),
         Err(BraceFormatError::MissingStartBracket)
     ));
 }

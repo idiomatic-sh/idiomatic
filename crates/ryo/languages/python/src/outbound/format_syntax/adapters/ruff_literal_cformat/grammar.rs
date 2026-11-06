@@ -21,7 +21,7 @@ impl FormatSyntax for RuffLiteralCFormat {
 
     fn parse(input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult {
         match dialect {
-            FormatDialect::PercentString => match parse_percent_string(input.0) {
+            FormatDialect::PercentString => match parse_percent_string(input) {
                 Ok(parsed) => FormatParseResult::Parsed(parsed),
                 Err(Failure::Malformed(error)) => FormatParseResult::Malformed(error),
                 Err(Failure::Unavailable) => FormatParseResult::Unavailable,

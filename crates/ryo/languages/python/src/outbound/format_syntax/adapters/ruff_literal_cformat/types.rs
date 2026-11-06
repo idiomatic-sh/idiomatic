@@ -1,14 +1,16 @@
 //! The cformat grammar's cursor and result types.
 
-use crate::domain::format_syntax::types::{FormatFieldValue, FormatParseError};
+use crate::domain::format_syntax::types::{
+    FormatCharacter, FormatFieldValue, FormatParseError, FormatScalarIndex,
+};
 
 /// One Unicode scalar and its position in the decoded string.
 #[derive(Clone, Copy)]
 pub(super) struct Character {
     /// Zero-based Unicode scalar index.
-    pub index: usize,
+    pub index: FormatScalarIndex,
     /// The decoded scalar.
-    pub value: char,
+    pub value: FormatCharacter,
 }
 
 /// A scalar iterator with one character of lookahead.
