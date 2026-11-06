@@ -24,7 +24,6 @@ pub(super) const PROVIDER_PARSE: &str = "provider_parse";
 pub(super) const STORED_FRONTIER_PROOF_DOES_NOT_MATCH: &str =
     "stored frontier proof does not match the prepared root";
 
-
 /// The text "rule skipped: applicability metadata unavailable".
 pub(super) const RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE: &str =
     "rule skipped: applicability metadata unavailable";
