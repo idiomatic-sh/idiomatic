@@ -1,11 +1,19 @@
-description = "Core project evaluation enters through the sealed application batch adapter."
-why = "The core application captures the authoritative ordinary Todo inventory or named selected batch before preparation. Its private preparation owner issues SealedBatch only after every occurrence is ready or explicitly failed; Rust forbids forging that capability. Since core also depends on execution's public SDK, resolved references to its project entry contracts and static evaluate calls must meet the one application adapter. Aliases, qualified calls and newly added modules receive the same check. Placed unit/contract proofs may exercise the public SDK. This guard associates resolved project-contract users and evaluate calls in a file; it cannot infer receiver types through macros or prove declaration coverage, which the sealed owner and real runtime controls establish. Public SDK singleton clients in other crates are outside this core-only placement."
+description = "Core project entry and delivery use the sealed application batch adapter."
+why = "The core application captures the authoritative ordinary Todo inventory or named selected batch before preparation. Its private preparation owner issues SealedBatch only after every occurrence is ready or explicitly failed; Rust forbids forging that capability. Since core also depends on execution's public SDK, resolved references to its project entry contracts and direct open_project, ProjectExecution.rule, and project evaluate calls must meet the one application adapter. Aliases, qualified calls and newly added modules receive the same check. Placed unit/contract proofs may exercise the public SDK. The direct project entry family is ExecutionRequest.open_project, ProjectExecution.rule and ProjectRootExecution.evaluate. Stage construction, scope/frontier preparation, metadata and teardown remain allowed. Project rule delivery is associated only with resolved ProjectExecution/ProjectSession exposure or direct project-session entry in that file, so FileExecution.rule remains legal. This guard associates resolved contract exposure and static calls in a file; it cannot infer receiver types through macros or prove completeness of the supplied upstream inventory. Rust privacy enforces issuance and the preparation owner accounts for every supplied occurrence; runtime controls separately exercise its behavior. Public SDK singleton clients in other crates are outside this core-only placement."
 query = '''
 let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let project-targets = capture(from=paths, path="target", pattern="{*target-root}/inbound/use_cases/execution/{part}.rs", captures=["target-root", "part"]);
 let project-users = select source as file, source-tail from project-targets where glob_any(source-root, "{src,**/core/src}") and glob_any(part, "{interface,types}");
-let calls = select file, span from "static-call" where glob_any(target, "{evaluate,*::evaluate}");
-let project-calls = select l.file as file, l.source-tail as source-tail, r.span as span from project-users as l join calls as r on l.file = r.file;
+let evaluations = select file, span from "static-call" where glob_any(target, "{evaluate,*::evaluate}");
+let openings = select file, span from "static-call" where glob_any(target, "{open_project,*::open_project}");
+let root-calls = union(left=evaluations, right=openings);
+let project-root-calls = select l.file as file, l.source-tail as source-tail, r.span as span from project-users as l join root-calls as r on l.file = r.file;
+let exposed-delivery = select source as file, source-tail from project-targets where glob_any(source-root, "{src,**/core/src}") and glob_any(part, "{interface,types}") and glob_any(written, "{ProjectExecution,*::ProjectExecution,ProjectSession,*::ProjectSession,*::ProjectExecution::*}");
+let opened-delivery = select l.file as file, l.source-tail as source-tail from project-users as l join openings as r on l.file = r.file;
+let delivery-users = union(left=exposed-delivery, right=opened-delivery);
+let deliveries = select file, span from "static-call" where glob_any(target, "{rule,*::rule}");
+let project-deliveries = select l.file as file, l.source-tail as source-tail, r.span as span from delivery-users as l join deliveries as r on l.file = r.file;
+let project-calls = union(left=project-root-calls, right=project-deliveries);
 let outsiders = select file, span from project-calls where source-tail != "application/cross_file/service.rs";
 let proof-files = select path as file from "tastemaker.placed" where glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures,program-runtime-proof}");
 let forbidden = antijoin(left=outsiders, right=proof-files, left-on=["file"], right-on=["file"]);
@@ -13,7 +21,7 @@ emit forbidden subject file key(span);
 '''
 [diagnostic]
 primary = "span"
-message = "project stage execution bypasses the sealed core batch adapter"
+message = "project entry or delivery bypasses the sealed core batch adapter"
 help = "Capture the authoritative declared inventory with cross_file::preparation, account for every occurrence, and submit its SealedBatch to CrossFile::evaluate_batch. Keep SDK route proofs in normally registered test roles."
 [given]
 include = ["src/**"]
@@ -31,8 +39,20 @@ files.'src/application/caller.rs' = 'pub fn ordinary() {}'
 files.'src/inbound.rs' = 'pub mod use_cases;'
 files.'src/inbound/use_cases.rs' = 'pub mod execution;'
 files.'src/inbound/use_cases/execution.rs' = 'pub mod interface; pub mod types;'
-files.'src/inbound/use_cases/execution/interface.rs' = 'pub trait ProjectRootExecution { fn evaluate(&self); }'
-files.'src/inbound/use_cases/execution/types.rs' = 'pub struct ProjectPhase;'
+files.'src/inbound/use_cases/execution/interface.rs' = '''
+use super::types::{ProjectSession, ProjectPhase};
+pub trait ProjectRootExecution { fn evaluate(&self); }
+pub trait ExecutionRequest {
+    fn open_project(&self) -> ProjectSession;
+    fn project_phase(&self) -> ProjectPhase;
+    fn observations(&self) -> ProjectPhase;
+    fn prepare_frontiers(&self);
+}
+pub trait ProjectExecution { fn rule(&mut self); fn finish(self); }
+pub trait FileExecution { fn rule(&mut self); }
+impl ProjectExecution for ProjectSession { fn rule(&mut self) {} fn finish(self) {} }
+'''
+files.'src/inbound/use_cases/execution/types.rs' = 'pub struct ProjectPhase; pub struct ProjectSession;'
 [[scenarios]]
 id = "authorized-sealed-adapter"
 scenario = "The sole adapter may invoke the actual project contract."
@@ -73,3 +93,88 @@ rules = [{ rule = "idiomatic.ryo/project-batch-owner", include = ["src/**"] }]
 templates = [{ template = "idiomatic.arch/unit-test", file = "src/application/cross_file/service_test.rs", params = { kind = "concept", part = "cross_file" } }]
 '''
 then.only = ["idiomatic.ryo/project-batch-owner"]
+
+[[scenarios]]
+id = "direct-project-session-chain"
+scenario = "Creating and delivering a project session cannot bypass the sealed adapter."
+given.files.'src/application/caller.rs' = '''
+use crate::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
+pub fn bypass(request: &impl ExecutionRequest) {
+    let mut session = request.open_project();
+    session.rule();
+}
+'''
+then.findings = [{path="src/application/caller.rs",line=3}, {path="src/application/caller.rs",line=4}]
+[[scenarios]]
+id = "aliased-project-session-entry"
+scenario = "Renaming ExecutionRequest does not authorize direct project entry."
+given.files.'src/application/caller.rs' = 'use crate::inbound::use_cases::execution::interface::ExecutionRequest as Request; pub fn bypass(request: &impl Request) { let _ = request.open_project(); }'
+then.findings = [{path="src/application/caller.rs",line=1}]
+[[scenarios]]
+id = "qualified-project-session-entry"
+scenario = "A fully qualified ExecutionRequest call receives the same entry boundary."
+given.files.'src/application/caller.rs' = 'pub fn bypass<T: crate::inbound::use_cases::execution::interface::ExecutionRequest>(request: &T) { let _ = crate::inbound::use_cases::execution::interface::ExecutionRequest::open_project(request); }'
+then.findings = [{path="src/application/caller.rs",line=1}]
+[[scenarios]]
+id = "existing-project-session-delivery"
+scenario = "A previously supplied ProjectSession cannot deliver outside the adapter."
+given.files.'src/application/caller.rs' = 'use crate::inbound::use_cases::execution::{interface::ProjectExecution, types::ProjectSession}; pub fn bypass(session: &mut ProjectSession) { session.rule(); }'
+then.findings = [{path="src/application/caller.rs",line=1}]
+[[scenarios]]
+id = "aliased-project-delivery"
+scenario = "Renaming ProjectExecution does not authorize per-rule project delivery."
+given.files.'src/application/caller.rs' = 'use crate::inbound::use_cases::execution::interface::ProjectExecution as Delivery; pub fn bypass(session: &mut impl Delivery) { session.rule(); }'
+then.findings = [{path="src/application/caller.rs",line=1}]
+[[scenarios]]
+id = "qualified-project-delivery"
+scenario = "A qualified ProjectExecution::rule is a direct project execution entry."
+given.files.'src/application/caller.rs' = 'pub fn bypass<T: crate::inbound::use_cases::execution::interface::ProjectExecution>(session: &mut T) { crate::inbound::use_cases::execution::interface::ProjectExecution::rule(session); }'
+then.findings = [{path="src/application/caller.rs",line=1}]
+[[scenarios]]
+id = "new-module-project-session-chain"
+scenario = "A new production module cannot open and run its own project session."
+given.files.'src/application.rs' = 'pub mod cross_file; pub mod caller; pub mod new_route;'
+given.files.'src/application/new_route.rs' = '''
+use crate::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
+pub fn bypass(request: &impl ExecutionRequest) {
+    let mut session = request.open_project();
+    session.rule();
+}
+'''
+then.findings = [{path="src/application/new_route.rs",line=3}, {path="src/application/new_route.rs",line=4}]
+[[scenarios]]
+id = "file-rule-remains-authorized"
+scenario = "The same interface file also owns FileExecution; its legitimate per-file rule delivery remains legal."
+given.files.'src/application/caller.rs' = 'use crate::inbound::use_cases::execution::interface::{ExecutionRequest, FileExecution}; pub fn file(file: &mut impl FileExecution, request: &impl ExecutionRequest) { let _ = request.project_phase(); file.rule(); }'
+[[scenarios]]
+id = "project-preparation-remains-authorized"
+scenario = "Stage construction, frontier preparation and teardown do not deliver project results."
+given.files.'src/application/caller.rs' = 'use crate::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution}; pub fn prepare(request: &impl ExecutionRequest) { let _ = request.project_phase(); let _ = request.observations(); request.prepare_frontiers(); } pub fn finish(session: impl ProjectExecution) { session.finish(); }'
+[[scenarios]]
+id = "public-sdk-singleton-outside-core"
+scenario = "A separate SDK client keeps the public singleton project protocol."
+given.include = ["**"]
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["sdk"]
+[package]
+name = "batch_owner_control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'sdk/Cargo.toml' = '''
+[package]
+name = "sdk_client"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+core_api = { package = "batch_owner_control", path = ".." }
+'''
+given.files.'sdk/src/lib.rs' = '''
+use core_api::inbound::use_cases::execution::interface::{ExecutionRequest, ProjectExecution};
+pub fn singleton(request: &impl ExecutionRequest) {
+    let mut session = request.open_project();
+    session.rule();
+    session.finish();
+}
+'''

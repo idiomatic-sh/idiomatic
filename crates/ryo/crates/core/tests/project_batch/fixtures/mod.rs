@@ -27,12 +27,12 @@ mod authorized_seal {
 mod authorized_service {
  use crate::application::cross_file::{service::CrossFile, preparation::service::SealedBatch};
  use crate::application::run_coordination::settings::CrossingInput;
- use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+ use ryo_execution::inbound::use_cases::execution::types::ProjectPhase;
  use ryo_language::domain::symbols::types::Symbols;
- fn submit<T: ProjectRootExecution>(service: &CrossFile, crossing: &CrossingInput<'_>, batch: SealedBatch, stage: &T, symbols: &mut Symbols) {
+ fn submit<'phase>(service: &CrossFile, crossing: &CrossingInput<'_>, batch: SealedBatch, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
   let _ = service.evaluate_batch(crossing, batch, stage, symbols, |_| Ok(()));
  }
- const _: fn(&CrossFile, &CrossingInput<'_>, SealedBatch, &ryo_execution::inbound::use_cases::execution::types::ProjectPhase, &mut Symbols) = submit::<ryo_execution::inbound::use_cases::execution::types::ProjectPhase>;
+ const _: for<'phase> fn(&CrossFile, &CrossingInput<'_>, SealedBatch, &ProjectPhase<'phase>, &mut Symbols) = submit;
 }
 "#,
     },
@@ -87,12 +87,12 @@ mod retarget_sealed {
 mod raw_vector_submission {
  use crate::application::cross_file::service::CrossFile;
  use crate::application::run_coordination::settings::CrossingInput;
- use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+ use ryo_execution::inbound::use_cases::execution::types::ProjectPhase;
  use ryo_language::domain::symbols::types::Symbols;
- fn submit<T: ProjectRootExecution>(service: &CrossFile, crossing: &CrossingInput<'_>, stage: &T, symbols: &mut Symbols) {
+ fn submit<'phase>(service: &CrossFile, crossing: &CrossingInput<'_>, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
   let _ = service.evaluate_batch(crossing, Vec::new(), stage, symbols, |_| Ok(()));
  }
- const _: fn(&CrossFile, &CrossingInput<'_>, &ryo_execution::inbound::use_cases::execution::types::ProjectPhase, &mut Symbols) = submit::<ryo_execution::inbound::use_cases::execution::types::ProjectPhase>;
+ const _: for<'phase> fn(&CrossFile, &CrossingInput<'_>, &ProjectPhase<'phase>, &mut Symbols) = submit;
 }
 "#,
     },
@@ -101,12 +101,12 @@ mod raw_vector_submission {
         expected: None,
         client: r#"
 mod public_sdk_singleton {
- use ryo_execution::inbound::use_cases::execution::{interface::ProjectRootExecution, types::ProjectTask};
+ use ryo_execution::inbound::use_cases::execution::{interface::ProjectRootExecution, types::{ProjectPhase, ProjectTask}};
  use ryo_language::domain::symbols::types::Symbols;
- fn singleton<T: ProjectRootExecution>(stage: &T, task: ProjectTask<'_>, symbols: &mut Symbols) {
+ fn singleton<'phase>(stage: &ProjectPhase<'phase>, task: ProjectTask<'_>, symbols: &mut Symbols) {
   let _ = stage.evaluate(vec![task], symbols, |_| Ok::<(), std::convert::Infallible>(()));
  }
- const _: fn(&ryo_execution::inbound::use_cases::execution::types::ProjectPhase, ProjectTask<'_>, &mut Symbols) = singleton::<ryo_execution::inbound::use_cases::execution::types::ProjectPhase>;
+ const _: for<'phase> fn(&ProjectPhase<'phase>, ProjectTask<'_>, &mut Symbols) = singleton;
 }
 "#,
     },
