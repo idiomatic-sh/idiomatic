@@ -489,7 +489,14 @@ fn inventory_and_stat_observe_each_posix_execute_bit_without_changing_bytes_or_m
         else {
             panic!("file remains present");
         };
-        assert_eq!(observed.executable, ExecutablePermission::Posix(expected));
+        assert_eq!(
+            observed.executable,
+            if expected {
+                ExecutablePermission::PosixExecutable
+            } else {
+                ExecutablePermission::PosixNotExecutable
+            }
+        );
         assert_eq!(observed.size, original.size);
         assert_eq!(observed.modified, original.modified);
         assert_eq!(

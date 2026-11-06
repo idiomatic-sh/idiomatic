@@ -513,9 +513,11 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
-        Ok(ryo::linter::ExecutablePermission::Posix(
-            metadata.permissions().mode() & 0o111 != 0,
-        ))
+        Ok(if metadata.permissions().mode() & 0o111 != 0 {
+            ryo::linter::ExecutablePermission::PosixExecutable
+        } else {
+            ryo::linter::ExecutablePermission::PosixNotExecutable
+        })
     }
     #[cfg(not(unix))]
     {

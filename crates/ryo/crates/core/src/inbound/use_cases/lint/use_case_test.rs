@@ -1870,7 +1870,11 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
                     ("project.manifest.fake", "members = 1"),
                 ],
                 outside: vec![("../config.fake", "target = 1")],
-                outside_executable: ExecutablePermission::Posix(executable),
+                outside_executable: if executable {
+                    ExecutablePermission::PosixExecutable
+                } else {
+                    ExecutablePermission::PosixNotExecutable
+                },
                 store: Arc::clone(&store),
                 root: "root",
                 query: Arc::new(reading_the_project()),

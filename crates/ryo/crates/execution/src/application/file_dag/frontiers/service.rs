@@ -82,12 +82,13 @@ pub(crate) fn prepare(
                 continue;
             }
         }
-        if !program
+        if program
             .metadata()
             .get(rule.0)
             .and_then(|rule| rule.frontier_capture.get(place))
             .copied()
             .ok_or(OperatingError::NotRun)?
+            == ryo_values::domain::run_metadata::types::FrontierCapture::CrossFile
         {
             continue;
         }

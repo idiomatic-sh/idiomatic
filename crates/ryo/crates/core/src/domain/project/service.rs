@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};
-use ryo_values::domain::run_metadata::types::RuleRunMetadata;
+use ryo_values::domain::run_metadata::types::{ProjectRead, RuleRunMetadata};
 use ryo_values::domain::stores::types::MadeAgain;
 
 /// Whether the cross-file steps of a plan read what the project writes - the manifests and how the files link to one another.
@@ -26,7 +26,7 @@ pub(crate) fn reads_project(plan: &Plan) -> PlanReads {
 /// Whether the cross-file steps of any of the plans read what the project writes.
 #[must_use]
 pub(crate) fn reads_any(metadata: &[RuleRunMetadata]) -> PlanReads {
-    if metadata.iter().any(|rule| rule.reads_project) {
+    if metadata.iter().any(|rule| rule.reads_project == ProjectRead::Reads) {
         PlanReads::Reads
     } else {
         PlanReads::DoesNotRead
@@ -39,7 +39,7 @@ pub(crate) fn project_rules(metadata: &[RuleRunMetadata]) -> Vec<PlacedRule> {
     metadata
         .iter()
         .enumerate()
-        .filter(|(_, rule)| rule.reads_project)
+        .filter(|(_, rule)| rule.reads_project == ProjectRead::Reads)
         .map(|(place, _)| PlacedRule(u32::try_from(place).unwrap_or(u32::MAX)))
         .collect()
 }

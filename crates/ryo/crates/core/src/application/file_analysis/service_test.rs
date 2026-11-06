@@ -176,7 +176,11 @@ fn replay_under_capture(
     let ids = [RuleId("capture".into())];
     let mut metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     for rule in &mut metadata {
-        rule.frontier_capture.fill(captured);
+        rule.frontier_capture.fill(if captured {
+            ryo_values::domain::run_metadata::types::FrontierCapture::Captured
+        } else {
+            ryo_values::domain::run_metadata::types::FrontierCapture::CrossFile
+        });
     }
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let placed = PlacedScopes {

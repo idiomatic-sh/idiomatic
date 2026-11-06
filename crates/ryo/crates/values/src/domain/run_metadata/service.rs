@@ -1,5 +1,8 @@
 //! Extract the few non-executable rule facts once while plans are transient.
-use super::types::{FeatureSlot, FeatureSource, RuleRunMetadata, StepMetadata};
+use super::types::{
+    CrossSteps, FeatureSlot, FeatureSource, FrontierCapture, ProjectRead, RuleRunMetadata,
+    StepMetadata,
+};
 use crate::domain::plans::service::{comparisons_of, kind_of};
 use crate::domain::{
     plan_parts::types::Input,
@@ -17,14 +20,27 @@ pub fn from_plans(plans: &[Plan]) -> Vec<RuleRunMetadata> {
 
 fn from_plan(plan: &Plan) -> RuleRunMetadata {
     RuleRunMetadata {
-        reads_project: plan.frontier.iter().any(|input| {
+        reads_project: if plan.frontier.iter().any(|input| {
             matches!(input, Input::Relation(relation) if provenance_of(*relation) == Provenance::Manifests)
-        }),
-        has_cross_steps: plan.steps.iter().any(|step| step.scope == StepScope::CrossFile),
+        }) {
+            ProjectRead::Reads
+        } else {
+            ProjectRead::Ignores
+        },
+        has_cross_steps: if plan.steps.iter().any(|step| step.scope == StepScope::CrossFile) {
+            CrossSteps::Present
+        } else {
+            CrossSteps::Absent
+        },
         frontier_capture: plan.frontier.iter().map(|input| {
-            !matches!(input, Input::BoundObservation(id) if plan.observation_inputs
+            if matches!(input, Input::BoundObservation(id) if plan.observation_inputs
                 .get(id.0 as usize)
                 .is_some_and(|schema| schema.scope == StepScope::CrossFile))
+            {
+                FrontierCapture::CrossFile
+            } else {
+                FrontierCapture::Captured
+            }
         }).collect(),
         steps: plan.steps.iter().map(|step| {
             let mut features = vec![FeatureSlot {

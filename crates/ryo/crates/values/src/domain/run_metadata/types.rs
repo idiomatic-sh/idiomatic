@@ -23,12 +23,39 @@ pub struct StepMetadata {
     pub features: Box<[FeatureSlot]>,
 }
 
+/// Whether a rule reads what the project writes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectRead {
+    /// Its frontier holds a manifest relation.
+    Reads,
+    /// Its frontier holds none.
+    Ignores,
+}
+
+/// Whether a rule has steps that run across files.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CrossSteps {
+    /// At least one step runs across files.
+    Present,
+    /// Every step runs within one file.
+    Absent,
+}
+
+/// How a frontier slot of a rule is fed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrontierCapture {
+    /// A per-file captured frontier.
+    Captured,
+    /// A cross-file observation input.
+    CrossFile,
+}
+
 /// The small facts needed beyond the executable program, without a retained Plan.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleRunMetadata {
-    pub reads_project: bool,
-    pub has_cross_steps: bool,
-    /// A false slot is a cross-file observation input, never a per-file captured frontier.
-    pub frontier_capture: Box<[bool]>,
+    pub reads_project: ProjectRead,
+    pub has_cross_steps: CrossSteps,
+    /// A `CrossFile` slot is a cross-file observation input, never a per-file captured frontier.
+    pub frontier_capture: Box<[FrontierCapture]>,
     pub steps: Box<[StepMetadata]>,
 }

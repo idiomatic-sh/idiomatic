@@ -1,5 +1,5 @@
 //! Exercise the owning Values codec directly, including compact backing and refusal rollback.
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_words::{service, types};
 use crate::domain::{
     rows::types::{RowCount, Table},
@@ -505,7 +505,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("incomplete_input_refuses_without_publishing_places"),
         word: Word::Refuses,
         input: || incomplete_input,
-        expect: Expect::Refusal(|error| selects(matches!(error, Failure::Incomplete))),
+        expect: Expect::Refusal(|error| crate::selects!(matches!(error, Failure::Incomplete))),
     },
 ];
 fn subject(check: Input) -> Result<Value, Failure> {

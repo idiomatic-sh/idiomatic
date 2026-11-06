@@ -1,6 +1,6 @@
 //! Metadata preserves declared phases, bound-input capture policy and every feature's real input ordinal.
 use super::service::from_plans;
-use super::types::FeatureSource;
+use super::types::{CrossSteps, FeatureSource, FrontierCapture, ProjectRead};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     observations::types::{BoundObservationInput, ObservationBindingId, ObservationBindingName},
@@ -356,15 +356,18 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let mut output = Vec::new();
     for rule in extracted {
         output.push(Metadata::Rule {
-            reads_project: rule.reads_project,
-            has_cross_steps: rule.has_cross_steps,
+            reads_project: rule.reads_project == ProjectRead::Reads,
+            has_cross_steps: rule.has_cross_steps == CrossSteps::Present,
         });
         output.extend(
             rule.frontier_capture
                 .iter()
                 .copied()
                 .enumerate()
-                .map(|(input, retained)| Metadata::Capture { input, retained }),
+                .map(|(input, retained)| Metadata::Capture {
+                    input,
+                    retained: retained == FrontierCapture::Captured,
+                }),
         );
         for step in rule.steps {
             output.push(Metadata::Step {

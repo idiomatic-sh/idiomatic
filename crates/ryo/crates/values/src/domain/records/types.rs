@@ -357,12 +357,16 @@ pub struct FrontierReadiness {
     /// Exact number of logical roots represented.
     pub slots: crate::domain::observations::types::ObservationReadinessCount,
     /// Successful production bits, including actual complete zero-row outputs.
-    pub complete: Vec<u64>,
+    pub complete: ReadinessBits,
     /// Explicit not-applicable bits; empty storage means no skips, never completion.
-    pub skipped: Vec<u64>,
+    pub skipped: ReadinessBits,
     /// Only explicit failures need owned detail. An unset slot is Unknown, never Complete.
     pub refusals: Vec<FrontierRefusal>,
 }
+/// Slot bits of one readiness map, 64 slots to a word.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ReadinessBits(pub Vec<u64>);
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// One explicitly unavailable root; ordinary pending slots need no owned reason.
 pub struct FrontierRefusal {

@@ -126,13 +126,13 @@ fn entry(size: u64, modified: u64) -> CorpusEntry {
 }
 
 fn executable_changes_invalidate() -> bool {
-    use crate::domain::files::types::ExecutablePermission::{Posix, Unknown, Unsupported};
+    use crate::domain::files::types::ExecutablePermission::{PosixExecutable, PosixNotExecutable, Unknown, Unsupported};
     let mut held = true;
     for (before, after) in [
-        (Posix(false), Posix(true)),
-        (Posix(true), Posix(false)),
-        (Unknown, Posix(false)),
-        (Posix(false), Unknown),
+        (PosixNotExecutable, PosixExecutable),
+        (PosixExecutable, PosixNotExecutable),
+        (Unknown, PosixNotExecutable),
+        (PosixNotExecutable, Unknown),
         (Unsupported, Unknown),
     ] {
         let mut kept = record(7);

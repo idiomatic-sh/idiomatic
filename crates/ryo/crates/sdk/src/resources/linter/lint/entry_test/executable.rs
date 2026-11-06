@@ -49,7 +49,11 @@ fn unchanged_bytes_and_given_timestamp_do_not_reuse_old_mode_findings() {
     let shared = linter(Cache::At(cache.path().join("store")));
     let query = "let files = select path as file from \"filesystem.executable\" where executable = \"true\"; emit files subject file key(file);";
     for executable in [false, true, true, false, false, true] {
-        let current = request(root.path(), ExecutablePermission::Posix(executable), query);
+        let current = request(root.path(), if executable {
+                ExecutablePermission::PosixExecutable
+            } else {
+                ExecutablePermission::PosixNotExecutable
+            }, query);
         let retained = lint_with(&shared, current.clone()).unwrap();
         let fresh = lint_with(&linter(Cache::None), current).unwrap();
         assert_eq!(retained.findings, fresh.findings);
@@ -72,10 +76,10 @@ fn unavailable_permission_cannot_be_used_as_false_or_as_proven_absence() {
     let unknown = run(ExecutablePermission::Unknown);
     assert!(unknown.findings.is_empty());
     assert!(!unknown.unknowns.is_empty());
-    let known_false = run(ExecutablePermission::Posix(false));
+    let known_false = run(ExecutablePermission::PosixNotExecutable);
     assert_eq!(known_false.findings.len(), 1);
     assert!(known_false.unknowns.is_empty());
-    let known_true = run(ExecutablePermission::Posix(true));
+    let known_true = run(ExecutablePermission::PosixExecutable);
     assert!(known_true.findings.is_empty());
     assert!(known_true.unknowns.is_empty());
     let unsupported = run(ExecutablePermission::Unsupported);

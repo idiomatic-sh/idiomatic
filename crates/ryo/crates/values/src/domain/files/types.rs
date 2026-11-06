@@ -13,8 +13,10 @@ pub enum ExecutablePermission {
     Unknown,
     /// The input's permission model has no POSIX executable-bit meaning.
     Unsupported,
+    /// The observed mode has no POSIX execute bit (`0o111`).
+    PosixNotExecutable,
     /// The observed mode intersects POSIX execute bits (`0o111`).
-    Posix(bool),
+    PosixExecutable,
 }
 
 /// One file of the repository, found but not read.

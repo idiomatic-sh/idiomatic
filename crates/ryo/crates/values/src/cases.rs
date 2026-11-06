@@ -25,14 +25,16 @@ pub enum Selection {
     Differs,
 }
 
-/// Whether an error is the one a row picks, as a selector answers it.
-#[must_use]
-pub const fn selects(matched: bool) -> Selection {
-    if matched {
-        Selection::Matches
-    } else {
-        Selection::Differs
-    }
+/// Whether an error is the one a row picks, as a selector answers it: `selects!(matches!(error, Variant { .. }))`.
+#[macro_export]
+macro_rules! selects {
+    ($matched:expr) => {
+        if $matched {
+            $crate::cases::Selection::Matches
+        } else {
+            $crate::cases::Selection::Differs
+        }
+    };
 }
 
 /// What a row expects: a value, an error variant, or an error picked by a selector.

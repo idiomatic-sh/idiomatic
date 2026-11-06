@@ -1087,7 +1087,7 @@ impl FileAnalysis {
                 .get(rule.0)
                 .and_then(|rule| rule.frontier_capture.get(input))
                 .copied()
-                == Some(true)
+                == Some(ryo_values::domain::run_metadata::types::FrontierCapture::Captured)
             && setting.first_bucket.get(rule.0).copied().map(|first| {
                 ryo_values::domain::stored_facts::service::frontier_bucket(
                     first,
@@ -1274,10 +1274,11 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         if asked.executable == EngineRows::Asked {
             match executable {
-                ExecutablePermission::Posix(value) => {
+                posix @ (ExecutablePermission::PosixExecutable
+                | ExecutablePermission::PosixNotExecutable) => {
                     worker.facts.columns_mut()?.write(FilesystemExecutableRow {
                         path: number,
-                        executable: if value {
+                        executable: if posix == ExecutablePermission::PosixExecutable {
                             ryo_relations::domain::relations::types::Flag::Raised
                         } else {
                             ryo_relations::domain::relations::types::Flag::Lowered

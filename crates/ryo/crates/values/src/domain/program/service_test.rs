@@ -46,7 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::RepeatedModule,
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(matches!(error, ProgramError::DuplicateSourceId { .. }))
+            crate::selects!(matches!(error, ProgramError::DuplicateSourceId { .. }))
         }),
     },
 ];
