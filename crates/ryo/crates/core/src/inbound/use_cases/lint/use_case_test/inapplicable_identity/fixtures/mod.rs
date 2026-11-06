@@ -147,7 +147,7 @@ impl QueryLanguagePort for Queries {
 /// What one lint answered.
 #[derive(Debug, PartialEq)]
 pub(super) struct Observed {
-    pub rows: Vec<row_sink::types::Row>,
+    pub rows: Vec<row_sink::types::KeptRow>,
     pub undecided: String,
     pub skipped: String,
     pub parses: usize,
