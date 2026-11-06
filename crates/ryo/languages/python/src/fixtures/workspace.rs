@@ -297,6 +297,8 @@ pub(super) fn expected() -> ManifestExpected {
                 path: file("app.py"),
                 package: file("pyproject.toml"),
             },
+        ])
+        .rows(&[
             ProjectNamespaceMembershipExpectedRow {
                 file: file("app.py"),
                 root: name("lib_one"),
@@ -318,6 +320,8 @@ pub(super) fn expected() -> ManifestExpected {
                 membership: name("unknown"),
                 kind: name("unknown"),
             },
+        ])
+        .rows(&[
             FilePackageExpectedRow {
                 path: file("packages/lib.two/pyproject.toml"),
                 package: file("packages/lib.two/pyproject.toml"),
