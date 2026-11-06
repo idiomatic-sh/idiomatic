@@ -106,10 +106,6 @@ pub(crate) struct Counted {
     pub projects: usize,
 }
 
-/// Whether the lint runs the steps that read only the tree as operators, which the bench and the equivalence test set.
-pub(crate) static UNLOWERED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
 /// Lints `root` with `rules`, keeping what it found in `lint_store`, and counts the files the language read.
 ///
 /// # Errors
@@ -225,11 +221,6 @@ pub(crate) fn lint_observing<T>(
             Arc::clone(&analysis_digest),
             lint_store,
         )
-    };
-    let use_case = if UNLOWERED.load(std::sync::atomic::Ordering::Relaxed) {
-        use_case.unlowered()
-    } else {
-        use_case
     };
     let request = LintRequest {
         source_language: None,

@@ -1,17 +1,15 @@
 //! The steps of a plan that read only the tree of a file run over the positions of its elements (the `fragment` concept of the
-//! core), and not as operators: every rule gives the rows it gave as operators, over ruff.
+//! core), the only way they run: every rule gives the same rows on every run, over ruff.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake;
 
 use crate::counting;
 
-/// The rows of every live rule over ruff, with the lowering on or off.
-fn rows_of(unlowered: bool) -> BTreeMap<String, Vec<Vec<String>>> {
-    counting::UNLOWERED.store(unlowered, Ordering::Relaxed);
+/// The rows of every live rule over ruff.
+fn rows_of() -> BTreeMap<String, Vec<Vec<String>>> {
     let rules: Vec<_> = counting::runnable()
         .into_iter()
         .map(|(_, rule)| rule)
@@ -21,7 +19,6 @@ fn rows_of(unlowered: bool) -> BTreeMap<String, Vec<Vec<String>>> {
         rules,
         Arc::new(ryo_core::outbound::lint_store::factory::memory()),
     );
-    counting::UNLOWERED.store(false, Ordering::Relaxed);
     let mut by_rule: BTreeMap<String, Vec<Vec<String>>> = BTreeMap::new();
     for row in run.expect("the rules run").rows {
         by_rule
@@ -36,29 +33,29 @@ fn rows_of(unlowered: bool) -> BTreeMap<String, Vec<Vec<String>>> {
 }
 
 #[test]
-fn every_rule_gives_the_rows_the_operators_give_when_its_tree_steps_are_lowered() {
+fn every_rule_gives_the_same_rows_on_every_run_when_its_tree_steps_are_lowered() {
     let _alone = crate::alone();
-    let operators = rows_of(true);
-    let lowered = rows_of(false);
-    let differing: Vec<&String> = operators
+    let first = rows_of();
+    let second = rows_of();
+    let differing: Vec<&String> = first
         .keys()
-        .chain(lowered.keys())
-        .filter(|rule| operators.get(*rule) != lowered.get(*rule))
+        .chain(second.keys())
+        .filter(|rule| first.get(*rule) != second.get(*rule))
         .collect();
     assert!(
         differing.is_empty(),
-        "the lowering changes the rows of {differing:?}"
+        "the rows of {differing:?} change between two runs"
     );
     assert!(
-        operators.values().map(Vec::len).sum::<usize>() > 10_000,
+        first.values().map(Vec::len).sum::<usize>() > 10_000,
         "the rules give the rows of ruff"
     );
 }
 
-/// Native DOM order, scalar values and missing locations must survive both execution paths.
+/// Native DOM order, scalar values and missing locations must survive every run.
 #[cfg(feature = "html")]
 #[test]
-fn html_dom_and_absent_locations_match_ordinary_operators() -> Result<(), Box<dyn std::error::Error>>
+fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn std::error::Error>>
 {
     let _alone = crate::alone();
     let directory = tempfile::tempdir()?;
@@ -77,8 +74,7 @@ fn html_dom_and_absent_locations_match_ordinary_operators() -> Result<(), Box<dy
         ),
     ];
     let mut answers = Vec::new();
-    for ordinary in [true, false] {
-        crate::base::UNLOWERED.store(ordinary, Ordering::Relaxed);
+    for _run in 0..2 {
         let store = tempfile::tempdir()?;
         let html = ryo_html::linked();
         let result = crate::base::lint_report_with_languages(
@@ -97,7 +93,6 @@ fn html_dom_and_absent_locations_match_ordinary_operators() -> Result<(), Box<dy
                 html,
             )],
         );
-        crate::base::UNLOWERED.store(false, Ordering::Relaxed);
         let (mut rows, report) = result?;
         assert!(report.unread.is_empty(), "HTML is actually read");
         rows.sort();

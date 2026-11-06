@@ -63,10 +63,6 @@ mod store;
 
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
-    if arguments.iter().any(|each| each == "--unlowered") {
-        base::UNLOWERED.store(true, std::sync::atomic::Ordering::Relaxed);
-        counting::UNLOWERED.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
     if let Some(at) = arguments
         .iter()
         .position(|each| each == "--measure-cache-phase")
