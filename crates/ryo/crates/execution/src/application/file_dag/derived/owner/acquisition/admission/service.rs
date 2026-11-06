@@ -269,7 +269,7 @@ impl DerivedOwner {
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,
-        permit: &crate::application::file_dag::program::admission::KernelPermit<'_>,
+        permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
     ) -> Result<AdmittedViewInputs<'static>, OperatingError> {
         permit.validate_derived_owner(owner)?;
         if !std::ptr::eq(self, &owner.derived) || plan.kind != DerivedKind::RawKeyOrder {

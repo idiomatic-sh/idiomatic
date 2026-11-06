@@ -119,7 +119,7 @@ impl DerivedOwner {
         &self,
         owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         prepared: Option<Arc<DerivedContract>>,
-        permit: &crate::application::file_dag::program::admission::KernelPermit<'_>,
+        permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
     ) -> Result<impl crate::domain::operator::contract::derived::ScopedDerived, OperatingError>
     {
         if !std::ptr::eq(self, &owner.derived)

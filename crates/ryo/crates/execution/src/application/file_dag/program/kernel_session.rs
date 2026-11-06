@@ -1,5 +1,5 @@
 //! Invocation-scoped resource acquisition followed by the mandatory semantic port.
-use crate::application::file_dag::program::runtime::service::InvocationFailure;
+use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::KernelInput;

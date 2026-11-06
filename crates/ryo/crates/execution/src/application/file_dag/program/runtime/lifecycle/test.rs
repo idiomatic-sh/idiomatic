@@ -414,5 +414,8 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
             ));
         }
     }
-    execution.finish().unwrap();
+    Rc::try_unwrap(execution)
+        .unwrap_or_else(|_| panic!("single production owner"))
+        .finish()
+        .unwrap();
 }
