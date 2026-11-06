@@ -1,7 +1,7 @@
 //! The witness that implements every method of each entry trait.
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
-        ExecutionRequest, FileExecution, InvocationStateCounts, WalkCounts, ObservationExecution, ProjectRootExecution,
+        ExecutionRequest, ExecutionUseCase, FileExecution, InvocationStateCounts, WalkCounts, ObservationExecution, ProjectRootExecution,
         ProjectStage, ReadinessCounts,
     },
     types::*,
@@ -24,6 +24,9 @@ macro_rules! methods {
     };
 }
 methods!(
+    UseCasePrepare,
+    UseCasePrepareCompiled,
+    UseCaseBegin,
     RequestObservations,
     RequestPrepareFrontiers,
     RequestFinish,
@@ -53,13 +56,31 @@ methods!(
 /// Its methods never run: implementing every method of each entry trait is what the compiler checks.
 pub(super) struct Witness;
 pub(super) fn implements_every_entry_trait<
-    W: ExecutionRequest + FileExecution + ProjectRootExecution + ProjectStage + ObservationExecution,
+    W: ExecutionUseCase + ExecutionRequest + FileExecution + ProjectRootExecution + ProjectStage + ObservationExecution,
 >(
     _: &W,
 ) {
 }
 pub(super) fn witness(method: Method) -> ! {
     unreachable!("{method:?} is a compile-time witness only")
+}
+impl ExecutionUseCase for Witness {
+    fn prepare(&self, _: PreparedRequest) -> Result<PreparedExecutionProgram, OperatingError> {
+        witness(Method::UseCasePrepare)
+    }
+    fn prepare_compiled(
+        &self,
+        _: CompiledQueries,
+        _: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
+        _: Vec<ryo_values::domain::stored_facts::types::Digest>,
+        _: Vec<ryo_values::domain::hosted::types::HostRelation>,
+        _: ObservationIdentity,
+    ) -> Result<PreparedExecutionProgram, OperatingError> {
+        witness(Method::UseCasePrepareCompiled)
+    }
+    fn begin(&self, _: &PreparedExecutionProgram, _: &[CorpusInput]) -> RequestExecution {
+        witness(Method::UseCaseBegin)
+    }
 }
 impl ExecutionRequest for Witness {
     fn observations<'a>(

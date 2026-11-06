@@ -27,6 +27,11 @@ pub(super) enum Control {
 }
 pub(super) fn control(method: Method) -> Control {
     match method {
+        Method::UseCasePrepare => Control::Refuses(observations_need_a_named_program),
+        Method::UseCaseBegin => Control::Refuses(file_session_undeclared_rule),
+        Method::UseCasePrepareCompiled => {
+            Control::AcceptsNoRoot("declares the rules of a request; no root exists before preparation")
+        }
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
