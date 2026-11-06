@@ -8,6 +8,7 @@ use crate::application::file_dag::program::facade_runtime::types::ProjectFrontie
 use crate::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
+
 /// Which files a rule has no frame for is that rule's own evidence: two rules of one project phase
 /// share its one execution although their required partitions differ in it.
 #[test]
@@ -37,7 +38,8 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
     let source_root = prepared.program().rules()[0].frontier[0].clone();
     let partials = Partials::default();
     let mut symbols = Symbols::default();
-    for (rule, required) in [required(&[FileId(0)]), required(&[])].into_iter().enumerate() {
+    for rule in 0..2 {
+        let required = required(&[FileId(0)][..1 - rule]);
         let table = Table {
             kinds: kinds(Relation::LanguageTarget).to_vec(),
             cells: vec![
